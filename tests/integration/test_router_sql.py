@@ -26,6 +26,7 @@ pytestmark = pytest.mark.integration
 # deliberate 4xx -- never a 500, which is what invalid SQL produces.
 READ_ENDPOINTS = [
     ('/api/users', 200),
+    ('/api/import-conflicts', 200),
     # The LMS listen reconcile's status is process state; its dry run needs an lms.db and is
     # exercised by ScrobbleReconcileSqlTest below and tests/integration/test_scrobble_reconcile.py.
     ('/api/scrobble/reconcile/lms/status', 200),

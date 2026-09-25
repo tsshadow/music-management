@@ -1,12 +1,14 @@
 <script>
   import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
-  import { RefreshCw, Check, X, Tags } from '@lucide/svelte';
+  import { RefreshCw, Check, X, Tags, FolderX } from '@lucide/svelte';
   import { groupByLabel } from '../labelProposals.js';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
 
   let proposals = $state([]);
+  /** Folder pairs the importer left in place because the name it wanted was taken (bug 091). */
+  let conflicts = $state([]);
   let chosen = $state({});
   let labelOptions = $state([]);
   let loading = $state(false);
@@ -33,6 +35,20 @@
       onError(e.message);
     } finally {
       loading = false;
+    }
+    await loadConflicts();
+  }
+
+  /**
+   * The standing folder conflicts. Read-only and secondary to the proposals, so a failure
+   * here leaves the list empty instead of reporting an error over the proposals.
+   */
+  async function loadConflicts() {
+    try {
+      const res = await fetch(`${API_BASE}/api/import-conflicts`, { headers: getHeaders() });
+      conflicts = res.ok ? await res.json() : [];
+    } catch {
+      conflicts = [];
     }
   }
 
@@ -224,4 +240,41 @@
       {/each}
     </datalist>
   {/if}
+  <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 overflow-hidden">
+    <div class="p-6 bg-black/20">
+      <h3 class="text-xl font-bold flex items-center gap-2">
+        <FolderX class="text-brand" size={20} /> {$t('management.labelProposals.conflicts')}
+        <span class="text-muma-spotify-text text-sm font-normal tabular-nums">({conflicts.length})</span>
+      </h3>
+      <p class="text-muma-spotify-text text-sm mt-2 max-w-3xl">
+        {$t('management.labelProposals.conflictsDescription')}
+      </p>
+    </div>
+    {#if conflicts.length === 0}
+      <p class="p-6 text-muma-spotify-text text-sm">{$t('management.labelProposals.conflictsEmpty')}</p>
+    {:else}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
+              <th class="p-4">{$t('management.labelProposals.conflictTarget')}</th>
+              <th class="p-4">{$t('management.labelProposals.conflictSource')}</th>
+              <th class="p-4">{$t('management.labelProposals.conflictStep')}</th>
+              <th class="p-4">{$t('management.labelProposals.conflictSince')}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-muma-spotify-panel/30">
+            {#each conflicts as conflict (conflict.source + conflict.target)}
+              <tr class="hover:bg-white/5 transition-colors">
+                <td class="p-4 font-medium break-all">{conflict.target}</td>
+                <td class="p-4 break-all">{conflict.source}</td>
+                <td class="p-4 text-muma-spotify-text text-xs">{conflict.step}</td>
+                <td class="p-4 text-muma-spotify-text text-xs whitespace-nowrap tabular-nums">{conflict.first_seen}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </div>
 </section>

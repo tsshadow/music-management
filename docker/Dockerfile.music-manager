@@ -63,6 +63,10 @@ COPY services/common/ /app/services/common/
 COPY services/tagger/ /app/services/tagger/
 COPY services/scanner/ /app/services/scanner/
 COPY services/downloader/ /app/services/downloader/
+# services/tagger/todo_label_repair.py (bug report 087) reuses the importer's label
+# resolver; without this the admin endpoint answered 500 with ModuleNotFoundError
+# (bug report 092). tests/ci/test_music_manager_image_packages.py pins the list.
+COPY services/importer/ /app/services/importer/
 COPY services/music_manager/ /app/services/music_manager/
 
 # NOTE: intentionally NOT copying a .env file into the image.

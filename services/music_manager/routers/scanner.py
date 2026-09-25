@@ -305,6 +305,11 @@ class ScannerManager:
             for name in artist_names:
                 if not name:
                     continue
+                # Recording the name is not approving it. A name new to the library enters
+                # the artist curation queue as pending: the tagger's artist rules match
+                # only approved or grandfathered names (TrustedArtistHelper), so a name a
+                # rule guessed out of a title cannot confirm itself on the next file. The
+                # file keeps its tag and the track is linked to the name as before.
                 cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
                 cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
                 artist_ids.append(cursor.fetchone()['id'])

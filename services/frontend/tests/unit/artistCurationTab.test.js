@@ -107,6 +107,22 @@ describe("ArtistCurationTab", () => {
     expect(screen.getByText("Laatste analyse: 2026-09-16 04:00:00")).toBeTruthy();
   });
 
+  it("marks a name the tagger does not trust yet as new", async () => {
+    globalThis.fetch = mockApi({
+      rows: [
+        { ...BOAZ, pending: true },
+        { ...PREMIERE, pending: false },
+      ],
+    });
+    render(ArtistCurationTab, props());
+
+    await waitFor(() => expect(screen.getByText("Premiere")).toBeTruthy());
+    const pendingRow = screen.getByText("Boaz Van De Beatz").closest("tr");
+    expect(within(pendingRow).getByText("Nieuw")).toBeTruthy();
+    const trustedRow = screen.getByText("Premiere").closest("tr");
+    expect(within(trustedRow).queryByText("Nieuw")).toBeNull();
+  });
+
   it("asks for the undecided names first, most tracks first", async () => {
     render(ArtistCurationTab, props());
 

@@ -45,6 +45,9 @@ The system is split into specialized services, each handling a specific part of 
 - **Rules**: A flexible rule engine (`services/tagger/Song/rules/`) that handles:
     - Genre inference based on artists or subgenres.
     - Artist normalization (casing, splitting featured artists).
+    - Artist rules match titles only against *trusted* names (`TrustedArtistHelper`): approved in
+      artist curation, or already in the library before the queue was wired up. A name the scanner
+      records later is pending until decided, so a guessed artist cannot confirm itself.
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
 - **Background Task**: Managed via a background thread in `music-manager`.

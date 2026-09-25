@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `insert_lms_only` (bug report 075).
 
 ### Fixed
+- **The release pipeline's secret scan no longer times out and skips the deploy.** Without an
+  explicit range gitleaks scanned every ref in the runner's clone and ran past 30 minutes; branch
+  pipelines now scan the history reachable from `HEAD` (about 20 s). `SECRET_SCAN_ALL_REFS=1`
+  still scans every ref.
 - **Listens from the app went missing, and LMS and MuMa disagreed about when they happened.** Bug
   report 071: of four listens LMS recorded on 2026-09-25, MuMa had one. The app's side is fixed in
   MuMa Mobile (a queue on the phone that keeps every listen until LMS confirms it); it now sends the

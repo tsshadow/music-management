@@ -64,6 +64,18 @@ SCOPE=(--source=/repo)
 if [ -n "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
     echo "--- Merge request: scanning ${CI_MERGE_REQUEST_DIFF_BASE_SHA}..HEAD only ---"
     SCOPE+=(--log-opts="${CI_MERGE_REQUEST_DIFF_BASE_SHA}..HEAD")
+elif [ "${SECRET_SCAN_ALL_REFS:-0}" = "1" ]; then
+    echo "--- SECRET_SCAN_ALL_REFS=1: scanning every ref in the clone ---"
+else
+    # Without --log-opts gitleaks v8 runs `git log --all`: every ref in the clone,
+    # including every remote branch the runner has ever fetched. On 2026-09-25 that
+    # took the release/0.74.0 scan past the job's 30-minute timeout twice and skipped
+    # muma:deploy. The history reachable from HEAD is what a branch pipeline is about
+    # (on develop, master and a release branch that is the whole branch) and it scans
+    # in about 20 s. Every other branch reached here through a merge request, whose
+    # pipeline scanned its diff. SECRET_SCAN_ALL_REFS=1 restores the all-refs audit.
+    echo "--- Branch pipeline: scanning the history reachable from HEAD ---"
+    SCOPE+=(--log-opts="HEAD")
 fi
 
 echo "--- Scanning the git history for committed secrets (${IMAGE}) ---"

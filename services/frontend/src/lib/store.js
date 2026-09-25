@@ -1,4 +1,4 @@
-import { writable, derived, get } from "svelte/store";
+import { writable, derived, get, readable } from "svelte/store";
 import { locale, setLocaleFromAccount, resetLocaleToBrowser, currentLocale } from "./i18n/index.js";
 import {
   EQ_FREQUENCIES,
@@ -329,6 +329,25 @@ export const sidebarDrawerOpen = writable(false);
 export const searchResultsOpen = writable(false);
 
 export const isMobile = writable(false);
+
+/**
+ * True from Tailwind's `md` breakpoint (48rem) up: the width at which `App.svelte`'s grid shows
+ * the sidebar and the desktop player bar, and every `md:hidden` / `hidden md:flex` class flips.
+ *
+ * `isMobile` is a different question -- it is also true on a touch screen of any width
+ * (`pointer: coarse`), so a tablet in landscape is "mobile" while its CSS is already the desktop
+ * layout. A component that forks in JavaScript *and* carries a `md:` class on each branch must
+ * agree with the CSS, or it renders the branch the CSS hides (bug report 090: the tablet showed
+ * neither the search box nor the profile button). Read this store for that fork.
+ */
+export const isWideLayout = readable(false, (set) => {
+  if (typeof window === "undefined" || !window.matchMedia) return undefined;
+  const query = window.matchMedia("(min-width: 48rem)");
+  set(query.matches);
+  const onChange = (event) => set(event.matches);
+  query.addEventListener?.("change", onChange);
+  return () => query.removeEventListener?.("change", onChange);
+});
 export const syncMode = writable("off"); // 'off', 'host', 'follower-jam', 'follower-radio'
 persist("lms_sync_mode", syncMode);
 

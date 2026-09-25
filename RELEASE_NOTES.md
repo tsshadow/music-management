@@ -11,6 +11,9 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.74.3 (2026-09-25)
+
+- On a tablet in landscape the search box and the profile button are back in the top bar.
 ## Global Version 0.74.2 (2026-09-25)
 
 - New SoundCloud downloads show their full release date again instead of only the year.

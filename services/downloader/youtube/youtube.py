@@ -21,6 +21,7 @@ from services.downloader.deep_sweep import (
     take_snapshot,
     wanted_tracks,
 )
+from services.downloader.metadata_date import IsoUploadDatePP
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.redownload import ReplaceExistingPP, redownload_opts, staged_opts
 from services.downloader.sweep import SweepPolicy
@@ -330,6 +331,8 @@ class YoutubeDownloader:
         """
         ydl = YoutubeDL(ydl_opts)
         ydl.add_post_processor(DropCategoryGenrePP(), when='pre_process')
+        # A delimited date survives any ID3v2.3 rewrite of the file; see metadata_date.
+        ydl.add_post_processor(IsoUploadDatePP(), when='pre_process')
         if self._replace_target:
             # After yt-dlp's own post-processors, before the tagger's: the file is moved
             # over the one it replaces, then tagged and announced at the library path.

@@ -37,7 +37,7 @@ from services.tagger.constants import (
     OPUSTags,
     WAVTags,
 )
-from services.tagger.Song.ReleaseDate import format_release_date, preferred_release_date
+from services.tagger.Song.ReleaseDate import completed_date, format_release_date, preferred_release_date
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
@@ -73,6 +73,12 @@ class BaseSong:
     # -- the scanner's ReadonlySong -- set this, and then merely opening a file changes
     # nothing on disk.
     readonly = False
+
+    # Whether a year-only DATE is completed from the info dict's `upload_date` of the same
+    # year. Only the SoundCloud path wrote a full date that an ID3v2.3 rewrite cut to the
+    # year (bug report 088); a year-only DATE from any other source is what that source
+    # stated and stays as it is.
+    completes_year_only_date = False
 
     def __init__(self, path, extra_info=None):
         """
@@ -335,6 +341,12 @@ class BaseSong:
             self.tag_collection.get_item(GENRE).add(genre)
         if info.get('upload_date') and (not self.tag_collection.get_item_as_string(DATE)):
             self.tag_collection.set_item(DATE, info.get('upload_date'))
+        elif self.completes_year_only_date:
+            # A year-only DATE is what an ID3v2.3 rewrite leaves of the full date the
+            # downloader wrote (bug report 088); the stored info dict still has the rest.
+            full = completed_date(self.tag_collection.get_item_as_string(DATE), info.get('upload_date'))
+            if full:
+                self.tag_collection.set_item(DATE, full)
 
     def album(self):
         return self.tag_collection.get_item_as_string(ALBUM)

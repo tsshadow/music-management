@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from services.music_manager import rbac
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.identity import username_taken
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['user-requests'])
@@ -253,6 +254,14 @@ def approve_user_request(
             else:
                 default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)
                 username = req.get('email') or f"google-{req['google_subject'][:12]}"
+                # Account names are case-insensitive (services/music_manager/identity.py): an
+                # e-mail address differing only in case from an existing account's name is
+                # that account's name, so link to it instead of creating a second one.
+                if username_taken(cursor, username):
+                    raise HTTPException(
+                        status_code=409,
+                        detail='An account with this name already exists; link the request to that account instead',
+                    )
                 display_name = body.display_name or req.get('display_name') or username
                 api_key = secrets.token_hex(32)
                 cursor.execute(

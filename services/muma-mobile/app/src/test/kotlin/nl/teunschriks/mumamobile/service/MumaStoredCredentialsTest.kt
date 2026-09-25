@@ -50,6 +50,26 @@ class MumaStoredCredentialsTest {
         MumaStoredCredentials.resolve(null, 0, "stored-key", 0) `should be equal to` null
     }
 
+    // Bug report 074: the stored name signs every Subsonic call, and a case variant of the
+    // account name made LMS create a second user for it.
+    @Test
+    fun `a case variant of the stored name is replaced by the account's own spelling`() {
+        MumaStoredCredentials.canonicalUserName("Teun", "user") `should be equal to` "user"
+        MumaStoredCredentials.canonicalUserName("TEUN", "user") `should be equal to` "user"
+    }
+
+    @Test
+    fun `nothing changes when the stored name already is the account's own spelling`() {
+        MumaStoredCredentials.canonicalUserName("user", "user") `should be equal to` null
+    }
+
+    @Test
+    fun `a missing or unrelated returned name is ignored`() {
+        MumaStoredCredentials.canonicalUserName("user", null) `should be equal to` null
+        MumaStoredCredentials.canonicalUserName("user", " ") `should be equal to` null
+        MumaStoredCredentials.canonicalUserName("user", "someone-else") `should be equal to` null
+    }
+
     @Test
     fun `a successful call does not log in`() {
         var logins = 0

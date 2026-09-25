@@ -63,6 +63,11 @@ class _LiveFeedsMixin:
         key_patcher = patch('services.music_manager.routers.feeds.params_key', return_value='k')
         key_patcher.start()
         self.addCleanup(key_patcher.stop)
+        # The system key's username is resolved to the account's spelling through a cursor
+        # these connections do not have; test_username_case.py covers that lookup.
+        canonical_patcher = patch('services.music_manager.routers.feeds._canonical', side_effect=lambda name: name)
+        canonical_patcher.start()
+        self.addCleanup(canonical_patcher.stop)
 
 
 class _FeedsAuthTestCase(_LiveFeedsMixin, unittest.TestCase):
@@ -489,6 +494,11 @@ class FeedsSnapshotRouterTest(unittest.TestCase):
         key_patcher = patch('services.music_manager.routers.feeds.params_key', return_value='k')
         key_patcher.start()
         self.addCleanup(key_patcher.stop)
+        # The system key's username is resolved to the account's spelling through a cursor
+        # these connections do not have; test_username_case.py covers that lookup.
+        canonical_patcher = patch('services.music_manager.routers.feeds._canonical', side_effect=lambda name: name)
+        canonical_patcher.start()
+        self.addCleanup(canonical_patcher.stop)
 
     def tearDown(self):
         app.dependency_overrides.pop(feeds_router.verify_api_key, None)

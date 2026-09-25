@@ -341,6 +341,29 @@ class UserLifecycleTest:
         assert body['user']['is_admin'] is True
         assert body['api_key'] and body['refresh_token']
 
+    def test_a_case_variant_login_answers_with_the_accounts_own_spelling(self, api, db):
+        """Bug report 074: the LOWER() lookup against the real table, and the name that goes back."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        login = api.post('/api/auth/login', json={'username': 'ROOT', 'password': 'hunter2'})
+        assert login.status_code == 200, login.text
+        assert login.json()['user']['username'] == 'root'
+
+    def test_a_case_variant_of_an_existing_account_cannot_be_created(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'Root'})
+        assert created.status_code == 409, created.text
+
+    def test_a_relayed_scrobble_is_stored_under_the_accounts_own_spelling(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        sent = api.post(
+            '/api/scrobble/event',
+            headers=headers,
+            json={'artist_name': 'Nobody', 'track_title': 'Nothing', 'username': 'Root', 'listened_at': 1758780000},
+        )
+        assert sent.status_code == 200, sent.text
+        rows = run_sql(db, 'SELECT username FROM scrobble_unmatched_listens')
+        assert [row['username'] for row in rows] == ['root']
+
     def test_a_refresh_token_issued_at_login_is_accepted(self, api, db):
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         refresh_token = api.post('/api/auth/login', json={'username': 'root', 'password': 'hunter2'}).json()[

@@ -124,6 +124,47 @@ describe("bootstrapShell", () => {
 });
 
 describe("restoreSession", () => {
+  // Bug report 074: a phone that stored "Teun" for the account "user" signed
+  // every Subsonic call with it, and LMS created a second user for that spelling.
+  it("writes the account's own spelling back to a phone that stored another case", async () => {
+    global.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        return {
+          ok: true,
+          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+        };
+      }
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+    const platform = shell({ stored: { username: "Teun", password: "hunter2" } });
+    platform.system.saveCredentials = vi.fn(async () => {});
+
+    expect(await restoreSession(platform)).toBe(true);
+
+    expect(get(credentials).username).toBe("user");
+    expect(platform.system.saveCredentials).toHaveBeenCalledWith({
+      username: "user",
+      password: "hunter2",
+    });
+  });
+
+  it("leaves the phone alone when it already stored the account's own spelling", async () => {
+    global.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        return {
+          ok: true,
+          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+        };
+      }
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+    const platform = shell({ stored: { username: "user", password: "hunter2" } });
+    platform.system.saveCredentials = vi.fn(async () => {});
+
+    expect(await restoreSession(platform)).toBe(true);
+    expect(platform.system.saveCredentials).not.toHaveBeenCalled();
+  });
+
   it("signs in silently with what the phone stored", async () => {
     global.fetch = fakeLibrary({});
 

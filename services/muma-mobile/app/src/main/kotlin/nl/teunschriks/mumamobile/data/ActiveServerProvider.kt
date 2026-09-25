@@ -185,6 +185,19 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
         }
     }
 
+    /**
+     * Stores the account's own spelling of the user name after a login returned it, keeping the
+     * password. Deliberately not through [update]: the pair is still valid, so there is no reason
+     * to reset the music service in the middle of the call that learned the spelling -- the next
+     * client built from the settings signs with it. See
+     * [nl.teunschriks.mumamobile.service.MumaStoredCredentials.canonicalUserName].
+     */
+    fun adoptCanonicalUserName(userName: String) {
+        if (userName.isBlank() || userName == Settings.staticUserName) return
+        Settings.staticUserName = userName
+        invalidateCache()
+    }
+
     fun update(serverSetting: ServerSetting) {
         if (serverSetting.id > OFFLINE_DB_ID) {
             Settings.staticUserName = serverSetting.userName

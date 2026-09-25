@@ -56,6 +56,33 @@ describe("LoginPage native credential save", () => {
     });
   });
 
+  // Bug report 074: the phone signs its own Subsonic calls with what is saved
+  // here, and a case variant made LMS create a second user for the account.
+  it("saves the account's own spelling, not the case it was typed in", async () => {
+    global.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        return {
+          ok: true,
+          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+        };
+      }
+      return fakeServer()(url);
+    });
+    const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
+
+    const { getByLabelText, getByText } = render(LoginPage);
+    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "Teun" } });
+    await fireEvent.input(getByLabelText("Wachtwoord"), { target: { value: "hunter2" } });
+    await fireEvent.click(getByText("Verbinden"));
+
+    await waitFor(() => expect(saveCredentials).toHaveBeenCalledOnce());
+    expect(saveCredentials).toHaveBeenCalledWith({
+      url: "https://lms.example",
+      username: "user",
+      password: "hunter2",
+    });
+  });
+
   it("does not save a rejected sign-in", async () => {
     global.fetch = fakeServer({ ping: "failed" });
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();

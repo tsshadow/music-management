@@ -40,6 +40,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.identity import same_username
 from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['listening'])
@@ -138,7 +139,8 @@ def parse_scope(
     if auth.get('type') == 'system':
         return ListeningScope(username, date_from, date_to, zone)
     own = (auth.get('user') or {}).get('username')
-    if username and username != own:
+    # Account names are case-insensitive (services/music_manager/identity.py).
+    if username and not same_username(username, own):
         raise HTTPException(status_code=403, detail="Not allowed to read another user's listening history")
     return ListeningScope(own, date_from, date_to, zone)
 

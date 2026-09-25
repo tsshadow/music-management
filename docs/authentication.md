@@ -53,13 +53,49 @@ Separate, related tables:
   same cap across all accounts and drops revoked rows older than 30 days.
 - **`audit_events`** — append-only log of `user_request.*` / `user.*` actions (who did what, to whom, when).
 
+## Account names are case-insensitive
+
+One account, one identity, whatever case its name is typed in. The rule, and where each part of
+it is enforced (bug report [074](bug-reports/074-login-case-forks-user-identity.md)):
+
+- **The one spelling is MuMa's `users.username`.** Everything that stores a username stores that
+  spelling, and everything that compares two names compares them case-insensitively
+  (`services/music_manager/identity.py`: `same_username`, `canonical_username`,
+  `account_spellings`).
+- **Login accepts any case and answers with the account's own spelling.** `POST /api/auth/login`
+  matches `LOWER(username) = LOWER(%s)` and returns the stored name under `user.username`. Its
+  rate-limit bucket is keyed on the casefolded name, so capitalising a name differently does not
+  buy a fresh budget of guesses. Clients sign in under the returned name from then on, not the
+  typed one: the web (`signIn()` in `login.js` stores it), the phone (`LoginPage` saves it,
+  `restoreSession` writes it back over a stored case variant, and native `ensureMumaLogin` does
+  the same), and so every Subsonic `u=` carries it. Google sign-in maps by `user_identities`, not
+  by name, and is unaffected.
+- **No second account for a case variant.** `POST /api/users` and approving a Google access
+  request answer `409` for a name that differs only in case from an existing account. The
+  `users.username` unique key refuses it too, through its case-insensitive collation
+  (`utf8mb4_general_ci`, pinned by `tests/integration/test_schema.py`), but only as a 500. There
+  is no rename endpoint. `UserUpdate.username` is unused.
+- **LMS matches login names case-insensitively.** `db::User::find(session, loginName)` uses
+  `COLLATE NOCASE` and prefers the MuMa-linked user, then the oldest. Password and token
+  authentication, `UserSynchronizer`, the `/muma` target user, Subsonic `createUser` and the
+  admin UI all go through it, so LMS never creates a local user that differs only in case, and
+  its create paths refuse one. SQLite's `NOCASE` folds ASCII only, which is what login names are
+  here. A unique index on `lower(login_name)` is not there yet: it waits for the repair of the
+  existing fork ([open work](open-work.md)).
+- **Server-to-server names are resolved, not trusted for spelling.** The scrobble relay and the
+  ListenBrainz import store the authenticated account's own spelling for a user key, and the
+  canonical spelling of the name the system key or an admin sent. !938's self-only rule still
+  applies, compared case-insensitively. The same goes for the LMS rating webhook, the feeds'
+  system-key `username`, whose spelling seeds the daily picks, and the listen reconcile, which
+  maps both sides to the account spelling before it classifies.
+
 ## Login flows
 
 ### 1. Username + password (`POST /api/auth/login`)
 
 | Situation | Result |
 |---|---|
-| No user exists with that `username` | `401 Invalid username or password` (generic — does not reveal whether the username exists) |
+| No user exists with that `username` (in any case, see [above](#account-names-are-case-insensitive)) | `401 Invalid username or password` (generic — does not reveal whether the username exists) |
 | User exists but has no `password_hash` (Google-only account) | `401 Invalid username or password` (same generic message, for the same reason) |
 | User exists, wrong password (account enabled or not) | `401 Invalid username or password` |
 | User exists, correct password, account `enabled = FALSE` | `403 Account disabled` |

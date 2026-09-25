@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.identity import canonical_username, same_username
 from services.music_manager.rbac import is_admin_auth
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.scrobble_rematch import find_track, record_match
@@ -116,6 +117,12 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
     may only report its own plays: the body's `username` used to be taken at its word,
     so any account could write listens -- and through them statistics and mixes -- into
     another account's history. Admins keep the system key's reach, as for imports.
+
+    What is stored is the account's own spelling, never the one in the body: a user key
+    stores its own `users.username`, the system key and admins the canonical spelling of
+    the name they sent. LMS relayed a case-variant login ("Teun" for "user") verbatim,
+    which split one listener's history in two for everything that groups in Python and
+    for LMS itself (docs/bug-reports/074-login-case-forks-user-identity.md).
     """
     if not _may_write_history_for(auth, event.username):
         raise HTTPException(status_code=403, detail='You can only scrobble to your own history')
@@ -124,6 +131,7 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
+            username = _history_owner(cursor, auth, event.username)
             found = find_track(cursor, event.artist_name, event.track_title)
             row = {'id': found[0]} if found else None
             listened_at = datetime.fromtimestamp(event.listened_at) if event.listened_at else datetime.now()
@@ -136,7 +144,7 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
                     cursor,
                     track_id,
                     listened_at,
-                    event.username,
+                    username,
                     event.source,
                     tier,
                     score,
@@ -153,7 +161,7 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
                         event.mbid_track,
                         event.mbid_artist,
                         listened_at,
-                        event.username,
+                        username,
                         event.source,
                         played_secs,
                     ),
@@ -333,11 +341,28 @@ def get_latest_imports(_auth: dict = Depends(verify_api_key)):
 
 
 def _may_write_history_for(auth: dict, username: str) -> bool:
-    """An account may write (scrobble, import) into its own history; the system key and admins into anyone's."""
+    """An account may write (scrobble, import) into its own history; the system key and admins into anyone's.
+
+    "Its own" whatever case the name is sent in: account names are case-insensitive
+    (services/music_manager/identity.py).
+    """
     if is_admin_auth(auth):
         return True
     user = (auth or {}).get('user') or {}
-    return (auth or {}).get('type') == 'user' and bool(username) and user.get('username') == username
+    return (auth or {}).get('type') == 'user' and same_username(user.get('username'), username)
+
+
+def _history_owner(cursor, auth: dict, username: str) -> str:
+    """The spelling a listen written for `username` is stored under.
+
+    A user key writes only its own history (`_may_write_history_for`), so its own
+    `users.username` is the answer without asking the database. The system key and
+    admins name someone; that name is resolved to the account's own spelling.
+    """
+    user = (auth or {}).get('user') or {}
+    if (auth or {}).get('type') == 'user' and same_username(user.get('username'), username):
+        return user['username']
+    return canonical_username(cursor, username) or username
 
 
 @router.post('/import/listenbrainz')
@@ -354,14 +379,17 @@ def trigger_lb_import(req: ImportRequest, background_tasks: BackgroundTasks, aut
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            # Stored under the account's own spelling, like a scrobble; the ListenBrainz name
+            # defaults to the name as sent, since that one belongs to ListenBrainz, not to us.
+            owner = _history_owner(cursor, auth, req.username)
             cursor.execute(
                 '\n                INSERT INTO scrobble_imports (username, lb_username, status)\n                VALUES (%s, %s, %s)\n            ',
-                (req.username, req.lb_username or req.username, 'pending'),
+                (owner, req.lb_username or req.username, 'pending'),
             )
             import_id = cursor.lastrowid
             conn.commit()
             background_tasks.add_task(
-                run_listenbrainz_import, import_id, req.username, req.lb_username or req.username, req.token
+                run_listenbrainz_import, import_id, owner, req.lb_username or req.username, req.token
             )
             return {'status': 'ok', 'import_id': import_id, 'lb_username': req.lb_username or req.username}
     finally:

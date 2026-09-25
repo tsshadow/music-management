@@ -54,8 +54,10 @@
     } else if (isNative) {
       // Writes the pair back to Kotlin, so downloads and Android Auto see the
       // same session -- without this a sign-in typed here only ever lived in the WebView, and
-      // a download right after would still look logged out.
-      await saveNativeCredentials(username, password);
+      // a download right after would still look logged out. The account's own
+      // spelling of the name, not the typed one: the phone signs every Subsonic
+      // call with it (docs/bug-reports/074-login-case-forks-user-identity.md).
+      await saveNativeCredentials(result.username || username, password);
     }
     isLoading = false;
   }

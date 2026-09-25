@@ -99,8 +99,10 @@ FROM listen l JOIN user u ON u.id = l.user_id JOIN track t ON t.id = l.track_id
 WHERE l.backend = 0 AND (l.sync_state IS NULL OR l.sync_state != 2)
 ```
 
-`backend = 0` is `ScrobblingBackend::Internal` (the listens LMS records itself; LMS writes them at
-the same `currentDateTime()` it relays to muma through `MusicManagementBackend`), `sync_state = 2`
+`backend = 0` is `ScrobblingBackend::Internal` (the listens LMS records itself). A scrobble
+without a Subsonic `time` is stamped twice with `currentDateTime()` -- once by the Internal backend,
+once by `MusicManagementBackend` -- which a slow write can put seconds apart; a scrobble with `time`
+(MuMa Mobile since bug report 071) carries that one instant to both. `sync_state = 2`
 is `PendingRemove`. The same (user, muma track, second) seen on two servers counts once.
 
 **The LMS-to-muma track join.** By file path, as the rating webhook and the version sync do:

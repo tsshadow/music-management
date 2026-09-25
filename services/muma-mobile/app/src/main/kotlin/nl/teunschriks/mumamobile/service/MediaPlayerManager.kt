@@ -54,9 +54,6 @@ private const val VOLUME_DELTA = 0.05f
 private const val MIN_PLAYBACK_SPEED = 0.25f
 private const val MAX_PLAYBACK_SPEED = 4.0f
 
-/** Media3 reports every position in milliseconds; a listen is recorded in whole seconds. */
-private const val MILLIS_PER_SECOND = 1000L
-
 /**
  * The Media Player Manager can forward commands to the Media3 controller as
  * well as switch between different player interfaces (local, remote, cast etc).
@@ -79,8 +76,6 @@ class MediaPlayerManager(
     var suggestedPlaylistName: String? = null
     var keepScreenOn = false
     private var autoPlayStart = false
-
-    private val scrobbler = Scrobbler()
 
     /** See [PlaybackSourceHolder]: a browse screen arms itself, filling the queue promotes it. */
     private val playbackSourceHolder: PlaybackSourceHolder by inject()
@@ -128,25 +123,17 @@ class MediaPlayerManager(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            playerStateChangedHandler()
             publishPlaybackState()
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            playerStateChangedHandler()
             publishPlaybackState()
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearBookmark()
-            // Every departure from a track counts, not only the ones that reached the end. Limiting
-            // this to TRANSITION_REASON_AUTO meant a skip recorded nothing at all, which quietly
-            // erased most listening: the average track here is a quarter of an hour of DJ set, so
-            // reaching the end is the exception rather than the rule. How long it actually played
-            // decides whether it was a listen -- Scrobbler drops anything below its threshold.
-            if (cachedMediaItem != null) {
-                scrobbler.scrobble(cachedMediaItem?.toTrack(), true, playedSecondsOfDepartedItem())
-            }
+            // Listens are not reported from here: PlaybackService's Scrobbler sees every transition,
+            // including the ones that happen while no activity -- and so no MediaPlayerManager -- exists.
             cachedMediaItem = mediaItem
             publishPlaybackState()
         }
@@ -161,14 +148,6 @@ class MediaPlayerManager(
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
-            // The only moment the outgoing track's position is still readable. By the time
-            // onMediaItemTransition arrives the player has already moved on, and currentPosition
-            // describes the new track. A discontinuity inside one track (a seek) is not a
-            // departure, so only an index change is recorded.
-            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
-                departedItemPositionMs = oldPosition.positionMs
-            }
-            playerStateChangedHandler()
             publishPlaybackState()
         }
 
@@ -209,22 +188,6 @@ class MediaPlayerManager(
     private var deferredPlay: (() -> Unit)? = null
 
     private var cachedMediaItem: MediaItem? = null
-
-    /**
-     * How far the track being left had played, captured while it was still readable.
-     *
-     * Null when nothing recorded it -- the first transition of a session, or a queue replaced
-     * without a discontinuity -- in which case the listen is reported without a playing time rather
-     * than with a made-up one.
-     */
-    private var departedItemPositionMs: Long? = null
-
-    /** Seconds played by the track just left, consumed once so a later listen cannot reuse it. */
-    private fun playedSecondsOfDepartedItem(): Long? {
-        val positionMs = departedItemPositionMs ?: return null
-        departedItemPositionMs = null
-        return positionMs / MILLIS_PER_SECOND
-    }
 
     fun onCreate(onCreated: () -> Unit) {
         if (created) return
@@ -314,25 +277,6 @@ class MediaPlayerManager(
             onCreated()
             Timber.i("MediaPlayerController creation complete")
         }, MoreExecutors.directExecutor())
-    }
-
-    private fun playerStateChangedHandler() {
-        val currentPlaying = controller?.currentMediaItem?.toTrack() ?: return
-
-        when (playbackState) {
-            Player.STATE_READY -> {
-                if (isPlaying) {
-                    scrobbler.scrobble(currentPlaying, false)
-                }
-            }
-            // STATE_ENDED is only signaled if the whole playlist completes. Scrobble the last song.
-            Player.STATE_ENDED -> {
-                // Nothing transitioned away here -- the queue simply ran out -- so the player is
-                // still sitting on the track that just ended and can be asked directly.
-                val playedSeconds = controller?.currentPosition?.div(MILLIS_PER_SECOND)
-                scrobbler.scrobble(currentPlaying, true, playedSeconds)
-            }
-        }
     }
 
     fun addListener(listener: Player.Listener) {

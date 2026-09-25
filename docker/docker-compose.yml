@@ -85,6 +85,20 @@ services:
     container_name: music-management-db-1
     logging: *default-logging
     restart: unless-stopped
+    # Measured 661 MiB on production (docker stats, 2026-09-25). What MariaDB
+    # allocates up front is fixed by its defaults -- no my.cnf is mounted:
+    # innodb_buffer_pool_size, key_buffer_size and aria_pagecache_buffer_size are
+    # 128 MiB each (checked with SHOW GLOBAL VARIABLES; Memory_used_initial is
+    # 470 MiB). On top of that each connection can take its sort, join and
+    # in-memory temp-table buffers (2 MiB + 256 KiB + 16 MiB). Max_used_connections
+    # was 29 over 53 hours of uptime, so a peak where every one of those fills its
+    # buffers at once is ~1 GiB. A mariadb-dump or the restore check into a scratch
+    # database adds connections, not buffer pool. 2g is three times what it uses
+    # and twice that peak; raise it together with innodb_buffer_pool_size if that
+    # is ever tuned upward. Like
+    # every setting on `db`, it only applies when `db` is recreated -- a
+    # DEPLOY_DB=1 deploy. Override with MUMA_MEM_LIMIT_DB.
+    mem_limit: ${MUMA_MEM_LIMIT_DB:-2g}
     # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
     # 10.10 -> 12.3 migration inherited it: the restored tables kept their own
     # utf8mb4_general_ci, but anything created afterwards would not. A join
@@ -121,6 +135,9 @@ services:
     container_name: music-management-phpmyadmin-1
     logging: *default-logging
     restart: unless-stopped
+    # Measured 3 MiB idle (2026-09-25); PHP's own memory_limit caps one request
+    # (an export of a big table is the peak). 256m is ample.
+    mem_limit: ${MUMA_MEM_LIMIT_PHPMYADMIN:-256m}
     depends_on:
       - db
     environment:
@@ -512,6 +529,11 @@ services:
     # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
     # never on a routine deploy (scripts/deploy.sh leaves it alone).
     restart: "no"
+    # One-shot Python job against the database (soundcloud-fetcher also runs
+    # yt-dlp). Not running when measured on 2026-09-25; 1g is half the ceiling of
+    # the downloader worker, which does the same work continuously. Override with
+    # MUMA_MEM_LIMIT_ONESHOT.
+    mem_limit: ${MUMA_MEM_LIMIT_ONESHOT:-1g}
     depends_on:
       - db
     command: ["python", "tools/soundcloud_fetcher.py"]
@@ -536,6 +558,11 @@ services:
     # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
     # never on a routine deploy (scripts/deploy.sh leaves it alone).
     restart: "no"
+    # One-shot Python job against the database (soundcloud-fetcher also runs
+    # yt-dlp). Not running when measured on 2026-09-25; 1g is half the ceiling of
+    # the downloader worker, which does the same work continuously. Override with
+    # MUMA_MEM_LIMIT_ONESHOT.
+    mem_limit: ${MUMA_MEM_LIMIT_ONESHOT:-1g}
     depends_on:
       - db
     environment:
@@ -647,6 +674,13 @@ services:
     container_name: muma-firefox
     logging: *default-logging
     restart: unless-stopped
+    # Measured 626 MiB (2026-09-25). /dev/shm is a 1 GB tmpfs (shm_size above) and
+    # tmpfs pages are charged to the container's memory cgroup, so a limit below
+    # shm_size plus the browser itself could OOM-kill Firefox while the shared
+    # memory is full -- during the YouTube re-login, the one moment it is needed.
+    # 2g covers a full /dev/shm and a peak browser. Override with
+    # MUMA_MEM_LIMIT_FIREFOX.
+    mem_limit: ${MUMA_MEM_LIMIT_FIREFOX:-2g}
     shm_size: "1gb"
     environment:
       TZ: Europe/Amsterdam

@@ -52,6 +52,13 @@ services:
       - music-management_db
     user: "0:0"
     restart: unless-stopped
+    # Measured 549 MiB on production (docker stats, 2026-09-25), outside a scan.
+    # A scan or a library rebuild is the peak: the scanner reads tags for the whole
+    # library and holds SQLite's page cache on top of the Wt request threads. 1.5g
+    # (1536m) is close to three times the resting figure on a host with 8 GB RAM shared
+    # with MariaDB and music-manager. An OOM kill shows up as a restart the
+    # post-deploy check reports; raise LMS_MEM_LIMIT in the stack's .env then.
+    mem_limit: ${LMS_MEM_LIMIT:-1536m}
     labels:
       # Watched by the "autoheal" service below.
       autoheal: "true"
@@ -100,6 +107,8 @@ services:
     networks:
       - default
     restart: unless-stopped
+    # Measured 8.7 MiB (2026-09-25): a shell loop polling the Docker API.
+    mem_limit: 128m
 
   # Serves spotify.<domain> at "/" by rewriting requests to LMS's "/spotify"
   # docroot mount, since Wt's WServer already reserves the deploy-path "/" for
@@ -122,6 +131,8 @@ services:
       - default
       - music-management_db
     restart: unless-stopped
+    # Measured 7.6 MiB (2026-09-25): nginx proxying, no caching. 128m.
+    mem_limit: 128m
 # NOTE: the "lms_alpha" service (previously used for testing an unstable/alpha
 # LMS build alongside the stable one) has been removed as part of the
 # production-lms-consolidation plan: production now runs a single LMS

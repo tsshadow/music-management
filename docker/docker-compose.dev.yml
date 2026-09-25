@@ -1,3 +1,15 @@
+# LOCAL ONLY. The last overlay scripts/dev.sh layers on top of docker-compose.yml,
+# docker-compose.workers.yml and docker-compose.tools.yml: it bind-mounts the checkout's
+# services/ into the Python containers so a code change needs a restart, not a rebuild.
+#
+# An overlay only states what differs. `image` and `security_opt` come from
+# docker-compose.yml; repeating `security_opt` here made compose 2.26 (what the
+# workstation runs) refuse the merged list as "array items must be unique".
+# LMS is not in this stack at all -- it is its own stack,
+# services/music-management-server/docker-compose.yml -- so this file cannot add
+# anything to it: a `music-management-server` entry here (the frontend dist mount)
+# was a service with neither image nor build and stopped the whole render.
+# tests/ci/test_compose_render.py renders this combination.
 version: "3.9"
 
 # Every service logs through json-file with rotation. Docker's default is
@@ -16,37 +28,21 @@ x-logging: &default-logging
 services:
   music-manager:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   importer_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   youtube_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   soundcloud_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
     volumes:
       - ../services:/app/services
   telegram_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
     volumes:
       - ../services:/app/services
-  music-management-server:
-    logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    volumes:
-      - ../services/frontend/dist:/usr/share/lms/docroot/spotify:ro

@@ -271,6 +271,5 @@ e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/int
 # occurrence, not the one that was added.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x12  # writable-filesystem-service docker/docker-compose.full.yml
-acedf220b679b6b2 x5  # writable-filesystem-service docker/docker-compose.tools.yml
-4a78e339f31863ad x4  # writable-filesystem-service docker/docker-compose.workers.yml
+acedf220b679b6b2 x2  # writable-filesystem-service docker/docker-compose.tools.yml
 25d2c6c464a0aee4 x10  # writable-filesystem-service docker/docker-compose.yml

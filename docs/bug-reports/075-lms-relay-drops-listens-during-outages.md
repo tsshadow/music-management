@@ -70,4 +70,7 @@ a stateful fake MariaDB and an in-memory `lms.db`. It covers:
 `tests/integration/test_scrobble_reconcile.py` runs the same round against MariaDB, and
 `tests/integration/test_router_sql.py` runs the new windowed queries against the real schema.
 
-Not verified here: the loop on production. See [open-work.md](../open-work.md).
+On production (2026-09-25): the loop shipped in 0.74.0, and the historical backlog older than the
+48-hour window was reconciled once by hand -- 160 listens inserted, 0 collisions. The 1,319
+LMS-only listens that remain stay out on purpose: each has a MuMa listen within 10 minutes of it,
+which is the guard that keeps the app's own scrobble from being counted twice.

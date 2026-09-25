@@ -74,6 +74,12 @@ class BaseSong:
     # nothing on disk.
     readonly = False
 
+    # Whether a year-only DATE is completed from the info dict's `upload_date` of the same
+    # year. Only the SoundCloud path wrote a full date that an ID3v2.3 rewrite cut to the
+    # year (bug report 088); a year-only DATE from any other source is what that source
+    # stated and stays as it is.
+    completes_year_only_date = False
+
     def __init__(self, path, extra_info=None):
         """
         Initializes the BaseSong object by loading the file and its tags.
@@ -335,7 +341,7 @@ class BaseSong:
             self.tag_collection.get_item(GENRE).add(genre)
         if info.get('upload_date') and (not self.tag_collection.get_item_as_string(DATE)):
             self.tag_collection.set_item(DATE, info.get('upload_date'))
-        else:
+        elif self.completes_year_only_date:
             # A year-only DATE is what an ID3v2.3 rewrite leaves of the full date the
             # downloader wrote (bug report 088); the stored info dict still has the rest.
             full = completed_date(self.tag_collection.get_item_as_string(DATE), info.get('upload_date'))

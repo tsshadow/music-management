@@ -59,7 +59,9 @@ its dates.
   from the same year, is completed to the full date. That is what the download path does as a
   second line, and what lets a retag repair the files already on disk: a retag reads the stored
   info dict back from `downloads_soundcloud_archive.info_json` (`services/tagger/download_info.py`).
-  A year that differs from the upload date is left alone.
+  A year that differs from the upload date is left alone, and only `SoundcloudSong` opts in
+  (`completes_year_only_date`): a year-only DATE from YouTube or a label rip is what that source
+  stated, and was year-only long before 0.72.0.
 - Tests: `tests/unit/test_download_date_real_ffmpeg.py` runs the real post-processor chain on a
   generated mp3 and asserts both the defect (without the fix: `2026`) and the fix
   (`2026-08-31`); `services/downloader/tests/test_metadata_date.py` pins the post-processor and

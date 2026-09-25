@@ -477,3 +477,55 @@ class ReconcileEndpointTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OpenServersTest(unittest.TestCase):
+    """open_servers keeps real LMS databases and skips files without the listen schema."""
+
+    def _db(self, directory, name, tables):
+        """Create an on-disk SQLite file with the given empty tables."""
+        import os
+
+        path = os.path.join(directory, name)
+        conn = sqlite3.connect(path)
+        for table in tables:
+            conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY)')
+        conn.commit()
+        conn.close()
+        return path
+
+    def test_a_database_without_the_user_table_is_skipped(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            good = self._db(tmp, 'stable.db', ['listen', 'user', 'track'])
+            stale = self._db(tmp, 'alpha.db', ['listen', 'track', 'user_starred_artists'])
+            with self.assertLogs('music-manager.scrobble-reconcile', level='WARNING') as logs:
+                servers = rec.open_servers([(good, 'stable'), (stale, 'alpha')])
+            try:
+                self.assertEqual([name for _, name in servers], ['stable'])
+                self.assertTrue(any('alpha' in line and 'user' in line for line in logs.output))
+            finally:
+                for conn, _ in servers:
+                    conn.close()
+
+    def test_every_complete_database_is_kept(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            a = self._db(tmp, 'a.db', ['listen', 'user', 'track'])
+            b = self._db(tmp, 'b.db', ['listen', 'user', 'track', 'extra'])
+            servers = rec.open_servers([(a, 'a'), (b, 'b')])
+            try:
+                self.assertEqual([name for _, name in servers], ['a', 'b'])
+            finally:
+                for conn, _ in servers:
+                    conn.close()
+
+    def test_missing_tables_names_what_is_absent(self):
+        conn = sqlite3.connect(':memory:')
+        conn.execute('CREATE TABLE listen (id INTEGER)')
+        try:
+            self.assertEqual(rec.missing_lms_tables(conn), {'user', 'track'})
+        finally:
+            conn.close()

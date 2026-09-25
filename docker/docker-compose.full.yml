@@ -1,7 +1,21 @@
 version: "3.9"
 
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty container grows its log under
+# /var/lib/docker until the disk is full -- and on the production host a full
+# disk has already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB
+# per container is plenty for `docker logs`; the event log is the real history.
+# Same values as docker/docker-compose.yml; tests/ci/test_compose_log_rotation.py
+# checks that every service in every compose file has a logging block.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: mariadb:13.0
@@ -23,13 +37,15 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_DB}
     ports:
-      - "3306:3306"
+      # Loopback unless opted in, as in docker-compose.yml (see the comment there).
+      - "${DB_BIND_ADDRESS:-127.0.0.1}:3306:3306"
     volumes:
       - ${HOST_DATA_PATH}/mariadb:/var/lib/mysql
     networks:
       - music-management_db
 
   phpmyadmin:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
@@ -41,12 +57,13 @@ services:
       PMA_HOST: db
       PMA_PORT: 3306
     ports:
-      - "8002:80"
+      - "${PHPMYADMIN_BIND_ADDRESS:-127.0.0.1}:8002:80"
     networks:
       - music-management_db
 
   # Consolidated Music Manager Service
   music-manager:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     build:
@@ -113,6 +130,7 @@ services:
   #     - music-management_db
 
   importer_worker:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_IMPORTER}:latest
@@ -165,6 +183,7 @@ services:
       - music-management_db
 
   youtube_worker:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
@@ -220,6 +239,7 @@ services:
       - music-management_db
 
   soundcloud_worker:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
@@ -275,6 +295,7 @@ services:
       - music-management_db
 
   telegram_worker:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:latest
@@ -316,6 +337,7 @@ services:
     tty: true
 
   tagger_worker:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TAGGER}:latest
@@ -351,6 +373,7 @@ services:
       - music-management_db
 
   scanner_service:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_SCANNER}:latest
@@ -383,6 +406,7 @@ services:
       - music-management_db
 
   soundcloud-fetcher:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -407,6 +431,7 @@ services:
       - music-management_db
 
   genre-processor:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -448,6 +473,7 @@ services:
 #      - music-management_db
 
   firefox:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
@@ -460,7 +486,8 @@ services:
       SECURE_CONNECTION: "1"
       DISABLE_GPU: "1"
       WEB_AUTHENTICATION_USERNAME: ${FIREFOX_USER:-admin}
-      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD:-admin}
+      # No default: it was "admin", on a port bound on every interface.
+      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
       - "7003:5800"
     volumes:

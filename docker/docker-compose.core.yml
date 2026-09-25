@@ -1,7 +1,21 @@
 version: "3.9"
 
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty container grows its log under
+# /var/lib/docker until the disk is full -- and on the production host a full
+# disk has already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB
+# per container is plenty for `docker logs`; the event log is the real history.
+# Same values as docker/docker-compose.yml; tests/ci/test_compose_log_rotation.py
+# checks that every service in every compose file has a logging block.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: mariadb:13.0
@@ -23,13 +37,15 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_DB}
     ports:
-      - "3306:3306"
+      # Loopback unless opted in, as in docker-compose.yml (see the comment there).
+      - "${DB_BIND_ADDRESS:-127.0.0.1}:3306:3306"
     volumes:
       - ${HOST_DATA_PATH}/mariadb:/var/lib/mysql
     networks:
       - music-management_db
 
   phpmyadmin:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
@@ -41,12 +57,13 @@ services:
       PMA_HOST: db
       PMA_PORT: 3306
     ports:
-      - "8002:80"
+      - "${PHPMYADMIN_BIND_ADDRESS:-127.0.0.1}:8002:80"
     networks:
       - music-management_db
 
   # Consolidated Music Manager Service
   music-manager:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     build:

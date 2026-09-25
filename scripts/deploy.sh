@@ -41,10 +41,14 @@ run_ssh() {
         return 1
     fi
 
+    # Pinned host key for production, accept-new elsewhere (scripts/lib/ssh_host_keys.sh).
+    local -a key_opts
+    mapfile -t key_opts < <(ssh_host_key_opts "$host")
+
     if [ -z "$pass" ]; then
-        ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        ssh "${key_opts[@]}" "${user}@${host}" "${cmd}"
     elif command -v sshpass >/dev/null 2>&1; then
-        SSHPASS="${pass}" sshpass -e ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        SSHPASS="${pass}" sshpass -e ssh "${key_opts[@]}" "${user}@${host}" "${cmd}"
     else
         echo "Error: sshpass not found. Install it or unset password variable."
         exit 1
@@ -57,6 +61,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # shellcheck source=scripts/lib/dotenv.sh
 . "$SCRIPT_DIR/lib/dotenv.sh"
+# shellcheck source=scripts/lib/ssh_host_keys.sh
+. "$SCRIPT_DIR/lib/ssh_host_keys.sh"
 
 # The env file is both the configuration of this script and the file shipped
 # to the host for the stack. It may be absolute: ci-deploy.sh materialises it in

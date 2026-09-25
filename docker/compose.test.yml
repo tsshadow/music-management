@@ -14,8 +14,22 @@
 # (see docs/testing-inventory.md, open question). The healthcheck below uses the
 # Subsonic "ping" endpoint, which requires the server to be fully initialized to respond.
 
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty container grows its log under
+# /var/lib/docker until the disk is full -- and on the production host a full
+# disk has already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB
+# per container is plenty for `docker logs`; the event log is the real history.
+# Same values as docker/docker-compose.yml; tests/ci/test_compose_log_rotation.py
+# checks that every service in every compose file has a logging block.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   test-db:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: mariadb:13.0
@@ -42,6 +56,7 @@ services:
       - muma-test
 
   music-manager:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     build:
@@ -97,6 +112,7 @@ services:
       - muma-test
 
   music-management-server:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     build:

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.common.Helpers.FilterTableHelper import FilterTableHelper
+from services.common.Helpers.FilterTableHelper import MAX_CHAIN_DEPTH, FilterTableHelper, resolve_redirect_chains
 
 
 class FilterTableHelperTest(unittest.TestCase):
@@ -130,6 +130,66 @@ class FilterTableHelperCachedTest(unittest.TestCase):
 
     def test_unknown_genre_is_still_rejected(self):
         self.assertFalse(self.helper.get_corrected_or_exists('jazz'))
+
+
+class ResolveRedirectChainsTest(unittest.TestCase):
+    """Bug 080: a redirect to a name that is itself redirected wrote the middle name."""
+
+    def test_a_single_hop_is_left_as_it_is(self):
+        resolved, paths, cycles = resolve_redirect_chains({'Dr.Peacock': 'Dr. Peacock'})
+        self.assertEqual(resolved, {'Dr.Peacock': 'Dr. Peacock'})
+        self.assertEqual(paths, {})
+        self.assertEqual(cycles, [])
+
+    def test_a_chain_resolves_to_its_final_target(self):
+        resolved, paths, _cycles = resolve_redirect_chains({'Y': 'X', 'X': 'Z', 'W': 'y'})
+        self.assertEqual(resolved, {'Y': 'Z', 'X': 'Z', 'W': 'Z'})
+        self.assertEqual(paths['Y'], ['Y', 'X', 'Z'])
+        # Matched case-insensitively, the way the helper looks names up.
+        self.assertEqual(paths['W'], ['W', 'Y', 'X', 'Z'])
+
+    def test_a_casing_fix_of_the_name_itself_is_not_a_loop(self):
+        resolved, _paths, cycles = resolve_redirect_chains({'angerfist': 'Angerfist', 'Angerfst': 'angerfist'})
+        self.assertEqual(cycles, [])
+        self.assertEqual(resolved['angerfist'], 'Angerfist')
+        self.assertEqual(resolved['Angerfst'], 'Angerfist')
+
+    def test_a_loop_is_reported_once_and_keeps_its_one_hop_answers(self):
+        resolved, paths, cycles = resolve_redirect_chains({'b': 'c', 'c': 'a', 'a': 'b', 'd': 'a'})
+        self.assertEqual(cycles, [['a', 'b', 'c']])
+        self.assertEqual(resolved, {'b': 'c', 'c': 'a', 'a': 'b', 'd': 'a'})
+        self.assertEqual(paths, {})
+
+    def test_a_chain_longer_than_the_bound_keeps_its_one_hop_answer(self):
+        chain = {f'n{i}': f'n{i + 1}' for i in range(MAX_CHAIN_DEPTH + 5)}
+        resolved, _paths, cycles = resolve_redirect_chains(chain)
+        self.assertEqual(resolved['n0'], 'n1')
+        self.assertEqual(cycles, [])
+        # Near the end the chain is short enough to follow.
+        self.assertEqual(resolved[f'n{MAX_CHAIN_DEPTH + 3}'], f'n{MAX_CHAIN_DEPTH + 5}')
+
+
+class FollowChainsPreloadTest(unittest.TestCase):
+    def setUp(self):
+        patcher = patch('services.common.Helpers.FilterTableHelper.DatabaseConnector')
+        self.addCleanup(patcher.stop)
+        connector = patcher.start()
+        cursor = MagicMock()
+        connection = MagicMock()
+        connection.cursor.return_value.__enter__.return_value = cursor
+        connector.return_value.connect.return_value = connection
+        cursor.fetchall.return_value = [('Y', 'X'), ('X', 'Z'), ('Loop A', 'Loop B'), ('Loop B', 'Loop A')]
+
+    def test_the_artist_helper_answers_with_the_end_of_the_chain(self):
+        helper = FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', follow_chains=True)
+        self.assertEqual(helper.get_corrected('y'), 'Z')
+        self.assertEqual(helper.get_corrected_or_exists('Y'), 'Z')
+        # A loop cannot be resolved; it answers as it always did.
+        self.assertEqual(helper.get_corrected('Loop A'), 'Loop B')
+
+    def test_without_the_flag_the_helper_still_answers_one_hop(self):
+        helper = FilterTableHelper('rules_genres', 'name', 'corrected_genre')
+        self.assertEqual(helper.get_corrected('Y'), 'X')
 
 
 unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(FilterTableHelperTest))

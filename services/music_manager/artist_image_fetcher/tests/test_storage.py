@@ -69,6 +69,61 @@ class ImageStorageTest(unittest.TestCase):
                 self.storage.save_image(7, 'spotify', b'this is not an image')
 
 
+class PublishedPortraitTest(unittest.TestCase):
+    """Bug 080: the fixed-URL copies outlived a cleared portrait and a changed selection."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.storage = storage.ImageStorage(self.tmp.name, '/media/artist-images')
+        self.artist_dir = os.path.join(self.tmp.name, '7')
+
+    def published(self):
+        return sorted(
+            name for name in os.listdir(self.artist_dir) if name == 'primary.jpg' or name.startswith('thumb_')
+        )
+
+    def test_clearing_removes_the_published_copies_and_keeps_the_stored_image(self):
+        meta = self.storage.save_image(7, 'spotify', png_bytes())
+        self.assertEqual(self.storage.unpublish_primary(7), 5)
+        self.assertEqual(self.published(), [])
+        self.assertTrue(os.path.exists(meta['cached_path']))
+
+    def test_clearing_twice_or_without_a_directory_is_harmless(self):
+        self.assertEqual(self.storage.unpublish_primary(8), 0)
+        self.storage.save_image(7, 'spotify', png_bytes())
+        self.storage.unpublish_primary(7)
+        self.assertEqual(self.storage.unpublish_primary(7), 0)
+
+    def test_selecting_a_stored_image_publishes_it(self):
+        first = self.storage.save_image(7, 'spotify', png_bytes(color=(200, 0, 0)))
+        self.storage.save_image(7, 'lastfm', png_bytes(color=(0, 0, 200)))
+        self.assertTrue(self.storage.publish_primary(7, first['cached_path']))
+        with (
+            open(first['cached_path'], 'rb') as source,
+            open(os.path.join(self.artist_dir, 'primary.jpg'), 'rb') as primary,
+        ):
+            self.assertEqual(source.read(), primary.read())
+        self.assertEqual(len(self.published()), 5)
+
+    def test_publishing_after_a_clear_restores_the_copies(self):
+        meta = self.storage.save_image(7, 'spotify', png_bytes())
+        self.storage.unpublish_primary(7)
+        self.storage.publish_primary(7, meta['cached_path'])
+        self.assertEqual(len(self.published()), 5)
+
+    def test_an_image_gone_from_disk_publishes_nothing(self):
+        self.assertFalse(self.storage.publish_primary(7, os.path.join(self.tmp.name, 'missing.jpg')))
+        self.assertFalse(self.storage.publish_primary(7, None))
+
+    def test_a_missing_thumbnail_removes_the_stale_one(self):
+        meta = self.storage.save_image(7, 'spotify', png_bytes())
+        os.remove(os.path.splitext(meta['cached_path'])[0] + '_300.jpg')
+        self.storage.publish_primary(7, meta['cached_path'])
+        self.assertFalse(os.path.exists(os.path.join(self.artist_dir, 'thumb_300.jpg')))
+        self.assertTrue(os.path.exists(os.path.join(self.artist_dir, 'thumb_64.jpg')))
+
+
 class ImageDownloaderTest(unittest.TestCase):
     def setUp(self):
         patcher = patch.object(storage.time, 'sleep')

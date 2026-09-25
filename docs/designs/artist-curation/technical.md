@@ -24,6 +24,25 @@ The scanner's unguarded `INSERT IGNORE INTO library_artists` is still in place: 
 tagger run has not yet stripped from a file re-enters the table on the next scan, but it re-enters
 as *black* -- the decision is keyed by name and outlives the row -- so it stays out of the queue.
 
+## Redirects that point at a decided name (bug 080)
+
+A redirect `Y -> X` is only right while X is an approved artist. When X is decided again:
+
+| X becomes | What happens to every `Y -> X` (both tables) | Why |
+|---|---|---|
+| approved | nothing | the premise still holds |
+| rejected with a correction Z | re-pointed: `Y -> Z` | Y is X and X is Z, so Y is Z; no chain is left |
+| rejected without a correction | forgotten; Y is back in the queue | the premise is gone and the right answer for Y is not known; a plain rejection would strip the credit from every file on the next retag |
+| undone | forgotten; Y is back in the queue | same |
+
+This runs in the same transaction as the decision, and the reply lists the names (`repointed`,
+`returned_to_queue`). A new correction to a rejected name is refused on the curation page and on
+the Tagger tab; the Tagger tab also refuses a redirect that would close a loop. For rows stored
+before this, the tagger's preloaded helper follows every chain to its end with a depth bound and a
+cycle guard (a looping name keeps its one-hop answer), and
+`GET /api/rules/artists/redirects/issues` reports what is dangling or looping. That endpoint only
+reports: which way a stored loop should be broken is a curation decision.
+
 ## Components
 
 | Component | Responsibility |

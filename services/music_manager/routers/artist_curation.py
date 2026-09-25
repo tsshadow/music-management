@@ -44,6 +44,7 @@ from services.common.Helpers.ArtistNameAnalyzer import (
     ArtistNameAnalyzer,
     normalize,
 )
+from services.common.Helpers.FilterTableHelper import resolve_redirect_chains
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import curation_rules
 from services.music_manager.database import get_db_connection, require_connection, transaction
@@ -70,6 +71,8 @@ MAX_LIMIT = 500
 #: Names one decide call may carry. Each one marks files for a retag, so this is a
 #: ceiling on how much tagger work one click can queue.
 MAX_DECISION_NAMES = 500
+#: Who migrate_v26 recorded as the decider of the redirects that predate this page.
+LEGACY_DECIDER = 'legacy-redirect'
 #: The config key an admin can tune the analyzer with (Beheer -> Configuratie).
 ANALYZER_CONFIG_KEY = 'artist_curation_analyzer'
 
@@ -265,6 +268,65 @@ def _mirror_to_tagger(cursor, name: str, state: str, canonical: str | None) -> N
         cursor.execute('INSERT INTO rules_ignored_artists (name, corrected_name) VALUES (%s, %s)', (name, canonical))
 
 
+def _redirect_dependents(cursor, target: str) -> list[str]:
+    """Names whose correction points at `target`, from either table, case-insensitively.
+
+    Both tables, because `rules_ignored_artists` also holds redirects typed on the
+    Tagger tab (`/api/rules/artist-redirects`) that never had a curation decision.
+    """
+    cursor.execute(
+        'SELECT name FROM rules_artists WHERE state = %s AND LOWER(canonical_name) = LOWER(%s) '
+        'UNION SELECT name FROM rules_ignored_artists WHERE LOWER(corrected_name) = LOWER(%s)',
+        (BLACK, target, target),
+    )
+    seen: dict[str, str] = {}
+    for row in cursor.fetchall():
+        name = row['name']
+        if name.lower() != target.lower():
+            seen.setdefault(name.lower(), name)
+    return sorted(seen.values(), key=str.lower)
+
+
+def _release_redirects_to(cursor, target: str, new_target: str | None) -> list[str]:
+    """Keep no redirect pointing at a name that is no longer an approved artist.
+
+    Called before `target` is rejected or its decision forgotten. Two cases, deliberately
+    different:
+
+    * `target` is rejected *with* a correction (`X -> Z`): every `Y -> X` becomes
+      `Y -> Z`. The curator said Y is X and X is Z, so Y is Z; nothing is lost and no
+      chain is left for the tagger to walk.
+    * `target` is rejected without one, or undone: every `Y -> X` is forgotten and Y
+      goes back to the queue. The premise of that redirect -- X is the artist -- has
+      been withdrawn, and what Y should be instead is not something to guess. Turning
+      Y into a plain rejection would strip a credit from every file that carries it on
+      the next retag; the queue loses nothing and shows Y again with fresh advice.
+
+    Returns the names that were touched, so the caller can say so.
+    """
+    dependents = _redirect_dependents(cursor, target)
+    if not dependents:
+        return []
+    if new_target:
+        cursor.execute(
+            'UPDATE rules_artists SET canonical_name = %s '
+            'WHERE state = %s AND LOWER(canonical_name) = LOWER(%s) AND LOWER(name) <> LOWER(%s)',
+            (new_target, BLACK, target, new_target),
+        )
+        cursor.execute(
+            'UPDATE rules_ignored_artists SET corrected_name = %s '
+            'WHERE LOWER(corrected_name) = LOWER(%s) AND LOWER(name) <> LOWER(%s)',
+            (new_target, target, new_target),
+        )
+    else:
+        cursor.execute(
+            'DELETE FROM rules_artists WHERE state = %s AND LOWER(canonical_name) = LOWER(%s)',
+            (BLACK, target),
+        )
+        cursor.execute('DELETE FROM rules_ignored_artists WHERE LOWER(corrected_name) = LOWER(%s)', (target,))
+    return dependents
+
+
 @router.post('/decide')
 def decide(request: DecisionRequest, auth: dict = WRITE):
     """Approve or reject names, optionally rewriting them to one approved spelling.
@@ -274,6 +336,10 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
     is an artist: a `canonical_name` that has no decision yet is approved in the same
     call, so `Dr.Peacock -> Dr. Peacock` is one action rather than two. A black target
     is refused -- rewriting one problem into another is the thing this must not do.
+
+    Rejecting a name that other redirects point at settles those first
+    (`_release_redirects_to`): with a correction they follow it, without one they go
+    back to the queue. Both lists are in the reply.
     """
     if request.state not in STATES:
         raise HTTPException(status_code=400, detail=f'state must be {WHITE} or {BLACK}')
@@ -293,21 +359,37 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
         raise HTTPException(status_code=400, detail='A name cannot be its own correction')
 
     decided_by = _decided_by(auth, request.decided_by)
+    repointed: list[str] = []
+    requeued: list[str] = []
+    target = None
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
-            if canonical:
+        if canonical:
+            # Checked before the transaction opens: a refused request never starts one.
+            with conn.cursor() as cursor:
                 cursor.execute('SELECT state FROM rules_artists WHERE name = %s', (canonical,))
                 target = cursor.fetchone()
-                if target and target['state'] == BLACK:
-                    raise HTTPException(status_code=400, detail=f"'{canonical}' is rejected; pick an approved name")
-                if not target:
-                    _upsert_decision(cursor, canonical, WHITE, None, decided_by)
-                    _mirror_to_tagger(cursor, canonical, WHITE, None)
+            if target and target['state'] == BLACK:
+                raise HTTPException(status_code=400, detail=f"'{canonical}' is rejected; pick an approved name")
+        # One transaction: re-pointing the redirects that lead to a rejected name and
+        # rejecting it land together, or a crash in between leaves a chain behind.
+        with transaction(conn), conn.cursor() as cursor:
+            if canonical and not target:
+                _upsert_decision(cursor, canonical, WHITE, None, decided_by)
+                _mirror_to_tagger(cursor, canonical, WHITE, None)
+            if request.state == BLACK:
+                deciding = {name.lower() for name in names}
+                for name in names:
+                    touched = _release_redirects_to(cursor, name, canonical)
+                    # A dependent decided in this same call gets its own decision below, and
+                    # one that two of the names lead to is listed once.
+                    for other in touched:
+                        if other.lower() not in deciding:
+                            deciding.add(other.lower())
+                            (repointed if canonical else requeued).append(other)
             for name in names:
                 _upsert_decision(cursor, name, request.state, canonical, decided_by)
                 _mirror_to_tagger(cursor, name, request.state, canonical)
-            conn.commit()
     finally:
         conn.close()
 
@@ -321,28 +403,125 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
         # would turn a rejected '001' into a retag of every path with a catalogue number.
         for name in names:
             invalidate_quietly(name, 'artist_decision', exact=True)
-    return {'status': 'ok', 'decided': len(names), 'canonical_name': canonical}
+    return {
+        'status': 'ok',
+        'decided': len(names),
+        'canonical_name': canonical,
+        'repointed': repointed,
+        'returned_to_queue': requeued,
+    }
 
 
 @router.delete('/{name:path}')
 def undo(name: str, _auth: dict = WRITE):
-    """Forget a decision: the name goes back to the queue and the tagger stops acting on it."""
+    """Forget a decision: the name goes back to the queue and the tagger stops acting on it.
+
+    Redirects that pointed at the name go back to the queue with it
+    (`_release_redirects_to`): they were decided on the premise that this name is the
+    artist, and that premise is what an undo withdraws. They are listed in the reply.
+    """
     name = (name or '').strip()
     if not name:
         raise HTTPException(status_code=400, detail='No name given')
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('DELETE FROM rules_artists WHERE name = %s', (name,))
-            removed = cursor.rowcount
+            if not cursor.rowcount:
+                raise HTTPException(status_code=404, detail='No decision for that name')
             cursor.execute('DELETE FROM rules_ignored_artists WHERE LOWER(name) = LOWER(%s)', (name,))
-            conn.commit()
+            requeued = _release_redirects_to(cursor, name, None)
     finally:
         conn.close()
-    if not removed:
-        raise HTTPException(status_code=404, detail='No decision for that name')
+    # No retag for the requeued names, as for the undone one: the tagger now leaves
+    # them alone, and a file that carries one keeps it either way.
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
-    return {'status': 'ok'}
+    return {'status': 'ok', 'returned_to_queue': requeued}
+
+
+@router.get('/redirects/issues')
+def redirect_issues(_auth: dict = READ):
+    """Read-only integrity check: redirects that end somewhere they should not, or loop.
+
+    `decide` and `undo` keep new ones from appearing, but rows stored before that, or
+    typed on the Tagger tab, can still point at a rejected or forgotten name. SQL
+    cannot tell which way such a row should be repaired, so this only reports.
+    """
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT name, corrected_name FROM rules_ignored_artists')
+            redirects = [(row['name'], row['corrected_name']) for row in cursor.fetchall()]
+            cursor.execute('SELECT name, state, canonical_name, decided_by FROM rules_artists')
+            decisions = list(cursor.fetchall())
+    finally:
+        conn.close()
+    return find_redirect_issues(redirects, decisions)
+
+
+def find_redirect_issues(redirects: list, decisions: list) -> dict:
+    """What `GET /redirects/issues` reports, from the rows of the two tables. Pure.
+
+    * `dangling` -- a redirect whose final target is not an approved artist: the
+      target is rejected in `rules_artists`, is a plain drop row in
+      `rules_ignored_artists`, or (for a curation decision) has no decision at all any
+      more. Each with the reason in words.
+    * `cycles` -- redirect loops, as in `resolve_redirect_chains`.
+    * `chains` -- redirects of more than one hop. The tagger follows these since bug
+      080, so they are information rather than a fault; `count` leaves them out.
+
+    @param redirects: `(name, corrected_name)` rows of `rules_ignored_artists`.
+    @param decisions: `{name, state, canonical_name, decided_by}` rows of `rules_artists`.
+    """
+    corrections: dict[str, str] = {}
+    dropped: set[str] = set()
+    for name, corrected in redirects:
+        name = (name or '').strip()
+        corrected = (corrected or '').strip()
+        if not name:
+            continue
+        if corrected:
+            corrections[name] = corrected
+        else:
+            dropped.add(name.lower())
+    state_of = {str(row['name']).lower(): row['state'] for row in decisions}
+    mirrored = {name.lower() for name in corrections}
+    # A curation redirect not (yet) mirrored is still a redirect the page shows.
+    for row in decisions:
+        canonical = (row.get('canonical_name') or '').strip()
+        if row['state'] == BLACK and canonical and str(row['name']).lower() not in mirrored:
+            corrections[str(row['name'])] = canonical
+    # Redirects decided on the page, whose target was approved in the same call. The
+    # rows migrate_v26 seeded (`legacy-redirect`) never had an approved target, so a
+    # target without a decision says nothing about them.
+    curated = {
+        str(row['name']).lower()
+        for row in decisions
+        if row['state'] == BLACK and row.get('canonical_name') and row.get('decided_by') != LEGACY_DECIDER
+    }
+
+    resolved, paths, cycles = resolve_redirect_chains(corrections)
+    looping = {member.lower() for cycle in cycles for member in cycle}
+    dangling = []
+    for name, target in sorted(resolved.items(), key=lambda item: item[0].lower()):
+        key = target.lower()
+        if name.lower() in looping or key == name.lower():
+            continue
+        reason = None
+        if state_of.get(key) == BLACK:
+            reason = 'target is rejected'
+        elif key in dropped:
+            reason = 'target is dropped by the tagger'
+        elif name.lower() in curated and key not in state_of:
+            reason = 'target has no decision (undone?)'
+        if reason:
+            dangling.append({'name': name, 'target': target, 'path': paths.get(name, [name, target]), 'reason': reason})
+    chains = [
+        {'name': name, 'path': path}
+        for name, path in sorted(paths.items(), key=lambda item: item[0].lower())
+        if name.lower() not in looping
+    ]
+    return {'count': len(dangling) + len(cycles), 'dangling': dangling, 'cycles': cycles, 'chains': chains}
 
 
 # ----------------------------------------------------------------------------- analyze

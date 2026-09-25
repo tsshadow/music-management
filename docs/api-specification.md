@@ -107,6 +107,25 @@ The system key passes every check. Routes not marked otherwise need any authenti
   `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
   its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
   fixed by removing a parent on the genre edit page in Beheer.
+- **POST `/api/rules/artists/decide`** (`rules.manage`): body `{"names": [...], "state": "white"|"black",
+  "canonical_name": <string|null>}`. Response (fields `repointed` and `returned_to_queue` added, additive):
+  `{"status": "ok", "decided": <int>, "canonical_name": ..., "repointed": [<name>], "returned_to_queue": [<name>]}`.
+  Rejecting a name that other redirects point at settles them in the same transaction (bug report 080):
+  with a `canonical_name` they are re-pointed to it (`repointed`); without one their decision is forgotten
+  and they go back to the queue (`returned_to_queue`). A `canonical_name` that is rejected is a `400`.
+- **DELETE `/api/rules/artists/{name}`** (`rules.manage`): forgets a decision; `404` when there is none
+  (nothing is changed then). Redirects that pointed at the name go back to the queue with it; response
+  `{"status": "ok", "returned_to_queue": [<name>]}`.
+- **GET `/api/rules/artists/redirects/issues`**: read-only integrity check, any authenticated account.
+  `{"count": <int>, "dangling": [{"name", "target", "path", "reason"}], "cycles": [[<name>, ...]],
+  "chains": [{"name", "path"}]}`. `dangling` is a redirect (from `rules_ignored_artists`, or an unmirrored
+  `rules_artists` correction) whose final target is rejected, a plain drop row, or -- for a redirect made on
+  the curation page -- has no decision any more. `cycles` are redirect loops. `chains` are redirects of
+  more than one hop; the tagger follows those to the end since bug 080, so they are information and not
+  counted in `count`. Fix a finding by deciding the name again on the Artiestcuratie page.
+- **POST `/api/rules/artist-redirects`** (`rules.manage`): additionally `400` when `corrected_name` is
+  rejected in `rules_artists`, or when the redirect would close a loop (a casing fix of the name itself is
+  not a loop).
 - **Admin**: `POST /api/soundcloud`, `DELETE /api/soundcloud/{name}`, `POST /api/youtube`,
   `DELETE /api/youtube/{name}`.
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
@@ -139,7 +158,8 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **POST `/api/config/`**: Body `{"updates": {<key>: <value>}}`. The whole payload is validated before anything changes: an unknown key, an unparsable value or a changed `read_only` field (the `db_*` database settings, which come from the environment) is a 400. A secret posted as the sentinel is left untouched. Response: `{"status": "success", "config": {<key>: <public value>}}` for every posted key -- **masked like the GET**. Until 0.72 this echoed each secret back in the clear. Only keys that differ from their environment value or default are persisted; see "Runtime Configuration" in `AGENTS.md` for the precedence.
 
 ### 🖼 Artist images
-- **POST `/api/artists/{artist_id}/image/clear`**: Unsets the primary image (files and image rows are kept) and sets `image_status = 'cleared'`. The start-up bulk run and `/fetch-missing` skip a `cleared` artist; before this status existed the clear set `none` and the next restart fetched the portrait again.
+- **POST `/api/artists/{artist_id}/image/clear`**: Unsets the primary image (files and image rows are kept) and sets `image_status = 'cleared'`. The start-up bulk run and `/fetch-missing` skip a `cleared` artist; before this status existed the clear set `none` and the next restart fetched the portrait again. It also removes the published copies behind the fixed URL (`/media/artist-images/{id}/primary.jpg` and `thumb_<size>.jpg`), and the next server sync (start-up, then hourly) unsets the server's `preferred_artwork_id` when it still points at one of this artist's stored files -- artwork the server found itself is left alone (bug report 080).
+- **POST `/api/artists/{artist_id}/image/select/{image_id}`**: Makes a stored image the primary one and republishes `primary.jpg`/`thumb_<size>.jpg` from it.
 - **POST `/api/artists/{artist_id}/fetch-image`**: Looks up a new portrait in the background. Skips a `cleared` artist unless `?force=true`; the manager's "search automatically" button sends `force=true`.
 - **POST `/api/artists/fetch-missing`** (alias `/fetch-images`): Background run over every artist without an image, excluding `cleared` ones and `failed` ones inside the retry window (`ARTIST_IMAGE_RETRY_AFTER_DAYS`, default 30).
 - `image_status` values: `active`, `failed`, `cleared`, or empty (never decided).

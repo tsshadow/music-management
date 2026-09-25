@@ -28,7 +28,7 @@ class AddMissingArtistToDatabaseRule(TagRule):
         self.ignored_table = (
             ignored_db
             or databaseHelpers.get('rules_ignored_artists')
-            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', follow_chains=True)
         )
         self.ask_for_missing = ask_for_missing
 

@@ -1,5 +1,11 @@
 version: "3.9"
 
+# Renders only on top of docker-compose.yml (its services depend on `db`). The three
+# services that file already defines -- soundcloud-fetcher, genre-processor, firefox --
+# take `image` and `security_opt` from it rather than repeating them: a second
+# `no-new-privileges:true` made compose 2.26 reject the merged list as "array items
+# must be unique". tests/ci/test_compose_render.py renders the combination.
+
 # Every service logs through json-file with rotation. Docker's default is
 # json-file *without* a size cap, so a chatty container grows its log under
 # /var/lib/docker until the disk is full -- and on the production host a full
@@ -16,9 +22,6 @@ x-logging: &default-logging
 services:
   soundcloud-fetcher:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-soundcloud-fetcher
     depends_on:
       - db
@@ -53,6 +56,8 @@ services:
       - db
     command: ["python", "scripts/backfill_release_dates.py"]
     restart: "no"
+    # One-shot run; same ceiling as the one-shots in docker-compose.yml.
+    mem_limit: ${MUMA_MEM_LIMIT_ONESHOT:-1g}
     environment:
       - PYTHONPATH=/app
       - DB_HOST=${DB_HOST}
@@ -84,6 +89,8 @@ services:
       - db
     command: ["python", "scripts/repair_song_works.py", "--dry-run"]
     restart: "no"
+    # One-shot run; same ceiling as the one-shots in docker-compose.yml.
+    mem_limit: ${MUMA_MEM_LIMIT_ONESHOT:-1g}
     environment:
       - PYTHONPATH=/app
       - DB_HOST=${DB_HOST}
@@ -96,9 +103,6 @@ services:
 
   genre-processor:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: genre-processor
     depends_on:
       - db
@@ -134,9 +138,6 @@ services:
 
   firefox:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
     container_name: muma-firefox
     restart: unless-stopped
     shm_size: "1gb"

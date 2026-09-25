@@ -3,6 +3,9 @@
 # below are the same ones docker-compose.yml defines, with an older, flat environment, so a
 # path or setting cited from here is not what production runs. Not valid on its own either:
 # every worker depends on `db`, which only docker-compose.yml defines.
+# `image` and `security_opt` are inherited from docker-compose.yml rather than repeated:
+# a second `no-new-privileges:true` made compose 2.26 reject the merged list as
+# "array items must be unique". tests/ci/test_compose_render.py renders the dev stack.
 version: "3.9"
 
 # Every service logs through json-file with rotation. Docker's default is
@@ -21,9 +24,6 @@ x-logging: &default-logging
 services:
   importer_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_IMPORTER}:latest
     container_name: muma-importer-worker
     restart: unless-stopped
     depends_on:
@@ -76,9 +76,6 @@ services:
 
   youtube_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-youtube-worker
     # A deploy sends SIGTERM and then SIGKILL. The worker aborts its download and
     # writes down what the pass learned within a second or two, so this is
@@ -138,9 +135,6 @@ services:
 
   soundcloud_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest
     container_name: muma-soundcloud-worker
     # A deploy sends SIGTERM and then SIGKILL. The worker aborts its download and
     # writes down what the pass learned within a second or two, so this is
@@ -200,9 +194,6 @@ services:
 
   telegram_worker:
     logging: *default-logging
-    security_opt:
-      - no-new-privileges:true
-    image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:latest
     container_name: muma-telegram-worker
     restart: unless-stopped
     depends_on:

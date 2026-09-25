@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import PlaylistsTab from "../../src/lib/management/tabs/PlaylistsTab.svelte";
+import { notifications, dismissAll } from "../../src/lib/notifications.js";
 
 const USER = { id: 1, username: "user" };
 const PLAYLIST = {
@@ -60,7 +62,6 @@ describe("PlaylistsTab", () => {
   beforeEach(() => {
     globalThis.fetch = mockApi();
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    vi.spyOn(window, "alert").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -273,7 +274,8 @@ describe("PlaylistsTab", () => {
 
     await fireEvent.click(screen.getByText("DEFAULTS"));
 
-    expect(window.alert).toHaveBeenCalledWith("Selecteer eerst een gebruiker");
+    expect(get(notifications).map((n) => n.message)).toContain("Selecteer eerst een gebruiker");
+    dismissAll();
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 

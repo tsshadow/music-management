@@ -43,14 +43,14 @@
 
   <!-- Modal Container -->
   <div 
-    class="relative w-full max-w-4xl max-h-[90vh] bg-[#121212] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
+    class="relative w-full max-w-4xl max-h-[90vh] bg-muma-spotify-dark rounded-xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
     transition:scale={{ duration: 200, start: 0.95 }}
   >
     <!-- Header -->
     <div class="flex items-center justify-between p-6 border-b border-white/5">
       <h2 class="text-2xl font-bold m-0">{title}</h2>
       <button 
-        class="text-[#b3b3b3] hover:text-white transition-colors"
+        class="text-muma-spotify-text hover:text-white transition-colors"
         onclick={onclose}
         aria-label={$t('common.close')}
       >

@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { ScrollText, Trash2, Clock, ChevronRight } from '@lucide/svelte';
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
 
   export let API_BASE;
   export let getHeaders;
@@ -131,10 +131,6 @@
     }
   }
 
-  function formatDate(value) {
-    return new Date(value).toLocaleString('nl-NL');
-  }
-
   onMount(() => {
     fetchEvents();
     pollTimer = setInterval(() => {
@@ -246,7 +242,7 @@
               <ChevronRight size={16} class="transition-transform {expanded.includes(event.id) ? 'rotate-90' : ''}" />
               <span class="font-mono text-xs font-bold w-20 shrink-0">{event.level}</span>
               <span class="text-xs text-muma-spotify-text w-32 shrink-0 flex items-center gap-1">
-                <Clock size={12} />{formatDate(event.created_at)}
+                <Clock size={12} />{$format.dateTime(event.created_at)}
               </span>
               <span class="text-xs text-muma-spotify-text w-32 shrink-0">{event.source}</span>
               <span class="text-sm text-white truncate flex-1">{event.title}</span>

@@ -5,37 +5,43 @@
  * can read, and work out what actually has to be sent back to the API.
  */
 
+import { get } from "svelte/store";
+import { t } from "../i18n/index.js";
+
 const MINUTE = 60;
 const HOUR = 3600;
 const DAY = 86400;
 
-/** Render a number of seconds as a short Dutch duration. */
+/** The translation of one downloader key, looked up in the active locale at call time. */
+function tr(key, vars) {
+  return get(t)(`management.downloaders.${key}`, vars);
+}
+
+/** Render a number of seconds as a short duration in the active locale. */
 export function formatDuration(seconds) {
   if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return "—";
   const total = Number(seconds);
-  if (total === 0) return "uit";
-  if (total < MINUTE) return `${total} sec`;
-  if (total < HOUR) return `${Math.round(total / MINUTE)} min`;
+  if (total === 0) return tr("duration.off");
+  if (total < MINUTE) return tr("duration.seconds", { count: total });
+  if (total < HOUR) return tr("duration.minutes", { count: Math.round(total / MINUTE) });
   if (total < DAY) {
     const hours = Math.floor(total / HOUR);
     const minutes = Math.round((total % HOUR) / MINUTE);
-    return minutes ? `${hours} uur ${minutes} min` : `${hours} uur`;
+    const hoursText = tr("duration.hours", { count: hours });
+    return minutes ? `${hoursText} ${tr("duration.minutes", { count: minutes })}` : hoursText;
   }
   const days = Math.floor(total / DAY);
   const hours = Math.round((total % DAY) / HOUR);
-  return hours ? `${days} dag ${hours} uur` : `${days} dag${days > 1 ? "en" : ""}`;
+  const daysText = tr("duration.days", { count: days });
+  return hours ? `${daysText} ${tr("duration.hours", { count: hours })}` : daysText;
 }
 
 /**
  * What a person has to do about a pause that waiting does not fix, keyed by the
- * `block_reason` the rate-state endpoint reports (bug report 076).
+ * `block_reason` the rate-state endpoint reports (bug report 076). The text
+ * itself lives in the locale files under `management.downloaders.blockReason`.
  */
-const BLOCK_REASONS = {
-  bot_check:
-    "YouTube vraagt om in te loggen (bot-check). Log opnieuw in bij YouTube in de Firefox-container (poort 7003) en druk daarna op Reset backoff.",
-  cookies_missing:
-    "De Firefox-cookies zijn niet leesbaar voor de worker. Controleer de firefox-mount en YT_COOKIES.",
-};
+const BLOCK_REASONS = ["bot_check", "cookies_missing"];
 
 /**
  * Summarise how hard a downloader is currently holding back.
@@ -45,27 +51,29 @@ const BLOCK_REASONS = {
  * `block_reason` also carries `advice`: the step that lifts it.
  */
 export function describeBackoff(state) {
-  if (!state) return { tone: "unknown", label: "Onbekend" };
+  if (!state) return { tone: "unknown", label: tr("backoff.unknown") };
   const multiplier = Number(state.multiplier || 1);
   const remaining = Number(state.cooldown_remaining || 0);
-  const advice = BLOCK_REASONS[state.block_reason];
+  const advice = BLOCK_REASONS.includes(state.block_reason)
+    ? tr(`blockReason.${state.block_reason}`)
+    : undefined;
   if (remaining > 0 && advice) {
     return {
       tone: "parked",
-      label: `Gepauzeerd, nog ${formatDuration(remaining)}`,
+      label: tr("backoff.parked", { duration: formatDuration(remaining) }),
       advice,
     };
   }
   if (remaining > 0) {
     return {
       tone: "parked",
-      label: `Gepauzeerd, nog ${formatDuration(remaining)} (${multiplier}x vertraagd)`,
+      label: tr("backoff.parkedSlowed", { duration: formatDuration(remaining), multiplier }),
     };
   }
   if (multiplier > 1) {
-    return { tone: "slowed", label: `${multiplier}x vertraagd, herstelt na schone rondes` };
+    return { tone: "slowed", label: tr("backoff.slowed", { multiplier }) };
   }
-  return { tone: "ok", label: "Normaal tempo" };
+  return { tone: "ok", label: tr("backoff.normal") };
 }
 
 /**

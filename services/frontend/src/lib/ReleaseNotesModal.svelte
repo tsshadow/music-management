@@ -13,14 +13,14 @@
 
 <Modal title={$t('releaseNotes.title')} onclose={close}>
   <div class="flex flex-col gap-8">
-    <p class="text-[#b3b3b3]">{$t('releaseNotes.intro')}</p>
+    <p class="text-muma-spotify-text">{$t('releaseNotes.intro')}</p>
     
     <div class="flex flex-col gap-8">
       {#each releases as release (release.version)}
         <div class="border-l-4 border-brand pl-6 py-2">
           <div class="flex items-baseline gap-4 mb-4">
             <h3 class="text-white text-2xl font-bold">{release.version}</h3>
-            <span class="text-sm text-[#b3b3b3] font-medium">{release.date}</span>
+            <span class="text-sm text-muma-spotify-text font-medium">{release.date}</span>
           </div>
           
           <div class="space-y-6">

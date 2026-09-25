@@ -33,7 +33,7 @@
       }
     } catch (e) {
       console.error(e);
-      onError('Kon bibliotheken niet ophalen.');
+      onError($t('management.libraries.loadFailed'));
     } finally {
       isLoading = false;
     }
@@ -48,17 +48,17 @@
         body: JSON.stringify({ name: newLibName, path: newLibPath })
       });
       if (response.ok) {
-        onMessage(`Bibliotheek ${newLibName} toegevoegd.`);
+        onMessage($t('management.libraries.added', { name: newLibName }));
         showAddModal = false;
         newLibName = '';
         newLibPath = '';
         loadLibraries();
       } else {
-        onError(await response.text() || 'Kon bibliotheek niet toevoegen.');
+        onError(await response.text() || $t('management.libraries.addFailed'));
       }
     } catch (e) {
       console.error(e);
-      onError('Netwerkfout bij toevoegen van bibliotheek.');
+      onError($t('management.libraries.addNetworkError'));
     }
   }
 
@@ -69,14 +69,14 @@
         method: 'DELETE'
       });
       if (response.ok) {
-        onMessage(`Bibliotheek ${lib.name} verwijderd.`);
+        onMessage($t('management.libraries.deleted', { name: lib.name }));
         loadLibraries();
       } else {
-        onError(await response.text() || 'Kon bibliotheek niet verwijderen.');
+        onError(await response.text() || $t('management.libraries.deleteFailed'));
       }
     } catch (e) {
       console.error(e);
-      onError('Netwerkfout bij verwijderen van bibliotheek.');
+      onError($t('management.libraries.deleteNetworkError'));
     }
   }
 
@@ -86,26 +86,26 @@
 <section class="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
   <header>
     <h2 class="text-4xl font-extrabold mb-2">📚 {$t('management.tabs.libraries')}</h2>
-    <p class="text-[#b3b3b3]">{$t('management.libraries.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('management.libraries.subtitle')}</p>
   </header>
 
   {#if !$authParams}
-    <div class="bg-[#181818] p-8 rounded-xl border border-white/5 text-center">
+    <div class="bg-muma-spotify-panel p-8 rounded-xl border border-white/5 text-center">
       <h3 class="text-xl font-bold mb-2">{$t('management.libraries.noConnection')}</h3>
-      <p class="text-[#b3b3b3]">
+      <p class="text-muma-spotify-text">
         {$t('management.libraries.noConnectionHelp')}
       </p>
     </div>
   {:else if isLoading}
-    <div class="text-[#b3b3b3]">{$t('common.loading')}</div>
+    <div class="text-muma-spotify-text">{$t('common.loading')}</div>
   {:else}
     <div class="flex flex-col gap-4">
       {#each libraries as lib (lib.id)}
-        <div class="bg-[#181818] rounded-xl p-6 border border-white/5 hover:border-white/10 transition-colors">
+        <div class="bg-muma-spotify-panel rounded-xl p-6 border border-white/5 hover:border-white/10 transition-colors">
           <div class="flex justify-between items-center">
             <div class="flex-1 min-w-0">
               <h4 class="font-bold text-lg text-white">{lib.name}</h4>
-              <p class="text-sm text-[#b3b3b3] mt-1 font-mono truncate">{lib.path || 'Pad alleen zichtbaar via de muma-bridge'}</p>
+              <p class="text-sm text-muma-spotify-text mt-1 font-mono truncate">{lib.path || $t('management.libraries.pathBridgeOnly')}</p>
             </div>
             <button
               onclick={() => deleteLibrary(lib)}
@@ -118,12 +118,12 @@
       {/each}
 
       {#if libraries.length === 0}
-        <div class="bg-[#181818] rounded-xl p-10 text-center border-2 border-dashed border-[#282828]">
-          <p class="text-[#b3b3b3]">{$t('management.libraries.empty')}</p>
+        <div class="bg-muma-spotify-panel rounded-xl p-10 text-center border-2 border-dashed border-muma-spotify-light">
+          <p class="text-muma-spotify-text">{$t('management.libraries.empty')}</p>
         </div>
       {/if}
 
-      <div class="mt-4 pt-4 border-t border-[#282828]">
+      <div class="mt-4 pt-4 border-t border-muma-spotify-light">
         <button
           onclick={() => (showAddModal = true)}
           class="text-brand font-bold hover:underline cursor-pointer border-none bg-transparent flex items-center gap-2"
@@ -137,27 +137,27 @@
 
 {#if showAddModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-    <div class="bg-[#181818] p-8 rounded-xl w-full max-w-md border border-white/10 shadow-2xl">
+    <div class="bg-muma-spotify-panel p-8 rounded-xl w-full max-w-md border border-white/10 shadow-2xl">
       <h3 class="text-2xl font-bold mb-6">{$t('management.libraries.add')}</h3>
       <div class="space-y-4">
         <div>
-          <label for="lib-name" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">{$t('management.libraries.name')}</label>
+          <label for="lib-name" class="block text-xs font-bold uppercase text-muma-spotify-text mb-2">{$t('management.libraries.name')}</label>
           <input
             id="lib-name"
             type="text"
             bind:value={newLibName}
             placeholder={$t('management.libraries.namePlaceholder')}
-            class="w-full bg-[#3e3e3e] border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
+            class="w-full bg-muma-spotify-highlight border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
           />
         </div>
         <div>
-          <label for="lib-path" class="block text-xs font-bold uppercase text-[#b3b3b3] mb-2">{$t('management.libraries.path')}</label>
+          <label for="lib-path" class="block text-xs font-bold uppercase text-muma-spotify-text mb-2">{$t('management.libraries.path')}</label>
           <input
             id="lib-path"
             type="text"
             bind:value={newLibPath}
             placeholder={$t('management.libraries.pathPlaceholder')}
-            class="w-full bg-[#3e3e3e] border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
+            class="w-full bg-muma-spotify-highlight border-none rounded p-3 text-white focus:ring-2 focus:ring-brand outline-none"
           />
         </div>
       </div>

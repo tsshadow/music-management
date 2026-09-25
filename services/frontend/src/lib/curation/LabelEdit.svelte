@@ -9,6 +9,7 @@
    */
   import { onMount } from 'svelte';
 
+  import { t } from '../i18n/index.js';
   import ChipEditor from './ChipEditor.svelte';
   import CurationShell from './CurationShell.svelte';
   import GenreRuleEditor from './GenreRuleEditor.svelte';
@@ -75,8 +76,8 @@
   <CurationShell
     title={label.name}
     subtitle={label.in_library
-      ? `${label.track_count} tracks in de bibliotheek`
-      : 'Nog niet in de bibliotheek — regels kunnen alvast worden vastgelegd'}
+      ? $t('curation.inLibrary', { count: label.track_count })
+      : $t('curation.notInLibrary')}
     {error}
     {message}
     {onback}
@@ -93,30 +94,30 @@
         <button
           class="bg-brand text-black font-bold rounded px-4 py-2 text-sm border-none cursor-pointer disabled:opacity-40"
           disabled={!mbidValid || busy || !label.in_library}
-          onclick={() => act(() => setLabelMbid(name, mbidDraft.trim() || null), 'MBID opgeslagen.')}
+          onclick={() => act(() => setLabelMbid(name, mbidDraft.trim() || null), $t('curation.mbidSaved'))}
         >
-          Opslaan
+          {$t('common.save')}
         </button>
       </div>
       {#if !mbidValid}
-        <p class="text-xs text-red-400 mt-2 mb-0">Dat is geen MBID. Plak alleen het id.</p>
+        <p class="text-xs text-red-400 mt-2 mb-0">{$t('curation.mbidInvalidShort')}</p>
       {/if}
       {#if mbidLink}
         <a class="text-xs text-brand mt-2 inline-block" href={mbidLink} target="_blank" rel="noreferrer">
-          Openen op MusicBrainz
+          {$t('curation.openOnMusicBrainz')}
         </a>
       {/if}
     </section>
 
     <section>
-      <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Moederlabel</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">{$t('curation.parentLabel')}</h2>
       <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-        Het label waar dit sublabel onder valt. Wordt nog niet door de tagger gebruikt.
+        {$t('curation.parentLabelHelp')}
       </p>
       <div class="flex gap-2 mt-3 items-center">
         <input
           class="flex-1 bg-muma-spotify-light border-none rounded px-3 py-2 text-sm text-white"
-          placeholder="id van het moederlabel, leeg om te wissen"
+          placeholder={$t('curation.parentPlaceholder')}
           bind:value={parentDraft}
           disabled={!label.in_library}
         />
@@ -125,28 +126,28 @@
           disabled={busy || !label.in_library}
           onclick={() => act(
             () => setLabelParent(name, parentDraft.trim() ? Number(parentDraft.trim()) : null),
-            'Moederlabel opgeslagen.')}
+            $t('curation.parentSaved'))}
         >
-          Opslaan
+          {$t('common.save')}
         </button>
       </div>
       {#if label.parent_label_name}
-        <p class="text-xs text-muma-spotify-text mt-2 mb-0">Valt nu onder {label.parent_label_name}.</p>
+        <p class="text-xs text-muma-spotify-text mt-2 mb-0">{$t('curation.parentNow', { name: label.parent_label_name })}</p>
       {/if}
     </section>
 
     <ChipEditor
-      title="Catalogus-prefixen"
-      hint="Een release met dit nummer in de mapnaam wordt aan dit label toegekend."
-      placeholder="Bijvoorbeeld MOH"
+      title={$t('curation.catidPrefixes')}
+      hint={$t('curation.catidHint')}
+      placeholder={$t('curation.catidPlaceholder')}
       items={label.catids}
       disabled={!label.in_library}
       validate={(candidate) =>
         label.catids.some((catid) => catid.toUpperCase() === candidate.toUpperCase())
-          ? 'Dat prefix staat er al.'
+          ? $t('curation.catidExists')
           : null}
-      onadd={(catid) => act(() => addLabelCatid(name, catid), 'Prefix toegevoegd.')}
-      onremove={(catid) => act(() => removeLabelCatid(name, catid), 'Prefix verwijderd.')}
+      onadd={(catid) => act(() => addLabelCatid(name, catid), $t('curation.prefixAdded'))}
+      onremove={(catid) => act(() => removeLabelCatid(name, catid), $t('curation.prefixRemoved'))}
     />
 
     {#if label.in_library}
@@ -159,15 +160,15 @@
       affected={label.track_count}
       {busy}
       onadd={(genreId) =>
-        act(() => addLabelGenre(name, genreId), (result) => marked(result, 'Regel opgeslagen.'))}
+        act(() => addLabelGenre(name, genreId), (result) => marked(result, $t('curation.ruleSaved')))}
       onremove={(genreId) =>
-        act(() => removeLabelGenre(name, genreId), (result) => marked(result, 'Regel verwijderd.'))}
+        act(() => removeLabelGenre(name, genreId), (result) => marked(result, $t('curation.ruleRemoved')))}
       onretag={() =>
-        act(() => retag('label', name), (result) => `${result.files} bestanden staan in de wachtrij om opnieuw getagd te worden.`)}
+        act(() => retag('label', name), (result) => $t('curation.retagQueued', { count: result.files }))}
     />
   </CurationShell>
 {:else}
   <div class="p-10 text-muma-spotify-text">
-    {#if error}{error}{:else}Laden…{/if}
+    {#if error}{error}{:else}{$t('common.loading')}{/if}
   </div>
 {/if}

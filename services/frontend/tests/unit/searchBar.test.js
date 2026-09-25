@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import SearchBar from "../../src/lib/SearchBar.svelte";
+import { resetSearchFacets } from "../../src/lib/searchFacets.js";
 import {
   activeModal,
   activeView,
@@ -51,6 +52,7 @@ async function search(term) {
 describe("SearchBar", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    resetSearchFacets();
     credentials.set({ url: "", username: "user", password: "pw" });
     viewMode.set("songs");
     activeView.set("home");
@@ -73,6 +75,22 @@ describe("SearchBar", () => {
       expect(urls.some((url) => url.includes("/rest/getGenres"))).toBe(true);
       expect(urls.some((url) => url.includes("/rest/getRecordLabels"))).toBe(true);
     });
+  });
+
+  it("fetches the genre and label lists once, however many search bars mount", async () => {
+    // TopBar swaps a phone and a desktop SearchBar across the breakpoint; the
+    // lists are shared, so neither the second mount nor a remount refetches.
+    render(SearchBar);
+    render(SearchBar);
+    await waitFor(() => {
+      const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+      expect(urls.filter((url) => url.includes("/rest/getGenres"))).toHaveLength(1);
+      expect(urls.filter((url) => url.includes("/rest/getRecordLabels"))).toHaveLength(1);
+    });
+    render(SearchBar);
+    await vi.advanceTimersByTimeAsync(0);
+    const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(urls.filter((url) => url.includes("/rest/getGenres"))).toHaveLength(1);
   });
 
   it("shows nothing until something is typed", () => {

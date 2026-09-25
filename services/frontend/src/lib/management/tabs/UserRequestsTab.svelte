@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { 
     RefreshCw, 
@@ -31,10 +31,10 @@
       if (res.ok) {
         requests = await res.json();
       } else {
-        onError("Kon toegangsverzoeken niet ophalen.");
+        onError($t('management.requests.loadFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij ophalen verzoeken.");
+      onError($t('management.requests.loadNetworkError'));
     } finally {
       loading = false;
     }
@@ -53,8 +53,8 @@
       if (res.ok) {
         onMessage(
           linkUserId
-            ? `Verzoek van ${request.display_name} gekoppeld aan bestaand account!`
-            : `Verzoek van ${request.display_name} goedgekeurd!`
+            ? $t('management.requests.linkedMessage', { name: request.display_name })
+            : $t('management.requests.approvedMessage', { name: request.display_name })
         );
         confirmingAction = null;
         linkUserId = '';
@@ -65,7 +65,7 @@
         onError(data.detail || $t('management.requests.approveFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout.");
+      onError($t('management.requests.networkError'));
     }
   }
 
@@ -77,7 +77,7 @@
         body: JSON.stringify({})
       });
       if (res.ok) {
-        onMessage(`Goedkeuring van ${request.display_name} ongedaan gemaakt.`);
+        onMessage($t('management.requests.undoneMessage', { name: request.display_name }));
         confirmingAction = null;
         fetchRequests();
       } else {
@@ -85,7 +85,7 @@
         onError(data.detail || $t('management.requests.undoFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout.");
+      onError($t('management.requests.networkError'));
     }
   }
 
@@ -96,7 +96,7 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage(`Verzoek van ${request.display_name} afgewezen.`);
+        onMessage($t('management.requests.rejectedMessage', { name: request.display_name }));
         confirmingAction = null;
         fetchRequests();
       } else {
@@ -104,7 +104,7 @@
         onError(data.detail || $t('management.requests.rejectFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout.");
+      onError($t('management.requests.networkError'));
     }
   }
 
@@ -208,16 +208,16 @@
                     </div>
                   </td>
                   <td class="p-4 text-muma-spotify-text">
-                    {new Date(request.requested_at).toLocaleString('nl-NL')}
+                    {$format.dateTime(request.requested_at)}
                   </td>
                   {#if statusFilter !== 'pending'}
                     <td class="p-4">
                       <span class="text-xs bg-white/5 px-2 py-1 rounded">
-                        {request.reviewed_by_user_id || 'Systeem'}
+                        {request.reviewed_by_user_id || $t('management.requests.system')}
                       </span>
                     </td>
                     <td class="p-4 text-muma-spotify-text">
-                      {request.reviewed_at ? new Date(request.reviewed_at).toLocaleString('nl-NL') : '—'}
+                      {request.reviewed_at ? $format.dateTime(request.reviewed_at) : '—'}
                     </td>
                   {/if}
                   {#if statusFilter === 'pending'}
@@ -266,7 +266,7 @@
 
 {#if confirmingAction}
 <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-  <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
+  <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
     <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
       {#if confirmingAction.type === 'approve'}
         <CheckCircle class="text-brand" /> {$t('management.requests.confirmApprove')}
@@ -278,21 +278,24 @@
     </h3>
     <p class="text-muma-spotify-text mb-6">
       {#if confirmingAction.type === 'approve'}
-        Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt goedkeuren?
+        {@const [before, after] = $t('management.requests.approveQuestion').split('{name}')}
+        {before}<b>{confirmingAction.request.display_name}</b>{after}
         {#if linkUserId}
-          De Google-koppeling wordt toegevoegd aan het bestaande account, er wordt geen nieuw account aangemaakt.
+          {$t('management.requests.approveLinkHelp')}
         {:else}
-          Er wordt direct een nieuw gebruikersaccount aangemaakt.
+          {$t('management.requests.approveCreateHelp')}
         {/if}
       {:else if confirmingAction.type === 'unapprove'}
-        Weet je zeker dat je de goedkeuring van <b>{confirmingAction.request.display_name}</b> ongedaan wilt maken?
+        {@const [before, after] = $t('management.requests.undoQuestion').split('{name}')}
+        {before}<b>{confirmingAction.request.display_name}</b>{after}
         {#if confirmingAction.request.linked_existing}
-          Alleen de Google-koppeling wordt verwijderd; het bestaande account blijft bestaan.
+          {$t('management.requests.undoLinkHelp')}
         {:else}
-          Het account dat hiervoor is aangemaakt wordt volledig verwijderd.
+          {$t('management.requests.undoCreateHelp')}
         {/if}
       {:else}
-        Weet je zeker dat je de toegangsaanvraag van <b>{confirmingAction.request.display_name}</b> wilt afwijzen?
+        {@const [before, after] = $t('management.requests.rejectQuestion').split('{name}')}
+        {before}<b>{confirmingAction.request.display_name}</b>{after}
       {/if}
     </p>
     {#if confirmingAction.type === 'approve'}
@@ -335,13 +338,13 @@
           else rejectRequest(confirmingAction.request);
         }}
       >
-        {#if confirmingAction.type === 'approve'}Bevestig goedkeuring{:else if confirmingAction.type === 'unapprove'}Bevestig ongedaan maken{:else}Bevestig afwijzing{/if}
+        {#if confirmingAction.type === 'approve'}{$t('management.requests.confirmApproveButton')}{:else if confirmingAction.type === 'unapprove'}{$t('management.requests.confirmUndoButton')}{:else}{$t('management.requests.confirmRejectButton')}{/if}
       </button>
       <button 
         class="flex-1 py-3 rounded-full font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
         onclick={() => confirmingAction = null}
       >
-        Annuleren
+        {$t('common.cancel')}
       </button>
     </div>
   </div>

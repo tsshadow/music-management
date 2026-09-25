@@ -57,7 +57,7 @@
       <div class="flex items-center gap-2 text-sm font-medium">
         <span class="text-white">{$t('starred.subtitle')}</span>
         {#if tracks.length > 0}
-          <span class="text-[#b3b3b3]">• {$t('common.trackCount', { count: tracks.length })}</span>
+          <span class="text-muma-spotify-text">• {$t('common.trackCount', { count: tracks.length })}</span>
         {/if}
       </div>
     </div>
@@ -79,7 +79,7 @@
      </div>
 
      {#if isLoading}
-        <div class="text-[#b3b3b3] p-12 text-center">{$t('common.loading')}</div>
+        <div class="text-muma-spotify-text p-12 text-center">{$t('common.loading')}</div>
      {:else}
         {#if tracks.length > 0}
           <section class="mb-12">
@@ -94,7 +94,7 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {#each albums as album (album.id)}
                 <button 
-                  class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all group text-left border-none cursor-pointer"
+                  class="bg-muma-spotify-panel p-4 rounded-lg hover:bg-muma-spotify-light transition-all group text-left border-none cursor-pointer"
                   onclick={() => onnavigate(`album:${album.id}`)}
                 >
                   <div class="relative mb-4 aspect-square shadow-lg">
@@ -106,7 +106,7 @@
                     />
                   </div>
                   <h3 class="font-bold text-white truncate mb-1">{album.name}</h3>
-                  <p class="text-sm text-[#b3b3b3] truncate">{album.artist}</p>
+                  <p class="text-sm text-muma-spotify-text truncate">{album.artist}</p>
                 </button>
               {/each}
             </div>
@@ -119,7 +119,7 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {#each artists as artist (artist.id)}
                 <button 
-                  class="bg-[#181818] p-4 rounded-lg hover:bg-[#282828] transition-all group text-left border-none cursor-pointer"
+                  class="bg-muma-spotify-panel p-4 rounded-lg hover:bg-muma-spotify-light transition-all group text-left border-none cursor-pointer"
                   onclick={() => onnavigate(`artist:${artist.id}`)}
                 >
                   <div class="relative mb-4 aspect-square shadow-lg">
@@ -138,7 +138,7 @@
         {/if}
 
         {#if tracks.length === 0 && albums.length === 0 && artists.length === 0}
-          <div class="text-[#b3b3b3] p-20 text-center flex flex-col items-center gap-4">
+          <div class="text-muma-spotify-text p-20 text-center flex flex-col items-center gap-4">
             <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor" class="opacity-20">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
             </svg>

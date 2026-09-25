@@ -74,7 +74,7 @@
 <svelte:window onkeydown={onKeyDown} />
 
 <div
-  class="bg-[#181818] border border-white/10 rounded-lg shadow-2xl p-4 w-[340px] max-w-[92vw] text-white"
+  class="bg-muma-spotify-panel border border-white/10 rounded-lg shadow-2xl p-4 w-[340px] max-w-[92vw] text-white"
   role="dialog"
   aria-label={$t('equalizer.title')}
 >
@@ -93,7 +93,7 @@
         <div class="absolute left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
       </label>
       <button
-        class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white cursor-pointer"
+        class="bg-transparent border-none p-0 text-muma-spotify-text hover:text-white cursor-pointer"
         onclick={onclose}
         aria-label={$t('equalizer.close')}
       >
@@ -105,12 +105,12 @@
   </div>
 
   <div class="flex flex-col gap-1 mb-4" class:opacity-40={!settings.enabled}>
-    <label class="text-[11px] uppercase tracking-wider text-[#b3b3b3]" for="eq-preset">
+    <label class="text-[11px] uppercase tracking-wider text-muma-spotify-text" for="eq-preset">
       {$t('equalizer.preset')}
     </label>
     <select
       id="eq-preset"
-      class="bg-[#282828] text-white text-sm px-3 py-1.5 rounded border border-white/10 outline-none focus:border-brand"
+      class="bg-muma-spotify-light text-white text-sm px-3 py-1.5 rounded border border-white/10 outline-none focus:border-brand"
       value={settings.preset}
       onchange={(e) => choosePreset(e.currentTarget.value)}
       aria-label={$t('equalizer.preset')}
@@ -127,7 +127,7 @@
   <div class="flex items-end justify-between gap-1 mb-3" class:opacity-40={!settings.enabled}>
     {#each EQ_FREQUENCIES as frequency, index (frequency)}
       <div class="flex flex-col items-center gap-1 flex-1">
-        <span class="text-[9px] text-[#b3b3b3] tabular-nums">{formatDb(settings.gains[index])}</span>
+        <span class="text-[9px] text-muma-spotify-text tabular-nums">{formatDb(settings.gains[index])}</span>
         <input
           type="range"
           class="eq-slider accent-brand"
@@ -138,13 +138,13 @@
           oninput={(e) => changeBand(index, e.currentTarget.value)}
           aria-label={$t('equalizer.band', { freq: labelFor(frequency) })}
         />
-        <span class="text-[9px] text-[#b3b3b3]">{labelFor(frequency)}</span>
+        <span class="text-[9px] text-muma-spotify-text">{labelFor(frequency)}</span>
       </div>
     {/each}
   </div>
 
   <div class="flex items-center gap-3 pt-3 border-t border-white/5" class:opacity-40={!settings.enabled}>
-    <label class="text-[11px] uppercase tracking-wider text-[#b3b3b3] w-20" for="eq-preamp">
+    <label class="text-[11px] uppercase tracking-wider text-muma-spotify-text w-20" for="eq-preamp">
       {$t('equalizer.preamp')}
     </label>
     <input
@@ -158,11 +158,11 @@
       oninput={(e) => changePreamp(e.currentTarget.value)}
       aria-label={$t('equalizer.preamp')}
     />
-    <span class="text-[10px] text-[#b3b3b3] w-14 text-right tabular-nums">{formatDb(settings.preamp)}</span>
+    <span class="text-[10px] text-muma-spotify-text w-14 text-right tabular-nums">{formatDb(settings.preamp)}</span>
   </div>
 
   <button
-    class="mt-3 w-full bg-[#282828] hover:bg-[#3e3e3e] text-white text-xs font-bold py-2 rounded border-none cursor-pointer transition-colors"
+    class="mt-3 w-full bg-muma-spotify-light hover:bg-muma-spotify-highlight text-white text-xs font-bold py-2 rounded border-none cursor-pointer transition-colors"
     onclick={reset}
   >
     {$t('equalizer.reset')}

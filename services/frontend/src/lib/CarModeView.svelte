@@ -180,14 +180,14 @@
 
   <div class="grid grid-cols-2 gap-3 px-4 shrink-0">
     <button
-      class="rounded-lg bg-[#282828] hover:bg-[#3e3e3e] transition-colors text-white text-lg font-bold py-5 px-3 border-none cursor-pointer truncate"
+      class="rounded-lg bg-muma-spotify-light hover:bg-muma-spotify-highlight transition-colors text-white text-lg font-bold py-5 px-3 border-none cursor-pointer truncate"
       onclick={() => playMix(null)}
     >
       {$t('car.mixFavorites')}
     </button>
     {#each genreTiles as genre (genre)}
       <button
-        class="rounded-lg bg-[#282828] hover:bg-[#3e3e3e] transition-colors text-white text-lg font-bold py-5 px-3 border-none cursor-pointer truncate"
+        class="rounded-lg bg-muma-spotify-light hover:bg-muma-spotify-highlight transition-colors text-white text-lg font-bold py-5 px-3 border-none cursor-pointer truncate"
         onclick={() => playMix(genre)}
       >
         {$t('car.mixGenre', { genre })}
@@ -216,7 +216,7 @@
     />
     <div class="min-w-0 flex-1">
       <div class="text-xl font-bold truncate">{track?.title ?? $t('player.nothingPlaying')}</div>
-      <div class="text-base text-[#b3b3b3] truncate">{track?.artist ?? ''}</div>
+      <div class="text-base text-muma-spotify-text truncate">{track?.artist ?? ''}</div>
     </div>
   </div>
 

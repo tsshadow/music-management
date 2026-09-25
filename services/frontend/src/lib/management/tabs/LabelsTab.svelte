@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../../i18n/index.js';
+  import { format, t } from '../../i18n/index.js';
   import { onDestroy, onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import { RefreshCw, Search, Pencil, Tag, ChevronLeft, ChevronRight, Inbox } from '@lucide/svelte';
@@ -24,7 +24,7 @@
   let searchTimer = null;
 
   const paging = $derived(pageOf(total, offset, PAGE_SIZE));
-  const n = (value) => Number(value ?? 0).toLocaleString('nl-NL');
+  const n = (value) => $format.number(value);
 
   function onSearchInput(event) {
     search = event.currentTarget.value;

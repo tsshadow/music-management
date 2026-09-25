@@ -82,15 +82,15 @@
 </script>
 
 <div class="flex flex-col gap-2">
-  <label for={id} class="text-xs font-bold uppercase tracking-wider text-[#b3b3b3]">{label}</label>
+  <label for={id} class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{label}</label>
   <div class="relative">
-    <div class="flex flex-wrap items-center gap-2 bg-[#282828] rounded-md px-2 py-1.5 min-h-11 focus-within:outline focus-within:outline-1 focus-within:outline-brand">
+    <div class="flex flex-wrap items-center gap-2 bg-muma-spotify-light rounded-md px-2 py-1.5 min-h-11 focus-within:outline focus-within:outline-1 focus-within:outline-brand">
       {#each selected as name (name)}
         <span class="flex items-center gap-1 bg-white/10 text-white text-sm rounded-full pl-3 pr-1 py-0.5">
           {name}
           <button
             type="button"
-            class="w-5 h-5 rounded-full bg-transparent border-none text-[#b3b3b3] hover:text-white hover:bg-white/10 cursor-pointer flex items-center justify-center"
+            class="w-5 h-5 rounded-full bg-transparent border-none text-muma-spotify-text hover:text-white hover:bg-white/10 cursor-pointer flex items-center justify-center"
             aria-label={$t('presetBuilder.remove', { name })}
             onclick={() => remove(name)}
           >×</button>
@@ -116,7 +116,7 @@
       <ul
         id="{id}-suggestions"
         role="listbox"
-        class="absolute left-0 right-0 top-full mt-1 bg-[#282828] rounded-md shadow-xl border border-white/5 py-1 z-30 max-h-64 overflow-y-auto list-none m-0 p-0"
+        class="absolute left-0 right-0 top-full mt-1 bg-muma-spotify-light rounded-md shadow-xl border border-white/5 py-1 z-30 max-h-64 overflow-y-auto list-none m-0 p-0"
       >
         {#each suggestions as name (name)}
           <li role="option" aria-selected="false">

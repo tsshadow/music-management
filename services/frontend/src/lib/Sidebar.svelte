@@ -94,9 +94,9 @@
 
   <div class="px-3 py-4">
     <div class="flex items-center gap-3">
-      <button class="bg-transparent border-none p-0 text-[13px] font-bold {$viewMode === 'songs' ? 'text-white' : 'text-[#b3b3b3]'} transition-colors cursor-pointer" onclick={() => viewMode.set('songs')}>{$t('nav.songs')}</button>
+      <button class="bg-transparent border-none p-0 text-[13px] font-bold {$viewMode === 'songs' ? 'text-white' : 'text-muma-spotify-text'} transition-colors cursor-pointer" onclick={() => viewMode.set('songs')}>{$t('nav.songs')}</button>
       <button
-        class="relative flex-shrink-0 w-10 h-5 rounded-full bg-[#282828] transition-colors duration-200 hover:bg-[#3e3e3e]"
+        class="relative flex-shrink-0 w-10 h-5 rounded-full bg-muma-spotify-light transition-colors duration-200 hover:bg-muma-spotify-highlight"
         onclick={() => viewMode.update(m => m === 'songs' ? 'sets' : 'songs')}
         aria-label={$t('sidebar.toggleMode')}
       >
@@ -104,13 +104,13 @@
           class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full transition-transform duration-200 {$viewMode === 'sets' ? 'translate-x-5 bg-brand-blue' : 'bg-brand-green'}"
         ></div>
       </button>
-      <button class="bg-transparent border-none p-0 text-[13px] font-bold {$viewMode === 'sets' ? 'text-white' : 'text-[#b3b3b3]'} transition-colors cursor-pointer" onclick={() => viewMode.set('sets')}>{$t('nav.sets')}</button>
+      <button class="bg-transparent border-none p-0 text-[13px] font-bold {$viewMode === 'sets' ? 'text-white' : 'text-muma-spotify-text'} transition-colors cursor-pointer" onclick={() => viewMode.set('sets')}>{$t('nav.sets')}</button>
     </div>
   </div>
 
   <ul class="list-none p-0 m-0">
     {#each primaryItems as item (item.id)}
-      <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-[#b3b3b3]'}">
+      <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-muma-spotify-text'}">
         <button
           class="flex items-center gap-4 w-full px-3 py-2 bg-transparent border-none font-bold text-sm cursor-pointer transition-colors hover:text-white text-left"
           onclick={() => navigate(item.id)}
@@ -123,7 +123,7 @@
       </li>
     {/each}
 
-    <li class="mb-1 {libraryExpanded ? 'text-white' : 'text-[#b3b3b3]'}">
+    <li class="mb-1 {libraryExpanded ? 'text-white' : 'text-muma-spotify-text'}">
       <button
         class="flex items-center gap-4 w-full px-3 py-2 bg-transparent border-none font-bold text-sm cursor-pointer transition-colors hover:text-white text-left"
         onclick={toggleLibrary}
@@ -139,7 +139,7 @@
       {#if libraryExpanded}
         <ul id="sidebar-library-group" class="list-none p-0 m-0">
           {#each libraryItems as item (item.id)}
-            <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-[#b3b3b3]'}">
+            <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-muma-spotify-text'}">
               <button
                 class="flex items-center gap-4 w-full pl-6 pr-3 py-2 bg-transparent border-none font-medium text-sm cursor-pointer transition-colors hover:text-white text-left"
                 onclick={() => navigate(item.id)}
@@ -156,7 +156,7 @@
     </li>
 
     {#each tailItems as item (item.id)}
-      <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-[#b3b3b3]'}">
+      <li class="mb-1 {activeView === item.id ? 'text-white' : 'text-muma-spotify-text'}">
         <button
           class="flex items-center gap-4 w-full px-3 py-2 bg-transparent border-none font-bold text-sm cursor-pointer transition-colors hover:text-white text-left"
           onclick={() => navigate(item.id)}
@@ -172,13 +172,13 @@
 
 
   <div class="genres overflow-y-auto scrollbar-hide">
-    <h3 class="px-3 text-[12px] text-[#b3b3b3] tracking-[1.5px] mb-3">
+    <h3 class="px-3 text-[12px] text-muma-spotify-text tracking-[1.5px] mb-3">
         {$favoriteGenres.length > 0 ? $t('sidebar.favoriteGenres') : $t('sidebar.popularGenres')}
     </h3>
     <ul class="list-none p-0 m-0">
       {#each displayedGenres as genre (genre.value)}
         <li>
-          <button class="w-full px-3 py-2 bg-transparent border-none {activeView === `genre:${genre.value}` ? 'text-white' : 'text-[#b3b3b3]'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre.value}`)}>{genre.value}</button>
+          <button class="w-full px-3 py-2 bg-transparent border-none {activeView === `genre:${genre.value}` ? 'text-white' : 'text-muma-spotify-text'} text-sm font-medium cursor-pointer transition-colors hover:text-white text-left" onclick={() => navigate(`genre:${genre.value}`)}>{genre.value}</button>
         </li>
       {/each}
     </ul>

@@ -288,12 +288,12 @@
   <h1 class="text-2xl font-black">{$t('voice.title')}</h1>
 
   {#if !supported}
-    <p class="text-[#b3b3b3] max-w-sm">{$t('voice.unsupported')}</p>
+    <p class="text-muma-spotify-text max-w-sm">{$t('voice.unsupported')}</p>
   {:else}
     <button
       type="button"
       class="w-24 h-24 rounded-full flex items-center justify-center shadow-xl border-none cursor-pointer transition
-        {phase === 'listening' ? 'bg-brand text-black animate-pulse' : 'bg-[#282828] text-white hover:bg-[#333]'}"
+        {phase === 'listening' ? 'bg-brand text-black animate-pulse' : 'bg-muma-spotify-light text-white hover:bg-muma-spotify-hover'}"
       onclick={micTapped}
       aria-label={$t('voice.mic')}
     >
@@ -305,41 +305,41 @@
 
     <div class="min-h-8">
       {#if phase === 'listening'}
-        <p class="text-[#b3b3b3]">{partial || $t('voice.listening')}</p>
+        <p class="text-muma-spotify-text">{partial || $t('voice.listening')}</p>
       {:else if phase === 'working'}
-        <p class="text-[#b3b3b3]">{$t('voice.working')}</p>
+        <p class="text-muma-spotify-text">{$t('voice.working')}</p>
       {:else if phase === 'error'}
-        <p class="text-[#b3b3b3]">{$t('voice.needsMicrophone')}</p>
+        <p class="text-muma-spotify-text">{$t('voice.needsMicrophone')}</p>
       {:else if phase === 'idle'}
-        <p class="text-[#b3b3b3]">{$t('voice.prompt')}</p>
+        <p class="text-muma-spotify-text">{$t('voice.prompt')}</p>
       {/if}
     </div>
 
     {#if explanation}
-      <div class="w-full max-w-sm bg-[#181818] rounded-lg p-4 text-left flex flex-col gap-2" data-testid="voice-explanation">
+      <div class="w-full max-w-sm bg-muma-spotify-panel rounded-lg p-4 text-left flex flex-col gap-2" data-testid="voice-explanation">
         {#if explanation.heard}
           <div>
-            <span class="text-xs uppercase tracking-wider text-[#b3b3b3]">{$t('voice.heard')}</span>
+            <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('voice.heard')}</span>
             <p class="text-white">“{explanation.heard}”</p>
           </div>
         {/if}
 
         {#if explanation.understood}
           <div>
-            <span class="text-xs uppercase tracking-wider text-[#b3b3b3]">{$t('voice.understood')}</span>
+            <span class="text-xs uppercase tracking-wider text-muma-spotify-text">{$t('voice.understood')}</span>
             <p class="text-white">{explanation.understood}</p>
           </div>
         {/if}
 
         {#each rowsOf(explanation) as row (row.field)}
           <div class="flex justify-between text-sm">
-            <span class="text-[#b3b3b3]">{row.label}</span>
+            <span class="text-muma-spotify-text">{row.label}</span>
             <span class="text-white">{row.value}</span>
           </div>
         {/each}
 
         {#if explanation.reason}
-          <p class="text-[#b3b3b3] text-sm">{explanation.reason}</p>
+          <p class="text-muma-spotify-text text-sm">{explanation.reason}</p>
         {/if}
       </div>
     {/if}
@@ -351,7 +351,7 @@
           {#each question.options as option (option)}
             <button
               type="button"
-              class="px-4 py-2 rounded-full bg-[#282828] text-white border-none cursor-pointer hover:bg-[#333]"
+              class="px-4 py-2 rounded-full bg-muma-spotify-light text-white border-none cursor-pointer hover:bg-muma-spotify-hover"
               onclick={() => answer(option)}
             >
               {kindLabel(option)}
@@ -368,35 +368,35 @@
     {#if phase === 'nothing' || phase === 'play'}
       <button
         type="button"
-        class="px-6 py-2 rounded-full bg-transparent border border-[#b3b3b3] text-white cursor-pointer hover:border-white"
+        class="px-6 py-2 rounded-full bg-transparent border border-muma-spotify-text text-white cursor-pointer hover:border-white"
         onclick={again}
       >
         {$t('voice.again')}
       </button>
     {/if}
 
-    <button type="button" class="bg-transparent border-none text-[#b3b3b3] underline cursor-pointer" onclick={toggleCommands}>
+    <button type="button" class="bg-transparent border-none text-muma-spotify-text underline cursor-pointer" onclick={toggleCommands}>
       {$t('voice.commandsLink')}
     </button>
 
     {#if showCommands && commands}
-      <div class="w-full max-w-sm bg-[#181818] rounded-lg p-4 text-left text-sm text-[#b3b3b3]" data-testid="voice-commands">
+      <div class="w-full max-w-sm bg-muma-spotify-panel rounded-lg p-4 text-left text-sm text-muma-spotify-text" data-testid="voice-commands">
         {#if commands.title}<h2 class="text-white font-bold mb-2">{commands.title}</h2>{/if}
         <div>{@html toHtml(commands.html)}</div>
       </div>
     {/if}
 
-    <button type="button" class="bg-transparent border-none text-[#b3b3b3] underline cursor-pointer" onclick={toggleDiagnostics}>
+    <button type="button" class="bg-transparent border-none text-muma-spotify-text underline cursor-pointer" onclick={toggleDiagnostics}>
       {$t('voice.diagnosticsTitle')}
     </button>
 
     {#if showDiagnostics}
-      <div class="w-full max-w-sm text-left text-sm text-[#b3b3b3]" data-testid="voice-diagnostics">
+      <div class="w-full max-w-sm text-left text-sm text-muma-spotify-text" data-testid="voice-diagnostics">
         {#if diagnosticsTraces.length === 0}
           <p>{$t('voice.diagnosticsEmpty')}</p>
         {:else}
           {#each diagnosticsTraces as trace, index (index)}
-            <p class="border-b border-[#282828] py-2">{trace.summary}</p>
+            <p class="border-b border-muma-spotify-light py-2">{trace.summary}</p>
           {/each}
         {/if}
       </div>

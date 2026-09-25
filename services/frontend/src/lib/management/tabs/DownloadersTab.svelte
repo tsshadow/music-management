@@ -1,5 +1,5 @@
 <script >
-  import { t, locale } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
@@ -113,7 +113,7 @@
         body: JSON.stringify({ source, updates }),
       });
       if (!res.ok) throw new Error(await reasonFor(res));
-      onMessage(`${SOURCE_LABELS[source] || source} timing opgeslagen.`);
+      onMessage($t('management.downloaders.timingSaved', { source: SOURCE_LABELS[source] || source }));
       saveErrors = { ...saveErrors, [source]: '' };
       timingLoaded = false;
       await loadTiming();
@@ -121,24 +121,24 @@
       // A toast is gone by the time you look back at the form, and the field it
       // failed on is still showing the value you typed, as if it had been accepted.
       saveErrors = { ...saveErrors, [source]: err.message };
-      onError(`Opslaan mislukt: ${err.message}`);
+      onError($t('management.downloaders.saveFailedDetail', { message: err.message }));
     } finally {
       savingSource = '';
     }
   }
 
   async function resetBackoff(source) {
-    if (!confirm(`Backoff van ${SOURCE_LABELS[source] || source} terugzetten naar normaal tempo?`)) return;
+    if (!confirm($t('management.downloaders.confirmResetBackoff', { source: SOURCE_LABELS[source] || source }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/downloaders/rate-state/${source}/reset`, {
         method: 'POST',
         headers: getHeaders(),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onMessage("Backoff teruggezet.");
+      onMessage($t('management.downloaders.backoffReset'));
       await loadRateState();
     } catch (err) {
-      onError("Kon de backoff niet terugzetten.");
+      onError($t('management.downloaders.backoffResetFailed'));
     }
   }
 
@@ -164,23 +164,23 @@
         refreshDownloaders();
       }
     } catch (err) {
-      onError("Kon account niet toevoegen.");
+      onError($t('management.downloaders.accountAddFailed'));
     }
   }
 
   async function deleteSoundcloudAccount(name) {
-    if (!confirm(`Weet je zeker dat je ${name} wilt verwijderen?`)) return;
+    if (!confirm($t('management.downloaders.confirmDeleteAccount', { name }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/soundcloud/${name}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage("Account verwijderd.");
+        onMessage($t('management.downloaders.accountDeleted'));
         refreshDownloaders();
       }
     } catch (err) {
-      onError("Kon account niet verwijderen.");
+      onError($t('management.downloaders.accountDeleteFailed'));
     }
   }
 
@@ -198,12 +198,12 @@
         refreshDownloaders();
       }
     } catch (err) {
-      onError("Kon kanaal niet toevoegen.");
+      onError($t('management.downloaders.channelAddFailed'));
     }
   }
 
   async function deleteYoutubeAccount(name, downloadType) {
-    if (!confirm(`Weet je zeker dat je kanaal ${name} (${downloadType}) wilt verwijderen?`)) return;
+    if (!confirm($t('management.downloaders.confirmDeleteChannel', { name, type: downloadType }))) return;
     try {
       // A channel can have both an audio and a video row; without the type the
       // API would delete both of them.
@@ -405,7 +405,7 @@
               {#if state}
                 <p class="text-xs text-muma-spotify-text mt-1">
                   {$t('management.downloaders.cadence', { sweep: formatDuration(state.effective_sweep_interval), cooldown: formatDuration(state.effective_account_cooldown) })}
-                  {#if state.last_429_at} · {$t('management.downloaders.last429', { date: new Date(state.last_429_at).toLocaleString($locale) })}{/if}
+                  {#if state.last_429_at} · {$t('management.downloaders.last429', { date: $format.dateTime(state.last_429_at) })}{/if}
                 </p>
               {/if}
             </div>
@@ -421,7 +421,7 @@
                 disabled={savingSource === entry.source}
                 class="bg-brand text-black font-extrabold px-6 py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
               >
-                {savingSource === entry.source ? 'OPSLAAN...' : 'OPSLAAN'}
+                {savingSource === entry.source ? $t('management.downloaders.savingUpper') : $t('management.downloaders.saveUpper')}
               </button>
             </div>
           </div>
@@ -455,9 +455,9 @@
                 </div>
                 <p class="text-xs text-muma-spotify-text mt-1">{field.description}</p>
                 <p class="text-xs text-muma-spotify-text opacity-60 mt-1">
-                  standaard {field.default}
+                  {$t('management.downloaders.fieldDefault', { value: field.default })}
                   {#if field.unit === 'seconden'} ({formatDuration(field.default)}){/if}
-                  · toegestaan {field.minimum}–{field.maximum}
+                  · {$t('management.downloaders.fieldAllowed', { min: field.minimum, max: field.maximum })}
                 </p>
               </div>
             {/each}

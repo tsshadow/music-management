@@ -16,6 +16,7 @@
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
 
+  import { t } from '../i18n/index.js';
   import { RUNS_SHOWN, formatRuns, searchTerms, seriesHeader } from './catalogRuns.js';
   import { loadLabelCatalog } from './curationApi.js';
 
@@ -52,32 +53,30 @@
         if (copied === series.prefix) copied = null;
       }, 2000);
     } catch {
-      copyError = 'Kopiëren is niet gelukt.';
+      copyError = $t('curation.copyFailed');
     }
   }
 </script>
 
 <section>
-  <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Catalogus</h2>
+  <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">{$t('curation.catalog')}</h2>
   <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-    Gelezen uit de mapnamen van de releases; alleen de EPs-map telt. Alleen het waargenomen bereik telt: vóór
-    het laagste en na het hoogste nummer wordt niets geclaimd, en een nummer dat niet aanwezig is kan ook door
-    het label zijn overgeslagen.
+    {$t('curation.catalogHelp')}
   </p>
 
   {#if error}
-    <p class="text-xs text-red-400 mt-3 mb-0" role="alert">Catalogus kon niet worden geladen: {error}</p>
+    <p class="text-xs text-red-400 mt-3 mb-0" role="alert">{$t('curation.catalogLoadFailed', { error })}</p>
   {:else if !catalog}
-    <p class="text-xs text-muma-spotify-text mt-3 mb-0 animate-pulse">Catalogus laden…</p>
+    <p class="text-xs text-muma-spotify-text mt-3 mb-0 animate-pulse">{$t('curation.catalogLoading')}</p>
   {:else}
     {#if catalog.series.length === 0}
       <p class="text-sm text-muma-spotify-text mt-3 mb-0">
-        Geen leesbare catalogusnummers in de mappen van dit label.
+        {$t('curation.catalogEmpty')}
       </p>
     {/if}
     {#if catalog.files_outside_root > 0}
       <p class="text-xs text-muma-spotify-text mt-2 mb-0">
-        {catalog.files_outside_root} bestanden van dit label staan buiten de EPs-map en zijn niet meegeteld.
+        {$t('curation.filesOutsideRoot', { count: catalog.files_outside_root })}
       </p>
     {/if}
 
@@ -91,7 +90,7 @@
                 class="bg-transparent text-white text-xs font-bold border border-white/20 rounded-full px-3 py-1 cursor-pointer hover:scale-105 disabled:opacity-40"
                 onclick={() => copy(series)}
               >
-                {copied === series.prefix ? 'Gekopieerd' : 'Kopieer als zoektermen'}
+                {copied === series.prefix ? $t('curation.copied') : $t('curation.copyAsTerms')}
               </button>
             {/if}
           </div>
@@ -101,23 +100,22 @@
 
           {#if series.absent_truncated}
             <p class="text-xs text-muma-spotify-text mt-2 mb-0">
-              {series.absent_count} nummers niet aanwezig — te veel om op te sommen; waarschijnlijk staat één
-              mapnaam ver buiten de reeks.
+              {$t('curation.absentTruncated', { count: series.absent_count })}
             </p>
           {:else if series.absent_count === 0}
             <p class="text-xs text-muma-spotify-text mt-2 mb-0">
-              Alles binnen het waargenomen bereik is aanwezig.
+              {$t('curation.allPresent')}
             </p>
           {:else}
             <p class="text-xs text-muma-spotify-text mt-2 mb-0 break-words">
-              <span class="text-white">Niet aanwezig ({series.absent_count}):</span>
+              <span class="text-white">{$t('curation.notPresent', { count: series.absent_count })}</span>
               <span class="font-mono">{formatRuns(series, visibleRuns(series))}</span>
               {#if series.absent_runs.length > RUNS_SHOWN && !expanded.has(series.prefix)}
                 <button
                   class="bg-transparent border-none text-brand text-xs font-bold cursor-pointer p-0 ml-1"
                   onclick={() => expanded.add(series.prefix)}
                 >
-                  toon alles ({series.absent_runs.length} reeksen)
+                  {$t('curation.showAll', { count: series.absent_runs.length })}
                 </button>
               {/if}
             </p>
@@ -125,7 +123,7 @@
 
           {#if series.variants.length > 0}
             <p class="text-xs text-muma-spotify-text mt-2 mb-0 break-words">
-              Varianten:
+              {$t('curation.variants')}
               {#each series.variants as variant (variant.catid)}
                 <span class="font-mono mr-2" title={variant.release_folder}>{variant.catid}</span>
               {/each}
@@ -136,7 +134,7 @@
 
       {#if catalog.other.length > 0}
         <p class="text-xs text-muma-spotify-text mt-0 mb-0 break-words">
-          Overig, zonder leesbaar nummer:
+          {$t('curation.otherCatids')}
           {#each catalog.other as entry (entry.catid)}
             <span class="font-mono mr-2" title={entry.release_folder}>{entry.catid}</span>
           {/each}

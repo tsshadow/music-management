@@ -114,7 +114,7 @@ describe("addParent and removeParent", () => {
 
 describe("affectedLabel", () => {
   it("says nothing is affected when nothing is", () => {
-    expect(affectedLabel(0)).toBe("no tracks");
+    expect(affectedLabel(0)).toBe("geen tracks");
   });
 
   it("keeps the singular readable", () => {

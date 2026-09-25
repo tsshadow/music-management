@@ -9,6 +9,9 @@
  * correction a show needs is a merge into another show rather than a rewrite.
  */
 
+import { get } from "svelte/store";
+
+import { t } from "../i18n/index.js";
 import {
   BLACK,
   STATE_FILTERS,
@@ -37,9 +40,9 @@ export function filterPodcasts(rows, query) {
  * unlabelled, which is the state the whole library starts in.
  */
 export function describeOutcome(row) {
-  if (row.state === WHITE) return "Wordt getagd op elke aflevering";
-  if (row.state === BLACK) return "Wordt nooit getagd";
-  return "Nog geen beslissing, dus niet getagd";
+  if (row.state === WHITE) return get(t)("management.podcasts.outcomeTagged");
+  if (row.state === BLACK) return get(t)("management.podcasts.outcomeNever");
+  return get(t)("management.podcasts.outcomeUndecided");
 }
 
 /** The spellings other than the show's own name, which is already in the title. */
@@ -65,11 +68,14 @@ export function buildDecision({
   station = null,
 }) {
   if (state !== WHITE && state !== BLACK) {
-    return { valid: false, error: `Ongeldige status, verwacht ${WHITE} of ${BLACK}.` };
+    return {
+      valid: false,
+      error: get(t)("management.genres.errorState", { white: WHITE, black: BLACK }),
+    };
   }
   if (mergeIntoId !== null && mergeIntoId !== "" && mergeIntoId !== undefined) {
     if (Number(mergeIntoId) === Number(podcastId)) {
-      return { valid: false, error: "Een show kan niet in zichzelf samengevoegd worden." };
+      return { valid: false, error: get(t)("management.podcasts.errorSelfMerge") };
     }
     return {
       valid: true,
@@ -107,11 +113,11 @@ export const MINIMUM_KEY_LENGTH = 4;
 export function buildRename(name) {
   const trimmed = (name || "").trim();
   const key = normalizeName(trimmed);
-  if (!key) return { valid: false, error: "Een shownaam mag niet leeg zijn." };
+  if (!key) return { valid: false, error: get(t)("management.podcasts.errorNameEmpty") };
   if (key.length < MINIMUM_KEY_LENGTH) {
     return {
       valid: false,
-      error: `Een shownaam heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`,
+      error: get(t)("management.podcasts.errorNameShort", { min: MINIMUM_KEY_LENGTH }),
     };
   }
   return { valid: true, error: null, payload: { name: trimmed } };
@@ -126,11 +132,11 @@ export function buildRename(name) {
 export function buildAlias(alias) {
   const trimmed = (alias || "").trim();
   const key = normalizeName(trimmed);
-  if (!key) return { valid: false, error: "Een schrijfwijze mag niet leeg zijn." };
+  if (!key) return { valid: false, error: get(t)("management.podcasts.errorAliasEmpty") };
   if (key.length < MINIMUM_KEY_LENGTH) {
     return {
       valid: false,
-      error: `Een schrijfwijze heeft minstens ${MINIMUM_KEY_LENGTH} letters of cijfers nodig; korter matcht op losse bestanden.`,
+      error: get(t)("management.podcasts.errorAliasShort", { min: MINIMUM_KEY_LENGTH }),
     };
   }
   return { valid: true, error: null, payload: { alias: trimmed } };
@@ -151,5 +157,5 @@ export function mergeTargets(rows, podcastId) {
 /** Episode count line for a row, e.g. "125 afleveringen". */
 export function describeEpisodes(row) {
   const count = Number(row.occurrences) || 0;
-  return count === 1 ? "1 aflevering" : `${count} afleveringen`;
+  return get(t)("management.podcasts.episodeCount", { count });
 }

@@ -248,7 +248,7 @@
 {#if isLoading}
   <div class="p-8">{$t('common.loading')}</div>
 {:else if !artist || loadFailed}
-  <div class="p-8 text-[#b3b3b3]" role="alert">{$t('library.loadFailed')}</div>
+  <div class="p-8 text-muma-spotify-text" role="alert">{$t('library.loadFailed')}</div>
 {:else}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
@@ -271,10 +271,10 @@
            <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
            {#if hasPermission('rules.manage')}
              <button
-               class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1 shrink-0"
+               class="bg-transparent border-none text-muma-spotify-text hover:text-white transition-all hover:scale-110 cursor-pointer p-1 shrink-0"
                onclick={() => onnavigate?.(`artist-edit:${artistId}`)}
-               title="Artiest bewerken"
-               aria-label="Artiest bewerken"
+               title={$t('artist.edit')}
+               aria-label={$t('artist.edit')}
              >
                <Pencil size={24} />
              </button>
@@ -298,7 +298,7 @@
            </button>
 
            <button 
-             class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-[#b3b3b3] hover:text-white"
+             class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-muma-spotify-text hover:text-white"
              onclick={() => {
                 if (allTracks.length > 0) {
                   const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
@@ -315,9 +315,9 @@
            </button>
 
            <button 
-             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {artist.starred ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}"
+             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {artist.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
              onclick={toggleStar}
-             title={artist.starred ? "Verwijderen uit favorieten" : "Toevoegen aan favorieten"}
+             title={artist.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
            >
               {#if artist.starred}
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
@@ -346,10 +346,10 @@
         {#if biography || mbid}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.about', { name: artist.name })}</h2>
-                <div class="bg-[#181818] rounded-xl p-6 md:p-8 relative overflow-hidden group">
+                <div class="bg-muma-spotify-panel rounded-xl p-6 md:p-8 relative overflow-hidden group">
                     <div class="relative z-10 max-w-3xl">
                         {#if biography}
-                            <p class="text-[#b3b3b3] text-sm md:text-base leading-relaxed line-clamp-6 group-hover:line-clamp-none transition-all duration-500 whitespace-pre-wrap mb-4">
+                            <p class="text-muma-spotify-text text-sm md:text-base leading-relaxed line-clamp-6 group-hover:line-clamp-none transition-all duration-500 whitespace-pre-wrap mb-4">
                                 {biography}
                             </p>
                         {/if}
@@ -358,7 +358,7 @@
                                 href="https://musicbrainz.org/artist/{mbid}" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                class="inline-flex items-center gap-2 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors"
+                                class="inline-flex items-center gap-2 text-xs font-bold text-muma-spotify-text hover:text-white transition-colors"
                             >
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
@@ -378,11 +378,11 @@
                 <TrackList tracks={allTracks} onnavigate={onnavigate} />
                 {#if allTracksHasMore}
                     <div class="flex justify-center py-4">
-                        <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>{$t('common.loadMore')}</button>
+                        <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>{$t('common.loadMore')}</button>
                     </div>
                 {/if}
             {:else}
-                <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+                <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
                     <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('artist.noSets') : $t('artist.noTracks')}</p>
                     <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('artist.noSetsHelp') : $t('artist.noTracksHelp')}</p>
                 </div>
@@ -397,7 +397,7 @@
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
@@ -408,7 +408,7 @@
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
-                            <span class="text-sm text-[#b3b3b3]">{album.year || ''} • {type}</span>
+                            <span class="text-sm text-muma-spotify-text">{album.year || ''} • {type}</span>
                         </div>
                     {/each}
                 </div>
@@ -423,7 +423,7 @@
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
                           onclick={() => openAlbum(album.id)}
                           onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
                         >
@@ -434,7 +434,7 @@
                               onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
                             />
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
-                            <span class="text-sm text-[#b3b3b3]">{album.artist}</span>
+                            <span class="text-sm text-muma-spotify-text">{album.artist}</span>
                         </div>
                     {/each}
                 </div>
@@ -449,7 +449,7 @@
                         <div
                           role="button"
                           tabindex="0"
-                          class="bg-[#181818] p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-[#282828]"
+                          class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
                           onclick={() => openArtist(similar.id)}
                           onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
                         >
@@ -462,7 +462,7 @@
                                 />
                             </div>
                             <span class="block font-bold mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{similar.name}</span>
-                            <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
+                            <span class="text-sm text-muma-spotify-text">{$t('common.artist')}</span>
                         </div>
                     {/each}
                 </div>

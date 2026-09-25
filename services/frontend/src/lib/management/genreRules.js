@@ -8,6 +8,7 @@
  * sorting, validation -- so the component only renders.
  */
 
+import { formatDate } from "../i18n/index.js";
 import { normalizeGenre } from "./genreCuration.js";
 
 /** What differs between the two rule kinds: where the rows live and what a row calls its subject. */
@@ -136,7 +137,7 @@ export function buildRule(kind, { name, genreId, existing = [] }) {
 /** Who made a rule and when, or null for a row without provenance (the seed rules). */
 export function describeRule(row) {
   if (!row?.created_at) return null;
-  const when = new Date(String(row.created_at).replace(" ", "T")).toLocaleDateString("nl-NL");
+  const when = formatDate(row.created_at);
   return { when, by: row.created_by || null };
 }
 

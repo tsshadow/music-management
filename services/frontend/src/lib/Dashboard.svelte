@@ -800,11 +800,11 @@
   this one is the user's own doing and offers a way back.
 -->
 {#snippet noMatches(clear)}
-  <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+  <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
     <p class="text-xl font-bold mb-2 text-white">{$t('collection.noMatches')}</p>
     <p class="text-sm opacity-60 mb-4">{$t('collection.noMatchesHelp')}</p>
     <button
-      class="bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+      class="bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
       onclick={clear}
     >{$t('collection.clearFilters')}</button>
   </div>
@@ -830,7 +830,7 @@
         <div class="flex justify-between items-end mb-4">
           <h2 class="text-2xl font-bold m-0">{$t('memories.title')}</h2>
           <button
-            class="bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
+            class="bg-transparent border-none text-muma-spotify-text text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline"
             onclick={() => onnavigate('memories')}
           >{$t('dashboard.showAll')}</button>
         </div>
@@ -850,7 +850,7 @@
               <div class="text-white font-bold text-sm">
                 {$t(memoryHeading(group).key, memoryHeading(group).vars)}
               </div>
-              <div class="text-[#b3b3b3] text-xs">
+              <div class="text-muma-spotify-text text-xs">
                 {group.year} • {$t('common.trackCount', { count: memoryCount(group) })}
               </div>
             </button>
@@ -882,16 +882,16 @@
     <div class="flex flex-col gap-4 mb-6">
         <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
             {#if activeView === 'songs' || activeView === 'sets'}
-              {$viewMode === 'sets' ? 'Sets' : 'Alle Nummers'}
+              {$viewMode === 'sets' ? $t('dashboard.sets') : $t('dashboard.allTracks')}
             {:else if activeView.startsWith('genre:')}
               {@const genreName = viewArgument(activeView)}
               <span>{genreName}</span>
               {#if hasPermission('rules.manage')}
                 <button
-                  class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
+                  class="bg-transparent border-none text-muma-spotify-text hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
                   onclick={() => activeView = `genre-edit:${genreName}`}
-                  title="Genre bewerken"
-                  aria-label="Genre bewerken"
+                  title={$t('dashboard.editGenre')}
+                  aria-label={$t('dashboard.editGenre')}
                 >
                   <Pencil size={20} />
                 </button>
@@ -910,10 +910,10 @@
               <span>{collectionName}</span>
               {#if activeView.startsWith('label:') && hasPermission('rules.manage')}
                 <button
-                  class="bg-transparent border-none text-[#b3b3b3] hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
+                  class="bg-transparent border-none text-muma-spotify-text hover:text-white transition-all hover:scale-110 cursor-pointer p-1"
                   onclick={() => activeView = `label-edit:${collectionName}`}
-                  title="Label bewerken"
-                  aria-label="Label bewerken"
+                  title={$t('dashboard.editLabel')}
+                  aria-label={$t('dashboard.editLabel')}
                 >
                   <Pencil size={20} />
                 </button>
@@ -923,7 +923,7 @@
               <!-- Saves this list as a home tile. Only the views whose filters a tile can
                    carry offer it; a podcast or a lineup has no cluster in the tile format. -->
               <button
-                class="ml-auto shrink-0 flex items-center gap-1.5 bg-transparent border border-[#727272] hover:border-white text-white text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer transition-colors whitespace-nowrap"
+                class="ml-auto shrink-0 flex items-center gap-1.5 bg-transparent border border-muma-spotify-muted hover:border-white text-white text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer transition-colors whitespace-nowrap"
                 onclick={saveCurrentAsPreset}
                 title={$t('presets.save')}
               >
@@ -943,7 +943,7 @@
             <TrackList {tracks} sourceName={listSourceName} onnavigate={(v) => activeView = v} />
             {#if tracksHasMore}
                 <div bind:this={sentinel} class="flex justify-center py-6">
-                    <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>
+                    <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>
                         {isLoading ? $t('common.loading') : $t('common.loadMore')}
                     </button>
                 </div>
@@ -953,7 +953,7 @@
                  that nothing here is downloaded -- not that the library is empty. -->
             <OfflineNotice kind="empty" onnavigate={onnavigate} />
         {:else}
-            <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+            <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
                 <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('dashboard.noSets') : $t('dashboard.noTracks')}</p>
                 <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('dashboard.noSetsHelp') : $t('dashboard.noTracksHelp')}</p>
             </div>
@@ -970,7 +970,7 @@
                 <div
                   role="button"
                   tabindex="0"
-                  class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                  class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
                   onclick={() => activeView = `album:${album.id}`}
                   onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
                 >
@@ -991,14 +991,14 @@
             {/each}
         </div>
     {:else}
-        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+        <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
             <p class="text-xl font-bold mb-2 text-white">{$t('dashboard.noAlbums')}</p>
             <p class="text-sm opacity-60">{$t('dashboard.noAlbumsHelp')}</p>
         </div>
     {/if}
     {#if albumsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>{$t('common.loadMore')}</button>
+            <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAlbums(true)}>{$t('common.loadMore')}</button>
         </div>
     {/if}
   {:else if activeView === 'genres'}
@@ -1060,7 +1060,7 @@
     />
   {:else if activeView === 'lineups' || activeView.startsWith('lineups:')}
     {#if lineupCrumbs.length > 0}
-      <nav class="flex flex-wrap items-center gap-2 text-sm text-[#b3b3b3] mb-4" aria-label={$t('nav.lineups')}>
+      <nav class="flex flex-wrap items-center gap-2 text-sm text-muma-spotify-text mb-4" aria-label={$t('nav.lineups')}>
         <button class="bg-transparent border-0 p-0 text-inherit cursor-pointer hover:text-white hover:underline" onclick={() => (activeView = 'lineups')}>
           {$t('nav.lineups')}
         </button>
@@ -1096,7 +1096,7 @@
             <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+              class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
               onclick={() => activeView = `artist:${artist.id}`}
               onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
             >
@@ -1107,13 +1107,13 @@
                   onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                 />
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-                <span class="text-sm text-[#b3b3b3] whitespace-nowrap overflow-hidden text-ellipsis">{$t('common.artist')}</span>
+                <span class="text-sm text-muma-spotify-text whitespace-nowrap overflow-hidden text-ellipsis">{$t('common.artist')}</span>
             </div>
         {/each}
     </div>
     {#if artistsHasMore}
         <div class="flex justify-center py-6">
-            <button class="bg-transparent border border-[#727272] text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadArtists(true)}>{$t('common.loadMore')}</button>
+            <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadArtists(true)}>{$t('common.loadMore')}</button>
         </div>
     {/if}
   {:else if activeView === 'playlists'}
@@ -1129,7 +1129,7 @@
       />
     </div>
     {#if playlists.length === 0}
-        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+        <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
             <p class="text-xl font-bold mb-2 text-white">{$t('dashboard.noPlaylists')}</p>
             <p class="text-sm opacity-60">{$t('dashboard.noPlaylistsHelp')}</p>
         </div>
@@ -1157,7 +1157,7 @@
                 />
                 <div class="flex flex-col min-w-0 flex-1">
                   <span class="font-bold truncate">{playlist.name}</span>
-                  <span class="text-xs text-[#b3b3b3] truncate">
+                  <span class="text-xs text-muma-spotify-text truncate">
                     {$t('common.trackCount', { count: Number(playlist.songCount) || 0 })}
                     {#if Number(playlist.duration) > 0}
                       &middot; {playlistLength(playlist.duration)}
@@ -1182,7 +1182,7 @@
             <div
               role="button"
               tabindex="0"
-              class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828] relative group"
+              class="bg-muma-spotify-panel p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light relative group"
               onclick={() => openPlaylist(playlist)}
               onkeydown={(e) => e.key === 'Enter' && openPlaylist(playlist)}
             >
@@ -1202,7 +1202,7 @@
                     </svg>
                 </button>
                 <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{playlist.name}</span>
-                <span class="text-xs text-[#b3b3b3] whitespace-nowrap overflow-hidden text-ellipsis">
+                <span class="text-xs text-muma-spotify-text whitespace-nowrap overflow-hidden text-ellipsis">
                   {$t('common.trackCount', { count: Number(playlist.songCount) || 0 })}
                   {#if Number(playlist.duration) > 0}
                     &middot; {playlistLength(playlist.duration)}
@@ -1238,7 +1238,7 @@
       
       {#if tracks.length > 0}
         <section>
-          <h3 class="text-xl font-bold mb-4">{$viewMode === 'sets' ? 'Sets' : 'Nummers'}</h3>
+          <h3 class="text-xl font-bold mb-4">{$viewMode === 'sets' ? $t('dashboard.sets') : $t('dashboard.tracks')}</h3>
           <TrackList {tracks} onnavigate={(v) => activeView = v} />
         </section>
       {/if}
@@ -1251,7 +1251,7 @@
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
                 onclick={() => activeView = `artist:${artist.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
               >
@@ -1262,7 +1262,7 @@
                     onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
                   />
                   <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-                  <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
+                  <span class="text-sm text-muma-spotify-text">{$t('common.artist')}</span>
               </div>
             {/each}
           </div>
@@ -1277,7 +1277,7 @@
               <div
                 role="button"
                 tabindex="0"
-                class="bg-[#181818] p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+                class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
                 onclick={() => activeView = `album:${album.id}`}
                 onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
               >
@@ -1306,7 +1306,7 @@
                matching is downloaded, which is not "try another term". -->
           <OfflineNotice kind="empty" onnavigate={onnavigate} />
         {:else}
-          <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+          <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
               <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
               <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
           </div>
@@ -1340,14 +1340,14 @@
         <PresetBuilder {preset} onnavigate={(v) => onnavigate(v)} />
       {/key}
     {:else}
-      <p class="text-[#b3b3b3] p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
+      <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
     {/if}
   {:else if activeView.startsWith('preset:')}
     {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
     {#if preset}
       <PresetView {preset} onnavigate={(v) => onnavigate(v)} />
     {:else}
-      <p class="text-[#b3b3b3] p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
+      <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
     {/if}
   {:else if activeView === 'memories'}
     <MemoriesView onnavigate={(v) => onnavigate(v)} />

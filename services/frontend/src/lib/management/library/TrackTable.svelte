@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { Disc, Clock, RefreshCw, ChevronLeft, ChevronRight } from '@lucide/svelte';
 
   export let tracks = [];
@@ -43,8 +43,8 @@
 <div class="flex flex-col">
   <div class="overflow-x-auto">
     <table class="w-full text-left text-sm border-collapse min-w-[720px]">
-      <thead class="bg-[#121212] border-b border-white/10">
-        <tr class="text-[#b3b3b3] uppercase text-[10px] tracking-widest font-black">
+      <thead class="bg-muma-spotify-dark border-b border-white/10">
+        <tr class="text-muma-spotify-text uppercase text-[10px] tracking-widest font-black">
           <th class="px-4 py-4">
             <button class="uppercase tracking-widest font-black hover:text-white" on:click={() => requestSort('title')}>
               {$t('track.title')}{arrow('title')}
@@ -68,7 +68,7 @@
       </thead>
       <tbody>
         {#if loading}
-          <tr><td colspan="7" class="px-4 py-20 text-center text-[#b3b3b3]">
+          <tr><td colspan="7" class="px-4 py-20 text-center text-muma-spotify-text">
             <div class="flex flex-col items-center gap-4">
               <RefreshCw class="animate-spin text-brand" size={32} />
               <span>{$t('library.loading')}</span>
@@ -78,11 +78,11 @@
           <tr><td colspan="7" class="px-4 py-20 text-center">
             <div class="flex flex-col items-center gap-2">
               <span class="text-red-400 font-bold">{$t('library.loadFailed')}</span>
-              <span class="text-xs text-[#b3b3b3] max-w-md">{error}</span>
+              <span class="text-xs text-muma-spotify-text max-w-md">{error}</span>
             </div>
           </td></tr>
         {:else if tracks.length === 0}
-          <tr><td colspan="7" class="px-4 py-20 text-center text-[#b3b3b3]">
+          <tr><td colspan="7" class="px-4 py-20 text-center text-muma-spotify-text">
             {$t('library.noTracksForFilters')}
           </td></tr>
         {:else}
@@ -93,24 +93,24 @@
             >
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 bg-[#282828] rounded flex items-center justify-center shrink-0">
-                    <Disc size={18} class="text-[#535353]" />
+                  <div class="w-9 h-9 bg-muma-spotify-light rounded flex items-center justify-center shrink-0">
+                    <Disc size={18} class="text-muma-spotify-subtle" />
                   </div>
                   <span class="font-bold text-white truncate group-hover:text-brand transition-colors">{track.title}</span>
                 </div>
               </td>
-              <td class="px-4 py-3 text-[#b3b3b3] truncate">{track.display_artist || track.artist || '-'}</td>
-              <td class="px-4 py-3 text-[#b3b3b3] truncate font-mono text-[11px]">{track.label || '-'}</td>
+              <td class="px-4 py-3 text-muma-spotify-text truncate">{track.display_artist || track.artist || '-'}</td>
+              <td class="px-4 py-3 text-muma-spotify-text truncate font-mono text-[11px]">{track.label || '-'}</td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   {#each track.genres as genre (genre)}
-                    <span class="text-[10px] bg-[#242424] px-1.5 py-0.5 rounded border border-white/5 text-[#b3b3b3]">{genre}</span>
+                    <span class="text-[10px] bg-muma-spotify-raised px-1.5 py-0.5 rounded border border-white/5 text-muma-spotify-text">{genre}</span>
                   {/each}
                 </div>
               </td>
-              <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{track.bpm ? Math.round(track.bpm) : '-'}</td>
-              <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{track.release_date || track.release_year || '-'}</td>
-              <td class="px-4 py-3 text-right text-[#b3b3b3] font-mono tabular-nums">{duration(track.duration_secs)}</td>
+              <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{track.bpm ? Math.round(track.bpm) : '-'}</td>
+              <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{track.release_date || track.release_year || '-'}</td>
+              <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{duration(track.duration_secs)}</td>
             </tr>
           {/each}
         {/if}
@@ -119,8 +119,8 @@
   </div>
 
   {#if !loading && !error && total > limit}
-    <div class="flex items-center justify-between px-4 py-3 border-t border-white/5 text-xs text-[#b3b3b3]">
-      <span class="tabular-nums">{total.toLocaleString('nl-NL')} tracks</span>
+    <div class="flex items-center justify-between px-4 py-3 border-t border-white/5 text-xs text-muma-spotify-text">
+      <span class="tabular-nums">{$t('management.library.totalTracks', { total: $format.number(total) })}</span>
       <div class="flex items-center gap-3">
         <button class="p-1 disabled:opacity-30 hover:text-white" disabled={page <= 1} on:click={() => onPage(page - 1)}>
           <ChevronLeft size={16} />

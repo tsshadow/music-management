@@ -423,12 +423,12 @@
           class="flex-1 min-w-0 bg-transparent border-none text-center px-2 cursor-pointer"
           onclick={() => navigate(headerTarget)}
         >
-          <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
+          <span class="block text-[11px] text-muma-spotify-text">{$t('nowPlaying.playingFromLabel')}</span>
           <span class="block text-sm font-bold text-white truncate" data-testid="now-playing-context">{playingFrom}</span>
         </button>
       {:else}
         <div class="flex-1 min-w-0 text-center px-2">
-          <span class="block text-[11px] text-[#b3b3b3]">{$t('nowPlaying.playingFromLabel')}</span>
+          <span class="block text-[11px] text-muma-spotify-text">{$t('nowPlaying.playingFromLabel')}</span>
           <span class="block text-sm font-bold text-white truncate" data-testid="now-playing-context">{playingFrom}</span>
         </div>
       {/if}
@@ -528,7 +528,7 @@
                    the place the queue came from, which is not the album. The album gives
                    way (truncates) before the date does. -->
               {#if track.album || releaseDateLabel(track)}
-                <div class="flex min-w-0 items-baseline gap-3 text-sm text-[#b3b3b3]" data-testid="now-playing-album-line">
+                <div class="flex min-w-0 items-baseline gap-3 text-sm text-muma-spotify-text" data-testid="now-playing-album-line">
                   {#if track.album}
                     {#if track.albumId}
                       <button
@@ -566,7 +566,7 @@
               {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
                   aria-label="{star} sterren"
-                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-[#b3b3b3]' }"
+                  class="w-11 h-11 flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors { rating >= star ? 'text-brand' : 'text-muma-spotify-text' }"
                   data-filled={rating >= star}
                   onclick={() => onrate?.(star)}
                 >
@@ -619,7 +619,7 @@
                 <div class="h-full bg-white rounded-sm" style="width: {progressPercent(progress, duration)}%"></div>
               </div>
             {/if}
-            <div class="flex justify-between text-[11px] text-[#b3b3b3] mt-1 tabular-nums">
+            <div class="flex justify-between text-[11px] text-muma-spotify-text mt-1 tabular-nums">
               <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
               <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
             </div>
@@ -629,7 +629,7 @@
                glyphs would sit 8px inside the edges every other line on the screen shares. -->
           <div class="-mx-2 mt-1 flex items-center justify-between" data-testid="now-playing-transport">
             <button
-              class="bg-transparent border-none p-2 cursor-pointer transition-colors {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}"
+              class="bg-transparent border-none p-2 cursor-pointer transition-colors {shuffleMode ? 'text-brand' : 'text-muma-spotify-text'}"
               onclick={ontoggleShuffle}
               aria-label={$t('queue.shuffle')}
               aria-pressed={shuffleMode}
@@ -701,7 +701,7 @@
               </svg>
             </button>
             <button
-              class="relative bg-transparent border-none p-2 cursor-pointer transition-colors {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}"
+              class="relative bg-transparent border-none p-2 cursor-pointer transition-colors {repeatMode !== 'none' ? 'text-brand' : 'text-muma-spotify-text'}"
               onclick={ontoggleRepeat}
               aria-label={$t('player.repeat')}
             >
@@ -738,7 +738,7 @@
             {#if equalizerSupported}
               <button
                 data-eq-toggle
-                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-muma-spotify-text hover:text-white transition-colors"
                 onclick={ontoggleEqualizer}
                 aria-label={$t('equalizer.title')}
               >
@@ -753,7 +753,7 @@
             {/if}
             {#if ontoggleRadio}
               <button
-                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-muma-spotify-text'}"
                 data-testid="now-playing-radio"
                 onclick={ontoggleRadio}
                 aria-label={$t('player.radio')}
@@ -767,7 +767,7 @@
             {#if ontoggleNews}
               <!-- Same newspaper glyph and purple as the desktop bar's news button. -->
               <button
-                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {newsActive ? 'text-[#b266ff]' : 'text-[#b3b3b3]'}"
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {newsActive ? 'text-[#b266ff]' : 'text-muma-spotify-text'}"
                 data-testid="now-playing-news"
                 onclick={ontoggleNews}
                 title={newsActive ? $t('news.playing') : $t('news.play')}
@@ -781,7 +781,7 @@
             {/if}
             {#if track?.workId}
               <button
-                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+                class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-muma-spotify-text hover:text-white transition-colors"
                 data-testid="now-playing-song"
                 onclick={() => navigate(`song:${track.workId}`)}
                 aria-label={$t('track.versions')}
@@ -792,7 +792,7 @@
               </button>
             {/if}
             <button
-              class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-[#b3b3b3] hover:text-white transition-colors"
+              class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-muma-spotify-text hover:text-white transition-colors"
               onclick={ontoggleQueue}
               aria-label={$t('queue.title')}
             >
@@ -815,7 +815,7 @@
           <section>
             <h3 class="text-base font-bold mb-3">{$t('nowPlaying.nextUp')}</h3>
             {#if shuffleMode}
-              <p class="text-sm text-[#b3b3b3]">{$t('nowPlaying.shuffleOn')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('nowPlaying.shuffleOn')}</p>
             {:else}
               <div class="flex flex-col gap-1">
                 {#each nextUp as entry, i (i)}
@@ -831,7 +831,7 @@
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-base font-bold">{$t('nowPlaying.moreFrom', { name: artistName })}</h3>
               <button
-                class="bg-transparent border-none p-0 text-sm text-[#b3b3b3] hover:text-white hover:underline cursor-pointer"
+                class="bg-transparent border-none p-0 text-sm text-muma-spotify-text hover:text-white hover:underline cursor-pointer"
                 onclick={() => navigate(`artist:${track.artistId}`)}
               >
                 {$t('dashboard.showAll')}
@@ -877,7 +877,7 @@
             onclick={() => onstartRadio?.(channel)}
           >
             <span class="block text-sm font-bold">{channel.name}</span>
-            <span class="block text-[12px] text-[#b3b3b3]">{describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}</span>
+            <span class="block text-[12px] text-muma-spotify-text">{describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}</span>
           </button>
         {/each}
       </div>

@@ -270,7 +270,7 @@
     <div class="flex justify-between items-end mb-4">
       <h2 class="text-xl font-bold m-0">{$t('memories.title')}</h2>
       <button
-        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        class="bg-transparent border-none text-muma-spotify-text text-[13px] font-bold cursor-pointer hover:underline"
         onclick={() => onnavigate('memories')}
       >{$t('dashboard.showAll')}</button>
     </div>
@@ -295,7 +295,7 @@
     <div class="flex justify-between items-end mb-4">
       <h2 class="text-xl font-bold m-0">{$t('dashboard.topArtists')}</h2>
       <button
-        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        class="bg-transparent border-none text-muma-spotify-text text-[13px] font-bold cursor-pointer hover:underline"
         onclick={() => onnavigate('listening')}
       >{$t('dashboard.showAll')}</button>
     </div>
@@ -317,7 +317,7 @@
     <div class="flex justify-between items-end mb-4">
       <h2 class="text-xl font-bold m-0">{$t('dashboard.topLabels')}</h2>
       <button
-        class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+        class="bg-transparent border-none text-muma-spotify-text text-[13px] font-bold cursor-pointer hover:underline"
         onclick={() => onnavigate('listening')}
       >{$t('dashboard.showAll')}</button>
     </div>

@@ -27,7 +27,8 @@
     "noTracks": "No tracks found",
     "noTracksHelp": "This artist has nothing matching the current track view.",
     "similar": "Fans also like",
-    "verified": "Verified artist"
+    "verified": "Verified artist",
+    "edit": "Edit artist"
   },
   "car": {
     "microphone": "Voice search",
@@ -137,7 +138,12 @@
     "showAll": "Show all",
     "toggleFavorite": "Toggle favourite",
     "topArtists": "Your artists this month",
-    "topLabels": "Your labels"
+    "topLabels": "Your labels",
+    "sets": "Sets",
+    "allTracks": "All tracks",
+    "tracks": "Tracks",
+    "editGenre": "Edit genre",
+    "editLabel": "Edit label"
   },
   "equalizer": {
     "band": "{freq} band",
@@ -327,7 +333,11 @@
     "setupTitle": "System setup",
     "title": "Log in",
     "username": "Username",
-    "verifying": "Verifying…"
+    "verifying": "Verifying…",
+    "setupFailed": "Setup failed",
+    "noManagementConnection": "Could not connect to the management API",
+    "accessRequestFailed": "Access request failed",
+    "accessRequestError": "Error while submitting the access request"
   },
   "management": {
     "connectFailed": "Could not sign in to the Music Management API with your account. Try logging in again on the player page.",
@@ -388,7 +398,21 @@
         "unknown": "unknown",
         "checked": "checked {age} ago",
         "empty": "No channels in this selection.",
-        "showMore": "Show {count} more"
+        "showMore": "Show {count} more",
+        "ageUnderHour": "< 1 hour",
+        "ageMonths": "{count} mo",
+        "reason": {
+          "too_short": "too short",
+          "too_long": "too long",
+          "403": "unavailable (403)",
+          "failing": "failed, will be retried",
+          "failed": "permanently failed"
+        },
+        "state": {
+          "complete": "finished",
+          "capped": "capped at the maximum",
+          "parked": "interrupted"
+        }
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -410,7 +434,46 @@
       "timingUnavailableHelp": "The stored values could not be read, so there is nothing to show or save here. Your settings have not disappeared; the storage is unreachable.",
       "typeAudio": "Audio",
       "typeVideo": "Video",
-      "videoUrlPlaceholder": "YouTube video URL..."
+      "videoUrlPlaceholder": "YouTube video URL...",
+      "duration": {
+        "off": "off",
+        "seconds": "{count} sec",
+        "minutes": "{count} min",
+        "hours": {
+          "one": "{count} hour",
+          "other": "{count} hours"
+        },
+        "days": {
+          "one": "{count} day",
+          "other": "{count} days"
+        }
+      },
+      "backoff": {
+        "unknown": "Unknown",
+        "parked": "Paused, {duration} left",
+        "parkedSlowed": "Paused, {duration} left ({multiplier}x slowed)",
+        "slowed": "{multiplier}x slowed, recovers after clean rounds",
+        "normal": "Normal pace"
+      },
+      "blockReason": {
+        "bot_check": "YouTube asks you to sign in (bot check). Sign in to YouTube again in the Firefox container (port 7003), then press Reset backoff.",
+        "cookies_missing": "The worker cannot read the Firefox cookies. Check the firefox mount and YT_COOKIES."
+      },
+      "timingSaved": "{source} timing saved.",
+      "saveFailedDetail": "Saving failed: {message}",
+      "confirmResetBackoff": "Reset the {source} backoff to normal pace?",
+      "backoffReset": "Backoff reset.",
+      "backoffResetFailed": "Could not reset the backoff.",
+      "accountAddFailed": "Could not add the account.",
+      "confirmDeleteAccount": "Are you sure you want to delete {name}?",
+      "accountDeleted": "Account deleted.",
+      "accountDeleteFailed": "Could not delete the account.",
+      "channelAddFailed": "Could not add the channel.",
+      "confirmDeleteChannel": "Are you sure you want to delete channel {name} ({type})?",
+      "saveUpper": "SAVE",
+      "savingUpper": "SAVING...",
+      "fieldDefault": "default {value}",
+      "fieldAllowed": "allowed {min}–{max}"
     },
     "genres": {
       "actions": "Actions",
@@ -488,7 +551,22 @@
       "sectionOverview": "Genres",
       "sectionQueue": "Queue",
       "sections": "Sections",
-      "subtitle": "Approve, reject or correct genres. Decisions apply from the next tagger run."
+      "subtitle": "Approve, reject or correct genres. Decisions apply from the next tagger run.",
+      "filterUnknown": "To review",
+      "filterWhite": "Approved",
+      "filterBlack": "Rejected",
+      "filterAll": "All",
+      "outcomeReplaced": "Replaced by {targets}",
+      "outcomeKeep": "Stays",
+      "outcomeDrop": "Removed",
+      "outcomeUndecided": "Stays in the file, is not stored",
+      "errorState": "Invalid state, expected {white} or {black}.",
+      "errorSelfCorrection": "A genre cannot correct to itself.",
+      "notDecided": "Not reviewed yet",
+      "noneForSearch": "No genre found for '{search}'.",
+      "queueEmpty": "Nothing to review. Every genre has a decision.",
+      "listEmpty": "No genres in this list.",
+      "replacedFromNow": "{name} is replaced by {targets} from now on."
     },
     "labelProposals": {
       "actions": "Actions",
@@ -549,7 +627,26 @@
       "uploadFile": "Upload a file",
       "url": "URL",
       "viaUrl": "Image from a URL",
-      "viaUrlFor": "Image from a URL — {name}"
+      "viaUrlFor": "Image from a URL — {name}",
+      "searchStarted": "Image search for {name} started...",
+      "deleted": "Image of {name} removed.",
+      "saved": "Image for {name} saved.",
+      "readFailed": "Could not read file",
+      "uploaded": "Image for {name} uploaded.",
+      "artistFallback": "artist",
+      "artistsUnit": "artists",
+      "filterAll": "All",
+      "filterWith": "With image",
+      "filterWithout": "Without image",
+      "retry": "Retry",
+      "countOf": "{shown} of {total} artists",
+      "manageFor": "Manage images of {name}",
+      "unknownSource": "unknown",
+      "noneForQuery": "No artists found named \"{query}\"",
+      "noneForFilter": "No artists found for this filter.",
+      "dimensionsSource": "{width}x{height} • source: {source}",
+      "noPrimary": "No primary image yet",
+      "dimensionsConfidence": "{width}x{height} • confidence {confidence}"
     },
     "libraries": {
       "add": "Add library",
@@ -561,7 +658,15 @@
       "noConnectionHelp": "Libraries are managed by the music server itself and need a login with server credentials. Log in on the player page with your username and password.",
       "path": "Path",
       "pathPlaceholder": "E.g. /music/jazz",
-      "subtitle": "Manage the folders the music server indexes. Scanning lives on the scanner tab."
+      "subtitle": "Manage the folders the music server indexes. Scanning lives on the scanner tab.",
+      "loadFailed": "Could not fetch libraries.",
+      "added": "Library {name} added.",
+      "addFailed": "Could not add library.",
+      "addNetworkError": "Network error while adding library.",
+      "deleted": "Library {name} removed.",
+      "deleteFailed": "Could not remove library.",
+      "deleteNetworkError": "Network error while removing library.",
+      "pathBridgeOnly": "Path only visible via the muma bridge"
     },
     "library": {
       "analysis": "Analysis",
@@ -571,7 +676,19 @@
       "inspector": "Inspector",
       "searchPlaceholder": "Search title, artist, label or a BPM number... (Enter)",
       "trackList": "Track list",
-      "tracks": "Tracks"
+      "tracks": "Tracks",
+      "hoursShort": "{hours}h",
+      "coverageDetail": "bpm {bpm} · genre {genre} · artist {artist}",
+      "totalTracks": "{total} tracks",
+      "confirmRerunParse": "Run the analysis for '{title}' again?",
+      "rerunStarted": "Scan for '{title}' started.",
+      "rerunFailed": "Could not start the scan ({status}).",
+      "confirmRedownload": "Download '{title}' again?",
+      "redownloadStarted": "Download started.",
+      "redownloadFailed": "Download failed ({status}).",
+      "serverUnreachable": "Server unreachable.",
+      "serverUnreachablePath": "Server unreachable ({path}).",
+      "serverError": "Server error {status} at {path}. {detail}"
     },
     "news": {
       "bulletins": "Recorded bulletins",
@@ -641,7 +758,14 @@
       "totalArtists": "Total artists",
       "totalScrobbles": "Total scrobbles",
       "totalTracks": "Total tracks",
-      "version": "MuMa version"
+      "version": "MuMa version",
+      "containersWithProblems": "{count} containers have problems.",
+      "allSystemsOk": "All systems are working properly.",
+      "servicesOffline": "{count} service(s) are currently offline:",
+      "unknown": "Unknown",
+      "fetchImagesStarting": "Background task for images started...",
+      "fetchImagesStarted": "Image fetch task started successfully!",
+      "fetchImagesFailed": "Could not start the fetch task."
     },
     "playlists": {
       "cancelUpper": "CANCEL",
@@ -674,7 +798,12 @@
       "typeSets": "Sets only (&gt; 10 min)",
       "typeTracks": "Tracks only (&lt; 10 min)",
       "updated": "Playlist updated",
-      "viewTracks": "View tracks"
+      "viewTracks": "View tracks",
+      "selectUserFirst": "Select a user first",
+      "confirmRestoreDefaults": "Are you sure you want to restore the default playlists for this user?",
+      "editTitle": "Edit Playlist",
+      "newTitle": "New Dynamic Playlist",
+      "rangeTo": "to"
     },
     "podcasts": {
       "addSpelling": "Add spelling",
@@ -710,7 +839,21 @@
       "spellings": "Spellings",
       "spellingsHelp": "The tagger looks for each spelling in the title and the path together. The shortest fragment common to every episode catches the most files.",
       "station": "Station",
-      "subtitle": "Approve or reject radio shows and podcast series. Only approved shows are tagged, from the next tagger run."
+      "subtitle": "Approve or reject radio shows and podcast series. Only approved shows are tagged, from the next tagger run.",
+      "mergedInto": "{name} now belongs to {target}.",
+      "otherShow": "the other show",
+      "outcomeTagged": "Tagged on every episode",
+      "outcomeNever": "Never tagged",
+      "outcomeUndecided": "No decision yet, so not tagged",
+      "errorSelfMerge": "A show cannot be merged into itself.",
+      "errorNameEmpty": "A show name cannot be empty.",
+      "errorNameShort": "A show name needs at least {min} letters or digits; anything shorter matches individual files.",
+      "errorAliasEmpty": "A spelling cannot be empty.",
+      "errorAliasShort": "A spelling needs at least {min} letters or digits; anything shorter matches individual files.",
+      "episodeCount": {
+        "one": "1 episode",
+        "other": "{count} episodes"
+      }
     },
     "radio": {
       "artist": "Artist",
@@ -768,7 +911,25 @@
       "samePerson": "Is this the same person as an existing account?",
       "subtitle": "Handle access requests from new users signing in with Google.",
       "undo": "Undo",
-      "undoFailed": "Could not undo."
+      "undoFailed": "Could not undo.",
+      "loadFailed": "Could not fetch access requests.",
+      "loadNetworkError": "Network error while fetching requests.",
+      "linkedMessage": "Request from {name} linked to existing account!",
+      "approvedMessage": "Request from {name} approved!",
+      "undoneMessage": "Approval of {name} undone.",
+      "rejectedMessage": "Request from {name} rejected.",
+      "networkError": "Network error.",
+      "system": "System",
+      "approveQuestion": "Are you sure you want to approve the access request from {name}?",
+      "approveLinkHelp": "The Google link is added to the existing account; no new account is created.",
+      "approveCreateHelp": "A new user account is created immediately.",
+      "undoQuestion": "Are you sure you want to undo the approval of {name}?",
+      "undoLinkHelp": "Only the Google link is removed; the existing account stays.",
+      "undoCreateHelp": "The account that was created for this is deleted completely.",
+      "rejectQuestion": "Are you sure you want to reject the access request from {name}?",
+      "confirmApproveButton": "Confirm approval",
+      "confirmUndoButton": "Confirm undo",
+      "confirmRejectButton": "Confirm rejection"
     },
     "scanner": {
       "artistSeparator": "Artist separator",
@@ -839,7 +1000,16 @@
       },
       "subtitle": "Status, schedule and tag processing for the library scan.",
       "tagProcessing": "Tag processing",
-      "weekly": "Weekly"
+      "weekly": "Weekly",
+      "settingsSaved": "Scan settings saved.",
+      "settingsSaveFailed": "Could not save scan settings.",
+      "settingsNetworkError": "Network error while saving scan settings.",
+      "scanStarted": "Scan started.",
+      "scanStartFailed": "Could not start scan.",
+      "scanNetworkError": "Network error while starting the scan.",
+      "notAvailable": "N/A",
+      "addTag": "ADD TAG",
+      "addUpper": "ADD"
     },
     "scrobble": {
       "import": "ListenBrainz import",
@@ -858,7 +1028,10 @@
       "started": "Started",
       "subtitle": "Manage listening history and ListenBrainz imports.",
       "title": "Scrobble service",
-      "user": "User"
+      "user": "User",
+      "importStarted": "ListenBrainz import started for {name}!",
+      "linkedAccount": "linked account",
+      "linkedPlaceholder": "Linked: {name}"
     },
     "tabs": {
       "config": "Configuration",
@@ -970,7 +1143,36 @@
       "tokenNetworkError": "Network error while saving the Subsonic token.",
       "tokenPlaceholder": "Token",
       "tokenRevoked": "Subsonic token revoked.",
-      "tokenSaveFailed": "Could not save the Subsonic token."
+      "tokenSaveFailed": "Could not save the Subsonic token.",
+      "added": "User {name} added!",
+      "addFailed": "Could not add user.",
+      "addNetworkError": "Network error while adding user.",
+      "deleted": "User {name} removed.",
+      "deleteFailed": "Could not remove user.",
+      "deleteNetworkError": "Network error while removing user.",
+      "passwordUpdateFailed": "Could not update password.",
+      "passwordNetworkError": "Network error while updating password.",
+      "syncDone": "Sync complete! {count} users processed.",
+      "dbSyncDone": "Database sync complete! {count} users processed.",
+      "syncFailed": "Sync failed.",
+      "syncNetworkError": "Network error during sync.",
+      "tokenSaved": "Subsonic token saved.",
+      "enabledMessage": "User enabled!",
+      "disabledMessage": "User disabled!",
+      "enableFailed": "Could not enable user.",
+      "disableFailed": "Could not disable user.",
+      "networkError": "Network error.",
+      "merged": "{from} has been merged into {into}.",
+      "mergeFailed": "Could not merge users.",
+      "mergeNetworkError": "Network error while merging.",
+      "noDisplayName": "No display name",
+      "noEmail": "No email",
+      "disable": "Disable",
+      "enable": "Enable",
+      "newToken": "NEW TOKEN",
+      "generateToken": "GENERATE TOKEN",
+      "revokeToken": "REVOKE",
+      "never": "Never"
     },
     "artists": {
       "subtitle": "Which names in the library are actually artists. The scanner stores every artist name a tagger rule ever produced; here you decide what stays, what goes and what is another spelling.",
@@ -1124,7 +1326,28 @@
       "errorYear": "A year is four digits.",
       "errorStageWithoutYear": "A stage belongs to an edition: fill in a year too.",
       "errorEmpty": "Paste a bill first."
-    }
+    },
+    "config": {
+      "noPermission": "You do not have permission to view the configuration.",
+      "loadFailed": "The configuration could not be loaded.",
+      "saveFailed": "Saving failed.",
+      "saved": {
+        "one": "{count} setting saved.",
+        "other": "{count} settings saved."
+      },
+      "title": "Configuration",
+      "subtitle": "Running settings. Passwords and tokens are shown masked; leave them as they are to keep them unchanged.",
+      "reload": "Reload",
+      "saveCount": "Save {count}",
+      "changed": "changed",
+      "readOnly": "Read-only: this value comes from the container's environment.",
+      "on": "On",
+      "off": "Off",
+      "hide": "Hide",
+      "show": "Show",
+      "secretSet": "A value is set. Type a new one to replace it, or clear the field to erase it."
+    },
+    "loadFailed": "Could not load data from the Management API."
   },
   "memories": {
     "allYears": "All years",
@@ -1229,14 +1452,19 @@
     "syncListener": "Radio: listener (following)",
     "syncOff": "Sync off",
     "syncRemote": "Jam: remote (controller)",
-    "volume": "Volume"
+    "volume": "Volume",
+    "unknownTrack": "Unknown track",
+    "unknownArtist": "Unknown artist",
+    "unknownAlbum": "Unknown album",
+    "pause": "Pause"
   },
   "queue": {
     "clear": "Clear list",
     "resize": "Resize queue",
     "saveAsPlaylist": "Save as playlist",
     "shuffle": "Shuffle",
-    "title": "Queue"
+    "title": "Queue",
+    "playlistNamePrompt": "Name for the new playlist:"
   },
   "radio": {
     "chooseChannel": "Choose a channel",
@@ -1315,7 +1543,10 @@
       "sortOptionsHelp": "Choose which sort options are visible in the interface.",
       "subtitle": "Manage your sort options and your password.",
       "title": "Advanced",
-      "updatePassword": "Update password"
+      "updatePassword": "Update password",
+      "sortTracks": "Tracks",
+      "sortAlbums": "Albums",
+      "sortArtists": "Artists"
     },
     "device": {
       "bitrateUnlimited": "No limit",
@@ -1569,7 +1800,8 @@
     "mlGenre": "Genre according to ML",
     "mono": "mono",
     "stereo": "stereo",
-    "channels": "{count} channels"
+    "channels": "{count} channels",
+    "confirmRefresh": "Are you sure you want to re-parse and rescan \"{title}\"?"
   },
   "song": {
     "heading": "Song",
@@ -1790,5 +2022,97 @@
       "title": "Management",
       "body": "As an administrator, Management (profile menu) holds the server side: scanning, the tagger and curation of artists, genres, labels and podcasts, the downloaders, radio and news, users and their requests, health and the log. This manual is about listening; Management explains itself page by page."
     }
+  },
+  "curation": {
+    "back": "Back",
+    "chipEmpty": "Nothing set yet.",
+    "chipRemove": "Remove {item}",
+    "inLibrary": "{count} tracks in the library",
+    "notInLibrary": "Not in the library yet — rules can already be recorded",
+    "artistGone": "This artist no longer exists in the library.",
+    "artistMbidHelp": "The MBID links this artist to MusicBrainz. Leaving it empty clears the link.",
+    "mbidInvalid": "That is not an MBID. Paste only the id, not the whole MusicBrainz URL.",
+    "mbidInvalidShort": "That is not an MBID. Paste only the id.",
+    "mbidSaved": "MBID saved.",
+    "openOnMusicBrainz": "Open on MusicBrainz",
+    "externalIds": "External ids",
+    "verified": "verified",
+    "idRemoved": "Id removed.",
+    "idSaved": "Id saved.",
+    "noExternalIds": "No external ids yet.",
+    "pickSource": "Choose source",
+    "sourceIdPlaceholder": "id at that source",
+    "aliases": "Aliases",
+    "aliasesHint": "Other spellings this artist appears under, for example 'DJ Angerfist'.",
+    "aliasPlaceholder": "Alias",
+    "aliasSelf": "An artist is not an alias of itself.",
+    "aliasExists": "That alias is already there.",
+    "aliasAdded": "Alias added.",
+    "aliasRemoved": "Alias removed.",
+    "ruleSaved": "Rule saved.",
+    "ruleRemoved": "Rule removed.",
+    "retagQueued": "{count} files are queued to be retagged.",
+    "markedNone": "{base} No files found to retag.",
+    "markedSome": {
+      "one": "{base} 1 file is queued to be retagged.",
+      "other": "{base} {count} files are queued to be retagged."
+    },
+    "hierarchySaved": "Hierarchy saved.",
+    "hardnessInvalid": "Must be a whole number between 0 and 100, or empty.",
+    "hardnessSaved": "Hardness saved.",
+    "genreSeen": "Seen {count} times in the library",
+    "genreNotApproved": "This genre has not been approved by curation",
+    "parentsTitle": "Rolls up into",
+    "parentsHint": "Broader genres this genre belongs to. The tagger adds them to every track with this genre.",
+    "parentsPlaceholder": "For example Hardcore",
+    "parentNotAllowed": "Not possible: a genre cannot roll up into itself or into one of its own subgenres, and appears only once.",
+    "hardnessHelp": "0 (soft) to 100 (hard). Decides which of the soft, middle or hard daily mix this genre ends up in. Leaving it empty hands the genre back to the automatic estimate.",
+    "subgenres": "Subgenres",
+    "subgenresHelp": "Genres that roll up into this genre. Change them on their own page.",
+    "noSubgenres": "No subgenres.",
+    "genreNotEditableBefore": "Curation decides whether a genre exists; this page edits a genre that has already been approved. This genre is on",
+    "genreNotEditableAfter": ", so there is nothing to set — the tagger writes it nowhere.",
+    "reviewFirst": "Review it first under Management → Genre curation.",
+    "genreRules": "Genre rules",
+    "genreRulesHelp": "Every track below gets these genres in the next tagger run.",
+    "ruleBy": "by {name}",
+    "ruleRemove": "Remove rule {name}",
+    "pickGenre": "Choose genre",
+    "pickApprovedGenre": "Choose an approved genre…",
+    "affects": "Affects {tracks}.",
+    "affectedNone": "no tracks",
+    "affectedTracks": {
+      "one": "1 track",
+      "other": "{count} tracks"
+    },
+    "applyNow": "Apply now",
+    "catalog": "Catalogue",
+    "catalogHelp": "Read from the release folder names; only the EPs folder counts. Only the observed range counts: nothing is claimed before the lowest or after the highest number, and a number that is not present may also have been skipped by the label.",
+    "catalogLoadFailed": "Could not load the catalogue: {error}",
+    "catalogLoading": "Loading catalogue…",
+    "catalogEmpty": "No readable catalogue numbers in this label's folders.",
+    "filesOutsideRoot": "{count} files of this label are outside the EPs folder and were not counted.",
+    "copied": "Copied",
+    "copyAsTerms": "Copy as search terms",
+    "copyFailed": "Copying failed.",
+    "absentTruncated": "{count} numbers not present — too many to list; probably one folder name is far outside the series.",
+    "allPresent": "Everything within the observed range is present.",
+    "notPresent": "Not present ({count}):",
+    "showAll": "show all ({count} runs)",
+    "variants": "Variants:",
+    "otherCatids": "Other, without a readable number:",
+    "noPrefix": "(no prefix)",
+    "seriesPresent": "{present} of {span} present ({percent}%)",
+    "parentLabel": "Parent label",
+    "parentLabelHelp": "The label this sublabel belongs to. Not used by the tagger yet.",
+    "parentPlaceholder": "id of the parent label, empty to clear",
+    "parentSaved": "Parent label saved.",
+    "parentNow": "Now belongs to {name}.",
+    "catidPrefixes": "Catalogue prefixes",
+    "catidHint": "A release with this number in its folder name is assigned to this label.",
+    "catidPlaceholder": "For example MOH",
+    "catidExists": "That prefix is already there.",
+    "prefixAdded": "Prefix added.",
+    "prefixRemoved": "Prefix removed."
   }
 }

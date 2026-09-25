@@ -90,10 +90,10 @@
        system strip the OS paints -- the bar is sticky, and its translucent ground is what
        scrolled content shows through under the clock, the way Spotify's does. `-mt-3` cancels
        the column's own top padding so nothing sits above the bar on first paint. -->
-  <div class="md:hidden flex items-center gap-2 h-[calc(3rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] px-3 -mx-3 -mt-3 sticky top-0 z-30 mb-3 bg-[#121212]/90 backdrop-blur-md">
+  <div class="md:hidden flex items-center gap-2 h-[calc(3rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] px-3 -mx-3 -mt-3 sticky top-0 z-30 mb-3 bg-muma-spotify-dark/90 backdrop-blur-md">
     {#if hasDrawer}
       <button
-        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
+        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-muma-spotify-light transition-colors cursor-pointer"
         aria-label={$t('nav.openMenu')}
         onclick={() => sidebarDrawerOpen.set(true)}
       >
@@ -108,7 +108,7 @@
            icon beside the search field puts it one tap away without spending a whole row on it. -->
       <button
         type="button"
-        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-[#282828] transition-colors cursor-pointer"
+        class="flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-transparent border-none text-white hover:bg-muma-spotify-light transition-colors cursor-pointer"
         aria-label={$t('presetBuilder.open')}
         onclick={() => handleNavigate('new-preset')}
       >
@@ -123,7 +123,7 @@
     <ProfileButton onNavigate={handleNavigate} />
   </div>
 {:else}
-  <div class="hidden md:flex items-center justify-between mb-6 sticky top-0 z-30 py-2 bg-[#121212]/90 backdrop-blur-md px-4 -mx-4">
+  <div class="hidden md:flex items-center justify-between mb-6 sticky top-0 z-30 py-2 bg-muma-spotify-dark/90 backdrop-blur-md px-4 -mx-4">
     <div class="flex items-center gap-4 flex-grow">
       {#if $activeView === 'home'}
           <!-- The phone Home already opens with its own quick-access grid; a "Goedemorgen"

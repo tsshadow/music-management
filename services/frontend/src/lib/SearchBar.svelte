@@ -2,7 +2,8 @@
   import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
   import { activeView, currentTrack, playlist, viewMode, activeModal } from './store.js';
-  import { listOf, subsonicJson } from './subsonic.js';
+  import { subsonicJson } from './subsonic.js';
+  import { loadSearchFacets } from './searchFacets.js';
   import SearchResults from './SearchResults.svelte';
 
   // Bindable so the shell's Android back handler can dismiss the results panel
@@ -93,33 +94,14 @@
     }, 300);
   }
 
-  /**
-   * Loads all genres once on mount to enable local filtering.
-   */
-  async function loadAllGenres() {
-    try {
-      const genreList = listOf(await subsonicJson('getGenres'), 'genres.genre');
-      allGenres = genreList.map(g => typeof g === 'string' ? g : (g.value || g.name));
-    } catch (e) {
-      console.error("Failed to load genres for search:", e);
-    }
-  }
-
-  /**
-   * Loads all record labels once on mount to enable local filtering.
-   */
-  async function loadAllLabels() {
-    try {
-      const labelList = listOf(await subsonicJson('getRecordLabels'), 'recordLabels.recordLabel');
-      allLabels = labelList.map(l => typeof l === 'string' ? l : (l.value || l.name));
-    } catch (e) {
-      console.error("Failed to load labels for search:", e);
-    }
-  }
-
+  // The genre and label lists come from a module-level cache shared with any
+  // other SearchBar (TopBar swaps between a phone and a desktop one), so a
+  // remount does not fetch them again.
   onMount(() => {
-    loadAllGenres();
-    loadAllLabels();
+    loadSearchFacets().then(({ genres, labels }) => {
+      allGenres = genres;
+      allLabels = labels;
+    });
   });
 
   // Re-run search when mode changes and search is active
@@ -181,7 +163,7 @@
 <div class="relative min-w-0 flex-1 md:flex-grow md:max-w-md md:mx-4">
   <div class="relative group">
     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-      <svg class="h-5 w-5 text-[#b3b3b3] group-focus-within:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="h-5 w-5 text-muma-spotify-text group-focus-within:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
       </svg>
@@ -193,7 +175,7 @@
       onfocus={() => showResults = query.length > 0}
       onblur={handleBlur}
       placeholder={$viewMode === 'sets' ? $t('search.placeholderSets') : $t('search.placeholder')}
-      class="block w-full pl-10 pr-3 py-1.5 md:py-2 bg-[#242424] border-none rounded-full text-sm text-white placeholder-[#b3b3b3] focus:ring-2 focus:ring-white transition-all hover:bg-[#2a2a2a]"
+      class="block w-full pl-10 pr-3 py-1.5 md:py-2 bg-muma-spotify-raised border-none rounded-full text-sm text-white placeholder-muma-spotify-text focus:ring-2 focus:ring-white transition-all hover:bg-[#2a2a2a]"
     />
   </div>
 

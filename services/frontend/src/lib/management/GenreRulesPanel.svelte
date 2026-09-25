@@ -9,7 +9,7 @@
    * The whole list is loaded at once: a few hundred rules, and filtering them
    * client-side is what lets the box match on genre as well as on name.
    */
-  import { t } from '../i18n/index.js';
+  import { format, t } from '../i18n/index.js';
   import { onDestroy, onMount } from 'svelte';
   import { RefreshCw, Search, Trash2, Plus, Pencil } from '@lucide/svelte';
   import { activeView } from '../store.js';
@@ -33,7 +33,7 @@
 
   const visibleRows = $derived(sortRules(kind, filterRules(kind, rows, search), sort));
   const pending = $derived(buildRule(kind, { name: newName, genreId: newGenreId, existing: rows }));
-  const n = (value) => Number(value ?? 0).toLocaleString('nl-NL');
+  const n = (value) => $format.number(value);
 
   async function fetchRows() {
     loading = true;

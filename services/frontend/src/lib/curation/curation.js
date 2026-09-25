@@ -9,6 +9,9 @@
  * exceptions -- making a connection (an MBID, an alias) and writing a rule -- so
  * everything here is about keeping those two honest, not about editing metadata.
  */
+import { get } from "svelte/store";
+
+import { t } from "../i18n/index.js";
 import { normalizeGenre } from "../management/genreCuration";
 
 /** MusicBrainz ids are 8-4-4-4-12 hex, printed in either case. */
@@ -105,8 +108,8 @@ export function removeParent(current, parent) {
  * @returns {string}
  */
 export function affectedLabel(count) {
-  if (!count) return "no tracks";
-  return count === 1 ? "1 track" : `${count} tracks`;
+  if (!count) return get(t)("curation.affectedNone");
+  return get(t)("curation.affectedTracks", { count });
 }
 
 /**

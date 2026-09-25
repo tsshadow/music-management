@@ -7,16 +7,20 @@
  * will do to a tag — so the component only has to render them.
  */
 
+import { get } from "svelte/store";
+
+import { formatDateTime, t } from "../i18n/index.js";
+
 export const WHITE = "white";
 export const BLACK = "black";
 export const UNKNOWN = "unknown";
 
 /** The filter tabs, in the order a curator works through them. */
 export const STATE_FILTERS = [
-  { id: UNKNOWN, label: "Te beoordelen" },
-  { id: WHITE, label: "Goedgekeurd" },
-  { id: BLACK, label: "Afgekeurd" },
-  { id: "all", label: "Alles" },
+  { id: UNKNOWN, labelKey: "management.genres.filterUnknown" },
+  { id: WHITE, labelKey: "management.genres.filterWhite" },
+  { id: BLACK, labelKey: "management.genres.filterBlack" },
+  { id: "all", labelKey: "management.genres.filterAll" },
 ];
 
 /**
@@ -61,11 +65,13 @@ export function summarize(rows) {
 export function describeOutcome(row) {
   const targets = row.canonical_targets || [];
   if (targets.length) {
-    return `Wordt vervangen door ${targets.map((target) => target.name).join(" + ")}`;
+    return get(t)("management.genres.outcomeReplaced", {
+      targets: targets.map((target) => target.name).join(" + "),
+    });
   }
-  if (row.state === WHITE) return "Blijft staan";
-  if (row.state === BLACK) return "Wordt verwijderd";
-  return "Blijft in het bestand, wordt niet opgeslagen";
+  if (row.state === WHITE) return get(t)("management.genres.outcomeKeep");
+  if (row.state === BLACK) return get(t)("management.genres.outcomeDrop");
+  return get(t)("management.genres.outcomeUndecided");
 }
 
 /**
@@ -79,14 +85,17 @@ export function describeOutcome(row) {
  */
 export function buildDecision({ genreId, state, canonicalIds = [] }) {
   if (state !== WHITE && state !== BLACK) {
-    return { valid: false, error: `Ongeldige status, verwacht ${WHITE} of ${BLACK}.` };
+    return {
+      valid: false,
+      error: get(t)("management.genres.errorState", { white: WHITE, black: BLACK }),
+    };
   }
   const targets = [];
   for (const raw of canonicalIds || []) {
     if (raw === "" || raw === null || raw === undefined) continue;
     const target = Number(raw);
     if (target === Number(genreId)) {
-      return { valid: false, error: "Een genre kan niet naar zichzelf corrigeren." };
+      return { valid: false, error: get(t)("management.genres.errorSelfCorrection") };
     }
     if (!targets.includes(target)) targets.push(target);
   }
@@ -107,9 +116,11 @@ export function correctionTargets(rows, genreId) {
 
 /** Human-readable provenance line for a decided genre. */
 export function describeDecision(row) {
-  if (!row.decided_at) return "Nog niet beoordeeld";
-  const when = new Date(row.decided_at.replace(" ", "T")).toLocaleString("nl-NL");
-  return row.decided_by ? `${when} door ${row.decided_by}` : when;
+  if (!row.decided_at) return get(t)("management.genres.notDecided");
+  const when = formatDateTime(row.decided_at);
+  return row.decided_by
+    ? get(t)("management.artists.decidedByAt", { when, by: row.decided_by })
+    : when;
 }
 
 /**

@@ -1292,9 +1292,9 @@
   $effect(() => {
     if (!track) return;
     platform.player.setNowPlaying({
-      title: track.title || 'Onbekend nummer',
-      artist: track.artist || 'Onbekende artiest',
-      album: track.album || 'Onbekend album',
+      title: track.title || $t('player.unknownTrack'),
+      artist: track.artist || $t('player.unknownArtist'),
+      album: track.album || $t('player.unknownAlbum'),
       artworkUrl: track.coverArt
         ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=512&${$authParams}`)
         : window.location.origin + '/images/spotify-fallback.svg',
@@ -1696,7 +1696,7 @@
         />
         <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
-          <div class="text-[11px] text-[#b3b3b3] truncate">{track.artist}</div>
+          <div class="text-[11px] text-muma-spotify-text truncate">{track.artist}</div>
         </div>
         <div class="flex items-center gap-0.5 flex-shrink-0">
           {#each [1, 2, 3, 4, 5] as star (star)}
@@ -1718,14 +1718,14 @@
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"></path>
             </svg>
           </div>
-          <div class="text-[13px] text-[#b3b3b3] italic font-medium">{$t('player.nothingPlaying')}</div>
+          <div class="text-[13px] text-muma-spotify-text italic font-medium">{$t('player.nothingPlaying')}</div>
         </div>
       {/if}
       <div class="flex items-center gap-3 px-2">
         {#if equalizerSupported}
           <button
             data-eq-toggle
-            class="bg-transparent border-none p-0 cursor-pointer transition-colors {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
+            class="bg-transparent border-none p-0 cursor-pointer transition-colors {$equalizerSettings.enabled ? 'text-brand' : 'text-muma-spotify-text'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}
             aria-pressed={showEqualizer}
@@ -1739,7 +1739,7 @@
           class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay} 
           disabled={transportLocked}
-          aria-label={playing ? "Pauze" : "Afspelen"}
+          aria-label={playing ? $t('player.pause') : $t('common.play')}
         >
           {#if playing}
             <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
@@ -1753,7 +1753,7 @@
         </button>
         {#if track}
           <button 
-            class="bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white transition-colors {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
+            class="bg-transparent border-none p-0 text-muma-spotify-text hover:text-white transition-colors {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
             onclick={playNext} 
             disabled={transportLocked}
             aria-label={$t('player.next')}
@@ -1861,7 +1861,7 @@
 
     <div class="flex-1 md:w-[40%] max-w-[600px] flex flex-col items-center gap-2">
       <div class="flex items-center gap-4 md:gap-6">
-        <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleShuffleMode} aria-label={$t('queue.shuffle')}>
+        <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-muma-spotify-text'}" onclick={toggleShuffleMode} aria-label={$t('queue.shuffle')}>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
           </svg>
@@ -1870,7 +1870,7 @@
           {/if}
         </button>
         <button
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={playPrev}
           disabled={transportLocked}
           aria-label={$t('player.previous')}
@@ -1881,7 +1881,7 @@
         </button>
         {#if isSetMode}
           <button
-            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
             onclick={() => skip(-30)}
             disabled={transportLocked}
             aria-label={$t('player.skipBack')}
@@ -1910,7 +1910,7 @@
         </button>
         {#if isSetMode}
           <button
-            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
             onclick={() => skip(30)}
             disabled={transportLocked}
             aria-label={$t('player.skipForward')}
@@ -1923,7 +1923,7 @@
           </button>
         {/if}
         <button
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3] {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={playNext}
           disabled={transportLocked}
           aria-label={$t('player.next')}
@@ -1932,7 +1932,7 @@
             <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.15v5.15a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z"></path>
           </svg>
         </button>
-        <button class="hidden md:flex flex-col items-center relative bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-[#b3b3b3]'}" onclick={toggleRepeat} aria-label={$t('player.repeat')}>
+        <button class="hidden md:flex flex-col items-center relative bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {repeatMode !== 'none' ? 'text-brand' : 'text-muma-spotify-text'}" onclick={toggleRepeat} aria-label={$t('player.repeat')}>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.829-2.828a.75.75 0 1 1 1.06 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path>
           </svg>
@@ -1944,7 +1944,7 @@
           {/if}
         </button>
       </div>
-      <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-[#b3b3b3]">
+      <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-muma-spotify-text">
         <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
       {#if isSetMode}
         <!-- A native `range`, not the songs-mode click div below: a two-hour
@@ -2015,10 +2015,10 @@
         </button>
         {#if showRadioPicker}
           <div
-            class="absolute bottom-full right-0 mb-3 w-56 bg-[#282828] rounded-md shadow-xl border border-white/5 py-1 z-50"
+            class="absolute bottom-full right-0 mb-3 w-56 bg-muma-spotify-light rounded-md shadow-xl border border-white/5 py-1 z-50"
             role="menu"
           >
-            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-[#b3b3b3]">
+            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-muma-spotify-text">
               {$t('radio.chooseChannel')}
             </div>
             {#each radioChannels as channel (channel.slug)}
@@ -2028,7 +2028,7 @@
                 onclick={() => startRadio(channel)}
               >
                 <span class="font-bold">{channel.name}</span>
-                <span class="block text-[11px] text-[#b3b3b3]">
+                <span class="block text-[11px] text-muma-spotify-text">
                   {describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}
                 </span>
               </button>
@@ -2062,7 +2062,7 @@
         <div class="relative">
           <button
             data-eq-toggle
-            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {$equalizerSettings.enabled ? 'text-brand' : 'text-[#b3b3b3]'}"
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {$equalizerSettings.enabled ? 'text-brand' : 'text-muma-spotify-text'}"
             onclick={() => (showEqualizer = !showEqualizer)}
             aria-label={$t('equalizer.title')}
             aria-pressed={showEqualizer}
@@ -2081,7 +2081,7 @@
       {#if lyricsLines.length > 0}
         <div class="relative">
           <button
-            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {showLyricsPanel ? 'text-brand' : 'text-[#b3b3b3]'}"
+            class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white {showLyricsPanel ? 'text-brand' : 'text-muma-spotify-text'}"
             onclick={() => (showLyricsPanel = !showLyricsPanel)}
             aria-label={$t('track.lyrics')}
             aria-pressed={showLyricsPanel}
@@ -2093,7 +2093,7 @@
           </button>
           {#if showLyricsPanel}
             <div
-              class="absolute bottom-full right-0 mb-3 w-64 max-h-72 overflow-y-auto bg-[#282828] rounded-md shadow-xl border border-white/5 p-3 z-50 text-sm text-white"
+              class="absolute bottom-full right-0 mb-3 w-64 max-h-72 overflow-y-auto bg-muma-spotify-light rounded-md shadow-xl border border-white/5 p-3 z-50 text-sm text-white"
               role="dialog"
               aria-label={$t('track.lyrics')}
             >
@@ -2104,12 +2104,12 @@
           {/if}
         </div>
       {/if}
-      <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={ontoggleQueue} aria-label={$t('queue.title')}>
+      <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text" onclick={ontoggleQueue} aria-label={$t('queue.title')}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
           </svg>
       </button>
-      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-[#b3b3b3]" onclick={toggleMute}>
+      <button class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text" onclick={toggleMute}>
           {#if muted || volume === 0}
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                   <path d="M16.107 2.493a.75.75 0 0 0-1.06 0l-7.057 7.057H2.25a.75.75 0 0 0-.75.75v3.314a.75.75 0 0 0 .75.75h5.74l7.057 7.057a.75.75 0 0 0 1.28-.53V3.023a.75.75 0 0 0-.22-.53zM14.607 18.66l-5.914-5.914a.75.75 0 0 0-.53-.22H3v-1.814h5.163a.75.75 0 0 0 .53-.22l5.914-5.914V18.66z"></path>

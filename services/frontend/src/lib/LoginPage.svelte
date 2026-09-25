@@ -110,10 +110,10 @@
         setTimeout(verifyLogin, 1000);
       } else {
         const data = await response.json();
-        error = data.detail || 'Setup mislukt';
+        error = data.detail || $t('login.setupFailed');
       }
     } catch (e) {
-      error = 'Kon geen verbinding maken met de management API';
+      error = $t('login.noManagementConnection');
     } finally {
       isLoading = false;
     }
@@ -189,10 +189,10 @@
         requestStatus = 'pending';
         googleRequest = data.request;
       } else {
-        error = data.detail || 'Toegangsaanvraag mislukt';
+        error = data.detail || $t('login.accessRequestFailed');
       }
     } catch (e) {
-      error = 'Fout bij indienen toegangsaanvraag';
+      error = $t('login.accessRequestError');
     } finally {
       isLoading = false;
     }
@@ -252,13 +252,13 @@
 </script>
 
 <div class="min-h-screen w-screen bg-black flex flex-col justify-center items-center p-4 text-white">
-  <div class="bg-[#181818] border border-[#282828] p-10 rounded-2xl w-full max-w-md flex flex-col gap-6 shadow-2xl">
+  <div class="bg-muma-spotify-panel border border-muma-spotify-light p-10 rounded-2xl w-full max-w-md flex flex-col gap-6 shadow-2xl">
     <div class="flex flex-col items-center gap-2 mb-2">
       <div class="w-14 h-14 bg-brand rounded-full flex items-center justify-center text-black mb-1">
         <MumaMark size={32} />
       </div>
       <h1 class="text-3xl font-extrabold tracking-tight m-0">MuMa</h1>
-      <h2 class="text-sm font-medium text-[#b3b3b3] m-0">{setupRequired ? $t('login.setupTitle') : $t('login.title')}</h2>
+      <h2 class="text-sm font-medium text-muma-spotify-text m-0">{setupRequired ? $t('login.setupTitle') : $t('login.title')}</h2>
     </div>
     
     {#if requestStatus === 'unknown'}
@@ -267,37 +267,37 @@
           <img src={googleUser.avatar_url} alt={$t('login.avatar')} class="w-20 h-20 rounded-full mx-auto" />
         {/if}
         <p class="text-sm">{$t('login.noAccessYet', { name: googleUser.display_name, email: googleUser.email })}</p>
-        <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50" onclick={requestAccess} disabled={isLoading}>
+        <button class="bg-brand-green hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50" onclick={requestAccess} disabled={isLoading}>
           {isLoading ? $t('common.busy') : $t('login.requestAccess')}
         </button>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
+        <button class="text-muma-spotify-text text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'pending'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-blue-500/20 text-blue-400 p-4 rounded-lg text-sm">
           {$t('login.requestPending')}
         </div>
-        <p class="text-xs text-[#b3b3b3]">{$t('login.requestedOn', { date: new Date(googleRequest.requested_at).toLocaleString($locale) })}</p>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
+        <p class="text-xs text-muma-spotify-text">{$t('login.requestedOn', { date: new Date(googleRequest.requested_at).toLocaleString($locale) })}</p>
+        <button class="text-muma-spotify-text text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'rejected'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-red-500/20 text-red-400 p-4 rounded-lg text-sm">
           {$t('login.requestRejected')}
         </div>
-        <button class="text-[#b3b3b3] text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
+        <button class="text-muma-spotify-text text-sm hover:underline bg-transparent border-none cursor-pointer" onclick={retryGoogleLogin}>{$t('login.backToLogin')}</button>
       </div>
     {:else if requestStatus === 'approved'}
       <div class="flex flex-col gap-4 text-center">
         <div class="bg-green-500/20 text-green-400 p-4 rounded-lg text-sm">
           {$t('login.requestApproved')}
         </div>
-        <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02]" onclick={retryGoogleLogin}>
+        <button class="bg-brand-green hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-bold cursor-pointer transition-transform hover:scale-[1.02]" onclick={retryGoogleLogin}>
           {$t('login.loginNow')}
         </button>
       </div>
     {:else}
-      <p class="text-sm text-[#b3b3b3] text-center m-0">
+      <p class="text-sm text-muma-spotify-text text-center m-0">
         {setupRequired 
           ? $t('login.setupIntro')
           : $t('login.intro')}
@@ -309,27 +309,27 @@
 
       {#if isNative}
         <div class="flex flex-col gap-2">
-          <label for="server" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.server')}</label>
-          <input id="server" type="url" inputmode="url" autocomplete="url" value={server} oninput={(e) => server = e.target.value} placeholder="https://muma.example" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
-          <p class="text-[11px] text-[#b3b3b3] m-0">{$t('login.serverHint')}</p>
+          <label for="server" class="text-xs font-bold text-muma-spotify-text uppercase tracking-wider">{$t('login.server')}</label>
+          <input id="server" type="url" inputmode="url" autocomplete="url" value={server} oninput={(e) => server = e.target.value} placeholder="https://muma.example" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-50" disabled={isLoading} />
+          <p class="text-[11px] text-muma-spotify-text m-0">{$t('login.serverHint')}</p>
         </div>
       {/if}
       <div class="flex flex-col gap-2">
-        <label for="username" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.username')}</label>
-        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder={$t('login.username')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} />
+        <label for="username" class="text-xs font-bold text-muma-spotify-text uppercase tracking-wider">{$t('login.username')}</label>
+        <input id="username" type="text" value={username} oninput={(e) => username = e.target.value} placeholder={$t('login.username')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-50" disabled={isLoading} />
       </div>
       <div class="flex flex-col gap-2">
-        <label for="password" class="text-xs font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('login.password')}</label>
-        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder={$t('login.password')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-[#1db954] disabled:opacity-50" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
+        <label for="password" class="text-xs font-bold text-muma-spotify-text uppercase tracking-wider">{$t('login.password')}</label>
+        <input id="password" type="password" value={password} oninput={(e) => password = e.target.value} placeholder={$t('login.password')} class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-50" disabled={isLoading} onkeydown={(e) => e.key === 'Enter' && (setupRequired ? performSetup() : verifyLogin())} />
       </div>
-      <button class="bg-[#1db954] hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-extrabold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50 mt-2" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
+      <button class="bg-brand-green hover:bg-[#1ed760] text-black border-none rounded-full p-3.5 text-base font-extrabold cursor-pointer transition-transform hover:scale-[1.02] disabled:opacity-50 mt-2" onclick={setupRequired ? performSetup : verifyLogin} disabled={isLoading}>
         {isLoading ? (setupRequired ? $t('login.settingUp') : $t('login.verifying')) : (setupRequired ? $t('login.createAccount') : $t('login.connect'))}
       </button>
 
       {#if !setupRequired && GOOGLE_CLIENT_ID}
         <div class="flex items-center gap-4 my-2">
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
-          <span class="text-xs text-[#b3b3b3] font-bold uppercase">{$t('login.or')}</span>
+          <span class="text-xs text-muma-spotify-text font-bold uppercase">{$t('login.or')}</span>
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
         </div>
 

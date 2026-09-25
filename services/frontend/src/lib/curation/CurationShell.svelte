@@ -9,6 +9,8 @@
    */
   import { ArrowLeft } from '@lucide/svelte';
 
+  import { t } from '../i18n/index.js';
+
   let { title, subtitle = '', error = null, message = null, onback, children } = $props();
 </script>
 
@@ -18,7 +20,7 @@
     onclick={onback}
   >
     <ArrowLeft size={18} />
-    <span class="text-sm font-bold">Terug</span>
+    <span class="text-sm font-bold">{$t('curation.back')}</span>
   </button>
 
   <h1 class="text-3xl md:text-5xl font-black m-0 leading-tight break-words">{title}</h1>

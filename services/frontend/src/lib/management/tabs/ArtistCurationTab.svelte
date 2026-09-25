@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../../i18n/index.js';
+  import { format, t } from '../../i18n/index.js';
   import { onDestroy, onMount } from 'svelte';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
   import {
@@ -63,7 +63,7 @@
 
   const paging = $derived(pageOf(total, offset));
   /** A count for display; a summary from an older server may lack a field, which is 0 here. */
-  const n = (value) => Number(value ?? 0).toLocaleString('nl-NL');
+  const n = (value) => $format.number(value);
   const allVisibleSelected = $derived(rows.length > 0 && rows.every((row) => selected.includes(row.name)));
   const selectedRows = $derived(rows.filter((row) => selected.includes(row.name)));
   const plan = $derived(planFromProposals(selectedRows));
@@ -594,7 +594,7 @@
 
 {#if correcting}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
+    <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
       <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
         <Replace class="text-brand" /> {correcting.name}
       </h3>

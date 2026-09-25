@@ -124,7 +124,7 @@
     <div>
       <h1 class="text-3xl font-bold m-0">{$t('nav.downloads')}</h1>
       {#if supported}
-        <p class="text-[#b3b3b3] text-sm mt-1" data-testid="downloads-total">
+        <p class="text-muma-spotify-text text-sm mt-1" data-testid="downloads-total">
           {$t('downloads.total', {
             size: formatBytes(totalBytes, $locale),
             count: items.length
@@ -135,26 +135,26 @@
   </header>
 
   {#if !supported}
-    <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+    <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
       <p class="text-xl font-bold mb-2 text-white">{$t('downloads.browserTitle')}</p>
       <p class="text-sm opacity-60">{$t('downloads.browserHelp')}</p>
     </div>
   {:else if isLoading}
-    <p class="text-[#b3b3b3] animate-pulse">{$t('common.loading')}</p>
+    <p class="text-muma-spotify-text animate-pulse">{$t('common.loading')}</p>
   {:else if groups.length === 0}
-    <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+    <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
       <p class="text-xl font-bold mb-2 text-white">{$t('downloads.emptyTitle')}</p>
       <p class="text-sm opacity-60">{$t('downloads.emptyHelp')}</p>
       {#if onnavigate}
         <button
-          class="mt-4 bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+          class="mt-4 bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
           onclick={() => onnavigate('songs')}
         >{$t('downloads.discover')}</button>
       {/if}
     </div>
   {:else}
     {#if estimated}
-      <p class="text-[11px] text-[#b3b3b3] opacity-70">{$t('downloads.estimatedNote')}</p>
+      <p class="text-[11px] text-muma-spotify-text opacity-70">{$t('downloads.estimatedNote')}</p>
     {/if}
     <ul class="list-none p-0 m-0 flex flex-col gap-1">
       {#each groups as group (group.key)}
@@ -171,7 +171,7 @@
             onpointerleave={endPress}
           >
             <span
-              class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-[#b3b3b3]'}"
+              class="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-muma-spotify-text'}"
               aria-label={$t(`downloads.state.${state}`)}
               title={$t(`downloads.state.${state}`)}
             >
@@ -193,7 +193,7 @@
                   <span class="ml-2 text-[10px] uppercase tracking-wider text-brand align-middle">{$t('nav.sets')}</span>
                 {/if}
               </span>
-              <span class="text-xs text-[#b3b3b3] truncate">
+              <span class="text-xs text-muma-spotify-text truncate">
                 {group.subtitle}
                 {#if group.subtitle}<span aria-hidden="true"> · </span>{/if}
                 {$t('common.trackCount', { count: group.items.length })}
@@ -208,7 +208,7 @@
 
             {#if state === 'failed'}
               <button
-                class="bg-transparent border border-[#727272] text-white text-xs px-3 py-1 rounded-full cursor-pointer hover:border-white"
+                class="bg-transparent border border-muma-spotify-muted text-white text-xs px-3 py-1 rounded-full cursor-pointer hover:border-white"
                 onclick={(e) => { e.stopPropagation(); logAction('download.start', { group: group.key, tracks: group.items.length }); platform.storage.download(group.items.map((item) => item.id), { pin: true }); }}
               >{$t('downloads.retry')}</button>
             {/if}
@@ -216,7 +216,7 @@
             <button
               aria-label={$t('downloads.remove')}
               title={$t('downloads.remove')}
-              class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-2 rounded hover:bg-[#333] hover:text-white"
+              class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-2 rounded hover:bg-muma-spotify-hover hover:text-white"
               onclick={(e) => { e.stopPropagation(); pendingRemoval = group.key; }}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>
@@ -224,11 +224,11 @@
           </div>
 
           {#if pendingRemoval === group.key}
-            <div class="flex items-center justify-between gap-3 px-3 py-2 bg-[#282828] rounded-b text-sm" data-testid="remove-confirm">
+            <div class="flex items-center justify-between gap-3 px-3 py-2 bg-muma-spotify-light rounded-b text-sm" data-testid="remove-confirm">
               <span>{$t('downloads.removeConfirm', { title: group.title, size: formatBytes(group.bytes, $locale) })}</span>
               <span class="flex gap-2 flex-shrink-0">
                 <button
-                  class="bg-transparent border border-[#727272] text-white px-4 py-1 rounded-full cursor-pointer hover:border-white"
+                  class="bg-transparent border border-muma-spotify-muted text-white px-4 py-1 rounded-full cursor-pointer hover:border-white"
                   onclick={() => (pendingRemoval = null)}
                 >{$t('common.cancel')}</button>
                 <button

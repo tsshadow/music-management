@@ -65,10 +65,10 @@
   <div class="flex items-center justify-between mb-8">
     <div>
       <h2 class="text-3xl font-bold mb-2">{$t('history.title')}</h2>
-      <p class="text-[#b3b3b3]">{$t('history.subtitle')}</p>
+      <p class="text-muma-spotify-text">{$t('history.subtitle')}</p>
     </div>
     <button 
-        class="bg-[#282828] text-white px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform"
+        class="bg-muma-spotify-light text-white px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform"
         onclick={() => loadHistory(false)}
     >
         {$t('common.refresh')}
@@ -95,7 +95,7 @@
     </div>
   {:else}
     <div class="text-center py-20">
-      <p class="text-[#b3b3b3] text-lg">{$t('history.empty')}</p>
+      <p class="text-muma-spotify-text text-lg">{$t('history.empty')}</p>
     </div>
   {/if}
 </div>

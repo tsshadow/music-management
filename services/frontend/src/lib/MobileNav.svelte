@@ -31,11 +31,11 @@
      and to a test that has to click one tab and not the other. -->
 <nav
   aria-label={$t('nav.bottomBar')}
-  class="flex justify-around items-center bg-black border-t border-[#282828] pb-safe pt-1.5"
+  class="flex justify-around items-center bg-black border-t border-muma-spotify-light pb-safe pt-1.5"
 >
   {#each navItems as item (item.id)}
     <button
-      class="flex flex-col items-center gap-1 bg-transparent border-none py-1.5 px-3 cursor-pointer transition-colors {isActive(item.id) ? 'text-white' : 'text-[#b3b3b3]'}"
+      class="flex flex-col items-center gap-1 bg-transparent border-none py-1.5 px-3 cursor-pointer transition-colors {isActive(item.id) ? 'text-white' : 'text-muma-spotify-text'}"
       onclick={() => navigate(item.id)}
     >
       <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

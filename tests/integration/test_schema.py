@@ -182,6 +182,23 @@ def test_a_genre_name_is_unique_after_normalization(db):
             cursor.execute("INSERT INTO rules_genres (name, normalized_name) VALUES ('HARDCORE', 'hardcore')")
 
 
+def test_an_account_name_is_unique_whatever_its_case(db):
+    """users.username refuses a case variant of an existing name.
+
+    Account names are case-insensitive (services/music_manager/identity.py, bug report 074);
+    the application refuses the variant with a 409 before the INSERT, and this is the
+    database backing it up through the column's case-insensitive collation.
+    """
+    import pymysql
+
+    with db.cursor() as cursor:
+        cursor.execute("INSERT INTO users (username, api_key) VALUES ('user', 'k1')")
+        with pytest.raises(pymysql.err.IntegrityError):
+            cursor.execute("INSERT INTO users (username, api_key) VALUES ('Teun', 'k2')")
+        cursor.execute("SELECT username FROM users WHERE LOWER(username) = LOWER('TEUN')")
+        assert [row['username'] for row in cursor.fetchall()] == ['user']
+
+
 def test_a_blind_image_verdict_is_undone_but_a_real_one_survives(database):
     """migrate_v32: migrate_v30 asked "has any portrait landed since the blackout?" once, for
     the whole table, and 22 hand-fetched ones answered yes before it first ran -- so 45.044

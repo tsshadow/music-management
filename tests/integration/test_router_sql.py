@@ -341,6 +341,29 @@ class UserLifecycleTest:
         assert body['user']['is_admin'] is True
         assert body['api_key'] and body['refresh_token']
 
+    def test_a_case_variant_login_answers_with_the_accounts_own_spelling(self, api, db):
+        """Bug report 074: the LOWER() lookup against the real table, and the name that goes back."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        login = api.post('/api/auth/login', json={'username': 'ROOT', 'password': 'hunter2'})
+        assert login.status_code == 200, login.text
+        assert login.json()['user']['username'] == 'root'
+
+    def test_a_case_variant_of_an_existing_account_cannot_be_created(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'Root'})
+        assert created.status_code == 409, created.text
+
+    def test_a_relayed_scrobble_is_stored_under_the_accounts_own_spelling(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        sent = api.post(
+            '/api/scrobble/event',
+            headers=headers,
+            json={'artist_name': 'Nobody', 'track_title': 'Nothing', 'username': 'Root', 'listened_at': 1758780000},
+        )
+        assert sent.status_code == 200, sent.text
+        rows = run_sql(db, 'SELECT username FROM scrobble_unmatched_listens')
+        assert [row['username'] for row in rows] == ['root']
+
     def test_a_refresh_token_issued_at_login_is_accepted(self, api, db):
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         refresh_token = api.post('/api/auth/login', json={'username': 'root', 'password': 'hunter2'}).json()[
@@ -792,6 +815,34 @@ class ScrobblingTest:
             cursor.execute('SELECT COUNT(*) AS n FROM scrobble_unmatched_listens')
             assert cursor.fetchone()['n'] == 1
 
+    def test_a_retried_matched_listen_is_stored_once(self, api, headers, db):
+        # Bug report 071: the app retries a send it could not confirm, with the play's start time
+        # as listened_at both times. The unique key on (username, listened_at, track_id) has to
+        # turn the second request into the same row, not a second listen.
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, primary_artist_id)"
+                " VALUES ('uid-retry', 'Raise Your Fist', %s)",
+                (artist_id,),
+            )
+        payload = {
+            'artist_name': 'Angerfist',
+            'track_title': 'Raise Your Fist',
+            'username': 'root',
+            'listened_at': 1758778000,
+            'played_secs': 600,
+            'source': 'mobile',
+        }
+        assert api.post('/api/scrobble/event', headers=headers, json=payload).status_code == 200
+        assert api.post('/api/scrobble/event', headers=headers, json=payload).status_code == 200
+        with db.cursor() as cursor:
+            cursor.execute('SELECT COUNT(*) AS n, MAX(played_secs) AS secs FROM scrobble_listens')
+            row = cursor.fetchone()
+            assert row['n'] == 1
+            assert row['secs'] == 600
+
 
 class DownloadAccountsTest:
     def test_a_soundcloud_account_round_trip(self, api, headers, db):
@@ -1090,6 +1141,26 @@ class ScrobbleReconcileSqlTest:
             assert response.status_code == 200, response.text
             assert response.json()['totals']['lms_unmapped'] == 1
 
+        # The `lms-listen-backfill` loop's windowed reads (bug report 075): LMS's `julianday`
+        # bound, and muma's listened_at-or-created_at bound on both listen tables.
+        import time
+        from datetime import UTC, datetime
+
+        from services.music_manager import lms_listen_backfill
+
+        now = int(datetime(2026, 8, 22, tzinfo=UTC).timestamp())
+        # Like apply(), the backfill refuses to write unless process and database share a zone;
+        # the test database runs in UTC, as the music-manager image does.
+        monkeypatch.setenv('TZ', 'UTC')
+        time.tzset()
+        try:
+            result = lms_listen_backfill.run_once(now, 48 * 3600)
+        finally:
+            monkeypatch.undo()
+            time.tzset()
+        assert result['found']['lms_unmapped'] == 1
+        assert result['written'] == {'lms_only_inserted': 0, 'collisions': 0}
+
 
 class TransactionTest:
     """`database.transaction` against the real server: a rolled-back DELETE leaves its rows.
@@ -1219,3 +1290,55 @@ class TransactionTest:
         )
         assert festival['name'] == 'Defqon.1'
         assert festival['aliases'] == ['Defqon']
+
+
+class EventsRetentionSqlTest:
+    """The retention pass against a real events table: per-level windows, primary-key batches, size cap."""
+
+    def _event(self, db, level, days_old):
+        run_sql(
+            db,
+            'INSERT INTO events (created_at, level, source, logger, title) '
+            "VALUES (NOW(3) - INTERVAL %s DAY, %s, 'music-manager', 'test', 'retention')",
+            (days_old, level),
+        )
+
+    def _levels(self, db):
+        return [row['level'] for row in run_sql(db, 'SELECT level FROM events ORDER BY level, created_at')]
+
+    def test_each_level_keeps_its_own_window_in_batches(self, db):
+        from services.music_manager import events_retention
+
+        days = {'DEBUG': 3, 'INFO': 14, 'WARNING': 30, 'ERROR': 90, 'CRITICAL': 365}
+        for level, window in days.items():
+            self._event(db, level, window - 1)
+            for _ in range(3):
+                self._event(db, level, window + 1)
+
+        with patch.object(events_retention, 'BATCH_SIZE', 2):
+            result = events_retention.purge_once(db, days, 0, sleep=lambda _s: None)
+
+        assert result.complete
+        assert result.by_age == dict.fromkeys(days, 3)
+        assert self._levels(db) == ['CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'WARNING']
+
+    def test_the_size_cap_counts_and_removes_the_oldest_noise(self, db):
+        from services.music_manager import events_retention
+
+        days = {'DEBUG': 3, 'INFO': 14, 'WARNING': 30, 'ERROR': 90, 'CRITICAL': 365}
+        for age in (1, 2, 3):
+            self._event(db, 'INFO', age)
+            self._event(db, 'CRITICAL', age)
+
+        # The cap reads InnoDB's row estimate first; make it current for a table this small.
+        run_sql(db, 'ANALYZE TABLE events')
+        result = events_retention.purge_once(db, days, 4, sleep=lambda _s: None)
+
+        # The app's own event logging may add a row of its own while this runs, so the
+        # assertions are on what must be gone and what must stay, not on exact counts.
+        assert result.by_size.get('INFO', 0) >= 2
+        older_info = run_sql(
+            db, "SELECT id FROM events WHERE level = 'INFO' AND created_at < NOW(3) - INTERVAL 36 HOUR"
+        )
+        assert not older_info
+        assert self._levels(db).count('CRITICAL') == 3

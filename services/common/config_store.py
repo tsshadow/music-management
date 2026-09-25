@@ -48,6 +48,41 @@ class ConfigField:
     read_only: bool = False
 
 
+#: Default age, in days, after which the events-retention loop deletes an event of
+#: each level. Tuned to production volume in bug report 072: INFO, WARNING and the
+#: per-video yt-dlp ERRORs are the bulk, CRITICAL is rare and worth a year.
+EVENTS_RETENTION_DEFAULT_DAYS = {'DEBUG': 3, 'INFO': 14, 'WARNING': 30, 'ERROR': 90, 'CRITICAL': 365}
+
+
+def _events_retention_fields() -> list[ConfigField]:
+    """The per-level retention windows and the size cap of the `events` table."""
+    fields = [
+        ConfigField(
+            key=f'events_retention_{level.lower()}_days',
+            type='integer',
+            default=days,
+            env=f'EVENTS_RETENTION_{level}_DAYS',
+            group='Events',
+            description=f'How many days a {level} event stays in the event log before the daily retention '
+            'pass deletes it. 0 or empty falls back to the default.',
+        )
+        for level, days in EVENTS_RETENTION_DEFAULT_DAYS.items()
+    ]
+    fields.append(
+        ConfigField(
+            key='events_max_rows',
+            type='integer',
+            default=10_000_000,
+            env='EVENTS_MAX_ROWS',
+            group='Events',
+            description='Safety net for the event log: when it still holds more rows than this after the '
+            'per-level pass, the oldest DEBUG/INFO rows go first, then WARNING, then ERROR. CRITICAL is never '
+            'removed by size. 0 or empty switches the cap off.',
+        )
+    )
+    return fields
+
+
 def _config_fields() -> list[ConfigField]:
     """Return the ordered list of supported configuration fields."""
     return [
@@ -435,6 +470,7 @@ def _config_fields() -> list[ConfigField]:
             group='Notifications',
             description='URL that receives a POST with the report id after a mobile crash report is stored. Empty switches the hook off.',
         ),
+        *_events_retention_fields(),
         ConfigField(
             key='feeds_starting_genres',
             type='string',
@@ -452,6 +488,33 @@ def _config_fields() -> list[ConfigField]:
             group='Feeds',
             description='Two comma-separated hardness values, "<soft/mid>,<mid/hard>", e.g. "50,75", fixing '
             'where the three spectrum daily mixes split. Empty or unparsable falls back to 50,75.',
+        ),
+        ConfigField(
+            key='lms_listen_backfill_enabled',
+            type='boolean',
+            default=True,
+            env='LMS_LISTEN_BACKFILL_ENABLED',
+            group='Scrobbling',
+            description='Every few minutes, insert the listens LMS recorded in its own history but never '
+            'relayed to MuMa (lost during a MuMa restart or deploy). Only recent listens with no MuMa listen '
+            'of the same user within ten minutes are inserted; nothing existing is ever changed.',
+        ),
+        ConfigField(
+            key='lms_listen_backfill_interval_minutes',
+            type='integer',
+            default=15,
+            env='LMS_LISTEN_BACKFILL_INTERVAL_MINUTES',
+            group='Scrobbling',
+            description='Minutes between two rounds of the LMS listen backfill.',
+        ),
+        ConfigField(
+            key='lms_listen_backfill_window_hours',
+            type='integer',
+            default=48,
+            env='LMS_LISTEN_BACKFILL_WINDOW_HOURS',
+            group='Scrobbling',
+            description='How many hours of LMS listens each backfill round reads. Older history is left to the '
+            'manual reconcile (POST /api/scrobble/reconcile/lms with insert_lms_only).',
         ),
     ]
 

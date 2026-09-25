@@ -148,3 +148,39 @@ LMS's configured `api-key` for every user. It now answers with MuMa's own
 - **Tests**: `src/libs/muma/test/Authentication.cpp` (`isPublicAuthPath`),
   `services/frontend/tests/unit/login.test.js`, `store.test.js`, `management.test.js`,
   `mumaGate.test.js`, and the routing script.
+
+## 2026-09-25: account names are case-insensitive
+
+Decided by Teun after bug report [074](../../bug-reports/074-login-case-forks-user-identity.md):
+a login typed "Teun" for the account "user" made LMS create a second user, whose listens came
+back to MuMa under the variant. The rule and where it is enforced are in
+[`docs/authentication.md`](../../authentication.md#account-names-are-case-insensitive). In
+short, MuMa's `users.username` is the one spelling, and every comparison of two names is
+case-insensitive.
+
+**Contract changes (AGENTS.md rule 10).** None is breaking:
+
+- `POST /api/auth/login` accepts any case. `user.username` in the answer was always the stored
+  row's spelling; clients are now required to sign in under it (web `login.js`, the phone through
+  `saveCredentials`, native `ensureMumaLogin`). `signIn()` returns it as `username`.
+- `POST /api/users` and `POST /api/user-requests/{id}/approve` answer `409` for a name that
+  differs only in case from an existing account. That used to be a `500` from the unique key.
+- `POST /api/scrobble/event`, `POST /api/scrobble/import/listenbrainz`,
+  `POST /api/rating/server-event` store the account's spelling, never the body's. A user key
+  naming its own account in another case is accepted, and another account is still `403`.
+- LMS `db::User::find(session, loginName)` is case-insensitive. The Subsonic `createUser` and
+  the admin UI therefore refuse a case variant ("user already exists").
+
+**Consumers**: MuMa Mobile changes (the stored user name adopts the returned spelling, see
+`changelog.d/mobile/`). The contract tests and the BDD steps log in with the exact spelling and
+are unaffected.
+
+**Not done, on purpose**: a unique index on `lower(login_name)` in LMS. The versioned migration
+would fail on production while the fork exists, and LMS would not start. It follows the repair
+(`scripts/prod/repair-username-case.sh`).
+
+**Tests**: `services/music_manager/tests/test_username_case.py`,
+`tools/test_repair_username_case.py`, `tests/integration/test_schema.py` and
+`test_router_sql.py` (`UserLifecycleTest`), LMS `DatabaseFixture.User_findByLoginName*` and
+`CaseInsensitiveLogin.*`, frontend `login.test.js`, `nativeSession.test.js`,
+`loginPageNativeCredentials.test.js`, and Android `MumaStoredCredentialsTest`.

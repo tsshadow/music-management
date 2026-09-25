@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.identity import canonical_username, same_username
 
 # The same file goes by two names depending on who is talking about it, and the version
 # sync joins on the path just as this handler does -- so the translation lives in one
@@ -89,16 +90,19 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_sy
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
         with conn.cursor() as cursor:
+            # The account's own spelling, whatever LMS relays: its local user may carry a
+            # case variant of the name (docs/bug-reports/074-login-case-forks-user-identity.md).
+            username = canonical_username(cursor, event.username) or event.username
             if removed:
                 cursor.execute(
                     'DELETE FROM rating_tracks WHERE entity_type = %s AND entity_id = %s AND username = %s',
-                    (event.object_type, entity_id, event.username),
+                    (event.object_type, entity_id, username),
                 )
                 conn.commit()
                 return {'status': 'removed', 'entity_id': entity_id}
             cursor.execute(
                 '\n                INSERT INTO rating_tracks (entity_type, entity_id, username, rating)\n                VALUES (%s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE rating = VALUES(rating)\n            ',
-                (event.object_type, entity_id, event.username, event.rating),
+                (event.object_type, entity_id, username, event.rating),
             )
             conn.commit()
             return {'status': 'success', 'entity_id': entity_id}
@@ -109,7 +113,7 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_sy
 @router.get('/ratings/{username}')
 def get_user_ratings(username: str, _auth: dict = Depends(verify_api_key)):
     """One account's ratings: the caller's own, or anyone's for an admin or the system key."""
-    own = ((_auth.get('user') or {}).get('username')) == username
+    own = same_username((_auth.get('user') or {}).get('username'), username)
     if not own and not is_admin_auth(_auth):
         raise HTTPException(status_code=403, detail='Forbidden')
     conn = get_db_connection()

@@ -41,6 +41,7 @@ from services.music_manager.feeds.snapshot import (
 from services.music_manager.feeds.snapshot import (
     serve as serve_snapshot,
 )
+from services.music_manager.identity import canonical_username
 from services.music_manager.library_paths import relative_path
 from services.music_manager.routers.users import verify_api_key
 
@@ -92,8 +93,26 @@ def _resolve_username(auth: dict, username: str | None) -> str:
     if auth.get('type') == 'system':
         if not username:
             raise HTTPException(status_code=400, detail='username is required for the system key')
-        return username
+        return _canonical(username)
     return auth['user']['username']
+
+
+def _canonical(username: str) -> str:
+    """The account's own spelling of a name the system key sent.
+
+    The spelling is part of the feed, not just a lookup key: the daily picks are seeded on
+    it (feeds/scoring.py), so "Teun" and "user" were two different mixes for one listener
+    (docs/bug-reports/074-login-case-forks-user-identity.md). A database that does not
+    answer leaves the name as sent -- the build that follows needs the database anyway.
+    """
+    conn = get_db_connection()
+    if not conn:
+        return username
+    try:
+        with conn.cursor() as cursor:
+            return canonical_username(cursor, username) or username
+    finally:
+        conn.close()
 
 
 def _starting_genres() -> list[str] | None:

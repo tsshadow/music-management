@@ -609,7 +609,9 @@ deps:renovate:
 # this always lands on the host that actually fills up. The workstation is not
 # reachable from a schedule at all (both runners share the `fast` tag, so
 # tagging would be a coin flip) and gets the systemd timer in
-# scripts/ci/systemd/ instead.
+# scripts/ci/systemd/ instead -- same script, so both hosts get the same
+# age-filtered build-cache prune (72h, a 24h floor when still critical) that
+# the workstation lacked when it hit 98% on 2026-09-25 (docs/bug-reports/073).
 #
 # Not allow_failure: the script exits non-zero only when it has swept
 # everything it safely can and the disk is *still* critical, which is exactly
@@ -1152,6 +1154,7 @@ mobile:smoke:
         - scripts/ci/android-image.sh
         - scripts/test/muma-mobile-emulator-smoke.sh
         - scripts/test/muma-mobile-emulator-smoke-inner.sh
+        - scripts/ci/docker_disk_preflight.py
   script:
     - ./scripts/test/muma-mobile-emulator-smoke.sh
   after_script: !reference [.mobile_container, after_script]

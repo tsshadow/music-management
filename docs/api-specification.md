@@ -5,7 +5,10 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
 ### 🔐 Authentication
 - **POST `/api/auth/login`**: Authenticate with username/password and receive the user's own API
   key: `200 {status, api_key, access_token, refresh_token, user}`, `user` carrying `permissions`,
-  `role_name` and `is_admin`. The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
+  `role_name` and `is_admin`. The username matches in any case, and `user.username` is the account's
+  own spelling, which clients sign in under afterwards (see `docs/authentication.md`, "Account names
+  are case-insensitive"). `POST /api/users` answers `409` for a case variant of an existing name.
+  The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
   pass-through when LMS is reached directly); LMS no longer answers that path itself with its own
   `api-key` (breaking for any client that read LMS's flat `{id, username, is_admin, api_key}`). The
   session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare
@@ -171,10 +174,17 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
   database_zone, consistent}, totals: {exact, shifted, muma_only, lms_only, lms_only_insertable,
   lms_unmapped}, users: {<username>: <same counts>}, sample: {shifted, muma_only, lms_only,
   lms_unmapped}}` (at most 20 rows per class). 403 for a non-admin, 503 when no `lms.db` is visible.
+  `users` is keyed by muma's `users.username`: LMS and muma spellings that differ only in case
+  count as one user. `servers` lists only databases with the core LMS schema; a stale `lms.db`
+  without a `user`, `track` or `listen` table is left out, as it is for every LMS sync.
+  `lms_only_insertable` counts LMS listens with no muma or unmatched listen of that user within
+  600 s (the same play recorded by the app a minute after LMS saw it start).
 - **POST `/api/scrobble/reconcile/lms`**: body `{"username"?, "apply_shifted": bool,
   "insert_lms_only": bool}`; at least one must be true (400 otherwise). Starts the apply in the
   background (409 while one runs); one transaction per user, UNIQUE collisions skipped and counted,
-  refused when `zones.consistent` is false. Response `{message, last}`.
+  refused when `zones.consistent` is false. Response `{message, last}`. Since bug report 075 the
+  `lms-listen-backfill` loop inserts recent lost listens (last 48 h) by itself; this call with
+  `insert_lms_only` is the one-off path for the older backlog, and the only way to apply `shifted`.
 - **GET `/api/scrobble/reconcile/lms/status`**: `{running, last, error}`; `last` holds
   `{found, written: {shifted_fixed, lms_only_inserted, collisions, changed_since_read}, users, zones, ...}`.
 

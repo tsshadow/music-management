@@ -99,8 +99,10 @@ FROM listen l JOIN user u ON u.id = l.user_id JOIN track t ON t.id = l.track_id
 WHERE l.backend = 0 AND (l.sync_state IS NULL OR l.sync_state != 2)
 ```
 
-`backend = 0` is `ScrobblingBackend::Internal` (the listens LMS records itself; LMS writes them at
-the same `currentDateTime()` it relays to muma through `MusicManagementBackend`), `sync_state = 2`
+`backend = 0` is `ScrobblingBackend::Internal` (the listens LMS records itself). A scrobble
+without a Subsonic `time` is stamped twice with `currentDateTime()` -- once by the Internal backend,
+once by `MusicManagementBackend` -- which a slow write can put seconds apart; a scrobble with `time`
+(MuMa Mobile since bug report 071) carries that one instant to both. `sync_state = 2`
 is `PendingRemove`. The same (user, muma track, second) seen on two servers counts once.
 
 **The LMS-to-muma track join.** By file path, as the rating webhook and the version sync do:
@@ -131,8 +133,17 @@ muma id, LMS server and id):
 3. `muma_only`: every muma listen not paired. Never written.
 4. `lms_only`: every LMS listen not paired. `insertable` only if no unpaired muma listen of the
    same user and track exists and no muma listen or unmatched listen of the user has a
-   `listened_at` or `created_at` within 5 s of it (the same play under another track, or unmatched
-   -- whose `listened_at` may itself have been moved, while `created_at` was not).
+   `listened_at` or `created_at` within `SAME_PLAY_WINDOW_SECONDS` (600 s) of it (the same play
+   under another track, or unmatched -- whose `listened_at` may itself have been moved, while
+   `created_at` was not). Until bug report 070 this guard used the 5 s pairing window, but LMS
+   records a listen when playback starts and the app scrobbles about a minute later (55 s
+   observed), so the same play under another track id slipped through. The cost of 600 s: a lost
+   scrobble within ten minutes of any other listen of the user stays reported-only.
+
+Usernames are compared case-insensitively (`str.casefold()`) in grouping, pairing and the guard,
+and every name is rewritten to muma's `users.username` (oldest account first) before classifying,
+so `user` in muma and `Teun` in LMS are one user and an insert carries muma's spelling. An LMS
+user muma does not know under any spelling is never insertable (bug report 070).
 
 **Writes** (`POST`, background task, one transaction per user):
 
@@ -160,6 +171,60 @@ server image (default `DateTimeStorage::ISO8601AsText`; LMS never calls `setDate
 LMS's mapping (`Listen.hpp`), not from a production `lms.db`; the parser also accepts a space
 separator (`PseudoISO8601AsText`), no fraction and a zone suffix. The dry run's runtime on production size is unmeasured; it runs
 inline, so a very large history may need `username` to stay under the proxy timeout.
+
+## LMS listen backfill loop (2026-09-25)
+
+Bug report 075. LMS relays each listen to `POST /api/scrobble/event` best-effort (in-memory
+`SendQueue`, two immediate retries, any non-200 dropped, lost on restart), so every music-manager
+outage loses the listens relayed during it. LMS's own `listen` table keeps them. Of the two ways
+to make that durable -- an outbox in LMS, or MuMa pulling -- MuMa pulls: it reuses the tested
+reconcile, survives LMS restarts, and needs no C++ change; LMS's `listen` table is the outbox.
+
+**The loop.** `services/music_manager/lms_listen_backfill.py`, started at startup as the
+`lms-listen-backfill` thread through `thread_registry.run_forever` (so it appears in `/health`
+`threads` and `heartbeats`; `stale_after` is 72 h because the interval can be raised at runtime).
+Each round reads the settings, opens every `lms_db_targets()` database read-only and calls
+`scrobble_reconcile.backfill(conn, servers, since=now - window, until=now - 1800)`:
+
+- the same `_analyse()`/`classify()` as the manual reconcile, but LMS listens are read only from
+  `since` on (`AND julianday(l.date_time) >= julianday(?)`, so the `T` separator Wt::Dbo writes
+  compares as an instant), and `scrobble_listens` / `scrobble_unmatched_listens` from
+  `since - CONTEXT_MARGIN_SECONDS` (1,200 s, twice the same-play window) on, matching a row when
+  `listened_at` *or* `created_at` is inside (the guard reads both);
+- only `lms_only` listens that are `insertable` and at or before `until` are written -- a listen
+  LMS recorded in the last 30 minutes (`SETTLE_SECONDS`) is left for its own relay and for the
+  app's scrobble to arrive first, and picked up by a later round;
+- **`shifted` is never applied**; nothing existing is updated;
+- inserts go through the reconcile's writer with `source = 'lms-backfill'`, LMS's start time as
+  `listened_at`, the account's own spelling of the username (`canonicalize()` over
+  `identity.account_spellings()`, exactly as the manual reconcile; an LMS user without a muma
+  account gets nothing), `match_method = 'exact'` (the track is resolved by file path), one
+  transaction per user, a 1062 on UNIQUE `(username, listened_at, track_id)` counted as a
+  collision. A later relay of the same play (same second, since the app sends `time`) lands on
+  that key and becomes an update of the backfilled row.
+
+Rows are ordinary `scrobble_listens` rows: no reader filters on `source`, so ratings, listening
+statistics (`/api/listening/sources` shows them as `lms-backfill`) and feeds count them like any
+listen.
+
+One difference from a full-history run: "no unpaired muma listen of the same track" only looks
+inside the window, so an old unpaired import of the same track no longer blocks a recent insert.
+
+**Settings** (`services/common/config_store.py`, group "Scrobbling", read every round):
+`lms_listen_backfill_enabled` (default on), `lms_listen_backfill_interval_minutes` (15),
+`lms_listen_backfill_window_hours` (48). Invalid or non-positive numbers fall back to the default.
+
+**Logging.** One INFO line per round that inserted something (count per user), DEBUG otherwise. A
+failing round (database gone, `ZoneMismatchError`, unreadable `lms.db`) is caught inside the tick:
+one WARNING for a run of failures, DEBUG for the repeats, re-armed by the next success. The
+heartbeat keeps beating, so a missing LMS database does not mark music-manager unhealthy.
+
+**The historical backlog** (listens older than the window, 1,453 LMS-only on 2026-09-25) is not
+walked by the loop. It stays a one-off, admin-triggered run: dry run with
+`GET /api/scrobble/reconcile/lms`, then `POST /api/scrobble/reconcile/lms` with
+`{"insert_lms_only": true}` (source `lms-reconcile`), result on `GET /lms/status`.
+
+No new endpoint, no schema change, no contract change.
 
 ## Related Docs
 

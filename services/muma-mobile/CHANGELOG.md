@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.6] - 2026-09-25
+
+### Fixed
+- **The app lost listens: a failed send, a killed process, the car and offline mode each dropped
+  them.** Since the web player inside the app stopped scrobbling (0.72.1), the native scrobbler was
+  the only path, and it forgot a listen whose send failed, recorded nothing for a set whose process
+  died mid-play, did not run at all when playback started from Android Auto or the notification
+  without the app's screen, threw offline listens away, sent radio and news under ids the server
+  refuses, and counted a track played twice in a row once. Every play of 5 seconds or more is now
+  written to a queue on the phone as soon as it qualifies and kept there until the server has
+  confirmed it; it is sent again after a failure, when the network returns and on the next start.
+  Each listen carries its start time, so LMS and MuMa store it once however often it is sent, and
+  both at the same second. Scrobbling now runs in the playback service (bug report 071).
+
+- **A user name stored in another case no longer signs the app in as a second user.** The phone
+  signed every Subsonic call with the name as typed ("Teun"), and the server created a separate
+  user for that spelling, so this morning's plays, ratings and stars landed there. After a
+  login the app now stores the account's own spelling as MuMa returns it, and a phone that
+  stored another case switches on its next start.
 ## [7.4.5] - 2026-09-25
 
 ### Changed

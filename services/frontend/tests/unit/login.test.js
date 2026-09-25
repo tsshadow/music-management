@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { get } from "svelte/store";
-import { startManagementSession } from "../../src/lib/login.js";
+import { canonicalUsername, signIn, startManagementSession } from "../../src/lib/login.js";
 import {
+  credentials,
   isAdmin,
   mumaApiKey,
   mumaRefreshToken,
@@ -138,5 +139,64 @@ describe("login - startManagementSession", () => {
 
     expect(await startManagementSession("user", "pw")).toBe(false);
     expect(get(mumaSessionActive)).toBe(false);
+  });
+});
+
+/**
+ * Account names are case-insensitive, and the account's own spelling is the one
+ * that is stored and signed in with afterwards -- never the typed one. "Teun"
+ * typed for "user" used to travel on as Subsonic `u=`, and LMS created a second
+ * user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
+ */
+describe("login - the account's own spelling", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    mumaApiKey.set("");
+    mumaSessionActive.set(false);
+    mumaUser.set(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Subsonic ping says ok; MuMa's login answers with `account`. */
+  function serverAnswering(account) {
+    return vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        return { ok: true, json: async () => ({ ...MUMA_ANSWER, user: account }) };
+      }
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+  }
+
+  it("stores the name MuMa returned, not the case it was typed in", async () => {
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "user" });
+
+    const result = await signIn("Teun", "pw");
+
+    expect(result).toEqual({ ok: true, username: "user" });
+    expect(get(credentials).username).toBe("user");
+    expect(get(credentials).password).toBe("pw");
+  });
+
+  it("keeps the typed name when there is no management session to go by", async () => {
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) return { ok: false, json: async () => ({}) };
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+
+    const result = await signIn("Teun", "pw");
+
+    expect(result).toEqual({ ok: true, username: "Teun" });
+    expect(get(credentials).username).toBe("Teun");
+  });
+
+  it("adopts only a spelling of the same name", () => {
+    expect(canonicalUsername("Teun", { username: "user" })).toBe("user");
+    expect(canonicalUsername("TEUN", { username: "user" })).toBe("user");
+    expect(canonicalUsername("user", { username: "someone-else" })).toBe("user");
+    expect(canonicalUsername("user", null)).toBe("user");
+    expect(canonicalUsername("user", { username: "" })).toBe("user");
   });
 });

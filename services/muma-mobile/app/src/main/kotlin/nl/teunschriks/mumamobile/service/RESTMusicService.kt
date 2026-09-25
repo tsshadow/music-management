@@ -387,8 +387,8 @@ open class RESTMusicService(
     }
 
     @Throws(Exception::class)
-    override fun scrobble(id: String, submission: Boolean, playedSeconds: Long?, source: String?) {
-        API.scrobble(id, null, submission, playedSeconds, source).execute().throwOnFailure()
+    override fun scrobble(id: String, submission: Boolean, playedSeconds: Long?, source: String?, startedAtMs: Long?) {
+        API.scrobble(id, startedAtMs, submission, playedSeconds, source).execute().throwOnFailure()
     }
 
     @Throws(Exception::class)
@@ -924,6 +924,10 @@ open class RESTMusicService(
                 }
                 activeServerProvider.setMumaSettings(apiKey, userId)
                 subsonicAPIClient.mumaApi.setApiKey(apiKey)
+                // Sign in under the account's own spelling from now on, not the typed one: LMS
+                // created a second user for a case variant (bug report 074).
+                MumaStoredCredentials.canonicalUserName(activeServer.userName, body.user?.username)
+                    ?.let { activeServerProvider.adoptCanonicalUserName(it) }
                 Timber.i("MuMa login successful")
             }
         } else {

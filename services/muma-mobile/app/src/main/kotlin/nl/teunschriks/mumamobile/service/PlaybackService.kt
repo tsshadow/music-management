@@ -75,6 +75,11 @@ class PlaybackService :
 
     private lateinit var librarySessionCallback: MediaLibrarySessionCallback
 
+    // Here rather than in the app-side MediaPlayerManager: this service is what runs whenever
+    // anything plays -- in the car, from the notification, with no activity ever started -- and the
+    // manager only exists once an activity has created it.
+    private var scrobbler: Scrobbler? = null
+
     private var rxBusSubscription = CompositeDisposable()
 
     private var isStarted = false
@@ -142,6 +147,10 @@ class PlaybackService :
 
         // Before the player goes: the radio loop and the callback's coroutines call into it.
         if (::librarySessionCallback.isInitialized) librarySessionCallback.release()
+
+        // Closes the running play, so it is queued before the player that measured it goes.
+        scrobbler?.release()
+        scrobbler = null
 
         // TODO Save the player state before shutdown
         if (::player.isInitialized) {
@@ -262,6 +271,7 @@ class PlaybackService :
             shutdown()
         }
 
+        scrobbler = Scrobbler()
         player.addListener(listener)
         isStarted = true
     }
@@ -370,11 +380,30 @@ class PlaybackService :
             if (track != null) {
                 updateCustomRatingButton(track.userRating ?: 0)
             }
+            // Every departure from a track closes its play, not only the ones that reached the end:
+            // a skip, an automatic advance, a repeat, a cleared queue. How long it actually played
+            // decides whether it was a listen.
+            scrobbler?.onItemChanged(track, player.isPlaying)
             updateWidgetTrack(track)
             cacheNextSongs()
         }
 
+        // The same item twice in a row can arrive as a discontinuity with no item transition
+        // (https://github.com/androidx/media/issues/68). It is still a second play. Should both
+        // events arrive, the second one closes a play of zero seconds, which does not count.
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
+            val moved = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION || reason == Player.DISCONTINUITY_REASON_SEEK
+            if (moved && PlaybackServiceRules.isRepeatOfSameItem(oldPosition.mediaItemIndex, newPosition.mediaItemIndex, oldPosition.mediaItem, newPosition.mediaItem)) {
+                scrobbler?.onItemChanged(newPosition.mediaItem?.toTrack(), player.isPlaying)
+            }
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            scrobbler?.onPlayingChanged(isPlaying)
             updateWidgetPlayerState(isPlaying)
             cacheNextSongs()
         }
@@ -382,6 +411,8 @@ class PlaybackService :
         override fun onPlaybackStateChanged(playbackState: Int) {
             // A finished bulletin is the cue to give the music back.
             if (playbackState == Player.STATE_ENDED) {
+                // Nothing transitions away when the queue simply runs out.
+                scrobbler?.onEnded()
                 librarySessionCallback.onPlaybackEnded(player)
             }
         }

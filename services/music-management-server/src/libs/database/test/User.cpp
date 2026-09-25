@@ -48,4 +48,43 @@ namespace lms::db::tests
             EXPECT_EQ(visitedUsers[1], user2->getId());
         }
     }
+
+    // One account, whatever case its login name is typed in. music-manager accepts "Teun" for the
+    // account "user"; an exact match here found nobody, and the authentication path created a
+    // second user for the same person (docs/bug-reports/074-login-case-forks-user-identity.md).
+    TEST_F(DatabaseFixture, User_findByLoginNameIgnoresCase)
+    {
+        ScopedUser user{ session, "user" };
+
+        auto transaction{ session.createReadTransaction() };
+
+        const User::pointer typedCapitalised{ User::find(session, std::string_view{ "Teun" }) };
+        ASSERT_TRUE(typedCapitalised);
+        EXPECT_EQ(typedCapitalised->getId(), user.getId());
+
+        const User::pointer typedUpper{ User::find(session, std::string_view{ "TEUN" }) };
+        ASSERT_TRUE(typedUpper);
+        EXPECT_EQ(typedUpper->getId(), user.getId());
+
+        EXPECT_FALSE(User::find(session, std::string_view{ "teun2" }));
+    }
+
+    // Where the bug already left two case variants behind, the lookup must not throw (more than one
+    // row) and must land on the account music-manager knows about, even for the fork's exact spelling.
+    TEST_F(DatabaseFixture, User_findByLoginNamePrefersTheMumaLinkedVariant)
+    {
+        ScopedUser canonical{ session, "user" };
+        ScopedUser fork{ session, "Teun" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            canonical.get().modify()->setMumaId(1);
+        }
+
+        auto transaction{ session.createReadTransaction() };
+
+        const User::pointer found{ User::find(session, std::string_view{ "Teun" }) };
+        ASSERT_TRUE(found);
+        EXPECT_EQ(found->getId(), canonical.getId());
+        EXPECT_NE(found->getId(), fork.getId());
+    }
 } // namespace lms::db::tests

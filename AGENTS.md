@@ -141,6 +141,20 @@ per service — only the `logger` column is uninformative for those rows. Filter
 source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
 and scanner loops run as threads inside the music-manager process and emit under its source.
 
+### Retention: how long an event stays
+The `events-retention` loop (`services/music_manager/events_retention.py`) deletes events per level
+once a day: `DEBUG` after 3 days, `INFO` 14, `WARNING` 30, `ERROR` 90, `CRITICAL` 365 — configurable
+as `events_retention_<level>_days` on the Beheer config page (group *Events*). It picks at most 10k
+ids per statement through the `(level, created_at)` index and deletes them by primary key, pausing
+between batches, and stops after 5 minutes; a pass cut short comes back after an hour instead of a
+day, so a backlog is worked off in hourly passes. If the table still holds more than
+`events_max_rows` (default 10 million) afterwards, the oldest `DEBUG`/`INFO`, then `WARNING`, then
+`ERROR` rows go; `CRITICAL` is never removed by size, and a pass that needed the cap logs a
+`WARNING`. Each pass logs one summary line at `INFO` on `music-manager.events-retention`. Every
+`WARNING`+ still reaches the table; retention only decides how long it stays. Deleted rows do not
+shrink the InnoDB file — reclaiming the space is an operator step, see `docs/deployment.md`
+("Reclaiming space in the events table") and bug report 072.
+
 ### Deployment prerequisite: `upstream-base-url`
 Instant delivery on the phone depends on a setting outside this repository. The official ntfy
 Android app uses Firebase for push, but only for topics hosted on `ntfy.sh` itself; against a
@@ -175,11 +189,12 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
   pooled one: the pool only pings a cached connection when a query runs, and an exhausted pool must
   not make the check wait. `/health` therefore always answers within about two seconds.
 - `threads` has one boolean per long-running loop — `tagger`, `scanner`, `radio`, `news`,
-  `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync` — plus
-  `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
+  `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync`,
+  `lms-listen-backfill` — plus `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
   heartbeat (the last *completed* tick) is younger than its window: three intervals with a one-hour
-  floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h and `news` 3 h
-  (it sleeps up to an hour inside its tick). The window counts from startup, so a fresh process is
+  floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h, `news` 3 h
+  (it sleeps up to an hour inside its tick) and `lms-listen-backfill` 72 h (its interval is a
+  config key that can be raised at runtime). The window counts from startup, so a fresh process is
   green. `heartbeats` carries the detail per loop: `alive`, `stale`, `last_tick_age_seconds`,
   `stale_after_seconds`, `ticks`, `failures`.
 - Every loop runs through `thread_registry.run_forever`: an exception in a tick is logged with
@@ -187,6 +202,8 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
   of 10 s doubling up to the loop's interval, and the loop carries on. `scrobble-rematch`,
   `song-versions` and `lms-db-sync` wait their full interval after a failure instead, as they always
   did. A new loop goes through `run_forever` too, or a single exception ends it for good.
+  `lms-listen-backfill` catches its own failures instead: one `WARNING` per run of failures, so a
+  missing `lms.db` does not raise an `ERROR` every quarter of an hour (bug report 075).
 - A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
   503 with `Retry-After`, rather than waiting forever.
 

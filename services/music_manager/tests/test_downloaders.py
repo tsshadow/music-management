@@ -216,6 +216,19 @@ class RateStateEndpointTest(DownloaderApiTestBase):
         soundcloud = next(entry for entry in body['sources'] if entry['source'] == 'soundcloud')
         self.assertEqual(soundcloud['multiplier'], 1)
 
+    def test_a_source_parked_on_the_bot_check_says_so(self):
+        timing = load_timing('youtube', overrides={})
+        RateState('youtube', timing, store=self.rate_store, now=lambda: NOW).record_block('bot_check', 21600)
+        body = self.client.get('/api/downloaders/rate-state', headers=self.headers).json()
+        youtube = next(entry for entry in body['sources'] if entry['source'] == 'youtube')
+        self.assertEqual(youtube['block_reason'], 'bot_check')
+
+    def test_a_plain_cooldown_has_no_block_reason(self):
+        self._park_soundcloud()
+        body = self.client.get('/api/downloaders/rate-state', headers=self.headers).json()
+        soundcloud = next(entry for entry in body['sources'] if entry['source'] == 'soundcloud')
+        self.assertIsNone(soundcloud['block_reason'])
+
     def test_resetting_clears_the_cooldown(self):
         self._park_soundcloud()
         self.client.post('/api/downloaders/rate-state/soundcloud/reset', headers=self.headers)

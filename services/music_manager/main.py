@@ -17,6 +17,7 @@ from services.common.db_init import ensure_tables_exist
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
+from services.music_manager import lms_listen_backfill
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import (
     DatabaseBusyError,
@@ -163,6 +164,8 @@ def startup_event():
         start_thread('news', news.run_news_recorder)
         start_thread('events-retention', run_events_retention)
         start_thread('scrobble-rematch', run_scrobble_rematch)
+        # Inserts the listens LMS recorded but never relayed (bug report 075).
+        start_thread(lms_listen_backfill.THREAD_NAME, lms_listen_backfill.run_lms_listen_backfill)
         start_thread('song-versions', run_song_version_grouping)
         # Keeps every active listener's feeds built ahead of the read, so opening
         # Home reads rows instead of running four profile builds. See

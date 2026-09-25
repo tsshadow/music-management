@@ -107,6 +107,7 @@ def run_forever(
     *,
     stale_after: float | None = None,
     backoff: bool = True,
+    stop: threading.Event | None = None,
 ) -> None:
     """Run `tick` for the lifetime of the process: tick, sleep, tick, and never die on an exception.
 
@@ -123,10 +124,11 @@ def run_forever(
     (for loops whose next attempt must not come sooner, such as the lms.db sync).
 
     Only `Exception` is caught: KeyboardInterrupt and SystemExit still end the loop, which
-    is also how the tests get out of it.
+    is also how the tests get out of it. A loop given a `stop` event waits on it instead of
+    sleeping and returns as soon as it is set.
     """
     register_heartbeat(name, stale_after if stale_after is not None else default_stale_after(interval))
-    while True:
+    while stop is None or not stop.is_set():
         try:
             requested = tick()
         except Exception:  # pylint: disable=broad-except  # the loop must outlive any one tick
@@ -136,7 +138,10 @@ def run_forever(
         else:
             beat(name)
             delay = interval if requested is None else max(0.0, requested)
-        time.sleep(delay)
+        if stop is None:
+            time.sleep(delay)
+        elif stop.wait(delay):
+            return
 
 
 def _is_fresh(name: str, now: float) -> bool:

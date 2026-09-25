@@ -21,6 +21,13 @@ from __future__ import annotations
 import logging
 import re
 
+from services.downloader.bot_check import (
+    BotCheckBreaker,
+    BotCheckTripped,
+    is_bot_check,
+    is_bot_check_side_effect,
+)
+
 # A run that needs no reaction: everything readable was read.
 CLEAN = 'clean'
 # Individual tracks answered 403; the account itself was fine.
@@ -60,7 +67,11 @@ class AccountReport:
     Doubles as the yt-dlp logger, which is the only place these signals appear.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, breaker: BotCheckBreaker | None = None) -> None:
+        # YouTube only: counts sign-in refusals across the sweep and ends the
+        # download call once enough arrived in a row. See services/downloader/bot_check.py.
+        self.breaker = breaker
+        self.bot_checks = 0
         self.extracted = 0
         self.throttled = False
         self.forbidden = 0
@@ -111,7 +122,23 @@ class AccountReport:
         self._log('error', msg)
 
     def _log(self, level: str, msg) -> None:
-        """Log one yt-dlp line and count the HTTP status it reports, if any."""
+        """Log one yt-dlp line and count the HTTP status it reports, if any.
+
+        With a breaker attached, YouTube's sign-in wall is counted instead of logged
+        as an ERROR per video: the breaker's single WARNING stands for all of them.
+        Raises `BotCheckTripped` once the breaker trips, which ends the download call.
+        """
+        if self.breaker is not None and level in ('warning', 'error'):
+            text = str(msg)
+            if is_bot_check(text):
+                self.bot_checks += 1
+                logging.debug(msg)
+                if self.breaker.record_refusal(text):
+                    raise BotCheckTripped(text)
+                return
+            if is_bot_check_side_effect(text):
+                logging.debug(msg)
+                return
         getattr(logging, level)(msg)
         status = detect_http_status(str(msg))
         if status == 429:

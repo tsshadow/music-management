@@ -101,7 +101,29 @@ export async function restoreSession(platform) {
     return false;
   }
   if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
+  await adoptCanonicalUsername(platform, stored, result.username);
   return true;
+}
+
+/**
+ * Writes the account's own spelling of the name back to the phone when what it
+ * stored was typed in another case. The phone signs its own Subsonic calls with
+ * the stored name, and a case variant made LMS create a second user for the same
+ * account (docs/bug-reports/074-login-case-forks-user-identity.md); a phone that
+ * signed in before the fix repairs itself on its next boot this way. A bridge
+ * failure only means the repair waits for the next boot.
+ *
+ * @param {object} platform
+ * @param {{username?: string, password?: string}} stored
+ * @param {string|undefined} canonical
+ */
+async function adoptCanonicalUsername(platform, stored, canonical) {
+  if (!canonical || canonical === stored.username) return;
+  try {
+    await platform.system.saveCredentials({ username: canonical, password: stored.password });
+  } catch (error) {
+    console.warn("Could not store the account's own spelling of the name on the phone", error);
+  }
 }
 
 /**

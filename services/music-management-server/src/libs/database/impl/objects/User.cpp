@@ -98,7 +98,16 @@ namespace lms::db
 
     User::pointer User::find(Session& session, std::string_view name)
     {
-        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<User>>("SELECT u from user u").where("u.login_name = ?").bind(name));
+        // Case-insensitive on purpose: an account is one identity whatever case its login name is
+        // typed in. music-manager, which owns the accounts, matches login names case-insensitively
+        // (MariaDB's utf8mb4_general_ci), so it accepts "Teun" for "user"; an exact match here then
+        // found nobody and getOrCreateUser() made a second, empty user for the same person
+        // (docs/bug-reports/074-login-case-forks-user-identity.md). Where two case variants already
+        // exist, the one linked to a MuMa account wins, then the oldest, so a fork left behind by
+        // that bug stops receiving new listens the moment this is deployed. LIMIT 1 because
+        // resultValue() throws on more than one row. NOCASE folds ASCII only, which is what login
+        // names are here.
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<User>>("SELECT u from user u").where("u.login_name = ? COLLATE NOCASE").bind(name).orderBy("u.muma_id IS NULL, u.id").limit(1));
     }
 
     User::pointer User::findByMumaId(Session& session, int mumaId)

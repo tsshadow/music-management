@@ -22,6 +22,9 @@ REQUIRED_TABLES = [
     # both channels and library_tracks, so all three have to exist first.
     'channels',
     'library_track_channels',
+    # Proposed channel -> label/artist links waiting for a curator; points at channels.
+    # See docs/designs/channel-links/technical.md.
+    'channel_link_proposals',
     # rules_genres must precede library_track_genres: the latter carries a foreign
     # key to it, and MariaDB rejects a CREATE naming a table that does not exist
     # yet. The failure was swallowed by the debug-level except below, so on a fresh
@@ -42,6 +45,7 @@ REQUIRED_TABLES = [
     'rules_ignored_artists',
     'rules_artists',
     'rules_artist_proposals',
+    'rules_artist_legacy_trust',
     'rules_ignored_genres',
     'rules_subgenre_hierarchy',
     'rules_genre_backlog',
@@ -92,6 +96,11 @@ def ensure_tables_exist() -> None:
         # and both nullable: a channel may be a label, may be an artist, may be both (an artist who
         # runs their own imprint) and may be neither until someone decides.
         'channels': "\n            CREATE TABLE IF NOT EXISTS channels (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                platform ENUM('soundcloud', 'youtube', 'telegram') NOT NULL,\n                name VARCHAR(255) NOT NULL,\n                -- utf8mb4_bin, not the table default: utf8mb4_general_ci gives every\n                -- character outside the BMP the same weight, so two channel names made of\n                -- mathematical alphanumeric symbols compare equal whenever they are the same\n                -- length. The value is already lowercased in Python, so case folding by the\n                -- database buys nothing and binary equality is the question actually asked.\n                normalized_name VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,\n                label_id INT NULL,\n                artist_id INT NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE KEY uq_channel (platform, normalized_name),\n                INDEX idx_channel_label (label_id),\n                INDEX idx_channel_artist (artist_id),\n                FOREIGN KEY (label_id) REFERENCES library_labels(id) ON DELETE SET NULL,\n                FOREIGN KEY (artist_id) REFERENCES library_artists(id) ON DELETE SET NULL\n            )\n        ",
+        # One row per proposed (channel, kind, target), whatever its status: the unique key is
+        # what keeps a rejected proposal rejected when the search runs again. target_id points
+        # into library_labels or library_artists depending on kind, so it carries no foreign key.
+        # See docs/designs/channel-links/technical.md and migrate_v41_channel_link_proposals.sql.
+        'channel_link_proposals': "\n            CREATE TABLE IF NOT EXISTS channel_link_proposals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                channel_id INT NOT NULL,\n                kind ENUM('label', 'artist') NOT NULL,\n                target_id INT NOT NULL,\n                target_name VARCHAR(255) NOT NULL,\n                source ENUM('name', 'alias', 'redirect') NOT NULL,\n                status ENUM('new', 'confirmed', 'rejected', 'stale') NOT NULL DEFAULT 'new',\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64) NULL,\n                UNIQUE KEY uq_channel_link (channel_id, kind, target_id),\n                INDEX idx_channel_link_status (status),\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ",
         'library_track_channels': '\n            CREATE TABLE IF NOT EXISTS library_track_channels (\n                track_id INT NOT NULL,\n                channel_id INT NOT NULL,\n                PRIMARY KEY (track_id, channel_id),\n                INDEX idx_track_channel_channel (channel_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ',
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ',
@@ -115,6 +124,12 @@ def ensure_tables_exist() -> None:
         # decision never lives here.
         'rules_artists': "\n            CREATE TABLE IF NOT EXISTS rules_artists (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                state ENUM('white', 'black') NOT NULL,\n                canonical_name VARCHAR(255) NULL,\n                decided_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_by VARCHAR(64) NULL,\n                INDEX(state)\n            )\n        ",
         'rules_artist_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_artist_proposals (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                kind ENUM('keep', 'rewrite', 'split', 'reject', 'unknown') NOT NULL,\n                target VARCHAR(512) NULL,\n                evidence TEXT NULL,\n                confidence INT NOT NULL DEFAULT 0,\n                junk_score INT NOT NULL DEFAULT 0,\n                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX(kind)\n            )\n        ",
+        # The artist names that were already in library_artists when the curation queue
+        # was wired to the tagger (migrate_v40). The tagger trusts an approved name or one
+        # of these that nobody has decided on since; every other library name is pending
+        # (services/common/Helpers/TrustedArtistHelper.py). Keyed by name so a library
+        # rebuild keeps it.
+        'rules_artist_legacy_trust': "\n            CREATE TABLE IF NOT EXISTS rules_artist_legacy_trust (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                trusted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ",
         'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
         # Genre curation advice (routers/genre_curation.py): what the last analysis run
         # proposed for each queued genre. Rewritten whole on every run; the decision
@@ -248,6 +263,13 @@ def ensure_tables_exist() -> None:
                     # overwritten. See migrate_v25_genre_hardness.sql and
                     # docs/designs/feeds/functional.md, "Daily mixes v2".
                     'ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS hardness TINYINT UNSIGNED NULL',
+                    # What a file is (track / set / liveset / podcast) and, for a live set whose
+                    # festival edition is known, the day it was played. Derived from the path,
+                    # title and duration by services/common/track_form.py -- written by the
+                    # scanner and settled hourly by track_form_sync. NULL is "not classified".
+                    # See migrate_v42_track_form.sql and docs/designs/track-form/.
+                    'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS form VARCHAR(16) NULL',
+                    'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS performance_date VARCHAR(10) NULL',
                 ):
                     try:
                         cursor.execute(column_sql)
@@ -264,6 +286,9 @@ def ensure_tables_exist() -> None:
                     # primary_artist_id, and without this each one scans library_tracks.
                     # See migrate_v34_primary_artist_and_listen_track_indexes.sql.
                     'ALTER TABLE library_tracks ADD INDEX IF NOT EXISTS idx_tracks_primary_artist (primary_artist_id)',
+                    # The form filter of /api/library/advanced and the analytics; see
+                    # migrate_v42_track_form.sql.
+                    'ALTER TABLE library_tracks ADD INDEX IF NOT EXISTS idx_tracks_form (form)',
                     # The tagger looks a download's info dict up by the absolute path it is
                     # holding -- it never learns a video id. The two archive tables keep that
                     # path in differently named columns; without these it is a full scan per

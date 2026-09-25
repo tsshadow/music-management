@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.import_queue import ImportQueue
 
 load_dotenv()
 
@@ -193,7 +194,12 @@ def find_cases(
     """
     cases: list[Case] = []
     oddities: list[str] = []
-    labels = [label] if label else list_dirs(eps_root)
+    # The import queue can sit in this tree; its releases are not filed under a label yet, so a
+    # nested copy there is the importer's Flattener's business, not this repair's.
+    queue = ImportQueue.from_settings()
+    labels = (
+        [label] if label else [name for name in list_dirs(eps_root) if not queue.contains(os.path.join(eps_root, name))]
+    )
     for label_name in labels:
         label_path = os.path.join(eps_root, label_name)
         if on_progress:

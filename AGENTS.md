@@ -29,6 +29,10 @@ The system is split into specialized services, each handling a specific part of 
     - **Metadata Extraction**: Infers Publisher and Catalog Number from the folder structure (e.g., `/Labels/Scantraxx/SCAN123/`).
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
+- **Import queue location**: `import_folder_path` (default: `__TODO` inside `eps_folder_path`). Any code
+  that walks the label tree asks `services/common/import_queue.py` (`ImportQueue`) whether a folder is the
+  queue or a label -- never compares against the name; `tests/ci/test_import_queue_predicate.py` enforces
+  it. Moving the queue is that setting plus a folder move (bug report 087).
 
 ### 3. `tagger` (Integrated in `music-manager`)
 - **Engine**: The core metadata enforcement system.
@@ -45,6 +49,9 @@ The system is split into specialized services, each handling a specific part of 
 - **Rules**: A flexible rule engine (`services/tagger/Song/rules/`) that handles:
     - Genre inference based on artists or subgenres.
     - Artist normalization (casing, splitting featured artists).
+    - Artist rules match titles only against *trusted* names (`TrustedArtistHelper`): approved in
+      artist curation, or already in the library before the queue was wired up. A name the scanner
+      records later is pending until decided, so a guessed artist cannot confirm itself.
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
 - **Background Task**: Managed via a background thread in `music-manager`.
@@ -57,6 +64,10 @@ The system is split into specialized services, each handling a specific part of 
         - `POST /api/scanner/scan/all`: Runs a full library scan in background.
         - `POST /api/scanner/scan/file?path=...`: Scans a single file and updates its database record.
         - `GET /api/scanner/health`: Health check and status.
+    - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
+      live set whose festival edition is known, a `performance_date` -- derived from path, title and
+      duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
+      pushed into LMS `track.form`) by `track_form_sync.py`. See `docs/designs/track-form/`.
     - **Redownload Service**: Allows triggering redownloads for tracks that originated from SoundCloud or YouTube.
         - Automatically matches library tracks to original source URLs using the download archive.
         - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.

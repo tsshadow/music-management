@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.rbac import require_admin
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.tagger.deep_run import deep_run_tick
@@ -166,6 +167,40 @@ async def api_retag_restart(background_tasks: BackgroundTasks, _auth: dict = Dep
     """
     background_tasks.add_task(restart_retag)
     return {'status': 'ok', 'message': 'Retag restart requested'}
+
+
+def _todo_label_repair_page(after: str, limit: int, apply: bool) -> dict:
+    """One page of the `__TODO` label repair; see services/tagger/todo_label_repair.py."""
+    from services.tagger.todo_label_repair import TodoLabelRepair
+
+    return TodoLabelRepair().run_page(after=after, limit=limit, apply=apply)
+
+
+@router.get('/todo-label-repair')
+def api_todo_label_repair_dry_run(
+    after: str = Query('', description='Cursor: next_after of the previous page'),
+    limit: int = Query(300, ge=1, le=2000),
+    _auth: dict = Depends(require_admin()),
+):
+    """Dry run: which files on this page still carry `__TODO` as their label, and what it should be.
+
+    Reads tags, writes nothing. Plain `def`: it reads a page of files from the share, which
+    must not happen on the event loop. Bug report 087.
+    """
+    return _todo_label_repair_page(after, limit, apply=False)
+
+
+@router.post('/todo-label-repair')
+def api_todo_label_repair_apply(
+    after: str = Query('', description='Cursor: next_after of the previous page'),
+    limit: int = Query(300, ge=1, le=2000),
+    _auth: dict = Depends(require_admin()),
+):
+    """Apply: queue this page's poisoned files for the tagger with reason `todo_label_repair`.
+
+    Never retags inline -- the tagger round does the writing. Re-runnable.
+    """
+    return _todo_label_repair_page(after, limit, apply=True)
 
 
 def _queue_deep_run():

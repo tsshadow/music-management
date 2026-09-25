@@ -1,11 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from services.music_manager import lms_subsonic
-
-pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 class NormalizeSongTest(unittest.TestCase):

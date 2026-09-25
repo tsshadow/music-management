@@ -36,6 +36,7 @@
   import PresetView from './PresetView.svelte';
   import VoiceView from './VoiceView.svelte';
   import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
+  import { formParam } from './trackForm.js';
   import { notify } from './notifications.js';
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
@@ -98,6 +99,8 @@
   let currentMinRating = $state('2');
   let includeUnrated = $state(true);
   let currentMinQuality = $state('');
+  // The sets view's Soort filter ('' = all). Sent only in the sets view, see formParam.
+  let currentForm = $state('');
   let currentSeed = $state(Math.floor(Math.random() * 1000000));
   let sentinel = $state(null);
 
@@ -222,6 +225,7 @@
           minRating: currentMinRating !== '0' ? currentMinRating : undefined,
           includeUnrated: includeUnrated ? 'true' : undefined,
           minQuality: currentMinQuality || undefined,
+          form: formParam(currentForm, $viewMode),
           // Minutes on this endpoint, not seconds; the offline library reads them
           // the same way. Ten is the songs/sets boundary the whole app uses.
           ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
@@ -662,7 +666,7 @@
    * @param {Object} params - The filter and sort parameters.
    */
   function handleFilterChange(params) {
-      const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated, minQuality } = params;
+      const { genre, sort, year, search, role, minRating, includeUnrated: incUnrated, minQuality, form } = params;
       currentSeed = Math.floor(Math.random() * 1000000);
       if (activeView === 'artists') {
           currentArtistSort = sort;
@@ -682,6 +686,7 @@
           currentMinRating = minRating || '0';
           includeUnrated = incUnrated !== undefined ? incUnrated : true;
           currentMinQuality = minQuality || '';
+          currentForm = form || '';
           loadAllTracks();
       }
   }
@@ -934,7 +939,7 @@
               </button>
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
+        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} bind:form={currentForm} showForm={$viewMode === 'sets'} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
     {#if isLoading && tracks.length === 0}
         <p>{$t('common.loading')}</p>

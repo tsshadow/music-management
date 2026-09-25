@@ -65,6 +65,53 @@ namespace lms::db
         // otherwise the release date of this particular edition.
         constexpr std::string_view effectiveDateExpr{ "COALESCE(NULLIF(t.original_date, ''), t.date)" };
 
+        // The year a track files under for FindParameters::year: muma's performance date when it
+        // gave one (only ever a live set), otherwise the date tag the YEAR cluster is built from.
+        // docs/product-goal.md, the year axis; docs/designs/track-form/.
+        constexpr std::string_view filingYearExpr{ "substr(COALESCE(NULLIF(t.performance_date, ''), t.date), 1, 4)" };
+
+        // "t.form IN (?, ?)" for FindParameters::forms; the caller binds the values in order.
+        std::string formCondition(std::size_t formCount)
+        {
+            return "t.form IN (" + utils::createPlaceholders(formCount) + ")";
+        }
+
+        // FindParameters::forms and ::year for createQuery. Helpers of their own, for both
+        // builders, so the two cannot drift -- and so the cognitive-complexity figures of
+        // createQuery and buildAdvancedQueryBody, which are clang-tidy baseline keys, stay put.
+        template<typename ResultType>
+        void whereFormAndYear(Wt::Dbo::Query<ResultType>& query, const Track::FindParameters& params)
+        {
+            if (!params.forms.empty())
+            {
+                query.where(formCondition(params.forms.size()));
+                for (const std::string& form : params.forms)
+                    query.bind(form);
+            }
+
+            if (params.year)
+                query.where(std::string{ filingYearExpr } + " = ?").bind(std::to_string(*params.year));
+        }
+
+        // The same two conditions for buildAdvancedQueryBody, which binds through lambdas in the
+        // order its placeholders appear.
+        template<typename ResultType>
+        void appendFormAndYear(std::string& baseQuery, std::vector<std::function<void(Wt::Dbo::Query<ResultType>&)>>& bindFuncs, const Track::FindParameters& params)
+        {
+            if (!params.forms.empty())
+            {
+                baseQuery += " AND " + formCondition(params.forms.size());
+                for (const std::string& form : params.forms)
+                    bindFuncs.emplace_back([form](auto& q) { q.bind(form); });
+            }
+            if (params.year)
+            {
+                baseQuery += " AND " + std::string{ filingYearExpr } + " = ?";
+                const std::string year{ std::to_string(*params.year) };
+                bindFuncs.emplace_back([year](auto& q) { q.bind(year); });
+            }
+        }
+
         // A PartialDateTime is stored as its toString() form (see PartialDateTimeTraits.hpp), so the
         // column length is its precision: "2018", "2018-08", "2018-08-02". Anything shorter than a
         // full date cannot carry an anniversary.
@@ -317,6 +364,8 @@ namespace lms::db
 
             if (params.filters.codec.has_value())
                 query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
+
+            whereFormAndYear(query, params);
 
             TrackSortMethod sortMethod = params.sortMethod;
             if (sortMethod == TrackSortMethod::None && !params.keywords.empty())
@@ -859,6 +908,10 @@ namespace lms::db
             // library carries no work, and "AND is_canonical" alone would empty the browser.
             if (params.canonicalOnly)
                 baseQuery += " AND (t.is_canonical <> 0 OR t.work_id IS NULL OR t.work_id = 0)";
+
+            // The same two conditions createQuery adds, so find and find_advanced cannot disagree
+            // about what a form or a year filter means.
+            appendFormAndYear(baseQuery, bindFuncs, params);
             if (!params.allowedArtists.empty())
             {
                 baseQuery += " AND LOWER(t.artist_display_name) IN (" + utils::createPlaceholders(params.allowedArtists.size()) + ")";

@@ -513,6 +513,11 @@
                         {$t(row.state === WHITE ? 'management.artists.filterWhite' : 'management.artists.filterBlack')}
                       </span>
                     {/if}
+                    {#if row.pending}
+                      <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500" title={$t('management.artists.pendingHint')}>
+                        {$t('management.artists.pending')}
+                      </span>
+                    {/if}
                   </td>
                   <td class="p-4 text-muma-spotify-text">{n(row.track_count)}</td>
                   <td class="p-4">

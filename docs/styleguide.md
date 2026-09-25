@@ -66,6 +66,12 @@
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
   screen rather than to an empty app.
+- **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
+  (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
+  (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --
+  a name the tagger does not trust yet (artist curation, "Nieuw") -- is yellow
+  (`bg-yellow-500/10 text-yellow-500`), the colour the queue's own "to review" icon already uses.
+  A badge states a fact about the row; it is never the only way to act on it.
 - **Memory card**: represents one release *year*, never a single track. Its title is the relative
   age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
   the cover art of the first track in that year's group. It uses the standard card surface and
@@ -227,6 +233,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
     brand token (the mode accent that marks active states), not `#b266ff` (radio/news active), not
     a blue (sets mode's brand): each of those already means something else. Applies wherever
     `MetaChips` renders a label -- the full-screen player and the track details sheet.
+
+- **Done** (2026-09-25, `docs/designs/track-form/`) — a **Soort** (form) filter in the sets view's filter
+  bar. No new style: on the phone it is one more `filterChip` (neutral when unset, `bg-brand
+  text-black` with a clear button when set) opening a `BottomSheet` listbox -- Alle, Sets & mixes,
+  Livesets, Podcasts -- placed directly after the year chip; in the desktop bar it is one more
+  labelled `<select>` in the same row, same classes as the year select. Only in the sets view: in
+  the songs view every row is a track, and a picker with one real choice is noise.
 
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA

@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector', 'Cache')
+pytestmark = pytest.mark.mock_base('DatabaseConnector', 'Cache')
 
 
 import services.music_manager.routers.users as users_router
@@ -179,6 +179,15 @@ class ListTest(ArtistCurationTestCase):
         where = self.statements('FROM library_artists a LEFT JOIN rules_artists r')[-1][0]
         self.assertIn('r.name IS NULL', where)
 
+    def test_the_pending_filter_is_the_queue_minus_the_grandfathered_names(self):
+        """Pending is what the tagger does not trust: undecided and not grandfathered."""
+        response = self.client.get('/api/rules/artists?state=pending', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['rows'][0]['pending'], False)
+        sql = self.statements('FROM library_artists a LEFT JOIN rules_artists r')[-1][0]
+        self.assertIn('LEFT JOIN rules_artist_legacy_trust l ON l.name = a.name', sql)
+        self.assertIn('WHERE r.name IS NULL AND l.name IS NULL', sql)
+
     def test_a_decided_state_lists_from_the_decision_table(self):
         self.client.get('/api/rules/artists?state=black', headers=self.headers)
         self.assertTrue(self.statements('FROM rules_artists r LEFT JOIN library_artists a'))
@@ -218,7 +227,7 @@ class RejectTest(ArtistCurationTestCase):
         self.assertEqual([params[:2] for _sql, params in decisions], [('Premiere', 'black'), ('OUT NOW', 'black')])
         mirrored = self.statements('INSERT INTO rules_ignored_artists')
         self.assertEqual([params for _sql, params in mirrored], [('Premiere', None), ('OUT NOW', None)])
-        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists'])
+        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists', 'library_artists'])
         self.assertEqual([call.args[0] for call in self.invalidate.call_args_list], ['Premiere', 'OUT NOW'])
         # Exact, not the wide term match: a rejected '001' must not retag every catalogue number.
         self.assertTrue(all(call.kwargs.get('exact') for call in self.invalidate.call_args_list))
@@ -251,7 +260,7 @@ class ApproveTest(ArtistCurationTestCase):
         self.assertEqual(self.statements('INSERT INTO rules_artists')[0][1][:2], ('Angerfist', 'white'))
         self.assertTrue(self.statements('DELETE FROM rules_ignored_artists'))
         self.assertFalse(self.statements('INSERT INTO rules_ignored_artists'))
-        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists'])
+        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists', 'library_artists'])
         # Nothing in a file changes on an approval, so nothing is marked for retag.
         self.assertEqual(self.invalidate.call_count, 0)
 
@@ -328,7 +337,7 @@ class UndoTest(ArtistCurationTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(self.statements('DELETE FROM rules_artists'))
         self.assertTrue(self.statements('DELETE FROM rules_ignored_artists'))
-        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists'])
+        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists', 'library_artists'])
         self.assertEqual(response.json()['returned_to_queue'], [])
 
     def test_a_name_without_a_decision_is_a_404(self):

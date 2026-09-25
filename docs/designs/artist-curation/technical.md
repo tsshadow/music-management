@@ -23,6 +23,7 @@ itself, in the genre-curation shape:
 The scanner's unguarded `INSERT IGNORE INTO library_artists` is still in place: a black name that a
 tagger run has not yet stripped from a file re-enters the table on the next scan, but it re-enters
 as *black* -- the decision is keyed by name and outlives the row -- so it stays out of the queue.
+Since 2026-09-25 that insert no longer makes a name trusted either; see "Wiring the queue".
 
 ## Redirects that point at a decided name (bug 080)
 
@@ -42,6 +43,115 @@ before this, the tagger's preloaded helper follows every chain to its end with a
 cycle guard (a looping name keeps its one-hop answer), and
 `GET /api/rules/artists/redirects/issues` reports what is dangling or looping. That endpoint only
 reports: which way a stored loop should be broken is a curation decision.
+
+## Wiring the queue (2026-09-25)
+
+Until this change the tagger's artist dictionary was `library_artists` itself -- the
+`library_artists` entry of `Cache.databaseHelpers` was a plain `TableHelper` over that table --
+and the scanner inserts every artist string it reads. A name a rule guessed out of a title was
+therefore a trusted artist one scan later, and matched itself in every later title ("artist
+poisoning is self-reinforcing"; `Premiere`, 9.188 tracks, was one instance of it).
+
+### Trust is a decision, not a row
+
+| Name is | Trusted by the tagger | In the queue |
+|---|---|---|
+| approved (`rules_artists.state = 'white'`, by a person or `auto-external`) | yes, even when no file carries it any more | no |
+| grandfathered (in `rules_artist_legacy_trust`) and undecided | yes -- as before this change | yes, as "to review" |
+| recorded by the scanner after this change and undecided | **no -- pending** | yes, flagged `pending` |
+| rejected (`black`), with or without a correction | no | no |
+
+| Component | Change |
+|---|---|
+| `services/common/Helpers/TrustedArtistHelper.py` | New. A caching `TableHelper` (same registry key `library_artists`, same table name) whose snapshot is `TRUSTED_ARTISTS_SQL`: grandfathered-and-undecided names first, approved names last, so an approved spelling wins a casing tie. `add()` -- the interactive prompt's "yes" -- writes a `white` decision signed `tagger-prompt`, not a bare library row. |
+| `Cache.databaseHelpers['library_artists']` | Is that helper. Every artist rule (`InferArtistFromTitleRule` and its sub-rules, `InferRemixerFromTitleRule`, `CheckArtistRule`, `AddMissingArtistToDatabaseRule`) already took its dictionary from this key, so none of them changed; their per-rule fallbacks build a `TrustedArtistHelper` too. |
+| `rules_artist_legacy_trust` (db_init + `migrate_v40_artist_curation_wired.sql`) | New. The names already in `library_artists` at the first deploy, seeded once. Keyed by name, so a library rebuild keeps it. |
+| scanner (`routers/scanner.py`) | Unchanged SQL. It still records every name and links the track to it; recording is simply no longer approval. |
+| `GET /api/rules/artists` | `state=pending` (the untrusted part of the queue) and a `pending` flag on every row. `GET /summary` adds `pending`. Additive, no consumer breaks. |
+| `POST /decide`, `DELETE /{name}` | Also reload the trusted-artist snapshot, so an approval is matched and a rejection dropped by the running tagger at once. Other processes (importer, downloader) catch up within `TableHelper.STALE_AFTER_SECONDS`. |
+| Artiestcuratie page | A yellow "Nieuw" badge on a pending row (style recorded in `docs/styleguide.md`). |
+
+**Why grandfather instead of trusting approved names only.** On production (2026-09-25) 6.280
+names are approved (5.903 `auto-external`, 377 by hand) and 49.068 are undecided. Trusting only
+the approved ones would take ~88% of today's dictionary away from every retag of the existing
+library in one deploy -- a change to what thousands of files come out as, not a fix for new ones.
+Grandfathering keeps every existing file's result the same and closes the loop for everything
+that arrives from now on. The legacy set only shrinks: a decision on a grandfathered name takes
+it out, and emptying the table is the switch to "approved only" once the queue is worked down.
+
+**Why the seed is guarded twice.** `scripts/deploy.sh` may re-run a migration (a changed file
+re-runs; `db-integration.sh` applies every file twice). A second seed would grandfather every
+name that arrived since and undo the point. The INSERT runs only while the table is empty *and*
+the ledger (`schema_migrations`) does not yet record the file, so neither a re-run nor a
+deliberately emptied table re-seeds it. A fresh install seeds an empty library: everything is
+pending from the first scan, which is the intended end state anyway.
+
+### A file whose only artist is pending
+
+Kept exactly as it is. The ARTIST tag is not touched (no rule acts on a name it neither trusts
+nor has a rejection for), the scanner links the track to the name so it is browsable and counted,
+and the name is listed in the queue with the badge and its track count. Nothing is written to the
+file to "mark" it: the mark is the queue row, and it disappears with the decision. What changes
+is only what *other* files get: a pending name is not picked out of titles, not credited as a
+remixer from `(X Remix)`, and not used to re-case a spelling.
+
+### What a decision does to a pending name
+
+Approve: trusted from the next snapshot (immediately in the music-manager process). The files
+that already carry it are not retagged -- they already say the right thing. Reject: as before --
+mirrored to `rules_ignored_artists`, files marked for retag with reason `artist_decision`.
+Auto-approve (!874, `tools/artist_auto_approve.py`): unchanged. Its snapshot reads every undecided
+name, so pending names are candidates like any other; an approval it posts is a `white` decision
+and therefore trust. Nothing about pending names bypasses its brand blocklist or thresholds.
+
+### Side effect: rejections now reach files the scanner had already recorded
+
+`CheckArtistRule` and `AddMissingArtistToDatabaseRule` ask the artist dictionary *before* the
+ignore list. With `library_artists` as the dictionary, a rejected name that the scanner had
+inserted (which is every rejected name that was ever on a file) answered "known artist" and the
+correction or removal branch never ran; only `InferArtistFromTitleRule`, which subtracts
+uncorrected ignored names from its set, honoured a rejection. On production 996 rejected names
+without a correction are still linked to 29.772 tracks, and 536 with a correction to 2.951. A
+rejected name is never trusted now, so those rules apply the decision -- but only when a file is
+next tagged. The files were marked for retag when the decision was taken and that retag already
+ran without effect, so they change on the daily walk or a deep run, not at deploy. Re-marking
+them is left as an explicit follow-up (docs/open-work.md), not done by the migration: it is a
+large one-off retag and should be started deliberately.
+
+### Expected queue growth (measured read-only on production, 2026-09-25)
+
+`library_artists` on production has no `created_at` (schema drift: db_init declares it, the
+table predates it), so first appearance is read from the auto-increment id, which grows
+monotonically per insert attempt, calibrated against the earliest `library_tracks.created_at` of
+the tracks each id links to.
+
+| Window | New distinct names | Per day |
+|---|---|---|
+| 2026-08-27 .. 08-31 (includes a retag burst on 08-29) | 1.715 | ~340 |
+| 2026-09-01 .. 09-06 | 120 | ~20 |
+| 2026-09-07 .. 09-14 | 261 | ~33 |
+| 2026-09-15 .. 09-20 (includes a burst on 09-19) | 1.248 | ~210 |
+| 2026-09-21 .. 09-25 | 146 | ~29 |
+| 30 days in total | 3.490 | ~116 average, ~20-35 on a quiet day |
+
+Of the 3.490, 134 are already rejected and 8 approved; 3.332 undecided ones carry 4.370 tracks,
+and 2.879 tracks have *only* such names as artists -- the files this change leaves as they are.
+The bursts coincide with tagger deep runs and retag waves, which produce new variants of names
+in bulk, and they are exactly the kind of growth that used to become trusted on sight. Expect the
+pending list to grow by a few dozen a day and by one to two thousand after a mass retag;
+`auto-external` has so far approved 8 of the recent names because the evidence run has not been
+repeated since it was first applied. Running it on a schedule is not part of this change.
+
+### Tests
+
+`services/common/Helpers/TrustedArtistHelperTest.py` (the helper loads the trusted query only,
+approved spelling wins, prompt approval is a decision), `services/tagger/Song/rules/TrustedArtistRulesTest.py`
+(the Premiere title picks the marker while it is trusted and the real artist while it is only
+pending; an untrusted remixer is not credited; a rejected name's correction is applied; a pending
+name is left alone), `tests/integration/test_artist_curation_wired.py` (against MariaDB: the
+trusted query, the scanner leaving a new name pending through two files, the seed running once,
+decide/undo moving a name in and out of trust, and the auto-approve snapshot offering a pending
+name).
 
 ## Components
 

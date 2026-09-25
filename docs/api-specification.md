@@ -117,10 +117,35 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
   (deprecated).
+- **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
+  SoundCloud/YouTube channel to its label or artist on strong name equality.
+  - **GET `/proposals?status=new|confirmed|rejected|stale&kind=label|artist`** (any authenticated account):
+    `[{id, channel_id, platform, channel_name, kind, target_id, target_name, source, status, track_count,
+    created_at, decided_at}]`, busiest channel first. `source` is `name`, `alias` or `redirect`. `400` for an
+    unknown status or kind.
+  - **POST `/proposals/refresh`** (`rules.manage`): runs the search, `{created, open, withdrawn, ambiguous}`.
+    Decided rows are never touched; a second run in a row reports `created: 0, withdrawn: 0`.
+  - **POST `/proposals/{id}/confirm`** (`rules.manage`): writes `channels.label_id`/`artist_id`,
+    `{status: "confirmed", channel_id, kind, target_id}`, or `status: "stale"` when the target was deleted.
+    Idempotent. `404` unknown id, `409` when the proposal is rejected/stale or the channel is linked to
+    another target of that kind.
+  - **POST `/proposals/{id}/reject`** (`rules.manage`): `{status: "rejected"}`, idempotent; `409` on a
+    confirmed proposal.
+  - **DELETE `/channels/{channel_id}/{kind}`** (`rules.manage`): clears the link and rejects the proposal
+    behind it, `{status: "unlinked"}`; `400` unknown kind, `404` unknown channel.
+- **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
+  `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
+  path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).
 - **GET `/api/tagger/retag/pending`**: `{"total": <int>, "by_reason": [{"reason", "count"}], "failed": <int>,
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait
   until the file changes or a retag is requested (bug report 051).
+- **GET|POST `/api/tagger/todo-label-repair`** (admin): one page of the `__TODO` label repair (bug
+  report 087). Query `after` (cursor: the previous page's `next_after`), `limit` 1-2000 (default 300).
+  Response `{mode, reason, roots, scanned, poisoned, by_area, by_field, by_label, poisoned_paths, undecidable_count,
+  undecidable, queued, next_after, done}`. GET is a dry run and writes nothing; POST queues the page's
+  poisoned files for the tagger with reason `todo_label_repair` and never retags inline. `422` for a
+  bad `limit`; a database error is a `500`, never an empty page reported as `done`.
 - **PUT `/api/curation/genres/{name}/parents`** (`rules.manage`): body `{"parents": [<genre>, ...]}`,
   replaces the genre's parents in `rules_subgenre_hierarchy`. `400` for a genre listed as its own parent
   or an unknown/unaccepted parent, `403` when curation has not accepted the genre itself, and `409` with
@@ -133,6 +158,11 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
   its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
   fixed by removing a parent on the genre edit page in Beheer.
+- **GET `/api/rules/artists`** (any authenticated account): `state` is one of `unknown` (the queue),
+  `pending` (added, additive: the part of the queue the tagger does not trust -- undecided names that were
+  not in the library when the queue was wired up), `white`, `black`, `all`. Every row carries (added,
+  additive) `pending: <bool>`. **GET `/api/rules/artists/summary`** adds `pending`, the count of those names.
+  See docs/designs/artist-curation/technical.md, "Wiring the queue".
 - **POST `/api/rules/artists/decide`** (`rules.manage`): body `{"names": [...], "state": "white"|"black",
   "canonical_name": <string|null>}`. Response (fields `repointed` and `returned_to_queue` added, additive):
   `{"status": "ok", "decided": <int>, "canonical_name": ..., "repointed": [<name>], "returned_to_queue": [<name>]}`.
@@ -140,7 +170,9 @@ Removed outright, because every caller already uses the target: `GET|PUT
   with a `canonical_name` they are re-pointed to it (`repointed`); without one their decision is forgotten
   and they go back to the queue (`returned_to_queue`). A `canonical_name` that is rejected is a `400`.
 - **DELETE `/api/rules/artists/{name}`** (`rules.manage`): forgets a decision; `404` when there is none
-  (nothing is changed then). Redirects that pointed at the name go back to the queue with it; response
+  (nothing is changed then). Both this and `decide` reload the tagger's trusted-artist snapshot, so an
+  approval is recognised in titles and an undone name stops being so at once. Redirects that pointed at the
+  name go back to the queue with it; response
   `{"status": "ok", "returned_to_queue": [<name>]}`.
 - **GET `/api/rules/artists/redirects/issues`**: read-only integrity check, any authenticated account.
   `{"count": <int>, "dangling": [{"name", "target", "path", "reason"}], "cycles": [[<name>, ...]],
@@ -211,6 +243,11 @@ Removed outright, because every caller already uses the target: `GET|PUT
   download and the path does not say which (it used to take the first `LIKE '%<name>%'` hit).
 - **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
   `limit` (default 100) at most 500, otherwise 422.
+  Filters (shared with every `/api/analytics/*` endpoint, `routers/analytics_filters.py`): `form`
+  (repeatable, OR; one of `track`, `set`, `liveset`, `podcast`, otherwise 422; a track not yet
+  classified matches none) and `year_min`/`year_max`, which compare the year a track files under --
+  a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
+  `release_year` (docs/designs/track-form/).
 
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path

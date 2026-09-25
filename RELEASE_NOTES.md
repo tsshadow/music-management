@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.75.0 (2026-09-25)
+
+- The tagger only recognises approved artist names; new names wait in Artiestcuratie as "Nieuw" instead
+  of being trusted on sight.
+- Rejected artists are now actually removed from files on their next tag pass.
+
+- Beheer -> Downloaders -> Koppelingen proposes which label or artist a channel is; confirm or reject
+  per channel. The Volledigheid table shows the link.
+- The Volledigheid table shows the last download of SoundCloud channels again.
+
+- Every production container now has a memory ceiling, so one runaway service can no longer push
+  the database out of memory.
+- The local development stack (`scripts/dev.sh`) starts again.
+
+- The `services/music_manager/tests` router modules no longer stub `pymysql`, `dbutils`, `mutagen` or `markdown`: they run against the real libraries. The one test that leaned on the stubbed pool (`test_radio`'s permission check) now overrides the dependency the route actually uses. Test-only; no behaviour change.
+
+- SoundCloud tracks downloaded since 22 September get their full release date back once the repair
+  has been run.
+
+- **Files that still said `__TODO` as their label can be repaired**, and new ones are no longer
+  created. The import queue's location is now a single setting, and crooked import folder names
+  whose catalogue number is known can be renamed (with rollback).
+
+- **New Soort filter in the sets view: sets & mixes, live sets or podcasts.** A live set now also
+  shows up under the year it was played, not the year it was uploaded, when MuMa knows the
+  festival edition.
 ## Global Version 0.74.3 (2026-09-25)
 
 - On a tablet in landscape the search box and the profile button are back in the top bar.

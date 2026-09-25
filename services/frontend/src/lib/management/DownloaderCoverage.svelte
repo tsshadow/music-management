@@ -1,6 +1,7 @@
 <script>
   import { t, locale, formatNumber, formatDateTime } from '../i18n/index.js';
-  import { AlertTriangle, RotateCcw, ExternalLink } from '@lucide/svelte';
+  import { AlertTriangle, RotateCcw, ExternalLink, X } from '@lucide/svelte';
+  import { linksOf, kindLabel } from './channelLinks.js';
   import { describeBackoff } from './downloaderTiming';
   import {
     filterAccounts,
@@ -15,6 +16,10 @@
 
   export let API_BASE;
   export let getHeaders;
+  // Opens the Koppelingen sub-tab, where a channel's open proposal is decided.
+  export let onOpenLinks = () => {};
+  export let onMessage = () => {};
+  export let onError = () => {};
 
   const SOURCE_LABELS = { soundcloud: 'SoundCloud', youtube: 'YouTube' };
   // 1.100 rows of bars is fine for the browser; 1.100 rows is not fine for a
@@ -60,6 +65,24 @@
       body = null;
     } finally {
       loading = false;
+    }
+  }
+
+  /** Remove a confirmed link; the proposal behind it counts as rejected from then on. */
+  async function unlink(channel, kind) {
+    try {
+      const res = await fetch(`${API_BASE}/api/channel-links/channels/${channel.id}/${kind}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `HTTP ${res.status}`);
+      }
+      onMessage($t('management.downloaders.coverage.unlinked', { channel: channel.name }));
+      await load(source, true);
+    } catch (err) {
+      onError(err.message);
     }
   }
 
@@ -200,6 +223,7 @@
             <th class="p-4 text-right">{$t('management.downloaders.coverage.colRemaining')}</th>
             <th class="p-4">{$t('management.downloaders.coverage.colLastDownload')}</th>
             <th class="p-4">{$t('management.downloaders.coverage.colCounted')}</th>
+            <th class="p-4">{$t('management.downloaders.coverage.colLinked')}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-muma-spotify-panel/30">
@@ -242,9 +266,34 @@
                   <br />{$t('management.downloaders.coverage.checked', { age: formatAge(row.last_checked_at) })}
                 {/if}
               </td>
+              <td class="p-4 text-sm">
+                <div class="flex flex-wrap items-center gap-2">
+                  {#each linksOf(row.channel) as link (link.kind)}
+                    <span class="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full {link.kind === 'label' ? 'bg-white/10 text-white' : 'bg-brand/20 text-brand'}" title={kindLabel(link.kind)}>
+                      {link.name}
+                      <button
+                        on:click={() => unlink(row.channel, link.kind)}
+                        aria-label={$t('management.downloaders.coverage.unlink', { name: link.name })}
+                        title={$t('management.downloaders.coverage.unlink', { name: link.name })}
+                        class="opacity-60 hover:opacity-100"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  {/each}
+                  {#if row.channel?.open_proposals}
+                    <button
+                      on:click={() => onOpenLinks()}
+                      class="text-xs font-bold px-2 py-0.5 rounded-full border border-brand/40 text-brand hover:bg-brand/10"
+                    >
+                      {$t('management.downloaders.coverage.linkProposal')}
+                    </button>
+                  {/if}
+                </div>
+              </td>
             </tr>
           {:else}
-            <tr><td colspan="5" class="p-6 text-center text-muma-spotify-text">{$t('management.downloaders.coverage.empty')}</td></tr>
+            <tr><td colspan="6" class="p-6 text-center text-muma-spotify-text">{$t('management.downloaders.coverage.empty')}</td></tr>
           {/each}
         </tbody>
       </table>

@@ -5,8 +5,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from services.music_manager import events_retention
 from services.music_manager.events_retention import (
     LEVELS,
@@ -17,8 +15,6 @@ from services.music_manager.events_retention import (
     retention_tick,
     run_events_retention,
 )
-
-pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 def _real_config_store():

@@ -5,6 +5,7 @@ from difflib import SequenceMatcher, get_close_matches
 
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
+from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
 from services.tagger.constants import ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
 
@@ -146,7 +147,7 @@ def set_cleaned_artist(song, library_artists: str | list[str], artist_db=None, s
         'b1 ',
         'b2 ',
     }
-    artist_db = artist_db or TableHelper('library_artists', 'name')
+    artist_db = artist_db or TrustedArtistHelper()
     all_artists = artist_index(artist_db)
     cleaned = []
     for a in library_artists:
@@ -179,7 +180,7 @@ class InferArtistFromTitleRule(TagRule):
     ):
         from services.common.Helpers.Cache import databaseHelpers
 
-        self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        self.artist_db = artist_db or databaseHelpers.get('library_artists') or TrustedArtistHelper()
         self.festival_helper = festival_helper or databaseHelpers.get('festivalHelper')
         self.genre_db = genre_db or databaseHelpers.get('rules_genres')
         if self.genre_db:

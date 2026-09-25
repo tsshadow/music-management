@@ -113,7 +113,9 @@ def _config_fields() -> list[ConfigField]:
             default='',
             env='import_folder_path',
             group='Paths',
-            description='Folder that contains newly downloaded music archives.',
+            description='The import queue: where archives are extracted and releases wait until they are '
+            'filed under a label. Unset means its historical place inside eps_folder_path. Every walker of the label tree asks '
+            'services/common/import_queue.py, so moving it is this setting plus a folder move.',
         ),
         ConfigField(
             key='eps_folder_path',

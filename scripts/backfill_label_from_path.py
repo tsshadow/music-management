@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 
+from services.common.import_queue import ImportQueue
 from services.tagger.Song import LabelPath
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
@@ -70,15 +71,18 @@ def is_refusal(exc):
     return False
 
 
-def audio_files(root):
-    """Every audio file under the root, minus Synology's @eaDir and the `_` folders.
+def audio_files(root, queue=None):
+    """Every audio file under the root, minus Synology's @eaDir and the folders that are no label.
 
-    A label folder starting with `_` is parsed as a generic song, not as a label release, so its
-    tracks never carried a path derived publisher and must not gain one here.
+    The import queue and a label folder starting with `_` are parsed as generic songs, not as label
+    releases, so their tracks never carried a path derived publisher and must not gain one here.
+    `ImportQueue.is_label_folder` is the one place that decides which folders those are.
     """
+    queue = queue or ImportQueue.from_settings()
     for current, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d != '@eaDir')
-        if os.path.relpath(current, root).split(os.sep, maxsplit=1)[0].startswith('_'):
+        first = os.path.relpath(current, root).split(os.sep, maxsplit=1)[0]
+        if first != '.' and not queue.is_label_folder(os.path.join(root, first)):
             continue
         for name in sorted(files):
             if name.lower().endswith(AUDIO_EXTENSIONS):
@@ -172,15 +176,16 @@ def read_tags(path):
     }
 
 
-def label_folders(root, after=None):
-    """The label folders to scan, skipping the `_` ones the tagger parses as generic songs.
+def label_folders(root, after=None, queue=None):
+    """The label folders to scan, skipping the queue and the `_` ones the tagger parses as generic.
 
     `after` resumes an interrupted pass: the folders are always walked in the same order, so the
     name of the last one reported is enough to say where to pick up.
     """
+    queue = queue or ImportQueue.from_settings()
     names = sorted(
         name for name in os.listdir(root)
-        if not name.startswith('_') and os.path.isdir(os.path.join(root, name))
+        if queue.is_label_folder(os.path.join(root, name)) and os.path.isdir(os.path.join(root, name))
     )
     return [name for name in names if name > after] if after else names
 

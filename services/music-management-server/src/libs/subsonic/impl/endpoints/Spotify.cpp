@@ -24,6 +24,7 @@
 #include "../SubsonicId.hpp"
 #include "FestivalLineupRepository.hpp"
 #include "SpotifyPaging.hpp"
+#include "TrackForm.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "database/Session.hpp"
@@ -82,6 +83,19 @@ namespace lms::api::subsonic
                 if (tier == *minQuality)
                     break;
             }
+        }
+
+        // Form and year, the two filters that read what muma decided about a track (migration
+        // 122, docs/designs/track-form/). Kept out of handleGetSpotifyTracks so its complexity
+        // figure -- a clang-tidy baseline key -- stays where it is.
+        //
+        // `year` used to join the YEAR cluster, which is the year of the date tag. It now goes
+        // through FindParameters::year: the same year, except for a live set whose performance
+        // date muma knows, which files under the year it was played (docs/product-goal.md).
+        void applyFormAndYear(RequestContext& ctx, db::Track::FindParameters& params)
+        {
+            params.forms = parseTrackForms(ctx.getParameters());
+            params.year = getParameterAs<int>(ctx.getParameters(), "year");
         }
 
         // One key per song, decided by muma and synced into work_id (migration 118). What
@@ -320,16 +334,7 @@ namespace lms::api::subsonic
             }
         }
 
-        if (auto year = getParameterAs<std::string>(ctx.getParameters(), "year"))
-        {
-            if (auto yearType = db::ClusterType::find(session, "YEAR"))
-            {
-                if (auto cluster = yearType->getCluster(*year))
-                {
-                    clusterGroups["YEAR"].insert(cluster->getId());
-                }
-            }
-        }
+        applyFormAndYear(ctx, params);
 
         // The radio show or podcast series a long mix belongs to, written by the
         // tagger as a PODCAST tag. Resolved through its cluster type exactly like

@@ -411,6 +411,35 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
+    def paths_under(self, roots: list[str], after: str = '', limit: int = 500) -> list[str]:
+        """The next page of known files below any of `roots`, in primary-key order.
+
+        One primary-key range per root (`root/` up to `root0`, '0' being the byte after '/'
+        in utf8mb4_bin), so the database reads only the rows it returns -- never the whole
+        table and never a join. Keyed on the last path of the previous page, like
+        pending_paths, so a caller walks a subtree page by page without an offset.
+        """
+        ranges = [root.rstrip('/') for root in roots if root and root.strip('/')]
+        if not ranges:
+            return []
+        where = ' OR '.join(['(filepath >= %s AND filepath < %s)'] * len(ranges))
+        args: list = []
+        for root in ranges:
+            args.extend((root + '/', root + '0'))
+        query = f'SELECT filepath FROM {self.table_name} WHERE filepath > %s AND ({where}) ORDER BY filepath LIMIT %s'
+        connection = self.db_connector.connect()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, (after, *args, int(limit)))
+                return [str(row[0]) for row in cursor.fetchall() if row and row[0]]
+        except Exception as e:
+            # Raised, not swallowed: an empty page reads as "walked to the end", and a repair
+            # that stops early without saying so is worse than one that fails loudly.
+            logging.error(f'Error paging the known files under {ranges}: {e}')
+            raise
+        finally:
+            connection.close()
+
     def queue_new_library_files(self, roots: list[str], extensions: tuple[str, ...]) -> int:
         """Queue every file the scanner has indexed that this table has never seen.
 

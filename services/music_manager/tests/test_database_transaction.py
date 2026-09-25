@@ -9,10 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi import HTTPException
-
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 _SPEC = importlib.util.spec_from_file_location(
     'database_transaction_under_test', Path(__file__).resolve().parent.parent / 'database.py'

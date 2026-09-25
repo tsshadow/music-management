@@ -2,7 +2,7 @@ import logging
 import re
 
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
-from services.common.Helpers.TableHelper import TableHelper
+from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
 from services.tagger.constants import ARTIST, REMIXER, TITLE
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.Song.SongHelper import split_artists
@@ -25,7 +25,7 @@ class InferRemixerFromTitleRule(TagRule):
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool = False):
         from services.common.Helpers.Cache import databaseHelpers
 
-        self.artist_db = artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+        self.artist_db = artist_db or databaseHelpers.get('library_artists') or TrustedArtistHelper()
         self.ignored_db = (
             ignored_db
             or databaseHelpers.get('rules_ignored_artists')

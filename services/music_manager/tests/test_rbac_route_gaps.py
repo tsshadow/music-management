@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 import bcrypt
@@ -26,6 +26,7 @@ from fastapi.testclient import TestClient
 from services.music_manager import rbac
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
+from services.music_manager.routers import channel_links as channel_links_router
 from services.music_manager.routers import events as events_router
 from services.music_manager.routers import management as management_router
 from services.music_manager.routers import rating as rating_router
@@ -50,6 +51,10 @@ ADMIN = auth_for(1, 'root', 'admin', {name for name, _ in rbac.PERMISSIONS})
 RULES_ROUTES = [
     ('post', '/api/label-proposals/1/confirm', {'label': 'Scantraxx'}),
     ('post', '/api/label-proposals/1/reject', None),
+    ('post', '/api/channel-links/proposals/refresh', None),
+    ('post', '/api/channel-links/proposals/1/confirm', None),
+    ('post', '/api/channel-links/proposals/1/reject', None),
+    ('delete', '/api/channel-links/channels/1/label', None),
     ('post', '/api/rules/genres/1/decide', {'state': 'white'}),
     ('post', '/api/rules/podcasts/1/decide', {'state': 'white'}),
     ('post', '/api/rules/podcasts/1/rename', {'name': 'Show'}),
@@ -74,7 +79,14 @@ ADMIN_ROUTES = [
     ('delete', '/api/youtube/x', None),
 ]
 
-READ_ROUTES = ['/api/rules', '/api/artists', '/api/labels', '/api/label-proposals', '/api/config']
+READ_ROUTES = [
+    '/api/rules',
+    '/api/artists',
+    '/api/labels',
+    '/api/label-proposals',
+    '/api/channel-links/proposals',
+    '/api/config',
+]
 
 ARTIST_IMAGE_ROUTES = [
     ('post', '/api/artists/1/image/url', {'url': 'https://img.example/a.jpg'}),
@@ -94,7 +106,14 @@ class RouteAuthTestCase(unittest.TestCase):
         self.conn = MagicMock()
         self.cursor = self.conn.cursor.return_value.__enter__.return_value
         self.conn.cursor.return_value.__exit__.return_value = False
-        for module in (management_router, events_router, rating_router, artist_images_router, users_router):
+        for module in (
+            management_router,
+            events_router,
+            rating_router,
+            artist_images_router,
+            users_router,
+            channel_links_router,
+        ):
             patcher = patch.object(module, 'get_db_connection', return_value=self.conn)
             patcher.start()
             self.addCleanup(patcher.stop)

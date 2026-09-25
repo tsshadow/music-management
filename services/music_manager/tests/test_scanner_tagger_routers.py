@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 import services.music_manager.routers.users as users_router
@@ -382,6 +382,42 @@ class ProcessFileTest(unittest.TestCase):
         )
         self.assertIsNone(params[4])
 
+    def _track_row_params(self):
+        return next(
+            call.args[1] for call in self.cursor.execute.call_args_list if 'INSERT INTO library_tracks' in call.args[0]
+        )
+
+    def test_a_short_file_is_written_as_a_track_without_a_performance_date(self):
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        params = self._track_row_params()
+        self.assertEqual(params[5:7], ('track', None))
+        self.assertEqual(params[-2:], ('track', None))
+
+    def test_a_long_file_in_the_liveset_folder_gets_its_edition_date(self):
+        from datetime import date
+
+        from services.common.Helpers.FestivalHelper import Festival
+
+        self.manager.music_path = '/music'
+        self.manager.festival_helper.set_festivals(
+            [Festival(name='Defqon.1', aliases=['Defqon.1'], editions={2012: date(2012, 6, 23)})]
+        )
+        song = self.song(publisher=None)
+        song.length.return_value = 3600
+        song.title.return_value = 'Headhunterz @ Defqon.1 2012'
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=song),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/Livesets/Defqon/a.mp3')
+        self.assertEqual(self._track_row_params()[5:7], ('liveset', '2012-06-23'))
+
     def test_a_null_display_artist_never_overwrites_one_a_sibling_copy_already_captured(self):
         """Two media files can resolve to the same track_uid. Scanning the copy that has not
         been retagged yet must not erase a display_artist a previously-scanned sibling copy
@@ -723,3 +759,33 @@ class LmsTriggerTest(unittest.TestCase):
         ):
             manager.run_full()
         trigger.trigger.assert_called_once()
+
+
+class TodoLabelRepairEndpointTest(unittest.TestCase):
+    """GET is the dry run, POST queues; both admin-only, neither retags inline (bug 087)."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.headers = {'x-api-key': API_KEY}
+
+    def test_get_is_a_dry_run_and_post_applies(self):
+        with patch.object(tagger_router, '_todo_label_repair_page', return_value={'scanned': 0}) as page:
+            self.client.get('/api/tagger/todo-label-repair?after=/a&limit=50', headers=self.headers)
+            self.client.post('/api/tagger/todo-label-repair', headers=self.headers)
+        self.assertEqual(page.call_args_list[0].args, ('/a', 50))
+        self.assertEqual(page.call_args_list[0].kwargs, {'apply': False})
+        self.assertEqual(page.call_args_list[1].kwargs, {'apply': True})
+
+    def test_a_non_admin_is_refused(self):
+        user = {'type': 'user', 'user': {'id': 4, 'username': 'anna', 'role_name': 'user', 'permissions': []}}
+        with (
+            patch.object(users_router, 'verify_api_key', return_value=user),
+            patch.object(tagger_router, '_todo_label_repair_page') as page,
+        ):
+            response = self.client.post('/api/tagger/todo-label-repair', headers={'x-api-key': 'anna-key'})
+        self.assertEqual(403, response.status_code)
+        page.assert_not_called()
+
+    def test_the_page_size_is_bounded(self):
+        response = self.client.get('/api/tagger/todo-label-repair?limit=5000', headers=self.headers)
+        self.assertEqual(422, response.status_code)

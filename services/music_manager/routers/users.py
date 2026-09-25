@@ -1442,6 +1442,11 @@ def sync_single_server_db(muma_conn, db_path, source):
             # The server is still migrating. Remembered so the caller can come back rather
             # than leaving the columns empty until the next restart.
             _skipped_unmigrated_servers.add(source)
+        # Form and performance date, settled by run_classification before this loop. Separate
+        # from the version push so a server that predates step 122 still gets its versions.
+        from services.music_manager.track_form_sync import push_forms_to_server
+
+        push_forms_to_server(muma_conn, sqlite_conn, source)
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
     finally:
@@ -1568,6 +1573,12 @@ def run_lms_db_sync(only_sources: set[str] | None = None):
         return 0
     total_synced = 0
     try:
+        # First, and once: what every track is and when a live set was played, recomputed from
+        # the current festival and podcast rules, so the per-server push below hands out fresh
+        # values. Also the backfill of both columns. See track_form_sync's module docstring.
+        from services.music_manager.track_form_sync import run_classification
+
+        run_classification(conn)
         for db_path, source in targets:
             total_synced += sync_single_server_db(conn, db_path, source)
         # And once, afterwards, the other direction: the release date the servers read off the

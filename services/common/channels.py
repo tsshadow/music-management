@@ -14,6 +14,8 @@ The distinction is drawn here, as pure functions over a path and a publisher, so
 backfill and their tests all decide it the same way.
 """
 
+from services.common.import_queue import LEGACY_QUEUE_NAME, ImportQueue
+
 # Folder name at the top of a path -> the platform it identifies. The folder names are what the
 # downloaders write and are matched case-insensitively; the values are the `channels.platform` enum.
 PLATFORM_FOLDERS = {
@@ -23,22 +25,25 @@ PLATFORM_FOLDERS = {
 }
 
 # Publishers that name no label at all. `__free&none` is the folder holding music that genuinely has
-# no label; `__todo` is the import folder, which the tagger stamps onto anything still sitting in it.
+# no label; the import queue's name is what the tagger stamped onto anything still sitting in it,
+# and is kept here by its historical spelling because that is what is in the files. The queue's
+# current name, if it has been renamed since, is added per call by `is_label`.
 NON_LABEL_PUBLISHERS = {
     '',
-    '__todo',
+    LEGACY_QUEUE_NAME.lower(),
     '__free&none',
     '__free & none',
 }
 
 
 # Top-level folders that hold music with no label at all. `songs` is the pile that genuinely has
-# none, `import` is the intake folder. They matter because the tagger derives a label from the
-# folders above a file: anything sitting outside the label tree would otherwise have its own root
-# stored as a label, which is exactly the mistake the platform folders already made.
+# none. The import queue is the other one, but it is refused by location (`ImportQueue.contains`),
+# not by a name here, so it stays refused wherever `import_folder_path` points. These matter because
+# the tagger derives a label from the folders above a file: anything sitting outside the label tree
+# would otherwise have its own root stored as a label, which is exactly the mistake the platform
+# folders already made.
 NON_LABEL_ROOTS = {
     'songs',
-    'import',
 }
 
 
@@ -55,7 +60,9 @@ def is_label(publisher: str | None) -> bool:
     one.
     """
     normalized = _normalize(publisher)
-    return normalized not in NON_LABEL_PUBLISHERS and normalized not in PLATFORM_FOLDERS
+    if normalized in NON_LABEL_PUBLISHERS or normalized in PLATFORM_FOLDERS:
+        return False
+    return not _import_queue().is_placeholder_publisher(normalized)
 
 
 def channel_from_path(path: str, music_root: str | None = None, delimiter: str = '/') -> tuple[str, str] | None:
@@ -92,14 +99,21 @@ def channel_from_path(path: str, music_root: str | None = None, delimiter: str =
     return None
 
 
+def _import_queue() -> ImportQueue:
+    """The configured import queue. A function so a test can patch it without settings."""
+    return ImportQueue.from_settings()
+
+
 def path_can_carry_a_label(path: str, music_root: str | None = None, delimiter: str = '/') -> bool:
     """Whether a label derived from this file's folders means anything.
 
     The tagger reads a label from the folders above a track, which is right inside the label tree
-    and wrong everywhere else: a file under `songs/` or `import/` would have that root stored as its
-    label, and a file under a platform folder would have the platform stored. Both are the same
-    mistake, so both are refused here rather than in two places.
+    and wrong everywhere else: a file under `songs/` or in the import queue would have that folder
+    stored as its label, and a file under a platform folder would have the platform stored. All the
+    same mistake, so all refused here rather than in three places.
     """
+    if _import_queue().contains(path):
+        return False
     parts = [part for part in (path or '').split(delimiter) if part]
 
     root = str(music_root or '').strip(delimiter)

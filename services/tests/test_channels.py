@@ -5,13 +5,16 @@ values that used to become one.
 """
 
 import unittest
+from unittest.mock import patch
 
+from services.common import channels
 from services.common.channels import (
     channel_from_path,
     is_label,
     normalize_channel_name,
     path_can_carry_a_label,
 )
+from services.common.import_queue import ImportQueue
 
 
 class IsLabelTest(unittest.TestCase):
@@ -24,6 +27,11 @@ class IsLabelTest(unittest.TestCase):
     def test_case_does_not_rescue_a_platform(self):
         self.assertFalse(is_label('SOUNDCLOUD'))
         self.assertFalse(is_label('  youtube  '))
+
+    def test_a_renamed_queue_is_not_a_label_either(self):
+        with patch.object(channels, '_import_queue', return_value=ImportQueue('/mnt/music/intake')):
+            self.assertFalse(is_label('Intake'))
+            self.assertFalse(is_label('__TODO'))
 
     def test_a_placeholder_is_not_a_label(self):
         # __TODO is the import folder's own name, stamped onto a release that never left it.
@@ -90,7 +98,20 @@ class PathCanCarryALabelTest(unittest.TestCase):
         self.assertFalse(path_can_carry_a_label('/mnt/music/songs/Some Release/track.mp3', '/mnt/music'))
 
     def test_the_import_folder_carries_none(self):
-        self.assertFalse(path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
+        # Refused by location, wherever import_folder_path points (bug report 087).
+        with patch.object(channels, '_import_queue', return_value=ImportQueue('/mnt/music/import')):
+            self.assertFalse(path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
+
+    def test_the_import_folder_inside_the_label_tree_carries_none(self):
+        # Where it lives today: under EPs, where the first folder alone would pass.
+        with patch.object(channels, '_import_queue', return_value=ImportQueue('/mnt/music/EPs/__TODO')):
+            self.assertFalse(path_can_carry_a_label('/mnt/music/EPs/__TODO/Some Release/track.mp3', '/mnt/music'))
+            self.assertTrue(path_can_carry_a_label('/mnt/music/EPs/Dirty Workz/DWX1/track.mp3', '/mnt/music'))
+
+    def test_a_folder_merely_called_import_is_no_longer_special(self):
+        # The old hard-coded 'import' root is gone: a moved queue is found by its setting.
+        with patch.object(channels, '_import_queue', return_value=ImportQueue('/mnt/intake')):
+            self.assertTrue(path_can_carry_a_label('/mnt/music/import/Some Release/track.mp3', '/mnt/music'))
 
     def test_a_platform_folder_carries_none(self):
         for platform in ('Soundcloud', 'Youtube', 'Telegram'):

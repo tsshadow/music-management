@@ -44,6 +44,12 @@ def test_the_migration_ledger_is_an_expected_table():
     assert 'schema_migrations' in schema_sources.migration_declared_tables()
 
 
+def test_the_channel_link_proposals_are_an_expected_table():
+    """docs/designs/channel-links: db_init creates it and migrate_v41 declares it."""
+    assert 'channel_link_proposals' in schema_sources.code_declared_tables()
+    assert 'channel_link_proposals' in schema_sources.migration_declared_tables()
+
+
 def test_the_migrations_are_re_runnable(database):
     """scripts/deploy.sh applies every migrate_*.sql on each deploy, so the
     second run must be a no-op rather than an error."""
@@ -361,3 +367,13 @@ def test_the_importer_skips_an_unchanged_proposal_against_real_mariadb(db):
     assert row['status'] == 'rejected'
     assert row['resolved_fingerprint'] == 'b' * 64
     assert row['decided_at'] is not None
+
+
+def test_a_track_carries_its_form_and_performance_date(built_schemas):
+    """migrate_v42 and db_init both give library_tracks the two columns the form filter and the
+    year filter read (docs/designs/track-form/), and the form is indexed on both paths."""
+    for kind in ('code', 'migrated'):
+        table = built_schemas[kind]['library_tracks']
+        assert {'form', 'performance_date'} <= set(table['columns']), kind
+        assert table['columns']['form']['nullable'] == 'YES', kind
+        assert 'idx_tracks_form' in table['indexes'], kind

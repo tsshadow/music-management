@@ -2,7 +2,7 @@ import os
 import unittest
 from tempfile import TemporaryDirectory
 
-from services.importer.label_resolver import resolve
+from services.importer.label_resolver import blacklist, resolve
 
 
 class LabelResolverTest(unittest.TestCase):
@@ -63,6 +63,20 @@ class LabelResolverTest(unittest.TestCase):
 
         self.assertIsNone(proposal.label)
         self.assertEqual(proposal.source, 'none')
+
+    def test_the_legacy_name_is_refused_after_the_queue_is_renamed(self):
+        # Files keep the old name whatever the queue is called now (bug report 087).
+        self.add_track('one.mp3', **{'txxx:publisher': '__TODO'}, label='import')
+
+        proposal = self.resolve(import_folder_name='import')
+
+        self.assertIsNone(proposal.label)
+
+    def test_the_blacklist_is_shared_with_the_repair(self):
+        refused = blacklist('Intake')
+        self.assertIn('intake', refused)
+        self.assertIn('__todo', refused)
+        self.assertIn('', refused)
 
     def test_two_files_agreeing_raise_the_confidence(self):
         self.add_track('one.mp3', tpub='Brutal Kuts')

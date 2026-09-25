@@ -98,6 +98,10 @@ exclude = [
 # Already type-checked strictly. Extend this list as modules are cleaned up.
 module = [
     "services.common.config_store",
+    # New code (bug report 087), so it starts strict.
+    "services.common.import_queue",
+    "services.tagger.todo_label_repair",
+    "services.importer.catid_prefix_repair",
     "services.common.step",
     "services.common.version_helper",
     "services.common.Helpers.ArtistNameAnalyzer",

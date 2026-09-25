@@ -1,13 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
 
-import pytest
-
 from services.common.Helpers.GenreRulesHelper import GenreRow, GenreRulesHelper
 from services.music_manager.routers.scanner import ScannerManager
 from services.tagger.Song.BaseSong import BaseSong
-
-pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 
 def helper_with(rows, expansions=None):

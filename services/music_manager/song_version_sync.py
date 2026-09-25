@@ -160,7 +160,7 @@ def _rows_to_write(server_cursor, rows) -> list[tuple]:
     return pending
 
 
-def _write_batch(server_conn, server_cursor, batch, stats: dict, source: str) -> int:
+def _write_batch(server_conn, server_cursor, batch, stats: dict, source: str, update_sql: str = _UPDATE) -> int:
     """Write one batch, waiting out the server's write lock rather than giving up on it.
 
     A locked database is LMS doing its own work -- a scan step, a playlist write -- and it
@@ -168,12 +168,15 @@ def _write_batch(server_conn, server_cursor, batch, stats: dict, source: str) ->
     which is how a deploy that restarted both services wrote one track out of 285.332 and
     left the columns a day stale. A batch that stays locked is skipped, not fatal: the next
     pass rewrites the same rows.
+
+    `update_sql` takes `values + (path,)`; track_form_sync pushes its own columns through the
+    same lock handling rather than copying it.
     """
     for attempt in range(1, LOCK_RETRIES + 1):
         matched = 0
         try:
             for values, path in batch:
-                server_cursor.execute(_UPDATE, values + (path,))
+                server_cursor.execute(update_sql, values + (path,))
                 matched += server_cursor.rowcount
             server_conn.commit()
             return matched

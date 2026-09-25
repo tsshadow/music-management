@@ -39,6 +39,9 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-backup
     restart: "no"
+    # Python streams mariadb-dump/mariadb through gzip in chunks; neither holds
+    # the dump in memory. The server-side work lands in `db`, not here. 512m.
+    mem_limit: ${MUMA_MEM_LIMIT_BACKUP:-512m}
     # Anders dan de langlopende services hierboven staat de root hier wel
     # read-only. Deze twee schrijven maar op twee plekken: het
     # --defaults-extra-file met de credentials in /tmp, en de dumps op de
@@ -74,6 +77,9 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-restore-check
     restart: "no"
+    # Python streams mariadb-dump/mariadb through gzip in chunks; neither holds
+    # the dump in memory. The server-side work lands in `db`, not here. 512m.
+    mem_limit: ${MUMA_MEM_LIMIT_BACKUP:-512m}
     # Anders dan de langlopende services hierboven staat de root hier wel
     # read-only. Deze twee schrijven maar op twee plekken: het
     # --defaults-extra-file met de credentials in /tmp, en de dumps op de

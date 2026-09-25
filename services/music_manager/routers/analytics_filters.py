@@ -11,7 +11,9 @@ from library.py without a circular import.
 
 from dataclasses import dataclass, field
 
-from fastapi import Query
+from fastapi import HTTPException, Query
+
+from services.common.track_form import FORMS
 
 # A bare number in the search box means BPM rather than text, but only inside a
 # range where that reading is plausible; 2024 is a year, not a tempo.
@@ -42,6 +44,15 @@ _GENRE_EXISTS = (
     "WHERE tg.track_id = t.id AND rg.name {op})"
 )
 
+# The year a track files under: a live set's performance date first, then the release date the
+# servers read off the file, then the analyzer's year. performance_date is only ever set on a live
+# set, so for everything else this is the release year. docs/product-goal.md, the year axis,
+# and docs/designs/track-form/.
+EFFECTIVE_YEAR_SQL = (
+    "COALESCE(CAST(LEFT(NULLIF(t.performance_date, ''), 4) AS UNSIGNED), "
+    "CAST(LEFT(NULLIF(t.release_date, ''), 4) AS UNSIGNED), af.release_year)"
+)
+
 
 @dataclass
 class LibraryFilter:
@@ -54,6 +65,7 @@ class LibraryFilter:
     year_min: int | None = None
     year_max: int | None = None
     analyzed: bool | None = None
+    form: list[str] = field(default_factory=list)
 
 
 def _clean(values):
@@ -114,11 +126,17 @@ def build_filter(f: LibraryFilter):
         params.append(f.bpm_max)
 
     if f.year_min is not None:
-        clauses.append('af.release_year >= %s')
+        clauses.append(f'{EFFECTIVE_YEAR_SQL} >= %s')
         params.append(f.year_min)
     if f.year_max is not None:
-        clauses.append('af.release_year <= %s')
+        clauses.append(f'{EFFECTIVE_YEAR_SQL} <= %s')
         params.append(f.year_max)
+
+    forms = _clean(f.form)
+    if forms:
+        placeholders = ', '.join(['%s'] * len(forms))
+        clauses.append(f't.form IN ({placeholders})')
+        params.extend(forms)
 
     if f.analyzed is True:
         clauses.append('af.track_id IS NOT NULL')
@@ -140,8 +158,18 @@ def parse_filter(
     year_min: int | None = Query(None, ge=1900, le=2100),
     year_max: int | None = Query(None, ge=1900, le=2100),
     analyzed: bool | None = Query(None),
+    form: list[str] = Query(default=[]),
 ) -> LibraryFilter:
-    """FastAPI dependency turning query parameters into a LibraryFilter."""
+    """FastAPI dependency turning query parameters into a LibraryFilter.
+
+    A form outside the closed set is a 422 rather than an empty list: a typo must not read as
+    "there are no live sets".
+    """
+    unknown = sorted(set(_clean(form)) - set(FORMS))
+    if unknown:
+        raise HTTPException(
+            status_code=422, detail=f'unknown form: {", ".join(unknown)}; expected one of {", ".join(FORMS)}'
+        )
     return LibraryFilter(
         q=q,
         artist=artist,
@@ -152,4 +180,5 @@ def parse_filter(
         year_min=year_min,
         year_max=year_max,
         analyzed=analyzed,
+        form=form,
     )

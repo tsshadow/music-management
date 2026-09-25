@@ -32,6 +32,7 @@ from services.music_manager.routers import (
     analytics,
     artist_curation,
     artist_images,
+    channel_links,
     config,
     curation,
     diagnostics,
@@ -103,6 +104,7 @@ app.include_router(festivals.router, prefix="/api/rules/festivals")
 app.include_router(lineups.router, prefix="/api/rules/lineups")
 app.include_router(songs.router, prefix="/api/songs")
 app.include_router(feeds.router, prefix="/api/feeds")
+app.include_router(channel_links.router, prefix="/api/channel-links")
 
 
 def background_workers_enabled() -> bool:

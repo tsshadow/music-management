@@ -86,6 +86,7 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | `rules_label_genres` | Mapping from label name to a default genre. | `label_name`, `genre_id` |
 | `rules_subgenre_hierarchy` | Defines relationships (e.g., Uptempo is a subgenre of Hardcore). | `subgenre`, `genre` |
 | `rules_ignored_artists` | Artists to skip during processing. | `name` |
+| `rules_artist_legacy_trust` | Artist names already in the library when the curation queue was wired to the tagger (migrate_v40). The tagger trusts an approved name or one of these that is still undecided; every other name is pending. | `name` |
 | `rules_ignored_genres` | (Legacy) Migrated into `rules_genres` as state `black`; no longer read by the tagger. | `name` |
 | `rules_catid_label` | Mapping Catalog IDs to library_labels. | `catid`, `label` |
 | `rules_festival_data` | (Legacy) Migrated into `rules_festivals` and `rules_festival_editions` by `migrate_v7_festivals.sql`; no longer read by the tagger. | `festival`, `year` |

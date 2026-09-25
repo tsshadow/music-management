@@ -43,6 +43,12 @@ READ_ENDPOINTS = [
     ('/api/library/tracks?page=0', 422),
     ('/api/library/tracks?limit=501', 422),
     ('/api/library/advanced?page=0', 422),
+    # Form and the effective year (docs/designs/track-form/): both reach the SQL, and a form
+    # outside the closed set is refused before any runs.
+    ('/api/library/advanced?form=liveset&form=set&year_min=2012&year_max=2012', 200),
+    ('/api/library/advanced?form=mixtape', 422),
+    ('/api/analytics/summary?form=podcast&year_min=2010', 200),
+    ('/api/analytics/year-histogram?form=liveset', 200),
     ('/api/library/genres', 200),
     # A file MuMa never scanned is a deliberate 404, never a 500.
     ('/api/library/tracks/by-path?path=nope.mp3', 404),
@@ -64,6 +70,8 @@ READ_ENDPOINTS = [
     ('/api/rules/label-genres', 200),
     ('/api/rules/artist-redirects', 200),
     ('/api/tagger/retag/pending', 200),
+    # The `__TODO` label repair's dry run pages tagger_processed_files by primary key.
+    ('/api/tagger/todo-label-repair', 200),
     ('/api/artists?q=anger', 200),
     ('/api/labels?q=scan', 200),
     ('/api/system/activity', 200),
@@ -73,6 +81,9 @@ READ_ENDPOINTS = [
     # timestamp the YouTube table only has since migrate_v31.
     ('/api/downloaders/coverage/soundcloud', 200),
     ('/api/downloaders/coverage/youtube', 200),
+    ('/api/channel-links/proposals', 200),
+    ('/api/channel-links/proposals?status=rejected&kind=artist', 200),
+    ('/api/channel-links/proposals?status=maybe', 400),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -737,6 +748,70 @@ class LibraryReadsTest:
         genres = api.get('/api/library/genres', headers=headers).json()
         assert genres == [{'genre': 'Hardcore', 'state': 'white', 'count': 1, 'tint': '#e5002b'}]
 
+    def _insert_set(self, db, uid, title, path, **columns):
+        names = ['track_uid', 'title', 'duration_secs', *columns]
+        values = [uid, title, 3600, *columns.values()]
+        with db.cursor() as cursor:
+            cursor.execute(
+                f"INSERT INTO library_tracks ({', '.join(names)}) VALUES ({', '.join(['%s'] * len(names))})", values
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (path, hashlib.sha256(path.encode()).hexdigest(), track_id),
+            )
+        return track_id
+
+    def test_a_live_set_files_under_the_year_it_was_played(self, api, headers, db, a_track):
+        """product-goal.md: a live set filters on its performance date, everything else on its
+        release date -- and the form filter leaves the plain track out."""
+        self._insert_set(
+            db,
+            'uid-live',
+            'Defqon 2012 set',
+            '/mnt/music/Livesets/a.mp3',
+            form='liveset',
+            performance_date='2012-06-23',
+            release_date='2016-01-01',
+        )
+        self._insert_set(
+            db, 'uid-mix', 'Yearmix', '/mnt/music/Soundcloud/x/b.mp3', form='set', release_date='2012-12-31'
+        )
+
+        def titles(query):
+            return sorted(
+                t['title'] for t in api.get(f'/api/library/advanced?{query}', headers=headers).json()['tracks']
+            )
+
+        assert titles('year_min=2012&year_max=2012') == ['Defqon 2012 set', 'Yearmix']
+        assert titles('year_min=2016&year_max=2016') == []
+        assert titles('form=liveset') == ['Defqon 2012 set']
+        assert titles('form=liveset&form=set') == ['Defqon 2012 set', 'Yearmix']
+
+    def test_the_form_pass_classifies_the_library_against_mariadb(self, db, a_track):
+        """track_form_sync's window query and UPDATE run on MariaDB, and a second pass writes nothing."""
+        from datetime import date
+
+        from services.common.Helpers.FestivalHelper import Festival, FestivalHelper
+        from services.common.Helpers.PodcastHelper import PodcastHelper
+        from services.music_manager import track_form_sync
+
+        live = self._insert_set(db, 'uid-live', 'Headhunterz @ Defqon.1 2012', '/mnt/music/Youtube/q/c.mp3')
+        festivals = FestivalHelper(preload=False)
+        festivals.set_festivals([Festival(name='Defqon.1', aliases=['Defqon.1'], editions={2012: date(2012, 6, 23)})])
+        podcasts = PodcastHelper(preload=False)
+
+        first = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
+        second = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
+
+        assert first == {'considered': 2, 'written': 2}
+        assert second == {'considered': 2, 'written': 0}
+        with db.cursor() as cursor:
+            cursor.execute('SELECT id, form, performance_date FROM library_tracks ORDER BY id')
+            rows = {row['id']: (row['form'], row['performance_date']) for row in cursor.fetchall()}
+        assert rows == {a_track: ('track', None), live: ('liveset', '2012-06-23')}
+
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404
 
@@ -792,6 +867,71 @@ class LibraryReadsTest:
         assert body['source_url'] == 'https://soundcloud.com/complex/b'
         assert body['source_platform'] == 'soundcloud'
         assert body['added_at']
+
+
+class ChannelLinksTest:
+    """docs/designs/channel-links: the search, a decision, and the link on the coverage page."""
+
+    def _library(self, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Traxtorm')")
+            label_id = cursor.lastrowid
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('D-Sturb')")
+            artist_id = cursor.lastrowid
+            cursor.execute("INSERT INTO rules_artists (name, state) VALUES ('D-Sturb', 'white')")
+            cursor.execute(
+                "INSERT INTO rules_artists (name, state, canonical_name) VALUES ('D Sturb', 'black', 'D-Sturb')"
+            )
+            cursor.execute(
+                "INSERT INTO library_artist_aliases (artist_id, alias) VALUES (%s, 'DSturb Official')", (artist_id,)
+            )
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name) VALUES "
+                "('soundcloud', 'TRAXTORM', 'traxtorm'), ('youtube', 'D-Sturb', 'd-sturb')"
+            )
+            cursor.execute("SELECT id, name FROM channels")
+            channels = {row['name']: row['id'] for row in cursor.fetchall()}
+        db.commit()
+        return label_id, artist_id, channels
+
+    def test_the_search_runs_twice_and_a_confirm_links_the_channel(self, api, headers, db):
+        label_id, _, channels = self._library(db)
+        first = api.post('/api/channel-links/proposals/refresh', headers=headers)
+        assert first.status_code == 200, first.text
+        assert first.json() == {'created': 2, 'open': 2, 'withdrawn': 0, 'ambiguous': 0}
+        again = api.post('/api/channel-links/proposals/refresh', headers=headers).json()
+        assert again == {'created': 0, 'open': 2, 'withdrawn': 0, 'ambiguous': 0}
+
+        listed = api.get('/api/channel-links/proposals?kind=label', headers=headers).json()
+        assert [(row['channel_name'], row['target_name'], row['source']) for row in listed] == [
+            ('TRAXTORM', 'Traxtorm', 'name')
+        ]
+        confirmed = api.post(f"/api/channel-links/proposals/{listed[0]['id']}/confirm", headers=headers)
+        assert confirmed.json()['status'] == 'confirmed', confirmed.text
+        assert run_sql(db, 'SELECT label_id FROM channels WHERE id = %s', (channels['TRAXTORM'],)) == [
+            {'label_id': label_id}
+        ]
+
+        unlinked = api.delete(f"/api/channel-links/channels/{channels['TRAXTORM']}/label", headers=headers)
+        assert unlinked.json() == {'status': 'unlinked'}
+        api.post('/api/channel-links/proposals/refresh', headers=headers)
+        statuses = run_sql(db, "SELECT status FROM channel_link_proposals WHERE kind = 'label'")
+        assert statuses == [{'status': 'rejected'}]
+
+    def test_the_coverage_page_shows_the_link_through_the_archive(self, api, headers, db):
+        label_id, _, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id) VALUES ('traxtorm', '42')")
+            cursor.execute(
+                "INSERT INTO downloads_soundcloud_archive (account, video_id, filename, url, title, added_at)"
+                " VALUES ('42', 'v1', '/mnt/music/Soundcloud/TRAXTORM/a.mp3', 'u', 'a', NOW())"
+            )
+            cursor.execute('UPDATE channels SET label_id = %s WHERE id = %s', (label_id, channels['TRAXTORM']))
+        db.commit()
+        body = api.get('/api/downloaders/coverage/soundcloud', headers=headers).json()
+        row = body['accounts'][0]
+        assert row['last_download_at'] is not None
+        assert row['channel']['label'] == {'id': label_id, 'name': 'Traxtorm'}
 
 
 class ScrobblingTest:

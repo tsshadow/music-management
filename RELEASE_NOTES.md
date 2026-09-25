@@ -11,6 +11,38 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.74.0 (2026-09-25)
+
+- **Listens from the app are no longer lost on the phone's side.** Listens LMS could not pass on to
+  MuMa during a restart can still go missing; that is next.
+
+- **The event log no longer grows without limit.** Old events are removed per level (WARNING
+  after 30 days, ERROR after 90), in small batches, and a size cap is the safety net. The windows
+  can be changed on the config page.
+
+- Listens made while MuMa was restarting are no longer lost: MuMa now copies them over from LMS's
+  own history within about half an hour.
+
+- **Signing in with your name in another case no longer creates a second account.** Plays made
+  that way were filed under a separate user. The login now always uses the account's own
+  spelling. A repair script merges the history that was split this morning.
+
+- The listen reconcile no longer counts one play twice or splits one user into two by
+  capitalisation. A stale second server database no longer fills the log.
+
+- **Running the tests no longer sends real phone notifications.** `config_store` loads the
+  developer's `.env` at import time, so a local test run picked up the real `NOTIFY_URL`, and the
+  artist-image router test pushed "Downloads failed: <MagicMock ...>" to the milestones topic. The
+  root `conftest.py` now blanks `NOTIFY_URL` before anything imports the config store, and a CI
+  test pins it. See bug report 082.
+
+- A CI runner that was full of old build cache no longer blocks a release deploy. The cleanup job
+  now also removes build cache that has not been used for days. The Android smoke test says
+  clearly when the disk is too full, instead of failing with an unclear emulator error.
+
+- **A blocked YouTube no longer floods the event log.** When YouTube asks the downloader to sign
+  in, you now get one warning and a note in Beheer that tells you to log in again in the Firefox
+  container.
 ## Global Version 0.73.2 (2026-09-25)
 
 - **Deploys:** a database migration blocked by another session now stops the deploy after two

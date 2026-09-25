@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.4.6 (2026-09-25)
+
+- **Listens no longer go missing.** A track you played is remembered on the phone until the server
+  has it, also when you were offline, in the car, or the app was closed in the middle of a set.
+
+- **Signing in with your name in another case no longer splits your history.** The app now
+  always uses your account's own spelling of the name.
 ## Global Version 7.4.5 (2026-09-25)
 
 - **Now playing:** the label chip is amber, so it no longer reads as another genre.

@@ -21,6 +21,7 @@ from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.rbac import require_admin, require_permission
 
 # Re-exported: news, radio and events import it from here. It is the canonical
@@ -298,7 +299,7 @@ def get_config(_auth: dict = Depends(verify_api_key)):
     }
 
 
-@router.get('/about', response_class=HTMLResponse)
+@router.get('/about', response_class=HTMLResponse, deprecated=True, dependencies=[DEPRECATED_CALL])
 def get_about(_auth: dict = Depends(verify_api_key)):
     readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.md')
     content = '# Music Manager\nDocumentation not found.'
@@ -1058,7 +1059,7 @@ def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(require_rules_ma
     return {'status': 'ok'}
 
 
-@router.get('/rules/artist-redirects')
+@router.get('/rules/artist-redirects', deprecated=True, dependencies=[DEPRECATED_CALL])
 def get_artist_redirects(_auth: dict = Depends(verify_api_key)):
     """Names the tagger should rewrite, or ignore when there is no correction."""
     conn = get_db_connection()
@@ -1100,7 +1101,7 @@ def _refuse_bad_redirect_target(cursor, name: str, corrected: str) -> None:
             )
 
 
-@router.post('/rules/artist-redirects')
+@router.post('/rules/artist-redirects', deprecated=True, dependencies=[DEPRECATED_CALL])
 def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require_rules_manage)):
     """Add a redirect, or change the correction on one that already exists."""
     name = redirect.name.strip()
@@ -1134,7 +1135,7 @@ def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require
     return {'status': 'ok'}
 
 
-@router.delete('/rules/artist-redirects/{rule_id}')
+@router.delete('/rules/artist-redirects/{rule_id}', deprecated=True, dependencies=[DEPRECATED_CALL])
 def delete_artist_redirect(rule_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
@@ -1178,7 +1179,7 @@ def trigger_tagger_rescan(_auth: dict = Depends(require_rules_manage)):
     return {'status': 'ok', 'message': 'All files marked for rescan'}
 
 
-@router.post('/tagger/rescan/file')
+@router.post('/tagger/rescan/file', deprecated=True, dependencies=[DEPRECATED_CALL])
 def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(require_rules_manage)):
     helper = ProcessedFilesHelper()
     helper.mark_for_rescan(filepath, reason='manual')

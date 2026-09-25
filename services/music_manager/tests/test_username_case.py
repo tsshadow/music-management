@@ -228,7 +228,7 @@ class RatingWebhookCaseTest(unittest.TestCase):
         cursor = ScriptedCursor([CANONICAL_LOOKUP])
         with patch.object(rating_router, 'get_db_connection', return_value=connection(cursor)):
             response = TestClient(app).post(
-                '/api/rating/server-event',
+                '/api/rating/lms-event',
                 headers=SYSTEM,
                 json={
                     'event': 'rating_changed',

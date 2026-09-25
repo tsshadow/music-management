@@ -11,12 +11,12 @@ Everything in here takes an open cursor and leaves the transaction to the caller
 """
 
 import re
-import unicodedata
 
 from fastapi import HTTPException
 
 from services.common.Helpers import Cache
 from services.common.Helpers.GenreRulesHelper import WHITE
+from services.common.text_normalize import ascii_name_key
 
 #: Registry keys in `Cache.databaseHelpers`, one per rule table these pages write.
 ARTIST_GENRE_HELPER = 'artistGenreHelper'
@@ -38,11 +38,9 @@ def normalize_genre(name: str) -> str:
 
     Deliberately the same rule as `GenreRulesHelper.normalize` and as
     `normalizeGenre` in the frontend, so all three agree on when two spellings are
-    one genre.
+    one genre. See `services.common.text_normalize.ascii_name_key`.
     """
-    decomposed = unicodedata.normalize('NFKD', name or '')
-    without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
-    return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
+    return ascii_name_key(name)
 
 
 def actor_name(auth: dict) -> str:

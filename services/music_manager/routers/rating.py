@@ -62,7 +62,6 @@ def init_db(cursor):
     )
 
 
-@router.post('/server-event')
 @router.post('/lms-event')
 def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_system_key)):
     """Mirror one LMS rating event into ``rating_tracks``: upsert a rating, or delete the

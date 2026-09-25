@@ -28,6 +28,26 @@ any more). `GET /api/auth/verify` itself still answers 403 for an unknown key. "
 means the admin role (`rbac.require_admin`); a named permission means `rbac.require_permission`.
 The system key passes every check. Routes not marked otherwise need any authenticated account.
 
+### ⏳ Deprecated (removal on 2026-11-01)
+No consumer was found in this repository for these routes (web player, MuMa Mobile, LMS, scripts,
+tools, tests/contracts -- see
+[docs/bug-reports/084-unused-endpoints-and-duplicate-normalizers.md](bug-reports/084-unused-endpoints-and-duplicate-normalizers.md)).
+They still work unchanged, are flagged `deprecated` in the OpenAPI schema, and the first call per
+route per process logs one `INFO` line (`music-manager.deprecation`, so it lands in `/api/events`)
+naming the path and the caller's address. A route that has not shown up there by 2026-11-01 is
+deleted; one that has is kept and gets a consumer entry in the bug report.
+- `GET /api/about`
+- `GET|POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}`
+- `POST /api/tagger/rescan/file`
+- `POST /api/songs/tracks/{track_id}/split`
+- `GET /api/downloaders/schedule/{source}`
+- `GET /api/users/permissions`
+- `POST /api/users/sync/lms-db` (use `/api/users/sync/muma-server`)
+
+Removed outright, because every caller already uses the target: `GET|PUT
+/api/users/{user_id}/lb-account` (use `/listenbrainz`), `POST /api/users/sync/lms` (use
+`/sync/muma-server`) and `POST /api/rating/server-event` (use `/lms-event`, which LMS calls).
+
 ### 👤 User & Settings Management
 - **GET `/users/`**: List all registered users (`users.read`). The rows do **not** carry `api_key`
   (removed in the RBAC-gaps fix: the api_key is password-equivalent).
@@ -41,11 +61,13 @@ The system key passes every check. Routes not marked otherwise need any authenti
   now 404. Enable, disable and delete each poke the music server's user sync (`/muma/users/sync`)
   after the commit; LMS disables a user whose account is disabled or gone from `GET /users/` and
   revokes its keys.
-- **POST `/users/sync/lms-db`** (also `/sync/lms`, `/sync/muma-server`): run the lms.db sync now and
-  return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly loop) is running.
+- **POST `/users/sync/muma-server`** (deprecated alias `/sync/lms-db`; `/sync/lms` removed): run the
+  lms.db sync now and return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly
+  loop) is running.
 - **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., `app_id=ultrasonic` for MuMa Mobile's settings backup, `app_id=frontend` for the web player's favorite genres).
 - **POST `/users/{user_id}/settings/{app_id}`**: Backup application-specific settings.
-- **GET `/users/{user_id}/lb-account`**: Get ListenBrainz integration details.
+- **GET `/users/{user_id}/listenbrainz`**: Get ListenBrainz integration details; `POST|PUT` stores
+  them. (The `/lb-account` alias was removed with bug report 084.)
 
 ### 🔔 Events
 - **GET `/api/events`**: Query the event log. All query parameters are optional and combine as AND filters:
@@ -71,7 +93,8 @@ The system key passes every check. Routes not marked otherwise need any authenti
     is not the same as zero and must not be read as such. A non-positive value is stored as `NULL`.
   - Both new fields are optional in both directions: a client that sends neither behaves exactly as
     before. See [docs/designs/wrapped/technical.md](designs/wrapped/technical.md).
-- **POST `/api/rating/lms-event`** (alias `/api/rating/server-event`): the LMS rating webhook. System key
+- **POST `/api/rating/lms-event`**: the LMS rating webhook (the `/server-event` alias was removed with
+  bug report 084). System key
   only (403 for any user key, admin included): the body names the `username` the rating is stored under.
   Body: `{"event", "object_type", "object_id", "username", "rating", "path"?}` where `object_type` is
   `artist`, `release` or `track`, and `path` (tracks only) is resolved to a `track_uid`.
@@ -86,13 +109,14 @@ The system key passes every check. Routes not marked otherwise need any authenti
 - **GET `/api/rating/ratings/{username}`**: an account's ratings. Own username, or admin/system key.
 
 ### 🛠 Management & Rules
-- **GET `/api/rules`**, `/api/artists`, `/api/labels`, `/api/label-proposals`, `/api/config`, `/api/about`,
+- **GET `/api/rules`**, `/api/artists`, `/api/labels`, `/api/label-proposals`, `/api/config`, `/api/about` (deprecated),
   `/api/stats`, the curation queues and the downloader account lists: any authenticated account.
 - **`rules.manage`**: `POST /api/rules/genres/{id}/decide`, `POST /api/rules/podcasts/{id}/decide|rename`,
   `POST|DELETE /api/rules/podcasts/{id}/aliases`, `POST /api/rules/artist-genres`,
   `DELETE /api/rules/artist-genres/{id}`, `POST /api/rules/label-genres`, `DELETE /api/rules/label-genres/{id}`,
-  `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}`,
-  `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`.
+  `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
+  `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
+  (deprecated).
 - **GET `/api/tagger/retag/pending`**: `{"total": <int>, "by_reason": [{"reason", "count"}], "failed": <int>,
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait

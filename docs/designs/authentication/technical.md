@@ -166,7 +166,7 @@ case-insensitive.
 - `POST /api/users` and `POST /api/user-requests/{id}/approve` answer `409` for a name that
   differs only in case from an existing account. That used to be a `500` from the unique key.
 - `POST /api/scrobble/event`, `POST /api/scrobble/import/listenbrainz`,
-  `POST /api/rating/server-event` store the account's spelling, never the body's. A user key
+  `POST /api/rating/lms-event` store the account's spelling, never the body's. A user key
   naming its own account in another case is accepted, and another account is still `403`.
 - LMS `db::User::find(session, loginName)` is case-insensitive. The Subsonic `createUser` and
   the admin UI therefore refuse a case variant ("user already exists").

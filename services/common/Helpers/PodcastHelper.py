@@ -1,9 +1,9 @@
 import logging
 import re
-import unicodedata
 from dataclasses import dataclass, field
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.text_normalize import ascii_name_key, padded_ascii_name_key
 
 # The markers that introduce an episode number, in the spellings the library actually
 # uses: "#150", "Episode #73", "ep. 12", "Podcast 140", "week 023", "Podcast_130",
@@ -34,18 +34,16 @@ def normalize(name: str | None) -> str:
     Casing-, accent- and punctuation-insensitive key for a show name.
 
     Deliberately the same rule as `GenreRulesHelper.normalize` and `normalizeGenre` in
-    the webui, so a curator, the tagger and the detector all group names identically.
-    Unpadded, because this is also the key stored in `normalized_name`; matching pads
-    both sides itself.
+    the webui (`services.common.text_normalize.ascii_name_key`), so a curator, the
+    tagger and the detector all group names identically. Unpadded, because this is
+    also the key stored in `normalized_name`; matching pads both sides itself.
     """
-    decomposed = unicodedata.normalize('NFKD', name or '')
-    without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
-    return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
+    return ascii_name_key(name)
 
 
 def padded(name: str | None) -> str:
     """Normalized and wrapped in spaces, so an alias only matches on word boundaries."""
-    return f' {normalize(name)} '
+    return padded_ascii_name_key(name)
 
 
 def series_cut(text: str | None) -> int | None:

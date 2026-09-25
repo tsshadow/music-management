@@ -235,6 +235,8 @@ class Tag:
         """
 
         def normalize(val):
+            # A list cleaner, not a name key (unlike services.common.text_normalize):
+            # strip each value and drop the empty ones, keeping case and accents.
             return [v.strip() for v in val if v.strip()]
 
         old_value = normalize(self.value[:])

@@ -131,8 +131,17 @@ muma id, LMS server and id):
 3. `muma_only`: every muma listen not paired. Never written.
 4. `lms_only`: every LMS listen not paired. `insertable` only if no unpaired muma listen of the
    same user and track exists and no muma listen or unmatched listen of the user has a
-   `listened_at` or `created_at` within 5 s of it (the same play under another track, or unmatched
-   -- whose `listened_at` may itself have been moved, while `created_at` was not).
+   `listened_at` or `created_at` within `SAME_PLAY_WINDOW_SECONDS` (600 s) of it (the same play
+   under another track, or unmatched -- whose `listened_at` may itself have been moved, while
+   `created_at` was not). Until bug report 070 this guard used the 5 s pairing window, but LMS
+   records a listen when playback starts and the app scrobbles about a minute later (55 s
+   observed), so the same play under another track id slipped through. The cost of 600 s: a lost
+   scrobble within ten minutes of any other listen of the user stays reported-only.
+
+Usernames are compared case-insensitively (`str.casefold()`) in grouping, pairing and the guard,
+and every name is rewritten to muma's `users.username` (oldest account first) before classifying,
+so `user` in muma and `Teun` in LMS are one user and an insert carries muma's spelling. An LMS
+user muma does not know under any spelling is never insertable (bug report 070).
 
 **Writes** (`POST`, background task, one transaction per user):
 

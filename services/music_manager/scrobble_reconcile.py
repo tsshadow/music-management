@@ -43,12 +43,35 @@ is off by a constant, the comparison means nothing, and `apply()` refuses to wri
 - `lms_only` -- an LMS listen no muma listen claimed: a scrobble muma lost. Reported; inserted
   only on request and only when it is `insertable` -- no muma listen of that track is left
   unclaimed (which could be its counterpart under some drift this module does not model), and
-  no muma listen or unmatched listen of the same user sits within the window of it (the same
-  play, matched to a different track or not matched at all). "Within the window" is checked
+  no muma listen or unmatched listen of the same user sits within `SAME_PLAY_WINDOW_SECONDS` of
+  it (the same play, matched to a different track or not matched at all). "Within" is checked
   against both `listened_at` and `created_at`: an unmatched listen's `listened_at` may itself have
   been moved by bug 039, its `created_at` -- the moment the relay delivered it -- was not.
 
+  **Why that guard has its own, wide window** (bug report 070). Pairing a listen with its own
+  track uses `EXACT_WINDOW_SECONDS`, because a relayed scrobble carries LMS's timestamp. The
+  same-play guard cannot: LMS records a listen when playback *starts*, while the app scrobbles
+  to muma about a minute later with its own clock (production, 2026-09-25: LMS listen 37787 at
+  06:08:56 UTC, the app's muma listen of the same play at 06:09:51, 55 s later). Against a
+  5-second window a play the app recorded under a different track id, or left unmatched, was
+  invisible, and `insert_lms_only` would have counted it a second time. The guard is a single
+  symmetric window rather than one sized per track from its duration: the loader does not read
+  durations, and a fixed bound is easier to reason about. The price is deliberate: an LMS listen
+  within ten minutes of any other listen of the same user is never inserted, so a genuinely lost
+  scrobble in the middle of a listening session stays reported-only. Losing an insert costs
+  nothing that was not already lost; a double count corrupts every statistic built on top.
+
 LMS listens whose file muma does not know are counted as `lms_unmapped` and otherwise ignored.
+
+**Usernames are compared case-insensitively** (bug report 070). LMS's `login_name` and muma's
+`users.username` are the same account, but not always the same spelling: since a login-case bug
+(bug report 074) production has one person as both `user` and `Teun`, in LMS and in muma's
+listens, and a case-sensitive comparison split that person into two users whose plays could
+never pair. `classify()` therefore groups, pairs and applies the same-play guard on
+`str.casefold()`, and `_analyse()` rewrites every name -- LMS's, muma's listens', unmatched
+listens' -- to muma's canonical `users.username` (the oldest account when two spellings exist)
+before classifying. An insert therefore always carries muma's spelling, never LMS's; an LMS
+listen whose user muma does not know under any spelling is never insertable.
 
 Every ordering is total (gap, then muma id, then LMS server and id), so two runs over the same
 data decide the same way. After an apply the repaired rows are `exact`, which is what makes a
@@ -61,7 +84,7 @@ import bisect
 import logging
 import os
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -71,6 +94,12 @@ logger = logging.getLogger('music-manager.scrobble-reconcile')
 
 #: Two listens of the same track this close together are the same play.
 EXACT_WINDOW_SECONDS = 5
+#: An LMS listen this close to *any* muma or unmatched listen of the same user may be that play,
+#: so it is never inserted. Covers the start-versus-scrobble offset (LMS records the start, the
+#: app scrobbles about a minute in; 55 s observed on production) plus clock skew between phone and
+#: server, with a wide margin. The cost: a lost scrobble within ten minutes of another listen --
+#: for instance a short track played twice back to back -- is reported but never inserted.
+SAME_PLAY_WINDOW_SECONDS = 600
 #: `scrobble_listens.source` of a listen this module inserted.
 RECONCILE_SOURCE = 'lms-reconcile'
 #: Sources whose time did not come from a live relay; never repaired from LMS.
@@ -195,10 +224,15 @@ def _pair_greedily(
     return taken
 
 
-def _near(sorted_times: list[int], at: int) -> bool:
-    """Whether any time in `sorted_times` lies within the window of `at`."""
-    index = bisect.bisect_left(sorted_times, at - EXACT_WINDOW_SECONDS)
-    return index < len(sorted_times) and sorted_times[index] <= at + EXACT_WINDOW_SECONDS
+def _user_key(username: str) -> str:
+    """The form two usernames are compared in: `user` and `Teun` are one account."""
+    return username.casefold()
+
+
+def _near(sorted_times: list[int], at: int, window: int) -> bool:
+    """Whether any time in `sorted_times` lies within `window` seconds of `at`."""
+    index = bisect.bisect_left(sorted_times, at - window)
+    return index < len(sorted_times) and sorted_times[index] <= at + window
 
 
 def classify(
@@ -220,10 +254,10 @@ def classify(
         if heard.track_id is None:
             result.lms_unmapped.append(heard)
             continue
-        lms_by_group.setdefault((heard.username, heard.track_id), []).append(heard)
+        lms_by_group.setdefault((_user_key(heard.username), heard.track_id), []).append(heard)
     muma_by_group: dict[tuple[str, int], list[MumaListen]] = {}
     for kept in muma:
-        muma_by_group.setdefault((kept.username, kept.track_id), []).append(kept)
+        muma_by_group.setdefault((_user_key(kept.username), kept.track_id), []).append(kept)
 
     claimed_m: set[int] = set()
     claimed_l: set[tuple[str, int]] = set()
@@ -257,13 +291,18 @@ def classify(
     # has a muma listen nobody claimed.
     muma_times: dict[str, list[int]] = {}
     for m in muma:
-        muma_times.setdefault(m.username, []).append(m.at)
+        bucket = muma_times.setdefault(_user_key(m.username), [])
+        bucket.append(m.at)
         if m.created_at is not None:
-            muma_times[m.username].append(m.created_at)
+            bucket.append(m.created_at)
     for times in muma_times.values():
         times.sort()
-    sorted_unmatched = {user: sorted(times) for user, times in unmatched_times.items()}
-    open_groups = {(m.username, m.track_id) for m in result.muma_only}
+    sorted_unmatched: dict[str, list[int]] = {}
+    for user, times in unmatched_times.items():
+        sorted_unmatched.setdefault(_user_key(user), []).extend(times)
+    for times in sorted_unmatched.values():
+        times.sort()
+    open_groups = {(_user_key(m.username), m.track_id) for m in result.muma_only}
 
     for group in groups:
         for listen in sorted(lms_by_group.get(group, []), key=lambda item: (item.at, item.key)):
@@ -271,8 +310,8 @@ def classify(
                 continue
             insertable = (
                 group not in open_groups
-                and not _near(muma_times.get(listen.username, []), listen.at)
-                and not _near(sorted_unmatched.get(listen.username, []), listen.at)
+                and not _near(muma_times.get(group[0], []), listen.at, SAME_PLAY_WINDOW_SECONDS)
+                and not _near(sorted_unmatched.get(group[0], []), listen.at, SAME_PLAY_WINDOW_SECONDS)
             )
             result.lms_only.append((listen, insertable))
     result.shifted.sort(key=lambda pair: pair[0].id)
@@ -332,7 +371,7 @@ def read_lms_listens(server_conn: sqlite3.Connection, server: str, username: str
     sql = LMS_LISTENS_SQL
     params: list[Any] = [LMS_BACKEND_INTERNAL, LMS_SYNC_PENDING_REMOVE]
     if username is not None:
-        sql += ' AND u.login_name = ?'
+        sql += ' AND u.login_name = ? COLLATE NOCASE'
         params.append(username)
     rows = []
     for listen_id, date_time, login, path in server_conn.execute(sql, params):
@@ -378,7 +417,7 @@ def load_lms_listens(cursor, servers: list[tuple[sqlite3.Connection, str]], user
     for row in sorted(raw, key=lambda r: (r['server'], r['id'])):
         at = parse_lms_datetime(row['date_time'])
         track_id = mapping.get(row['path'])
-        identity = (row['username'], track_id, at)
+        identity = (_user_key(row['username']), track_id, at)
         if track_id is not None and identity in seen:
             continue  # the same play on two servers, or twice in one
         seen.add(identity)
@@ -482,23 +521,12 @@ def _restore_zone(conn, previous: str) -> None:
         logger.warning('Could not restore the session time zone: %s', exc)
 
 
-#: The tables `LMS_LISTENS_SQL` joins. A database without all of them cannot answer it.
-LMS_REQUIRED_TABLES = frozenset({'listen', 'user', 'track'})
-
-
-def missing_lms_tables(server_conn: sqlite3.Connection) -> set[str]:
-    """The tables `LMS_LISTENS_SQL` needs that this database does not have."""
-    rows = server_conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
-    return set(LMS_REQUIRED_TABLES) - {row[0] for row in rows}
-
-
 def open_servers(targets: list[tuple[str, str]]) -> list[tuple[sqlite3.Connection, str]]:
     """Open each server database read-only; the same file reached twice is opened once.
 
-    A database that lacks a table the listen query joins is skipped with a warning instead of
-    failing the whole reconcile: on production `alpha/lms.db` is a leftover at LMS schema 114,
-    with no `user` table and no server behind it, and it turned every dry run into a 500
-    (bug report 069).
+    `targets` comes from `lms_db_targets()`, which has already dropped every file without the
+    core LMS schema (production's stale `alpha/lms.db`, bug reports 069 and 070), so nothing is
+    re-checked here.
     """
     seen: set[str] = set()
     opened = []
@@ -512,31 +540,60 @@ def open_servers(targets: list[tuple[str, str]]) -> list[tuple[sqlite3.Connectio
         except sqlite3.Error as exc:
             logger.warning('scrobble reconcile: could not open %s (%s): %s', path, server, exc)
             continue
-        try:
-            missing = missing_lms_tables(server_conn)
-        except sqlite3.Error as exc:
-            logger.warning('scrobble reconcile: could not read %s (%s): %s', path, server, exc)
-            server_conn.close()
-            continue
-        if missing:
-            logger.warning(
-                'scrobble reconcile: skipping %s (%s), it has no %s table(s); not an LMS listen database',
-                path,
-                server,
-                ', '.join(sorted(missing)),
-            )
-            server_conn.close()
-            continue
         opened.append((server_conn, server))
     return opened
 
 
+def load_canonical_usernames(cursor) -> dict[str, str]:
+    """Case-folded name -> muma's `users.username`; the oldest account wins a spelling clash."""
+    cursor.execute('SELECT username FROM users ORDER BY id')
+    canonical: dict[str, str] = {}
+    for row in cursor.fetchall():
+        canonical.setdefault(_user_key(row['username']), row['username'])
+    return canonical
+
+
+def canonicalize(
+    canonical: dict[str, str],
+    muma: list[MumaListen],
+    lms: list[LmsListen],
+    unmatched: dict[str, list[int]],
+) -> tuple[list[MumaListen], list[LmsListen], dict[str, list[int]]]:
+    """Every username rewritten to muma's spelling, so per-user totals and inserts agree.
+
+    A name muma's `users` table lacks keeps the spelling muma's own listens use for it, and
+    `canonical` learns that spelling (so an LMS listen of the same person follows it). A name
+    only LMS knows is left as LMS spells it; `_analyse` never inserts those.
+    """
+    for kept in muma:
+        canonical.setdefault(_user_key(kept.username), kept.username)
+    for user in sorted(unmatched):
+        canonical.setdefault(_user_key(user), user)
+
+    def spell(name: str) -> str:
+        return canonical.get(_user_key(name), name)
+
+    muma = [replace(m, username=spell(m.username)) for m in muma]
+    lms = [replace(listen, username=spell(listen.username)) for listen in lms]
+    merged: dict[str, list[int]] = {}
+    for user, times in unmatched.items():
+        merged.setdefault(spell(user), []).extend(times)
+    return muma, lms, merged
+
+
 def _analyse(cursor, servers, username: str | None) -> Classification:
-    """Load both sides for `username` (or everyone) and classify them."""
+    """Load both sides for `username` (or everyone), unify the spellings and classify them."""
     lms = load_lms_listens(cursor, servers, username)
     muma = load_muma_listens(cursor, username)
     unmatched = load_unmatched_times(cursor, username)
-    return classify(muma, lms, unmatched)
+    canonical = load_canonical_usernames(cursor)
+    muma, lms, unmatched = canonicalize(canonical, muma, lms, unmatched)
+    result = classify(muma, lms, unmatched)
+    # A user muma has never heard of under any spelling gets no listens inserted in their name.
+    result.lms_only = [
+        (listen, insertable and _user_key(listen.username) in canonical) for listen, insertable in result.lms_only
+    ]
+    return result
 
 
 def _per_user(result: Classification) -> dict[str, dict[str, int]]:

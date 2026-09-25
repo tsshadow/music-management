@@ -321,6 +321,17 @@ class InitDbTest(unittest.TestCase):
             users_router.init_db(cursor)
 
 
+def make_lms_db(path):
+    """An SQLite file at `path` with the core LMS tables, so lms_db_targets() keeps it."""
+    import sqlite3
+
+    conn = sqlite3.connect(path)
+    for table in ('user', 'track', 'listen'):
+        conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY)')
+    conn.commit()
+    conn.close()
+
+
 class RunServerDbSyncTest(unittest.TestCase):
     """run_lms_db_sync only discovers databases and hands each to
     sync_single_server_db; the sync itself is exercised elsewhere."""
@@ -349,7 +360,7 @@ class RunServerDbSyncTest(unittest.TestCase):
         self.connection.close.assert_called_once()
 
     def test_a_database_directly_under_the_root_is_picked_up(self):
-        (self.root / 'lms.db').write_text('', encoding='utf-8')
+        make_lms_db(self.root / 'lms.db')
 
         total, sync = self.run_sync({})
 
@@ -359,7 +370,7 @@ class RunServerDbSyncTest(unittest.TestCase):
     def test_a_database_in_a_subdirectory_is_picked_up_under_its_own_name(self):
         instance = self.root / 'instance-a'
         instance.mkdir()
-        (instance / 'lms.db').write_text('', encoding='utf-8')
+        make_lms_db(instance / 'lms.db')
 
         total, sync = self.run_sync({})
 
@@ -368,7 +379,7 @@ class RunServerDbSyncTest(unittest.TestCase):
 
     def test_an_explicit_database_path_is_synced_as_well(self):
         direct = self.root.parent / 'direct.db'
-        direct.write_text('', encoding='utf-8')
+        make_lms_db(direct)
         self.addCleanup(direct.unlink)
 
         total, sync = self.run_sync({'MUMA_SERVER_DB_PATH': str(direct)})
@@ -377,18 +388,30 @@ class RunServerDbSyncTest(unittest.TestCase):
         self.assertEqual(sync.call_args[0][2], 'server-direct')
 
     def test_the_totals_of_every_database_are_added_up(self):
-        (self.root / 'lms.db').write_text('', encoding='utf-8')
+        make_lms_db(self.root / 'lms.db')
         instance = self.root / 'instance-a'
         instance.mkdir()
-        (instance / 'lms.db').write_text('', encoding='utf-8')
+        make_lms_db(instance / 'lms.db')
 
         total, sync = self.run_sync({}, per_db_result=3)
 
         self.assertEqual(total, 6)
         self.assertEqual(sync.call_count, 2)
 
+    def test_a_file_without_the_lms_schema_is_never_handed_to_the_sync(self):
+        """Bug 070: production's stale alpha/lms.db has no `user` table and no server behind it."""
+        make_lms_db(self.root / 'lms.db')
+        stale = self.root / 'alpha'
+        stale.mkdir()
+        (stale / 'lms.db').write_text('', encoding='utf-8')
+
+        total, sync = self.run_sync({})
+
+        self.assertEqual(total, 1)
+        self.assertEqual([c.args[2] for c in sync.call_args_list], ['server-root'])
+
     def test_a_database_that_is_down_syncs_nothing(self):
-        (self.root / 'lms.db').write_text('', encoding='utf-8')
+        make_lms_db(self.root / 'lms.db')
 
         with (
             patch.dict(os.environ, {'MUMA_SERVER_DB_ROOT': str(self.root)}, clear=False),

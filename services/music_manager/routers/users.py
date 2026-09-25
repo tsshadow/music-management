@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.lms_schema import usable_lms_targets
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.thread_registry import run_forever
@@ -1506,8 +1507,12 @@ def lms_db_targets() -> list[tuple[str, str]]:
 
     `MUMA_SERVER_DB_PATH` (or the legacy `LMS_DB_PATH`) names one file directly; under
     `MUMA_SERVER_DB_ROOT` every `<dir>/lms.db` and a root-level `lms.db` count as well. Shared
-    by the hourly sync and the scrobble reconcile, so the two never disagree about which
-    servers exist.
+    by the hourly sync (users, playlists, artist images, song versions, release dates) and the
+    scrobble reconcile, so they never disagree about which servers exist.
+
+    A file without the core LMS schema -- production's stale `alpha/lms.db` -- is dropped here,
+    with one WARNING per process per path (`lms_schema.usable_lms_targets`), so no consumer
+    has to check for it again (bug report 070).
     """
     db_root = os.getenv('MUMA_SERVER_DB_ROOT') or os.getenv('LMS_DB_ROOT') or '/app/data'
     targets = []
@@ -1530,7 +1535,7 @@ def lms_db_targets() -> list[tuple[str, str]]:
         root_db = os.path.join(db_root, 'lms.db')
         if os.path.exists(root_db):
             targets.append((root_db, 'server-root'))
-    return targets
+    return usable_lms_targets(targets)
 
 
 def run_lms_db_sync(only_sources: set[str] | None = None):

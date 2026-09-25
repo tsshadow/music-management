@@ -171,6 +171,11 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
   database_zone, consistent}, totals: {exact, shifted, muma_only, lms_only, lms_only_insertable,
   lms_unmapped}, users: {<username>: <same counts>}, sample: {shifted, muma_only, lms_only,
   lms_unmapped}}` (at most 20 rows per class). 403 for a non-admin, 503 when no `lms.db` is visible.
+  `users` is keyed by muma's `users.username`: LMS and muma spellings that differ only in case
+  count as one user. `servers` lists only databases with the core LMS schema; a stale `lms.db`
+  without a `user`, `track` or `listen` table is left out, as it is for every LMS sync.
+  `lms_only_insertable` counts LMS listens with no muma or unmatched listen of that user within
+  600 s (the same play recorded by the app a minute after LMS saw it start).
 - **POST `/api/scrobble/reconcile/lms`**: body `{"username"?, "apply_shifted": bool,
   "insert_lms_only": bool}`; at least one must be true (400 otherwise). Starts the apply in the
   background (409 while one runs); one transaction per user, UNIQUE collisions skipped and counted,

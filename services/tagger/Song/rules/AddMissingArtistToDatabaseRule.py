@@ -22,9 +22,7 @@ class AddMissingArtistToDatabaseRule(TagRule):
     def __init__(self, artist_db=None, ignored_db=None, ask_for_missing: bool = False):
         from services.common.Helpers.Cache import databaseHelpers
 
-        self.artist_table = (
-            artist_db or databaseHelpers.get('library_artists') or TrustedArtistHelper()
-        )
+        self.artist_table = artist_db or databaseHelpers.get('library_artists') or TrustedArtistHelper()
         self.ignored_table = (
             ignored_db
             or databaseHelpers.get('rules_ignored_artists')

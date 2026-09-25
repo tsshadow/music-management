@@ -11,6 +11,58 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.74.1 (2026-09-25)
+
+- **Server logs can no longer fill the disk.** Every service keeps at most a few tens of megabytes
+  of log.
+
+- **Artist curation keeps its redirects consistent.** Rejecting or undoing an artist no longer
+  leaves other names pointing at it.
+- **Clearing an artist photo sticks.** The photo no longer keeps showing in the player after you
+  remove it.
+
+- **The ML analyzer is switched off for now, not deleted.** It never ran in production and would
+  not have worked. BPM and other analysis already in the library stays visible; new tracks get
+  none until it is repaired.
+
+- **The web interface speaks one language.** Messages, dialogs and numbers that stayed Dutch after
+  switching to English now follow your language setting.
+
+- **Web player: a rating now shows in every view at once, radio cannot start twice from a double
+  tap, long queues save again (no more "URI too long"), and the player writes less to storage.**
+
+- **Google sign-in** now requires a Google account with a verified e-mail address.
+- **One device with an old password** no longer locks everyone else out of that account.
+
+- **Disabling or deleting an account in MuMa now also locks it out of the music server.** Its
+  history and ratings are kept, and come back if the account is enabled again.
+
+- **Internal: the test suite no longer lets its stand-in libraries leak between tests.** No change
+  in the app or the server.
+
+- **The automatic crash triage and nightly check run on an allowlist.** They can no longer
+  do more than their job, even when a crash report or a log line tries to tell them to.
+
+- **Nine API routes that nothing in the repository calls are deprecated, and three redundant aliases are removed.**
+  The deprecated routes are `GET /api/about`, the three `/api/rules/artist-redirects` routes,
+  `POST /api/tagger/rescan/file`, `POST /api/songs/tracks/{id}/split`,
+  `GET /api/downloaders/schedule/{source}`, `GET /api/users/permissions` and
+  `POST /api/users/sync/lms-db`. They still work and are flagged `deprecated` in the OpenAPI
+  schema. The first call to each one per process now logs an INFO event naming the caller, so any
+  real use shows up in `/api/events`. Routes that stay unused are deleted on 2026-11-01. The
+  removed aliases are `GET|PUT /api/users/{id}/lb-account` (use `/listenbrainz`),
+  `POST /api/users/sync/lms` (use `/sync/muma-server`) and `POST /api/rating/server-event` (use
+  `/lms-event`, which LMS calls). **Breaking** only for a client outside this repository that
+  still calls one of those three aliases. `/api/listening/clock`, `/api/listening/sources`,
+  `/api/curation/retag` and `/api/rating/ratings/{username}` were on the audit list but have a
+  consumer and stay. See bug report 084.
+- **Five identical genre-style name keys now share one implementation in
+  `services/common/text_normalize.py`.** They are in `GenreRulesHelper`, `GenreNameAnalyzer`,
+  `PodcastHelper`, `curation_rules`, plus the padded variant in `FestivalHelper`. The artist key
+  in `ArtistNameAnalyzer` also moved there. A characterisation table pins every normalizer's
+  output on the same tricky inputs, and none of it changed. The scrobble matcher, the artist image
+  fetcher and `Tag.set` normalize differently on purpose and now say why.
+  `scripts/restore_lms_ratings.py` imports `candidate_paths` instead of carrying a copy.
 ## Global Version 0.74.0 (2026-09-25)
 
 - **Listens from the app are no longer lost on the phone's side.** Listens LMS could not pass on to

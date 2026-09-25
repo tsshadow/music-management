@@ -182,4 +182,53 @@ describe("createRadioController", () => {
     expect(controller.getEntry()).toBeNull();
     expect(audio.play).not.toHaveBeenCalled();
   });
+
+  // A controller superseded mid-start (a channel switch, radio switched off) used to finish its
+  // first state fetch anyway and load its stream over the newer one.
+  it("a retired controller never loads the stream its in-flight start was fetching", async () => {
+    let releaseState;
+    fetchImpl = vi.fn((url) => {
+      if (url.includes("/time")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ server_time: 1000 }) });
+      }
+      return new Promise((resolve) => {
+        releaseState = () => resolve({ ok: true, json: () => Promise.resolve(stateResponse()) });
+      });
+    });
+    const controller = make();
+
+    const started = controller.start("main");
+    await vi.waitFor(() => expect(releaseState).toBeTypeOf("function"));
+    controller.retire();
+    releaseState();
+    await started;
+
+    expect(audio.src).toBe("");
+    expect(audio.play).not.toHaveBeenCalled();
+    expect(audio.pause).not.toHaveBeenCalled();
+    expect(controller.getEntry()).toBeNull();
+  });
+
+  it("a stop during the clock measurement skips the first state fetch", async () => {
+    let releaseTime;
+    fetchImpl = vi.fn((url) => {
+      if (url.includes("/time")) {
+        return new Promise((resolve) => {
+          releaseTime = () =>
+            resolve({ ok: true, json: () => Promise.resolve({ server_time: 1000 }) });
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(stateResponse()) });
+    });
+    const controller = make();
+
+    const started = controller.start("main");
+    await vi.waitFor(() => expect(releaseTime).toBeTypeOf("function"));
+    controller.stop();
+    releaseTime();
+    await started;
+
+    expect(fetchImpl.mock.calls.some(([url]) => url.includes("/state"))).toBe(false);
+    expect(audio.src).toBe("");
+  });
 });

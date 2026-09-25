@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { resetRatings } from "../../src/lib/ratings.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import TrackList from "../../src/lib/TrackList.svelte";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
@@ -15,6 +16,7 @@ const track = (extra = {}) => ({
 
 describe("TrackList rating", () => {
   beforeEach(() => {
+    resetRatings();
     dismissAll();
   });
 

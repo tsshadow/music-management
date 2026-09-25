@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { resetRatings } from "../../src/lib/ratings.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TrackList from "../../src/lib/TrackList.svelte";
@@ -46,6 +47,8 @@ async function settled() {
 
 describe("TrackList", () => {
   beforeEach(() => {
+    // The rating store outlives a render; a star set in one test would toggle off in the next.
+    resetRatings();
     credentials.set({ url: "", username: "user", password: "pw" });
     playlist.set([FIRST, SECOND]);
     currentTrack.set(null);

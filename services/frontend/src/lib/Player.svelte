@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
   import Equalizer from './Equalizer.svelte';
   import NowPlaying from './NowPlaying.svelte';
   import { fetchLyricsLines } from './lyrics.js';
@@ -14,6 +14,7 @@
   import { logAction } from './diagnosticsLog.js';
   import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
+  import { createRadioStartGuard } from './radioStartGuard.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { describeFilter } from './management/radioChannels.js';
@@ -33,8 +34,9 @@
   import { getArtistImageUrl, primaryArtistOf, subsonicError } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { notify } from './notifications.js';
+  import { ratings, ratingOf as ratingFor, tapStar } from './ratings.js';
   import { artistImageFallback, coverArtSrc, FALLBACK, localCoverArt, resolveCoverArt } from './coverArt.js';
-  import { offline } from './subsonic.js';
+  import { offline, subsonicPost } from './subsonic.js';
   import { fetchGenreTints, trackTint } from './genreTints.js';
 
   const { onnavigate, ontoggleQueue } = $props();
@@ -67,6 +69,11 @@
   let isSyncing = false;
 
   let radioController = null;
+  // One guard for "the listener asked for a channel" (drops a repeat tap while the service is
+  // still tuning in) and one for the display controller's own asynchronous start; see
+  // `radioStartGuard.js`.
+  const radioStartGuard = createRadioStartGuard();
+  const radioDisplayGuard = createRadioStartGuard();
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
@@ -205,6 +212,10 @@
    * @param {string} slug
    */
   function beginRadioDisplay(slug) {
+    // A controller from an earlier start may still be measuring the clock or fetching its first
+    // state; retire it so it cannot load its stream into the element after this one does.
+    radioController?.retire();
+    const ticket = radioDisplayGuard.begin();
     clearInterval(radioTickInterval);
     clearInterval(radioRefreshInterval);
     clearInterval(radioClockInterval);
@@ -223,9 +234,13 @@
     radioChannel.set(slug);
     radioController
       .start(slug)
-      .then(() => radioNowPlaying.set(radioController?.getEntry() ?? null))
+      .then(() => {
+        if (ticket?.isCurrent()) radioNowPlaying.set(radioController?.getEntry() ?? null);
+      })
       .catch((e) => {
         console.error($t('radio.couldNotStart'), e);
+        // A newer start (or a stop) has happened since: its state is not ours to tear down.
+        if (!ticket?.isCurrent()) return;
         // The service (native) or the element (browser) never actually joined
         // the channel; showing radio as on with nothing playing and no
         // now-playing metadata would be a stuck picker rather than an error.
@@ -245,6 +260,8 @@
 
   /** Tears down the display poll and the local radio state, without touching the service. */
   function endRadioDisplay() {
+    radioDisplayGuard.invalidate();
+    radioController?.retire();
     clearInterval(radioTickInterval);
     clearInterval(radioRefreshInterval);
     clearInterval(radioClockInterval);
@@ -290,6 +307,7 @@
    */
   async function toggleRadio() {
     if ($radioChannel) {
+      radioStartGuard.invalidate();
       if (nativePlayback) {
         // Radio is driven entirely by the service; leaving it is a session
         // command rather than anything this controller does. `pause()`
@@ -344,6 +362,9 @@
    */
   async function startRadio(channel) {
     showRadioPicker = false;
+    // A second tap on the channel that is still starting is the same request, not a new one.
+    const ticket = radioStartGuard.begin(channel.slug);
+    if (!ticket) return;
     try {
       if (nativePlayback) {
         // The service streams the channel and locks onto the server's timeline
@@ -352,10 +373,15 @@
         // third copy of it. `beginRadioDisplay` below only keeps a display
         // poller of its own for the mini player and Now Playing.
         await platform.player.startRadio(channel.slug);
+        // Another channel was picked, or radio switched off, while the service was tuning in:
+        // that later action owns the display now.
+        if (!ticket.isCurrent()) return;
       }
       beginRadioDisplay(channel.slug);
     } catch (e) {
       console.error($t('radio.couldNotStart'), e);
+    } finally {
+      ticket.done();
     }
   }
 
@@ -464,23 +490,22 @@
     if ($syncMode === 'off' || isSyncing || !$credentials.username) return;
     lastPushTime = Date.now();
     try {
-        const params = $authParams;
-        const trackIds = $playlist.map(t => `id=${t.id}`).join('&');
-        
         // Use overrides if provided, otherwise use local state
         const engine = platform.player.state();
         const currentId = overrideTrackId !== null ? overrideTrackId : ($currentTrack?.id || '');
         const isPlaying = overridePlaying !== null ? overridePlaying : engine.status === 'playing';
         const position = Math.floor(engine.position * 1000);
 
+        // One `id` per queued track: a POST body, because a long queue in the query string
+        // is a request line proxies refuse with 414.
+        const fields = $playlist.map((t) => ['id', t.id]);
+        if (currentId !== '') fields.push(['current', currentId]);
+        fields.push(['playing', isPlaying]);
         // In follower mode, we NEVER push periodic position to avoid fighting the host.
         // The 'position' parameter is only included if we are the Host.
-        let url = `/rest/savePlayQueue?${trackIds}&current=${currentId}&playing=${isPlaying}&${params}`;
-        if ($syncMode === 'host') {
-            url += `&position=${position}`;
-        }
+        if ($syncMode === 'host') fields.push(['position', position]);
 
-        await fetch(restUrl(url));
+        await subsonicPost('savePlayQueue', fields, $authParams);
     } catch (e) {
         console.error("Jam push failed", e);
     }
@@ -918,6 +943,9 @@
    */
   function handlePause() {
     playerState.update(s => ({ ...s, playing: false }));
+    // `playerState` reaches localStorage at most every few seconds while playing; a pause is
+    // where the position stops moving, so write it now rather than up to one interval later.
+    flushPersistedStores();
     persistCurrentResumePosition(true);
   }
 
@@ -1175,14 +1203,10 @@
         coverArt: $radioNowPlaying.cover_art,
       }
     : $currentTrack);
-  // The rating we last set ourselves, with the track it belongs to. `track` is
-  // either the plain object in the `currentTrack` store or, on radio, one built
-  // fresh from the timeline entry, so writing to `track.userRating` alone
-  // repaints nothing and is lost on the next rebuild.
-  let ownRating = $state(null);
-  const currentRating = $derived(
-    ownRating && ownRating.trackId === track?.id ? ownRating.rating : (track?.userRating || 0)
-  );
+  // Read from the shared rating store (`ratings.js`), so a rating set in the track list, car mode
+  // or the details sheet repaints the player too. `track` on radio is built fresh from the
+  // timeline entry, which is why this cannot live on `track.userRating` alone.
+  const currentRating = $derived(ratingFor($ratings, track));
 
   const primaryArtist = $derived(primaryArtistOf(track));
   const playing = $derived($playerState.playing);
@@ -1363,36 +1387,14 @@
   }
 
   /**
-   * Updates the rating of the current track.
+   * A tap on star `rating` for the current track: sets it, or clears it when it is already that
+   * many stars. The write, the optimistic update and the rollback live in `ratings.js`.
    *
-   * @param {number} rating - The new rating (1-5).
+   * @param {number} rating - The star tapped (1-5).
    */
-  async function updateRating(rating) {
+  function updateRating(rating) {
     if (!track) return;
-    const trackId = track.id;
-    const oldRating = currentRating;
-    const newRating = oldRating === rating ? 0 : rating;
-    logAction('rating.set', { trackId, rating: newRating });
-
-    // Optimistic update
-    ownRating = { trackId, rating: newRating };
-    track.userRating = newRating;
-
-    try {
-      // Subsonic reports its own errors (a throttled login, an id it cannot
-      // parse, a failed write) in the body with HTTP 200, so the status in
-      // the body is the only thing that says whether the rating was stored.
-      // `subsonicError` is that check, shared with the track list.
-      const failure = await subsonicError(
-        await fetch(restUrl(`/rest/setRating?id=${trackId}&rating=${newRating}&${$authParams}`))
-      );
-      if (failure) throw new Error(failure.message);
-    } catch (e) {
-      console.error("Failed to update rating:", e);
-      ownRating = { trackId, rating: oldRating };
-      track.userRating = oldRating;
-      notify.error($t('notify.ratingFailed'), { detail: e.message });
-    }
+    tapStar(track, rating);
   }
 
   /** Whether the last run of the queue-sync effect below found radio or a bulletin on. */

@@ -5,7 +5,7 @@
   import { platform } from './platform/index.js';
   import { restUrl, authParams, currentTrack, playlist, playerState, favoriteGenres } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
-  import { subsonicError } from './utils.js';
+  import { ratings, ratingOf, tapStar } from './ratings.js';
   import { trackAfterCommand } from './nativeQueue.js';
   import { notify } from './notifications.js';
   import { startQueue } from './queue.js';
@@ -39,7 +39,7 @@
   let genreTiles = $state([]);
 
   const track = $derived($currentTrack);
-  const rating = $derived(track?.userRating ?? 0);
+  const rating = $derived(ratingOf($ratings, track));
   const coverUrl = $derived(
     track?.coverArt
       ? restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=300&${$authParams}`)
@@ -115,26 +115,16 @@
   }
 
   /**
-   * 5 means favourite; tapping the star already lit clears the rating, the same toggle
-   * `TrackList.svelte`'s rating row uses. Written optimistically and rolled back on failure, so a
-   * tap registers at once on a screen nobody should be staring at to confirm it landed.
+   * 5 means favourite; tapping the star already lit clears the rating, the same toggle every other
+   * rating row uses. Goes through the shared rating store (`ratings.js`), which writes
+   * optimistically and rolls back on failure, so a tap registers at once on a screen nobody should
+   * be staring at to confirm it landed -- and the list behind car mode shows it too.
    *
    * @param {number} stars
    */
-  async function rate(stars) {
+  function rate(stars) {
     if (!track) return;
-    const previous = track.userRating ?? 0;
-    const next = previous === stars ? 0 : stars;
-    currentTrack.update((current) => (current ? { ...current, userRating: next } : current));
-    try {
-      const failure = await subsonicError(
-        await fetch(restUrl(`/rest/setRating?id=${track.id}&rating=${next}&${get(authParams)}`)),
-      );
-      if (failure) throw new Error(failure.message);
-    } catch (error) {
-      currentTrack.update((current) => (current ? { ...current, userRating: previous } : current));
-      notify.error($t('notify.ratingFailed'), { detail: error.message });
-    }
+    tapStar(track, stars);
   }
 
   /**

@@ -298,6 +298,73 @@ describe("Player on the native shell", () => {
       expect(playerPlugin.startRadio).toHaveBeenCalledWith({ slug: "main" });
     });
 
+    // Two starts in flight at once used to both run to completion: the one that finished last
+    // decided which channel the display showed, whatever the listener picked last.
+    it("a channel picked while another is still tuning in wins, whichever answers first", async () => {
+      const channels = [
+        { slug: "main", name: "Hoofdzender" },
+        { slug: "other", name: "Tweede zender" },
+      ];
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/channels")) {
+          return { ok: true, json: async () => ({ channels }) };
+        }
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      const pending = [];
+      playerPlugin.startRadio.mockImplementation(
+        () => new Promise((resolve) => pending.push(resolve)),
+      );
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await fireEvent.click(await screen.findByText("Hoofdzender"));
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await fireEvent.click(await screen.findByText("Tweede zender"));
+      await waitFor(() => expect(pending).toHaveLength(2));
+
+      pending[1]({});
+      await waitFor(() => expect(get(radioChannel)).toBe("other"));
+      pending[0]({});
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(get(radioChannel)).toBe("other");
+      playerPlugin.startRadio.mockImplementation(async () => ({}));
+    });
+
+    it("a second tap on the channel that is still tuning in does not start it twice", async () => {
+      global.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/channels")) {
+          return {
+            ok: true,
+            json: async () => ({ channels: [{ slug: "main", name: "Radio" }] }),
+          };
+        }
+        if (String(url).includes("/api/radio/time")) {
+          return { ok: true, json: async () => ({ server_time: Date.now() / 1000 }) };
+        }
+        return { ok: true, json: async () => ({ current: null, next: null }) };
+      });
+      const pending = [];
+      playerPlugin.startRadio.mockImplementation(
+        () => new Promise((resolve) => pending.push(resolve)),
+      );
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await waitFor(() => expect(pending).toHaveLength(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      pending[0]({});
+      await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      expect(playerPlugin.startRadio).toHaveBeenCalledTimes(1);
+      playerPlugin.startRadio.mockImplementation(async () => ({}));
+    });
+
     it("leaves radio through the service and goes silent, rather than falling into the queue", async () => {
       global.fetch = vi.fn(async (url) => {
         if (String(url).includes("/api/radio/time")) {

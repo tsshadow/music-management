@@ -29,6 +29,7 @@ from services.downloader.deep_sweep import (
     take_snapshot,
     wanted_tracks,
 )
+from services.downloader.metadata_date import IsoUploadDatePP
 from services.downloader.rate_state import RateLimited, SweepAborted
 from services.downloader.redownload import ReplaceExistingPP, redownload_opts, staged_opts
 from services.downloader.soundcloud.account_probe import ProbeResult, newest_track
@@ -451,6 +452,9 @@ class SoundcloudDownloader:
             opts['match_filter'] = self._make_match_filter(account, report)
             try:
                 with YoutubeDL(opts) as ydl:
+                    # Before FFmpegMetadata: EmbedThumbnail rewrites an mp3 as ID3v2.3,
+                    # which cuts an undelimited date to the year (bug report 088).
+                    ydl.add_post_processor(IsoUploadDatePP(), when='pre_process')
                     ydl.add_post_processor(FFmpegMetadataPP(ydl))
                     ydl.add_post_processor(EmbedThumbnailPP(ydl))
                     if replace:

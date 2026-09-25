@@ -87,7 +87,7 @@ class TestSoundcloudBasicRun(unittest.TestCase):
         # actually reach it.
         mock_instance = mock_ytdlp.return_value.__enter__.return_value
 
-        def capture(pp):
+        def capture(pp, when=None):
             if 'SoundcloudSongProcessor' in str(type(pp)):
                 self.processor = pp
 

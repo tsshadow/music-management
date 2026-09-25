@@ -52,7 +52,7 @@ undecided behavior that were flagged, not silently resolved, during this documen
 | [`tagger/`](tagger/) | Metadata enforcement engine — song-type auto-detection and rule-based tagging, plus its `/api/tagger` REST API (`services/tagger`, `services/music_manager/routers/tagger.py`). |
 | [`scanner/`](scanner/) | Filesystem-to-database library sync and the SoundCloud/YouTube redownload service, plus their `/api/scanner` and `/api/library/tracks/{id}/redownload` REST APIs. |
 | [`ratings-scrobbling/`](ratings-scrobbling/) | Track ratings and scrobble/listen history, synchronized between `music-manager`, the LMS server, and MuMa Mobile. |
-| [`ml-analyzer/`](ml-analyzer/) | Audio analysis (BPM, and the currently-unimplemented musical key/mood) feeding the library's advanced metadata (`services/ml-analyzer`). |
+| [`ml-analyzer/`](ml-analyzer/) | Audio analysis (BPM, and the currently-unimplemented musical key/mood) feeding the library's advanced metadata (`services/ml-analyzer`). **Deprecated and disabled since 2026-09-25** -- see `services/ml-analyzer/DEPRECATED.md`. |
 
 `authentication/` was the first of these, written from an already-existing deep-detail reference; the others
 were written directly from the code (there was no equivalent prior document), so treat their "Open Questions"

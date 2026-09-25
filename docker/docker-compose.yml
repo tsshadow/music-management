@@ -546,6 +546,7 @@ services:
     networks:
       - music-management_db
 
+  # Deprecated and disabled since 2026-09-25, kept commented: see services/ml-analyzer/DEPRECATED.md
 #  ml-analyzer:
 #    image: ${DOCKER_USER}/${IMAGE_ML}:latest
 #    container_name: muma-ml-analyzer

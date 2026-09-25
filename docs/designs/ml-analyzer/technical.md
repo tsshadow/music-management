@@ -1,5 +1,10 @@
 # ML Analyzer — Technical Design
 
+> **Deprecated.** The ml-analyzer has been disabled since 2026-09-25, with the code kept. This
+> document describes it as it was; see
+> [services/ml-analyzer/DEPRECATED.md](../../../services/ml-analyzer/DEPRECATED.md) for why, and for what
+> bringing it back takes.
+
 See [docs/designs/README.md](../README.md) for the design-doc process this document follows. This
 implements the already-agreed [functional.md](functional.md). Implemented in
 `services/ml-analyzer/analyzer.py` (feature extraction and CLI worker), `services/ml-analyzer/trainer.py`

@@ -80,11 +80,13 @@ The system is split into specialized services, each handling a specific part of 
 - **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
-- **Purpose**: Audio analysis for advanced metadata.
-- **Features**: Extracts tempo (BPM), loudness, spectral and timbre features (MFCC, chroma) with
-  librosa, plus a scikit-learn genre classifier. No key or mood detection.
-- **Status**: Not deployed — its compose service is commented out, and the code would not work if
-  it ran. Repair or retire is an open decision in [docs/open-work.md](docs/open-work.md).
+- **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
+  Disabled since 2026-09-25 with the code kept: it was never deployed, has no owner time, and
+  would not work if it ran (wrong skip key, bug 028's stale join key on the ML labels, a predict
+  step that does not match its trainer). Not built, deployed or tested by default; its tables and
+  their data stay for the features that read them.
+- **Purpose** (when it ran): tempo (BPM), loudness, spectral and timbre features (MFCC, chroma)
+  with librosa, plus a scikit-learn genre classifier. No key or mood detection.
 
 ---
 

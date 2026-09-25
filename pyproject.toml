@@ -89,6 +89,8 @@ exclude = [
     '^services/music-management-server/',
     '^services/muma-mobile/',
     '^services/frontend/',
+    # Deprecated, see services/ml-analyzer/DEPRECATED.md. Never type-checked;
+    # adding it is on the revive checklist there.
     '^services/ml-analyzer/',
 ]
 
@@ -151,4 +153,7 @@ omit = [
     "*/test_*.py",
     "*/conftest.py",
     "services/tests/mock_base.py",
+    # Deprecated and disabled, its tests out of the default run (services/ml-analyzer/
+    # DEPRECATED.md). Counted, it would read as ~0% covered code nobody runs.
+    "services/ml-analyzer/*",
 ]

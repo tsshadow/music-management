@@ -76,6 +76,15 @@ TEST_TARGETS=(
     "tests/unit/"
 )
 
+# The deprecated ml-analyzer (services/ml-analyzer/DEPRECATED.md) is kept but not run
+# here: its tests are skipped and [tool.coverage.run] omits its source, so code nobody
+# runs neither costs this job time nor moves the coverage figure. The manual CI job
+# backend:ml-analyzer-unit runs them through scripts/test/ml-analyzer-unit.sh.
+EXCLUDES=(
+    "--ignore=services/ml-analyzer"
+    "--ignore-glob=services/tests/MlAnalyzer*Test.py"
+)
+
 # Ratchet: the suite sits above this, and a change that drops below it fails here
 # rather than silently eroding the figure. Raise it when coverage climbs; never
 # lower it to make a red build green.
@@ -97,6 +106,7 @@ python3 -m pytest -p no:warnings \
     --cov-report=xml:coverage-python.xml \
     --cov-fail-under="$COVERAGE_MIN" \
     --junitxml=report-python.xml \
+    "${EXCLUDES[@]}" \
     "${TEST_TARGETS[@]}" "$@"
 PYTEST_STATUS=$?
 set -e

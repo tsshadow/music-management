@@ -219,6 +219,13 @@
       ]
     },
     {
+      "description": "The ml-analyzer is deprecated and disabled, its code kept for a possible revival (services/ml-analyzer/DEPRECATED.md). It is not built, deployed or tested by default, so a dependency merge request for it would be reviewed and merged for nothing. Remove this rule when the service is revived.",
+      "matchFileNames": [
+        "services/ml-analyzer/**"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Vendored upstream fork; its dependencies are managed by that project, not here.",
       "matchFileNames": [
         "services/music-management-server/**"

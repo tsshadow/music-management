@@ -465,3 +465,31 @@ class RetryBackoffTest(ProcessedFilesHelperTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PathsUnderTest(ProcessedFilesHelperTestCase):
+    """One primary-key range per root; never a scan or a join (bug report 087)."""
+
+    def test_one_range_per_root_after_the_cursor(self):
+        self.cursor.fetchall.return_value = [('/mnt/music/EPs/L/a.mp3',)]
+
+        paths = self.helper.paths_under(['/mnt/music/EPs/', '/mnt/music/import'], '/mnt/music/EPs/K', 100)
+
+        self.assertEqual(['/mnt/music/EPs/L/a.mp3'], paths)
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('filepath > %s', query)
+        self.assertEqual(2, query.count('(filepath >= %s AND filepath < %s)'))
+        self.assertNotIn('JOIN', query.upper())
+        self.assertEqual(
+            ('/mnt/music/EPs/K', '/mnt/music/EPs/', '/mnt/music/EPs0', '/mnt/music/import/', '/mnt/music/import0', 100),
+            args,
+        )
+
+    def test_no_root_is_no_query(self):
+        self.assertEqual([], self.helper.paths_under(['', '/'], '', 10))
+        self.cursor.execute.assert_not_called()
+
+    def test_a_database_error_is_raised_not_read_as_the_end(self):
+        self.cursor.execute.side_effect = RuntimeError('database gone')
+        with self.assertRaises(RuntimeError):
+            self.helper.paths_under(['/mnt/music/EPs'], '', 10)

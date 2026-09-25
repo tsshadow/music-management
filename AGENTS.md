@@ -29,6 +29,10 @@ The system is split into specialized services, each handling a specific part of 
     - **Metadata Extraction**: Infers Publisher and Catalog Number from the folder structure (e.g., `/Labels/Scantraxx/SCAN123/`).
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
+- **Import queue location**: `import_folder_path` (default: `__TODO` inside `eps_folder_path`). Any code
+  that walks the label tree asks `services/common/import_queue.py` (`ImportQueue`) whether a folder is the
+  queue or a label -- never compares against the name; `tests/ci/test_import_queue_predicate.py` enforces
+  it. Moving the queue is that setting plus a folder move (bug report 087).
 
 ### 3. `tagger` (Integrated in `music-manager`)
 - **Engine**: The core metadata enforcement system.

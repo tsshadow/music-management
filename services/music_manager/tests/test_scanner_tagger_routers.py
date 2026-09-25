@@ -723,3 +723,33 @@ class LmsTriggerTest(unittest.TestCase):
         ):
             manager.run_full()
         trigger.trigger.assert_called_once()
+
+
+class TodoLabelRepairEndpointTest(unittest.TestCase):
+    """GET is the dry run, POST queues; both admin-only, neither retags inline (bug 087)."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.headers = {'x-api-key': API_KEY}
+
+    def test_get_is_a_dry_run_and_post_applies(self):
+        with patch.object(tagger_router, '_todo_label_repair_page', return_value={'scanned': 0}) as page:
+            self.client.get('/api/tagger/todo-label-repair?after=/a&limit=50', headers=self.headers)
+            self.client.post('/api/tagger/todo-label-repair', headers=self.headers)
+        self.assertEqual(page.call_args_list[0].args, ('/a', 50))
+        self.assertEqual(page.call_args_list[0].kwargs, {'apply': False})
+        self.assertEqual(page.call_args_list[1].kwargs, {'apply': True})
+
+    def test_a_non_admin_is_refused(self):
+        user = {'type': 'user', 'user': {'id': 4, 'username': 'anna', 'role_name': 'user', 'permissions': []}}
+        with (
+            patch.object(users_router, 'verify_api_key', return_value=user),
+            patch.object(tagger_router, '_todo_label_repair_page') as page,
+        ):
+            response = self.client.post('/api/tagger/todo-label-repair', headers={'x-api-key': 'anna-key'})
+        self.assertEqual(403, response.status_code)
+        page.assert_not_called()
+
+    def test_the_page_size_is_bounded(self):
+        response = self.client.get('/api/tagger/todo-label-repair?limit=5000', headers=self.headers)
+        self.assertEqual(422, response.status_code)

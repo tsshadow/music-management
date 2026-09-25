@@ -6,6 +6,8 @@ from os.path import isfile, join
 
 import mutagen
 
+from services.common.import_queue import ImportQueue
+
 AUDIO_EXTENSIONS = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
 
 # Ordered most trustworthy first. The keys are matched case-insensitively against the
@@ -44,15 +46,18 @@ class LabelProposal:
     catid: str | None
 
 
-def _blacklist(import_folder_name: str) -> set[str]:
+def blacklist(import_folder_name: str) -> set[str]:
     """
     Values that are never a record label, however confidently they are tagged.
 
-    `__TODO` is in here because the tagger writes the publisher from the folder a
-    release sits in, and a release that never left the import folder has the import
-    folder's own name stamped in as its label.
+    The import queue's name is in here because the tagger writes the publisher from the
+    folder a release sits in, and a release that never left the import folder had the
+    import folder's own name stamped in as its label (bug report 030). Both its
+    historical name and `import_folder_name` -- what it is called today -- count; see
+    `ImportQueue.placeholder_values`. Public because the `__TODO` label repair
+    (services/tagger/todo_label_repair.py) must refuse exactly what this refuses.
     """
-    return {'', '__todo', import_folder_name.strip().lower()}
+    return {'', import_folder_name.strip().lower()} | ImportQueue('').placeholder_values()
 
 
 def read_tags(path) -> dict[str, str]:
@@ -96,7 +101,7 @@ def _audio_files(folder_path: str) -> list[str]:
     return found
 
 
-def _label_from_nfo(folder_path: str, blacklist: set[str]) -> str | None:
+def _label_from_nfo(folder_path: str, refused: set[str]) -> str | None:
     """Last resort: every scene release ships an .nfo, and it usually names the label."""
     for dirpath, files in _walk(folder_path):
         for name in files:
@@ -108,12 +113,12 @@ def _label_from_nfo(folder_path: str, blacklist: set[str]) -> str | None:
             except OSError as e:
                 logging.debug('Could not read %s: %s', name, e)
                 continue
-            if match and match.group(1).strip().lower() not in blacklist:
+            if match and match.group(1).strip().lower() not in refused:
                 return match.group(1).strip()
     return None
 
 
-def _label_from_tags(per_file: list[dict[str, str]], blacklist: set[str]) -> tuple[str, str, int] | None:
+def _label_from_tags(per_file: list[dict[str, str]], refused: set[str]) -> tuple[str, str, int] | None:
     """
     The best label the tags offer, as (label, source, confidence).
 
@@ -127,7 +132,7 @@ def _label_from_tags(per_file: list[dict[str, str]], blacklist: set[str]) -> tup
         for tags in per_file:
             for key in keys:
                 value = tags.get(key, '')
-                if value and value.lower() not in blacklist:
+                if value and value.lower() not in refused:
                     values.append(value)
                     break
         if values:
@@ -155,14 +160,14 @@ def resolve(
     temporary directory, and so a failure to read one release cannot take an import
     run down with it. `tag_reader` is injectable because the suite stubs mutagen out.
     """
-    blacklist = _blacklist(import_folder_name)
+    refused = blacklist(import_folder_name)
     per_file = [tag_reader(path) for path in _audio_files(folder_path)]
     catid = _catid_from_tags(per_file) or catid_from_name
-    from_tags = _label_from_tags(per_file, blacklist)
+    from_tags = _label_from_tags(per_file, refused)
     if from_tags:
         label, source, confidence = from_tags
         return LabelProposal(label, source, confidence, catid)
-    from_nfo = _label_from_nfo(folder_path, blacklist)
+    from_nfo = _label_from_nfo(folder_path, refused)
     if from_nfo:
         return LabelProposal(from_nfo, 'nfo', NFO_CONFIDENCE, catid)
     return LabelProposal(None, 'none', 0, catid)

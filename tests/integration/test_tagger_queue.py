@@ -153,3 +153,17 @@ def test_tagging_a_file_clears_its_failures(db, helper):
     helper.mark_failed(path, 1.0)
     helper.mark_processed(path, 2.0)
     assert rows(db)[path] == (2.0, False, None, 0)
+
+
+def test_paths_under_pages_one_subtree_and_stops_at_its_edge(db, helper):
+    """The `__TODO` label repair's walk (bug report 087): a primary-key range, nothing next to it."""
+    inside = ['/music/EPs/A/r/1.mp3', '/music/EPs/B/r/2.mp3', '/music/EPs/__TODO/r/3.mp3']
+    outside = ['/music/EPs0.mp3', '/music/EPsX/r/4.mp3', '/music/Youtube/c/5.m4a']
+    for path in inside + outside:
+        helper.mark_processed(path, 1.0)
+
+    first = helper.paths_under(['/music/EPs'], '', 2)
+    rest = helper.paths_under(['/music/EPs'], first[-1], 2)
+
+    assert first + rest == sorted(inside)
+    assert helper.paths_under(['/music/EPs', '/music/Youtube'], '', 10) == sorted(inside + ['/music/Youtube/c/5.m4a'])

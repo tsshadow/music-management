@@ -15,6 +15,7 @@ from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.common.import_queue import ImportQueue
 from services.tagger import download_info, ingestion
 from services.tagger.constants import SongTypeEnum
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
@@ -259,6 +260,7 @@ class Tagger:
         )
         if parse_labels and (not self.stop_requested):
             self._parse_label_folders()
+            self._parse_import_queue()
         if parse_soundcloud and (not self.stop_requested):
             self._parse_channel_folders('Soundcloud', SongTypeEnum.SOUNDCLOUD)
         if parse_youtube and (not self.stop_requested):
@@ -279,6 +281,10 @@ class Tagger:
 
     def _queue_new_library_files(self) -> int:
         roots = [str(s.eps_folder_path)] + [str(Path(s.music_folder_path) / folder) for folder in self.WALK_FOLDERS]
+        queue = ImportQueue.from_settings(s)
+        if queue.path and not queue.lies_within(s.eps_folder_path):
+            # Moved out of the label tree: still the tagger's to look after, as a generic pile.
+            roots.append(queue.path)
         extensions = tuple(
             ext
             for ext, enabled in (('mp3', parse_mp3), ('flac', parse_flac), ('m4a', parse_m4a), ('wav', parse_wav))
@@ -405,12 +411,30 @@ class Tagger:
             logging.warning("EPs folder '%s' does not exist, skipping label folders.", eps_root)
             return
         label_folders = sorted([f for f in eps_root.iterdir() if f.is_dir()])
+        # Not every folder here is a label: the import queue sits in this tree (bug report
+        # 030 -- its name was written into files as their publisher), and so does __Free&None.
+        # ImportQueue is the one place that knows which is which; see bug report 087.
+        queue = ImportQueue.from_settings(s)
         for label in label_folders:
             if self.stop_requested:
                 break
-            song_type = SongTypeEnum.LABEL if not label.name.startswith('_') else SongTypeEnum.GENERIC
+            song_type = SongTypeEnum.LABEL if queue.is_label_folder(label) else SongTypeEnum.GENERIC
             print(label)
             self.parse_folder(label, song_type)
+
+    def _parse_import_queue(self):
+        """Tags the import queue as generic songs when it no longer sits inside the EPs root.
+
+        While it lives at `<eps root>/__TODO` the label walk reaches it and tags it GENERIC. Once
+        `import_folder_path` points outside the label tree that walk stops seeing it, and without
+        this the releases waiting there would go untagged until the Mover placed them.
+        """
+        queue = ImportQueue.from_settings(s)
+        if not queue.path or queue.lies_within(s.eps_folder_path):
+            return
+        root = Path(queue.path)
+        if root.is_dir() and not self.stop_requested:
+            self.parse_folder(root, SongTypeEnum.GENERIC)
 
     def _parse_channel_folders(self, source_folder: str, song_type: SongTypeEnum):
         """
@@ -604,9 +628,10 @@ class Tagger:
 def detect_song_type(path: Path) -> SongTypeEnum:
     """The source type a file gets from where it lives, the same answer the folder walk gives.
 
-    A label release under the EPs root is LABEL unless its label folder starts with an
-    underscore (the import queue), the three platform folders map to their own type, and
-    everything else -- Livesets, Podcasts, Top 100, Warm Up Mixes -- is GENERIC.
+    A label release under the EPs root is LABEL unless its folder is not a label -- the import
+    queue, or an underscore folder such as __Free&None (`ImportQueue.is_label_folder`) -- the three
+    platform folders map to their own type, and everything else -- the import queue wherever it
+    lives, Livesets, Podcasts, Top 100, Warm Up Mixes -- is GENERIC.
     """
     try:
         path_obj = path.resolve()
@@ -615,12 +640,15 @@ def detect_song_type(path: Path) -> SongTypeEnum:
     settings = Settings()
     eps_root = Path(settings.eps_folder_path).resolve()
     music_root = Path(settings.music_folder_path).resolve()
+    queue = ImportQueue.from_settings(settings).resolved()
     song_type = SongTypeEnum.GENERIC
     try:
         path_str = str(path_obj)
-        if path_str.startswith(str(eps_root)):
+        if queue.contains(path_obj):
+            pass
+        elif path_str.startswith(str(eps_root)):
             relative = path_obj.relative_to(eps_root)
-            if relative.parts and (not relative.parts[0].startswith('_')):
+            if relative.parts and queue.is_label_folder(eps_root / relative.parts[0]):
                 song_type = SongTypeEnum.LABEL
         elif path_str.startswith(str(music_root / 'Soundcloud')):
             song_type = SongTypeEnum.SOUNDCLOUD

@@ -121,6 +121,12 @@ Removed outright, because every caller already uses the target: `GET|PUT
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait
   until the file changes or a retag is requested (bug report 051).
+- **GET|POST `/api/tagger/todo-label-repair`** (admin): one page of the `__TODO` label repair (bug
+  report 087). Query `after` (cursor: the previous page's `next_after`), `limit` 1-2000 (default 300).
+  Response `{mode, reason, roots, scanned, poisoned, by_area, by_field, by_label, poisoned_paths, undecidable_count,
+  undecidable, queued, next_after, done}`. GET is a dry run and writes nothing; POST queues the page's
+  poisoned files for the tagger with reason `todo_label_repair` and never retags inline. `422` for a
+  bad `limit`; a database error is a `500`, never an empty page reported as `done`.
 - **PUT `/api/curation/genres/{name}/parents`** (`rules.manage`): body `{"parents": [<genre>, ...]}`,
   replaces the genre's parents in `rules_subgenre_hierarchy`. `400` for a genre listed as its own parent
   or an unknown/unaccepted parent, `403` when curation has not accepted the genre itself, and `409` with

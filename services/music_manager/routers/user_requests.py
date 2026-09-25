@@ -72,7 +72,7 @@ def _verify_google_id_token(id_token_str: str) -> dict:
         # The library's text says which check failed ("Token expired", "Wrong recipient",
         # the clock skew, the certificate fetch) -- useful in the log, a free probe of the
         # verifier for anyone on the other end of the 401.
-        logger.info('Rejected a Google ID token: %s', exc)
+        logger.info('Google sign-in refused by the verifier: %s', exc)
         raise HTTPException(status_code=401, detail='Invalid Google token') from exc
 
     if claims.get('iss') not in ('accounts.google.com', 'https://accounts.google.com'):

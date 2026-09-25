@@ -88,6 +88,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
+from services.music_manager.identity import account_spellings
 from services.music_manager.library_paths import candidate_paths
 
 logger = logging.getLogger('music-manager.scrobble-reconcile')
@@ -545,12 +546,12 @@ def open_servers(targets: list[tuple[str, str]]) -> list[tuple[sqlite3.Connectio
 
 
 def load_canonical_usernames(cursor) -> dict[str, str]:
-    """Case-folded name -> muma's `users.username`; the oldest account wins a spelling clash."""
-    cursor.execute('SELECT username FROM users ORDER BY id')
-    canonical: dict[str, str] = {}
-    for row in cursor.fetchall():
-        canonical.setdefault(_user_key(row['username']), row['username'])
-    return canonical
+    """Case-folded name -> muma's `users.username`; the oldest account wins a spelling clash.
+
+    The one account-name mapping there is (services/music_manager/identity.py), so the
+    reconcile and the endpoints can never disagree about who a spelling belongs to.
+    """
+    return account_spellings(cursor)
 
 
 def canonicalize(

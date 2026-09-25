@@ -924,6 +924,10 @@ open class RESTMusicService(
                 }
                 activeServerProvider.setMumaSettings(apiKey, userId)
                 subsonicAPIClient.mumaApi.setApiKey(apiKey)
+                // Sign in under the account's own spelling from now on, not the typed one: LMS
+                // created a second user for a case variant (bug report 074).
+                MumaStoredCredentials.canonicalUserName(activeServer.userName, body.user?.username)
+                    ?.let { activeServerProvider.adoptCanonicalUserName(it) }
                 Timber.i("MuMa login successful")
             }
         } else {

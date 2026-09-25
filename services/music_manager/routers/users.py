@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.identity import username_taken
 from services.music_manager.lms_schema import usable_lms_targets
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
@@ -355,13 +356,22 @@ def login(req: LoginRequest, request: Request):
     Because LMS calls this on every Subsonic request, the rate limit is keyed on the
     account and counts only rejections -- see services/music_manager/rate_limit.py.
     """
-    with auth_attempt(request, req.username):
+    # Account names are case-insensitive (services/music_manager/identity.py), so the rate
+    # limit bucket is too: otherwise every capitalisation of one name was a fresh budget of
+    # guesses against the same password.
+    with auth_attempt(request, (req.username or '').casefold()):
         conn = get_db_connection()
         if not conn:
             raise HTTPException(status_code=500, detail='Database connection failed')
         try:
             with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM users WHERE username = %s', (req.username,))
+                # Any case finds the account; what goes back, under `user.username`, is the
+                # account's own spelling, and every client signs in under that one from then
+                # on. The typed spelling used to travel on into LMS, which compares names
+                # byte for byte and created a second user for it (bug report 074).
+                cursor.execute(
+                    'SELECT * FROM users WHERE LOWER(username) = LOWER(%s) ORDER BY id LIMIT 1', (req.username,)
+                )
                 user = cursor.fetchone()
                 # An unknown username goes through the same bcrypt check (against the dummy
                 # hash, via password_matches) and gets the same answer as a wrong password,
@@ -784,6 +794,11 @@ def create_user(user: UserCreate, auth: dict = Depends(verify_api_key)):
             password_hash = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         token = user.api_key or secrets.token_hex(16)
         with conn.cursor() as cursor:
+            # One account per name whatever its case (services/music_manager/identity.py).
+            # The unique key on users.username enforces it too, through its
+            # case-insensitive collation, but only as an IntegrityError -- a 500.
+            if username_taken(cursor, user.username):
+                raise HTTPException(status_code=409, detail='An account with this name already exists')
             # New users are never given the admin role here: role assignment
             # (including admin) is a separate action gated by users.assign-role.
             default_role = rbac.get_role_by_name(cursor, rbac.DEFAULT_ROLE_NAME)

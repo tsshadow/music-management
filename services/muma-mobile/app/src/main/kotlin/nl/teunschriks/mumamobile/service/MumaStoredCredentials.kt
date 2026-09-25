@@ -41,6 +41,21 @@ object MumaStoredCredentials {
     }
 
     /**
+     * The account's own spelling of the stored user name, when MuMa's login returned one that
+     * differs from what is stored only in case; null when there is nothing to change.
+     *
+     * Account names are case-insensitive, and the stored name is what every Subsonic call is
+     * signed with (`u=`). A name typed as "Teun" for the account "user" made LMS create a second
+     * user for that spelling (docs/bug-reports/074-login-case-forks-user-identity.md). A returned
+     * name that is not a spelling of the stored one is not an answer about this login, and is
+     * ignored.
+     */
+    fun canonicalUserName(stored: String, returned: String?): String? {
+        if (returned.isNullOrBlank() || returned == stored) return null
+        return returned.takeIf { it.equals(stored, ignoreCase = true) }
+    }
+
+    /**
      * Runs [request]; when it answers [HTTP_UNAUTHORIZED], calls [login] and runs [request] once
      * more. [request] must build a fresh call each time -- a Retrofit call executes only once.
      */

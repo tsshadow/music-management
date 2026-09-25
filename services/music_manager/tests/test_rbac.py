@@ -246,7 +246,7 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
             'status': 'pending',
         }
         approved_request = {**pending_request, 'status': 'approved'}
-        mock_cursor.fetchone.side_effect = [pending_request, approved_request]
+        mock_cursor.fetchone.side_effect = [pending_request, None, approved_request]  # None: the name is free
         mock_cursor.lastrowid = 42
 
         response = self.client.post('/api/user-requests/7/approve', headers={'x-api-key': self.api_key})
@@ -274,7 +274,7 @@ class TestGoogleLoginAndUserRequests(unittest.TestCase):
             'status': 'pending',
         }
         approved_request = {**pending_request, 'status': 'approved'}
-        mock_cursor.fetchone.side_effect = [pending_request, approved_request]
+        mock_cursor.fetchone.side_effect = [pending_request, None, approved_request]  # None: the name is free
         mock_cursor.lastrowid = 43
 
         response = self.client.post(

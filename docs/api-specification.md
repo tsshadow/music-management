@@ -5,7 +5,10 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
 ### 🔐 Authentication
 - **POST `/api/auth/login`**: Authenticate with username/password and receive the user's own API
   key: `200 {status, api_key, access_token, refresh_token, user}`, `user` carrying `permissions`,
-  `role_name` and `is_admin`. The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
+  `role_name` and `is_admin`. The username matches in any case, and `user.username` is the account's
+  own spelling, which clients sign in under afterwards (see `docs/authentication.md`, "Account names
+  are case-insensitive"). `POST /api/users` answers `409` for a case variant of an existing name.
+  The web player reaches it as `/muma/api/auth/login` (nginx, or LMS's
   pass-through when LMS is reached directly); LMS no longer answers that path itself with its own
   `api-key` (breaking for any client that read LMS's flat `{id, username, is_admin, api_key}`). The
   session endpoints (`/api/auth/*`) and `GET /api/roles` are the only `users` routes under the bare

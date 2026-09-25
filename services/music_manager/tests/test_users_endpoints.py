@@ -338,6 +338,7 @@ class UserManagementTest(UsersEndpointTestCase):
         self.assertEqual(response.json(), [{'id': 1, 'username': 'root'}])
 
     def test_a_new_user_gets_the_default_role_and_never_admin(self):
+        self.cursor.fetchone.return_value = None  # no account carries the name in any case
         self.cursor.lastrowid = 5
         with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 2}) as get_role:
             response = self.client.post(
@@ -348,11 +349,13 @@ class UserManagementTest(UsersEndpointTestCase):
         self.assertFalse(self.cursor.execute.call_args.args[1][2])
 
     def test_a_new_user_without_a_role_table_entry_gets_no_role(self):
+        self.cursor.fetchone.return_value = None  # no account carries the name in any case
         with patch.object(users_router.rbac, 'get_role_by_name', return_value=None):
             self.client.post('/api/users', headers=self.headers, json={'username': 'newbie'})
         self.assertIsNone(self.cursor.execute.call_args.args[1][3])
 
     def test_a_supplied_password_is_stored_hashed(self):
+        self.cursor.fetchone.return_value = None  # no account carries the name in any case
         with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 2}):
             self.client.post('/api/users', headers=self.headers, json={'username': 'newbie', 'password': 'hunter2'})
         stored = self.cursor.execute.call_args.args[1][5]

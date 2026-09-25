@@ -46,7 +46,9 @@ export function subsonicAuthQuery(username, password) {
  *
  * @param {string} username
  * @param {string} password
- * @returns {Promise<{ok: boolean, reason?: 'offline'|'rejected', message?: string}>}
+ * @returns {Promise<{ok: boolean, username?: string, reason?: 'offline'|'rejected', message?: string}>}
+ *   On success `username` is the account's own spelling of the name, which is
+ *   what the caller must store or hand on (see `canonicalUsername`).
  *   `offline` means the server could not be reached at all -- a wrong base URL
  *   inside the shell looks exactly like this -- and `rejected` means it answered
  *   and said no, with its own message in `message`.
@@ -70,10 +72,32 @@ export async function signIn(username, password) {
   // Deliberately before the credentials are stored: the management session is
   // a bonus, not a condition. A server without the muma API still gives a
   // working player, which is what the original inline version did too.
-  await startManagementSession(username, password);
-  credentials.update((current) => ({ ...current, username, password }));
+  const started = await startManagementSession(username, password);
+  // Account names are case-insensitive, and the account's own spelling is the
+  // one every later call signs in with -- not the one typed. "Teun" typed for
+  // the account "user" used to be stored as typed and sent as Subsonic `u=` on
+  // every request, and LMS, comparing names byte for byte, created a second
+  // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
+  const canonical = canonicalUsername(username, started ? get(mumaUser) : null);
+  credentials.update((current) => ({ ...current, username: canonical, password }));
   logAction("auth.login", { ok: true });
-  return { ok: true };
+  return { ok: true, username: canonical };
+}
+
+/**
+ * The name to sign in under from now on: the account's own spelling as MuMa's
+ * login returned it, or the typed name when there is no answer to go by (no
+ * muma API, or an answer without a user). Only a spelling of the same name is
+ * adopted; anything else is not an answer about this login.
+ *
+ * @param {string} typed
+ * @param {{username?: string}|null|undefined} account
+ * @returns {string}
+ */
+export function canonicalUsername(typed, account) {
+  const returned = account?.username;
+  if (typeof returned !== "string" || !returned) return typed;
+  return returned.toLowerCase() === String(typed ?? "").toLowerCase() ? returned : typed;
 }
 
 /**

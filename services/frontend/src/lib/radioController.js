@@ -74,8 +74,12 @@ export function createRadioController({
 
   async function refresh() {
     if (!slug) return;
-    const response = await fetchImpl(`${apiBase}/api/radio/${slug}/state`, { headers });
+    const asked = slug;
+    const response = await fetchImpl(`${apiBase}/api/radio/${asked}/state`, { headers });
     const state = await response.json();
+    // Stopped, retired or switched while the request was out: this answer belongs to a channel
+    // nobody is listening to any more, and loading it would start a second stream.
+    if (slug !== asked) return;
 
     // Deliberately NOT re-anchoring the clock from this response: its latency is
     // unknown (it hits the database), so a single sample from it would be worse
@@ -113,7 +117,18 @@ export function createRadioController({
   async function start(channelSlug) {
     slug = channelSlug;
     await measureClockOffset();
+    if (slug !== channelSlug) return;
     await refresh();
+  }
+
+  /**
+   * Stops this controller from ever touching the element again, without pausing it -- a newer
+   * controller has taken over the element (a channel switch) and is about to load its own stream.
+   * A `start` or `refresh` still in flight finishes as a no-op.
+   */
+  function retire() {
+    slug = null;
+    entry = null;
   }
 
   function stop() {
@@ -125,5 +140,5 @@ export function createRadioController({
     audio.pause();
   }
 
-  return { start, stop, tick, refresh, measureClockOffset, getEntry: () => entry };
+  return { start, stop, retire, tick, refresh, measureClockOffset, getEntry: () => entry };
 }

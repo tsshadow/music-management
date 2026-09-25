@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { resetRatings } from "../../src/lib/ratings.js";
 import { render, fireEvent, waitFor, screen } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import CarModeView from "../../src/lib/CarModeView.svelte";
@@ -40,6 +41,7 @@ function fetchMock() {
 describe("CarModeView", () => {
   beforeEach(() => {
     credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    resetRatings();
     currentTrack.set({ ...TRACK });
     playlist.set([]);
     favoriteGenres.set(["Hardcore"]);

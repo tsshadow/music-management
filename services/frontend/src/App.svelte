@@ -30,7 +30,7 @@
   import { checkForAppUpdate } from './lib/appUpdate.js';
   import { allSteps, isUpdateRun, pendingSteps } from './lib/setup.js';
   import { recordPlace } from './lib/recentPlaces.js';
-  import { startQueue } from './lib/queue.js';
+  import { startQueue, saveTracksAsPlaylist } from './lib/queue.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -431,10 +431,7 @@
       const name = prompt("Geef een naam voor de nieuwe afspeellijst:");
       if (!name) return;
       try {
-          const songIds = tracks.map(t => t.id).join('&songId=');
-          const auth = get(authParams);
-          const resp = await fetch(restUrl(`/rest/createPlaylist?name=${encodeURIComponent(name)}&songId=${songIds}&${auth}`));
-          if (!resp.ok) throw new Error(resp.statusText || `HTTP ${resp.status}`);
+          await saveTracksAsPlaylist(name, tracks, get(authParams));
           notify.success($t('notify.queueSaved'));
       } catch (e) {
           console.error(e);

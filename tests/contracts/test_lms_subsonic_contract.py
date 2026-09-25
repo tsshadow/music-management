@@ -444,3 +444,52 @@ def test_get_songs_by_path_without_a_path_is_refused(admin_credentials, media_li
     assert resp.status_code == 200, resp.text[:500]
     body = resp.json()["subsonic-response"]
     assert body["status"] == "failed", body
+
+
+# A queue is one parameter per track. The web player used to put a queue in the query string of
+# savePlayQueue / createPlaylist and got 414 URI Too Long back for a long one; it now sends the
+# track ids in a form-encoded POST body (OpenSubsonic `formPost`). These pin that LMS reads them
+# there -- a few hundred entries is well past where a request line starts meeting proxy limits.
+QUEUE_LENGTH = 400
+
+
+def test_save_play_queue_accepts_the_queue_in_a_post_body(admin_credentials, media_library):
+    username, password = admin_credentials
+    song_id, _ = _fixture_song_path(username, password)
+
+    data = [("id", song_id)] * QUEUE_LENGTH + [("current", song_id), ("playing", "false")]
+    resp = _subsonic_post("savePlayQueue.view", username, password, data=data)
+
+    assert resp.status_code == 200, resp.text[:500]
+    assert resp.json()["subsonic-response"]["status"] == "ok", resp.text[:500]
+
+    resp = _subsonic_get("getPlayQueue.view", username, password)
+    assert resp.status_code == 200, resp.text[:500]
+    queue = resp.json()["subsonic-response"]["playQueue"]
+    entries = queue.get("entry", [])
+    assert len(entries) == QUEUE_LENGTH
+    assert all(entry["id"] == song_id for entry in entries)
+
+    # Leave the account's queue empty for whatever runs next: no id clears it.
+    _subsonic_post("savePlayQueue.view", username, password, data={})
+
+
+def test_create_playlist_accepts_the_song_ids_in_a_post_body(admin_credentials, media_library):
+    username, password = admin_credentials
+    song_id, _ = _fixture_song_path(username, password)
+    name = "ci-contract-post-playlist"
+
+    data = [("name", name)] + [("songId", song_id)] * QUEUE_LENGTH
+    resp = _subsonic_post("createPlaylist.view", username, password, data=data)
+
+    assert resp.status_code == 200, resp.text[:500]
+    assert resp.json()["subsonic-response"]["status"] == "ok", resp.text[:500]
+
+    resp = _subsonic_get("getPlaylists.view", username, password)
+    playlists = resp.json()["subsonic-response"]["playlists"].get("playlist", [])
+    created = [p for p in playlists if p["name"] == name]
+    assert len(created) == 1, playlists
+    try:
+        assert created[0]["songCount"] == QUEUE_LENGTH
+    finally:
+        _subsonic_get("deletePlaylist.view", username, password, id=created[0]["id"])

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { resetRatings } from "../../src/lib/ratings.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import Player from "../../src/lib/Player.svelte";
@@ -63,6 +64,7 @@ describe("Player", () => {
     radioChannel.set(null);
     isMobile.set(false);
     nowPlayingOpen.set(false);
+    resetRatings();
     globalThis.fetch = api();
     // jsdom has no real audio pipeline.
     window.HTMLMediaElement.prototype.play = vi.fn(async () => {});
@@ -99,6 +101,40 @@ describe("Player", () => {
     await fireEvent.click(screen.getByLabelText("Afspelen"));
 
     expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalled();
+  });
+
+  // A jam queue used to be built into the savePlayQueue query string -- one `id=` per track --
+  // and a long queue came back as 414 URI Too Long.
+  it("pushes the jam queue as a POST body rather than a query string", async () => {
+    isMobile.set(true);
+    syncMode.set("follower-jam");
+    const queue = Array.from({ length: 600 }, (_, i) => ({ ...FIRST, id: `song-${i}` }));
+    playlist.set(queue);
+    currentTrack.set(queue[3]);
+    vi.spyOn(platform.player, "ready").mockReturnValue(true);
+    renderPlayer();
+    // Joining a jam reads the server's queue first; a push is held back while that is in flight.
+    await waitFor(() =>
+      expect(
+        globalThis.fetch.mock.calls.some(([url]) => String(url).includes("/rest/getPlayQueue")),
+      ).toBe(true),
+    );
+    for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await fireEvent.click(screen.getByLabelText("Afspelen"));
+
+    const saveCall = () =>
+      globalThis.fetch.mock.calls.find(([url]) => String(url).includes("/rest/savePlayQueue"));
+    await waitFor(() => expect(saveCall()).toBeTruthy());
+    const [url, init] = saveCall();
+    expect(url).not.toMatch(/[?&]id=/);
+    expect(init.method).toBe("POST");
+    expect(init.body.getAll("id")).toHaveLength(600);
+    expect(init.body.get("current")).toBe("song-3");
+    expect(init.body.get("playing")).toBe("true");
+    // A follower never pushes a position: that would fight the host.
+    expect(init.body.has("position")).toBe(false);
+    syncMode.set("off");
   });
 
   it("the state follows what the audio element reports", async () => {

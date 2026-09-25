@@ -5,7 +5,6 @@
   import ArtistList from './ArtistList.svelte';
   import TrackDetailsSheet from './TrackDetailsSheet.svelte';
   import Modal from './Modal.svelte';
-  import { subsonicError } from './utils.js';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
   import { genreSegments } from './genreSegments.js';
@@ -16,6 +15,7 @@
   import { formatBytes, isSet, trackSize } from './downloads.js';
   import { formatHoursMinutes } from './playerProgress.js';
   import { logAction } from './diagnosticsLog.js';
+  import { ratings, ratingOf as ratingFor, tapStar } from './ratings.js';
 
   const {
     tracks = [],
@@ -209,52 +209,25 @@
     }
   }
 
-  // Ratings we set ourselves, keyed by track id. `tracks` comes in as a prop and
-  // is not always reactive state in the parent, so writing to `track.userRating`
-  // alone repaints nothing: the stars would keep showing the rating the list was
-  // fetched with until the parent re-fetched it.
-  let ownRatings = $state({});
-
   /**
-   * The rating to show for a track: what we last set for it, or what the
-   * backend sent with the list.
+   * The rating to show for a track: the shared rating store (`ratings.js`), so a rating set in
+   * the player, Now Playing or car mode repaints this row too, else what the backend sent.
    *
    * @param {Object} track - The track object.
    * @returns {number} The rating, 0 when unrated.
    */
   function ratingOf(track) {
-    return ownRatings[track.id] ?? track.userRating ?? 0;
+    return ratingFor($ratings, track);
   }
 
   /**
-   * Updates the rating of a track.
+   * A tap on star `rating` for a track: sets it, or clears it when it is already that many stars.
    *
    * @param {Object} track - The track object.
-   * @param {number} rating - The new rating (1-5).
+   * @param {number} rating - The star tapped (1-5).
    */
-  async function updateRating(track, rating) {
-    const oldRating = ratingOf(track);
-    const newRating = oldRating === rating ? 0 : rating;
-
-    // Optimistic update
-    ownRatings[track.id] = newRating;
-    track.userRating = newRating;
-
-    try {
-      // Subsonic reports its own errors (a throttled login, an id it cannot
-      // parse, a failed write) in the body with HTTP 200, so the status in
-      // the body is the only thing that says whether the rating was stored.
-      // `subsonicError` is that check, shared with the player.
-      const failure = await subsonicError(
-        await fetch(restUrl(`/rest/setRating?id=${track.id}&rating=${newRating}&${$authParams}`))
-      );
-      if (failure) throw new Error(failure.message);
-    } catch (e) {
-      console.error("Failed to update rating:", e);
-      ownRatings[track.id] = oldRating;
-      track.userRating = oldRating;
-      notify.error($t('notify.ratingFailed'), { detail: e.message });
-    }
+  function updateRating(track, rating) {
+    return tapStar(track, rating);
   }
 
   /**

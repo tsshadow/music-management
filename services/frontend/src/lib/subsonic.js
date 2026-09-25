@@ -136,6 +136,32 @@ export function queryString(params = {}) {
 }
 
 /**
+ * Makes one `/rest` call with its parameters in a form-encoded POST body rather than the query
+ * string (the OpenSubsonic `formPost` extension, which LMS advertises).
+ *
+ * For calls that carry one parameter per track -- `savePlayQueue`'s `id`, `createPlaylist`'s
+ * `songId` -- a long queue otherwise builds a request line that proxies answer with 414 URI Too
+ * Long. The credentials stay in the query string; LMS merges both into one parameter map.
+ *
+ * @param {string} method - A `/rest` method name, e.g. `savePlayQueue`.
+ * @param {Array<[string, unknown]>} fields - Name/value pairs, repeated names allowed, in order.
+ *   `undefined` and `null` values are left out.
+ * @param {string} auth - The `authParams` query string.
+ * @param {object} [options]
+ * @param {typeof fetch} [options.fetchImpl] - Injected by the tests.
+ * @returns {Promise<Response>}
+ */
+export function subsonicPost(method, fields, auth, options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  const body = new URLSearchParams();
+  for (const [name, value] of fields) {
+    if (value === undefined || value === null) continue;
+    body.append(name, String(value));
+  }
+  return fetchImpl(restUrl(`/rest/${method}?${auth}`), { method: "POST", body });
+}
+
+/**
  * Whether a thrown error means "the request never reached a server".
  *
  * `fetch` rejects with a `TypeError` for DNS, connection and CORS failures, so

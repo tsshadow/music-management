@@ -5,13 +5,14 @@ was played. Both are optional on the wire, because a client that has not been up
 scrobbling successfully -- so the interesting cases here are the absent ones.
 """
 
-import sys
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 import services.music_manager.routers.users
 

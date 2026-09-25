@@ -16,7 +16,7 @@
   import { onMount } from 'svelte';
   import { Clock, Headphones, ListMusic, Radio, Tag, TriangleAlert, Users } from '@lucide/svelte';
 
-  import { t } from './i18n/index.js';
+  import { t, format } from './i18n/index.js';
   import {
     DEFAULT_PERIOD,
     PERIODS,
@@ -47,7 +47,7 @@
   const measured = $derived(measuredPercent(summary));
   const listened = $derived(splitDuration(summary?.estimated_secs));
 
-  const num = (value) => (value ?? 0).toLocaleString('nl-NL');
+  const num = (value) => $format.number(value);
 
   async function load() {
     isLoading = true;
@@ -69,14 +69,14 @@
   <header class="flex flex-wrap items-end justify-between gap-4">
     <div>
       <h1 class="text-3xl font-black tracking-tight text-white">{$t('listening.title')}</h1>
-      <p class="text-sm text-[#b3b3b3] mt-1">{$t('listening.subtitle')}</p>
+      <p class="text-sm text-muma-spotify-text mt-1">{$t('listening.subtitle')}</p>
     </div>
     <div class="flex gap-1 bg-black/40 border border-white/5 rounded-full p-1">
       {#each PERIODS as option (option.id)}
         <button
           class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {period === option.id
             ? 'bg-brand text-black'
-            : 'text-[#b3b3b3] hover:text-white'}"
+            : 'text-muma-spotify-text hover:text-white'}"
           onclick={() => selectPeriod(option.id)}
         >{$t(`listening.period.${option.id}`)}</button>
       {/each}
@@ -84,44 +84,44 @@
   </header>
 
   {#if isLoading}
-    <p class="text-sm text-[#535353]">{$t('listening.loading')}</p>
+    <p class="text-sm text-muma-spotify-subtle">{$t('listening.loading')}</p>
   {:else if !summary}
-    <p class="text-sm text-[#535353]">{$t('listening.unavailable')}</p>
+    <p class="text-sm text-muma-spotify-subtle">{$t('listening.unavailable')}</p>
   {:else if summary.listens === 0}
-    <p class="text-sm text-[#535353]">{$t('listening.empty')}</p>
+    <p class="text-sm text-muma-spotify-subtle">{$t('listening.empty')}</p>
   {:else}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <p class="text-[10px] font-black uppercase tracking-widest text-[#b3b3b3] flex items-center gap-1.5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-muma-spotify-text flex items-center gap-1.5">
           <Headphones size={13} class="text-brand" /> {$t('listening.tile.listens')}
         </p>
         <p class="text-3xl font-black text-white mt-2 tabular-nums">{num(summary.listens)}</p>
-        <p class="text-[11px] text-[#535353] mt-1">{$t('listening.tile.matchedOf', { matched: num(summary.matched) })}</p>
+        <p class="text-[11px] text-muma-spotify-subtle mt-1">{$t('listening.tile.matchedOf', { matched: num(summary.matched) })}</p>
       </div>
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <p class="text-[10px] font-black uppercase tracking-widest text-[#b3b3b3] flex items-center gap-1.5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-muma-spotify-text flex items-center gap-1.5">
           <ListMusic size={13} class="text-brand" /> {$t('listening.tile.tracks')}
         </p>
         <p class="text-3xl font-black text-white mt-2 tabular-nums">{num(summary.tracks)}</p>
-        <p class="text-[11px] text-[#535353] mt-1">{$t('listening.tile.matchedOnly')}</p>
+        <p class="text-[11px] text-muma-spotify-subtle mt-1">{$t('listening.tile.matchedOnly')}</p>
       </div>
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <p class="text-[10px] font-black uppercase tracking-widest text-[#b3b3b3] flex items-center gap-1.5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-muma-spotify-text flex items-center gap-1.5">
           <Users size={13} class="text-brand" /> {$t('listening.tile.artists')}
         </p>
         <p class="text-3xl font-black text-white mt-2 tabular-nums">{num(summary.artists)}</p>
-        <p class="text-[11px] text-[#535353] mt-1">{$t('listening.tile.matchedOnly')}</p>
+        <p class="text-[11px] text-muma-spotify-subtle mt-1">{$t('listening.tile.matchedOnly')}</p>
       </div>
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <p class="text-[10px] font-black uppercase tracking-widest text-[#b3b3b3] flex items-center gap-1.5">
+        <p class="text-[10px] font-black uppercase tracking-widest text-muma-spotify-text flex items-center gap-1.5">
           <Clock size={13} class="text-brand" /> {$t('listening.tile.time')}
         </p>
         <p class="text-3xl font-black text-white mt-2 tabular-nums">
           {num(listened.hours)}<span class="text-lg">{$t('listening.hoursShort')}</span>
           {listened.minutes}<span class="text-lg">{$t('listening.minutesShort')}</span>
         </p>
-        <p class="text-[11px] text-[#535353] mt-1">{$t('listening.tile.estimated')}</p>
+        <p class="text-[11px] text-muma-spotify-subtle mt-1">{$t('listening.tile.estimated')}</p>
       </div>
     </div>
 
@@ -134,9 +134,9 @@
     </div>
 
     <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-      <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-5">{$t('listening.timeline')}</h2>
+      <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-5">{$t('listening.timeline')}</h2>
       {#if buckets.length === 0}
-        <p class="text-xs text-[#535353]">{$t('listening.empty')}</p>
+        <p class="text-xs text-muma-spotify-subtle">{$t('listening.empty')}</p>
       {:else}
         <div class="flex items-end gap-0.5 h-40">
           {#each buckets as bar (bar.bucket)}
@@ -155,17 +155,17 @@
             </div>
           {/each}
         </div>
-        <div class="flex justify-between mt-2 text-[10px] text-[#535353] font-mono tabular-nums">
+        <div class="flex justify-between mt-2 text-[10px] text-muma-spotify-subtle font-mono tabular-nums">
           <span>{bucketLabel(buckets[0].bucket, data.bucket)}</span>
           <span>{bucketLabel(buckets[buckets.length - 1].bucket, data.bucket)}</span>
         </div>
-        <p class="text-[10px] text-[#535353] mt-3">{$t('listening.timelineLegend')}</p>
+        <p class="text-[10px] text-muma-spotify-subtle mt-3">{$t('listening.timelineLegend')}</p>
       {/if}
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-5">{$t('listening.clock')}</h2>
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-5">{$t('listening.clock')}</h2>
         <div class="flex items-end gap-0.5 h-32">
           {#each hours as count, hour (hour)}
             <div class="flex-1 flex flex-col justify-end h-full group relative">
@@ -176,21 +176,21 @@
             </div>
           {/each}
         </div>
-        <div class="flex justify-between mt-2 text-[10px] text-[#535353] font-mono tabular-nums">
+        <div class="flex justify-between mt-2 text-[10px] text-muma-spotify-subtle font-mono tabular-nums">
           <span>00:00</span><span>12:00</span><span>23:00</span>
         </div>
       </div>
 
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-5">{$t('listening.weekdays')}</h2>
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-5">{$t('listening.weekdays')}</h2>
         <div class="flex flex-col gap-2.5">
           {#each weekdays as count, day (day)}
             <div class="flex items-center gap-3">
-              <span class="text-[11px] text-[#b3b3b3] w-8 shrink-0">{$t(`listening.weekday.${day}`)}</span>
+              <span class="text-[11px] text-muma-spotify-text w-8 shrink-0">{$t(`listening.weekday.${day}`)}</span>
               <div class="h-2 flex-1 bg-white/5 rounded-full overflow-hidden">
                 <div class="h-full bg-brand rounded-full" style="width: {(count / peak(weekdays.map((n) => ({ listens: n })))) * 100}%"></div>
               </div>
-              <span class="text-[11px] text-[#b3b3b3] tabular-nums w-12 text-right shrink-0">{num(count)}</span>
+              <span class="text-[11px] text-muma-spotify-text tabular-nums w-12 text-right shrink-0">{num(count)}</span>
             </div>
           {/each}
         </div>
@@ -199,20 +199,20 @@
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-1">{$t('listening.topTracks')}</h2>
-        <p class="text-[10px] text-[#535353] mb-4">{$t('listening.matchedOnlyNote')}</p>
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-1">{$t('listening.topTracks')}</h2>
+        <p class="text-[10px] text-muma-spotify-subtle mb-4">{$t('listening.matchedOnlyNote')}</p>
         {#if topTracks.length === 0}
-          <p class="text-xs text-[#535353]">{$t('listening.empty')}</p>
+          <p class="text-xs text-muma-spotify-subtle">{$t('listening.empty')}</p>
         {:else}
           <ol class="flex flex-col gap-2.5">
             {#each topTracks as track, index (track.track_id)}
               <li class="flex items-center gap-3">
-                <span class="text-[11px] text-[#535353] tabular-nums w-4 shrink-0">{index + 1}</span>
+                <span class="text-[11px] text-muma-spotify-subtle tabular-nums w-4 shrink-0">{index + 1}</span>
                 <span class="flex-1 min-w-0">
                   <span class="block text-xs text-white font-bold truncate">{track.title}</span>
-                  <span class="block text-[11px] text-[#b3b3b3] truncate">{track.artist ?? $t('listening.unknownArtist')}</span>
+                  <span class="block text-[11px] text-muma-spotify-text truncate">{track.artist ?? $t('listening.unknownArtist')}</span>
                 </span>
-                <span class="text-xs text-[#b3b3b3] tabular-nums shrink-0">{num(track.listens)}</span>
+                <span class="text-xs text-muma-spotify-text tabular-nums shrink-0">{num(track.listens)}</span>
               </li>
             {/each}
           </ol>
@@ -220,20 +220,20 @@
       </div>
 
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-1">{$t('listening.topArtists')}</h2>
-        <p class="text-[10px] text-[#535353] mb-4">{$t('listening.matchedOnlyNote')}</p>
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-1">{$t('listening.topArtists')}</h2>
+        <p class="text-[10px] text-muma-spotify-subtle mb-4">{$t('listening.matchedOnlyNote')}</p>
         {#if topArtists.length === 0}
-          <p class="text-xs text-[#535353]">{$t('listening.empty')}</p>
+          <p class="text-xs text-muma-spotify-subtle">{$t('listening.empty')}</p>
         {:else}
           <ol class="flex flex-col gap-2.5">
             {#each topArtists as artist, index (artist.artist_id)}
               <li class="flex items-center gap-3">
-                <span class="text-[11px] text-[#535353] tabular-nums w-4 shrink-0">{index + 1}</span>
+                <span class="text-[11px] text-muma-spotify-subtle tabular-nums w-4 shrink-0">{index + 1}</span>
                 <button
                   class="flex-1 min-w-0 text-left text-xs text-white font-bold truncate hover:underline"
                   onclick={() => onnavigate?.(`artist:${artist.artist_id}`)}
                 >{artist.artist}</button>
-                <span class="text-xs text-[#b3b3b3] tabular-nums shrink-0">{num(artist.listens)}</span>
+                <span class="text-xs text-muma-spotify-text tabular-nums shrink-0">{num(artist.listens)}</span>
               </li>
             {/each}
           </ol>
@@ -241,22 +241,22 @@
       </div>
 
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-1 flex items-center gap-1.5">
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-1 flex items-center gap-1.5">
           <Tag size={13} class="text-brand" /> {$t('listening.topLabels')}
         </h2>
-        <p class="text-[10px] text-[#535353] mb-4">{$t('listening.labelsNote')}</p>
+        <p class="text-[10px] text-muma-spotify-subtle mb-4">{$t('listening.labelsNote')}</p>
         {#if topLabels.length === 0}
-          <p class="text-xs text-[#535353]">{$t('listening.empty')}</p>
+          <p class="text-xs text-muma-spotify-subtle">{$t('listening.empty')}</p>
         {:else}
           <ol class="flex flex-col gap-2.5">
             {#each topLabels as label, index (label.label_id)}
               <li class="flex items-center gap-3">
-                <span class="text-[11px] text-[#535353] tabular-nums w-4 shrink-0">{index + 1}</span>
+                <span class="text-[11px] text-muma-spotify-subtle tabular-nums w-4 shrink-0">{index + 1}</span>
                 <button
                   class="flex-1 min-w-0 text-left text-xs text-white font-bold truncate hover:underline"
                   onclick={() => onnavigate?.(`label:${label.label}`)}
                 >{label.label}</button>
-                <span class="text-xs text-[#b3b3b3] tabular-nums shrink-0">{num(label.listens)}</span>
+                <span class="text-xs text-muma-spotify-text tabular-nums shrink-0">{num(label.listens)}</span>
               </li>
             {/each}
           </ol>
@@ -266,10 +266,10 @@
 
     {#if sources.length > 0}
       <div class="bg-black/40 p-5 rounded-xl border border-white/5">
-        <h2 class="text-xs font-black uppercase tracking-widest text-[#b3b3b3] mb-1 flex items-center gap-1.5">
+        <h2 class="text-xs font-black uppercase tracking-widest text-muma-spotify-text mb-1 flex items-center gap-1.5">
           <Radio size={13} class="text-brand" /> {$t('listening.sources')}
         </h2>
-        <p class="text-[10px] text-[#535353] mb-4">{$t('listening.sourcesNote')}</p>
+        <p class="text-[10px] text-muma-spotify-subtle mb-4">{$t('listening.sourcesNote')}</p>
         <div class="flex flex-col gap-2.5">
           {#each sources as row (row.source)}
             <div class="flex items-center gap-3">
@@ -277,7 +277,7 @@
               <div class="h-2 flex-1 bg-white/5 rounded-full overflow-hidden">
                 <div class="h-full bg-brand rounded-full" style="width: {(row.listens / peak(sources)) * 100}%"></div>
               </div>
-              <span class="text-[11px] text-[#b3b3b3] tabular-nums w-16 text-right shrink-0">{num(row.listens)}</span>
+              <span class="text-[11px] text-muma-spotify-text tabular-nums w-16 text-right shrink-0">{num(row.listens)}</span>
             </div>
           {/each}
         </div>

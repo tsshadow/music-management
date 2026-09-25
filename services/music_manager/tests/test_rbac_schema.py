@@ -1,14 +1,13 @@
 """Coverage for the RBAC helpers and the schema bootstrap in services/music_manager/rbac.py."""
 
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
-
+import pytest
 
 import services.music_manager.routers.users as users_router
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 users_router.run_lms_db_sync = lambda: None
 

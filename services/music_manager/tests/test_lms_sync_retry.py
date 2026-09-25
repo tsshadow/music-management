@@ -14,10 +14,6 @@ reason, and it does not come back for anything else.
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.music_manager.routers import users  # noqa: E402
 
 

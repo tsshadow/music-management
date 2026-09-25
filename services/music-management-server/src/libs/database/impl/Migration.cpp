@@ -35,8 +35,11 @@ namespace lms::db
 {
     namespace
     {
-        static constexpr Version LMS_DATABASE_VERSION{ 121 };
-    }
+        // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
+        // sequence. Upstream migrations above 103 are ported under the next free number here,
+        // never merged under theirs -- see services/music-management-server/FORK.md.
+        static constexpr Version LMS_DATABASE_VERSION{ 122 };
+    } // namespace
 
     VersionInfo::VersionInfo()
         : _version{ LMS_DATABASE_VERSION }
@@ -2008,6 +2011,20 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             utils::executeCommand(*session.getDboSession(), "DROP INDEX IF EXISTS auth_token_domain_value_idx");
             utils::executeCommand(*session.getDboSession(), "CREATE UNIQUE INDEX IF NOT EXISTS auth_token_domain_value_unique_idx ON auth_token(domain, value)");
         }
+
+        void migrateFromV121(Session& session)
+        {
+            // A MuMa account that is disabled or deleted is disabled here too, rather than
+            // deleted: its listens, ratings, stars and playlists refer to the user row by id,
+            // and a re-enabled account must find them where it left them. A deleted row would
+            // orphan them, and a re-created user gets a new id.
+            // Written by the user synchronizer only; every existing user starts enabled.
+            //
+            // Re-runnable, like its neighbours: a database wound back past this step (the migration
+            // test does that) already has the column.
+            if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('user') WHERE name = 'disabled'").resultValue() == 0)
+                utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2107,6 +2124,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 118, migrateFromV118 },
             { 119, migrateFromV119 },
             { 120, migrateFromV120 },
+            { 121, migrateFromV121 },
         };
 
         bool migrationPerformed{};

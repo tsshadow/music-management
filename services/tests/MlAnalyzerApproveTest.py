@@ -9,9 +9,10 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
+import pytest
 
-setup_mocks()
+pytestmark = pytest.mark.mock_base('librosa', 'sqlalchemy', 'pandas', 'tqdm', 'dotenv')
+
 
 from services.tests.MlAnalyzerTest import load_module
 

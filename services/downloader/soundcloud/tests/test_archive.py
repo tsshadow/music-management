@@ -1,8 +1,11 @@
 import unittest
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('yt_dlp', 'Cache')
+
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 
 

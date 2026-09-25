@@ -60,9 +60,10 @@ def read_tags(path) -> dict[str, str]:
     Flatten one file's tags to lowercase name -> first value.
 
     The only part of this module that touches mutagen, and reached through
-    `mutagen.File` rather than a from-import on purpose: the test suite replaces the
-    mutagen module wholesale (`services/tests/mock_base.py`), and a from-import would
-    fail at import time and take every module importing this one down with it.
+    `mutagen.File` rather than a from-import on purpose: test modules that ask for the
+    `mutagen` stub of `services/tests/mock_base.py` get a module without `File`, and a
+    from-import would fail at import time and take every module importing this one down
+    with it.
     """
     try:
         tags = mutagen.File(path)

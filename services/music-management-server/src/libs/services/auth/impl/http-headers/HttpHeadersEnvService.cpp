@@ -43,6 +43,8 @@ namespace lms::auth
         LMS_LOG(AUTH, DEBUG, "Extracted login name = '" << loginName << "' from HTTP header");
 
         const db::UserId userId{ getOrCreateUser(loginName) };
+        if (isUserDisabled(userId))
+            return CheckResult{ .state = CheckResult::State::Denied, .userId = {} };
         onUserAuthenticated(userId);
         return CheckResult{ .state = CheckResult::State::Granted, .userId = userId };
     }
@@ -56,6 +58,8 @@ namespace lms::auth
         LMS_LOG(AUTH, DEBUG, "Extracted login name = '" << loginName << "' from HTTP header");
 
         const db::UserId userId{ getOrCreateUser(loginName) };
+        if (isUserDisabled(userId))
+            return { .state = CheckResult::State::Denied, .userId = {} };
         onUserAuthenticated(userId);
         return { .state = CheckResult::State::Granted, .userId = userId };
     }

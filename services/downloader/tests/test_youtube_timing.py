@@ -2,9 +2,12 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('yt_dlp', 'config_store', 'Cache')
+
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateState

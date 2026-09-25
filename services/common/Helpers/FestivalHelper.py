@@ -1,10 +1,10 @@
 import logging
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.text_normalize import padded_ascii_name_key
 
 YEAR_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\b')
 
@@ -96,11 +96,11 @@ class FestivalHelper:
 
     @staticmethod
     def normalize(text: str) -> str:
-        """Accent-free, lower case, punctuation as single spaces, padded on both sides."""
-        decomposed = unicodedata.normalize('NFKD', text or '')
-        stripped = ''.join(c for c in decomposed if not unicodedata.combining(c))
-        collapsed = re.sub(r'[^a-z0-9]+', ' ', stripped.lower()).strip()
-        return f' {collapsed} '
+        """Accent-free, lower case, punctuation as single spaces, padded on both sides.
+
+        The genre key between spaces: see `services.common.text_normalize`.
+        """
+        return padded_ascii_name_key(text)
 
     @staticmethod
     def extract_year(text: str) -> int | None:

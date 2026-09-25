@@ -157,6 +157,17 @@ namespace lms::api::muma
     /// for everyone.
     bool isPublicAuthPath(std::string_view pathInfo);
 
+    /// The X-Forwarded-For value this server sends MuMa for a proxied call: the client address it
+    /// resolved itself (`Wt::Http::Request::clientAddress()`), normalised, and nothing the client
+    /// wrote. Anything the client put in its own X-Forwarded-For is dropped rather than appended,
+    /// so the chain MuMa sees starts at this server. Empty when the address does not parse or is
+    /// unspecified -- then no header is sent and MuMa keys on this server's own address, as before.
+    ///
+    /// MuMa's login rate limit counts per client address (services/music_manager/rate_limit.py)
+    /// and believes this header only because it comes from a trusted network; without it, every
+    /// login reaching MuMa through lms.<domain> came from this server's address.
+    std::string forwardedClientAddress(std::string_view clientAddress);
+
     /// What an authenticated caller may do on the routes this server answers itself.
     struct CallerRights
     {

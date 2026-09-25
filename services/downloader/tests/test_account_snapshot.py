@@ -4,9 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest import mock
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader.account_schedule import AccountSchedule, DatabaseCheckStore, InMemoryCheckStore
 from services.downloader.deep_sweep import (
@@ -23,6 +21,8 @@ from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, 
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOff, WriteOffs
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 NOW = datetime(2026, 9, 21, 12, 0, 0)
 DAY = timedelta(days=1)
@@ -306,9 +306,7 @@ class ManagerWithoutYtDlpTest(unittest.TestCase):
         import subprocess
         import sys
 
-        # mock_base stubs yt_dlp itself, so the block has to come after it.
         script = (
-            'from services.tests.mock_base import setup_mocks; setup_mocks()\n'
             'import sys; sys.modules["yt_dlp"] = None\n'
             'from datetime import datetime\n'
             'from services.downloader.account_schedule import _snapshot_from_row\n'

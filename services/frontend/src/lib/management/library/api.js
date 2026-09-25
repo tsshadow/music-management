@@ -7,6 +7,8 @@
  */
 
 import { GATE_RETRY_DELAYS_MS } from "../../mumaApi.js";
+import { get } from "svelte/store";
+import { t } from "../../i18n/index.js";
 
 export function emptyFilters() {
   return {
@@ -53,7 +55,7 @@ export async function apiGet(API_BASE, path, filters, getHeaders, extra = {}) {
     try {
       res = await fetch(url, { headers: getHeaders() });
     } catch (err) {
-      throw new Error(`Server niet bereikbaar (${path}).`, { cause: err });
+      throw new Error(get(t)("management.library.serverUnreachablePath", { path }), { cause: err });
     }
     // 503 is the LMS proxy saying its concurrency gate is full -- a condition
     // measured in milliseconds, shared with every other MuMa caller. See
@@ -64,7 +66,12 @@ export async function apiGet(API_BASE, path, filters, getHeaders, extra = {}) {
     }
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      throw new Error(`Serverfout ${res.status} bij ${path}. ${detail.slice(0, 200)}`.trim());
+      const message = get(t)("management.library.serverError", {
+        status: res.status,
+        path,
+        detail: detail.slice(0, 200),
+      });
+      throw new Error(message.trim());
     }
     return res.json();
   }

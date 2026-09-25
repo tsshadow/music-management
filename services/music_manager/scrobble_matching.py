@@ -54,6 +54,12 @@ def normalize(text: str | None) -> str:
     Case, accents, punctuation and the many ways of writing "featuring" all go.
     What survives is still the same track by the same artist -- this tier cannot
     invent a wrong answer, only find a right one that was written differently.
+
+    Deliberately not one of the `services.common.text_normalize` keys: it compares
+    free-text titles from other players, not curated names. So it casefolds
+    (`Straße` = `Strasse`), folds every spelling of "featuring" to one token, and
+    deletes intra-word apostrophes (`Don't` = `Dont`) -- each of which would merge
+    genres or artists that curation keeps apart.
     """
     if not text:
         return ''

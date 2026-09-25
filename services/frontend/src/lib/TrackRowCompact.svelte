@@ -40,7 +40,7 @@
 <div
   role="button"
   tabindex="0"
-  class="flex items-center gap-3 rounded-lg p-1 cursor-pointer hover:bg-[#282828] transition-colors"
+  class="flex items-center gap-3 rounded-lg p-1 cursor-pointer hover:bg-muma-spotify-light transition-colors"
   data-testid="track-row-compact"
   onclick={() => (onplay ?? playTrack)(track)}
   onkeydown={(e) => e.key === 'Enter' && (onplay ?? playTrack)(track)}

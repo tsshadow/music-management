@@ -41,7 +41,7 @@
            component tag, and `<style.…>` would parse as a style element. -->
       {@const { Icon, accent, role, live } = VARIANTS[item.type]}
       <div
-        class="flex items-start gap-3 rounded-md bg-[#282828] p-3 shadow-lg border-l-[3px]"
+        class="flex items-start gap-3 rounded-md bg-muma-spotify-light p-3 shadow-lg border-l-[3px]"
         style="border-left-color: {accent}"
         {role}
         aria-live={live}
@@ -51,7 +51,7 @@
         <div class="min-w-0 flex-1">
           <p class="m-0 text-sm font-bold text-white break-words">{item.message}</p>
           {#if item.detail}
-            <p class="m-0 mt-1 text-xs text-[#b3b3b3] break-words">{item.detail}</p>
+            <p class="m-0 mt-1 text-xs text-muma-spotify-text break-words">{item.detail}</p>
           {/if}
           {#if item.action}
             <button
@@ -66,12 +66,12 @@
           {/if}
         </div>
         {#if item.count > 1}
-          <span class="shrink-0 rounded-full bg-[#3e3e3e] px-2 py-0.5 text-xs font-bold text-white">
+          <span class="shrink-0 rounded-full bg-muma-spotify-highlight px-2 py-0.5 text-xs font-bold text-white">
             {item.count}&times;
           </span>
         {/if}
         <button
-          class="shrink-0 cursor-pointer border-none bg-transparent p-0 text-[#b3b3b3] hover:text-white"
+          class="shrink-0 cursor-pointer border-none bg-transparent p-0 text-muma-spotify-text hover:text-white"
           aria-label={$t('notify.dismiss')}
           onclick={() => dismiss(item.id)}
         >
@@ -82,7 +82,7 @@
 
     {#if $notifications.length > 1}
       <button
-        class="self-end cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#b3b3b3] hover:text-white"
+        class="self-end cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-muma-spotify-text hover:text-white"
         onclick={dismissAll}
       >
         {$t('notify.dismissAll')}

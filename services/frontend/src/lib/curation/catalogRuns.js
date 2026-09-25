@@ -5,6 +5,9 @@
  * `prefix: "DWX"`); everything that turns those back into catalogue numbers a person
  * can read or paste lives here, so it can be tested without mounting the component.
  */
+import { get } from "svelte/store";
+
+import { t } from "../i18n/index.js";
 
 /** How many runs the section shows before it folds the rest behind "toon alles". */
 export const RUNS_SHOWN = 40;
@@ -71,9 +74,11 @@ export function searchTerms(series) {
  * @returns {string}
  */
 export function seriesHeader(series) {
-  const name = series.prefix || "(geen prefix)";
+  const translate = get(t);
+  const name = series.prefix || translate("curation.noPrefix");
   const pad = (n) => String(n).padStart(series.width, "0");
   const span = series.max - series.min + 1;
   const percent = Math.round(series.coverage * 100);
-  return `${name} · ${pad(series.min)}–${pad(series.max)} · ${series.present} van ${span} aanwezig (${percent}%)`;
+  const present = translate("curation.seriesPresent", { present: series.present, span, percent });
+  return `${name} · ${pad(series.min)}–${pad(series.max)} · ${present}`;
 }

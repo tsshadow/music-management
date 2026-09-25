@@ -28,14 +28,22 @@ const persistedStores = [];
  * @param {Object} [options] - Optional configuration.
  * @param {function(any): any} [options.onLoad] - Transformation function applied to the loaded value.
  * @param {boolean} [options.device] - Kept across a logout; see {@link resetSessionState}.
+ * @param {number} [options.throttleMs] - Write at most once per this many milliseconds, for a store
+ *   that changes several times a second (`playerState`'s progress). The first change after a quiet
+ *   spell is written at once, later ones are coalesced into one trailing write of the latest value,
+ *   and {@link flushPersistedStores} -- run on pause, on `visibilitychange` to hidden and on
+ *   `pagehide` -- writes whatever is still pending, so the last position is never lost.
  */
 function persist(key, store, options = {}) {
-  persistedStores.push({
+  const entry = {
     key,
     store,
     initial: JSON.stringify(get(store)),
     device: options.device === true,
-  });
+    flush: () => {},
+    cancel: () => {},
+  };
+  persistedStores.push(entry);
   const json = localStorage.getItem(key);
   if (json) {
     try {
@@ -50,8 +58,73 @@ function persist(key, store, options = {}) {
     }
   }
 
-  store.subscribe((value) => {
-    localStorage.setItem(key, JSON.stringify(value));
+  const write = (value) => localStorage.setItem(key, JSON.stringify(value));
+  if (!options.throttleMs) {
+    store.subscribe(write);
+    return;
+  }
+  const throttled = throttledWriter(write, options.throttleMs);
+  entry.flush = throttled.flush;
+  entry.cancel = throttled.cancel;
+  store.subscribe(throttled.push);
+}
+
+/**
+ * Wraps a writer so it runs at most once per `intervalMs`: leading write, then one trailing write
+ * of the latest value. `flush` writes a pending value now; `cancel` drops it.
+ *
+ * @template T
+ * @param {function(T): void} write
+ * @param {number} intervalMs
+ * @param {object} [clock] - Injected by the tests.
+ * @param {function(): number} [clock.now]
+ * @returns {{push: function(T): void, flush: function(): void, cancel: function(): void}}
+ */
+export function throttledWriter(write, intervalMs, { now = () => Date.now() } = {}) {
+  let lastWriteAt = -Infinity;
+  let timer = null;
+  let pending = false;
+  let latest;
+
+  function flush() {
+    clearTimeout(timer);
+    timer = null;
+    if (!pending) return;
+    pending = false;
+    lastWriteAt = now();
+    write(latest);
+  }
+
+  function cancel() {
+    clearTimeout(timer);
+    timer = null;
+    pending = false;
+  }
+
+  function push(value) {
+    latest = value;
+    pending = true;
+    const wait = lastWriteAt + intervalMs - now();
+    if (wait <= 0) flush();
+    else if (!timer) timer = setTimeout(flush, wait);
+  }
+
+  return { push, flush, cancel };
+}
+
+/**
+ * Writes every throttled store's pending value to localStorage now. Called when the page may be
+ * about to go away (hidden, `pagehide`) and when playback pauses, so the throttle never costs the
+ * last known position.
+ */
+export function flushPersistedStores() {
+  for (const entry of persistedStores) entry.flush();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushPersistedStores);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushPersistedStores();
   });
 }
 
@@ -166,8 +239,14 @@ export const playerState = writable({
   shuffle: false,
   repeat: "none", // 'none', 'one', 'all'
 });
+/**
+ * How often `playerState` may reach localStorage. Progress changes about four times a second while
+ * playing; writing each of those serialised the whole object synchronously on the main thread.
+ */
+export const PLAYER_STATE_PERSIST_MS = 5000;
 persist("lms_player_state", playerState, {
   onLoad: (value) => ({ ...value, playing: false }), // Always start paused
+  throttleMs: PLAYER_STATE_PERSIST_MS,
 });
 
 /** What a browser that has never touched the equalizer gets. */
@@ -944,9 +1023,11 @@ export function resetSessionState() {
 
   applyingAccountSettings = true;
   try {
-    for (const { key, store, initial, device } of persistedStores) {
+    for (const { key, store, initial, device, cancel } of persistedStores) {
       if (device) continue;
       store.set(JSON.parse(initial));
+      // A throttled store may still hold a trailing write of the value just replaced.
+      cancel();
       localStorage.removeItem(key);
     }
     // Not persisted, but still the previous person's until the page reloads.

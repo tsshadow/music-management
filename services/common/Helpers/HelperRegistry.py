@@ -13,7 +13,7 @@ correct.
 
 It lives beside Cache.py rather than inside it because importing Cache builds every
 helper against a real database, which is exactly why services/tests/mock_base.py
-replaces that module wholesale. A dispatcher that takes the mapping as an argument
+offers a `Cache` stub that replaces that module wholesale. A dispatcher that takes the mapping as an argument
 can be tested on its own.
 """
 

@@ -1,14 +1,14 @@
-import sys
 import threading
 import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.common.Helpers.EventService import Event, EventQueue, EventService
 from services.common.Helpers.ntfy_sink import NtfySink
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 def make_event(level='INFO', title='t', source='downloader'):

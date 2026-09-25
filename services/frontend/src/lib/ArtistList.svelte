@@ -31,7 +31,7 @@
 </script>
 
 <span
-  class="{size === 'lg' ? 'flex items-center py-2 min-h-11 min-w-0 text-base' : 'text-sm'} {active ? 'text-brand' : 'text-[#b3b3b3]'}"
+  class="{size === 'lg' ? 'flex items-center py-2 min-h-11 min-w-0 text-base' : 'text-sm'} {active ? 'text-brand' : 'text-muma-spotify-text'}"
   data-testid={size === 'lg' ? 'artist-list-lg' : undefined}
 >
   <!-- The names live in one inline span, never directly in the flex row: as flex items each
@@ -51,7 +51,7 @@
   {/each}
   </span>
   {#if size === 'lg' && hasNavigable}
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="text-[#b3b3b3] shrink-0 ml-1" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="text-muma-spotify-text shrink-0 ml-1" aria-hidden="true">
       <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"></path>
     </svg>
   {/if}

@@ -123,7 +123,7 @@
         }
       );
       if (res.ok) {
-        onMessage($t('management.radio.saved').replace('{name}', name));
+        onMessage($t('management.radio.saved', { name }));
         editing = null;
         preview = null;
         await fetchChannels();
@@ -153,14 +153,14 @@
   }
 
   async function remove(channel) {
-    if (!confirm($t('management.radio.confirmDelete').replace('{name}', channel.name))) return;
+    if (!confirm($t('management.radio.confirmDelete', { name: channel.name }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/radio/channels/${channel.slug}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage($t('management.radio.deleted').replace('{name}', channel.name));
+        onMessage($t('management.radio.deleted', { name: channel.name }));
         if (editing === channel.slug) cancel();
         await fetchChannels();
       } else {
@@ -370,8 +370,8 @@
           {#if preview}
             <span class="ml-2">
               {preview.truncated
-                ? $t('management.radio.matchedAtLeast').replace('{count}', preview.matched)
-                : $t('management.radio.matched').replace('{count}', preview.matched)}
+                ? $t('management.radio.matchedAtLeast', { count: preview.matched })
+                : $t('management.radio.matched', { count: preview.matched })}
             </span>
           {/if}
         </div>

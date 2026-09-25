@@ -5,14 +5,15 @@ database.get_db_connection with a MagicMock at import time.
 """
 
 import importlib.util
-import sys
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 _SPEC = importlib.util.spec_from_file_location(
     'database_under_test', Path(__file__).resolve().parent.parent / 'database.py'

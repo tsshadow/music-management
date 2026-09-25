@@ -30,7 +30,7 @@
   import { checkForAppUpdate } from './lib/appUpdate.js';
   import { allSteps, isUpdateRun, pendingSteps } from './lib/setup.js';
   import { recordPlace } from './lib/recentPlaces.js';
-  import { startQueue } from './lib/queue.js';
+  import { startQueue, saveTracksAsPlaylist } from './lib/queue.js';
 
   const hours = new Date().getHours();
   const greetingKey = hours < 12 ? 'greeting.morning' : hours < 18 ? 'greeting.afternoon' : 'greeting.evening';
@@ -428,13 +428,10 @@
   async function saveQueueAsPlaylist() {
       const tracks = get(playlist);
       if (tracks.length === 0) return;
-      const name = prompt("Geef een naam voor de nieuwe afspeellijst:");
+      const name = prompt($t('queue.playlistNamePrompt'));
       if (!name) return;
       try {
-          const songIds = tracks.map(t => t.id).join('&songId=');
-          const auth = get(authParams);
-          const resp = await fetch(restUrl(`/rest/createPlaylist?name=${encodeURIComponent(name)}&songId=${songIds}&${auth}`));
-          if (!resp.ok) throw new Error(resp.statusText || `HTTP ${resp.status}`);
+          await saveTracksAsPlaylist(name, tracks, get(authParams));
           notify.success($t('notify.queueSaved'));
       } catch (e) {
           console.error(e);
@@ -480,7 +477,7 @@
     {/if}
   </div>
 
-  <div class="bg-linear-to-b from-[#121212] to-[#121212] row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-3 md:p-8 relative min-h-0 min-w-0">
+  <div class="bg-linear-to-b from-muma-spotify-dark to-muma-spotify-dark row-start-1 row-end-2 col-start-1 md:col-start-2 col-end-2 md:col-end-3 overflow-y-auto p-3 md:p-8 relative min-h-0 min-w-0">
     <TopBar greeting={greeting} />
     <div class="content-area">
       <!-- The desktop sidebar already offers the mode switch; on the phone it now lives in
@@ -510,28 +507,28 @@
       ></button>
 
       <div
-        class="bg-[#121212] border-l border-[#282828] overflow-y-auto p-5 min-h-0"
+        class="bg-muma-spotify-dark border-l border-muma-spotify-light overflow-y-auto p-5 min-h-0"
         style="width: {queueWidth}px"
       >
           <header class="flex justify-between items-center mb-5">
               <h2 class="text-lg font-bold m-0">{$t('queue.title')}</h2>
               <div class="flex items-center gap-3">
-                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} title={$t('queue.saveAsPlaylist')}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-muma-spotify-text hover:bg-muma-spotify-light hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} title={$t('queue.saveAsPlaylist')}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                           <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path>
                       </svg>
                   </button>
-                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} title={$t('queue.shuffle')}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-muma-spotify-text hover:bg-muma-spotify-light hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} title={$t('queue.shuffle')}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                           <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
                       </svg>
                   </button>
-                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-[#b3b3b3] hover:bg-[#282828] hover:text-white transition-all cursor-pointer" onclick={clearQueue} title={$t('queue.clear')}>
+                  <button class="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-muma-spotify-text hover:bg-muma-spotify-light hover:text-white transition-all cursor-pointer" onclick={clearQueue} title={$t('queue.clear')}>
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                       </svg>
                   </button>
-                  <button class="bg-none border-none text-[#b3b3b3] text-2xl cursor-pointer px-2" onclick={() => showQueue = false}>&times;</button>
+                  <button class="bg-none border-none text-muma-spotify-text text-2xl cursor-pointer px-2" onclick={() => showQueue = false}>&times;</button>
               </div>
           </header>
           <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />
@@ -544,7 +541,7 @@
        this number. At z-20 the content column's sticky TopBar (z-30) and the bottom nav
        (z-20, later in the DOM) both painted over it. The drawer below is z-40 too and
        later in the DOM, so it still wins; the z-[100] sheets and modals are untouched. -->
-  <div class="bg-[#181818] col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-[#282828] z-40 min-h-[64px] md:min-h-0 md:pb-[env(safe-area-inset-bottom,0px)]">
+  <div class="bg-muma-spotify-panel col-start-1 col-end-2 md:col-end-4 row-start-2 row-end-3 border-t border-muma-spotify-light z-40 min-h-[64px] md:min-h-0 md:pb-[env(safe-area-inset-bottom,0px)]">
     <Player
       ontoggleQueue={() => showQueue = !showQueue}
       onnavigate={handleNavigate}
@@ -567,7 +564,7 @@
         transition:fade={{ duration: 150 }}
       ></button>
       <div
-        class="relative w-[280px] max-w-[85vw] h-full bg-black border-r border-[#282828] overflow-y-auto shadow-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+        class="relative w-[280px] max-w-[85vw] h-full bg-black border-r border-muma-spotify-light overflow-y-auto shadow-2xl pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
         transition:fly={{ x: -280, duration: 200 }}
       >
         {#if $activeView === 'settings'}
@@ -601,17 +598,17 @@
        Reachable from the mini player's queue button and from Now Playing's. -->
   <BottomSheet title={$t('queue.title')} onclose={() => showQueue = false}>
     <div class="flex items-center gap-2 px-4 pb-3">
-      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} aria-label={$t('queue.saveAsPlaylist')}>
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-muma-spotify-text hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={saveQueueAsPlaylist} aria-label={$t('queue.saveAsPlaylist')}>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path>
         </svg>
       </button>
-      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} aria-label={$t('queue.shuffle')}>
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-muma-spotify-text hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={shuffleQueue} aria-label={$t('queue.shuffle')}>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M4.5 6.307a.75.75 0 1 1 0-1.5 5.862 5.862 0 0 1 4.671 2.382l.66.883 5.03 6.717a4.362 4.362 0 0 0 3.471 1.769h1.918a.75.75 0 1 1 0 1.5h-1.918a5.862 5.862 0 0 1-4.671-2.381l-.66-.883-5.03-6.717a4.362 4.362 0 0 0-3.471-1.77H4.5zM14.862 8.567l.66-.883A5.862 5.862 0 0 1 20.193 5.3h1.057a.75.75 0 1 1 0 1.5h-1.057a4.362 4.362 0 0 0-3.471 1.768l-.66.883-.16-.214-.132-.176-.908-1.213-.01.014zM4.5 19.193a.75.75 0 1 0 0-1.5h1.057a4.362 4.362 0 0 0 3.471-1.768l.66-.883.908 1.213.14.186.124.166.01-.013.66.883A5.862 5.862 0 0 1 16.208 20.193H4.5z"></path>
         </svg>
       </button>
-      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-[#b3b3b3] hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={clearQueue} aria-label={$t('queue.clear')}>
+      <button class="flex items-center justify-center w-9 h-9 rounded-full bg-transparent text-muma-spotify-text hover:bg-white/10 hover:text-white transition-all cursor-pointer" onclick={clearQueue} aria-label={$t('queue.clear')}>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
         </svg>

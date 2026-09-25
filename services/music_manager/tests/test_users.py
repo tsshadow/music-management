@@ -1,9 +1,12 @@
 import os
 import sqlite3
-import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
 
 # Mock external modules to avoid import errors, but only when they aren't already
 # provided by services/tests/mock_base.py (loaded once for the whole pytest session
@@ -11,8 +14,6 @@ from unittest.mock import MagicMock, patch
 # sys.modules here would clobber the properly-constructed mutagen mock classes with
 # a plain MagicMock, breaking isinstance() checks in any importer/downloader test
 # that runs afterward in the same pytest session.
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
 
 
 import services.music_manager.routers.users

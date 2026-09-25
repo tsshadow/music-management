@@ -14,12 +14,6 @@ import pytest
 os.environ.setdefault('API_KEY', 'test-api-key')
 
 
-def pytest_configure(config):
-    from services.tests import mock_base
-
-    mock_base.setup_mocks()
-
-
 @pytest.fixture(autouse=True)
 def _reset_auth_rate_limiter():
     """Give every test a clean rate-limit window.
@@ -31,10 +25,10 @@ def _reset_auth_rate_limiter():
     next one.
     """
     try:
-        from services.music_manager.rate_limit import auth_limiter
+        from services.music_manager.rate_limit import reset_limiters
     except Exception:  # the limiter only exists once music_manager is importable
         yield
         return
-    auth_limiter.reset()
+    reset_limiters()
     yield
-    auth_limiter.reset()
+    reset_limiters()

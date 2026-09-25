@@ -6,8 +6,9 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
 
 
 import services.music_manager.routers.users as users_router
@@ -294,6 +295,27 @@ class PrimaryImageTest(ArtistImagesTestCase):
         self.cursor.fetchone.return_value = None
         self.assertEqual(self.client.post('/api/artists/1/image/clear', headers=self.headers).status_code, 404)
 
+    def test_clearing_also_removes_the_published_copies(self):
+        """Bug 080: `primary.jpg` kept serving the portrait that had just been cleared."""
+        self.cursor.fetchone.return_value = {'id': 1}
+        with patch.object(artist_images_router, '_image_storage') as storage:
+            self.client.post('/api/artists/1/image/clear', headers=self.headers)
+        storage.return_value.unpublish_primary.assert_called_once_with(1)
+
+    def test_a_file_system_failure_does_not_undo_a_committed_clear(self):
+        self.cursor.fetchone.return_value = {'id': 1}
+        with patch.object(artist_images_router, '_image_storage') as storage:
+            storage.return_value.unpublish_primary.side_effect = PermissionError('read-only')
+            response = self.client.post('/api/artists/1/image/clear', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.conn.commit.assert_called()
+
+    def test_selecting_an_image_publishes_it(self):
+        self.cursor.fetchone.return_value = {'id': 5, 'cached_path': '/mnt/artists/1/spotify-abc.jpg'}
+        with patch.object(artist_images_router, '_image_storage') as storage:
+            self.client.post('/api/artists/1/image/select/5', headers=self.headers)
+        storage.return_value.publish_primary.assert_called_once_with(1, '/mnt/artists/1/spotify-abc.jpg')
+
 
 class ServeArtistImageTest(ArtistImagesTestCase):
     def test_a_cached_image_is_served_from_disk(self):
@@ -571,6 +593,66 @@ class SyncImagesToServerTest(unittest.TestCase):
     def test_a_failing_sync_is_swallowed(self):
         self.muma_conn.cursor.side_effect = RuntimeError('database gone')
         self.sync()  # must not raise
+
+
+class UnsetClearedArtworkTest(unittest.TestCase):
+    """Bug 080: a cleared portrait stayed the server's artist artwork, so the player kept it."""
+
+    def setUp(self):
+        import sqlite3
+
+        self.server_conn = sqlite3.connect(':memory:')
+        self.server_conn.executescript(
+            """
+            CREATE TABLE image (id INTEGER PRIMARY KEY, absolute_file_path TEXT);
+            CREATE TABLE artwork (id INTEGER PRIMARY KEY, image_id INTEGER);
+            CREATE TABLE artist (id INTEGER PRIMARY KEY, name TEXT, preferred_artwork_id INTEGER);
+            INSERT INTO image VALUES (1, '/mnt/artists/9/spotify-abc.jpg'), (2, '/music/Angerfist/artist.jpg');
+            INSERT INTO artwork VALUES (10, 1), (20, 2);
+            INSERT INTO artist VALUES (100, 'Angerfist', 10), (200, 'Miss K8', 20);
+            """
+        )
+        self.addCleanup(self.server_conn.close)
+        self.muma_conn = MagicMock()
+        self.muma_cursor = MagicMock()
+        self.muma_conn.cursor.return_value.__enter__.return_value = self.muma_cursor
+        self.muma_conn.cursor.return_value.__exit__.return_value = False
+
+    def artwork_of(self, artist_id):
+        return self.server_conn.execute(
+            'SELECT preferred_artwork_id FROM artist WHERE id = ?', (artist_id,)
+        ).fetchone()[0]
+
+    def unset(self):
+        with patch('builtins.print'):
+            return artist_images_router._unset_cleared_artwork_on_server(self.muma_conn, self.server_conn)
+
+    def test_artwork_this_sync_gave_the_server_is_taken_back(self):
+        self.muma_cursor.fetchall.return_value = [
+            {'artist_name': 'Angerfist', 'cached_path': '/mnt/artists/9/spotify-abc.jpg'}
+        ]
+        self.assertEqual(self.unset(), 1)
+        self.assertIsNone(self.artwork_of(100))
+        self.assertEqual(self.artwork_of(200), 20)
+        sql = self.muma_cursor.execute.call_args.args[0]
+        self.assertIn("image_status = 'cleared'", sql)
+
+    def test_artwork_the_server_found_itself_is_left_alone(self):
+        self.muma_cursor.fetchall.return_value = [{'artist_name': 'Miss K8', 'cached_path': '/mnt/artists/3/x.jpg'}]
+        self.assertEqual(self.unset(), 0)
+        self.assertEqual(self.artwork_of(200), 20)
+
+    def test_nothing_cleared_means_nothing_written(self):
+        self.muma_cursor.fetchall.return_value = []
+        self.assertEqual(self.unset(), 0)
+        self.assertEqual(self.artwork_of(100), 10)
+
+    def test_the_full_sync_ends_with_this_pass(self):
+        with patch.object(artist_images_router, '_unset_cleared_artwork_on_server') as unset:
+            self.muma_cursor.fetchall.return_value = []
+            with patch('builtins.print'):
+                artist_images_router.sync_artist_images_to_server(self.muma_conn, self.server_conn)
+        unset.assert_called_once_with(self.muma_conn, self.server_conn)
 
 
 if __name__ == '__main__':

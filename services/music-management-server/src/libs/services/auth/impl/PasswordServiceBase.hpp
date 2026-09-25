@@ -64,6 +64,15 @@ namespace lms::auth
     private:
         virtual PasswordCheckOutcome checkUserPassword(std::string_view loginName, std::string_view password) = 0;
 
+        // The same check, told who is asking. A backend that answers on its own ignores the
+        // address, which is the default; one that asks another service over HTTP passes it on,
+        // because from that service's side every check otherwise comes from this server and a
+        // per-client rate limit there collapses into one bucket for everybody.
+        virtual PasswordCheckOutcome checkUserPasswordFrom(const boost::asio::ip::address& /*clientAddress*/, std::string_view loginName, std::string_view password)
+        {
+            return checkUserPassword(loginName, password);
+        }
+
         CheckResult checkUserPassword(const boost::asio::ip::address& clientAddress,
                                       std::string_view loginName,
                                       std::string_view password) override;

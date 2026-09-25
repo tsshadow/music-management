@@ -48,6 +48,13 @@ if [ -z "${REMOTE_HOST}" ]; then
     # shellcheck source=scripts/ci/prod-ssh-setup.sh
     . "$SCRIPT_DIR/prod-ssh-setup.sh"
 fi
+# Called from ci-deploy.sh the agent is inherited but PROD_SSH_OPTS is not: an
+# array does not survive into a child process.
+if [ "${#PROD_SSH_OPTS[@]}" -eq 0 ]; then
+    # shellcheck source=scripts/lib/ssh_host_keys.sh
+    . "$PROJECT_ROOT/scripts/lib/ssh_host_keys.sh"
+    mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+fi
 
 EXPECTED_VERSION="${1:-}"
 if [ -z "$EXPECTED_VERSION" ] && [ -f "$PROJECT_ROOT/VERSION" ]; then
@@ -68,7 +75,7 @@ PROJECTS="music-management lms"
 
 # remote CMD: run CMD on the production host.
 remote() {
-    ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "$@"
+    ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "$@"
 }
 
 # sample_containers: print project|name|restart-policy|state|health|restarts

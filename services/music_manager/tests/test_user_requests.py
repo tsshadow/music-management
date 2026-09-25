@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -16,6 +17,8 @@ from services.music_manager.tests.scripted_cursor import (
     transaction_log,
 )
 
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
+
 API_KEY = resolve_system_api_key()
 
 CLAIMS = {
@@ -24,6 +27,7 @@ CLAIMS = {
     'name': 'Teun',
     'picture': 'https://example.com/user.jpg',
     'iss': 'https://accounts.google.com',
+    'email_verified': True,
 }
 
 PENDING_REQUEST = {
@@ -99,7 +103,34 @@ class VerifyGoogleIdTokenTest(unittest.TestCase):
             self.verify(error=ValueError('token expired'))
 
         self.assertEqual(raised.exception.status_code, 401)
-        self.assertIn('token expired', raised.exception.detail)
+
+    def test_the_rejection_does_not_echo_the_library_error(self):
+        # Which check failed is for the log, not for whoever is probing the verifier.
+        with self.assertLogs('music-manager.user-requests', level='INFO') as logs:
+            with self.assertRaises(HTTPException) as raised:
+                self.verify(error=ValueError('Token used too early, 1700000000 < 1700000100'))
+
+        self.assertEqual(raised.exception.detail, 'Invalid Google token')
+        self.assertIn('Token used too early', logs.output[0])
+
+    def test_an_unverified_email_is_unauthorized(self):
+        # Google signs the address on file whether or not its owner ever proved it; an approved
+        # request turns that address into a username.
+        for verified in (False, 'false', None, 'yes'):
+            with self.subTest(email_verified=verified):
+                claims = {**CLAIMS, 'email_verified': verified}
+                if verified is None:
+                    del claims['email_verified']
+                with self.assertRaises(HTTPException) as raised:
+                    self.verify(claims)
+
+                self.assertEqual(raised.exception.status_code, 401)
+                self.assertIn('not verified', raised.exception.detail)
+
+    def test_the_legacy_string_form_of_a_verified_email_is_accepted(self):
+        claims, _google_id_token = self.verify({**CLAIMS, 'email_verified': 'true'})
+
+        self.assertEqual(claims['email'], 'user@example.com')
 
     def test_a_token_from_another_issuer_is_unauthorized(self):
         with self.assertRaises(HTTPException) as raised:
@@ -314,6 +345,57 @@ class ApproveUserRequestTest(UserRequestsTestCase):
         self.assertIs(insert[4], False)
         self.assertEqual(insert[5], 2)
         connection.commit.assert_called_once()
+
+    def test_an_email_that_is_already_a_username_is_a_409_not_a_500(self):
+        rules = self.base_rules() + [('SELECT id FROM users WHERE LOWER(username) = LOWER(%s)', None, {'id': 5})]
+
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
+            response, cursor, connection = self.approve(rules)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('user@example.com', response.json()['detail'])
+        self.assertIn('link_user_id', response.json()['detail'])
+        self.assertEqual(cursor.statements_matching('INSERT INTO users'), [])
+        connection.commit.assert_not_called()
+
+    def test_the_username_check_ignores_case(self):
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
+            _response, cursor, _connection = self.approve(self.base_rules())
+
+        check = cursor.statements_matching('SELECT id FROM users WHERE')[0]
+        self.assertIn('LOWER(username) = LOWER(%s)', check[0])
+        self.assertEqual(check[1], ('user@example.com',))
+
+    def test_losing_the_race_for_the_username_is_a_409_too(self):
+        class IntegrityError(Exception):
+            pass
+
+        cursor = ScriptedCursor(self.base_rules(), lastrowid=99)
+        real_execute = cursor.execute
+
+        def execute(sql, params=None):
+            real_execute(sql, params)
+            if 'INSERT INTO users' in sql:
+                raise IntegrityError(1062, "Duplicate entry 'user@example.com' for key 'username'")
+
+        cursor.execute = execute
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests, 'get_db_connection', return_value=connection),
+        ):
+            response = self.client.post('/api/user-requests/7/approve', json={}, headers={'x-api-key': API_KEY})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertNotIn('Duplicate entry', response.json()['detail'])
 
     def test_a_request_without_an_email_falls_back_to_a_generated_username(self):
         request = {**PENDING_REQUEST, 'email': None}

@@ -11,6 +11,7 @@ Flow (see AGENTS.md / issue for the full spec):
      default 'user' role and a linked Google UserIdentity -- never 'admin'.
 """
 
+import logging
 import os
 import secrets
 
@@ -23,6 +24,11 @@ from services.music_manager.identity import username_taken
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['user-requests'])
+
+logger = logging.getLogger('music-manager.user-requests')
+
+# MariaDB's "Duplicate entry ... for key" -- the unique index on users.username.
+_DUPLICATE_ENTRY = 1062
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 
@@ -63,11 +69,32 @@ def _verify_google_id_token(id_token_str: str) -> dict:
         request_adapter = google_requests.Request()
         claims = google_id_token.verify_oauth2_token(id_token_str, request_adapter, audience=GOOGLE_CLIENT_ID)
     except ValueError as exc:
-        raise HTTPException(status_code=401, detail=f'Invalid Google token: {exc}') from exc
+        # The library's text says which check failed ("Token expired", "Wrong recipient",
+        # the clock skew, the certificate fetch) -- useful in the log, a free probe of the
+        # verifier for anyone on the other end of the 401.
+        logger.info('Google sign-in refused by the verifier: %s', exc)
+        raise HTTPException(status_code=401, detail='Invalid Google token') from exc
 
     if claims.get('iss') not in ('accounts.google.com', 'https://accounts.google.com'):
         raise HTTPException(status_code=401, detail='Invalid Google token issuer')
+    # The e-mail address becomes the username of an approved account and is what an admin
+    # sees when deciding whom to let in. Google signs the address it has on file whether or
+    # not the owner ever proved it is theirs; only `email_verified` says they did. Without
+    # this check anyone could create a Google account in someone else's name and ask for
+    # access as them.
+    if not _email_is_verified(claims):
+        raise HTTPException(status_code=401, detail='Google account e-mail address is not verified')
     return claims
+
+
+def _email_is_verified(claims: dict) -> bool:
+    """Whether the token says its e-mail address was verified by Google.
+
+    Google sends a JSON boolean today; older tokens carried the string ``"true"``,
+    which is accepted too. Anything else -- missing, ``False``, ``"false"`` -- is not.
+    """
+    verified = claims.get('email_verified')
+    return verified is True or (isinstance(verified, str) and verified.lower() == 'true')
 
 
 def _request_to_dict(row):
@@ -256,12 +283,10 @@ def approve_user_request(
                 username = req.get('email') or f"google-{req['google_subject'][:12]}"
                 # Account names are case-insensitive (services/music_manager/identity.py): an
                 # e-mail address differing only in case from an existing account's name is
-                # that account's name, so link to it instead of creating a second one.
+                # that account's name, so link to it instead of creating a second one. Inserting
+                # it anyway hit the unique index and answered a 500 (bug report 079).
                 if username_taken(cursor, username):
-                    raise HTTPException(
-                        status_code=409,
-                        detail='An account with this name already exists; link the request to that account instead',
-                    )
+                    raise HTTPException(status_code=409, detail=_username_taken_detail(username))
                 display_name = body.display_name or req.get('display_name') or username
                 api_key = secrets.token_hex(32)
                 cursor.execute(
@@ -301,9 +326,27 @@ def approve_user_request(
     except HTTPException:
         raise
     except Exception as e:
+        if _is_duplicate_entry(e):
+            # Lost a race with another account taking the name between the check and the insert.
+            raise HTTPException(status_code=409, detail=_username_taken_detail(None)) from e
         raise HTTPException(status_code=500, detail=f'Goedkeuren mislukt: {e}') from e
     finally:
         conn.close()
+
+
+def _username_taken_detail(username: str | None) -> str:
+    """The 409 detail for an approval whose new username already exists."""
+    name = f"'{username}'" if username else 'The username for this request'
+    return (
+        f'{name} is already an existing account. Link the request to that account '
+        '(link_user_id) instead of creating a new one.'
+    )
+
+
+def _is_duplicate_entry(exc: Exception) -> bool:
+    """Whether `exc` is the database refusing a duplicate key (MariaDB error 1062)."""
+    args = getattr(exc, 'args', ())
+    return type(exc).__name__ == 'IntegrityError' and bool(args) and args[0] == _DUPLICATE_ENTRY
 
 
 @router.post('/user-requests/{request_id}/reject')

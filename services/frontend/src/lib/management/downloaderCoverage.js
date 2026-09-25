@@ -6,6 +6,9 @@
  * client: 1.100 SoundCloud rows is a list, not a dataset.
  */
 
+import { get } from "svelte/store";
+import { t } from "../i18n/index.js";
+
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
 
@@ -76,11 +79,13 @@ export function formatAge(iso, now = Date.now()) {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return null;
   const elapsed = Math.max(0, now - then);
-  if (elapsed < HOUR) return "< 1 uur";
-  if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)} uur`;
+  const tr = get(t);
+  if (elapsed < HOUR) return tr("management.downloaders.coverage.ageUnderHour");
+  if (elapsed < DAY)
+    return tr("management.downloaders.duration.hours", { count: Math.floor(elapsed / HOUR) });
   const days = Math.floor(elapsed / DAY);
-  if (days < 60) return `${days} dag${days === 1 ? "" : "en"}`;
-  return `${Math.floor(days / 30)} mnd`;
+  if (days < 60) return tr("management.downloaders.duration.days", { count: days });
+  return tr("management.downloaders.coverage.ageMonths", { count: Math.floor(days / 30) });
 }
 
 /**
@@ -96,27 +101,21 @@ export function barSegments(row) {
   return { held, excluded, remaining: Math.max(0, 100 - held - excluded) };
 }
 
-/** Dutch labels for the write-off reasons the downloaders record. */
-export const REASON_LABELS = {
-  too_short: "te kort",
-  too_long: "te lang",
-  403: "niet beschikbaar (403)",
-  failing: "mislukt, wordt herkanst",
-  failed: "definitief mislukt",
-};
+/** The write-off reasons the downloaders record that have a label of their own. */
+export const REASONS = ["too_short", "too_long", "403", "failing", "failed"];
 
+/** The label for a write-off reason in the active locale; an unknown reason shows as itself. */
 export function reasonLabel(reason) {
-  return REASON_LABELS[reason] || reason;
+  if (!REASONS.includes(String(reason))) return reason;
+  return get(t)(`management.downloaders.coverage.reason.${reason}`);
 }
 
-/** Dutch labels for how a deep pass ended. */
-export const STATE_LABELS = {
-  complete: "afgerond",
-  capped: "afgekapt op het maximum",
-  parked: "onderbroken",
-};
+/** How a deep pass can end. */
+export const STATES = ["complete", "capped", "parked"];
 
+/** The label for how a deep pass ended, in the active locale; no state means never counted. */
 export function stateLabel(state) {
-  if (!state) return "nog niet geteld";
-  return STATE_LABELS[state] || state;
+  if (!state) return get(t)("management.downloaders.coverage.uncounted");
+  if (!STATES.includes(state)) return state;
+  return get(t)(`management.downloaders.coverage.state.${state}`);
 }

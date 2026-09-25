@@ -140,7 +140,7 @@
 {#if isLoading}
   <div class="p-8">{$t('common.loading')}</div>
 {:else if !album || loadFailed}
-  <div class="p-8 text-[#b3b3b3]" role="alert">{$t('library.loadFailed')}</div>
+  <div class="p-8 text-muma-spotify-text" role="alert">{$t('library.loadFailed')}</div>
 {:else}
   <div class="flex flex-col">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
@@ -171,7 +171,7 @@
            </button>
 
            <button 
-             class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-[#b3b3b3] hover:text-white"
+             class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-muma-spotify-text hover:text-white"
              onclick={() => {
                 if (allTracks.length > 0) {
                   const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
@@ -188,9 +188,9 @@
            </button>
 
            <button 
-             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {album.starred ? 'text-brand' : 'text-[#b3b3b3] hover:text-white'}"
+             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {album.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
              onclick={toggleStar}
-             title={album.starred ? "Verwijderen uit favorieten" : "Toevoegen aan favorieten"}
+             title={album.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
            >
               {#if album.starred}
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
@@ -210,8 +210,8 @@
               artists={album.albumArtists}
               onnavigate={onnavigate}
             />
-            {#if album.year} <span class="text-[#b3b3b3] hidden md:inline">•</span> {album.year}{/if}
-            {#if allTracks.length > 0} <span class="text-[#b3b3b3]">•</span> {$t('common.trackCount', { count: allTracks.length })}{/if}
+            {#if album.year} <span class="text-muma-spotify-text hidden md:inline">•</span> {album.year}{/if}
+            {#if allTracks.length > 0} <span class="text-muma-spotify-text">•</span> {$t('common.trackCount', { count: allTracks.length })}{/if}
          </div>
        </div>
     </header>
@@ -221,7 +221,7 @@
         {#each groupedTracks as [disc, tracks] (disc)}
           <div class={hasMultipleDiscs ? "mt-8 first:mt-0" : ""}>
             {#if hasMultipleDiscs}
-              <div class="flex items-center gap-4 mb-4 text-[#b3b3b3]">
+              <div class="flex items-center gap-4 mb-4 text-muma-spotify-text">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>
                 </svg>
@@ -232,31 +232,31 @@
           </div>
         {/each}
       {:else}
-        <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+        <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
           <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('album.noSets') : $t('album.noTracks')}</p>
           <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('album.noSetsHelp') : $t('album.noTracksHelp')}</p>
         </div>
       {/if}
 
       {#if album.genre || album.created}
-        <div class="text-[#b3b3b3] text-sm mt-8 space-y-1">
+        <div class="text-muma-spotify-text text-sm mt-8 space-y-1">
             {#if album.genre}<div>{$t('album.genre', { genre: album.genre })}</div>{/if}
             {#if album.created}<div>{$t('album.addedOn', { date: new Date(album.created).toLocaleDateString($locale) })}</div>{/if}
         </div>
       {/if}
 
       {#if (albumInfo && albumInfo.notes) || (albumInfo && albumInfo.musicBrainzId)}
-        <div class="mt-8 border-t border-[#282828] pt-8">
+        <div class="mt-8 border-t border-muma-spotify-light pt-8">
             <h3 class="text-xl font-bold mb-4">{$t('album.about')}</h3>
             {#if albumInfo.notes}
-                <p class="text-[#b3b3b3] whitespace-pre-wrap mb-4">{albumInfo.notes}</p>
+                <p class="text-muma-spotify-text whitespace-pre-wrap mb-4">{albumInfo.notes}</p>
             {/if}
             {#if albumInfo.musicBrainzId}
                 <a 
                     href="https://musicbrainz.org/release/{albumInfo.musicBrainzId}" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    class="inline-flex items-center gap-2 text-xs font-bold text-[#b3b3b3] hover:text-white transition-colors"
+                    class="inline-flex items-center gap-2 text-xs font-bold text-muma-spotify-text hover:text-white transition-colors"
                 >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path>

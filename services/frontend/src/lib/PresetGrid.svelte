@@ -55,7 +55,7 @@
       {#if canCreate}
         <button
           type="button"
-          class="text-sm font-bold text-[#b3b3b3] hover:text-white bg-transparent border-none cursor-pointer"
+          class="text-sm font-bold text-muma-spotify-text hover:text-white bg-transparent border-none cursor-pointer"
           onclick={() => oncreate?.()}
         >+ {$t('presetBuilder.new')}</button>
       {/if}

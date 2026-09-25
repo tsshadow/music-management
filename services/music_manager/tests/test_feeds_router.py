@@ -14,6 +14,7 @@ test_library_router.py.
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -22,6 +23,8 @@ from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.feeds.build import Feed
 from services.music_manager.main import app
 from services.music_manager.routers import feeds as feeds_router
+
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 client = TestClient(app)
 

@@ -2,11 +2,11 @@
 
 import unittest
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader.youtube.YoutubeSongProcessor import _video_message
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class VideoMessageTestCase(unittest.TestCase):

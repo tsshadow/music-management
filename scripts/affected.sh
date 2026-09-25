@@ -14,8 +14,9 @@ GLOBAL_PATTERNS=(
 )
 
 # Mapping of paths to modules
+# services/ml-analyzer is deliberately unmapped: it is deprecated and not built
+# (services/ml-analyzer/DEPRECATED.md). `./build.sh ml` still builds it by hand.
 MODULE_MAP=(
-    "services/ml-analyzer/:ml"
     "services/music_manager/:manager"
     "docker/Dockerfile.music-manager:manager"
     "services/frontend/:server"

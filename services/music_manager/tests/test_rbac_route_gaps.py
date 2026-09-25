@@ -5,13 +5,14 @@ route is exercised three ways: a plain `user` role is refused, the role that sho
 pass does, and the system key keeps working for LMS, CI and scripts/.
 """
 
-import sys
 import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 import bcrypt
 
@@ -182,7 +183,7 @@ class RatingWebhookTest(RouteAuthTestCase):
     PAYLOAD = {'event': 'rating_changed', 'object_type': 'artist', 'object_id': 'A', 'username': 'root', 'rating': 5}
 
     def test_a_user_key_cannot_write_ratings_under_any_name(self):
-        for path in ('/api/rating/lms-event', '/api/rating/server-event'):
+        for path in ('/api/rating/lms-event',):
             self.assertRefused(self.call('post', path, self.PAYLOAD, LISTENER), path)
             self.assertRefused(self.call('post', path, self.PAYLOAD, ADMIN), path)
         self.cursor.execute.assert_not_called()
@@ -413,7 +414,7 @@ class PasswordChangeTest(RouteAuthTestCase):
 
 
 class ServerSyncTest(RouteAuthTestCase):
-    PATHS = ('/api/users/sync/muma-server', '/api/users/sync/lms', '/api/users/sync/lms-db')
+    PATHS = ('/api/users/sync/muma-server', '/api/users/sync/lms-db')
 
     def setUp(self):
         super().setUp()
@@ -439,7 +440,7 @@ class ServerSyncTest(RouteAuthTestCase):
 
     def test_a_failing_sync_still_releases_the_lock(self):
         self.sync.side_effect = RuntimeError('locked database')
-        self.assertEqual(self.call('post', '/api/users/sync/lms', None, ADMIN).status_code, 500)
+        self.assertEqual(self.call('post', '/api/users/sync/muma-server', None, ADMIN).status_code, 500)
         self.assertFalse(users_router.lms_db_sync_lock.locked())
 
     def test_the_hourly_loop_holds_the_same_lock(self):

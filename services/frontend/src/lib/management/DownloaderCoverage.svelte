@@ -1,5 +1,5 @@
 <script>
-  import { t, locale } from '../i18n/index.js';
+  import { t, locale, formatNumber, formatDateTime } from '../i18n/index.js';
   import { AlertTriangle, RotateCcw, ExternalLink } from '@lucide/svelte';
   import { describeBackoff } from './downloaderTiming';
   import {
@@ -36,7 +36,8 @@
   $: load(source);
   $: visible = sortAccounts(filterAccounts(body?.accounts, filter, query), sort);
   $: shown = visible.slice(0, limit);
-  $: backoff = describeBackoff(body?.totals?.rate_state);
+  // $locale is read so the label is rebuilt in the new language when it changes.
+  $: backoff = ($locale, describeBackoff(body?.totals?.rate_state));
 
   async function load(which, force = false) {
     if (!force && cache[which]) {
@@ -83,12 +84,12 @@
 
   function n(value) {
     if (value === null || value === undefined) return '—';
-    return Number(value).toLocaleString($locale);
+    return formatNumber(value, $locale);
   }
 
   function when(iso) {
     if (!iso) return null;
-    return new Date(iso).toLocaleString($locale);
+    return formatDateTime(iso, $locale);
   }
 </script>
 

@@ -106,7 +106,15 @@ namespace lms::auth
         {
             auto readTransaction{ session.createReadTransaction() };
 
-            if (!db::AuthToken::find(session, domain.str(), token))
+            const db::AuthToken::pointer authToken{ db::AuthToken::find(session, domain.str(), token) };
+            if (!authToken)
+                return std::nullopt;
+
+            // The synchronizer revokes a disabled account's tokens, but one can be issued again
+            // afterwards (the admin token route does not ask); a disabled user's token opens
+            // nothing either way.
+            const db::User::pointer user{ db::User::find(session, authToken->getUserId()) };
+            if (!user || user->isDisabled())
                 return std::nullopt;
         }
 

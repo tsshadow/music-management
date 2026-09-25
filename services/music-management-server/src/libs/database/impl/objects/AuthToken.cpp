@@ -101,4 +101,11 @@ namespace lms::db
 
         utils::executeCommand(*session.getDboSession(), "DELETE FROM auth_token WHERE user_id = ? AND domain = ?", user, domain);
     }
+
+    void AuthToken::clearAllUserTokens(Session& session, UserId user)
+    {
+        session.checkWriteTransaction();
+
+        utils::executeCommand(*session.getDboSession(), "DELETE FROM auth_token WHERE user_id = ?", user);
+    }
 } // namespace lms::db

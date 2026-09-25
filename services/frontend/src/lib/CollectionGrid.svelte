@@ -73,18 +73,18 @@
 {#if loading && items.length === 0}
   <p>{$t('common.loading')}</p>
 {:else if items.length === 0}
-  <div class="text-[#b3b3b3]">
+  <div class="text-muma-spotify-text">
     <p>{emptyText}</p>
     {#if emptyHint}
       <p class="text-sm opacity-60 mt-2">{emptyHint}</p>
     {/if}
   </div>
 {:else if visible.length === 0}
-  <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+  <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
     <p class="text-xl font-bold mb-2 text-white">{$t('collection.noMatches')}</p>
     <p class="text-sm opacity-60 mb-4">{$t('collection.noMatchesHelp')}</p>
     <button
-      class="bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+      class="bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
       onclick={clearFilters}
     >{$t('collection.clearFilters')}</button>
   </div>
@@ -94,7 +94,7 @@
       <div
         role="button"
         tabindex="0"
-        class="bg-[#181818] p-3 md:p-6 rounded-lg flex flex-col items-center justify-center gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#282828] aspect-square relative group"
+        class="bg-muma-spotify-panel p-3 md:p-6 rounded-lg flex flex-col items-center justify-center gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light aspect-square relative group"
         onclick={() => open(item)}
         onkeydown={(e) => e.key === 'Enter' && open(item)}
       >
@@ -131,16 +131,16 @@
         {#if item.path}
           <!-- Only a search hit carries a path: it says which edition or stage it came
                from, which the label alone ('RED') does not. -->
-          <span class="text-xs text-[#b3b3b3] text-center break-words w-full">{item.path}</span>
+          <span class="text-xs text-muma-spotify-text text-center break-words w-full">{item.path}</span>
         {/if}
         {#if card.count === 'episodes'}
-          <span class="text-xs text-[#b3b3b3] text-center">
+          <span class="text-xs text-muma-spotify-text text-center">
             {$t('collection.episodeCount', { count: Number(item.songCount) || 0 })}
           </span>
         {:else if card.count === 'tracks' && item.songCount !== undefined}
           <!-- Older servers answer getRecordLabels without any counts; the card simply
                leaves the line out rather than showing "0 nummers". -->
-          <span class="text-xs text-[#b3b3b3] text-center">
+          <span class="text-xs text-muma-spotify-text text-center">
             {$t('common.trackCount', { count: Number(item.songCount) || 0 })}
             {#if Number(item.albumCount) > 0}
               &middot; {$t('collection.albumCount', { count: Number(item.albumCount) })}

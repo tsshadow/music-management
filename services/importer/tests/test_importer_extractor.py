@@ -3,9 +3,13 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.importer import extractor
 from services.importer.extractor import Extractor, is_later_volume, sibling_volumes
 from services.importer.settle import STAGING_PREFIX
+
+pytestmark = pytest.mark.mock_base('patoolib')
 
 # Captured before patoolib is patched away: `except patoolib.util.PatoolError` needs a
 # real exception class, which a bare MagicMock attribute is not.

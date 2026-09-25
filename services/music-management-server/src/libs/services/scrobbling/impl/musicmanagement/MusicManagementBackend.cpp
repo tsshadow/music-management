@@ -27,21 +27,30 @@
 
 namespace lms::scrobbling::musicManagement
 {
-    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
-        : _ioContext{ ioContext }
-        , _db{ db }
+    namespace
+    {
         // NOTE: "music-management-url" already includes the "/api" prefix
         // (see UserSynchronizer.cpp / MusicManagementPasswordService.cpp, which
         // append "/users/" and "/auth/login" directly onto it). The real route
         // is "/api/scrobble/event", so only "/scrobble/event" must be appended here.
-        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/scrobble/event" }
-        , _apiKey{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
-    {
-        if (!_apiUrl.empty())
+        std::unique_ptr<core::http::IClient> createConfiguredClient(boost::asio::io_context& ioContext)
         {
-            _client = core::http::createClient(_ioContext, _apiUrl);
-            LMS_LOG(SCROBBLING, INFO, "MusicManagement scrobbling backend started with API: " << _apiUrl);
+            const std::string apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/scrobble/event" };
+            LMS_LOG(SCROBBLING, INFO, "MusicManagement scrobbling backend started with API: " << apiUrl);
+            return core::http::createClient(ioContext, apiUrl);
         }
+    } // namespace
+
+    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
+        : MusicManagementBackend{ db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
+    {
+    }
+
+    MusicManagementBackend::MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey)
+        : _db{ db }
+        , _apiKey{ std::move(apiKey) }
+        , _client{ std::move(client) }
+    {
     }
 
     MusicManagementBackend::~MusicManagementBackend() = default;

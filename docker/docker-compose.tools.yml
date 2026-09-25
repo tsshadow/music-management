@@ -1,7 +1,21 @@
 version: "3.9"
 
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty container grows its log under
+# /var/lib/docker until the disk is full -- and on the production host a full
+# disk has already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB
+# per container is plenty for `docker logs`; the event log is the real history.
+# Same values as docker/docker-compose.yml; tests/ci/test_compose_log_rotation.py
+# checks that every service in every compose file has a logging block.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   soundcloud-fetcher:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -30,6 +44,7 @@ services:
   # schrijven zijn voordat er iets geschreven wordt, en dat is precies waar de
   # vorige poging op stukliep.
   release-date-backfill:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -60,6 +75,7 @@ services:
   # oude code levert hij exact dezelfde foute groepering weer op. Schrijven doet
   # `... run --rm song-work-repair python scripts/repair_song_works.py`.
   song-work-repair:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -79,6 +95,7 @@ services:
       - music-management_db
 
   genre-processor:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
@@ -96,6 +113,7 @@ services:
     networks:
       - music-management_db
 #
+#  Deprecated and disabled since 2026-09-25, kept commented: see services/ml-analyzer/DEPRECATED.md
 #  ml-analyzer:
 #    image: ${DOCKER_USER}/${IMAGE_ML}:latest
 #    container_name: muma-ml-analyzer
@@ -115,6 +133,7 @@ services:
 #      - music-management_db
 
   firefox:
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
@@ -127,7 +146,8 @@ services:
       SECURE_CONNECTION: "1"
       DISABLE_GPU: "1"
       WEB_AUTHENTICATION_USERNAME: ${FIREFOX_USER:-admin}
-      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD:-admin}
+      # No default: it was "admin", on a port bound on every interface.
+      WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
       - "7003:5800"
     volumes:

@@ -1,15 +1,28 @@
+import contextlib
 import hashlib
 import logging
 import os
+import shutil
 import time
 from io import BytesIO
 
 import requests
 from PIL import Image
 
+#: The sizes `_generate_thumbnails` writes, per image and as the stable `thumb_<size>.jpg`.
+THUMBNAIL_SIZES = (64, 160, 300, 640)
+#: The file the web player falls back to (`/media/artist-images/<id>/primary.jpg`).
+PRIMARY_FILENAME = 'primary.jpg'
+
 
 class ImageStorage:
-    """Saves fetched artist images to disk and builds their public URLs."""
+    """Saves fetched artist images to disk and builds their public URLs.
+
+    Each image is kept under its own name (`<source>-<hash>.jpg` plus thumbnails), so an
+    earlier portrait can be selected again. Next to those sit the *published* copies,
+    `primary.jpg` and `thumb_<size>.jpg`, which are what a fixed URL serves: they must
+    follow whatever the artist's primary image is, and disappear when it is cleared.
+    """
 
     def __init__(self, storage_path, public_base_url):
         self.storage_path = storage_path
@@ -62,9 +75,8 @@ class ImageStorage:
         return img.crop((left, top, right, bottom))
 
     def _generate_thumbnails(self, img, artist_dir, base_filename):
-        sizes = [64, 160, 300, 640]
         paths = {}
-        for size in sizes:
+        for size in THUMBNAIL_SIZES:
             thumb = img.copy()
             thumb.thumbnail((size, size), Image.Resampling.LANCZOS)
             thumb_filename = f'{base_filename}_{size}.jpg'
@@ -74,6 +86,44 @@ class ImageStorage:
             thumb.save(stable_thumb_path, 'JPEG', quality=85)
             paths[size] = thumb_path
         return paths
+
+    def unpublish_primary(self, artist_id):
+        """Remove the published `primary.jpg` and `thumb_<size>.jpg`; keep every stored image.
+
+        Clearing a portrait used to leave these behind, so the fixed URL kept serving
+        the picture that had just been removed. Returns how many files were removed.
+        """
+        artist_dir = os.path.join(self.storage_path, str(artist_id))
+        removed = 0
+        for filename in [PRIMARY_FILENAME] + [f'thumb_{size}.jpg' for size in THUMBNAIL_SIZES]:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(os.path.join(artist_dir, filename))
+                removed += 1
+        return removed
+
+    def publish_primary(self, artist_id, cached_path):
+        """Make the stored image at `cached_path` the published one for `artist_id`.
+
+        Copies it to `primary.jpg` and its thumbnails to `thumb_<size>.jpg`. A thumbnail
+        that is not there (an image stored before thumbnails existed) removes the stale
+        published one rather than leaving the previous portrait's thumbnail in place.
+        False when the image itself is gone from disk; nothing is changed then.
+        """
+        if not cached_path or not os.path.exists(cached_path):
+            return False
+        artist_dir = os.path.join(self.storage_path, str(artist_id))
+        os.makedirs(artist_dir, exist_ok=True)
+        shutil.copyfile(cached_path, os.path.join(artist_dir, PRIMARY_FILENAME))
+        base = os.path.splitext(cached_path)[0]
+        for size in THUMBNAIL_SIZES:
+            stable = os.path.join(artist_dir, f'thumb_{size}.jpg')
+            source = f'{base}_{size}.jpg'
+            if os.path.exists(source):
+                shutil.copyfile(source, stable)
+            else:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(stable)
+        return True
 
 
 class ImageDownloader:

@@ -7,14 +7,15 @@ key", a scrobble written under another account's name, and the refresh-token tab
 that only ever grew.
 """
 
-import sys
 import threading
 import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 import bcrypt
 

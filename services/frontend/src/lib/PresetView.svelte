@@ -98,19 +98,19 @@
 <div class="flex flex-col gap-8 pb-12">
   <header class="flex items-start justify-between gap-4">
     <div class="min-w-0">
-      <div class="text-xs font-bold uppercase tracking-wider mb-2 text-[#b3b3b3]">{$t('presets.one')}</div>
+      <div class="text-xs font-bold uppercase tracking-wider mb-2 text-muma-spotify-text">{$t('presets.one')}</div>
       <h1 class="text-3xl md:text-5xl font-black mb-3 break-words">{preset.name}</h1>
       <div class="flex items-center gap-2 text-sm font-medium flex-wrap">
         <span class="text-white">{subtitle}</span>
         {#if tracks.length > 0}
-          <span class="text-[#b3b3b3]">• {$t('common.trackCount', { count: tracks.length })}</span>
+          <span class="text-muma-spotify-text">• {$t('common.trackCount', { count: tracks.length })}</span>
         {/if}
       </div>
     </div>
     {#if $mumaUser}
       <div class="relative shrink-0">
         <button
-          class="bg-transparent border-none text-[#b3b3b3] hover:text-white cursor-pointer p-2"
+          class="bg-transparent border-none text-muma-spotify-text hover:text-white cursor-pointer p-2"
           aria-label={$t('common.more')}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
@@ -121,7 +121,7 @@
           </svg>
         </button>
         {#if menuOpen}
-          <div class="absolute right-0 top-full mt-1 w-48 bg-[#282828] rounded-md shadow-xl border border-white/5 py-1 z-30" role="menu">
+          <div class="absolute right-0 top-full mt-1 w-48 bg-muma-spotify-light rounded-md shadow-xl border border-white/5 py-1 z-30" role="menu">
             <button
               class="w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10 bg-transparent border-none cursor-pointer"
               role="menuitem"
@@ -156,9 +156,9 @@
     </div>
 
     {#if isLoading && tracks.length === 0}
-      <div class="text-[#b3b3b3] p-12 text-center">{$t('common.loading')}</div>
+      <div class="text-muma-spotify-text p-12 text-center">{$t('common.loading')}</div>
     {:else if tracks.length === 0}
-      <div class="text-[#b3b3b3] p-12 text-center">{$t('presets.empty')}</div>
+      <div class="text-muma-spotify-text p-12 text-center">{$t('presets.empty')}</div>
     {:else}
       <TrackList {tracks} onnavigate={onnavigate} />
     {/if}

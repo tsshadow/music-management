@@ -1,10 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader.write_offs import (
     InMemoryWriteOffStore,
     WriteOff,

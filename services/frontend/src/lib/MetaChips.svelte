@@ -33,7 +33,7 @@
    * Colours per chip kind (docs/styleguide.md, increment L). Written out in full so
    * Tailwind's scanner sees every class; a kind not listed here gets `NEUTRAL`.
    */
-  const NEUTRAL = 'bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333]';
+  const NEUTRAL = 'bg-muma-spotify-light text-muma-spotify-text hover:text-white hover:bg-muma-spotify-hover';
   const KIND_CLASS = {
     label: 'bg-[#3a2c16] text-[#ffcc80] hover:text-[#ffe0b2] hover:bg-[#4a3820]',
   };

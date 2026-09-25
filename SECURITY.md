@@ -59,11 +59,19 @@ Summarised here because it affects what counts as a vulnerability;
 * Because the api_key is password-equivalent, `/api/auth/login`,
   `/api/auth/refresh` and `/api/auth/setup` are rate limited
   (`services/music_manager/rate_limit.py`). Exceeding the limit returns 429.
-  Only rejected attempts count, and a login is counted per account rather than
-  per client address: LMS re-checks the password here on every Subsonic request
-  over a hop that carries no client address, so counting successes under one
-  shared key logged the whole installation out. Spraying one password across
-  many accounts is covered a layer up, by LMS's own per-client `LoginThrottler`.
+  Only rejected attempts count -- LMS re-checks the password here on every
+  Subsonic request, so counting successes logged the whole installation out.
+  A login is counted per client and account (10 a minute) and per account from
+  anywhere (50 a minute). The client is named by `X-Forwarded-For`, which is
+  believed only from a trusted network (`AUTH_TRUSTED_PROXIES`, default the
+  private ranges and loopback) or a caller holding the system key, and read
+  from the right, so a client cannot pick its own bucket from outside the LAN.
+  Both proxies in front of MuMa -- nginx and LMS -- send the client address
+  they resolved, never the client's own header
+  (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).
+* A Google ID token is accepted only when its `email_verified` claim is true;
+  the address becomes the username of an approved account. A rejected token's
+  401 says only that it was rejected, not which check failed.
 * Passwords are stored as bcrypt hashes. Revoking sessions clears the api_key
   and every refresh token in one step. A non-admin changing their own password
   must present the current one; another account's, or an admin's, needs the

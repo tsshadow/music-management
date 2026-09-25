@@ -137,7 +137,7 @@
       {#if group.labelKey === null}
         {@const item = group.items[0]}
         <button
-          class="flex items-center gap-4 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeManagementTab === item.id ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]' }"
+          class="flex items-center gap-4 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeManagementTab === item.id ? 'bg-muma-spotify-light text-white' : 'text-muma-spotify-text hover:text-white hover:bg-[#1a1a1a]' }"
           onclick={() => setTab(item.id)}
         >
           <item.icon size={20} />
@@ -145,7 +145,7 @@
         </button>
       {:else}
         <button
-          class="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]"
+          class="flex items-center gap-3 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left text-muma-spotify-text hover:text-white hover:bg-[#1a1a1a]"
           onclick={() => toggle(group.id)}
           aria-expanded={isExpanded(group)}
         >
@@ -155,7 +155,7 @@
         {#if isExpanded(group)}
           {#each group.items as item (item.id)}
             <button
-              class="flex items-center gap-4 w-full pl-8 pr-3 py-2.5 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeManagementTab === item.id ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]' }"
+              class="flex items-center gap-4 w-full pl-8 pr-3 py-2.5 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeManagementTab === item.id ? 'bg-muma-spotify-light text-white' : 'text-muma-spotify-text hover:text-white hover:bg-[#1a1a1a]' }"
               onclick={() => setTab(item.id)}
             >
               <item.icon size={18} />

@@ -1,5 +1,5 @@
 <script >
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { ShieldCheck, RefreshCw, Terminal, Clock, Plus, Tag } from '@lucide/svelte';
   
   export let containers;
@@ -13,7 +13,7 @@
 
   async function fetchLogs(name) {
     selectedContainer = name;
-    systemLogs = 'Laden...';
+    systemLogs = $t('common.loading');
     try {
       const res = await fetch(`${API_BASE}/api/system/logs/${name}?tail=200`, { headers: getHeaders() });
       if (res.ok) {
@@ -100,7 +100,7 @@
                   <div class="text-xs text-muma-spotify-text truncate">{item.artist || item.source}</div>
                 </div>
                 <div class="text-[10px] text-muma-spotify-text whitespace-nowrap text-right">
-                  <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
+                  <Clock size={10} class="inline mb-0.5" /> {$format.dateTime(item.timestamp)}
                 </div>
               </li>
             {/each}
@@ -121,7 +121,7 @@
                   <div class="text-xs text-muma-spotify-text truncate">{item.artist || item.source}</div>
                 </div>
                 <div class="text-[10px] text-muma-spotify-text whitespace-nowrap text-right">
-                  <Clock size={10} class="inline mb-0.5" /> {new Date(item.timestamp).toLocaleString()}
+                  <Clock size={10} class="inline mb-0.5" /> {$format.dateTime(item.timestamp)}
                 </div>
               </li>
             {/each}

@@ -41,6 +41,9 @@ namespace lms::auth
 
         db::UserId getOrCreateUser(std::string_view loginName);
         void onUserAuthenticated(db::UserId userId);
+        // Whether the user was disabled by the MuMa user synchronizer (or no longer exists).
+        // A disabled user keeps its data but must not be let in by any credential.
+        bool isUserDisabled(db::UserId userId);
 
         db::Session& getDbSession();
 

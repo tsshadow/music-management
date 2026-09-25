@@ -256,7 +256,7 @@
 
 {#if form}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200 p-4">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto" data-testid="festival-form">
+    <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto" data-testid="festival-form">
       <h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
         <Tent class="text-brand" /> {form.id ? $t('management.festivals.editTitle') : $t('management.festivals.new')}
       </h3>

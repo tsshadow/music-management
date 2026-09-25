@@ -1,10 +1,9 @@
 import logging
-import re
-import unicodedata
 from contextlib import closing
 from dataclasses import dataclass
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.common.text_normalize import ascii_name_key
 
 WHITE = 'white'
 BLACK = 'black'
@@ -70,10 +69,11 @@ class GenreRulesHelper:
 
     @staticmethod
     def normalize(name: str) -> str:
-        """Casing-, accent- and punctuation-insensitive key for a genre name."""
-        decomposed = unicodedata.normalize('NFKD', name or '')
-        without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
-        return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
+        """Casing-, accent- and punctuation-insensitive key for a genre name.
+
+        See `services.common.text_normalize.ascii_name_key`.
+        """
+        return ascii_name_key(name)
 
     def _index(self, rows: list[GenreRow], expansions: dict[int, list[int]] | None = None) -> None:
         self._rows = {row.normalized_name: row for row in rows}

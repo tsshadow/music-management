@@ -169,18 +169,18 @@
         <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} />
         {#if track.albumId}
           <button
-            class="block bg-transparent border-none p-0 text-sm text-[#b3b3b3] hover:text-white hover:underline cursor-pointer text-left"
+            class="block bg-transparent border-none p-0 text-sm text-muma-spotify-text hover:text-white hover:underline cursor-pointer text-left"
             onclick={() => navigate(`album:${track.albumId}`)}
           >{track.album || ''}</button>
         {:else}
-          <p class="text-sm text-[#b3b3b3] m-0">{track.album || ''}</p>
+          <p class="text-sm text-muma-spotify-text m-0">{track.album || ''}</p>
         {/if}
       </div>
     </div>
 
     {#if together}
       <button
-        class="self-start px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3] hover:text-white hover:bg-[#333] border-none cursor-pointer"
+        class="self-start px-3 py-1.5 rounded-full text-[13px] font-bold bg-muma-spotify-light text-muma-spotify-text hover:text-white hover:bg-muma-spotify-hover border-none cursor-pointer"
         data-testid="artist-together"
         onclick={() => navigate(`search:${together}`)}
       >{$t('track.artistsTogether', { names: together })}</button>
@@ -188,7 +188,7 @@
 
     {#if genres.length}
       <div class="flex flex-col gap-1">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.genres')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('nav.genres')}</span>
         <MetaChips
           items={genres.map((genre) => ({ text: genre, view: `genre:${genre}`, testid: 'genre-chip', kind: 'genre' }))}
           onnavigate={navigate}
@@ -198,7 +198,7 @@
 
     {#if labels.length}
       <div class="flex flex-col gap-1">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.labels')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('nav.labels')}</span>
         <MetaChips
           items={labels.map((label) => ({ text: label, view: `label:${label}`, testid: 'label-chip', kind: 'label' }))}
           onnavigate={navigate}
@@ -208,7 +208,7 @@
 
     {#if festivals.length}
       <div class="flex flex-col gap-1">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.festivals')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('nav.festivals')}</span>
         <MetaChips
           items={festivals.map((festival) => ({ text: festival, view: `festival:${festival}`, testid: 'festival-chip', kind: 'festival' }))}
           onnavigate={navigate}
@@ -218,16 +218,16 @@
 
     {#if moods.length}
       <div class="flex flex-col gap-1">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('track.moods')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('track.moods')}</span>
         <div class="flex flex-wrap gap-1.5">
           {#each moods as mood (mood)}
-            <span class="px-3 py-1.5 rounded-full text-[13px] font-bold bg-[#282828] text-[#b3b3b3]" data-testid="mood-chip">{mood}</span>
+            <span class="px-3 py-1.5 rounded-full text-[13px] font-bold bg-muma-spotify-light text-muma-spotify-text" data-testid="mood-chip">{mood}</span>
           {/each}
         </div>
       </div>
     {/if}
 
-    <div class="text-xs text-[#b3b3b3] flex flex-col gap-1">
+    <div class="text-xs text-muma-spotify-text flex flex-col gap-1">
       {#if trackNumberLabel}<span>{trackNumberLabel}</span>{/if}
       {#if releaseDateLabel(track)}
         <button
@@ -240,7 +240,7 @@
 
     {#if hasFileDetails(track)}
       <div class="flex flex-col gap-1" data-testid="file-details">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('track.file')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('track.file')}</span>
         <dl class="details-list m-0 text-xs">
           {#if track.path}
             <dt>{$t('track.fileName')}</dt><dd class="break-all text-white" data-testid="file-name">{fileName(track.path)}</dd>
@@ -260,11 +260,11 @@
 
     {#if tagState === 'loading' || tagState === 'error' || rows.length}
       <div class="flex flex-col gap-1" data-testid="tag-details">
-        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('track.tags')}</span>
+        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('track.tags')}</span>
         {#if tagState === 'loading'}
-          <span class="text-xs text-[#727272]">{$t('track.tagsLoading')}</span>
+          <span class="text-xs text-muma-spotify-muted">{$t('track.tagsLoading')}</span>
         {:else if tagState === 'error'}
-          <span class="text-xs text-[#727272]" data-testid="tags-unavailable">{$t('track.tagsUnavailable')}</span>
+          <span class="text-xs text-muma-spotify-muted" data-testid="tags-unavailable">{$t('track.tagsUnavailable')}</span>
         {:else}
           <dl class="details-list m-0 text-xs">
             {#each rows as row (row.key + row.value)}
@@ -286,7 +286,7 @@
 
     <div class="flex gap-1">
       {#each [1, 2, 3, 4, 5] as star (star)}
-        <button class="w-10 h-10 border-none bg-transparent text-xl cursor-pointer {rating >= star ? 'text-brand' : 'text-[#b3b3b3]'}" aria-label={$t('car.rate', { star })} onclick={(e) => { e.stopPropagation(); onrate?.(star); }}>★</button>
+        <button class="w-10 h-10 border-none bg-transparent text-xl cursor-pointer {rating >= star ? 'text-brand' : 'text-muma-spotify-text'}" aria-label={$t('car.rate', { star })} onclick={(e) => { e.stopPropagation(); onrate?.(star); }}>★</button>
       {/each}
     </div>
 

@@ -69,12 +69,20 @@ ssh-add -t "$PROD_SSH_KEY_LIFETIME" "$KEY_FILE"
 rm -f "$KEY_FILE"
 KEY_FILE=""
 
-mkdir -p ~/.ssh
-ssh-keyscan -H "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+# Host key: pinned in scripts/ssh/known_hosts, not learned from ssh-keyscan.
+# This used to append whatever answered on $REMOTE_HOST to the shared runner's
+# known_hosts and then connect with StrictHostKeyChecking=no anyway, which
+# accepts any key at all. PROD_SSH_OPTS is what every caller passes to ssh/scp.
+# shellcheck source=scripts/lib/ssh_host_keys.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
+mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
 
 # Ensure SSH is working.
-if ! ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "docker version" > /dev/null 2>&1; then
+if ! ssh_error="$(ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "docker version" 2>&1 >/dev/null)"; then
     echo "Error: Cannot connect to ${REMOTE_HOST} via SSH with the configured SSH_PRIVATE_KEY."
+    # A changed host key reads exactly like a refused login from the outside;
+    # ssh's own message says which one it is.
+    printf '%s\n' "$ssh_error" | sed 's/^/  ssh: /'
     exit 1
 fi
 echo "--- SSH access confirmed ---"

@@ -62,7 +62,7 @@
 
 <div class="flex flex-col gap-6 pb-12">
   <button
-    class="self-start bg-transparent border-none text-[#b3b3b3] text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline p-0"
+    class="self-start bg-transparent border-none text-muma-spotify-text text-[12px] font-bold cursor-pointer uppercase tracking-[0.1em] hover:underline p-0"
     onclick={() => onnavigate('memories')}
   >
     {$t('memories.allYears')}
@@ -71,18 +71,18 @@
   <header class="flex flex-wrap items-end gap-x-4 gap-y-2">
     <h1 class="text-4xl md:text-6xl font-black m-0">{year}</h1>
     {#if heading}
-      <p class="text-[#b3b3b3] m-0 pb-1">
+      <p class="text-muma-spotify-text m-0 pb-1">
         {$t(heading.key, heading.vars)} • {$t('common.trackCount', { count: total })}
       </p>
     {/if}
   </header>
 
   {#if isLoading}
-    <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
+    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
   {:else if songs.length === 0}
     <div class="flex flex-col gap-2">
       <p class="text-white font-bold">{$t('memories.emptyYear', { year })}</p>
-      <p class="text-[#b3b3b3]">{$t('memories.emptyYearHelp')}</p>
+      <p class="text-muma-spotify-text">{$t('memories.emptyYearHelp')}</p>
     </div>
   {:else}
     <div>

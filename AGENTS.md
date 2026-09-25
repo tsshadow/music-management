@@ -66,6 +66,10 @@ The system is split into specialized services, each handling a specific part of 
 - **Backend**: C++/SQLite based server providing audio streaming and Subsonic API.
 - **Data Scope**: Maintains a volatile database (`lms.db`) for indexing local files and managing playback state.
 - **UI**: Unified Svelte-based "Spotify UI" that includes both playback and system management.
+- **Fork**: a hard fork of upstream LMS v3.76.0, not kept in sync. Upstream base, MuMa-specific
+  files, the database migration-number policy and how to port an upstream fix are in
+  [services/music-management-server/FORK.md](services/music-management-server/FORK.md) -- read it
+  before adding an LMS migration or bringing in upstream code.
 
 ### 6. `music-manager` (`services/music_manager`)
 - **Role**: The "Source of Truth" and central hub for long-term library maintenance and management logic.
@@ -80,11 +84,13 @@ The system is split into specialized services, each handling a specific part of 
 - **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
-- **Purpose**: Audio analysis for advanced metadata.
-- **Features**: Extracts tempo (BPM), loudness, spectral and timbre features (MFCC, chroma) with
-  librosa, plus a scikit-learn genre classifier. No key or mood detection.
-- **Status**: Not deployed — its compose service is commented out, and the code would not work if
-  it ran. Repair or retire is an open decision in [docs/open-work.md](docs/open-work.md).
+- **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
+  Disabled since 2026-09-25 with the code kept: it was never deployed, has no owner time, and
+  would not work if it ran (wrong skip key, bug 028's stale join key on the ML labels, a predict
+  step that does not match its trainer). Not built, deployed or tested by default; its tables and
+  their data stay for the features that read them.
+- **Purpose** (when it ran): tempo (BPM), loudness, spectral and timbre features (MFCC, chroma)
+  with librosa, plus a scikit-learn genre classifier. No key or mood detection.
 
 ---
 
@@ -269,7 +275,14 @@ To maintain high code quality, the system employs an automated test suite:
   `tools/`, `tests/ci/` (pipeline policy) and `tests/unit/` (tests that need a real library the
   `services/` stubs replace) — all collected by `scripts/test/music-management-unit.sh`. The suites
   that need a live database or stack live under `tests/integration/`, `tests/contracts/` and `tests/bdd/`.
-- **Mocking**: Uses a unified `mock_base.py` to provide an isolated environment (mocking `mutagen`, `yt-dlp`, and database helpers).
+- **Mocking**: `services/tests/mock_base.py` offers stubs for `mutagen`, `yt_dlp`, `pymysql`, `config_store`,
+  `Cache`, `DatabaseConnector` and more, **opt-in per test module**: a module declares what it relies on with
+  a module-level `pytestmark = pytest.mark.mock_base('mutagen', 'Cache')` (literal names only; the marker is
+  read from the source before import, so it cannot go on a class or test). `services/tests/mock_base_plugin.py`
+  installs those stubs only while that module is imported and its tests run, and lifts them -- and every
+  project module imported under them -- out of `sys.modules` afterwards. A module without the marker gets
+  the real libraries. Never put a MagicMock into `sys.modules` by hand outside `patch.dict`;
+  `tests/ci/test_mock_base_isolation.py` fails if a stub is still there after collection (bug report 085).
 - **Enforcement**: 
     - **Build Check**: `build.sh` runs pylint over `services/` (floor 8.5) and a subset of the unit tests
       (`services/downloader/soundcloud/tests/`, `services/importer/tests/`,

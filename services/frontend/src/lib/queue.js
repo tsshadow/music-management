@@ -1,6 +1,8 @@
 import { get } from "svelte/store";
 import { activeView, playlist, queueSource } from "./store.js";
 import { t } from "./i18n/index.js";
+import { subsonicPost } from "./subsonic.js";
+import { subsonicError } from "./utils.js";
 
 /**
  * Starts a new queue and records where it came from, so the player header can
@@ -56,4 +58,24 @@ export function viewLabel(view) {
   if (view.startsWith("search:")) return view.slice("search:".length);
   const key = WHOLE_VIEW_KEYS[view];
   return key ? get(t)(key) : null;
+}
+
+/**
+ * Saves a list of tracks as a new playlist on the server.
+ *
+ * The track ids go in a POST body (one `songId` each): a queue of a few hundred tracks in the
+ * query string is a request line proxies refuse with 414 URI Too Long.
+ *
+ * @param {string} name - The playlist name.
+ * @param {Array<{id: string|number}>} tracks
+ * @param {string} auth - The `authParams` query string.
+ * @param {object} [options]
+ * @param {typeof fetch} [options.fetchImpl] - Injected by the tests.
+ * @returns {Promise<void>}
+ * @throws {Error} When the server refuses (HTTP or a failed Subsonic envelope) or is unreachable.
+ */
+export async function saveTracksAsPlaylist(name, tracks, auth, options = {}) {
+  const fields = [["name", name], ...tracks.map((track) => ["songId", track.id])];
+  const failure = await subsonicError(await subsonicPost("createPlaylist", fields, auth, options));
+  if (failure) throw new Error(failure.message);
 }

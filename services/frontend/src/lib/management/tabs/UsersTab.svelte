@@ -1,5 +1,5 @@
 <script >
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { RefreshCw, Plus, Trash2, Users, Key, Radio, Database, Shield, ShieldAlert, ShieldCheck, Link, Power, LogOut } from '@lucide/svelte';
   import { authParams, hasPermission, mumaApiUrl, mumaUser } from '../../store.js';
@@ -42,17 +42,17 @@
         })
       });
       if (res.ok) {
-        onMessage(`Gebruiker ${newUsername} toegevoegd!`);
+        onMessage($t('management.users.added', { name: newUsername }));
         newUsername = '';
         newDisplayName = '';
         newUserPassword = '';
         fetchUsers();
       } else {
         const data = await res.json();
-        onError(data.detail || "Kon gebruiker niet toevoegen.");
+        onError(data.detail || $t('management.users.addFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij toevoegen gebruiker.");
+      onError($t('management.users.addNetworkError'));
     }
   }
 
@@ -64,14 +64,14 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage(`Gebruiker ${user.username} verwijderd.`);
+        onMessage($t('management.users.deleted', { name: user.username }));
         if (selectedUser?.id === user.id) onSelectUser(null);
         fetchUsers();
       } else {
-        onError("Kon gebruiker niet verwijderen.");
+        onError($t('management.users.deleteFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij verwijderen gebruiker.");
+      onError($t('management.users.deleteNetworkError'));
     }
   }
 
@@ -109,10 +109,10 @@
         onMessage($t('management.users.passwordUpdated'));
         updateUserPassword = '';
       } else {
-        onError("Kon wachtwoord niet bijwerken.");
+        onError($t('management.users.passwordUpdateFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij bijwerken wachtwoord.");
+      onError($t('management.users.passwordNetworkError'));
     }
   }
 
@@ -124,13 +124,13 @@
       });
       if (res.ok) {
         const data = await res.json();
-        onMessage(`Sync voltooid! ${data.synced} gebruikers verwerkt.`);
+        onMessage($t('management.users.syncDone', { count: data.synced }));
         fetchUsers();
       } else {
-        onError("Sync mislukt.");
+        onError($t('management.users.syncFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij sync.");
+      onError($t('management.users.syncNetworkError'));
     }
   }
 
@@ -142,13 +142,13 @@
       });
       if (res.ok) {
         const data = await res.json();
-        onMessage(`Database sync voltooid! ${data.synced} gebruikers verwerkt.`);
+        onMessage($t('management.users.dbSyncDone', { count: data.synced }));
         fetchUsers();
       } else {
-        onError("Sync mislukt.");
+        onError($t('management.users.syncFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij sync.");
+      onError($t('management.users.syncNetworkError'));
     }
   }
 
@@ -212,7 +212,7 @@
         const data = await res.json();
         subsonicToken = data.token || '';
         subsonicTokenLoaded = true;
-        onMessage(token ? 'Subsonic token opgeslagen.' : $t('management.users.tokenRevoked'));
+        onMessage(token ? $t('management.users.tokenSaved') : $t('management.users.tokenRevoked'));
       } else {
         onError((await res.text()) || $t('management.users.tokenSaveFailed'));
       }
@@ -278,13 +278,13 @@
         headers: getHeaders()
       });
       if (res.ok) {
-        onMessage(`Gebruiker ${action === 'enable' ? 'ingeschakeld' : 'uitgeschakeld'}!`);
+        onMessage(action === 'enable' ? $t('management.users.enabledMessage') : $t('management.users.disabledMessage'));
         fetchUsers();
       } else {
-        onError(`Kon gebruiker niet ${action === 'enable' ? 'inschakelen' : 'uitschakelen'}.`);
+        onError(action === 'enable' ? $t('management.users.enableFailed') : $t('management.users.disableFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout.");
+      onError($t('management.users.networkError'));
     }
   }
 
@@ -302,7 +302,7 @@
         onError($t('management.users.sessionsRevokeFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout.");
+      onError($t('management.users.networkError'));
     }
   }
 
@@ -318,16 +318,16 @@
         body: JSON.stringify({ secondary_user_id: parseInt(mergeSecondaryId) })
       });
       if (res.ok) {
-        onMessage(`${secondary.username} is samengevoegd in ${selectedUser.username}.`);
+        onMessage($t('management.users.merged', { from: secondary.username, into: selectedUser.username }));
         mergeSecondaryId = '';
         await fetchUsers();
         fetchIdentities();
       } else {
         const data = await res.json();
-        onError(data.detail || "Kon gebruikers niet samenvoegen.");
+        onError(data.detail || $t('management.users.mergeFailed'));
       }
     } catch (err) {
-      onError("Netwerkfout bij samenvoegen.");
+      onError($t('management.users.mergeNetworkError'));
     }
   }
 
@@ -474,7 +474,7 @@
                       <span class="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full uppercase font-bold tracking-wider">{$t('management.users.disabled')}</span>
                     {/if}
                   </h3>
-                  <p class="text-muma-spotify-text">{selectedUser.display_name || 'Geen display name'} • {selectedUser.email || 'Geen e-mail'}</p>
+                  <p class="text-muma-spotify-text">{selectedUser.display_name || $t('management.users.noDisplayName')} • {selectedUser.email || $t('management.users.noEmail')}</p>
                 </div>
               </div>
 
@@ -484,7 +484,7 @@
                     on:click={toggleUserEnabled}
                     class="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-transform hover:scale-105 {selectedUser.enabled ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}"
                   >
-                    <Power size={14} /> {selectedUser.enabled ? 'Uitschakelen' : 'Inschakelen'}
+                    <Power size={14} /> {selectedUser.enabled ? $t('management.users.disable') : $t('management.users.enable')}
                   </button>
                 {/if}
                 
@@ -600,7 +600,7 @@
                       on:click={() => navigateToScrobbleImport(selectedUser.username, lbUsername)}
                       class="flex-1 bg-white text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform"
                     >
-                      IMPORT STARTEN
+                      {$t('management.scrobble.startImport')}
                     </button>
                     <button 
                       on:click={updateLBAccount}
@@ -641,7 +641,7 @@
                         disabled={isSavingSubsonicToken}
                         class="flex-1 bg-brand text-black text-xs font-bold py-2 rounded-full hover:scale-105 transition-transform disabled:opacity-50"
                       >
-                        {subsonicToken ? 'NIEUW TOKEN' : 'TOKEN GENEREREN'}
+                        {subsonicToken ? $t('management.users.newToken') : $t('management.users.generateToken')}
                       </button>
                       {#if subsonicToken}
                         <button
@@ -649,7 +649,7 @@
                           disabled={isSavingSubsonicToken}
                           class="flex-1 bg-red-500/10 text-red-500 text-xs font-bold py-2 rounded-full border border-red-500/20 hover:scale-105 transition-transform disabled:opacity-50"
                         >
-                          INTREKKEN
+                          {$t('management.users.revokeToken')}
                         </button>
                       {/if}
                     </div>
@@ -706,7 +706,7 @@
                           </div>
                           <div class="text-right">
                             <div class="text-[10px] text-muma-spotify-text uppercase font-bold">{$t('management.users.lastUsed')}</div>
-                            <div class="text-[10px]">{identity.last_used_at ? new Date(identity.last_used_at).toLocaleDateString('nl-NL') : 'Nooit'}</div>
+                            <div class="text-[10px]">{identity.last_used_at ? $format.date(identity.last_used_at) : $t('management.users.never')}</div>
                           </div>
                         </div>
                       {/each}

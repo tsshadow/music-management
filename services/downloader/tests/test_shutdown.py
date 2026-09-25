@@ -4,9 +4,10 @@ import signal
 import unittest
 from unittest import mock
 
-from services.tests.mock_base import setup_mocks
+import pytest
 
-setup_mocks()
+pytestmark = pytest.mark.mock_base('yt_dlp', 'config_store')
+
 
 from services.downloader import downloader_service, shutdown
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore

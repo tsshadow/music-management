@@ -7,10 +7,6 @@ import unittest
 import unittest.mock
 from datetime import datetime, timedelta
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 # Telethon is not installed in the test environment; stand in for it before the
 # downloader imports TelegramClient.
 _telethon = types.ModuleType('telethon')

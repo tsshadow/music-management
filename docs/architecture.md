@@ -26,6 +26,8 @@ The core management functions are consolidated into a unified service to streaml
     - `tagger_worker`: Enriches files with metadata.
     - `scanner_service`: Fills the library with track information.
     - `ml-analyzer`: Machine learning for automatic tagging and audio feature extraction.
+      **Deprecated and disabled since 2026-09-25**, code kept -- see
+      [services/ml-analyzer/DEPRECATED.md](../services/ml-analyzer/DEPRECATED.md).
 
 ---
 

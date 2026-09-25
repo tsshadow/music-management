@@ -331,13 +331,18 @@ def _set_primary_image(cursor, artist_id: int, image_id: int):
     )
 
 
-def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | None = None):
-    """Saves manually supplied image bytes and makes them the artist's primary image."""
+def _image_storage():
+    """The artist image store, configured the way the fetcher configures it."""
     from services.music_manager.artist_image_fetcher.storage import ImageStorage
 
     storage_path = os.getenv('ARTIST_IMAGE_STORAGE_PATH') or os.getenv('STORAGE_PATH') or '/mnt/music/artists'
     public_base_url = os.getenv('ARTIST_IMAGE_PUBLIC_BASE_URL', '/media/artist-images')
-    storage = ImageStorage(storage_path, public_base_url)
+    return ImageStorage(storage_path, public_base_url)
+
+
+def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | None = None):
+    """Saves manually supplied image bytes and makes them the artist's primary image."""
+    storage = _image_storage()
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
@@ -436,12 +441,16 @@ def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Dep
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT id FROM library_artist_images WHERE id = %s AND artist_id = %s', (image_id, artist_id)
+                'SELECT id, cached_path FROM library_artist_images WHERE id = %s AND artist_id = %s',
+                (image_id, artist_id),
             )
-            if not cursor.fetchone():
+            image = cursor.fetchone()
+            if not image:
                 raise HTTPException(status_code=404, detail='Image not found for this artist')
             _set_primary_image(cursor, artist_id, image_id)
         conn.commit()
+        # The fixed-URL copies follow the selection; they kept the previous portrait.
+        _quietly(lambda: _image_storage().publish_primary(artist_id, image.get('cached_path')), artist_id)
         return {'status': 'ok', 'artist_id': artist_id, 'image_id': image_id}
     finally:
         conn.close()
@@ -455,7 +464,13 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
     re-selected from the manager; only the artist's pointer to it is removed. The
     status becomes `cleared`, which the bulk run (started on every boot) and a plain
     single-artist fetch leave alone -- with `none` the next restart fetched the
-    portrait that had just been removed.
+    portrait that had just been removed. Only `/fetch-image?force=true`, an upload or
+    selecting a stored image lifts it.
+
+    Two copies outside this table have to go as well, or the portrait stays visible:
+    the published `primary.jpg`/`thumb_<size>.jpg` behind the fixed URL (removed here),
+    and the artwork the server was given (`sync_artist_images_to_server` unsets it on
+    its next pass, at start-up and hourly).
     """
     conn = get_db_connection()
     if not conn:
@@ -475,9 +490,23 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
                 (artist_id,),
             )
         conn.commit()
+        _quietly(lambda: _image_storage().unpublish_primary(artist_id), artist_id)
         return {'status': 'ok', 'artist_id': artist_id}
     finally:
         conn.close()
+
+
+def _quietly(action, artist_id: int) -> None:
+    """Run a file-system follow-up of a committed change; a failure is logged, not raised.
+
+    The database already says what the artist's portrait is. A published copy that
+    could not be written or removed is a stale file, not a reason to answer 500 for a
+    change that did happen.
+    """
+    try:
+        action()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.info(f'Could not update the published portrait files of artist {artist_id}: {e}')
 
 
 @router.get('/{artist_name}/image')
@@ -769,5 +798,55 @@ def sync_artist_images_to_server(muma_conn, server_conn):
                 # three statements above. A no-op commit costs nothing.
                 server_conn.commit()
             print(f'Synced {len(images)} artist images to Music Management Server')
+            _unset_cleared_artwork_on_server(muma_conn, server_conn)
     except Exception as e:
         print(f'Failed to sync artist images to Music Management Server: {e}')
+
+
+def _unset_cleared_artwork_on_server(muma_conn, server_conn):
+    """Take a cleared portrait back from the server too.
+
+    The sync above only ever *sets* an artist's `preferred_artwork_id`. A portrait
+    cleared in the manager is no longer selected by it, so the server kept the artwork
+    it had been given, and the web player -- which asks the server first
+    (`getArtistImageUrl`) -- kept showing the portrait that had been removed, restart
+    after restart.
+
+    Only artwork this sync put there is unset: the server's image row must be one of
+    that artist's stored files. Artwork the server found on its own (an `artist.jpg`
+    beside the music) is the server's business and left alone. Returns how many
+    artists were changed.
+    """
+    with muma_conn.cursor() as muma_cursor:
+        muma_cursor.execute(
+            """
+            SELECT a.name AS artist_name, i.cached_path
+            FROM library_artists a
+            JOIN library_artist_images i ON i.artist_id = a.id
+            WHERE a.image_status = 'cleared' AND a.primary_image_id IS NULL AND i.cached_path IS NOT NULL
+        """
+        )
+        stored: dict = {}
+        for row in muma_cursor.fetchall():
+            stored.setdefault(row['artist_name'], set()).add(row['cached_path'])
+    server_cursor = server_conn.cursor()
+    unset = 0
+    for artist_name, paths in stored.items():
+        server_cursor.execute(
+            """
+            SELECT a.id, im.absolute_file_path
+            FROM artist a
+            JOIN artwork aw ON aw.id = a.preferred_artwork_id
+            JOIN image im ON im.id = aw.image_id
+            WHERE a.name = ?
+        """,
+            (artist_name,),
+        )
+        for artist_id, path in server_cursor.fetchall():
+            if path in paths:
+                server_cursor.execute('UPDATE artist SET preferred_artwork_id = NULL WHERE id = ?', (artist_id,))
+                server_conn.commit()
+                unset += 1
+    if unset:
+        print(f'Unset {unset} cleared artist portrait(s) on Music Management Server')
+    return unset

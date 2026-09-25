@@ -9,6 +9,8 @@
    */
   import { Plus, X } from '@lucide/svelte';
 
+  import { t } from '../i18n/index.js';
+
   let {
     title,
     hint = '',
@@ -51,7 +53,7 @@
         {#if !disabled}
           <button
             class="bg-transparent border-none p-0 cursor-pointer text-muma-spotify-text hover:text-white flex"
-            aria-label={`Verwijder ${item}`}
+            aria-label={$t('curation.chipRemove', { item })}
             onclick={() => onremove?.(item)}
           >
             <X size={14} />
@@ -59,7 +61,7 @@
         {/if}
       </span>
     {:else}
-      <span class="text-sm text-muma-spotify-text">Nog niets ingesteld.</span>
+      <span class="text-sm text-muma-spotify-text">{$t('curation.chipEmpty')}</span>
     {/each}
   </div>
 
@@ -75,7 +77,7 @@
         disabled={!draft.trim() || busy}
         type="submit"
       >
-        <Plus size={16} /> Toevoegen
+        <Plus size={16} /> {$t('common.add')}
       </button>
     </form>
     {#if localError}

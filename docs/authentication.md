@@ -30,6 +30,10 @@ A row in the `users` table always has:
   derived convenience field (`role_name == 'admin'`), never written to directly and never checked for
   authorization.
 - **`enabled`** — defaults to `TRUE`; a disabled account can't log in (`403`) with either method.
+  Disabling (or deleting) an account also pokes the music server's user sync, which disables the
+  LMS user and revokes every Subsonic key and web session it holds; no LMS credential is accepted
+  for it afterwards. The LMS user is kept, with its listens and ratings, and is enabled again with
+  the account. See [designs/lms-fork-baseline](designs/lms-fork-baseline/technical.md).
 
 **Effective invariant**: a user account is only useful if it can actually be authenticated with, i.e. it
 must have *at least one* of:
@@ -115,6 +119,13 @@ only answered to a caller who has just proved the password.
 | The subject **is** linked (`user_identities` row exists), but the linked user no longer exists | `404 Linked user no longer exists` |
 | The subject is linked, linked user `enabled = FALSE` | `403 Account disabled` |
 | The subject is linked, linked user is enabled | `200` — issues/refreshes an `api_key` and refresh token, exactly like a password login |
+| The token fails Google's checks (signature, audience, expiry) or comes from another issuer | `401 Invalid Google token` / `401 Invalid Google token issuer` — the library's own reason goes to the log only |
+| The token's `email_verified` claim is not true | `401 Google account e-mail address is not verified` |
+
+Every Google endpoint (`/api/auth/google`, `/api/auth/access-request`) runs the same check first. The
+`email_verified` requirement matters because the address is what an admin reads when deciding whom to let
+in, and it becomes the new account's username: Google signs the address on file whether or not its owner
+ever proved it is theirs (bug report [079](bug-reports/079-google-login-unverified-email-and-lms-login-limit.md)).
 
 Submitting an access request (`POST /api/auth/access-request`) is a distinct, explicit step from the above
 (the frontend calls it once the user confirms they want to request access): it is idempotent per Google
@@ -141,6 +152,10 @@ Only allowed while `status = 'pending'`. Two modes, both of which move the reque
   can still be passed to update the existing account's display name.
 
 The request row records which mode was used (`linked_existing`), which the unapprove flow below relies on.
+
+When creating a new account, a username that already exists -- compared without case, the e-mail address
+typed differently or a local account that happens to use it -- is `409` with a detail that points at
+`link_user_id`. It used to reach the unique index and answer a `500`.
 
 ### Unapprove (`POST /api/user-requests/{id}/unapprove`)
 
@@ -235,8 +250,34 @@ holding such a key is signed out at startup (`endLeftoverSharedKeySession` in
 LMS's `api-key` remains the key MuMa presents when *it* calls LMS.
 
 On the direct route nginx passes MuMa one `X-Forwarded-For` address, the right-most one not written
-by a private-network proxy, because MuMa's login rate limit keys on the left-most entry and a client
-could otherwise choose it. See `docs/designs/authentication/technical.md`, 2026-09-24.
+by a private-network proxy. See `docs/designs/authentication/technical.md`, 2026-09-24.
+
+### The client address MuMa sees
+
+MuMa's login rate limit (`services/music_manager/rate_limit.py`) names the caller by address, and
+every login reaches it through a proxy: nginx for spotify.<domain>, LMS for everything on
+lms.<domain> -- LMS's password check on each Subsonic request (`MusicManagementPasswordService`) and
+its proxied `/muma/api/auth/login` (`MumaResource`). LMS sends the address it resolved itself as the
+only `X-Forwarded-For` entry, dropping whatever the client sent. Before September 2026 it sent none,
+so every such login came from the LMS container and could only be limited per account
+(bug report [079](bug-reports/079-google-login-unverified-email-and-lms-login-limit.md)).
+
+"The address LMS resolved" is the TCP peer unless LMS is told to look behind the proxy in front of
+it: `behind-reverse-proxy = true` in `lms.conf`, with that proxy (Nginx Proxy Manager) in
+`trusted-proxies` (Wt accepts CIDR ranges). Without that, LMS reports the proxy's address, MuMa sees
+a trusted hop and keys on it -- no worse than before, but not per client.
+
+MuMa believes `X-Forwarded-For` only from a trusted peer: one on `AUTH_TRUSTED_PROXIES` (default
+loopback plus 10/8, 172.16/12 and 192.168/16, the ranges nginx's `set_real_ip_from` trusts) or a
+request carrying the system key. It then walks the chain from the right and takes the first address
+that is not itself a trusted proxy, as nginx's `real_ip_recursive` does. A caller outside those
+networks is keyed on its own address whatever the header says. The trust boundary is therefore the
+LAN and the Docker networks: anything there can name a client, anything outside cannot.
+
+A login is counted in two buckets and refused when either is full: per client and account
+(`AUTH_RATE_LIMIT_ATTEMPTS`, 10 failures a minute), so one client stuck on a stale password locks
+only itself out; and per account from anywhere (`AUTH_RATE_LIMIT_ACCOUNT_ATTEMPTS`, 50), so guessing
+spread over many addresses still meets a ceiling.
 
 ## Gaps / things to consider
 
@@ -253,17 +294,16 @@ Answering "mis ik hier nog dingen?" (things not covered above and not implemente
   (`services/music_manager/rate_limit.py`); repeated ID-token verification failures against
   `/api/auth/google` are still unlimited. Note that `/api/auth/login` is not only a login form: LMS
   calls it to validate the password on *every* Subsonic request, so anything counted there is counted
-  per library page view, not per login. The web login reaches it through nginx, which forwards the
-  client address as a single `X-Forwarded-For` entry; a login proxied by LMS carries none and is
-  counted per account only.
+  per library page view, not per login. Both nginx and LMS now pass the client address on (see "The
+  client address MuMa sees" above).
 - **No self-service password reset / email verification.** Password changes currently require either an
   admin (the admin role; any admin's password needs one too) or the user's own session plus their current
   password (`POST /{id}/password` with `current_password`); there is no
-  "forgot password" email flow, and a Google-account's `email` is trusted as-is from the ID token without a
-  separate verification step (Google already verifies it, so this is arguably fine, but worth noting).
+  "forgot password" email flow. A Google account's `email` is taken from the ID token only when the
+  token's `email_verified` claim is true.
 - **Auto-generated usernames can theoretically collide** (`google-<subject_prefix>` is only the first 12
-  chars of the subject) — extremely unlikely in practice, but the `INSERT` would fail with a duplicate-key
-  `500` rather than a friendly retry/suffix. Not hardened in this change.
+  chars of the subject) — extremely unlikely in practice; a collision is a `409` (like a taken e-mail
+  address), not a retry with a suffix.
 - **Merging duplicate accounts** (e.g. a Google request approved as a *new* account when the person already
   had a local account) is already solved separately by `POST /api/users/{id}/merge` — mentioned here only
   as a cross-reference, since it's the other half of "getting rid of a duplicate account".

@@ -11,13 +11,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from services.tests.connector_fakes import fake_connector
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.tagger import download_info  # noqa: E402
 from services.tagger.constants import SongTypeEnum  # noqa: E402
+from services.tests.connector_fakes import fake_connector
 
 SOUNDCLOUD_PATH = '/mnt/music/Soundcloud/Deathmask/Concussion - Hardcore Will Never Die.mp3'
 YOUTUBE_PATH = "/mnt/music/Youtube/Partyraiser Recordings/KVN - The Flyin' Dutchman.m4a"

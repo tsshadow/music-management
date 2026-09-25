@@ -1,6 +1,7 @@
 #include "api/muma/MumaResource.hpp"
 
 #include "api/muma/PathEncoding.hpp"
+#include "api/muma/Routing.hpp"
 
 #include <Wt/Http/Request.h>
 #include <Wt/Http/Response.h>
@@ -795,7 +796,8 @@ namespace lms::api::muma
             return;
         }
 
-        if (pathInfo.find("/users/") == 0)
+        const RouteFamily routeFamily{ classifyRouteFamily(pathInfo) };
+        if (routeFamily == RouteFamily::Users)
         {
             if (pathInfo == "/users/sync")
             {
@@ -821,31 +823,20 @@ namespace lms::api::muma
                 return;
             }
             // /users/{user_id}/settings/{app_id}
-            std::string remaining = pathInfo.substr(7);
-            size_t slashPos = remaining.find("/settings/");
-            if (slashPos != std::string::npos)
+            if (const std::optional<UserSettingsPath> settingsPath{ parseUserSettingsPath(pathInfo) })
             {
-                std::string userIdStr = remaining.substr(0, slashPos);
-                if (const size_t pos{ userIdStr.find('-') }; pos != std::string::npos)
-                    userIdStr = userIdStr.substr(pos + 1);
-
-                std::string appId = remaining.substr(slashPos + 10);
-
-                std::optional<db::UserId> userId;
-                try
-                {
-                    userId = db::UserId{ std::stoll(userIdStr) };
-                }
-                catch (const std::exception&)
+                if (!settingsPath->mumaUserId)
                 {
                     response.setStatus(400);
                     response.out() << "Invalid User ID";
                     return;
                 }
+                const db::UserId userId{ *settingsPath->mumaUserId };
+                const std::string& appId{ settingsPath->appId };
 
                 // The id is MuMa's (it is forwarded to MuMa's /api/users/{id}/settings unchanged), so it
                 // is compared with the caller's MuMa id, not their LMS id.
-                if (!mayAccessUserSettings(rights, userId->getValue()))
+                if (!mayAccessUserSettings(rights, userId.getValue()))
                 {
                     response.setStatus(403);
                     response.out() << "Forbidden";
@@ -864,7 +855,7 @@ namespace lms::api::muma
                     auto resultFuture = resultPromise->get_future();
 
                     core::http::ClientGETRequestParameters getParams;
-                    getParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
+                    getParams.relativeUrl = "/api/users/" + std::to_string(userId.getValue()) + "/settings/" + appId;
                     if (!_mumaApiKey.empty())
                         getParams.headers.push_back(Wt::Http::Message::Header("X-API-Key", _mumaApiKey));
 
@@ -910,7 +901,7 @@ namespace lms::api::muma
                     auto resultFuture = resultPromise->get_future();
 
                     core::http::ClientPOSTRequestParameters postParams;
-                    postParams.relativeUrl = "/api/users/" + std::to_string(userId->getValue()) + "/settings/" + appId;
+                    postParams.relativeUrl = "/api/users/" + std::to_string(userId.getValue()) + "/settings/" + appId;
                     if (!_mumaApiKey.empty())
                         postParams.message.addHeader("X-API-Key", _mumaApiKey);
                     postParams.message.addHeader("Content-Type", "application/json");
@@ -949,7 +940,7 @@ namespace lms::api::muma
                 }
             }
         }
-        else if (pathInfo.find("/api/") == 0)
+        else if (routeFamily == RouteFamily::Api)
         {
             if (!_httpClient)
             {
@@ -985,10 +976,7 @@ namespace lms::api::muma
                 // holds a real space. Put the encoding back before it goes on the wire, or
                 // MuMa rejects the request line with a 400 without ever seeing the route.
                 // The query string is still encoded and is appended untouched.
-                getParams.relativeUrl = encodeProxyPath(pathInfo);
-                std::string query = request.queryString();
-                if (!query.empty())
-                    getParams.relativeUrl += "?" + query;
+                getParams.relativeUrl = buildProxyRelativeUrl(pathInfo, request.queryString());
 
                 if (isNewsBulletin(pathInfo))
                     collectResponseInChunks(getParams, streamedBody);
@@ -998,8 +986,9 @@ namespace lms::api::muma
                 // made `?apiKey=<anything>` reach MuMa as the system identity. A caller that
                 // authenticated with u/p and no key reaches MuMa with no key, and MuMa answers
                 // 401 for whatever needs one.
-                if (!auth.forwardKey.empty())
-                    getParams.headers.emplace_back("X-API-Key", auth.forwardKey);
+                // Who is really asking, as this server resolved it -- see forwardedClientAddress().
+                for (auto& [name, value] : buildProxyHeaders({ .forwardKey = auth.forwardKey, .forwardedFor = forwardedClientAddress(request.clientAddress()), .contentType = {} }))
+                    getParams.headers.emplace_back(std::move(name), std::move(value));
 
                 // This is a raw pass-through proxy: MuMa's exact status code (401,
                 // 403, 404, ...) and body are meaningful to the original caller and
@@ -1015,18 +1004,14 @@ namespace lms::api::muma
             {
                 core::http::ClientRequestWithBodyParameters bodyParams;
                 // See the matching comment in the GET branch above: pathInfo is decoded.
-                bodyParams.relativeUrl = encodeProxyPath(pathInfo);
-                std::string query = request.queryString();
-                if (!query.empty())
-                    bodyParams.relativeUrl += "?" + query;
+                bodyParams.relativeUrl = buildProxyRelativeUrl(pathInfo, request.queryString());
 
                 // See the matching comment in the GET branch above: the caller's own key only.
-                if (!auth.forwardKey.empty())
-                    bodyParams.message.addHeader("X-API-Key", auth.forwardKey);
-
-                std::string contentType = request.headerValue("Content-Type");
-                if (!contentType.empty())
-                    bodyParams.message.addHeader("Content-Type", contentType);
+                // Who is really asking: the login on lms.<domain> reaches MuMa through here, and
+                // MuMa's per-client login limit needs the client, not this server. See
+                // forwardedClientAddress().
+                for (const auto& [name, value] : buildProxyHeaders({ .forwardKey = auth.forwardKey, .forwardedFor = forwardedClientAddress(request.clientAddress()), .contentType = request.headerValue("Content-Type") }))
+                    bodyParams.message.addHeader(name, value);
 
                 std::string jsonStr((std::istreambuf_iterator<char>(request.in())), std::istreambuf_iterator<char>());
                 bodyParams.message.addBodyText(jsonStr);

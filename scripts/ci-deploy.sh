@@ -78,8 +78,8 @@ write_env_file "${PROD_ENV_FILE_LMS}" "$ENV_DIR/lms.env"
 # 3. Provision the reverse-proxy nginx config on the remote host (this used
 #    to be a manual copy step, see docs/deployment.md).
 echo "--- Provisioning nginx reverse-proxy config on $REMOTE_HOST ---"
-ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /docker/lms/nginx"
-scp -o StrictHostKeyChecking=no \
+ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /docker/lms/nginx"
+scp "${PROD_SSH_OPTS[@]}" \
     "$PROJECT_ROOT/services/music-management-server/nginx/reverse-proxy.conf" \
     "${REMOTE_USER}@${REMOTE_HOST}:/docker/lms/nginx/reverse-proxy.conf"
 

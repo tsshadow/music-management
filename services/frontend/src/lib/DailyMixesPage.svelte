@@ -32,9 +32,9 @@
 <div class="flex flex-col gap-6 pb-12">
   <h1 class="text-3xl font-black">{$t('nav.dailyMixes')}</h1>
   {#if !loaded}
-    <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
+    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
   {:else if cards.length === 0}
-    <p class="text-[#b3b3b3]">{$t('dashboard.noTracksInSection')}</p>
+    <p class="text-muma-spotify-text">{$t('dashboard.noTracksInSection')}</p>
   {:else}
     <div class="grid grid-cols-2 gap-3">
       {#each cards as card (card.slug)}

@@ -77,8 +77,9 @@ forever, with an `ERROR` — and so an alert push — each time
 - **Order is identity.** The scanner takes the first artist as the primary one and hashes it into
   `track_uid`, so rules must correct an artist in place (`Tag.replace`), never by appending the
   correction and removing the original.
-- **Real-mutagen tests.** `services/tests/mock_base.py` stubs mutagen for all of `services/`; what
-  lands on disk is tested in `tests/unit/test_tagger_idempotence.py`, in a child interpreter.
+- **Real-mutagen tests.** The tagger's unit tests ask for the `mutagen` stub of
+  `services/tests/mock_base.py` (`pytest.mark.mock_base`); what lands on disk is tested against the
+  real mutagen in `tests/unit/test_tagger_idempotence.py`, in a child interpreter.
 
 ## Cross-App Impact
 

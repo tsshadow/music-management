@@ -31,7 +31,7 @@
     {#if speechSupported}
       <button
         type="button"
-        class="w-10 h-10 rounded-full flex items-center justify-center bg-[#282828] text-white border-none cursor-pointer hover:bg-[#333] shrink-0"
+        class="w-10 h-10 rounded-full flex items-center justify-center bg-muma-spotify-light text-white border-none cursor-pointer hover:bg-muma-spotify-hover shrink-0"
         onclick={() => onnavigate('voice')}
         aria-label={$t('voice.mic')}
       >

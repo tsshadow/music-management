@@ -27,7 +27,8 @@
     "noTracks": "Geen nummers gevonden",
     "noTracksHelp": "Deze artiest heeft geen items die overeenkomen met de huidige nummers weergave.",
     "similar": "Fans vinden dit ook leuk",
-    "verified": "Geverifieerde artiest"
+    "verified": "Geverifieerde artiest",
+    "edit": "Artiest bewerken"
   },
   "car": {
     "microphone": "Spraakzoekopdracht",
@@ -137,7 +138,12 @@
     "showAll": "Alles tonen",
     "toggleFavorite": "Favoriet toggelen",
     "topArtists": "Jouw artiesten deze maand",
-    "topLabels": "Jouw labels"
+    "topLabels": "Jouw labels",
+    "sets": "Sets",
+    "allTracks": "Alle nummers",
+    "tracks": "Nummers",
+    "editGenre": "Genre bewerken",
+    "editLabel": "Label bewerken"
   },
   "equalizer": {
     "band": "Band {freq}",
@@ -327,7 +333,11 @@
     "setupTitle": "Systeem Setup",
     "title": "Inloggen",
     "username": "Gebruikersnaam",
-    "verifying": "Verificeren..."
+    "verifying": "Verificeren...",
+    "setupFailed": "Setup mislukt",
+    "noManagementConnection": "Kon geen verbinding maken met de management API",
+    "accessRequestFailed": "Toegangsaanvraag mislukt",
+    "accessRequestError": "Fout bij indienen toegangsaanvraag"
   },
   "management": {
     "connectFailed": "Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.",
@@ -388,7 +398,21 @@
         "unknown": "onbekend",
         "checked": "gecontroleerd {age} geleden",
         "empty": "Geen kanalen in deze selectie.",
-        "showMore": "Toon {count} meer"
+        "showMore": "Toon {count} meer",
+        "ageUnderHour": "< 1 uur",
+        "ageMonths": "{count} mnd",
+        "reason": {
+          "too_short": "te kort",
+          "too_long": "te lang",
+          "403": "niet beschikbaar (403)",
+          "failing": "mislukt, wordt herkanst",
+          "failed": "definitief mislukt"
+        },
+        "state": {
+          "complete": "afgerond",
+          "capped": "afgekapt op het maximum",
+          "parked": "onderbroken"
+        }
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -410,7 +434,46 @@
       "timingUnavailableHelp": "De opgeslagen waarden konden niet gelezen worden, dus er is niets om te tonen of op te slaan. Dit zijn niet je instellingen die verdwenen zijn; de opslag is onbereikbaar.",
       "typeAudio": "Audio",
       "typeVideo": "Video",
-      "videoUrlPlaceholder": "YouTube Video URL..."
+      "videoUrlPlaceholder": "YouTube Video URL...",
+      "duration": {
+        "off": "uit",
+        "seconds": "{count} sec",
+        "minutes": "{count} min",
+        "hours": {
+          "one": "{count} uur",
+          "other": "{count} uur"
+        },
+        "days": {
+          "one": "{count} dag",
+          "other": "{count} dagen"
+        }
+      },
+      "backoff": {
+        "unknown": "Onbekend",
+        "parked": "Gepauzeerd, nog {duration}",
+        "parkedSlowed": "Gepauzeerd, nog {duration} ({multiplier}x vertraagd)",
+        "slowed": "{multiplier}x vertraagd, herstelt na schone rondes",
+        "normal": "Normaal tempo"
+      },
+      "blockReason": {
+        "bot_check": "YouTube vraagt om in te loggen (bot-check). Log opnieuw in bij YouTube in de Firefox-container (poort 7003) en druk daarna op Reset backoff.",
+        "cookies_missing": "De Firefox-cookies zijn niet leesbaar voor de worker. Controleer de firefox-mount en YT_COOKIES."
+      },
+      "timingSaved": "{source} timing opgeslagen.",
+      "saveFailedDetail": "Opslaan mislukt: {message}",
+      "confirmResetBackoff": "Backoff van {source} terugzetten naar normaal tempo?",
+      "backoffReset": "Backoff teruggezet.",
+      "backoffResetFailed": "Kon de backoff niet terugzetten.",
+      "accountAddFailed": "Kon account niet toevoegen.",
+      "confirmDeleteAccount": "Weet je zeker dat je {name} wilt verwijderen?",
+      "accountDeleted": "Account verwijderd.",
+      "accountDeleteFailed": "Kon account niet verwijderen.",
+      "channelAddFailed": "Kon kanaal niet toevoegen.",
+      "confirmDeleteChannel": "Weet je zeker dat je kanaal {name} ({type}) wilt verwijderen?",
+      "saveUpper": "OPSLAAN",
+      "savingUpper": "OPSLAAN...",
+      "fieldDefault": "standaard {value}",
+      "fieldAllowed": "toegestaan {min}–{max}"
     },
     "genres": {
       "actions": "Acties",
@@ -488,7 +551,22 @@
       "sectionOverview": "Genres",
       "sectionQueue": "Wachtrij",
       "sections": "Onderdelen",
-      "subtitle": "Keur genres goed, af of corrigeer ze. Beslissingen gelden vanaf de volgende tagger-run."
+      "subtitle": "Keur genres goed, af of corrigeer ze. Beslissingen gelden vanaf de volgende tagger-run.",
+      "filterUnknown": "Te beoordelen",
+      "filterWhite": "Goedgekeurd",
+      "filterBlack": "Afgekeurd",
+      "filterAll": "Alles",
+      "outcomeReplaced": "Wordt vervangen door {targets}",
+      "outcomeKeep": "Blijft staan",
+      "outcomeDrop": "Wordt verwijderd",
+      "outcomeUndecided": "Blijft in het bestand, wordt niet opgeslagen",
+      "errorState": "Ongeldige status, verwacht {white} of {black}.",
+      "errorSelfCorrection": "Een genre kan niet naar zichzelf corrigeren.",
+      "notDecided": "Nog niet beoordeeld",
+      "noneForSearch": "Geen genre gevonden voor '{search}'.",
+      "queueEmpty": "Niets te beoordelen. Alle genres hebben een beslissing.",
+      "listEmpty": "Geen genres in deze lijst.",
+      "replacedFromNow": "{name} wordt voortaan vervangen door {targets}."
     },
     "labelProposals": {
       "actions": "Acties",
@@ -549,7 +627,26 @@
       "uploadFile": "Bestand uploaden",
       "url": "URL",
       "viaUrl": "Afbeelding via URL",
-      "viaUrlFor": "Afbeelding via URL — {name}"
+      "viaUrlFor": "Afbeelding via URL — {name}",
+      "searchStarted": "Zoeken naar afbeelding voor {name} gestart...",
+      "deleted": "Afbeelding van {name} verwijderd.",
+      "saved": "Afbeelding voor {name} opgeslagen.",
+      "readFailed": "Kon bestand niet lezen",
+      "uploaded": "Afbeelding voor {name} geüpload.",
+      "artistFallback": "artiest",
+      "artistsUnit": "artiesten",
+      "filterAll": "Alle",
+      "filterWith": "Met afbeelding",
+      "filterWithout": "Zonder afbeelding",
+      "retry": "Opnieuw",
+      "countOf": "{shown} van {total} artiesten",
+      "manageFor": "Beheer afbeeldingen van {name}",
+      "unknownSource": "onbekend",
+      "noneForQuery": "Geen artiesten gevonden met de naam \"{query}\"",
+      "noneForFilter": "Geen artiesten gevonden voor dit filter.",
+      "dimensionsSource": "{width}x{height} • bron: {source}",
+      "noPrimary": "Nog geen primaire afbeelding",
+      "dimensionsConfidence": "{width}x{height} • betrouwbaarheid {confidence}"
     },
     "libraries": {
       "add": "Bibliotheek toevoegen",
@@ -561,7 +658,15 @@
       "noConnectionHelp": "Bibliotheken worden rechtstreeks door de muziekserver beheerd en vereisen een login met server-inloggegevens. Log in op de playerpagina met je gebruikersnaam en wachtwoord.",
       "path": "Pad",
       "pathPlaceholder": "Bijv. /music/jazz",
-      "subtitle": "Beheer de mappen die de muziekserver indexeert. Scannen doe je op het Scanner-tabblad."
+      "subtitle": "Beheer de mappen die de muziekserver indexeert. Scannen doe je op het Scanner-tabblad.",
+      "loadFailed": "Kon bibliotheken niet ophalen.",
+      "added": "Bibliotheek {name} toegevoegd.",
+      "addFailed": "Kon bibliotheek niet toevoegen.",
+      "addNetworkError": "Netwerkfout bij toevoegen van bibliotheek.",
+      "deleted": "Bibliotheek {name} verwijderd.",
+      "deleteFailed": "Kon bibliotheek niet verwijderen.",
+      "deleteNetworkError": "Netwerkfout bij verwijderen van bibliotheek.",
+      "pathBridgeOnly": "Pad alleen zichtbaar via de muma-bridge"
     },
     "library": {
       "analysis": "Analyse",
@@ -571,7 +676,19 @@
       "inspector": "Inspector",
       "searchPlaceholder": "Zoek titel, artiest, label of een BPM-getal... (Enter)",
       "trackList": "Tracklijst",
-      "tracks": "Tracks"
+      "tracks": "Tracks",
+      "hoursShort": "{hours}u",
+      "coverageDetail": "bpm {bpm} · genre {genre} · artiest {artist}",
+      "totalTracks": "{total} tracks",
+      "confirmRerunParse": "Analyse voor '{title}' opnieuw uitvoeren?",
+      "rerunStarted": "Scan voor '{title}' gestart.",
+      "rerunFailed": "Scan starten mislukt ({status}).",
+      "confirmRedownload": "'{title}' opnieuw downloaden?",
+      "redownloadStarted": "Download gestart.",
+      "redownloadFailed": "Downloaden mislukt ({status}).",
+      "serverUnreachable": "Server niet bereikbaar.",
+      "serverUnreachablePath": "Server niet bereikbaar ({path}).",
+      "serverError": "Serverfout {status} bij {path}. {detail}"
     },
     "news": {
       "bulletins": "Opgenomen bulletins",
@@ -641,7 +758,14 @@
       "totalArtists": "Totaal Artiesten",
       "totalScrobbles": "Totaal Scrobbles",
       "totalTracks": "Totaal Tracks",
-      "version": "MuMa Versie"
+      "version": "MuMa Versie",
+      "containersWithProblems": "{count} containers hebben problemen.",
+      "allSystemsOk": "Alle systemen werken naar behoren.",
+      "servicesOffline": "{count} service(s) zijn momenteel offline:",
+      "unknown": "Onbekend",
+      "fetchImagesStarting": "Achtergrondtaak voor afbeeldingen gestart...",
+      "fetchImagesStarted": "Afbeeldingen fetch taak succesvol gestart!",
+      "fetchImagesFailed": "Kon fetch taak niet starten."
     },
     "playlists": {
       "cancelUpper": "ANNULEREN",
@@ -674,7 +798,12 @@
       "typeSets": "Alleen Sets (&gt; 10 min)",
       "typeTracks": "Alleen Tracks (&lt; 10 min)",
       "updated": "Playlist bijgewerkt",
-      "viewTracks": "Tracks bekijken"
+      "viewTracks": "Tracks bekijken",
+      "selectUserFirst": "Selecteer eerst een gebruiker",
+      "confirmRestoreDefaults": "Weet je zeker dat je de standaard playlists wilt herstellen voor deze gebruiker?",
+      "editTitle": "Afspeellijst Bewerken",
+      "newTitle": "Nieuwe Dynamic Playlist",
+      "rangeTo": "tot"
     },
     "podcasts": {
       "addSpelling": "Schrijfwijze toevoegen",
@@ -710,7 +839,21 @@
       "spellings": "Schrijfwijzen",
       "spellingsHelp": "De tagger zoekt elke schrijfwijze in titel en pad samen. Het kortste stuk dat in alle afleveringen voorkomt, vangt er het meeste.",
       "station": "Zender",
-      "subtitle": "Keur radioshows en podcastseries goed of af. Alleen goedgekeurde shows worden getagd, vanaf de volgende tagger-run."
+      "subtitle": "Keur radioshows en podcastseries goed of af. Alleen goedgekeurde shows worden getagd, vanaf de volgende tagger-run.",
+      "mergedInto": "{name} hoort nu bij {target}.",
+      "otherShow": "de andere show",
+      "outcomeTagged": "Wordt getagd op elke aflevering",
+      "outcomeNever": "Wordt nooit getagd",
+      "outcomeUndecided": "Nog geen beslissing, dus niet getagd",
+      "errorSelfMerge": "Een show kan niet in zichzelf samengevoegd worden.",
+      "errorNameEmpty": "Een shownaam mag niet leeg zijn.",
+      "errorNameShort": "Een shownaam heeft minstens {min} letters of cijfers nodig; korter matcht op losse bestanden.",
+      "errorAliasEmpty": "Een schrijfwijze mag niet leeg zijn.",
+      "errorAliasShort": "Een schrijfwijze heeft minstens {min} letters of cijfers nodig; korter matcht op losse bestanden.",
+      "episodeCount": {
+        "one": "1 aflevering",
+        "other": "{count} afleveringen"
+      }
     },
     "radio": {
       "artist": "Artiest",
@@ -768,7 +911,25 @@
       "samePerson": "Is dit dezelfde persoon als een bestaand account?",
       "subtitle": "Beheer aanvragen van nieuwe gebruikers via Google Login.",
       "undo": "Ongedaan maken",
-      "undoFailed": "Ongedaan maken mislukt."
+      "undoFailed": "Ongedaan maken mislukt.",
+      "loadFailed": "Kon toegangsverzoeken niet ophalen.",
+      "loadNetworkError": "Netwerkfout bij ophalen verzoeken.",
+      "linkedMessage": "Verzoek van {name} gekoppeld aan bestaand account!",
+      "approvedMessage": "Verzoek van {name} goedgekeurd!",
+      "undoneMessage": "Goedkeuring van {name} ongedaan gemaakt.",
+      "rejectedMessage": "Verzoek van {name} afgewezen.",
+      "networkError": "Netwerkfout.",
+      "system": "Systeem",
+      "approveQuestion": "Weet je zeker dat je de toegangsaanvraag van {name} wilt goedkeuren?",
+      "approveLinkHelp": "De Google-koppeling wordt toegevoegd aan het bestaande account, er wordt geen nieuw account aangemaakt.",
+      "approveCreateHelp": "Er wordt direct een nieuw gebruikersaccount aangemaakt.",
+      "undoQuestion": "Weet je zeker dat je de goedkeuring van {name} ongedaan wilt maken?",
+      "undoLinkHelp": "Alleen de Google-koppeling wordt verwijderd; het bestaande account blijft bestaan.",
+      "undoCreateHelp": "Het account dat hiervoor is aangemaakt wordt volledig verwijderd.",
+      "rejectQuestion": "Weet je zeker dat je de toegangsaanvraag van {name} wilt afwijzen?",
+      "confirmApproveButton": "Bevestig goedkeuring",
+      "confirmUndoButton": "Bevestig ongedaan maken",
+      "confirmRejectButton": "Bevestig afwijzing"
     },
     "scanner": {
       "artistSeparator": "Artiest-scheidingsteken",
@@ -839,7 +1000,16 @@
       },
       "subtitle": "Status, planning en tagverwerking van de bibliotheekscan.",
       "tagProcessing": "Tagverwerking",
-      "weekly": "Wekelijks"
+      "weekly": "Wekelijks",
+      "settingsSaved": "Scaninstellingen opgeslagen.",
+      "settingsSaveFailed": "Kon scaninstellingen niet opslaan.",
+      "settingsNetworkError": "Netwerkfout bij opslaan van scaninstellingen.",
+      "scanStarted": "Scan gestart.",
+      "scanStartFailed": "Kon scan niet starten.",
+      "scanNetworkError": "Netwerkfout bij starten van de scan.",
+      "notAvailable": "N/B",
+      "addTag": "TAG TOEVOEGEN",
+      "addUpper": "TOEVOEGEN"
     },
     "scrobble": {
       "import": "ListenBrainz Import",
@@ -858,7 +1028,10 @@
       "started": "Gestart",
       "subtitle": "Beheer luistergeschiedenis en ListenBrainz imports.",
       "title": "Scrobble Service",
-      "user": "Gebruiker"
+      "user": "Gebruiker",
+      "importStarted": "ListenBrainz import gestart voor {name}!",
+      "linkedAccount": "gekoppeld account",
+      "linkedPlaceholder": "Gekoppeld: {name}"
     },
     "tabs": {
       "config": "Configuratie",
@@ -970,7 +1143,36 @@
       "tokenNetworkError": "Netwerkfout bij opslaan van Subsonic token.",
       "tokenPlaceholder": "Token",
       "tokenRevoked": "Subsonic token ingetrokken.",
-      "tokenSaveFailed": "Kon Subsonic token niet opslaan."
+      "tokenSaveFailed": "Kon Subsonic token niet opslaan.",
+      "added": "Gebruiker {name} toegevoegd!",
+      "addFailed": "Kon gebruiker niet toevoegen.",
+      "addNetworkError": "Netwerkfout bij toevoegen gebruiker.",
+      "deleted": "Gebruiker {name} verwijderd.",
+      "deleteFailed": "Kon gebruiker niet verwijderen.",
+      "deleteNetworkError": "Netwerkfout bij verwijderen gebruiker.",
+      "passwordUpdateFailed": "Kon wachtwoord niet bijwerken.",
+      "passwordNetworkError": "Netwerkfout bij bijwerken wachtwoord.",
+      "syncDone": "Sync voltooid! {count} gebruikers verwerkt.",
+      "dbSyncDone": "Database sync voltooid! {count} gebruikers verwerkt.",
+      "syncFailed": "Sync mislukt.",
+      "syncNetworkError": "Netwerkfout bij sync.",
+      "tokenSaved": "Subsonic token opgeslagen.",
+      "enabledMessage": "Gebruiker ingeschakeld!",
+      "disabledMessage": "Gebruiker uitgeschakeld!",
+      "enableFailed": "Kon gebruiker niet inschakelen.",
+      "disableFailed": "Kon gebruiker niet uitschakelen.",
+      "networkError": "Netwerkfout.",
+      "merged": "{from} is samengevoegd in {into}.",
+      "mergeFailed": "Kon gebruikers niet samenvoegen.",
+      "mergeNetworkError": "Netwerkfout bij samenvoegen.",
+      "noDisplayName": "Geen display name",
+      "noEmail": "Geen e-mail",
+      "disable": "Uitschakelen",
+      "enable": "Inschakelen",
+      "newToken": "NIEUW TOKEN",
+      "generateToken": "TOKEN GENEREREN",
+      "revokeToken": "INTREKKEN",
+      "never": "Nooit"
     },
     "artists": {
       "subtitle": "Welke namen in de bibliotheek écht artiesten zijn. De scanner slaat elke artiestnaam op die een taggerregel ooit maakte; hier beslis je wat blijft, wat weg mag en wat een andere spelling is.",
@@ -1124,7 +1326,28 @@
       "errorYear": "Een jaar is vier cijfers.",
       "errorStageWithoutYear": "Een stage hoort bij een editie: vul ook een jaar in.",
       "errorEmpty": "Plak eerst een line-up."
-    }
+    },
+    "config": {
+      "noPermission": "Je hebt geen rechten om de configuratie te bekijken.",
+      "loadFailed": "De configuratie kon niet worden geladen.",
+      "saveFailed": "Opslaan is niet gelukt.",
+      "saved": {
+        "one": "{count} instelling opgeslagen.",
+        "other": "{count} instellingen opgeslagen."
+      },
+      "title": "Configuratie",
+      "subtitle": "Draaiende instellingen. Wachtwoorden en tokens worden gemaskeerd getoond; laat ze staan om ze ongemoeid te laten.",
+      "reload": "Herladen",
+      "saveCount": "{count} opslaan",
+      "changed": "gewijzigd",
+      "readOnly": "Alleen-lezen: deze waarde komt uit de omgeving van de container.",
+      "on": "Aan",
+      "off": "Uit",
+      "hide": "Verbergen",
+      "show": "Tonen",
+      "secretSet": "Er staat een waarde ingesteld. Typ een nieuwe om hem te vervangen, of maak het veld leeg om hem te wissen."
+    },
+    "loadFailed": "Kon gegevens niet ophalen van de Management API."
   },
   "memories": {
     "allYears": "Alle jaren",
@@ -1229,14 +1452,19 @@
     "syncListener": "Radio: luisteraar (volgend)",
     "syncOff": "Sync uit",
     "syncRemote": "Jam: afstandsbediening",
-    "volume": "Volume"
+    "volume": "Volume",
+    "unknownTrack": "Onbekend nummer",
+    "unknownArtist": "Onbekende artiest",
+    "unknownAlbum": "Onbekend album",
+    "pause": "Pauze"
   },
   "queue": {
     "clear": "Lijst leegmaken",
     "resize": "Wachtrij resizen",
     "saveAsPlaylist": "Opslaan als afspeellijst",
     "shuffle": "Shuffle",
-    "title": "Wachtrij"
+    "title": "Wachtrij",
+    "playlistNamePrompt": "Geef een naam voor de nieuwe afspeellijst:"
   },
   "radio": {
     "chooseChannel": "Kies een kanaal",
@@ -1315,7 +1543,10 @@
       "sortOptionsHelp": "Kies welke sorteeropties zichtbaar moeten zijn in de interface.",
       "subtitle": "Beheer je sorteeropties en je wachtwoord.",
       "title": "Geavanceerd",
-      "updatePassword": "Wachtwoord Bijwerken"
+      "updatePassword": "Wachtwoord Bijwerken",
+      "sortTracks": "Nummers",
+      "sortAlbums": "Albums",
+      "sortArtists": "Artiesten"
     },
     "device": {
       "bitrateUnlimited": "Geen limiet",
@@ -1569,7 +1800,8 @@
     "mlGenre": "Genre volgens ML",
     "mono": "mono",
     "stereo": "stereo",
-    "channels": "{count} kanalen"
+    "channels": "{count} kanalen",
+    "confirmRefresh": "Weet je zeker dat je \"{title}\" opnieuw wilt parsen en scannen?"
   },
   "song": {
     "heading": "Nummer",
@@ -1790,5 +2022,97 @@
       "title": "Beheer",
       "body": "Als beheerder heb je onder Beheer (profielmenu) de serverkant: scannen, de tagger en curatie van artiesten, genres, labels en podcasts, de downloaders, radio en nieuws, gebruikers en hun verzoeken, gezondheid en het logboek. Deze handleiding gaat over luisteren; Beheer heeft per pagina zijn eigen uitleg."
     }
+  },
+  "curation": {
+    "back": "Terug",
+    "chipEmpty": "Nog niets ingesteld.",
+    "chipRemove": "Verwijder {item}",
+    "inLibrary": "{count} tracks in de bibliotheek",
+    "notInLibrary": "Nog niet in de bibliotheek — regels kunnen alvast worden vastgelegd",
+    "artistGone": "Deze artiest bestaat niet meer in de bibliotheek.",
+    "artistMbidHelp": "De MBID koppelt deze artiest aan MusicBrainz. Leeg laten wist de koppeling.",
+    "mbidInvalid": "Dat is geen MBID. Plak alleen het id, niet de hele MusicBrainz-URL.",
+    "mbidInvalidShort": "Dat is geen MBID. Plak alleen het id.",
+    "mbidSaved": "MBID opgeslagen.",
+    "openOnMusicBrainz": "Openen op MusicBrainz",
+    "externalIds": "Externe ids",
+    "verified": "geverifieerd",
+    "idRemoved": "Id verwijderd.",
+    "idSaved": "Id opgeslagen.",
+    "noExternalIds": "Nog geen externe ids.",
+    "pickSource": "Bron kiezen",
+    "sourceIdPlaceholder": "id bij die bron",
+    "aliases": "Aliassen",
+    "aliasesHint": "Andere schrijfwijzen waaronder deze artiest voorkomt, bijvoorbeeld 'DJ Angerfist'.",
+    "aliasPlaceholder": "Alias",
+    "aliasSelf": "Een artiest is geen alias van zichzelf.",
+    "aliasExists": "Die alias staat er al.",
+    "aliasAdded": "Alias toegevoegd.",
+    "aliasRemoved": "Alias verwijderd.",
+    "ruleSaved": "Regel opgeslagen.",
+    "ruleRemoved": "Regel verwijderd.",
+    "retagQueued": "{count} bestanden staan in de wachtrij om opnieuw getagd te worden.",
+    "markedNone": "{base} Geen bestanden gevonden om opnieuw te taggen.",
+    "markedSome": {
+      "one": "{base} 1 bestand staat in de wachtrij om opnieuw getagd te worden.",
+      "other": "{base} {count} bestanden staan in de wachtrij om opnieuw getagd te worden."
+    },
+    "hierarchySaved": "Hiërarchie opgeslagen.",
+    "hardnessInvalid": "Moet een geheel getal tussen 0 en 100 zijn, of leeg.",
+    "hardnessSaved": "Hardheid opgeslagen.",
+    "genreSeen": "{count} keer gezien in de bibliotheek",
+    "genreNotApproved": "Dit genre is niet goedgekeurd door de curatie",
+    "parentsTitle": "Valt onder",
+    "parentsHint": "Bredere genres waar dit genre bij hoort. De tagger voegt ze toe aan elke track met dit genre.",
+    "parentsPlaceholder": "Bijvoorbeeld Hardcore",
+    "parentNotAllowed": "Dat kan niet: een genre valt niet onder zichzelf of onder een eigen subgenre, en staat er maar één keer in.",
+    "hardnessHelp": "0 (zacht) tot 100 (hard). Bepaalt in welke van de zachte, middelste of harde daily mix dit genre terechtkomt. Leeg laten geeft het genre terug aan de automatische schatting.",
+    "subgenres": "Subgenres",
+    "subgenresHelp": "Genres die onder dit genre vallen. Te wijzigen op hun eigen pagina.",
+    "noSubgenres": "Geen subgenres.",
+    "genreNotEditableBefore": "De curatie bepaalt of een genre bestaat; deze pagina bewerkt een genre dat al is goedgekeurd. Dit genre staat op",
+    "genreNotEditableAfter": ", dus er is niets om in te stellen — de tagger schrijft het nergens weg.",
+    "reviewFirst": "Beoordeel het eerst onder Beheer → Genre-curatie.",
+    "genreRules": "Genre-regels",
+    "genreRulesHelp": "Elke track hieronder krijgt deze genres bij de volgende tagger-ronde.",
+    "ruleBy": "door {name}",
+    "ruleRemove": "Verwijder regel {name}",
+    "pickGenre": "Genre kiezen",
+    "pickApprovedGenre": "Kies een goedgekeurd genre…",
+    "affects": "Raakt {tracks}.",
+    "affectedNone": "geen tracks",
+    "affectedTracks": {
+      "one": "1 track",
+      "other": "{count} tracks"
+    },
+    "applyNow": "Nu toepassen",
+    "catalog": "Catalogus",
+    "catalogHelp": "Gelezen uit de mapnamen van de releases; alleen de EPs-map telt. Alleen het waargenomen bereik telt: vóór het laagste en na het hoogste nummer wordt niets geclaimd, en een nummer dat niet aanwezig is kan ook door het label zijn overgeslagen.",
+    "catalogLoadFailed": "Catalogus kon niet worden geladen: {error}",
+    "catalogLoading": "Catalogus laden…",
+    "catalogEmpty": "Geen leesbare catalogusnummers in de mappen van dit label.",
+    "filesOutsideRoot": "{count} bestanden van dit label staan buiten de EPs-map en zijn niet meegeteld.",
+    "copied": "Gekopieerd",
+    "copyAsTerms": "Kopieer als zoektermen",
+    "copyFailed": "Kopiëren is niet gelukt.",
+    "absentTruncated": "{count} nummers niet aanwezig — te veel om op te sommen; waarschijnlijk staat één mapnaam ver buiten de reeks.",
+    "allPresent": "Alles binnen het waargenomen bereik is aanwezig.",
+    "notPresent": "Niet aanwezig ({count}):",
+    "showAll": "toon alles ({count} reeksen)",
+    "variants": "Varianten:",
+    "otherCatids": "Overig, zonder leesbaar nummer:",
+    "noPrefix": "(geen prefix)",
+    "seriesPresent": "{present} van {span} aanwezig ({percent}%)",
+    "parentLabel": "Moederlabel",
+    "parentLabelHelp": "Het label waar dit sublabel onder valt. Wordt nog niet door de tagger gebruikt.",
+    "parentPlaceholder": "id van het moederlabel, leeg om te wissen",
+    "parentSaved": "Moederlabel opgeslagen.",
+    "parentNow": "Valt nu onder {name}.",
+    "catidPrefixes": "Catalogus-prefixen",
+    "catidHint": "Een release met dit nummer in de mapnaam wordt aan dit label toegekend.",
+    "catidPlaceholder": "Bijvoorbeeld MOH",
+    "catidExists": "Dat prefix staat er al.",
+    "prefixAdded": "Prefix toegevoegd.",
+    "prefixRemoved": "Prefix verwijderd."
   }
 }

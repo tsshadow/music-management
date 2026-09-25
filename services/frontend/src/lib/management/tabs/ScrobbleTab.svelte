@@ -1,5 +1,5 @@
 <script >
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
   import { RefreshCw, Radio } from '@lucide/svelte';
   
@@ -44,7 +44,7 @@
       });
       if (res.ok) {
         const data = await res.json();
-        onMessage(`ListenBrainz import gestart voor ${data.lb_username || 'gekoppeld account'}!`);
+        onMessage($t('management.scrobble.importStarted', { name: data.lb_username || $t('management.scrobble.linkedAccount') }));
         fetchLatestImports();
         // Poll for updates every 3 seconds while active
         stopPolling();
@@ -108,7 +108,7 @@
               type="text" 
               id="lb-user" 
               bind:value={importLbUser}
-              placeholder={lbUsername ? `Gekoppeld: ${lbUsername}` : "someuser"}
+              placeholder={lbUsername ? $t('management.scrobble.linkedPlaceholder', { name: lbUsername }) : "someuser"}
               class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand transition-colors"
             />
             {#if !importLbUser && lbUsername}
@@ -169,7 +169,7 @@
                   <div class="text-[10px] text-muma-spotify-text">{imp.processed} / {imp.total_found}</div>
                 </td>
                 <td class="p-4 text-right text-xs text-muma-spotify-text">
-                  {new Date(imp.started_at).toLocaleString()}
+                  {$format.dateTime(imp.started_at)}
                 </td>
               </tr>
             {/each}

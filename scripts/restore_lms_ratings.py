@@ -56,8 +56,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-LMS_MUSIC_ROOT = "/music"
-MUMA_MUSIC_ROOT = "/mnt/music"
+# Run as a file (`python3 scripts/restore_lms_ratings.py`), so the repository root is not on
+# the path by itself. The path spellings come from the one shared copy: the rating webhook,
+# the version sync and this script must agree on them (LMS_MUSIC_ROOT / MUMA_MUSIC_ROOT
+# override the /music and /mnt/music defaults there, as they do in the running service).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services.music_manager.library_paths import candidate_paths  # noqa: E402
 
 # LMS stores the file's RATING tag verbatim as a cluster name. Anything outside this
 # mapping (the library has two tracks tagged "Clean") is not a rating and is skipped.
@@ -70,18 +74,6 @@ SOURCE_TAG = "tag"
 
 class SchemaError(RuntimeError):
     """The database does not look like an LMS database we can restore into."""
-
-
-def candidate_paths(path):
-    """Every spelling of `path` worth looking up, the one we were given first."""
-    relative = path
-    for root in (MUMA_MUSIC_ROOT, LMS_MUSIC_ROOT):
-        if path.startswith(root + "/"):
-            relative = path[len(root) + 1:]
-            break
-    candidates = [path, f"{MUMA_MUSIC_ROOT}/{relative}", f"{LMS_MUSIC_ROOT}/{relative}", relative]
-    seen = set()
-    return [c for c in candidates if not (c in seen or seen.add(c))]
 
 
 @dataclass

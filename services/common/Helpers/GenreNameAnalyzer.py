@@ -20,9 +20,10 @@ cheap enough to run over the whole queue on every click.
 
 import difflib
 import re
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
+
+from services.common.text_normalize import ascii_name_key
 
 KEEP = 'keep'
 REWRITE = 'rewrite'
@@ -101,13 +102,11 @@ DEFAULT_GENRE_STEMS = ('core', 'style', 'tempo', 'tek', 'tekk', 'step', 'tronic'
 def normalize(name: str) -> str:
     """Casing-, accent- and punctuation-insensitive key for a genre name.
 
-    A deliberate copy of `GenreRulesHelper.normalize` -- the same key the tagger
-    and the curation page use -- kept here so this module imports nothing that
-    needs a database driver.
+    The same key the tagger (`GenreRulesHelper.normalize`) and the curation page
+    use. It lives in `services.common.text_normalize`, which imports nothing that
+    needs a database driver -- the reason this module used to carry a copy.
     """
-    decomposed = unicodedata.normalize('NFKD', name or '')
-    without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
-    return re.sub('[^a-z0-9]+', ' ', without_accents.lower()).strip()
+    return ascii_name_key(name)
 
 
 @dataclass

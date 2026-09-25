@@ -8,13 +8,13 @@ rather than the permission wiring (that already lives in test_rbac.py).
 import json
 import os
 import sqlite3
-import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
 
 
 import services.music_manager.routers.users as users_router
@@ -444,7 +444,7 @@ class ListenBrainzTest(UsersEndpointTestCase):
 
     def test_an_unlinked_account_returns_empty_values(self):
         self.cursor.fetchone.return_value = None
-        response = self.client.get('/api/users/4/lb-account', headers=self.headers)
+        response = self.client.get('/api/users/4/listenbrainz', headers=self.headers)
         self.assertEqual(response.json(), {'lb_username': '', 'lb_token': ''})
 
     def test_an_account_can_be_linked(self):
@@ -485,6 +485,32 @@ class AppSettingsTest(UsersEndpointTestCase):
 
 
 class DeleteUserTest(UsersEndpointTestCase):
+    def setUp(self):
+        super().setUp()
+        notify = patch.object(users_router, 'notify_server_sync_users')
+        self.notify = notify.start()
+        self.addCleanup(notify.stop)
+
+    def test_the_server_is_told_to_sync_after_the_delete_commits(self):
+        # LMS disables an account that has gone from /api/users/; until it syncs, the deleted
+        # account's Subsonic key keeps working. A poke before the commit would find it still there.
+        self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
+        order = []
+        self.conn.commit.side_effect = lambda: order.append('commit')
+        self.notify.side_effect = lambda: order.append('notify')
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
+            response = self.client.delete('/api/users/4', headers=self.headers)
+        self.assertEqual(response.json(), {'status': 'ok'})
+        self.assertEqual(order, ['commit', 'notify'])
+
+    def test_a_refused_delete_does_not_poke_the_server(self):
+        self.cursor.fetchone.return_value = None
+        self.client.delete('/api/users/4', headers=self.headers)
+        self.notify.assert_not_called()
+
     def test_a_user_and_all_its_dependent_rows_are_removed(self):
         self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
         with (
@@ -536,7 +562,7 @@ class ServerSyncTest(unittest.TestCase):
     def test_the_sync_endpoint_reports_how_many_users_were_synced(self):
         client = TestClient(app)
         with patch.object(users_router, 'run_lms_db_sync', return_value=3):
-            response = client.post('/api/users/sync/lms', headers={'x-api-key': API_KEY})
+            response = client.post('/api/users/sync/muma-server', headers={'x-api-key': API_KEY})
         self.assertEqual(response.json()['synced'], 3)
 
     def test_every_configured_server_host_is_notified(self):

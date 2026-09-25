@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.identity import username_taken
 from services.music_manager.lms_schema import usable_lms_targets
 from services.music_manager.rate_limit import auth_attempt
@@ -835,7 +836,7 @@ def list_roles(auth: dict = Depends(require_permission('roles.read'))):
         conn.close()
 
 
-@router.get('/permissions')
+@router.get('/permissions', deprecated=True, dependencies=[DEPRECATED_CALL])
 def list_permissions(auth: dict = Depends(require_permission('permissions.read'))):
     conn = get_db_connection()
     if not conn:
@@ -968,7 +969,6 @@ def list_identities(user_id: int, auth: dict = Depends(verify_api_key)):
 
 
 @router.get('/{user_id}/listenbrainz')
-@router.get('/{user_id}/lb-account')
 def get_lb_account(user_id: int, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
@@ -988,7 +988,6 @@ def get_lb_account(user_id: int, auth: dict = Depends(verify_api_key)):
 
 @router.post('/{user_id}/listenbrainz')
 @router.put('/{user_id}/listenbrainz')
-@router.put('/{user_id}/lb-account')
 def update_lb_account(user_id: int, lb_data: LBAccountUpdate, auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
         raise HTTPException(status_code=403, detail='Forbidden')
@@ -1100,7 +1099,11 @@ def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
         with _admin_guard_lock, transaction(conn), conn.cursor() as cursor:
             actor_id = (auth.get('user') or {}).get('id')
             delete_user_row(cursor, user_id, actor_id=actor_id)
-            return {'status': 'ok'}
+        # After the commit, as for disable: LMS answers the poke by fetching /api/users/, and
+        # disables -- never deletes -- the account it no longer finds there, revoking its keys.
+        # Without the poke a deleted account kept its Subsonic key until the next sync.
+        notify_server_sync_users()
+        return {'status': 'ok'}
     except HTTPException:
         raise
     except Exception as e:
@@ -1336,8 +1339,7 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
 
 
 @router.post('/sync/muma-server')
-@router.post('/sync/lms')
-@router.post('/sync/lms-db')
+@router.post('/sync/lms-db', deprecated=True, dependencies=[DEPRECATED_CALL])
 def sync_lms_db(background_tasks: BackgroundTasks, _auth: dict = Depends(rbac.require_admin())):
     """Run the lms.db sync now and return its count. Admin only; 409 while one is running.
 

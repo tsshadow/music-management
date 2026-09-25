@@ -50,7 +50,7 @@
   <div class="flex flex-col gap-1 px-3">
     {#each tabs as tab (tab.id)}
       <button
-        class="flex items-center gap-4 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeSettingsTab === tab.id ? 'bg-[#282828] text-white' : 'text-[#b3b3b3] hover:text-white hover:bg-[#1a1a1a]' }"
+        class="flex items-center gap-4 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeSettingsTab === tab.id ? 'bg-muma-spotify-light text-white' : 'text-muma-spotify-text hover:text-white hover:bg-[#1a1a1a]' }"
         onclick={() => setTab(tab.id)}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

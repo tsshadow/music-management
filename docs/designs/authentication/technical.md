@@ -166,7 +166,7 @@ case-insensitive.
 - `POST /api/users` and `POST /api/user-requests/{id}/approve` answer `409` for a name that
   differs only in case from an existing account. That used to be a `500` from the unique key.
 - `POST /api/scrobble/event`, `POST /api/scrobble/import/listenbrainz`,
-  `POST /api/rating/server-event` store the account's spelling, never the body's. A user key
+  `POST /api/rating/lms-event` store the account's spelling, never the body's. A user key
   naming its own account in another case is accepted, and another account is still `403`.
 - LMS `db::User::find(session, loginName)` is case-insensitive. The Subsonic `createUser` and
   the admin UI therefore refuse a case variant ("user already exists").
@@ -184,3 +184,37 @@ would fail on production while the fork exists, and LMS would not start. It foll
 `test_router_sql.py` (`UserLifecycleTest`), LMS `DatabaseFixture.User_findByLoginName*` and
 `CaseInsensitiveLogin.*`, frontend `login.test.js`, `nativeSession.test.js`,
 `loginPageNativeCredentials.test.js`, and Android `MumaStoredCredentialsTest`.
+
+## 2026-09-25: LMS forwards the client address; Google requires a verified e-mail
+
+Bug report [079](../../bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).
+No request or response shape changes; two error answers change (below), and every consumer
+already shows `detail` as it is.
+
+- **Google** (`routers/user_requests.py`): `_verify_google_id_token` rejects a token whose
+  `email_verified` is not `true` (JSON boolean, or the legacy string `"true"`) with
+  `401 Google account e-mail address is not verified`, and a token the library rejects with a fixed
+  `401 Invalid Google token`; the library's reason goes to the log. Approving a request as a new
+  account answers `409` (naming the address, pointing at `link_user_id`) through 074's
+  `identity.username_taken`; a duplicate-key error from a race is mapped to the same `409`. The refresh-token cap from !938 (`rbac.issue_refresh_token`) already covers the
+  Google login.
+- **LMS**: `PasswordServiceBase` gains `checkUserPasswordFrom(clientAddress, ...)`, defaulting to the
+  address-less check, so only `MusicManagementPasswordService` changes: its request is built by
+  `buildLoginRequest`, which adds `X-Forwarded-For: <resolved client address>` (nothing for an
+  unspecified one). `MumaResource`'s generic proxy sends the same header from
+  `forwardedClientAddress(request.clientAddress())`, replacing anything the client sent.
+  `request.clientAddress()` is the TCP peer unless `behind-reverse-proxy` and `trusted-proxies` are
+  set in `lms.conf`.
+- **MuMa** (`rate_limit.py`): `client_key` believes `X-Forwarded-For` only from a peer on
+  `AUTH_TRUSTED_PROXIES` (default loopback + the private ranges nginx trusts) or a request with the
+  system key, and reads it from the right, skipping trusted hops (nginx's `real_ip_recursive`); the
+  left-most entry was client-controlled whenever a proxy appended to the chain. `auth_attempt` with a
+  subject counts two buckets: per client and account (`AUTH_RATE_LIMIT_ATTEMPTS`, 10) and per
+  account from anywhere (`AUTH_RATE_LIMIT_ACCOUNT_ATTEMPTS`, 50). With real addresses the first alone
+  would let guessing spread over many addresses through; the second alone is the old behaviour, where
+  one client on a stale password locked the account for everyone.
+- **Tests**: `services/auth/test/MusicManagementPasswordOutcome.cpp` (`buildLoginRequest`),
+  `src/libs/muma/test/Authentication.cpp` (`forwardedClientAddress`),
+  `services/music_manager/tests/test_rate_limit.py` (trust rule, forged header ignored, both
+  buckets), `test_user_requests.py`, and `tests/integration/test_router_sql.py` (the `409` against
+  MariaDB).

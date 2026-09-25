@@ -37,8 +37,8 @@ fi
 export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"
 
 # tests/unit/test_downloader_real_ytdlp.py needs the real yt-dlp: how it treats an
-# error under ignoreerrors is the whole question there, and mock_base replaces it
-# for everything under services/. When this interpreter has no yt-dlp of its own,
+# error under ignoreerrors is the whole question there, and the downloader's tests
+# under services/ use mock_base's yt_dlp stub. When this interpreter has no yt-dlp of its own,
 # the version requirements.txt pins is put in a cache directory of its own (never
 # into the interpreter) and added to PYTHONPATH, which the child interpreters that
 # test starts inherit. yt-dlp is pure Python with no required dependencies. Only
@@ -70,10 +70,19 @@ TEST_TARGETS=(
     # explicitly because tests/ holds integration suites that this job must not
     # run, so the whole directory cannot be handed to pytest.
     "tests/ci/"
-    # Tests that need the real mutagen (services/conftest.py stubs it for the whole
-    # session). Each runs its mutagen work in a child interpreter, so the stub that
-    # collecting services/ installs does not reach it.
+    # Tests that exercise the real mutagen and yt-dlp, each in a child interpreter.
+    # (They date from when services/conftest.py stubbed both for the whole session;
+    # the stubs are opt-in per module since bug report 085.)
     "tests/unit/"
+)
+
+# The deprecated ml-analyzer (services/ml-analyzer/DEPRECATED.md) is kept but not run
+# here: its tests are skipped and [tool.coverage.run] omits its source, so code nobody
+# runs neither costs this job time nor moves the coverage figure. The manual CI job
+# backend:ml-analyzer-unit runs them through scripts/test/ml-analyzer-unit.sh.
+EXCLUDES=(
+    "--ignore=services/ml-analyzer"
+    "--ignore-glob=services/tests/MlAnalyzer*Test.py"
 )
 
 # Ratchet: the suite sits above this, and a change that drops below it fails here
@@ -97,6 +106,7 @@ python3 -m pytest -p no:warnings \
     --cov-report=xml:coverage-python.xml \
     --cov-fail-under="$COVERAGE_MIN" \
     --junitxml=report-python.xml \
+    "${EXCLUDES[@]}" \
     "${TEST_TARGETS[@]}" "$@"
 PYTEST_STATUS=$?
 set -e

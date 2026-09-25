@@ -14,6 +14,7 @@
   import { RefreshCw, Save, Eye, EyeOff } from '@lucide/svelte';
 
   import { SECRET_SENTINEL, changedUpdates, groupFields } from '../configFields.js';
+  import { t } from '../../i18n/index.js';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
 
@@ -33,8 +34,8 @@
       const res = await fetch(`${API_BASE}/api/config/fields`, { headers: getHeaders() });
       if (!res.ok) {
         onError?.(res.status === 403
-          ? 'Je hebt geen rechten om de configuratie te bekijken.'
-          : 'De configuratie kon niet worden geladen.');
+          ? $t('management.config.noPermission')
+          : $t('management.config.loadFailed'));
         return;
       }
       fields = await res.json();
@@ -57,10 +58,10 @@
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        onError?.((body && body.detail) || 'Opslaan is niet gelukt.');
+        onError?.((body && body.detail) || $t('management.config.saveFailed'));
         return;
       }
-      onMessage?.(`${pendingCount} instelling${pendingCount === 1 ? '' : 'en'} opgeslagen.`);
+      onMessage?.($t('management.config.saved', { count: pendingCount }));
       await load();
       revealed = {};
     } catch (e) {
@@ -76,19 +77,18 @@
 <div class="flex flex-col gap-6">
   <header class="flex items-center justify-between gap-4 flex-wrap">
     <div>
-      <h2 class="text-2xl font-bold m-0">Configuratie</h2>
+      <h2 class="text-2xl font-bold m-0">{$t('management.config.title')}</h2>
       <p class="text-sm text-muma-spotify-text mt-1 mb-0">
-        Draaiende instellingen. Wachtwoorden en tokens worden gemaskeerd getoond; laat ze staan om
-        ze ongemoeid te laten.
+        {$t('management.config.subtitle')}
       </p>
     </div>
     <div class="flex items-center gap-2">
       <button
-        class="flex items-center gap-2 bg-muma-spotify-light hover:bg-[#3e3e3e] text-white rounded px-4 py-2 text-sm border-none cursor-pointer"
+        class="flex items-center gap-2 bg-muma-spotify-light hover:bg-muma-spotify-highlight text-white rounded px-4 py-2 text-sm border-none cursor-pointer"
         onclick={load}
         disabled={loading || saving}
       >
-        <RefreshCw size={16} /> Herladen
+        <RefreshCw size={16} /> {$t('management.config.reload')}
       </button>
       <button
         class="flex items-center gap-2 bg-brand text-black font-bold rounded px-4 py-2 text-sm border-none cursor-pointer disabled:opacity-40"
@@ -96,13 +96,13 @@
         disabled={!pendingCount || saving}
       >
         <Save size={16} />
-        {pendingCount ? `${pendingCount} opslaan` : 'Opslaan'}
+        {pendingCount ? $t('management.config.saveCount', { count: pendingCount }) : $t('common.save')}
       </button>
     </div>
   </header>
 
   {#if loading && !fields.length}
-    <p class="text-muma-spotify-text">Laden…</p>
+    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
   {:else}
     {#each groups as group (group.name)}
       <section>
@@ -117,7 +117,7 @@
                   {field.key}
                 </label>
                 {#if field.key in pending}
-                  <span class="text-[11px] text-brand font-bold uppercase tracking-wider">gewijzigd</span>
+                  <span class="text-[11px] text-brand font-bold uppercase tracking-wider">{$t('management.config.changed')}</span>
                 {/if}
               </div>
               {#if field.description}
@@ -125,14 +125,14 @@
               {/if}
               {#if field.read_only}
                 <p class="text-[11px] text-muma-spotify-text mt-0 mb-2">
-                  Alleen-lezen: deze waarde komt uit de omgeving van de container.
+                  {$t('management.config.readOnly')}
                 </p>
               {/if}
 
               {#if field.type === 'boolean'}
                 <label class="flex items-center gap-2 text-sm cursor-pointer">
                   <input id={`cfg-${field.key}`} type="checkbox" disabled={field.read_only} bind:checked={draft[field.key]} />
-                  {draft[field.key] ? 'Aan' : 'Uit'}
+                  {draft[field.key] ? $t('management.config.on') : $t('management.config.off')}
                 </label>
               {:else if field.type === 'integer' || field.type === 'number'}
                 <input
@@ -154,7 +154,7 @@
                   <button
                     class="bg-transparent border-none text-muma-spotify-text hover:text-white cursor-pointer px-2"
                     onclick={() => (revealed[field.key] = !revealed[field.key])}
-                    aria-label={revealed[field.key] ? 'Verbergen' : 'Tonen'}
+                    aria-label={revealed[field.key] ? $t('management.config.hide') : $t('management.config.show')}
                     type="button"
                   >
                     {#if revealed[field.key]}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
@@ -162,8 +162,7 @@
                 </div>
                 {#if draft[field.key] === SECRET_SENTINEL}
                   <p class="text-[11px] text-muma-spotify-text mt-2 mb-0">
-                    Er staat een waarde ingesteld. Typ een nieuwe om hem te vervangen, of maak het
-                    veld leeg om hem te wissen.
+                    {$t('management.config.secretSet')}
                   </p>
                 {/if}
               {:else}

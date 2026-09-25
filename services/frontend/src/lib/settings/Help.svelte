@@ -27,14 +27,14 @@
 <div class="settings-density p-0 max-w-4xl mx-auto pb-24" data-testid="help-page">
   <header class="mb-8">
     <h1 class="text-3xl font-bold mb-2">{$t('help.title')}</h1>
-    <p class="text-[#b3b3b3]">{$t('help.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('help.subtitle')}</p>
   </header>
 
   <div class="flex flex-col gap-6">
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div class="flex flex-col gap-1">
         <h2 class="text-xl font-bold m-0">{$t('help.tour.title')}</h2>
-        <p class="text-sm text-[#b3b3b3] m-0">{$t('help.tour.body')}</p>
+        <p class="text-sm text-muma-spotify-text m-0">{$t('help.tour.body')}</p>
       </div>
       <button
         type="button"
@@ -49,13 +49,13 @@
       {#each sections as section (section.id)}
         <a
           href={`#${anchor(section.id)}`}
-          class="text-xs font-bold px-3 py-1.5 rounded-full bg-[#282828] text-[#b3b3b3] hover:text-white no-underline"
+          class="text-xs font-bold px-3 py-1.5 rounded-full bg-muma-spotify-light text-muma-spotify-text hover:text-white no-underline"
         >{$t(`help.${section.id}.title`)}</a>
       {/each}
     </nav>
 
     {#each sections as section (section.id)}
-      <section id={anchor(section.id)} class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section id={anchor(section.id)} class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-4 border-b border-white/10 pb-2">{$t(`help.${section.id}.title`)}</h2>
         <div class="flex flex-col gap-3 text-sm text-[#e5e5e5] leading-relaxed">
           {#each paragraphsOf($t(`help.${section.id}.body`)) as paragraph, i (i)}

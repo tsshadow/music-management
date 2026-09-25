@@ -1,5 +1,6 @@
 <script >
   import { t } from '../../i18n/index.js';
+  import { notify } from '../../notifications.js';
   import { List, LayoutTemplate, Plus, Trash2, Music } from '@lucide/svelte';
   
   export let API_BASE;
@@ -162,10 +163,10 @@
       <button 
         on:click={() => {
           if (!selectedUser) {
-            alert('Selecteer eerst een gebruiker');
+            notify.warning($t('management.playlists.selectUserFirst'));
             return;
           }
-          if(confirm('Weet je zeker dat je de standaard playlists wilt herstellen voor deze gebruiker?')) {
+          if(confirm($t('management.playlists.confirmRestoreDefaults'))) {
             fetch(`${API_BASE}/api/users/${selectedUser.id}/dynamic-playlists/seed-defaults`, {
               method: 'POST',
               headers: { 'X-API-Key': apiKey }
@@ -256,7 +257,7 @@
   <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-muma-spotify-panel w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
       <header class="p-6 border-b border-white/5 flex justify-between items-center">
-        <h3 class="text-2xl font-bold">{editingPlaylist ? 'Afspeellijst Bewerken' : 'Nieuwe Dynamic Playlist'}</h3>
+        <h3 class="text-2xl font-bold">{editingPlaylist ? $t('management.playlists.editTitle') : $t('management.playlists.newTitle')}</h3>
         <button on:click={() => isPlaylistModalOpen = false} class="text-muma-spotify-text hover:text-white text-3xl">&times;</button>
       </header>
       <div class="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
@@ -338,7 +339,7 @@
                 bind:value={playlistParams.rating_range[0]}
                 class="w-16 bg-muma-spotify-dark border border-white/10 rounded-md p-3 text-white text-center"
               />
-              <span class="text-muma-spotify-text">tot</span>
+              <span class="text-muma-spotify-text">{$t('management.playlists.rangeTo')}</span>
               <input 
                 type="number" min="0" max="100"
                 bind:value={playlistParams.rating_range[1]}

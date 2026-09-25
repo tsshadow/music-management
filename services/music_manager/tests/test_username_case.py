@@ -7,12 +7,13 @@ under the variant. Account names are case-insensitive everywhere now, and whatev
 stored or compared uses the spelling in `users.username`.
 """
 
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 import bcrypt
 
@@ -228,7 +229,7 @@ class RatingWebhookCaseTest(unittest.TestCase):
         cursor = ScriptedCursor([CANONICAL_LOOKUP])
         with patch.object(rating_router, 'get_db_connection', return_value=connection(cursor)):
             response = TestClient(app).post(
-                '/api/rating/server-event',
+                '/api/rating/lms-event',
                 headers=SYSTEM,
                 json={
                     'event': 'rating_changed',

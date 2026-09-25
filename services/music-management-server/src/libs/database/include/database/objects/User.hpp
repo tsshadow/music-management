@@ -123,6 +123,9 @@ namespace lms::db
         void setFeedbackBackend(FeedbackBackend feedbackBackend) { _feedbackBackend = feedbackBackend; }
         void setScrobblingBackend(ScrobblingBackend scrobblingBackend) { _scrobblingBackend = scrobblingBackend; }
         void setMumaScrobblingEnabled(bool enabled) { _mumaScrobblingEnabled = enabled; }
+        // Set by the MuMa user synchronizer when the account is disabled or deleted in MuMa.
+        // A disabled user keeps its data but cannot authenticate by any means.
+        void setDisabled(bool disabled) { _disabled = disabled; }
         void setListenBrainzToken(std::string_view token) { _listenbrainzToken = token; }
 
         // Web player settings
@@ -148,6 +151,7 @@ namespace lms::db
         FeedbackBackend getFeedbackBackend() const { return _feedbackBackend; }
         ScrobblingBackend getScrobblingBackend() const { return _scrobblingBackend; }
         bool getMumaScrobblingEnabled() const { return _mumaScrobblingEnabled; }
+        bool isDisabled() const { return _disabled; }
         std::string_view getListenBrainzToken() const { return _listenbrainzToken; }
 
         int getUITranscodingMode() const { return _uiTranscodingMode; }
@@ -186,6 +190,7 @@ namespace lms::db
             Wt::Dbo::field(a, _mumaScrobblingEnabled, "muma_scrobbling_enabled");
             Wt::Dbo::field(a, _listenbrainzToken, "listenbrainz_token");
             Wt::Dbo::field(a, _mumaId, "muma_id");
+            Wt::Dbo::field(a, _disabled, "disabled");
 
             Wt::Dbo::field(a, _uiTranscodingMode, "ui_transcoding_mode");
             Wt::Dbo::field(a, _uiTranscodingFormat, "ui_transcoding_format");
@@ -215,6 +220,7 @@ namespace lms::db
         bool _mumaScrobblingEnabled{ true };
         std::string _listenbrainzToken; // Musicbrainz Identifier
         std::optional<int> _mumaId;
+        bool _disabled{};
 
         // UI player settings
         int _uiTranscodingMode{ 2 }; // IfFormatNotSupported

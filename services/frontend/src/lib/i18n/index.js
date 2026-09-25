@@ -208,3 +208,61 @@ export const t = derived(localeStore, ($locale) => createTranslator(DICTIONARIES
 export function currentLocale() {
   return get(localeStore);
 }
+
+/**
+ * Parses what the API sends as a timestamp. MariaDB's `YYYY-MM-DD HH:MM:SS`
+ * has a space where ISO 8601 wants a `T`, which some engines refuse.
+ *
+ * @param {string|number|Date} value
+ * @returns {Date}
+ */
+function toDate(value) {
+  if (value instanceof Date || typeof value === "number") return new Date(value);
+  return new Date(String(value).replace(" ", "T"));
+}
+
+/**
+ * Formats a number the way the given locale groups digits (1,234 / 1.234).
+ * `null`/`undefined` count as 0, which is what every counter in the UI wants.
+ *
+ * @param {number|string|null|undefined} value
+ * @param {string} [localeCode] - Defaults to the active locale.
+ * @returns {string}
+ */
+export function formatNumber(value, localeCode = currentLocale()) {
+  return Number(value ?? 0).toLocaleString(documentLanguage(localeCode));
+}
+
+/**
+ * Formats the date part of a timestamp in the given locale.
+ *
+ * @param {string|number|Date} value
+ * @param {string} [localeCode] - Defaults to the active locale.
+ * @returns {string}
+ */
+export function formatDate(value, localeCode = currentLocale()) {
+  return toDate(value).toLocaleDateString(documentLanguage(localeCode));
+}
+
+/**
+ * Formats a timestamp, date and time, in the given locale.
+ *
+ * @param {string|number|Date} value
+ * @param {string} [localeCode] - Defaults to the active locale.
+ * @returns {string}
+ */
+export function formatDateTime(value, localeCode = currentLocale()) {
+  return toDate(value).toLocaleString(documentLanguage(localeCode));
+}
+
+/**
+ * The formatters bound to the active locale, as a store, so a template written
+ * as `{$format.number(count)}` re-renders when the language changes -- the
+ * same reason `t` is a store. Never hard-code `'nl-NL'`: an English interface
+ * then shows Dutch digit grouping (`tests/unit/noHardcodedDutch.test.js`).
+ */
+export const format = derived(localeStore, ($locale) => ({
+  number: (value) => formatNumber(value, $locale),
+  date: (value) => formatDate(value, $locale),
+  dateTime: (value) => formatDateTime(value, $locale),
+}));

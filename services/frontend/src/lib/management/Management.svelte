@@ -147,9 +147,9 @@
       // The banner is for "the Management API cannot be reached", not for one section this
       // deployment cannot answer (no Docker socket for the container list, say): that section
       // just stays empty, and its error is already in the console above.
-      if (bodies.every((body) => body === FAILED)) error = "Kon gegevens niet ophalen van de Management API.";
+      if (bodies.every((body) => body === FAILED)) error = $t('management.loadFailed');
     } catch (err) {
-      error = "Kon gegevens niet ophalen van de Management API.";
+      error = $t('management.loadFailed');
       console.error(err);
     } finally {
       loading = false;
@@ -157,18 +157,18 @@
   }
 
   async function fetchArtistImages() {
-    message = "Achtergrondtaak voor afbeeldingen gestart...";
+    message = $t('management.overview.fetchImagesStarting');
     try {
       const res = await fetch(`${$mumaApiUrl}/api/artists/fetch-images`, {
         method: 'POST',
         headers: getHeaders()
       });
       if (res.ok) {
-        message = "Afbeeldingen fetch taak succesvol gestart!";
+        message = $t('management.overview.fetchImagesStarted');
         startProgressPolling();
       }
     } catch (err) {
-      error = "Kon fetch taak niet starten.";
+      error = $t('management.overview.fetchImagesFailed');
     }
   }
 
@@ -387,16 +387,16 @@
 <div class="flex flex-col gap-8 w-full h-full min-h-0 overflow-y-auto">
   {#if $isAdmin === false && !hasPermission('users.read')}
     <div class="flex items-center justify-center h-full">
-      <div class="bg-[#181818] p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
+      <div class="bg-muma-spotify-panel p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
         <h2 class="text-2xl font-bold mb-4">{$t('management.noAccess')}</h2>
-        <p class="text-[#b3b3b3] mb-6">{$t('management.noAccessHelp')}</p>
+        <p class="text-muma-spotify-text mb-6">{$t('management.noAccessHelp')}</p>
       </div>
     </div>
   {:else if !isLoggedIn}
     <div class="flex items-center justify-center h-full">
-      <div class="bg-[#181818] p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
+      <div class="bg-muma-spotify-panel p-8 rounded-xl border border-white/5 max-w-md w-full text-center">
         <h2 class="text-2xl font-bold mb-4">{$t('management.connecting')}</h2>
-        <p class="text-[#b3b3b3] mb-6">{$t('management.connectFailed')}</p>
+        <p class="text-muma-spotify-text mb-6">{$t('management.connectFailed')}</p>
       </div>
     </div>
   {:else}

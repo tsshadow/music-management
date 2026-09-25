@@ -333,3 +333,10 @@ def test_import_muma_dry_run_writes_nothing(fake_muma, tmp_path):
 )
 def test_candidate_paths(path, expected):
     assert restore_lms_ratings.candidate_paths(path) == expected
+
+
+def test_candidate_paths_is_the_shared_copy():
+    """One implementation of the path spellings: the webhook and this script cannot drift."""
+    from services.music_manager import library_paths
+
+    assert restore_lms_ratings.candidate_paths is library_paths.candidate_paths

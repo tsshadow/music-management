@@ -8,7 +8,7 @@ from services.common.Helpers.TableHelper import TableHelper
 
 databaseHelpers = {
     'library_artists': TableHelper('library_artists', 'name'),
-    'rules_ignored_artists': FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name'),
+    'rules_ignored_artists': FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', follow_chains=True),
     'rules_genres': FilterTableHelper('rules_genres', 'name', 'corrected_genre'),
     'rules_ignored_genres': TableHelper('rules_ignored_genres', 'name'),
     'genre_rules': GenreRulesHelper(),

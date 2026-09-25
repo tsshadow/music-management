@@ -9,6 +9,7 @@
    */
   import { onMount } from 'svelte';
 
+  import { t } from '../i18n/index.js';
   import { authParams, restUrl } from '../store.js';
   import ChipEditor from './ChipEditor.svelte';
   import CurationShell from './CurationShell.svelte';
@@ -75,7 +76,7 @@
     const response = await fetch(restUrl(`/rest/getArtist?id=${artistId}&${$authParams}`));
     const data = await response.json();
     const resolved = data['subsonic-response']?.artist?.name;
-    if (!resolved) throw new Error('Deze artiest bestaat niet meer in de bibliotheek.');
+    if (!resolved) throw new Error($t('curation.artistGone'));
     name = resolved;
   }
 
@@ -94,8 +95,8 @@
   <CurationShell
     title={artist.name}
     subtitle={artist.in_library
-      ? `${artist.track_count} tracks in de bibliotheek`
-      : 'Nog niet in de bibliotheek — regels kunnen alvast worden vastgelegd'}
+      ? $t('curation.inLibrary', { count: artist.track_count })
+      : $t('curation.notInLibrary')}
     {error}
     {message}
     {onback}
@@ -103,7 +104,7 @@
     <section>
       <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">MusicBrainz</h2>
       <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-        De MBID koppelt deze artiest aan MusicBrainz. Leeg laten wist de koppeling.
+        {$t('curation.artistMbidHelp')}
       </p>
       <div class="flex gap-2 mt-3">
         <input
@@ -115,42 +116,42 @@
         <button
           class="bg-brand text-black font-bold rounded px-4 py-2 text-sm border-none cursor-pointer disabled:opacity-40"
           disabled={!mbidValid || busy || !artist.in_library}
-          onclick={() => act(() => setArtistMbid(name, mbidDraft.trim() || null), 'MBID opgeslagen.')}
+          onclick={() => act(() => setArtistMbid(name, mbidDraft.trim() || null), $t('curation.mbidSaved'))}
         >
-          Opslaan
+          {$t('common.save')}
         </button>
       </div>
       {#if !mbidValid}
         <p class="text-xs text-red-400 mt-2 mb-0">
-          Dat is geen MBID. Plak alleen het id, niet de hele MusicBrainz-URL.
+          {$t('curation.mbidInvalid')}
         </p>
       {/if}
       {#if mbidLink}
         <a class="text-xs text-brand mt-2 inline-block" href={mbidLink} target="_blank" rel="noreferrer">
-          Openen op MusicBrainz
+          {$t('curation.openOnMusicBrainz')}
         </a>
       {/if}
     </section>
 
     <section>
-      <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Externe ids</h2>
+      <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">{$t('curation.externalIds')}</h2>
       <div class="flex flex-col gap-2 mt-3">
         {#each artist.external_ids as entry (entry.source)}
           <div class="flex items-center gap-3 bg-muma-spotify-light rounded px-3 py-2 text-sm">
             <span class="font-bold w-28">{entry.source}</span>
             <span class="flex-1 font-mono truncate">{entry.external_id}</span>
             {#if entry.verified}
-              <span class="text-[11px] text-brand font-bold">geverifieerd</span>
+              <span class="text-[11px] text-brand font-bold">{$t('curation.verified')}</span>
             {/if}
             <button
               class="bg-transparent border-none text-muma-spotify-text hover:text-white cursor-pointer text-xs"
-              onclick={() => act(() => removeArtistExternalId(name, entry.source), 'Id verwijderd.')}
+              onclick={() => act(() => removeArtistExternalId(name, entry.source), $t('curation.idRemoved'))}
             >
-              Verwijderen
+              {$t('common.remove')}
             </button>
           </div>
         {:else}
-          <span class="text-sm text-muma-spotify-text">Nog geen externe ids.</span>
+          <span class="text-sm text-muma-spotify-text">{$t('curation.noExternalIds')}</span>
         {/each}
       </div>
       {#if artist.in_library}
@@ -158,7 +159,7 @@
           <select
             class="bg-muma-spotify-light border-none rounded px-3 py-2 text-sm text-white"
             bind:value={newSource}
-            aria-label="Bron kiezen"
+            aria-label={$t('curation.pickSource')}
           >
             {#each EXTERNAL_SOURCES as source (source)}
               <option value={source}>{source}</option>
@@ -166,7 +167,7 @@
           </select>
           <input
             class="flex-1 bg-muma-spotify-light border-none rounded px-3 py-2 text-sm text-white"
-            placeholder="id bij die bron"
+            placeholder={$t('curation.sourceIdPlaceholder')}
             bind:value={newExternalId}
           />
           <button
@@ -175,28 +176,28 @@
             onclick={() => {
               const external_id = newExternalId.trim();
               newExternalId = '';
-              act(() => setArtistExternalId(name, { source: newSource, external_id, verified: true }), 'Id opgeslagen.');
+              act(() => setArtistExternalId(name, { source: newSource, external_id, verified: true }), $t('curation.idSaved'));
             }}
           >
-            Opslaan
+            {$t('common.save')}
           </button>
         </div>
       {/if}
     </section>
 
     <ChipEditor
-      title="Aliassen"
-      hint="Andere schrijfwijzen waaronder deze artiest voorkomt, bijvoorbeeld 'DJ Angerfist'."
-      placeholder="Alias"
+      title={$t('curation.aliases')}
+      hint={$t('curation.aliasesHint')}
+      placeholder={$t('curation.aliasPlaceholder')}
       items={artist.aliases}
       disabled={!artist.in_library}
       validate={(candidate) => {
-        if (candidate.toLowerCase() === artist.name.toLowerCase()) return 'Een artiest is geen alias van zichzelf.';
-        if (artist.aliases.some((alias) => alias.toLowerCase() === candidate.toLowerCase())) return 'Die alias staat er al.';
+        if (candidate.toLowerCase() === artist.name.toLowerCase()) return $t('curation.aliasSelf');
+        if (artist.aliases.some((alias) => alias.toLowerCase() === candidate.toLowerCase())) return $t('curation.aliasExists');
         return null;
       }}
-      onadd={(alias) => act(() => addArtistAlias(name, alias), 'Alias toegevoegd.')}
-      onremove={(alias) => act(() => removeArtistAlias(name, alias), 'Alias verwijderd.')}
+      onadd={(alias) => act(() => addArtistAlias(name, alias), $t('curation.aliasAdded'))}
+      onremove={(alias) => act(() => removeArtistAlias(name, alias), $t('curation.aliasRemoved'))}
     />
 
     <GenreRuleEditor
@@ -205,15 +206,15 @@
       affected={artist.track_count}
       {busy}
       onadd={(genreId) =>
-        act(() => addArtistGenre(name, genreId), (result) => marked(result, 'Regel opgeslagen.'))}
+        act(() => addArtistGenre(name, genreId), (result) => marked(result, $t('curation.ruleSaved')))}
       onremove={(genreId) =>
-        act(() => removeArtistGenre(name, genreId), (result) => marked(result, 'Regel verwijderd.'))}
+        act(() => removeArtistGenre(name, genreId), (result) => marked(result, $t('curation.ruleRemoved')))}
       onretag={() =>
-        act(() => retag('artist', name), (result) => `${result.files} bestanden staan in de wachtrij om opnieuw getagd te worden.`)}
+        act(() => retag('artist', name), (result) => $t('curation.retagQueued', { count: result.files }))}
     />
   </CurationShell>
 {:else}
   <div class="p-10 text-muma-spotify-text">
-    {#if error}{error}{:else}Laden…{/if}
+    {#if error}{error}{:else}{$t('common.loading')}{/if}
   </div>
 {/if}

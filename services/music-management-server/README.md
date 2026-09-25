@@ -20,7 +20,9 @@ Key changes include:
 *   **Extended Subsonic API**: Additional `spotify/` endpoints specifically designed to power the advanced features and performance requirements of the modern Svelte UI and the custom Ultrasonic mobile client.
 *   **Streamlined DevOps**: Custom build and deployment scripts with integrated support for remote environment management (Stable/Alpha) via Docker, Portainer webhooks, and SSH.
 
-For a detailed breakdown of these features, see [BIG_CHANGES.md](BIG_CHANGES.md).
+For a detailed breakdown of these features, see [BIG_CHANGES.md](BIG_CHANGES.md). Which upstream
+release the fork started from (v3.76.0), which files are MuMa's own, how the database versions of
+the two lines relate and how to port an upstream fix: [FORK.md](FORK.md).
 
 ## Main features
 * [Subsonic/OpenSubsonic API](SUBSONIC.md) support

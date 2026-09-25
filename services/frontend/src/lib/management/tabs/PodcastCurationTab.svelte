@@ -121,9 +121,9 @@
         const mergedInto = decision.payload.merge_into_podcast_id;
         if (mergedInto) {
           const target = whiteShows.find((show) => Number(show.id) === Number(mergedInto));
-          onMessage(`${rowToDecide.name} hoort nu bij ${target?.name ?? 'de andere show'}.`);
+          onMessage($t('management.podcasts.mergedInto', { name: rowToDecide.name, target: target?.name ?? $t('management.podcasts.otherShow') }));
         } else {
-          onMessage(`${rowToDecide.name} ${state === WHITE ? 'goedgekeurd' : 'afgekeurd'}.`);
+          onMessage($t(state === WHITE ? 'management.artists.approved' : 'management.artists.rejected', { name: rowToDecide.name }));
         }
         deciding = null;
         await Promise.all([fetchPodcasts(), fetchWhiteShows()]);
@@ -243,7 +243,7 @@
           class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
           onclick={() => (stateFilter = filter.id)}
         >
-          {filter.label}
+          {$t(filter.labelKey)}
         </button>
       {/each}
     </div>
@@ -255,7 +255,7 @@
         {#if stateFilter === UNKNOWN}<HelpCircle size={20} class="text-yellow-500" />{/if}
         {#if stateFilter === WHITE}<CircleCheck size={20} class="text-brand" />{/if}
         {#if stateFilter === BLACK}<CircleSlash size={20} class="text-red-500" />{/if}
-        {STATE_FILTERS.find((f) => f.id === stateFilter)?.label}
+        {$t(STATE_FILTERS.find((f) => f.id === stateFilter)?.labelKey)}
         <span class="text-muma-spotify-text text-sm font-normal">({counts.total})</span>
       </h3>
 
@@ -376,7 +376,7 @@
 
 {#if editing}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-lg w-full shadow-2xl">
+    <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-lg w-full shadow-2xl">
       <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
         <Pencil class="text-brand" /> {editing.name}
       </h3>
@@ -462,7 +462,7 @@
 
 {#if deciding}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
+    <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
       <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
         <Podcast class="text-brand" /> {deciding.name}
       </h3>

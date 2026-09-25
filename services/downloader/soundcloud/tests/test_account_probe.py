@@ -2,15 +2,14 @@
 
 import unittest
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader.deep_sweep import ListingFailed  # isort:skip
 from services.downloader.soundcloud.account_probe import (  # isort:skip
     ProbeResult,
     newest_track,
 )
+import pytest
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class FakeYoutubeDL:

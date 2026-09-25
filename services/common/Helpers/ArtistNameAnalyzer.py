@@ -18,9 +18,10 @@ and cheap enough to run over the whole library repeatedly.
 
 import difflib
 import re
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
+
+from services.common.text_normalize import unicode_name_key
 
 KEEP = 'keep'
 REWRITE = 'rewrite'
@@ -139,12 +140,11 @@ def normalize(name: str) -> str:
     Alphanumeric is decided per character rather than by an `a-z0-9` range: the
     library holds Cyrillic artists, and a Latin-only key would collapse every one
     of them to the empty string — indistinguishable from a name of pure
-    punctuation.
+    punctuation. That is why this differs from the genre key
+    (`services.common.text_normalize.ascii_name_key`); the shared implementation is
+    `unicode_name_key`.
     """
-    decomposed = unicodedata.normalize('NFKD', name or '')
-    without_accents = ''.join(c for c in decomposed if not unicodedata.combining(c))
-    kept = ''.join(c if c.isalnum() else ' ' for c in without_accents.lower())
-    return re.sub(r'\s+', ' ', kept).strip()
+    return unicode_name_key(name)
 
 
 def has_letters(name: str) -> bool:

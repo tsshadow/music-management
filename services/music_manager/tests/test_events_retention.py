@@ -5,8 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.music_manager import events_retention
 from services.music_manager.events_retention import (
@@ -18,6 +17,8 @@ from services.music_manager.events_retention import (
     retention_tick,
     run_events_retention,
 )
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 def _real_config_store():

@@ -38,11 +38,11 @@
   }
 </script>
 
-<div class="absolute top-full left-0 right-0 mt-2 bg-[#282828] rounded-md shadow-2xl border border-[#3e3e3e] overflow-hidden z-50 max-h-[80vh] overflow-y-auto custom-scrollbar">
+<div class="absolute top-full left-0 right-0 mt-2 bg-muma-spotify-light rounded-md shadow-2xl border border-muma-spotify-highlight overflow-hidden z-50 max-h-[80vh] overflow-y-auto custom-scrollbar">
   {#if loading}
-    <div class="p-4 text-center text-[#b3b3b3]">{$t('common.loading')}</div>
+    <div class="p-4 text-center text-muma-spotify-text">{$t('common.loading')}</div>
   {:else if artists.length === 0 && albums.length === 0 && tracks.length === 0 && genres.length === 0 && labels.length === 0}
-    <div class="p-4 text-center text-[#b3b3b3]">{$t('search.noResults')}</div>
+    <div class="p-4 text-center text-muma-spotify-text">{$t('search.noResults')}</div>
   {:else}
     <div class="flex flex-col p-2 gap-4">
       
@@ -50,24 +50,24 @@
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
             <h3 class="text-white font-bold text-sm">{mode === 'sets' ? $t('nav.sets') : $t('nav.songs')}</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-tracks')}>{$t('search.seeMore')}</button>
+            <button class="text-[11px] font-bold text-muma-spotify-text hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-tracks')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each tracks.slice(0, 5) as track (track.id)}
               <button 
-                class="flex items-center gap-3 p-2 rounded hover:bg-[#3e3e3e] text-left transition-colors group"
+                class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
                 onclick={() => handleSelect('track', track)}
               >
-                <div class="w-10 h-10 bg-[#333] rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <div class="w-10 h-10 bg-muma-spotify-hover rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                   {#if track.coverArt}
                     <img src={restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
                   {:else}
-                    <svg viewBox="0 0 24 24" class="w-6 h-6 fill-[#b3b3b3]"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 fill-muma-spotify-text"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                   {/if}
                 </div>
                 <div class="flex-grow min-w-0">
                   <div class="text-white text-sm truncate font-medium group-hover:text-white">{track.title}</div>
-                  <div class="text-[#b3b3b3] text-xs truncate">{track.artist}</div>
+                  <div class="text-muma-spotify-text text-xs truncate">{track.artist}</div>
                 </div>
               </button>
             {/each}
@@ -79,21 +79,21 @@
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
             <h3 class="text-white font-bold text-sm">{$t('nav.artists')}</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-artists')}>{$t('search.seeMore')}</button>
+            <button class="text-[11px] font-bold text-muma-spotify-text hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-artists')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each artists.slice(0, 5) as artist (artist.id)}
               <button 
-                class="flex items-center gap-3 p-2 rounded hover:bg-[#3e3e3e] text-left transition-colors group"
+                class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
                 onclick={() => handleSelect('artist', artist)}
               >
-                <div class="w-10 h-10 bg-[#333] rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <div class="w-10 h-10 bg-muma-spotify-hover rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
                   <img src={getArtistImageUrl(artist, $authParams)} alt="" class="w-full h-full object-cover" onerror={(e) => e.target.style.display = 'none'} />
-                  <svg viewBox="0 0 24 24" class="w-6 h-6 fill-[#b3b3b3] absolute"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                  <svg viewBox="0 0 24 24" class="w-6 h-6 fill-muma-spotify-text absolute"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                 </div>
                 <div class="flex-grow min-w-0">
                   <div class="text-white text-sm truncate font-medium">{artist.name}</div>
-                  <div class="text-[#b3b3b3] text-xs uppercase">{$t('common.artist')}</div>
+                  <div class="text-muma-spotify-text text-xs uppercase">{$t('common.artist')}</div>
                 </div>
               </button>
             {/each}
@@ -105,24 +105,24 @@
         <section>
           <div class="flex items-center justify-between px-2 mb-2">
             <h3 class="text-white font-bold text-sm">{$t('nav.albums')}</h3>
-            <button class="text-[11px] font-bold text-[#b3b3b3] hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-albums')}>{$t('search.seeMore')}</button>
+            <button class="text-[11px] font-bold text-muma-spotify-text hover:underline uppercase tracking-wider" onclick={() => handleSelect('more-albums')}>{$t('search.seeMore')}</button>
           </div>
           <div class="flex flex-col">
             {#each albums.slice(0, 5) as album (album.id)}
               <button 
-                class="flex items-center gap-3 p-2 rounded hover:bg-[#3e3e3e] text-left transition-colors group"
+                class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
                 onclick={() => handleSelect('album', album)}
               >
-                <div class="w-10 h-10 bg-[#333] rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <div class="w-10 h-10 bg-muma-spotify-hover rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                    {#if album.coverArt}
                     <img src={restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
                   {:else}
-                    <svg viewBox="0 0 24 24" class="w-6 h-6 fill-[#b3b3b3]"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
+                    <svg viewBox="0 0 24 24" class="w-6 h-6 fill-muma-spotify-text"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
                   {/if}
                 </div>
                 <div class="flex-grow min-w-0">
                   <div class="text-white text-sm truncate font-medium">{album.name}</div>
-                  <div class="text-[#b3b3b3] text-xs truncate">{album.artist}</div>
+                  <div class="text-muma-spotify-text text-xs truncate">{album.artist}</div>
                 </div>
               </button>
             {/each}
@@ -138,7 +138,7 @@
           <div class="flex flex-wrap gap-2 px-2">
             {#each genres.slice(0, 5) as genre (genre)}
               <button 
-                class="px-3 py-1 bg-[#3e3e3e] hover:bg-[#4e4e4e] text-white text-xs rounded-full transition-colors"
+                class="px-3 py-1 bg-muma-spotify-highlight hover:bg-[#4e4e4e] text-white text-xs rounded-full transition-colors"
                 onclick={() => handleSelect('genre', genre)}
               >
                 {genre}
@@ -156,7 +156,7 @@
           <div class="flex flex-wrap gap-2 px-2">
             {#each labels.slice(0, 5) as label (label)}
               <button
-                class="px-3 py-1 bg-[#3e3e3e] hover:bg-[#4e4e4e] text-white text-xs rounded-full transition-colors"
+                class="px-3 py-1 bg-muma-spotify-highlight hover:bg-[#4e4e4e] text-white text-xs rounded-full transition-colors"
                 onclick={() => handleSelect('label', label)}
               >
                 {label}

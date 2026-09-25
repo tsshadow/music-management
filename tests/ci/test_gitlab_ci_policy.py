@@ -193,7 +193,9 @@ JOB_SCOPES = COMPONENT_SCOPES | {
 CORE_VERBS = {"format", "lint", "unit"}
 EXTRA_VERBS = {
     # typecheck-all is the whole tree at the loose floor; typecheck is the strict list.
-    "backend": {"typecheck", "typecheck-all", "integration"},
+    # ml-analyzer-unit is the deprecated ml-analyzer's manual test job, kept out of
+    # backend:unit (services/ml-analyzer/DEPRECATED.md).
+    "backend": {"typecheck", "typecheck-all", "integration", "ml-analyzer-unit"},
     # `bundle` produces services/frontend/dist as an artifact for the Android build, which
     # runs in an image without Node. It is a frontend job because it is the frontend's own
     # toolchain that builds it; it is not a check, which is why it needs a verb of its own.
@@ -623,12 +625,13 @@ def _is_covered(path: str, globs: list[str]) -> bool:
 
 # Directories scripts/test/music-management-unit.sh hands to pytest. It runs
 # with --cov=services and --cov-fail-under, so every source directory under
-# services/ counts even when it holds no tests of its own.
+# services/ counts even when it holds no tests of its own. The deprecated
+# services/ml-analyzer is the exception: skipped by the script and omitted from
+# coverage, see tests/ci/test_ml_analyzer_deprecated.py.
 PYTHON_UNIT_SOURCES = [
     "services/common/",
     "services/downloader/",
     "services/importer/",
-    "services/ml-analyzer/",
     "services/music_manager/",
     "services/scanner/",
     "services/tagger/",

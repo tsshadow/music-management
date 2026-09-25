@@ -1180,6 +1180,8 @@
       "filterWhite": "Approved",
       "filterBlack": "Rejected",
       "filterAll": "All",
+      "pending": "New",
+      "pendingHint": "New since the queue was wired to the tagger: the tagger only recognises this name in titles once it is approved.",
       "ofInLibrary": "of {count} names in the library",
       "proposals": "Advice",
       "proposalCounts": "{reject}× remove · {rewrite}× merge",

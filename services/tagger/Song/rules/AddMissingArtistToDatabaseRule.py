@@ -2,7 +2,7 @@ import select
 import sys
 
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
-from services.common.Helpers.TableHelper import TableHelper
+from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
 from services.tagger.constants import ARTIST
 from services.tagger.Song.rules.TagRule import TagRule
 
@@ -23,7 +23,7 @@ class AddMissingArtistToDatabaseRule(TagRule):
         from services.common.Helpers.Cache import databaseHelpers
 
         self.artist_table = (
-            artist_db or databaseHelpers.get('library_artists') or TableHelper('library_artists', 'name')
+            artist_db or databaseHelpers.get('library_artists') or TrustedArtistHelper()
         )
         self.ignored_table = (
             ignored_db

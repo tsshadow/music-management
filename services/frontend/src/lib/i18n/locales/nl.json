@@ -1180,6 +1180,8 @@
       "filterWhite": "Goedgekeurd",
       "filterBlack": "Afgekeurd",
       "filterAll": "Alles",
+      "pending": "Nieuw",
+      "pendingHint": "Nieuw sinds de koppeling met de tagger: de tagger herkent deze naam pas in titels nadat hij is goedgekeurd.",
       "ofInLibrary": "van {count} namen in de bibliotheek",
       "proposals": "Advies",
       "proposalCounts": "{reject}× verwijderen · {rewrite}× samenvoegen",

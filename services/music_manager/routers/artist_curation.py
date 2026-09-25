@@ -61,7 +61,13 @@ WHITE = 'white'
 BLACK = 'black'
 STATES = (WHITE, BLACK)
 #: What the list endpoint filters on. `unknown` is the queue: names nobody decided.
-FILTERS = ('unknown', WHITE, BLACK, 'all')
+#: `pending` is the part of the queue the tagger does not trust -- names the scanner
+#: inserted after the queue was wired up (TrustedArtistHelper), as opposed to the
+#: grandfathered ones that were in the library before and are still trusted.
+PENDING = 'pending'
+FILTERS = ('unknown', PENDING, WHITE, BLACK, 'all')
+#: The registry key of the tagger's trusted-artist helper (Cache.databaseHelpers).
+TRUSTED_ARTIST_HELPER = 'library_artists'
 PROPOSAL_KINDS = ('keep', 'rewrite', 'split', 'reject', 'unknown')
 SORTS = ('tracks', 'name')
 
@@ -110,6 +116,7 @@ ROW_COLUMNS = """
     a.id, COALESCE(a.name, r.name) AS name,
     COALESCE(tc.track_count, 0) AS track_count,
     r.state, r.canonical_name,
+    (r.name IS NULL AND l.name IS NULL) AS pending,
     CAST(r.decided_at AS CHAR) AS decided_at, r.decided_by,
     p.kind AS proposal_kind, p.target AS proposal_target,
     p.evidence AS proposal_evidence, p.confidence AS proposal_confidence
@@ -125,6 +132,7 @@ def _parse_evidence(row: dict) -> dict:
         row['proposal_evidence'] = [str(raw)]
     if not row.get('state'):
         row['state'] = 'unknown'
+    row['pending'] = bool(row.get('pending'))
     return row
 
 
@@ -140,7 +148,8 @@ def list_artists(
 ):
     """Artists by curation state, the ones touching most tracks first.
 
-    `state=unknown` is the queue. `proposal` narrows it to what the last analysis
+    `state=unknown` is the queue; `state=pending` is the part of it the tagger does not
+    trust yet (every row also carries `pending`). `proposal` narrows it to what the last analysis
     proposed (`reject`, `rewrite`, ...), which is how a curator works through a class
     of names at a time rather than the whole tail. Decided names that have since left
     `library_artists` (a rebuild, a retag that removed them) still list under their
@@ -162,7 +171,8 @@ def list_artists(
         base = (
             f'FROM rules_artists r LEFT JOIN library_artists a ON a.name = r.name '
             f'LEFT JOIN ({TRACK_COUNTS}) tc ON tc.artist_id = a.id '
-            'LEFT JOIN rules_artist_proposals p ON p.name = r.name'
+            'LEFT JOIN rules_artist_proposals p ON p.name = r.name '
+            'LEFT JOIN rules_artist_legacy_trust l ON l.name = r.name'
         )
         where = ['r.state = %s']
         params: list = [state]
@@ -170,9 +180,15 @@ def list_artists(
         base = (
             f'FROM library_artists a LEFT JOIN rules_artists r ON r.name = a.name '
             f'LEFT JOIN ({TRACK_COUNTS}) tc ON tc.artist_id = a.id '
-            'LEFT JOIN rules_artist_proposals p ON p.name = a.name'
+            'LEFT JOIN rules_artist_proposals p ON p.name = a.name '
+            'LEFT JOIN rules_artist_legacy_trust l ON l.name = a.name'
         )
-        where = ['r.name IS NULL'] if state == 'unknown' else []
+        if state == 'unknown':
+            where = ['r.name IS NULL']
+        elif state == PENDING:
+            where = ['r.name IS NULL', 'l.name IS NULL']
+        else:
+            where = []
         params = []
     if q:
         where.append('COALESCE(a.name, r.name) LIKE %s')
@@ -214,6 +230,12 @@ def summary(_auth: dict = READ):
             )
             unknown = cursor.fetchone()['n']
             cursor.execute(
+                'SELECT COUNT(*) AS n FROM library_artists a LEFT JOIN rules_artists r ON r.name = a.name '
+                'LEFT JOIN rules_artist_legacy_trust l ON l.name = a.name '
+                'WHERE r.name IS NULL AND l.name IS NULL'
+            )
+            pending = cursor.fetchone()['n']
+            cursor.execute(
                 'SELECT p.kind, COUNT(*) AS n FROM rules_artist_proposals p '
                 'LEFT JOIN rules_artists r ON r.name = p.name WHERE r.name IS NULL GROUP BY p.kind'
             )
@@ -223,6 +245,7 @@ def summary(_auth: dict = READ):
             return {
                 'in_library': in_library,
                 'unknown': unknown,
+                PENDING: pending,
                 WHITE: decided.get(WHITE, 0),
                 BLACK: decided.get(BLACK, 0),
                 'proposals': proposals,
@@ -396,6 +419,9 @@ def decide(request: DecisionRequest, auth: dict = WRITE):
     # The running tagger holds a preloaded copy of rules_ignored_artists; without this
     # it keeps writing the old name until a restart, retag included.
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
+    # And its trusted-artist snapshot: an approval is what lets the artist rules match
+    # a pending name, a rejection is what takes a name out of their dictionary.
+    curation_rules.refresh(TRUSTED_ARTIST_HELPER)
     if request.state == BLACK:
         # Only a rejection changes what a file should carry; an approval leaves the
         # tag as it is, so there is nothing to retag for. Exact: the files that change
@@ -436,6 +462,7 @@ def undo(name: str, _auth: dict = WRITE):
     # No retag for the requeued names, as for the undone one: the tagger now leaves
     # them alone, and a file that carries one keeps it either way.
     curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
+    curation_rules.refresh(TRUSTED_ARTIST_HELPER)
     return {'status': 'ok', 'returned_to_queue': requeued}
 
 

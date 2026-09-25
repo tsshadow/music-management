@@ -42,6 +42,7 @@ REQUIRED_TABLES = [
     'rules_ignored_artists',
     'rules_artists',
     'rules_artist_proposals',
+    'rules_artist_legacy_trust',
     'rules_ignored_genres',
     'rules_subgenre_hierarchy',
     'rules_genre_backlog',
@@ -115,6 +116,12 @@ def ensure_tables_exist() -> None:
         # decision never lives here.
         'rules_artists': "\n            CREATE TABLE IF NOT EXISTS rules_artists (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                state ENUM('white', 'black') NOT NULL,\n                canonical_name VARCHAR(255) NULL,\n                decided_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_by VARCHAR(64) NULL,\n                INDEX(state)\n            )\n        ",
         'rules_artist_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_artist_proposals (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                kind ENUM('keep', 'rewrite', 'split', 'reject', 'unknown') NOT NULL,\n                target VARCHAR(512) NULL,\n                evidence TEXT NULL,\n                confidence INT NOT NULL DEFAULT 0,\n                junk_score INT NOT NULL DEFAULT 0,\n                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX(kind)\n            )\n        ",
+        # The artist names that were already in library_artists when the curation queue
+        # was wired to the tagger (migrate_v40). The tagger trusts an approved name or one
+        # of these that nobody has decided on since; every other library name is pending
+        # (services/common/Helpers/TrustedArtistHelper.py). Keyed by name so a library
+        # rebuild keeps it.
+        'rules_artist_legacy_trust': "\n            CREATE TABLE IF NOT EXISTS rules_artist_legacy_trust (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                trusted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ",
         'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
         # Genre curation advice (routers/genre_curation.py): what the last analysis run
         # proposed for each queued genre. Rewritten whole on every run; the decision

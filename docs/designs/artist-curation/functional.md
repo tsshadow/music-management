@@ -62,8 +62,9 @@ their reasoning attached, so a human decides only what genuinely needs deciding.
 
 - The auto-approve threshold for external evidence — proposed: an exact MusicBrainz match, or two
   independent sources agreeing — is not settled and no external lookups are performed yet.
-- Whether the scanner should start placing new artists in an undecided state instead of approving them on
-  sight. That is the actual bug fix, but it makes the queue start at its full size.
+- ~~Whether the scanner should start placing new artists in an undecided state instead of approving them on
+  sight.~~ Decided and built 2026-09-25, see "Wiring the queue" below. The queue does not start at its
+  full size: the names already in the library keep being trusted until someone decides on them.
 - Preserving the original name in `TXXX:ORIGINAL_ARTIST` during a tag pass the file needs anyway: built.
   `CleanTagsRule` captures the artist string before its regex split discards the "feat"/"vs"/"&" wording,
   written to disk as `TXXX:ORIGINAL_ARTIST` and mirrored into `library_tracks.display_artist` by the
@@ -77,3 +78,30 @@ their reasoning attached, so a human decides only what genuinely needs deciding.
   wording and never change which artists a track names. Soundcloud, Youtube and artists have no NFOs at
   all, so nothing outside the EPs tree can be recovered this way.
 - Splitting composite artist strings that already contain separators is deliberately out of scope here.
+
+## Wiring the queue (2026-09-25)
+
+The analyzer and the queue existed, but the tagger never consulted them: any name the scanner found
+in a file counted as a known artist from then on, including names a tagger rule had only guessed
+out of a title. The next title containing that guess was then read with the guess as its artist.
+
+| Situation | What happens now |
+|---|---|
+| A name appears for the first time (download, import, retag) | It is recorded and listed in the queue as **Nieuw** (pending). The tagger does not recognise it in titles until it is approved. |
+| A name was already in the library before this change and is undecided | Nothing changes: the tagger keeps recognising it, and it stays in the queue as "to review". |
+| A name is approved -- by hand or by the external-evidence run | The tagger recognises it from then on. |
+| A name is rejected | As before, it is removed or rewritten on the next tag pass -- and that now also happens for files where it used to be silently skipped (see the technical design). |
+| A file whose only artist is pending | Left exactly as it is: its tag is not changed, the track stays findable under that name, and the name is in the queue with its track count. Nothing is deleted and nothing is written to the file. |
+
+Acceptance criteria:
+
+1. A name recorded by the scanner after this change is never used by an artist rule until it is
+   approved, however many files carry it.
+2. An approved or auto-approved name behaves exactly as before.
+3. A name that was in the library before this change behaves exactly as before until it is decided.
+4. The queue shows which of its names are pending, and the summary counts them.
+5. The external-evidence run still considers pending names.
+
+Expected growth, measured on production: about 20-35 new names on a quiet day and 1.000-1.700 after
+a mass retag, ~3.500 in the last 30 days. See the technical design for the numbers.
+

@@ -5,9 +5,12 @@ from services.common.Helpers.HelperRegistry import reload_helpers
 from services.common.Helpers.LookupTableHelper import LookupTableHelper
 from services.common.Helpers.PodcastHelper import PodcastHelper
 from services.common.Helpers.TableHelper import TableHelper
+from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
 
 databaseHelpers = {
-    'library_artists': TableHelper('library_artists', 'name'),
+    # Only the names the tagger may trust (approved, or grandfathered at wiring time),
+    # not every name the scanner inserted; see TrustedArtistHelper.
+    'library_artists': TrustedArtistHelper(),
     'rules_ignored_artists': FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', follow_chains=True),
     'rules_genres': FilterTableHelper('rules_genres', 'name', 'corrected_genre'),
     'rules_ignored_genres': TableHelper('rules_ignored_genres', 'name'),

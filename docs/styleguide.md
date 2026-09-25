@@ -66,6 +66,12 @@
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
   screen rather than to an empty app.
+- **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
+  (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
+  (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --
+  a name the tagger does not trust yet (artist curation, "Nieuw") -- is yellow
+  (`bg-yellow-500/10 text-yellow-500`), the colour the queue's own "to review" icon already uses.
+  A badge states a fact about the row; it is never the only way to act on it.
 - **Memory card**: represents one release *year*, never a single track. Its title is the relative
   age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
   the cover art of the first track in that year's group. It uses the standard card surface and

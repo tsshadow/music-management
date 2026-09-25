@@ -133,6 +133,11 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
   its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
   fixed by removing a parent on the genre edit page in Beheer.
+- **GET `/api/rules/artists`** (any authenticated account): `state` is one of `unknown` (the queue),
+  `pending` (added, additive: the part of the queue the tagger does not trust -- undecided names that were
+  not in the library when the queue was wired up), `white`, `black`, `all`. Every row carries (added,
+  additive) `pending: <bool>`. **GET `/api/rules/artists/summary`** adds `pending`, the count of those names.
+  See docs/designs/artist-curation/technical.md, "Wiring the queue".
 - **POST `/api/rules/artists/decide`** (`rules.manage`): body `{"names": [...], "state": "white"|"black",
   "canonical_name": <string|null>}`. Response (fields `repointed` and `returned_to_queue` added, additive):
   `{"status": "ok", "decided": <int>, "canonical_name": ..., "repointed": [<name>], "returned_to_queue": [<name>]}`.
@@ -140,7 +145,9 @@ Removed outright, because every caller already uses the target: `GET|PUT
   with a `canonical_name` they are re-pointed to it (`repointed`); without one their decision is forgotten
   and they go back to the queue (`returned_to_queue`). A `canonical_name` that is rejected is a `400`.
 - **DELETE `/api/rules/artists/{name}`** (`rules.manage`): forgets a decision; `404` when there is none
-  (nothing is changed then). Redirects that pointed at the name go back to the queue with it; response
+  (nothing is changed then). Both this and `decide` reload the tagger's trusted-artist snapshot, so an
+  approval is recognised in titles and an undone name stops being so at once. Redirects that pointed at the
+  name go back to the queue with it; response
   `{"status": "ok", "returned_to_queue": [<name>]}`.
 - **GET `/api/rules/artists/redirects/issues`**: read-only integrity check, any authenticated account.
   `{"count": <int>, "dangling": [{"name", "target", "path", "reason"}], "cycles": [[<name>, ...]],

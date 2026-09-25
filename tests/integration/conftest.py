@@ -202,6 +202,7 @@ def api(db, monkeypatch):
         'services.music_manager.routers.users',
         'services.music_manager.routers.library',
         'services.music_manager.routers.management',
+        'services.music_manager.routers.channel_links',
         'services.music_manager.routers.artist_curation',
         'services.music_manager.routers.genre_curation',
         'services.music_manager.routers.festivals',

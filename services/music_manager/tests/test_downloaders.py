@@ -256,8 +256,9 @@ class CoverageEndpointTest(DownloaderApiTestBase):
     """The page's one read, with the four queries and the check store swapped for canned data."""
 
     class Queries:
-        def __init__(self, fail=False):
+        def __init__(self, fail=False, channels_fail=False):
             self.fail = fail
+            self.channels_fail = channels_fail
 
         def configured(self, source):
             if self.fail:
@@ -266,10 +267,23 @@ class CoverageEndpointTest(DownloaderApiTestBase):
 
             if source == 'youtube':
                 return [ConfiguredAccount('@dj_a', '@dj_a#video', 'video')]
-            return [ConfiguredAccount('dj_a', 'dj_a'), ConfiguredAccount('dj_b', 'dj_b')]
+            return [ConfiguredAccount('dj_a', 'dj_a', archive_key='101'), ConfiguredAccount('dj_b', 'dj_b')]
 
-        def last_downloads(self, source):
-            return {'dj_a': NOW}
+        def archive_summary(self, source):
+            return {'101': NOW}, {'101': '/mnt/music/Soundcloud/DJ A/track.mp3'}
+
+        def channels(self, source):
+            if self.channels_fail:
+                raise RuntimeError('no proposals table')
+            return {
+                'dj a': {
+                    'id': 7,
+                    'name': 'DJ A',
+                    'label': None,
+                    'artist': {'id': 3, 'name': 'DJ A'},
+                    'open_proposals': 1,
+                }
+            }
 
         def recent_downloads(self, source):
             return (3, 9)
@@ -301,6 +315,26 @@ class CoverageEndpointTest(DownloaderApiTestBase):
         self.assertEqual('soundcloud', body['totals']['rate_state']['source'])
         self.assertEqual(['dj_a', 'dj_b'], [row['account'] for row in body['accounts']])
         self.assertEqual(NOW.isoformat(), body['accounts'][0]['last_download_at'])
+
+    def test_a_soundcloud_account_is_found_in_the_archive_by_its_numeric_id(self):
+        """Bug report 089: the archive files rows under soundcloud_id, never under the slug."""
+        body = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers).json()
+        rows = {row['account']: row for row in body['accounts']}
+        self.assertEqual(NOW.isoformat(), rows['dj_a']['last_download_at'])
+        self.assertIsNone(rows['dj_b']['last_download_at'])
+
+    def test_an_account_carries_the_channel_its_files_are_filed_under(self):
+        body = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers).json()
+        rows = {row['account']: row for row in body['accounts']}
+        self.assertEqual({'id': 3, 'name': 'DJ A'}, rows['dj_a']['channel']['artist'])
+        self.assertEqual(1, rows['dj_a']['channel']['open_proposals'])
+        self.assertIsNone(rows['dj_b']['channel'])
+
+    def test_a_failing_channel_read_leaves_the_counts_standing(self):
+        patch('services.music_manager.routers.downloaders.coverage_queries', self.Queries(channels_fail=True)).start()
+        response = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers)
+        self.assertEqual(200, response.status_code)
+        self.assertTrue(all(row['channel'] is None for row in response.json()['accounts']))
 
     def test_a_youtube_video_channel_is_matched_on_its_schedule_key(self):
         body = self.client.get('/api/downloaders/coverage/youtube', headers=self.headers).json()

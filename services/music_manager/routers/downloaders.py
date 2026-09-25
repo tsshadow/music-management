@@ -142,7 +142,7 @@ def get_schedule(source: str, _auth: dict = Depends(verify_api_key)):
 
 
 class CoverageQueries:
-    """The four reads behind the coverage page, one statement each, on the manager's pool.
+    """The five reads behind the coverage page, one statement each, on the manager's pool.
 
     Module level so tests can swap it for canned data. Every method answers for one
     source; the YouTube ones key on `<name>#video` for the video form of a channel, which
@@ -169,29 +169,69 @@ class CoverageQueries:
                         )
                         for row in cursor.fetchall()
                     ]
-                cursor.execute('SELECT name FROM downloads_soundcloud_accounts ORDER BY name')
-                return [ConfiguredAccount(row['name'], row['name']) for row in cursor.fetchall()]
+                # The archive files a SoundCloud download under the numeric id, not the slug
+                # (docs/bug-reports/089-soundcloud-coverage-last-download-never-found.md).
+                cursor.execute('SELECT name, soundcloud_id FROM downloads_soundcloud_accounts ORDER BY name')
+                return [
+                    ConfiguredAccount(
+                        row['name'],
+                        row['name'],
+                        archive_key=str(row['soundcloud_id']) if row.get('soundcloud_id') is not None else None,
+                    )
+                    for row in cursor.fetchall()
+                ]
         finally:
             connection.close()
 
-    def last_downloads(self, source: str) -> dict[str, datetime]:
+    def archive_summary(self, source: str) -> tuple[dict[str, datetime], dict[str, str]]:
+        """Per archive key: the newest download, and one path it wrote (the bridge to its channel).
+
+        One grouped statement for both, so the channel costs no second pass over the archive.
+        The path is the lexically last one, which is as good as any: all of an account's
+        files normally sit in the same channel folder.
+        """
         connection = self._connection()
         try:
             with connection.cursor() as cursor:
                 if source == 'youtube':
                     cursor.execute(
-                        'SELECT account, download_type, MAX(added_at) AS last_at FROM downloads_youtube_archive '
-                        'GROUP BY account, download_type'
+                        'SELECT account, download_type, MAX(added_at) AS last_at, MAX(path) AS sample '
+                        'FROM downloads_youtube_archive GROUP BY account, download_type'
                     )
-                    return {
-                        youtube_key(row['account'], row['download_type']): row['last_at']
-                        for row in cursor.fetchall()
-                        if row['last_at'] is not None
-                    }
+                    rows = [(youtube_key(r['account'], r['download_type']), r) for r in cursor.fetchall()]
+                else:
+                    cursor.execute(
+                        'SELECT account, MAX(added_at) AS last_at, MAX(filename) AS sample '
+                        'FROM downloads_soundcloud_archive GROUP BY account'
+                    )
+                    rows = [(str(r['account']), r) for r in cursor.fetchall()]
+            last = {key: r['last_at'] for key, r in rows if r['last_at'] is not None}
+            samples = {key: r['sample'] for key, r in rows if r['sample']}
+            return last, samples
+        finally:
+            connection.close()
+
+    def channels(self, source: str) -> dict[str, dict[str, Any]]:
+        """The source's channels keyed by normalized name, with their links and open proposals."""
+        connection = self._connection()
+        try:
+            with connection.cursor() as cursor:
                 cursor.execute(
-                    'SELECT account, MAX(added_at) AS last_at FROM downloads_soundcloud_archive GROUP BY account'
+                    """
+                    SELECT c.id, c.name, c.normalized_name, c.label_id, l.name AS label_name,
+                           c.artist_id, a.name AS artist_name, COALESCE(p.open_proposals, 0) AS open_proposals
+                    FROM channels c
+                    LEFT JOIN library_labels l ON l.id = c.label_id
+                    LEFT JOIN library_artists a ON a.id = c.artist_id
+                    LEFT JOIN (
+                        SELECT channel_id, COUNT(*) AS open_proposals FROM channel_link_proposals
+                        WHERE status = 'new' GROUP BY channel_id
+                    ) p ON p.channel_id = c.id
+                    WHERE c.platform = %s
+                    """,
+                    (source,),
                 )
-                return {row['account']: row['last_at'] for row in cursor.fetchall() if row['last_at'] is not None}
+                return {row['normalized_name']: downloader_coverage.channel_entry(row) for row in cursor.fetchall()}
         finally:
             connection.close()
 
@@ -235,11 +275,18 @@ def get_coverage(source: str, _auth: dict = Depends(verify_api_key)):
     try:
         configured = coverage_queries.configured(source)
         checks = DatabaseCheckStore().load(source)
-        last_downloads = coverage_queries.last_downloads(source)
+        last_downloads, samples = coverage_queries.archive_summary(source)
         week, month = coverage_queries.recent_downloads(source)
         write_offs = coverage_queries.write_offs(source)
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f'Could not read the coverage: {exc}') from exc
+    # The links are context too: a missing channel_link_proposals table (a deploy that has
+    # not run migrate_v41 yet) must not take the counts down.
+    try:
+        known = coverage_queries.channels(source)
+        channels = {key: downloader_coverage.channel_for(path, known) for key, path in samples.items()}
+    except Exception:  # noqa: BLE001 - context, never a reason to fail the page
+        channels = {}
     # The backoff is context, not the point of the page: an outage there must not
     # take the counts down with it.
     try:
@@ -247,7 +294,7 @@ def get_coverage(source: str, _auth: dict = Depends(verify_api_key)):
     except HTTPException:
         rate_state = None
     return downloader_coverage.build_coverage(
-        source, configured, checks, last_downloads, week, month, write_offs, rate_state, datetime.now()
+        source, configured, checks, last_downloads, week, month, write_offs, rate_state, datetime.now(), channels
     )
 
 

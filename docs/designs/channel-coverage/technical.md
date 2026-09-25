@@ -87,6 +87,9 @@ Response:
   grouped by `(account, download_type)` and `null` where every row predates the column.
 - `downloads_7d` / `downloads_30d` count archive rows with `added_at` in the window.
 - `write_offs` groups `downloads_soundcloud_unavailable` by `reason` for the source.
+- Each account row also carries `channel` (the channel its files are filed under, with its label/artist
+  links) and SoundCloud rows are matched to the archive by `soundcloud_id`; see
+  [channel-links/technical.md](../channel-links/technical.md).
 - Sorting and filtering are client-side; the response is one query per table, no per-account
   queries.
 

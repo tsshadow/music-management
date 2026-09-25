@@ -73,6 +73,9 @@ READ_ENDPOINTS = [
     # timestamp the YouTube table only has since migrate_v31.
     ('/api/downloaders/coverage/soundcloud', 200),
     ('/api/downloaders/coverage/youtube', 200),
+    ('/api/channel-links/proposals', 200),
+    ('/api/channel-links/proposals?status=rejected&kind=artist', 200),
+    ('/api/channel-links/proposals?status=maybe', 400),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -792,6 +795,71 @@ class LibraryReadsTest:
         assert body['source_url'] == 'https://soundcloud.com/complex/b'
         assert body['source_platform'] == 'soundcloud'
         assert body['added_at']
+
+
+class ChannelLinksTest:
+    """docs/designs/channel-links: the search, a decision, and the link on the coverage page."""
+
+    def _library(self, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Traxtorm')")
+            label_id = cursor.lastrowid
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('D-Sturb')")
+            artist_id = cursor.lastrowid
+            cursor.execute("INSERT INTO rules_artists (name, state) VALUES ('D-Sturb', 'white')")
+            cursor.execute(
+                "INSERT INTO rules_artists (name, state, canonical_name) VALUES ('D Sturb', 'black', 'D-Sturb')"
+            )
+            cursor.execute(
+                "INSERT INTO library_artist_aliases (artist_id, alias) VALUES (%s, 'DSturb Official')", (artist_id,)
+            )
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name) VALUES "
+                "('soundcloud', 'TRAXTORM', 'traxtorm'), ('youtube', 'D-Sturb', 'd-sturb')"
+            )
+            cursor.execute("SELECT id, name FROM channels")
+            channels = {row['name']: row['id'] for row in cursor.fetchall()}
+        db.commit()
+        return label_id, artist_id, channels
+
+    def test_the_search_runs_twice_and_a_confirm_links_the_channel(self, api, headers, db):
+        label_id, _, channels = self._library(db)
+        first = api.post('/api/channel-links/proposals/refresh', headers=headers)
+        assert first.status_code == 200, first.text
+        assert first.json() == {'created': 2, 'open': 2, 'withdrawn': 0, 'ambiguous': 0}
+        again = api.post('/api/channel-links/proposals/refresh', headers=headers).json()
+        assert again == {'created': 0, 'open': 2, 'withdrawn': 0, 'ambiguous': 0}
+
+        listed = api.get('/api/channel-links/proposals?kind=label', headers=headers).json()
+        assert [(row['channel_name'], row['target_name'], row['source']) for row in listed] == [
+            ('TRAXTORM', 'Traxtorm', 'name')
+        ]
+        confirmed = api.post(f"/api/channel-links/proposals/{listed[0]['id']}/confirm", headers=headers)
+        assert confirmed.json()['status'] == 'confirmed', confirmed.text
+        assert run_sql(db, 'SELECT label_id FROM channels WHERE id = %s', (channels['TRAXTORM'],)) == [
+            {'label_id': label_id}
+        ]
+
+        unlinked = api.delete(f"/api/channel-links/channels/{channels['TRAXTORM']}/label", headers=headers)
+        assert unlinked.json() == {'status': 'unlinked'}
+        api.post('/api/channel-links/proposals/refresh', headers=headers)
+        statuses = run_sql(db, "SELECT status FROM channel_link_proposals WHERE kind = 'label'")
+        assert statuses == [{'status': 'rejected'}]
+
+    def test_the_coverage_page_shows_the_link_through_the_archive(self, api, headers, db):
+        label_id, _, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id) VALUES ('traxtorm', '42')")
+            cursor.execute(
+                "INSERT INTO downloads_soundcloud_archive (account, video_id, filename, url, title, added_at)"
+                " VALUES ('42', 'v1', '/mnt/music/Soundcloud/TRAXTORM/a.mp3', 'u', 'a', NOW())"
+            )
+            cursor.execute('UPDATE channels SET label_id = %s WHERE id = %s', (label_id, channels['TRAXTORM']))
+        db.commit()
+        body = api.get('/api/downloaders/coverage/soundcloud', headers=headers).json()
+        row = body['accounts'][0]
+        assert row['last_download_at'] is not None
+        assert row['channel']['label'] == {'id': label_id, 'name': 'Traxtorm'}
 
 
 class ScrobblingTest:

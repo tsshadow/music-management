@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.4.7 (2026-09-25)
+
+- **The app ships the web UI fixes of server 0.74.1.** A rating set in one place (a list, the
+  player, car mode, track details) now shows everywhere at once and rolls back if the server
+  refuses it; a double tap no longer starts the radio twice; saving a long queue no longer fails
+  with "URI too long"; the player position is written to storage less often; and the remaining
+  hard-coded Dutch texts now follow the app's language.
 ## Global Version 7.4.6 (2026-09-25)
 
 - **Listens no longer go missing.** A track you played is remembered on the phone until the server

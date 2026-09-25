@@ -7,6 +7,170 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.74.1] - 2026-09-25
+
+### Changed
+- **The ml-analyzer is deprecated and disabled; its code is kept.** It never ran in production (its
+  compose service was commented out), nobody has time to work on it, and it would not have worked
+  if it ran: the already-analysed check compares a track id against a path hash, the ML label rows
+  are keyed by path hash while every reader joins them by track uid (bug report 028's shape), and
+  `predict.py` feeds the model 11 unscaled audio features where the trainer fitted 41 scaled ones, into a
+  table no deployed database has. It is now out of `backend:unit` and the coverage figure (the
+  total goes up, the floor is untouched), out of `./build.sh`'s build-all run, the dependency audit
+  and Renovate, and commented out of `docker/docker-compose.full.yml` too. Its tests run only in
+  the manual job `backend:ml-analyzer-unit`, and `tests/ci/test_ml_analyzer_deprecated.py` fails if
+  any other job picks it up again. `library_track_audio_features` and `library_track_ml_labels`
+  keep their data, so BPM, analytics and feeds keep showing what is there; new tracks get no
+  analysis. `services/ml-analyzer/DEPRECATED.md` has the defects with file and line and the
+  checklist for reviving it.
+
+- **A disabled or deleted MuMa account no longer keeps streaming through LMS.** The user sync only
+  ever created and updated LMS users, so an account disabled in MuMa kept its Subsonic key and every
+  client holding it went on playing. The next sync now disables the LMS user (new `user.disabled`
+  column, LMS migration step 121, database version 122) and revokes every auth token it holds, in
+  every domain. The same happens to an LMS user whose MuMa account has gone from the list. The user
+  is disabled, never deleted: listens, ratings, stars and playlists refer to it by id and stay where
+  they are, ready for a re-enabled account. No credential lets a disabled user in -- token, salted
+  token, password or proxy header -- including a token issued after the sync. An empty user list,
+  or one with an unreadable id, disables nobody as deleted. `DELETE /api/users/{id}` now pokes the
+  LMS sync after its commit, as enable and disable already did, so a deleted account is locked out
+  at once instead of at the next sync.
+- **One bad row no longer ends the LMS user sync.** A row without a username, or one whose write
+  failed (two LMS users claiming the same MuMa id), ended the loop, and every account after it went
+  unsynced until the next sync. Each account is now written in its own transaction: an unusable row
+  is logged and skipped and the rest are applied.
+- **The LMS fork is documented.** `services/music-management-server/FORK.md` records the upstream
+  base (LMS v3.76.0, `d3eb168d7`; the `3.83.1` project version is the fork's own), the MuMa-specific
+  subsystems, how upstream fixes are ported, and the database version policy: steps from 103 up are
+  the fork's own sequence, and an upstream migration is ported under the next free step, never merged
+  under its own number (upstream's 103-115 already mean something else here).
+- **New C++ tests** for the MuMa listen and rating relays (payload, key header, how the send queue
+  retries and drops them), the user sync, disabled-user authentication and the `/muma` routing
+  helpers (allow-list, settings path, proxied URL and headers), now in `Routing.cpp`. A settings
+  path whose user id is not a plain number (`12abc`) is a 400; it used to be read as user 12.
+
+- **Test stubs no longer leak into every other test.** `services/tests/mock_base.py` used to replace
+  mutagen, pymysql, yt-dlp, `config_store`, `Cache`, `DatabaseConnector` and more in `sys.modules`
+  for the whole pytest session, so a test that needed the real module got a MagicMock, and MagicMock
+  values reached real output (bug report 082's ntfy pushes). A test module now asks for exactly the
+  stubs it relies on with `pytestmark = pytest.mark.mock_base(...)`; they exist only while that
+  module is imported and its tests run, and everything imported under them leaves `sys.modules`
+  again afterwards. 104 of 270 unit test modules declare stubs, the rest run against the real
+  libraries. `tests/ci/test_mock_base_isolation.py` fails if a stub survives collection. The unit
+  run is faster (about 160 s instead of 240 s) and coverage is unchanged. Bug report 085; the marker
+  is documented in `CONTRIBUTING.md` and `AGENTS.md`.
+
+- **Nine API routes that nothing in the repository calls are deprecated, and three redundant aliases are removed.**
+  The deprecated routes are `GET /api/about`, the three `/api/rules/artist-redirects` routes,
+  `POST /api/tagger/rescan/file`, `POST /api/songs/tracks/{id}/split`,
+  `GET /api/downloaders/schedule/{source}`, `GET /api/users/permissions` and
+  `POST /api/users/sync/lms-db`. They still work and are flagged `deprecated` in the OpenAPI
+  schema. The first call to each one per process now logs an INFO event naming the caller, so any
+  real use shows up in `/api/events`. Routes that stay unused are deleted on 2026-11-01. The
+  removed aliases are `GET|PUT /api/users/{id}/lb-account` (use `/listenbrainz`),
+  `POST /api/users/sync/lms` (use `/sync/muma-server`) and `POST /api/rating/server-event` (use
+  `/lms-event`, which LMS calls). **Breaking** only for a client outside this repository that
+  still calls one of those three aliases. `/api/listening/clock`, `/api/listening/sources`,
+  `/api/curation/retag` and `/api/rating/ratings/{username}` were on the audit list but have a
+  consumer and stay. See bug report 084.
+- **Five identical genre-style name keys now share one implementation in
+  `services/common/text_normalize.py`.** They are in `GenreRulesHelper`, `GenreNameAnalyzer`,
+  `PodcastHelper`, `curation_rules`, plus the padded variant in `FestivalHelper`. The artist key
+  in `ArtistNameAnalyzer` also moved there. A characterisation table pins every normalizer's
+  output on the same tricky inputs, and none of it changed. The scrobble matcher, the artist image
+  fetcher and `Tag.set` normalize differently on purpose and now say why.
+  `scripts/restore_lms_ratings.py` imports `candidate_paths` instead of carrying a copy.
+
+### Fixed
+- **Every container's log is capped, not only the main stack's.** Docker keeps container logs
+  without a size limit by default, and a full disk on the production host has already looked like
+  a 502. Bug report 050 capped the services in `docker/docker-compose.yml`. The `lms` stack, the
+  backup jobs, the CI test stack and the other compose files now get the same json-file rotation
+  (10 MB x 3). LMS and its nginx front get 20 MB x 5, because they log every request. A CI test
+  fails when a service in any compose file has no cap. The cap applies once a container is
+  recreated, so `db` needs a `DEPLOY_DB=1` deploy to pick it up. Bug report 081.
+- **Deploys check production's SSH host key.** Every deploy and verify script connected with
+  `StrictHostKeyChecking=no`, after adding whatever `ssh-keyscan` returned to the runner's
+  `known_hosts`. Together that accepted any key. The host's keys are now pinned in
+  `scripts/ssh/known_hosts`, and a changed key fails the job with ssh's own message.
+  `docs/deployment.md` explains how to update the pin after a reinstall.
+- **The secondary compose files no longer publish MariaDB and phpMyAdmin on every interface or
+  default the noVNC password to `admin`.** This is the same as `docker/docker-compose.yml` since
+  bug report 050.
+
+- **Rejecting or undoing an artist no longer leaves redirects pointing at it.** Rejecting a name
+  with a correction now re-points every redirect that led to it; rejecting it outright or undoing
+  it sends those redirects back to the curation queue. Both are listed in the reply. The tagger
+  follows a redirect chain to its end (with a loop guard) instead of writing the middle name, the
+  Tagger tab refuses a redirect to a rejected artist or one that closes a loop, and
+  `GET /api/rules/artists/redirects/issues` reports dangling and looping redirects stored before
+  this fix (bug report 080).
+- **A cleared artist portrait now disappears everywhere.** The server sync takes back the artwork
+  it gave the server for a cleared artist, and the fixed-URL copies (`primary.jpg`, `thumb_*.jpg`)
+  are removed on clear and rewritten on selecting another stored image (bug report 080).
+
+- **The web interface no longer mixes Dutch into English.** Error messages, confirmation dialogs,
+  titles and the lock-screen fallback "Onbekend nummer" were typed into the components in Dutch and
+  ignored the language setting; they now come from the locale files. Numbers and dates follow the
+  chosen language instead of always being formatted Dutch (`1,234` in English, `1.234` in Dutch).
+  A unit test fails if one of the moved phrases or a fixed `'nl-NL'` comes back (bug report 083).
+- **Colour tokens instead of hex values in the web frontend.** Five greys the interface already
+  used got a token (`muma-spotify-muted`, `-subtle`, `-raised`, `-hover`, `-highlight`) and about
+  820 arbitrary colour classes were rewritten to tokens with the same value, so nothing changes on
+  screen. The Save button on a genre page has a hover state again (`bg-opacity-*` compiles to
+  nothing in Tailwind v4), and the search box no longer fetches the full genre and label lists
+  again every time the layout switches between phone and desktop.
+
+- **A rating set in one place of the web player now shows everywhere at once.** Bug report 078:
+  the track list, the player bar, Now Playing, the details sheet and car mode each kept their own
+  copy of "the rating I last set", so rating a track in one left the others on the old stars until
+  a reload. All of them now read and write one shared store (`services/frontend/src/lib/ratings.js`):
+  the new value shows at once, is rolled back with the usual "could not save your rating" message
+  when LMS refuses it, and a late failure can no longer undo a newer tap. 1-5 stars as before, and
+  clearing is its own call (`rating=0`, which LMS relays as `rating_removed`).
+- **Tapping a radio channel twice, or a second channel while the first was still tuning in, no
+  longer starts two streams.** Every start takes a ticket and only the newest one may touch the
+  player once its await returns; a superseded radio controller can no longer load its stream over
+  the newer one, or tear down the newer channel when its own start fails late.
+- **Saving a long queue as a playlist, and pushing a long jam queue, no longer fail with 414 URI Too
+  Long.** `createPlaylist` and `savePlayQueue` now carry their track ids in a form-encoded POST body
+  (OpenSubsonic `formPost`, which LMS already accepts) instead of the query string; saving a
+  playlist also reports a refusal inside a Subsonic 200 instead of calling it saved.
+- **The player no longer writes its state to localStorage four times a second.** `playerState` is
+  written at most every five seconds while playing, plus straight away on pause, when the page is
+  hidden and on `pagehide`, so the last position still survives a reload.
+
+- **Google sign-in accepts only a verified e-mail address, and a taken username is a 409.** Bug
+  report 079. A Google ID token whose `email_verified` claim is not true is refused with 401: the
+  address is what an admin reads when approving a request and becomes the new account's username.
+  A rejected token's 401 no longer repeats the Google library's reason. Approving a request whose
+  e-mail address is already a username (in any case) answers 409 with a hint to link the request to
+  that account, instead of a 500.
+- **Logins through LMS are rate limited per client again, and a forged `X-Forwarded-For` no longer
+  picks a bucket.** LMS now passes the client address it resolved to MuMa, both on its password check
+  for every Subsonic request and on a proxied `/muma/api/auth/login`; it sent none, so every login
+  on `lms.<domain>` counted as the LMS container. MuMa believes that header only from a trusted
+  network (`AUTH_TRUSTED_PROXIES`, default loopback and the private ranges) or a caller with the
+  system key, and reads it from the right instead of taking the client-written left-most entry. A
+  login now counts per client and account (10 a minute) and per account from anywhere
+  (`AUTH_RATE_LIMIT_ACCOUNT_ATTEMPTS`, 50 a minute), so one device with a stale password no longer
+  locks the account for everyone.
+
+- **The unattended Claude runs on the runner host no longer run with permissions off.** The
+  crash triage (which reads crash reports that app users write), the nightly prod check (which
+  reads production logs) and the release that the approved-MR watcher starts all used the
+  skip-permissions flag. A prompt injected into a crash report or a logged track title could
+  therefore do anything the `triage` user can: use the production system key for writes, push
+  to any branch, merge. All three now run with `--restricted --permission-mode dontAsk` and a
+  per-job allowlist from `scripts/crash-triage/claude-permissions.sh`:
+  - production only through one-purpose wrappers (GET, one status PATCH, one ntfy topic);
+  - GitLab reads through a wrapper, and pushes only to the job's own branch prefix;
+  - only the release run may merge, and then only a green release MR into master;
+  - no curl, no `glab api`, and no local test runs (a test run is a shell).
+  The units now run a root-owned copy in `/opt/crash-triage/bin`, so a run cannot edit the
+  file that sets its own permissions. That copy has to be installed on the runner by hand. See
+  bug report 077 and `scripts/crash-triage/README.md`. A CI test now fails when the flag
+  appears anywhere outside the docs.
 ## [0.74.0] - 2026-09-25
 
 ### Added

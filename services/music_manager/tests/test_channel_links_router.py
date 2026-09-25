@@ -335,7 +335,7 @@ class ListTest(ChannelLinksTestCase):
         self.assertEqual([{'id': 5}], response.json())
         sql, params = cursor.execute.call_args.args
         self.assertIn('p.kind = %s', sql)
-        self.assertEqual(('new', 'artist'), params)
+        self.assertEqual(('new', 'artist', 'artist'), params)
 
     def test_an_unknown_status_or_kind_is_refused(self):
         self.assertEqual(

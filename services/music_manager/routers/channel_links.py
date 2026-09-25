@@ -25,9 +25,23 @@ require_rules_manage = require_permission('rules.manage')
 
 STATUSES = ('new', 'confirmed', 'rejected', 'stale')
 
-# Which channels column and which library table each kind of link points at.
-LINK_COLUMN = {links.LABEL: 'label_id', links.ARTIST: 'artist_id'}
-TARGET_TABLE = {links.LABEL: 'library_labels', links.ARTIST: 'library_artists'}
+# Complete statements per kind, never assembled from parts: the kind picks a whole literal.
+LINKED_QUERY = {
+    links.LABEL: 'SELECT label_id AS linked FROM channels WHERE id = %s FOR UPDATE',
+    links.ARTIST: 'SELECT artist_id AS linked FROM channels WHERE id = %s FOR UPDATE',
+}
+TARGET_EXISTS_QUERY = {
+    links.LABEL: 'SELECT id FROM library_labels WHERE id = %s',
+    links.ARTIST: 'SELECT id FROM library_artists WHERE id = %s',
+}
+LINK_QUERY = {
+    links.LABEL: 'UPDATE channels SET label_id = %s WHERE id = %s',
+    links.ARTIST: 'UPDATE channels SET artist_id = %s WHERE id = %s',
+}
+UNLINK_QUERY = {
+    links.LABEL: 'UPDATE channels SET label_id = NULL WHERE id = %s',
+    links.ARTIST: 'UPDATE channels SET artist_id = NULL WHERE id = %s',
+}
 
 CHANNELS_QUERY = 'SELECT id, platform, name, label_id, artist_id FROM channels WHERE platform IN (%s, %s)'
 LABELS_QUERY = 'SELECT id, name FROM library_labels'
@@ -65,7 +79,7 @@ LIST_QUERY = """
     LEFT JOIN (
         SELECT channel_id, COUNT(*) AS track_count FROM library_track_channels GROUP BY channel_id
     ) tc ON tc.channel_id = p.channel_id
-    WHERE p.status = %s{kind_filter}
+    WHERE p.status = %s AND (%s IS NULL OR p.kind = %s)
     ORDER BY track_count DESC, c.name
 """
 
@@ -138,12 +152,7 @@ def list_proposals(status: str = 'new', kind: str | None = None, _auth: dict = D
     conn = _connect()
     try:
         with conn.cursor() as cursor:
-            params: tuple = (status,)
-            kind_filter = ''
-            if kind:
-                kind_filter = ' AND p.kind = %s'
-                params = (status, kind)
-            return _rows(cursor, LIST_QUERY.format(kind_filter=kind_filter), params)
+            return _rows(cursor, LIST_QUERY, (status, kind, kind))
     finally:
         conn.close()
 
@@ -189,20 +198,19 @@ def confirm(proposal_id: int, auth: dict = Depends(require_rules_manage)):
                 return {'status': 'confirmed', **outcome}
             if row['status'] != 'new':
                 raise HTTPException(status_code=409, detail=f"The proposal is {row['status']}")
-            column = LINK_COLUMN[kind]
-            cursor.execute(f'SELECT {column} AS linked FROM channels WHERE id = %s FOR UPDATE', (channel_id,))
+            cursor.execute(LINKED_QUERY[kind], (channel_id,))
             channel = cursor.fetchone()
             linked = channel['linked'] if channel else None
             if linked is not None and linked != target_id:
                 raise HTTPException(status_code=409, detail=f'The channel is already linked to another {kind}')
-            cursor.execute(f'SELECT id FROM {TARGET_TABLE[kind]} WHERE id = %s', (target_id,))
+            cursor.execute(TARGET_EXISTS_QUERY[kind], (target_id,))
             if not cursor.fetchone():
                 cursor.execute(
                     "UPDATE channel_link_proposals SET status = 'stale', decided_at = NOW() WHERE id = %s",
                     (proposal_id,),
                 )
                 return {'status': 'stale', **outcome}
-            cursor.execute(f'UPDATE channels SET {column} = %s WHERE id = %s', (target_id, channel_id))
+            cursor.execute(LINK_QUERY[kind], (target_id, channel_id))
             cursor.execute(
                 "UPDATE channel_link_proposals SET status = 'confirmed', decided_at = NOW(), decided_by = %s "
                 'WHERE id = %s',
@@ -250,7 +258,7 @@ def unlink(channel_id: int, kind: str, auth: dict = Depends(require_rules_manage
             cursor.execute('SELECT id FROM channels WHERE id = %s', (channel_id,))
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Unknown channel')
-            cursor.execute(f'UPDATE channels SET {LINK_COLUMN[kind]} = NULL WHERE id = %s', (channel_id,))
+            cursor.execute(UNLINK_QUERY[kind], (channel_id,))
             cursor.execute(
                 "UPDATE channel_link_proposals SET status = 'rejected', decided_at = NOW(), decided_by = %s "
                 "WHERE channel_id = %s AND kind = %s AND status = 'confirmed'",

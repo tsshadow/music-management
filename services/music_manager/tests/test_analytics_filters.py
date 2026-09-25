@@ -1,6 +1,24 @@
 import unittest
 
-from services.music_manager.routers.analytics_filters import LibraryFilter, build_filter
+from services.music_manager.routers.analytics_filters import (
+    EFFECTIVE_YEAR_SQL,
+    LibraryFilter,
+    build_filter,
+    parse_filter,
+)
+
+# parse_filter is a FastAPI dependency; called directly, every Query default must be passed.
+PARSE_DEFAULTS = {
+    'q': '',
+    'artist': [],
+    'genre': [],
+    'label': [],
+    'bpm_min': None,
+    'bpm_max': None,
+    'year_min': None,
+    'year_max': None,
+    'analyzed': None,
+}
 
 
 class BuildFilterTest(unittest.TestCase):
@@ -52,11 +70,29 @@ class BuildFilterTest(unittest.TestCase):
         self.assertIn('COALESCE(af.tempo, af.bpm_tag) <= %s', where)
         self.assertEqual(params, [140, 180])
 
-    def test_year_range_uses_release_year(self):
+    def test_year_range_uses_the_effective_year(self):
+        """Performance date for a live set, then the release date, then the analyzer's year."""
         where, params = build_filter(LibraryFilter(year_min=2020, year_max=2024))
-        self.assertIn('af.release_year >= %s', where)
-        self.assertIn('af.release_year <= %s', where)
+        self.assertIn(f'{EFFECTIVE_YEAR_SQL} >= %s', where)
+        self.assertIn(f'{EFFECTIVE_YEAR_SQL} <= %s', where)
+        self.assertLess(EFFECTIVE_YEAR_SQL.index('performance_date'), EFFECTIVE_YEAR_SQL.index('release_date'))
+        self.assertTrue(EFFECTIVE_YEAR_SQL.rstrip(')').endswith('af.release_year'))
         self.assertEqual(params, [2020, 2024])
+
+    def test_several_forms_are_or_within_the_parameter(self):
+        where, params = build_filter(LibraryFilter(form=['liveset', 'set']))
+        self.assertEqual(where, 't.form IN (%s, %s)')
+        self.assertEqual(params, ['liveset', 'set'])
+
+    def test_an_unknown_form_is_refused(self):
+        from fastapi import HTTPException
+
+        with self.assertRaises(HTTPException) as raised:
+            parse_filter(form=['liveset', 'mixtape'], **PARSE_DEFAULTS)
+        self.assertEqual(raised.exception.status_code, 422)
+
+    def test_a_known_form_reaches_the_filter(self):
+        self.assertEqual(parse_filter(form=['podcast'], **PARSE_DEFAULTS).form, ['podcast'])
 
     def test_analyzed_requires_an_audio_features_row(self):
         where, params = build_filter(LibraryFilter(analyzed=True))
@@ -73,7 +109,7 @@ class BuildFilterTest(unittest.TestCase):
         where, params = build_filter(LibraryFilter(bpm_min=190, year_min=2020, analyzed=True))
         self.assertEqual(where.count(' AND '), 2)
         self.assertEqual(
-            where, 'COALESCE(af.tempo, af.bpm_tag) >= %s AND af.release_year >= %s AND af.track_id IS NOT NULL'
+            where, f'COALESCE(af.tempo, af.bpm_tag) >= %s AND {EFFECTIVE_YEAR_SQL} >= %s AND af.track_id IS NOT NULL'
         )
         self.assertEqual(params, [190, 2020])
 

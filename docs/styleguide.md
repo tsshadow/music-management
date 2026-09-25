@@ -234,6 +234,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
     a blue (sets mode's brand): each of those already means something else. Applies wherever
     `MetaChips` renders a label -- the full-screen player and the track details sheet.
 
+- **Done** (2026-09-25, `docs/designs/track-form/`) — a **Soort** (form) filter in the sets view's filter
+  bar. No new style: on the phone it is one more `filterChip` (neutral when unset, `bg-brand
+  text-black` with a clear button when set) opening a `BottomSheet` listbox -- Alle, Sets & mixes,
+  Livesets, Podcasts -- placed directly after the year chip; in the desktop bar it is one more
+  labelled `<select>` in the same row, same classes as the year select. Only in the sets view: in
+  the songs view every row is a track, and a picker with one real choice is noise.
+
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA
   (`MuMa Mobile.Button.Primary`), a branded white "Sign in with Google" pill button with the real

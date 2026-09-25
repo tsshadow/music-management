@@ -10,6 +10,7 @@ add_executable(test-subsonic
 	SpotifyPaging.cpp
 	Subsonic.cpp
 	SubsonicResponse.cpp
+	TrackForm.cpp
 	TranscodeDecision.cpp
 	UserSettingsValidation.cpp
 	)

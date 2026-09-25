@@ -38,7 +38,7 @@ namespace lms::db
         // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
         // sequence. Upstream migrations above 103 are ported under the next free number here,
         // never merged under theirs -- see services/music-management-server/FORK.md.
-        static constexpr Version LMS_DATABASE_VERSION{ 122 };
+        static constexpr Version LMS_DATABASE_VERSION{ 123 };
     } // namespace
 
     VersionInfo::VersionInfo()
@@ -2025,6 +2025,23 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('user') WHERE name = 'disabled'").resultValue() == 0)
                 utils::executeCommand(*session.getDboSession(), "ALTER TABLE user ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
         }
+
+        void migrateFromV122(Session& session)
+        {
+            // What a file is (track / set / liveset / podcast) and when a live set was played,
+            // decided by muma (services/common/track_form.py) and written here by its hourly
+            // lms.db sync, like the version columns of step 117. LMS only filters on them:
+            // FindParameters::forms and FindParameters::year. docs/designs/track-form/.
+            //
+            // Empty, not NULL, is "muma has not said": a form filter then matches nothing, and
+            // the year filter falls back to the date tag. scan_version is not bumped -- nothing
+            // about reading a file changes. The index on form is created by Session with the
+            // other track indexes. Re-runnable, like step 121.
+            if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'form'").resultValue() == 0)
+                utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN form TEXT NOT NULL DEFAULT ''");
+            if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'performance_date'").resultValue() == 0)
+                utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN performance_date TEXT NOT NULL DEFAULT ''");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2125,6 +2142,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 119, migrateFromV119 },
             { 120, migrateFromV120 },
             { 121, migrateFromV121 },
+            { 122, migrateFromV122 },
         };
 
         bool migrationPerformed{};

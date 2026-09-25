@@ -237,6 +237,11 @@ Removed outright, because every caller already uses the target: `GET|PUT
   download and the path does not say which (it used to take the first `LIKE '%<name>%'` hit).
 - **GET `/api/library/advanced`**: the filtered library browser list. Same paging bounds: `page` from 1,
   `limit` (default 100) at most 500, otherwise 422.
+  Filters (shared with every `/api/analytics/*` endpoint, `routers/analytics_filters.py`): `form`
+  (repeatable, OR; one of `track`, `set`, `liveset`, `podcast`, otherwise 422; a track not yet
+  classified matches none) and `year_min`/`year_max`, which compare the year a track files under --
+  a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
+  `release_year` (docs/designs/track-form/).
 
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path

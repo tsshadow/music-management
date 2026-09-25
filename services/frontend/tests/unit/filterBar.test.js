@@ -150,6 +150,18 @@ describe("FilterBar", () => {
     expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ minQuality: "320" }));
   });
 
+  it("offers the form picker only in the sets view", async () => {
+    const onchange = vi.fn();
+    const { unmount } = await renderLoaded({ onchange });
+    expect(screen.queryByLabelText("Soort")).toBeNull();
+    unmount();
+
+    await renderLoaded({ onchange, showForm: true });
+    await fireEvent.change(screen.getByLabelText("Soort"), { target: { value: "liveset" } });
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ form: "liveset" }));
+  });
+
   it("reports whether unrated tracks are included", async () => {
     const onchange = vi.fn();
     await renderLoaded({ onchange });
@@ -277,6 +289,27 @@ describe("FilterBar phone chips", () => {
 
     await fireEvent.click(screen.getByLabelText("Lossless wissen"));
     expect(onchange).toHaveBeenLastCalledWith(expect.objectContaining({ minQuality: "" }));
+  });
+
+  it("picks a form from its sheet and clears it from the chip", async () => {
+    const onchange = vi.fn();
+    await renderMobile({ onchange, showForm: true });
+
+    await fireEvent.click(screen.getByTestId("chip-form"));
+    const sheet = await screen.findByTestId("bottom-sheet");
+    await fireEvent.click(within(sheet).getByText("Livesets"));
+
+    expect(onchange).toHaveBeenCalledWith(expect.objectContaining({ form: "liveset" }));
+    expect(within(screen.getByTestId("chip-form")).getByText("Livesets")).toBeTruthy();
+
+    await fireEvent.click(screen.getByLabelText("Livesets wissen"));
+    expect(onchange).toHaveBeenLastCalledWith(expect.objectContaining({ form: "" }));
+  });
+
+  it("has no form chip outside the sets view", async () => {
+    await renderMobile();
+
+    expect(screen.queryByTestId("chip-form")).toBeNull();
   });
 
   it("picks a year from its sheet", async () => {

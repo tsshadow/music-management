@@ -13,8 +13,11 @@ from services.common.channels import (
     path_can_carry_a_label,
 )
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.FestivalHelper import FestivalHelper
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
+from services.common.Helpers.PodcastHelper import PodcastHelper
+from services.common.track_form import classify
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_admin
 from services.music_manager.routers.users import verify_api_key
@@ -44,6 +47,21 @@ class ScannerManager:
         # record_unknown(). Preloading is deferred so constructing a ScannerManager
         # (including at import time) never needs a database.
         self.genre_helper = GenreRulesHelper(preload=False)
+        # The festival and podcast lists the form of a file is read against (see
+        # services/common/track_form.py). Loaded with the genre rules, for the same reason.
+        self.festival_helper = FestivalHelper(preload=False)
+        self.podcast_helper = PodcastHelper(preload=False)
+
+    def _reload_rules(self):
+        """Re-read the genre, festival and podcast rules this scan resolves against.
+
+        The festival and podcast lists only decide a file's form and performance date; a failure
+        to load them leaves them empty (both helpers log it), which classifies a long download as
+        a plain set until the hourly pass in track_form_sync corrects it.
+        """
+        self.genre_helper.reload()
+        self.festival_helper.reload()
+        self.podcast_helper.reload()
 
     def get_file_hash(self, path):
         return hashlib.sha256(path.encode('utf-8')).hexdigest()
@@ -68,7 +86,7 @@ class ScannerManager:
             # the Cache registry (see curation_rules.refresh), never this instance, so a cached
             # map here would stay stale for the process lifetime. One query per user-triggered
             # single scan is the cheaper mistake.
-            self.genre_helper.reload()
+            self._reload_rules()
             logger.info('Processing single file scan request: %s', path)
             conn = get_db_connection()
             if not conn:
@@ -95,7 +113,7 @@ class ScannerManager:
             return
         # A scan started after a curation decision must honour it, so the rules are
         # refreshed per full run rather than cached for the process lifetime.
-        self.genre_helper.reload()
+        self._reload_rules()
         with self._lock:
             logger.info(f'Starting scan of {self.music_path} (force={force})')
             conn = get_db_connection()
@@ -320,18 +338,27 @@ class ScannerManager:
             primary_artist_id = artist_ids[0] if artist_ids else None
             display_artist = song.original_artist()
             track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode()).hexdigest()
+            # What the file is and, for a live set, when it was played -- from the same path,
+            # title and duration the hourly pass (track_form_sync) reads, so the two agree.
+            form, performance_date = classify(
+                path, self.music_path, duration, title, self.festival_helper, self.podcast_helper
+            )
             cursor.execute(
-                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist)\n                VALUES (%s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,\n                    display_artist=COALESCE(%s, display_artist)\n            ',
+                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist,\n                    form, performance_date)\n                VALUES (%s, %s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,\n                    display_artist=COALESCE(%s, display_artist), form=%s, performance_date=%s\n            ',
                 (
                     track_uid,
                     title,
                     duration,
                     primary_artist_id,
                     display_artist,
+                    form,
+                    performance_date,
                     title,
                     duration,
                     primary_artist_id,
                     display_artist,
+                    form,
+                    performance_date,
                 ),
             )
             cursor.execute('SELECT id FROM library_tracks WHERE track_uid = %s', (track_uid,))

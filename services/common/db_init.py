@@ -263,6 +263,13 @@ def ensure_tables_exist() -> None:
                     # overwritten. See migrate_v25_genre_hardness.sql and
                     # docs/designs/feeds/functional.md, "Daily mixes v2".
                     'ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS hardness TINYINT UNSIGNED NULL',
+                    # What a file is (track / set / liveset / podcast) and, for a live set whose
+                    # festival edition is known, the day it was played. Derived from the path,
+                    # title and duration by services/common/track_form.py -- written by the
+                    # scanner and settled hourly by track_form_sync. NULL is "not classified".
+                    # See migrate_v42_track_form.sql and docs/designs/track-form/.
+                    'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS form VARCHAR(16) NULL',
+                    'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS performance_date VARCHAR(10) NULL',
                 ):
                     try:
                         cursor.execute(column_sql)
@@ -279,6 +286,9 @@ def ensure_tables_exist() -> None:
                     # primary_artist_id, and without this each one scans library_tracks.
                     # See migrate_v34_primary_artist_and_listen_track_indexes.sql.
                     'ALTER TABLE library_tracks ADD INDEX IF NOT EXISTS idx_tracks_primary_artist (primary_artist_id)',
+                    # The form filter of /api/library/advanced and the analytics; see
+                    # migrate_v42_track_form.sql.
+                    'ALTER TABLE library_tracks ADD INDEX IF NOT EXISTS idx_tracks_form (form)',
                     # The tagger looks a download's info dict up by the absolute path it is
                     # holding -- it never learns a video id. The two archive tables keep that
                     # path in differently named columns; without these it is a full scan per

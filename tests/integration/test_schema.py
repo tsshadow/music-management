@@ -367,3 +367,13 @@ def test_the_importer_skips_an_unchanged_proposal_against_real_mariadb(db):
     assert row['status'] == 'rejected'
     assert row['resolved_fingerprint'] == 'b' * 64
     assert row['decided_at'] is not None
+
+
+def test_a_track_carries_its_form_and_performance_date(built_schemas):
+    """migrate_v42 and db_init both give library_tracks the two columns the form filter and the
+    year filter read (docs/designs/track-form/), and the form is indexed on both paths."""
+    for kind in ('code', 'migrated'):
+        table = built_schemas[kind]['library_tracks']
+        assert {'form', 'performance_date'} <= set(table['columns']), kind
+        assert table['columns']['form']['nullable'] == 'YES', kind
+        assert 'idx_tracks_form' in table['indexes'], kind

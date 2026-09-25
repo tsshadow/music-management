@@ -60,6 +60,10 @@ The system is split into specialized services, each handling a specific part of 
         - `POST /api/scanner/scan/all`: Runs a full library scan in background.
         - `POST /api/scanner/scan/file?path=...`: Scans a single file and updates its database record.
         - `GET /api/scanner/health`: Health check and status.
+    - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
+      live set whose festival edition is known, a `performance_date` -- derived from path, title and
+      duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
+      pushed into LMS `track.form`) by `track_form_sync.py`. See `docs/designs/track-form/`.
     - **Redownload Service**: Allows triggering redownloads for tracks that originated from SoundCloud or YouTube.
         - Automatically matches library tracks to original source URLs using the download archive.
         - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.

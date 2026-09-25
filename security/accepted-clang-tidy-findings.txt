@@ -1316,7 +1316,8 @@ a27cd96be7bdd706 x1  # readability-else-after-return src/lms/ui/Utils.cpp
 # belongs in the change that touches the function anyway, not in a sweep.
 # Two of these move whenever anything in their function moves: the measured
 # complexity is part of the finding, so buildAdvancedQueryBody (87) and
-# handleGetSpotifyTracks (51) produce a fresh entry for a one-line change. Both
+# handleGetSpotifyTracks (45 since the year filter moved into applyFormAndYear,
+# 2026-09-25) produce a fresh entry for a one-line change. Both
 # were far past the threshold of 25 before the song-version work touched them,
 # and cutting them down is a refactor of the query builder and the endpoint --
 # a change of its own, with its own way of going wrong. Audited 2026-09-09.
@@ -1341,7 +1342,7 @@ bfd446edece68608 x1  # readability-function-cognitive-complexity src/libs/subson
 2b1858edfd54a42d x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
 808fcc25f07ed4ab x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/MediaRetrieval.cpp
 00f863f1de497ed6 x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/Memories.cpp
-98a7d31b02d236d7 x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/Spotify.cpp
+885957f63f1466ba x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/Spotify.cpp
 4bdb655c9b0d137a x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/UserManagement.cpp
 5cbd56500a6526aa x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/endpoints/transcoding/TranscodeDecision.cpp
 7f665e105ccce601 x1  # readability-function-cognitive-complexity src/libs/subsonic/impl/payloads/ClientInfo.cpp

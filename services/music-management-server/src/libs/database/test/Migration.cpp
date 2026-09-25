@@ -407,6 +407,14 @@ VALUES
             session.execute("DELETE FROM auth_token");
         }
 
+        // migrateFromV121: every user that existed before starts out enabled, and the column is
+        // NOT NULL so a row written by anything but Dbo (music-manager writes this file too) cannot
+        // leave it undecided.
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>(R"(SELECT COUNT(*) FROM pragma_table_info('user') WHERE name = 'disabled' AND "notnull" = 1 AND dflt_value = '0')").resultValue(), 1);
+        }
+
         // Now perform some dummy finds to ensure all fields are correctly mapped
         {
             auto transaction{ session.createReadTransaction() };

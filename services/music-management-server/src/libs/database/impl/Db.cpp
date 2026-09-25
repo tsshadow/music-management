@@ -17,6 +17,7 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <atomic>
 #include <functional>
 #include <memory>
 
@@ -194,6 +195,13 @@ namespace lms::db
                     callback(res);
             }
         }
+
+        // One per Db ever created in this process; never reused, unlike an address.
+        std::uint64_t nextInstanceId()
+        {
+            static std::atomic<std::uint64_t> lastInstanceId{};
+            return ++lastInstanceId;
+        }
     } // namespace
 
     std::unique_ptr<IDb> createDb(const std::filesystem::path& dbPath, std::size_t connectionCount)
@@ -203,6 +211,7 @@ namespace lms::db
 
     // Session living class handling the database and the login
     Db::Db(const std::filesystem::path& dbPath, std::size_t connectionCount)
+        : _instanceId{ nextInstanceId() }
     {
         Wt::Dbo::logToWt();
 
@@ -251,12 +260,21 @@ namespace lms::db
 
     Session& Db::getTLSSession()
     {
-        static thread_local Session* tlsSession{};
+        // The thread's session belongs to one Db, which owns it. The cache used to be the bare
+        // pointer, so once that Db was destroyed and another created -- every test suite opens a
+        // database of its own -- the next call on the same thread returned a session freed with
+        // the old Db. Keyed by the instance id, not the address: a new Db can reuse the old one's.
+        struct TlsSession
+        {
+            std::uint64_t dbInstanceId{};
+            Session* session{};
+        };
+        static thread_local TlsSession tls;
 
-        if (!tlsSession)
+        if (!tls.session || tls.dbInstanceId != _instanceId)
         {
             auto newSession{ std::make_unique<Session>(*this) };
-            tlsSession = newSession.get();
+            tls = TlsSession{ .dbInstanceId = _instanceId, .session = newSession.get() };
 
             {
                 std::scoped_lock lock{ _tlsSessionsMutex };
@@ -264,10 +282,7 @@ namespace lms::db
             }
         }
 
-        // For now, multiple databases are not handled
-        assert(&tlsSession->getDb() == this);
-
-        return *tlsSession;
+        return *tls.session;
     }
 
     void Db::logPageSize()

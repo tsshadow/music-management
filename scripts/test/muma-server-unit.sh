@@ -48,7 +48,7 @@ if [ -f "$ROOT_DIR/coverage-muma-server.xml" ]; then
     # so it cannot quietly erode. Raise it as coverage climbs; never lower it to
     # make a build green. The number is line coverage of the non-unity build,
     # which is the only build gcov can attribute to real source files.
-    python3 - "$ROOT_DIR/coverage-muma-server.xml" "${SERVER_COVERAGE_MIN:-39}" <<'PY'
+    python3 - "$ROOT_DIR/coverage-muma-server.xml" "${SERVER_COVERAGE_MIN:-44}" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 

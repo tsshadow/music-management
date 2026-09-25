@@ -30,6 +30,10 @@ A row in the `users` table always has:
   derived convenience field (`role_name == 'admin'`), never written to directly and never checked for
   authorization.
 - **`enabled`** — defaults to `TRUE`; a disabled account can't log in (`403`) with either method.
+  Disabling (or deleting) an account also pokes the music server's user sync, which disables the
+  LMS user and revokes every Subsonic key and web session it holds; no LMS credential is accepted
+  for it afterwards. The LMS user is kept, with its listens and ratings, and is enabled again with
+  the account. See [designs/lms-fork-baseline](designs/lms-fork-baseline/technical.md).
 
 **Effective invariant**: a user account is only useful if it can actually be authenticated with, i.e. it
 must have *at least one* of:

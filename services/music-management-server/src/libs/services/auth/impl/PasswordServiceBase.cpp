@@ -97,6 +97,14 @@ namespace lms::auth
                     _loginThrottler.onGoodClientAttempt(clientAddress);
 
                 const db::UserId userId{ getOrCreateUser(loginName) };
+                // The backend knows the password, not whether the account may still sign in
+                // here: MuMa refuses a disabled account itself, but the internal and PAM
+                // backends know nothing of MuMa. Not a bad attempt -- the password was right.
+                if (isUserDisabled(userId))
+                {
+                    LMS_LOG(AUTH, INFO, "Refusing login of disabled user '" << loginName << "'");
+                    return CheckResult{ .state = CheckResult::State::Denied, .userId = {} };
+                }
                 onUserAuthenticated(userId);
                 return CheckResult{ .state = CheckResult::State::Granted, .userId = userId };
             }

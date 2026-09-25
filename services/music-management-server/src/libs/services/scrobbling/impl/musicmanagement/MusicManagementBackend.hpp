@@ -24,6 +24,9 @@ namespace lms::scrobbling::musicManagement
     {
     public:
         MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db);
+        // Sends through `client` (null switches the relay off) with `apiKey` as X-API-Key.
+        // What the configured constructor delegates to, and what the tests use.
+        MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey);
         ~MusicManagementBackend() override;
 
     private:
@@ -36,9 +39,7 @@ namespace lms::scrobbling::musicManagement
 
         void sendScrobble(const Listen& listen, const Wt::WDateTime& timePoint, std::optional<std::chrono::seconds> duration = std::nullopt);
 
-        boost::asio::io_context& _ioContext;
         db::IDb& _db;
-        std::string _apiUrl;
         std::string _apiKey;
         std::unique_ptr<core::http::IClient> _client;
     };

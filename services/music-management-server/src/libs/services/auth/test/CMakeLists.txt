@@ -2,6 +2,8 @@ add_executable(test-auth
 	AuthTokenReadPath.cpp
 	CaseInsensitiveLogin.cpp
 	MusicManagementPasswordOutcome.cpp
+	DisabledUser.cpp
+	MumaUserSync.cpp
 	# AuthTokenReadPath needs a real database behind the service. Reuses the fixture the database
 	# tests already build against rather than standing up a second one.
 	../../../database/test/Common.cpp

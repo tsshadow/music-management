@@ -323,6 +323,16 @@ namespace lms::api::subsonic
 
             throw UserNotAuthorizedError{};
         }
+
+        // The user a salted-token login names, unless the MuMa user sync disabled it. The sync
+        // revokes a disabled user's tokens; this covers a token issued since.
+        db::User::pointer findEnabledUser(db::Session& session, std::string_view loginName)
+        {
+            db::User::pointer user{ db::User::find(session, loginName) };
+            if (user && user->isDisabled())
+                return {};
+            return user;
+        }
     } // namespace
 
     SubsonicResource::SubsonicResource(boost::asio::io_context& ioContext, db::IDb& db)
@@ -593,7 +603,7 @@ namespace lms::api::subsonic
             {
                 db::Session& session{ _db.getTLSSession() };
                 auto transaction{ session.createReadTransaction() };
-                if (const auto dbUser{ db::User::find(session, *user) })
+                if (const auto dbUser{ findEnabledUser(session, *user) })
                 {
                     db::UserId userId{ dbUser->getId() };
                     bool authenticated{ false };

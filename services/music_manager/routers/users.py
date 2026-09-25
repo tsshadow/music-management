@@ -1100,7 +1100,11 @@ def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
         with _admin_guard_lock, transaction(conn), conn.cursor() as cursor:
             actor_id = (auth.get('user') or {}).get('id')
             delete_user_row(cursor, user_id, actor_id=actor_id)
-            return {'status': 'ok'}
+        # After the commit, as for disable: LMS answers the poke by fetching /api/users/, and
+        # disables -- never deletes -- the account it no longer finds there, revoking its keys.
+        # Without the poke a deleted account kept its Subsonic key until the next sync.
+        notify_server_sync_users()
+        return {'status': 'ok'}
     except HTTPException:
         raise
     except Exception as e:

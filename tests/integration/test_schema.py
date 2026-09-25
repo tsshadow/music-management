@@ -44,6 +44,12 @@ def test_the_migration_ledger_is_an_expected_table():
     assert 'schema_migrations' in schema_sources.migration_declared_tables()
 
 
+def test_the_channel_link_proposals_are_an_expected_table():
+    """docs/designs/channel-links: db_init creates it and migrate_v40 declares it."""
+    assert 'channel_link_proposals' in schema_sources.code_declared_tables()
+    assert 'channel_link_proposals' in schema_sources.migration_declared_tables()
+
+
 def test_the_migrations_are_re_runnable(database):
     """scripts/deploy.sh applies every migrate_*.sql on each deploy, so the
     second run must be a no-op rather than an error."""

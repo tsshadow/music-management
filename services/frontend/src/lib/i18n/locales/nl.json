@@ -412,7 +412,11 @@
           "complete": "afgerond",
           "capped": "afgekapt op het maximum",
           "parked": "onderbroken"
-        }
+        },
+        "colLinked": "Gekoppeld aan",
+        "linkProposal": "voorstel",
+        "unlink": "{name} ontkoppelen",
+        "unlinked": "Koppeling van {channel} verwijderd"
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -473,7 +477,40 @@
       "saveUpper": "OPSLAAN",
       "savingUpper": "OPSLAAN...",
       "fieldDefault": "standaard {value}",
-      "fieldAllowed": "toegestaan {min}–{max}"
+      "fieldAllowed": "toegestaan {min}–{max}",
+      "tabLinks": "Koppelingen",
+      "links": {
+        "help": "Voorstellen om een kanaal aan zijn label of artiest te koppelen. Alleen namen die, los van hoofdletters, accenten en leestekens, precies gelijk zijn aan een bekend label of een goedgekeurde artiest worden voorgesteld, of die via een alias of doorverwijzing naar die artiest wijzen. Een afgewezen voorstel komt niet terug.",
+        "search": "Zoek kanaal of naam...",
+        "kindFilter": "Soort",
+        "platformFilter": "Platform",
+        "allKinds": "Label en artiest",
+        "allPlatforms": "Alle platforms",
+        "refresh": "Voorstellen zoeken",
+        "loading": "Voorstellen laden...",
+        "unavailable": "Koppelingen niet beschikbaar",
+        "empty": "Geen open voorstellen. Druk op Voorstellen zoeken om de kanalen opnieuw te vergelijken.",
+        "noMatch": "Geen voorstellen voor dit filter.",
+        "colChannel": "Kanaal",
+        "colTarget": "Voorstel",
+        "colSource": "Waarom",
+        "colTracks": "Tracks",
+        "confirm": "Bevestigen",
+        "reject": "Afwijzen",
+        "confirmed": "{channel} gekoppeld aan {target}",
+        "rejected": "Voorstel afgewezen",
+        "stale": "Het voorgestelde label of de artiest bestaat niet meer; het voorstel is vervallen.",
+        "refreshed": "{created} nieuwe voorstellen, {open} open, {withdrawn} vervallen, {ambiguous} kanalen overgeslagen als dubbelzinnig.",
+        "kind": {
+          "label": "Label",
+          "artist": "Artiest"
+        },
+        "source": {
+          "name": "Zelfde naam",
+          "alias": "Alias",
+          "redirect": "Doorverwijzing"
+        }
+      }
     },
     "genres": {
       "actions": "Acties",

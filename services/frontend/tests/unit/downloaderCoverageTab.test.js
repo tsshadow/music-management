@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import DownloaderCoverage from "../../src/lib/management/DownloaderCoverage.svelte";
 
-const RATE_STATE = { source: "soundcloud", multiplier: 1, cooldown_remaining: 0 };
+const RATE_STATE = {
+  source: "soundcloud",
+  multiplier: 1,
+  cooldown_remaining: 0,
+};
 
 function body(source = "soundcloud") {
   return {
@@ -41,6 +45,13 @@ function body(source = "soundcloud") {
         last_checked_at: "2026-09-21T10:00:00",
         last_deep_sweep_at: null,
         last_download_at: null,
+        channel: {
+          id: 7,
+          name: "Dirty Workz",
+          label: { id: 3, name: "Dirty Workz" },
+          artist: null,
+          open_proposals: 1,
+        },
       },
       {
         account: "done-records",
@@ -77,7 +88,10 @@ function body(source = "soundcloud") {
 }
 
 function props() {
-  return { API_BASE: "/muma", getHeaders: (extra = {}) => ({ ...extra, "X-API-Key": "k" }) };
+  return {
+    API_BASE: "/muma",
+    getHeaders: (extra = {}) => ({ ...extra, "X-API-Key": "k" }),
+  };
 }
 
 describe("DownloaderCoverage", () => {
@@ -117,7 +131,9 @@ describe("DownloaderCoverage", () => {
   it("says a channel without a snapshot is not counted yet, and an unknown last download is unknown", async () => {
     render(DownloaderCoverage, props());
     await waitFor(() => expect(screen.getByText("dirty-workz")).toBeTruthy());
-    await fireEvent.change(screen.getByLabelText("Filter"), { target: { value: "all" } });
+    await fireEvent.change(screen.getByLabelText("Filter"), {
+      target: { value: "all" },
+    });
     await waitFor(() => expect(screen.getByText("fresh-face")).toBeTruthy());
     // The uncounted row says so in both the progress and the count column.
     expect(screen.getAllByText("nog niet geteld").length).toBeGreaterThanOrEqual(2);
@@ -145,11 +161,31 @@ describe("DownloaderCoverage", () => {
     expect(requested.length).toBe(2);
   });
 
+  it("shows the label a channel is linked to and a marker for an open proposal", async () => {
+    const onOpenLinks = vi.fn();
+    render(DownloaderCoverage, { ...props(), onOpenLinks });
+    await waitFor(() => expect(screen.getByText("dirty-workz")).toBeTruthy());
+    expect(screen.getByText("Gekoppeld aan")).toBeTruthy();
+    expect(screen.getByText("Dirty Workz")).toBeTruthy();
+    await fireEvent.click(screen.getByRole("button", { name: "voorstel" }));
+    expect(onOpenLinks).toHaveBeenCalled();
+  });
+
+  it("unlinks through the channel-links endpoint and reloads", async () => {
+    render(DownloaderCoverage, props());
+    await waitFor(() => expect(screen.getByText("Dirty Workz")).toBeTruthy());
+    await fireEvent.click(screen.getByRole("button", { name: "Dirty Workz ontkoppelen" }));
+    await waitFor(() => expect(requested).toContain("/muma/api/channel-links/channels/7/label"));
+    await waitFor(() => expect(requested.length).toBe(3));
+  });
+
   it("names the reason on screen when the counts cannot be loaded", async () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: false,
       status: 503,
-      json: async () => ({ detail: "Could not read the coverage: Connection refused" }),
+      json: async () => ({
+        detail: "Could not read the coverage: Connection refused",
+      }),
     }));
     render(DownloaderCoverage, props());
     await waitFor(() => expect(screen.getByText(/Connection refused/)).toBeTruthy());

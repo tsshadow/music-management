@@ -8,6 +8,8 @@ from services.downloader.account_snapshot import SNAPSHOT_CAPPED, SNAPSHOT_COMPL
 from services.music_manager.downloader_coverage import (
     ConfiguredAccount,
     build_coverage,
+    channel_entry,
+    channel_for,
     totals,
     write_off_rows,
     youtube_key,
@@ -146,6 +148,44 @@ class SnapshotStateInRowsTest(unittest.TestCase):
         )
         self.assertEqual(1, body['totals']['complete'])
         self.assertEqual('complete', body['accounts'][0]['state'])
+
+
+class ChannelBridgeTest(unittest.TestCase):
+    """An account finds its channel through one path from the archive. See docs/designs/channel-links."""
+
+    CHANNELS = {'brain impact': {'id': 4, 'name': 'BRAIN IMPACT'}}
+
+    def test_the_channel_is_the_folder_below_the_platform_folder(self):
+        found = channel_for('/mnt/music/Soundcloud/BRAIN  Impact/track.mp3', self.CHANNELS)
+        self.assertEqual(4, found['id'])
+
+    def test_a_path_outside_a_platform_folder_has_no_channel(self):
+        self.assertIsNone(channel_for('/mnt/music/EPs/Label/track.mp3', self.CHANNELS))
+        self.assertIsNone(channel_for(None, self.CHANNELS))
+
+    def test_a_folder_no_channel_row_knows_has_no_channel(self):
+        self.assertIsNone(channel_for('/mnt/music/Soundcloud/Other/track.mp3', self.CHANNELS))
+
+    def test_the_entry_carries_only_the_links_that_are_set(self):
+        entry = channel_entry(
+            {'id': 1, 'name': 'X', 'label_id': 9, 'label_name': 'Traxtorm', 'artist_id': None, 'open_proposals': 2}
+        )
+        self.assertEqual({'id': 9, 'name': 'Traxtorm'}, entry['label'])
+        self.assertIsNone(entry['artist'])
+        self.assertEqual(2, entry['open_proposals'])
+
+    def test_rows_are_looked_up_by_the_archive_key_and_carry_their_channel(self):
+        account = ConfiguredAccount('brainimpact', 'brainimpact', archive_key='555')
+        body = build_coverage(
+            'soundcloud', [account], {}, {'555': NOW}, 0, 0, {}, None, NOW, {'555': {'id': 4, 'name': 'BRAIN IMPACT'}}
+        )
+        row = body['accounts'][0]
+        self.assertEqual(NOW.isoformat(), row['last_download_at'])
+        self.assertEqual(4, row['channel']['id'])
+
+    def test_without_channels_every_row_says_none(self):
+        body = coverage([ConfiguredAccount('dj_a', 'dj_a')], {})
+        self.assertIsNone(body['accounts'][0]['channel'])
 
 
 if __name__ == '__main__':

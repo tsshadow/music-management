@@ -412,7 +412,11 @@
           "complete": "finished",
           "capped": "capped at the maximum",
           "parked": "interrupted"
-        }
+        },
+        "colLinked": "Linked to",
+        "linkProposal": "proposal",
+        "unlink": "Unlink {name}",
+        "unlinked": "Link of {channel} removed"
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -473,7 +477,40 @@
       "saveUpper": "SAVE",
       "savingUpper": "SAVING...",
       "fieldDefault": "default {value}",
-      "fieldAllowed": "allowed {min}–{max}"
+      "fieldAllowed": "allowed {min}–{max}",
+      "tabLinks": "Links",
+      "links": {
+        "help": "Proposals to link a channel to its label or artist. Only names that, apart from case, accents and punctuation, equal a known label or an approved artist are proposed, or names that reach that artist through an alias or redirect. A rejected proposal does not come back.",
+        "search": "Search channel or name...",
+        "kindFilter": "Kind",
+        "platformFilter": "Platform",
+        "allKinds": "Label and artist",
+        "allPlatforms": "All platforms",
+        "refresh": "Find proposals",
+        "loading": "Loading proposals...",
+        "unavailable": "Links unavailable",
+        "empty": "No open proposals. Press Find proposals to compare the channels again.",
+        "noMatch": "No proposals for this filter.",
+        "colChannel": "Channel",
+        "colTarget": "Proposal",
+        "colSource": "Why",
+        "colTracks": "Tracks",
+        "confirm": "Confirm",
+        "reject": "Reject",
+        "confirmed": "{channel} linked to {target}",
+        "rejected": "Proposal rejected",
+        "stale": "The proposed label or artist no longer exists; the proposal was withdrawn.",
+        "refreshed": "{created} new proposals, {open} open, {withdrawn} withdrawn, {ambiguous} channels skipped as ambiguous.",
+        "kind": {
+          "label": "Label",
+          "artist": "Artist"
+        },
+        "source": {
+          "name": "Same name",
+          "alias": "Alias",
+          "redirect": "Redirect"
+        }
+      }
     },
     "genres": {
       "actions": "Actions",

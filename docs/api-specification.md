@@ -117,6 +117,25 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
   (deprecated).
+- **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
+  SoundCloud/YouTube channel to its label or artist on strong name equality.
+  - **GET `/proposals?status=new|confirmed|rejected|stale&kind=label|artist`** (any authenticated account):
+    `[{id, channel_id, platform, channel_name, kind, target_id, target_name, source, status, track_count,
+    created_at, decided_at}]`, busiest channel first. `source` is `name`, `alias` or `redirect`. `400` for an
+    unknown status or kind.
+  - **POST `/proposals/refresh`** (`rules.manage`): runs the search, `{created, open, withdrawn, ambiguous}`.
+    Decided rows are never touched; a second run in a row reports `created: 0, withdrawn: 0`.
+  - **POST `/proposals/{id}/confirm`** (`rules.manage`): writes `channels.label_id`/`artist_id`,
+    `{status: "confirmed", channel_id, kind, target_id}`, or `status: "stale"` when the target was deleted.
+    Idempotent. `404` unknown id, `409` when the proposal is rejected/stale or the channel is linked to
+    another target of that kind.
+  - **POST `/proposals/{id}/reject`** (`rules.manage`): `{status: "rejected"}`, idempotent; `409` on a
+    confirmed proposal.
+  - **DELETE `/channels/{channel_id}/{kind}`** (`rules.manage`): clears the link and rejects the proposal
+    behind it, `{status: "unlinked"}`; `400` unknown kind, `404` unknown channel.
+- **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
+  `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
+  path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 087).
 - **GET `/api/tagger/retag/pending`**: `{"total": <int>, "by_reason": [{"reason", "count"}], "failed": <int>,
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from services.common.channels import channel_from_path, normalize_channel_name
 from services.downloader.account_schedule import AccountCheck
 
 SOURCES = ('soundcloud', 'youtube')
@@ -33,6 +34,14 @@ class ConfiguredAccount:
     name: str
     key: str
     download_type: str | None = None
+    # What the download archive files the account under, when that differs from `key`: the
+    # SoundCloud archive keys every row on the numeric `soundcloud_id`, not on the slug.
+    archive_key: str | None = None
+
+    @property
+    def archive(self) -> str:
+        """The key to look the account up by in the archive."""
+        return self.archive_key or self.key
 
 
 def youtube_key(name: str, download_type: str | None) -> str:
@@ -44,8 +53,35 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
+def channel_entry(row: Mapping[str, Any]) -> dict[str, Any]:
+    """The `channel` object of a coverage row, from a channels row joined to its links."""
+    return {
+        'id': row['id'],
+        'name': row['name'],
+        'label': {'id': row['label_id'], 'name': row['label_name']} if row.get('label_id') else None,
+        'artist': {'id': row['artist_id'], 'name': row['artist_name']} if row.get('artist_id') else None,
+        'open_proposals': int(row.get('open_proposals') or 0),
+    }
+
+
+def channel_for(path: str | None, channels: Mapping[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """The channel a file the account wrote lies under, or None.
+
+    The configured account (a SoundCloud slug like `brainimpact`) and the channel (the folder
+    the downloader wrote to, `BRAIN IMPACT`) cannot be derived from each other, so one path
+    from the archive is the bridge. `channels` is keyed by `normalize_channel_name`.
+    """
+    found = channel_from_path(path or '')
+    if not found:
+        return None
+    return channels.get(normalize_channel_name(found[1]))
+
+
 def account_row(
-    account: ConfiguredAccount, check: AccountCheck | None, last_download_at: datetime | None
+    account: ConfiguredAccount,
+    check: AccountCheck | None,
+    last_download_at: datetime | None,
+    channel: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One table row. Every snapshot field is None until a deep pass has counted the account."""
     snapshot = check.snapshot if check else None
@@ -63,6 +99,7 @@ def account_row(
         'last_checked_at': _iso(check.last_checked_at) if check else None,
         'last_deep_sweep_at': _iso(check.last_deep_sweep_at) if check else None,
         'last_download_at': _iso(last_download_at),
+        'channel': channel,
     }
 
 
@@ -115,9 +152,23 @@ def build_coverage(
     write_offs: Mapping[str, int],
     rate_state: dict[str, Any] | None,
     now: datetime,
+    channels: Mapping[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """The full response body for one source."""
-    rows = [account_row(account, checks.get(account.key), last_downloads.get(account.key)) for account in configured]
+    """The full response body for one source.
+
+    `last_downloads` and `channels` are keyed by the account's archive key (see
+    `ConfiguredAccount.archive`); `channels` maps it to the channel row it writes into.
+    """
+    channels = channels or {}
+    rows = [
+        account_row(
+            account,
+            checks.get(account.key),
+            last_downloads.get(account.archive),
+            channels.get(account.archive),
+        )
+        for account in configured
+    ]
     rows.sort(key=lambda row: (-(row['remaining'] or 0), row['account'].lower()))
     summary = totals(rows)
     summary['downloads_7d'] = int(downloads_7d)

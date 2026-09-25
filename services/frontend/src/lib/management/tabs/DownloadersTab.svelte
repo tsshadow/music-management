@@ -399,6 +399,9 @@
                 <Timer class="text-brand" size={20} /> {SOURCE_LABELS[entry.source] || entry.source}
               </h3>
               <p class="text-sm font-bold mt-1 {toneClass(backoff.tone)}">{backoff.label}</p>
+              {#if backoff.advice}
+                <p class="text-sm mt-1 max-w-xl {toneClass(backoff.tone)}">{backoff.advice}</p>
+              {/if}
               {#if state}
                 <p class="text-xs text-muma-spotify-text mt-1">
                   {$t('management.downloaders.cadence', { sweep: formatDuration(state.effective_sweep_interval), cooldown: formatDuration(state.effective_account_cooldown) })}

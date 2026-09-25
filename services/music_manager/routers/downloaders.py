@@ -99,6 +99,9 @@ def _state_for(source: str) -> dict[str, Any]:
         'last_429_at': snapshot.last_429_at.isoformat() if snapshot.last_429_at else None,
         'cooldown_until': snapshot.cooldown_until.isoformat() if snapshot.cooldown_until else None,
         'cooldown_remaining': state.cooldown_remaining(),
+        # Why the cooldown was set when it is not a plain 403/429, e.g. 'bot_check'
+        # (bug report 076); Beheer turns it into an instruction.
+        'block_reason': snapshot.block_reason,
         'effective_sweep_interval': effective.sweep_interval,
         'effective_account_cooldown': effective.account_cooldown,
     }

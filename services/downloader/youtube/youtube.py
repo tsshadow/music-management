@@ -10,6 +10,8 @@ from services.common.config_store import ConfigStore
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.downloader import shutdown
 from services.downloader.account_report import AccountReport
+from services.downloader.bot_check import BOT_CHECK, COOKIES_MISSING, BotCheckBreaker
+from services.downloader.cookie_profile import snapshot_cookie_profile
 from services.downloader.deep_sweep import (
     DeepSweepReport,
     ListingFailed,
@@ -46,6 +48,36 @@ MAX_DURATION = 21600
 # which is exactly how the existing pile of 640x360 files came about.
 VIDEO_FORMAT = 'bestvideo*+bestaudio/best'
 
+# What the one WARNING says when YouTube shows its sign-in wall (bug report 076).
+BOT_CHECK_ADVICE = (
+    'YouTube asks to sign in ("confirm you\'re not a bot"): the YouTube session in the muma-firefox '
+    'container is logged out or no longer accepted. Log in to YouTube again in that Firefox '
+    '(noVNC on port 7003), then press "Reset backoff" for YouTube in Beheer > Downloaders.'
+)
+COOKIES_MISSING_ADVICE = (
+    'yt-dlp cannot read the Firefox cookie database. Check that ${HOST_DATA_PATH}/firefox is mounted '
+    'at /firefox-config in the youtube worker and that YT_COOKIES points at its profile directory.'
+)
+
+
+def cookie_profile_problem(profile: str | None) -> str | None:
+    """What is wrong with the Firefox profile YT_COOKIES names, or None when it looks usable.
+
+    Checked once per round, before anything is downloaded: without the cookie
+    database yt-dlp refuses every video, and the sweep would report that once
+    per channel instead of once.
+    """
+    if not profile:
+        return None
+    if not os.path.isdir(profile):
+        return f'Firefox profile {profile} does not exist in this container'
+    database = os.path.join(profile, 'cookies.sqlite')
+    if not os.path.isfile(database):
+        return f'Firefox profile {profile} has no cookies.sqlite'
+    if not os.access(database, os.R_OK):
+        return f'{database} is not readable by this container'
+    return None
+
 
 class YoutubeDownloader:
     def __init__(
@@ -78,6 +110,12 @@ class YoutubeDownloader:
         """
         self._config = ConfigStore()
         self.policy = SweepPolicy(SOURCE, timing=timing, rate_state=rate_state, schedule=schedule, notifier=notifier)
+        # Shared by every worker thread of a sweep; see services/downloader/bot_check.py.
+        self.bot_breaker = BotCheckBreaker(self.timing.bot_check_threshold)
+        # The live Firefox profile YT_COOKIES names, and the problem with it if any;
+        # both set by _cookie_options.
+        self._cookie_profile: str | None = None
+        self.cookie_problem: str | None = None
         values = self._config.get_many(
             [
                 'youtube_folder',
@@ -199,6 +237,8 @@ class YoutubeDownloader:
                 profile = parts[1] if len(parts) > 1 else None
                 logging.info(f'Using cookiesfrombrowser=firefox with profile: {profile}')
                 opts['cookiesfrombrowser'] = ('firefox', profile)
+                self._cookie_profile = profile or None
+                self.cookie_problem = cookie_profile_problem(profile)
                 return opts
             if os.path.exists(cookies_file):
                 logging.info(f'Using cookies.txt from YT_COOKIES: {cookies_file}')
@@ -210,6 +250,34 @@ class YoutubeDownloader:
         opts['cookiesfrombrowser'] = ('firefox',)
         logging.info('Using cookiesfrombrowser=firefox (no YT_COOKIES file).')
         return opts
+
+    def _use_cookie_snapshot(self) -> str | None:
+        """Point this run's yt-dlp options at a checkpointed copy of the live profile.
+
+        The same fix SoundCloud got (services/downloader/cookie_profile.py): Firefox
+        is running and keeps its newest cookie writes in ``cookies.sqlite-wal``,
+        which yt-dlp's own copy step leaves behind. YouTube rotates its session
+        cookies, so the copy yt-dlp read could hold an already-replaced session.
+        Returns the snapshot directory for the caller to remove, or None.
+        """
+        if not self._cookie_profile:
+            return None
+        snapshot = snapshot_cookie_profile(self._cookie_profile)
+        if snapshot is None:
+            return None
+        for opts in (self._base_ydl_opts, self._video_ydl_opts):
+            if opts.get('cookiesfrombrowser'):
+                opts['cookiesfrombrowser'] = ('firefox', snapshot)
+        return snapshot
+
+    def _restore_live_profile(self, snapshot: str | None) -> None:
+        """Remove this run's snapshot and point the options back at the live profile."""
+        if snapshot is None:
+            return
+        shutil.rmtree(snapshot, ignore_errors=True)
+        for opts in (self._base_ydl_opts, self._video_ydl_opts):
+            if opts.get('cookiesfrombrowser'):
+                opts['cookiesfrombrowser'] = ('firefox', self._cookie_profile)
 
     def _build_ydl_opts(
         self, archive_file: str, break_on_existing: bool = True, redownload: bool = False, download_type: str = AUDIO
@@ -287,6 +355,10 @@ class YoutubeDownloader:
         bounds = (min_duration, MAX_DURATION)
 
         def match_filter(info):
+            # yt-dlp only calls a one-argument filter with a video's full metadata,
+            # so reaching this line means YouTube answered: the run of sign-in
+            # refusals, if any, is over.
+            self.bot_breaker.record_success()
             duration = info.get('duration')
             title = info.get('title', 'unknown')
             if self.write_offs.should_skip(ledger_key, info.get('id'), bounds):
@@ -332,7 +404,7 @@ class YoutubeDownloader:
         so nothing pages and `break_on_existing` has nothing to stop.
         """
         for attempt in range(1, self.timing.retry_attempts + 1):
-            report = AccountReport()
+            report = AccountReport(breaker=self.bot_breaker)
             try:
                 opts = self._attempt_opts(ydl_opts, report)
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
@@ -342,7 +414,7 @@ class YoutubeDownloader:
             except RateLimited:
                 raise
             except Exception as exc:
-                rate_limited = self._blocked(report, url) or self.policy.rate_limit_from(exc, url)
+                rate_limited = self._blocked(report, url, exc) or self.policy.rate_limit_from(exc, url)
                 if rate_limited is not None:
                     raise rate_limited from exc
                 if '404' in str(exc):
@@ -369,7 +441,7 @@ class YoutubeDownloader:
         opts['logger'] = report
         return opts
 
-    def _blocked(self, report: AccountReport, target: str):
+    def _blocked(self, report: AccountReport, target: str, error: BaseException | None = None):
         """Park the source when this attempt was refused; return the `RateLimited`, or None.
 
         Blunter than SoundCloud's reading on purpose. SoundCloud answers 403 for a
@@ -382,7 +454,22 @@ class YoutubeDownloader:
         Only a 403 yt-dlp gave up on counts. It tries several player clients in turn
         and retries a failed request, logging each refusal as a warning on the way;
         a video that still came back is no reason to park the source for hours.
+
+        Checked first: the sign-in wall (the breaker tripped, bug report 076) and a
+        cookie database yt-dlp could not load. Neither lifts by waiting a minute,
+        and both would otherwise fail every remaining video and account the same way.
         """
+        if self.bot_breaker.tripped:
+            return self.policy.park_block(
+                BOT_CHECK,
+                f'{self.bot_breaker.count} videos in a row ending at {target}',
+                self.timing.bot_check_pause,
+                BOT_CHECK_ADVICE,
+            )
+        if error is not None and type(error).__name__ == 'CookieLoadError':
+            return self.policy.park_block(
+                COOKIES_MISSING, f'{target} ({error})', self.timing.bot_check_pause, COOKIES_MISSING_ADVICE
+            )
         if report.throttled:
             return self.policy.park('429', target)
         if report.forbidden_errors:
@@ -574,7 +661,7 @@ class YoutubeDownloader:
             download_type=account.download_type,
         )
         for attempt in range(1, self.timing.retry_attempts + 1):
-            report = AccountReport()
+            report = AccountReport(breaker=self.bot_breaker)
             try:
                 opts = self._attempt_opts(opts_template, report)
                 with self._create_ydl(opts, download_type=account.download_type) as ydl:
@@ -589,7 +676,7 @@ class YoutubeDownloader:
                 msg = str(e)
                 # The report first: `break_on_existing` ends a run by raising, and a
                 # 403 met before that point is still a 403.
-                rate_limited = self._blocked(report, name) or self.policy.rate_limit_from(e, name)
+                rate_limited = self._blocked(report, name, e) or self.policy.rate_limit_from(e, name)
                 if rate_limited is not None:
                     raise rate_limited from e
                 if '404' in msg:
@@ -726,11 +813,32 @@ class YoutubeDownloader:
         return True
 
     def run(self, break_on_existing_arg: bool | None = None, redownload: bool = False, account: str = ''):
+        """One round over the due channels, audio first, unless the source is parked."""
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
             return
         if not self.policy.begin():
             return
+        self.bot_breaker.reset()
+        if self.cookie_problem:
+            # One clear line instead of the same failure for every video of every
+            # channel; the pause keeps it from repeating every sweep interval.
+            self.policy.park_block(
+                COOKIES_MISSING,
+                self.cookie_problem,
+                self.timing.bot_check_pause,
+                COOKIES_MISSING_ADVICE,
+                level=logging.ERROR,
+            )
+            return
+        snapshot = self._use_cookie_snapshot()
+        try:
+            self._run_sweep(break_on_existing_arg, redownload, account)
+        finally:
+            self._restore_live_profile(snapshot)
+
+    def _run_sweep(self, break_on_existing_arg, redownload: bool, account: str) -> None:
+        """The body of `run`, once the sweep may start and the cookies are in place."""
         self.redownload_mode = redownload
         accounts = self._get_accounts(account)
         if not accounts:
@@ -777,7 +885,9 @@ class YoutubeDownloader:
             try:
                 processed = self._process_batch(batch, break_on_existing_arg, redownload, processed)
             except RateLimited as exc:
-                logging.warning('Stopping the YouTube sweep: %s', exc)
+                # A block already said everything in its own single line (park_block).
+                level = logging.INFO if exc.reason in (BOT_CHECK, COOKIES_MISSING) else logging.WARNING
+                logging.log(level, 'Stopping the YouTube sweep: %s', exc)
                 return False
             if i + burst_size < total_accounts:
                 self.policy.throttle()

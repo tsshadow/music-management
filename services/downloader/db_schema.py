@@ -29,6 +29,7 @@ _CREATE_RATE_STATE = """
         last_403_at     DATETIME    NULL,
         last_429_at     DATETIME    NULL,
         cooldown_until  DATETIME    NULL,
+        block_reason    VARCHAR(32) NULL,
         updated_at      TIMESTAMP   DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
 """
@@ -91,6 +92,9 @@ _ALTER_UNAVAILABLE = (
     'ALTER TABLE downloads_soundcloud_unavailable ADD COLUMN IF NOT EXISTS attempts INT NOT NULL DEFAULT 0',
 )
 
+# Why a cooldown was set when it is not a plain 403/429 ('bot_check', bug report 076).
+_ALTER_RATE_STATE = ('ALTER TABLE downloads_rate_state ADD COLUMN IF NOT EXISTS block_reason VARCHAR(32) NULL',)
+
 _STATEMENTS = (_CREATE_SETTINGS, _CREATE_RATE_STATE, _CREATE_ACCOUNT_CHECKS, _CREATE_UNAVAILABLE)
 
 _lock = threading.Lock()
@@ -101,7 +105,7 @@ def ensure_downloader_tables(cursor) -> None:
     """Create the downloader tables if they do not exist yet, and widen the old ones."""
     for statement in _STATEMENTS:
         cursor.execute(statement)
-    for statement in _ALTER_ACCOUNT_CHECKS + _ALTER_UNAVAILABLE:
+    for statement in _ALTER_RATE_STATE + _ALTER_ACCOUNT_CHECKS + _ALTER_UNAVAILABLE:
         cursor.execute(statement)
 
 

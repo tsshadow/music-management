@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.75.1 (2026-09-25)
+
+- **The `__TODO` label repair answered 500 on production.** The music-manager image did not
+  contain `services/importer`, whose label resolver the repair reuses. It is copied now, and a CI
+  test fails whenever code in the container imports a package the image does not carry. See bug
+  report 092.
 ## Global Version 0.75.0 (2026-09-25)
 
 - The tagger only recognises approved artist names; new names wait in Artiestcuratie as "Nieuw" instead

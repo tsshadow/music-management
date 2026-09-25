@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'Cache')
+
 from services.tagger.constants import ARTIST, REMIXER, TITLE
 from services.tagger.Song.LabelSong import LabelSong
 

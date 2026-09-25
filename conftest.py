@@ -15,6 +15,10 @@ os.environ['NOTIFY_URL'] = ''
 # matches pytest's discovery pattern, so it has to be excluded explicitly.
 collect_ignore = ['tools/test_fetcher_trace.py']
 
+# `@pytest.mark.mock_base(...)`: the opt-in, per-module stubs of services/tests/mock_base.py
+# (bug report 085). Registered here, at the root, so tools/ and tests/ can use it too.
+pytest_plugins = ['services.tests.mock_base_plugin']
+
 # Deliberately no API_KEY default here. tests/contracts/ drives a *containerised*
 # music-manager over HTTP and reads os.getenv('API_KEY', 'test-api-key') to match the
 # value docker/compose.test.yml starts that container with; a default set this high up

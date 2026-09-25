@@ -4,9 +4,7 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.deep_sweep import FlatTrack, ListingFailed
@@ -14,6 +12,8 @@ from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, 
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 NOW = datetime(2026, 8, 23, 12, 0, 0)
 

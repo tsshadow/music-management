@@ -3,6 +3,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
@@ -15,6 +16,8 @@ from services.music_manager.tests.scripted_cursor import (
     assert_rolled_back,
     transaction_log,
 )
+
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 API_KEY = resolve_system_api_key()
 

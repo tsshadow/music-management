@@ -21,9 +21,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'Cache')
+
 from services.common.Helpers.GenreRulesHelper import WHITE, GenreRow  # noqa: E402
 from services.tagger.constants import ARTIST, DATE  # noqa: E402
 from services.tagger.Song import LabelSong as label_song_module  # noqa: E402

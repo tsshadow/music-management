@@ -8,9 +8,12 @@ seven channels that carry both rows. These tests pin down the split.
 import unittest
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('yt_dlp', 'Cache')
+
 from services.downloader.rate_state import RateLimited
 from services.downloader.timing import load_timing
 from services.downloader.youtube.youtube import VIDEO_FORMAT, YoutubeDownloader

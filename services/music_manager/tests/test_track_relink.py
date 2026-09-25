@@ -6,16 +6,16 @@ how `relink_orphaned_tracks` picks the successor of a row orphaned before the fi
 runs against MariaDB in tests/integration/test_track_relink.py.
 """
 
-import sys
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.music_manager import track_relink
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 OLD, NEW = 2, 5
 TRACKS = [

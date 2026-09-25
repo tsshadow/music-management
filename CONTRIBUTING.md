@@ -47,6 +47,26 @@ measured on source only: the test files under `services/` are omitted
 (`[tool.coverage.run]` in `pyproject.toml`), so a new test file cannot raise the
 figure by being executed itself.
 
+**Stubs are opt-in, per test module.** `services/tests/mock_base.py` can stand in for
+`mutagen`, `yt_dlp`, `pymysql`, `dbutils`, `config_store`, `Cache`, `DatabaseConnector` and a few
+more (the keys of `STUB_BUILDERS`), but only for a module that asks:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'yt_dlp', 'Cache')
+```
+
+List only what the module relies on. The marker must be module-level with literal names:
+`services/tests/mock_base_plugin.py` reads it from the source before the module is imported
+(the stubs have to be there while its imports run), and rejects it on a class or test. The
+stubs exist while that module is imported and while its tests run; afterwards they, and every
+project module imported under them, leave `sys.modules`, so the next module gets the real
+libraries. Modules asking for the same set share one set of stub objects, so reset what you
+change (`reset_database_helpers()` for the `Cache` helpers). To stub something just for one
+test, use `patch.dict(sys.modules, {...})`, never a bare assignment --
+`tests/ci/test_mock_base_isolation.py` fails when a stub outlives collection (bug report 085).
+
 **Mocked tests are not enough for SQL.** Everything under `services/` mocks the
 database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in

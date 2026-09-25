@@ -10,12 +10,8 @@ import re
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tests.connector_fakes import fake_connector
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.tagger import ingestion  # noqa: E402
+from services.tests.connector_fakes import fake_connector
 
 
 class FakeTag:

@@ -4,10 +4,10 @@ These deliberately live outside `services/`, for two reasons:
 
 * `scripts/test/music-management-unit.sh` collects `services/` and `tools/`, so
   putting them here keeps a suite that needs a database out of the unit run;
-* `services/conftest.py` installs the mock_base stubs (pymysql, mutagen, ...)
-  for everything underneath it. pytest only loads conftest files along the path
-  to a test, so from here the *real* pymysql is used -- which is the entire
-  point of this suite.
+* the real pymysql is used here -- which is the entire point of this suite.
+  The mock_base stubs (pymysql, mutagen, ...) are opt-in per test module since
+  bug report 085 (`pytestmark = pytest.mark.mock_base(...)`), and nothing under
+  tests/integration/ asks for them.
 
 Start the database with ./scripts/test/db-integration.sh, which also sets the
 DB_* environment variables these fixtures read.

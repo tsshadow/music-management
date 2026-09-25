@@ -3,9 +3,7 @@
 import unittest
 from unittest import mock
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.deep_sweep import FlatTrack, ListingFailed
@@ -14,6 +12,8 @@ from services.downloader.timing import load_timing
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs
 from services.downloader.youtube.youtube import YoutubeDownloader
 from services.downloader.youtube.YoutubeAccount import AUDIO, VIDEO, YoutubeAccount
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class StubNotifier:

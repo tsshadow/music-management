@@ -1,8 +1,8 @@
 """The downloader's error paths against the real yt-dlp, in a subprocess.
 
-`services/tests/mock_base.py` replaces `yt_dlp` with a bare module for every test
-under `services/`, so the tests there can only assume how yt-dlp reacts to an
-error -- and one of them assumed wrong for years: it had `download()` raise on a
+The downloader's tests under `services/` ask for the `yt_dlp` stub of
+`services/tests/mock_base.py`, a bare module, so they can only assume how yt-dlp
+reacts to an error -- and one of them assumed wrong for years: it had `download()` raise on a
 403, which yt-dlp never does under ``ignoreerrors``. It reports the error to its
 logger and returns normally. What is proved here is exactly that behaviour and
 what the downloader now does with it:
@@ -93,9 +93,10 @@ def use_service_stubs(settings):
     # caches -- everything except yt_dlp, which is the point of this file. Nothing
     # here may reach a database, and the interpreter running it need not have the
     # MariaDB driver or the tagger's dependencies.
-    real = {{name: module for name, module in sys.modules.items() if name == 'yt_dlp' or name.startswith('yt_dlp.')}}
-    import services.tests.mock_base  # noqa: F401 - installs the stubs on import
-    sys.modules.update(real)
+    from services.tests import mock_base
+
+    mock_base.apply_env_defaults()
+    mock_base.build_stubs([name for name in mock_base.STUB_BUILDERS if name != 'yt_dlp'])
     config = sys.modules['services.common.config_store']
     config.ConfigStore.return_value.get_many.side_effect = lambda keys: {{k: settings.get(k) for k in keys}}
 

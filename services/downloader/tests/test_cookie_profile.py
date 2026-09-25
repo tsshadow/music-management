@@ -4,10 +4,6 @@ import sqlite3
 import tempfile
 import unittest
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader.cookie_profile import snapshot_cookie_profile
 
 

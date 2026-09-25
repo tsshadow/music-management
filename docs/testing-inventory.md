@@ -123,9 +123,8 @@
 
 ## Database integration tests (`tests/integration/`)
 - Runs every endpoint's SQL against a throwaway MariaDB: `./scripts/test/db-integration.sh`.
-- Lives outside `services/` on purpose. pytest only loads conftest files along the path to a
-  test, so from there the real `pymysql` is used rather than the `mock_base` stub -- which is
-  the entire point, since everything under `services/` mocks the cursor.
+- Lives outside `services/` on purpose, and asks for no `mock_base` stub, so the real `pymysql`
+  is used -- which is the entire point, since the unit tests under `services/` mock the cursor.
 - Builds the schema the way a deployment does: `services/common/db_init.py`, then every
   router's `init_db()`, then every `migrate_*.sql`. The migrations are applied twice, so one
   that is not re-runnable fails here rather than on deploy.
@@ -151,7 +150,9 @@
 - `scripts/test/music-management-unit.sh` collects everything under `services/` and `tools/`, plus `tests/ci/` and `tests/unit/`. It used to carry a hand-maintained allow-list of directories and files, which silently left about half the existing test files out of both the run and the reported coverage; discovery is now governed by `pytest.ini` and the root `conftest.py` alone, so a new test file needs no script change
 - Coverage is measured on source only: `[tool.coverage.run]` in `pyproject.toml` sets `source = services, tools` and omits `*Test.py`, `*/tests/*`, `*/test_*.py`, `*/conftest.py` and `mock_base.py`. Before that the ~220 test files under `services/` counted as covered code and `tools/` was not measured: 95.03% then, 84.89% on source only. `COVERAGE_MIN` is 84
 - `.pylintrc`: shared pylint config for all Python modules
-- `services/tests/`: root-wide/shared Python tests + `mock_base.py` (mock base for `mutagen`, `yt-dlp`, DB helpers)
+- `services/tests/`: root-wide/shared Python tests + `mock_base.py` (opt-in stubs for `mutagen`, `yt-dlp`, `pymysql`,
+  `config_store`, `Cache`, `DatabaseConnector`, ...; a module asks with `pytestmark = pytest.mark.mock_base(...)`,
+  see `mock_base_plugin.py` and bug report 085)
 - `build.sh` (`run_tests`, ~line 153): runs a subset, not the full suite -- `services/downloader/soundcloud/tests/`, `services/importer/tests/`, `services/tests/YoutubeDownloaderTest.py` and `services/music_manager/tests/` -- plus pylint over `services/` at a floor of 8.5, and aborts the container build if either fails. The full suite is CI's `backend:unit`
 - `scripts/hooks/pre-commit` (installed by `scripts/install-hooks.sh`): runs `scripts/lint.sh` and `scripts/test/music-management-unit.sh`
 

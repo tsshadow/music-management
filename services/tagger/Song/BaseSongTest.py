@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
 from mutagen.mp4 import MP4StreamInfoError
@@ -34,6 +35,8 @@ from services.tagger.Song import BaseSong as BaseSong_module
 from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException, log_broken_file
 from services.tagger.Song.SongHelper import merge_and_sort_genres, split_artists
 from services.tagger.Song.Tag import Tag
+
+pytestmark = pytest.mark.mock_base('mutagen')
 
 
 class BaseSongTest(unittest.TestCase):

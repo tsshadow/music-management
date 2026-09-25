@@ -7,14 +7,13 @@ in place -- and it must not delete a work that somebody or something still point
 """
 
 import importlib.util
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'repair_song_works.py'
 

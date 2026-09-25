@@ -1,11 +1,12 @@
-import sys
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 # Only stub these when they aren't already provided by services/tests/mock_base.py
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
 
 import services.music_manager.routers.users
 from services.music_manager.api_key import resolve_system_api_key

@@ -1,10 +1,6 @@
 import unittest
 from datetime import datetime
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore
 from services.downloader.rate_state import InMemoryRateStateStore, RateLimited, RateState
 from services.downloader.sweep import SweepPolicy

@@ -4,9 +4,12 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('yt_dlp', 'Cache')
+
 
 from services.downloader.rate_state import RateLimited  # isort:skip
 from services.downloader.soundcloud.account_probe import ProbeResult  # isort:skip

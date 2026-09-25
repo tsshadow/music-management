@@ -12,16 +12,15 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader import redownload  # isort:skip
 from services.downloader.account_schedule import AccountSchedule, InMemoryCheckStore  # isort:skip
 from services.downloader.rate_state import InMemoryRateStateStore, RateState  # isort:skip
 from services.downloader.timing import load_timing  # isort:skip
 from services.downloader.write_offs import InMemoryWriteOffStore, WriteOffs  # isort:skip
 from services.downloader.youtube import youtube as youtube_module  # isort:skip
+import pytest
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class FolderTestCase(unittest.TestCase):

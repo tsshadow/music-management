@@ -1,11 +1,11 @@
-import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.common.Helpers.NotificationService import NotificationService
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 class NotificationServiceTest(unittest.TestCase):

@@ -14,12 +14,6 @@ import pytest
 os.environ.setdefault('API_KEY', 'test-api-key')
 
 
-def pytest_configure(config):
-    from services.tests import mock_base
-
-    mock_base.setup_mocks()
-
-
 @pytest.fixture(autouse=True)
 def _reset_auth_rate_limiter():
     """Give every test a clean rate-limit window.

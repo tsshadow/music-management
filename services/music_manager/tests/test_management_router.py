@@ -889,6 +889,34 @@ class LabelProposalsTest(ManagementTestCase):
         self.assertTrue(any("status = 'rejected'" in s for s in self.statements()))
 
 
+class ImportConflictsTest(ManagementTestCase):
+    """The standing folder conflicts the importer warns about once (bug report 091)."""
+
+    def test_the_standing_conflicts_are_listed_oldest_first(self):
+        self.cursor.fetchall.return_value = [
+            {
+                'step': 'renamer',
+                'source': '/import/Release-(CAT1)',
+                'target': '/import/CAT1 - Release-(CAT1)',
+                'first_seen': '2026-09-25 17:00:00',
+                'last_seen': '2026-09-25 20:00:00',
+            }
+        ]
+
+        response = self.client.get('/api/import-conflicts', headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]['target'], '/import/CAT1 - Release-(CAT1)')
+        statement = self.statements()[0]
+        self.assertIn('FROM importer_conflicts', statement)
+        self.assertIn('ORDER BY first_seen', statement)
+
+    def test_the_list_needs_an_api_key(self):
+        response = self.client.get('/api/import-conflicts')
+
+        self.assertIn(response.status_code, (401, 403))
+
+
 class DecideGenreAtomicityTest(ManagementTestCase):
     """A genre decision's expansions are deleted and re-inserted in one transaction."""
 

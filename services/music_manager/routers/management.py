@@ -200,6 +200,30 @@ def get_label_proposals(status: str = 'new', _auth: dict = Depends(verify_api_ke
         conn.close()
 
 
+@router.get('/import-conflicts')
+def get_import_conflicts(_auth: dict = Depends(verify_api_key)):
+    """
+    Folder pairs the importer left in place because the name it wanted was taken.
+
+    Written by the importer's renamer and mover (services/importer/conflict_store.py,
+    bug report 091), which warn about each pair once and then only count it. Read-only:
+    resolving one means removing or renaming one of the two folders by hand, after which
+    the importer forgets the pair on its next cycle. Oldest first, because those are the
+    ones that have waited longest.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'SELECT step, source, target, first_seen, last_seen FROM importer_conflicts ORDER BY first_seen, target'
+            )
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+
 @router.post('/label-proposals/{proposal_id}/confirm')
 def confirm_label_proposal(
     proposal_id: int, decision: LabelDecisionRequest = Body(...), _auth: dict = Depends(require_rules_manage)

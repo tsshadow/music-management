@@ -10,6 +10,7 @@ from services.common.Helpers import Quarantine
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.NotificationService import notification_service
+from services.importer.conflict_store import MOVER, ConflictTracker
 from services.importer.label_proposal_store import NEW_ROW, LabelProposalStore, ProposalSnapshot, fingerprint
 from services.importer.label_resolver import resolve
 from services.importer.release_compare import is_same_release
@@ -146,6 +147,8 @@ class Mover:
         self._snapshot: ProposalSnapshot | None = None
         #: Unplaceable folders this cycle: seen, skipped as unchanged, and read again.
         self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
+        #: Standing conflicts, so each one is warned about once rather than every cycle.
+        self.conflicts = ConflictTracker(MOVER)
 
     def _propose(self, folder, cat_id, warning):
         """
@@ -225,16 +228,15 @@ class Mover:
         Same rule as the renamer: the same track names and lengths mean the release was
         imported before and this is a duplicate download, so the source goes. Anything
         else may be a different release that resolved to the same folder name, and gets
-        left alone rather than merged into the one already there.
+        left alone rather than merged into the one already there -- warned about once,
+        then counted in the cycle's summary line until someone resolves it (bug 091).
         """
-        if not is_same_release(src, dst):
-            logging.warning(
-                'Conflict: %s already exists but its contents differ from %s. '
-                'Leaving both in place for manual intervention',
-                dst,
-                src,
-            )
+        if self.conflicts.unchanged(src, dst):
             return
+        if not is_same_release(src, dst):
+            self.conflicts.differs(src, dst, dry_run=dry_run)
+            return
+        self.conflicts.same(src, dst)
         logging.warning('Conflict: %s already exists and holds the same files. Removing %s', dst, src)
         if not dry_run:
             self.remove(folder)
@@ -316,6 +318,7 @@ class Mover:
         logging.info('Starting Move Step')
         self._snapshot = self.proposals.snapshot()
         self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
+        self.conflicts.begin()
         only_folders = [
             f
             for f in listdir(self.settings.import_folder_path)
@@ -338,3 +341,4 @@ class Mover:
             self._counts['skipped'],
             self._counts['reread'],
         )
+        self.conflicts.end(dry_run=dry_run)

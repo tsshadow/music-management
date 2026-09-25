@@ -20,9 +20,11 @@ pytestmark = pytest.mark.mock_base('Cache')
 
 from services.importer import mover as mover_module  # noqa: E402
 from services.importer import settle  # noqa: E402
+from services.importer.conflict_store import MOVER, ConflictTracker  # noqa: E402
 from services.importer.label_proposal_store import KnownProposal, ProposalSnapshot  # noqa: E402
 from services.importer.label_resolver import LabelProposal  # noqa: E402
 from services.importer.mover import Mover, release_summary  # noqa: E402
+from services.importer.tests.test_importer_conflict_store import FakeConflictStore  # noqa: E402
 
 AN_HOUR_AGO = time.time() - 3600
 
@@ -279,3 +281,29 @@ class ReleaseSummaryTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MoverConflictIsWarnedOnceTest(MoverOnDiskTest):
+    """Bug report 091: a release whose label folder already holds a different one is warned about once."""
+
+    def test_a_standing_conflict_in_the_label_folder_warns_once_and_is_counted(self):
+        self.mover.conflicts = ConflictTracker(MOVER, FakeConflictStore())
+        self.mover.get_label = MagicMock(return_value='Scantraxx')
+        self.release('SCAN123 - Release', tracks=('01.mp3', '02.mp3'))
+        existing = os.path.join(self.eps, 'Scantraxx', 'SCAN123 - Release')
+        os.makedirs(existing)
+        with open(os.path.join(existing, '01.mp3'), 'w', encoding='utf-8') as handle:
+            handle.write('audio')
+
+        with self.assertLogs(level='DEBUG') as first:
+            self.mover.run()
+        with self.assertLogs(level='DEBUG') as second:
+            self.mover.run()
+
+        def conflict_warnings(logs):
+            return [r for r in logs.records if r.levelname == 'WARNING' and 'differ' in r.getMessage()]
+
+        self.assertEqual(len(conflict_warnings(first)), 1)
+        self.assertEqual(conflict_warnings(second), [])
+        self.assertTrue(any(r.getMessage().startswith('Standing folder conflicts (mover): 1') for r in second.records))
+        self.assertTrue(os.path.isdir(os.path.join(self.imports, 'SCAN123 - Release')))

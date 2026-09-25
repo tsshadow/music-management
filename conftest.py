@@ -1,3 +1,15 @@
+import os
+
+# No test may ever push to the real ntfy server. services/common/config_store.py runs
+# load_dotenv() at import time, so a developer's .env (which carries NOTIFY_URL) turned
+# every local test run -- including pre-commit hooks -- into real phone notifications:
+# on 2026-09-25 the artist-image router test pushed "Downloads failed: <MagicMock ...>"
+# six times in five hours (bug report 082). load_dotenv never overrides a variable that
+# is already set, so blanking it here, before any test module imports config_store,
+# makes NtfySink find no URL and return. Anything that genuinely needs a URL in a test
+# passes its own config object to NtfySink.
+os.environ['NOTIFY_URL'] = ''
+
 # tools/test_fetcher_trace.py is a hand-run diagnostic script, not a test module: it
 # talks to the real database at import time and contains no test functions. Its name
 # matches pytest's discovery pattern, so it has to be excluded explicitly.

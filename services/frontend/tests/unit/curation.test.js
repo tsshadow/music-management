@@ -74,6 +74,14 @@ describe("parentIsAllowed", () => {
     expect(parentIsAllowed("Hardstyle", "hard style", [])).toBe(true);
   });
 
+  it("refuses a genre that sits below the edited one, since that would close a cycle", () => {
+    expect(parentIsAllowed("Hardcore", "uptempo", [], ["Uptempo", "Upterror"])).toBe(false);
+  });
+
+  it("still allows an unrelated genre when descendants are known", () => {
+    expect(parentIsAllowed("Uptempo", "Terror", [], ["Upterror"])).toBe(true);
+  });
+
   it("refuses a parent that is already in the list", () => {
     expect(parentIsAllowed("Industrial Hardcore", "Hardcore", ["Hardcore"])).toBe(false);
   });

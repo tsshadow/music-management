@@ -45,6 +45,34 @@ describe("MetaChips", () => {
     expect(screen.getByTestId("genre-chip")).toBeTruthy();
   });
 
+  it("colours a label chip by its kind, apart from the neutral genre chip", () => {
+    render(MetaChips, {
+      items: [
+        { text: "Hardstyle", view: "genre:Hardstyle", kind: "genre" },
+        { text: "Scantraxx", view: "label:Scantraxx", kind: "label" },
+        { text: "Defqon.1", view: null, kind: "festival" },
+      ],
+    });
+
+    const genre = screen.getByText("Hardstyle");
+    const label = screen.getByText("Scantraxx");
+    const festival = screen.getByText("Defqon.1");
+    expect(label.dataset.kind).toBe("label");
+    expect(label.className).toContain("bg-[#3a2c16]");
+    expect(label.className).toContain("text-[#ffcc80]");
+    expect(label.className).not.toContain("bg-[#282828]");
+    expect(genre.dataset.kind).toBe("genre");
+    expect(genre.className).toContain("bg-[#282828]");
+    expect(genre.className).not.toContain("bg-[#3a2c16]");
+    expect(festival.className).toContain("bg-[#282828]");
+  });
+
+  it("keeps the neutral look for an item without a kind", () => {
+    render(MetaChips, { items: [{ text: "Euphoric", view: null }] });
+
+    expect(screen.getByText("Euphoric").className).toContain("bg-[#282828]");
+  });
+
   it("renders nothing but an empty row without items", () => {
     render(MetaChips, { items: [], testid: "empty-row" });
 

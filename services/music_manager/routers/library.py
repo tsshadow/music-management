@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
@@ -16,6 +16,7 @@ from services.music_manager.routers.analytics_filters import (
     build_filter,
     parse_filter,
 )
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['library'])
 settings = Settings()
@@ -36,17 +37,6 @@ def _order_by(sort: str, direction: str) -> str:
     """The ORDER BY body for a requested sort, falling back to the default for anything unknown."""
     column = _SORTS.get(sort, _SORTS['created'])
     return f'{column} {"ASC" if direction == "asc" else "DESC"}'
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override.
-
-    This copy used to catch every exception from verify_token and answer 401 "Invalid
-    API key", so a disabled account and a database outage both looked like a bad key.
-    """
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 # The largest page either track list serves. The frontend asks for 100; anything

@@ -14,7 +14,12 @@ from fastapi.testclient import TestClient
 from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
 from services.music_manager.routers import users as users_router
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -406,6 +411,34 @@ class VerifyApiKeyTest(unittest.TestCase):
             response = TestClient(app).get('/api/users', headers={'x-api-key': 'not-a-key'})
 
         self.assertEqual(response.status_code, 401)
+
+
+class MergeAtomicityTest(unittest.TestCase):
+    """A merge moves every row and deletes the secondary account in one transaction."""
+
+    setUp = MergeUsersTest.setUp
+    base_rules = MergeUsersTest.base_rules
+
+    def merge_logged(self, rules, fail_on=None):
+        cursor = ScriptedCursor(rules)
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        log = transaction_log(connection, cursor, fail_on=fail_on)
+        with patch.object(users_router, 'get_db_connection', return_value=connection):
+            response = self.client.post(
+                '/api/users/1/merge', json={'secondary_user_id': 2}, headers={'x-api-key': API_KEY}
+            )
+        return response, log
+
+    def test_the_moves_and_the_account_delete_are_one_transaction(self):
+        response, log = self.merge_logged(self.base_rules())
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'UPDATE dynamic_playlists', 'DELETE FROM users WHERE id')
+
+    def test_a_failure_half_way_moves_nothing(self):
+        response, log = self.merge_logged(self.base_rules(), fail_on='DELETE FROM users WHERE id')
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

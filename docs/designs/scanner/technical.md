@@ -36,7 +36,9 @@ track row. When `process_file` repoints a media file from track A to track B:
 - If A still has another media file, A stays; only its label/channel links are recomputed.
 - Otherwise `track_relink.relink_track` merges A into B and deletes A, in one explicit transaction
   together with the media-file repoint (the pool runs `autocommit=True`, so `conn.begin()` is what
-  makes it one unit):
+  makes it one unit). Since bug report 062 that transaction is opened for every scanned file, not only
+  a moving one, and also covers the delete-and-reinsert of the artist, genre, label and channel links
+  (`database.transaction`, see [the transactions design](../db-transactions/technical.md)):
   - `rating_tracks` rows keyed on A's `track_uid` move to B's; when a user rated both, the row with
     the newer `updated_at` wins. `updated_at` is preserved, not bumped.
   - `scrobble_listens.track_id` moves with UPDATE IGNORE; a listen B already has at the same

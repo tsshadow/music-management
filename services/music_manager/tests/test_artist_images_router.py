@@ -362,6 +362,13 @@ class BackgroundFetchTest(unittest.TestCase):
         self.fetcher = self.fetcher_module.ArtistImageFetcher.return_value
         # A MagicMock attribute is truthy, and a blind fetcher stops the run before it asks.
         self.fetcher.blind = False
+        self.fetcher.log_run_summary.return_value = {
+            'deferred': 0,
+            'rate_limit_pauses': 0,
+            'pause_seconds': 0.0,
+            'provider_failures': {},
+            'download_failures': 0,
+        }
         patches = [
             patch.object(artist_images_router, 'get_db_connection', return_value=self.conn),
             patch.dict(sys.modules, {'services.music_manager.artist_image_fetcher.fetcher': self.fetcher_module}),
@@ -394,6 +401,27 @@ class BackgroundFetchTest(unittest.TestCase):
         self.fetcher.fetch_for_artist.side_effect = RuntimeError('api down')
         artist_images_router.run_fetch_missing()
         self.assertIn('0 succeeded, 1 failed', artist_images_router.fetch_progress['message'])
+
+    def test_the_completion_message_carries_the_run_counters(self):
+        self.cursor.fetchone.return_value = {'count': 2}
+        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'One'}, {'id': 2, 'name': 'Two'}]
+        self.fetcher.fetch_for_artist.return_value = False
+        self.fetcher.log_run_summary.return_value.update(
+            {'deferred': 1, 'download_failures': 1, 'provider_failures': {'musicbrainz': 2}}
+        )
+        artist_images_router.run_fetch_missing()
+        self.assertIn('1 deferred, 1 downloads failed, 0 errors', artist_images_router.fetch_progress['message'])
+
+    # Whatever breaks one artist here breaks the next as well; one push is enough.
+    def test_only_the_first_artist_that_raises_is_an_error(self):
+        self.cursor.fetchone.return_value = {'count': 3}
+        self.cursor.fetchall.return_value = [{'id': i, 'name': f'A{i}'} for i in range(3)]
+        self.fetcher.fetch_for_artist.side_effect = RuntimeError('database gone')
+        with self.assertLogs(artist_images_router.logger.name, level='INFO') as logs:
+            artist_images_router.run_fetch_missing()
+        failures = [r for r in logs.records if 'Failed to fetch for' in r.getMessage()]
+        self.assertEqual([r.levelname for r in failures], ['ERROR', 'INFO', 'INFO'])
+        self.assertIn('3 errors', artist_images_router.fetch_progress['message'])
 
     def test_a_library_where_nothing_is_missing_finishes_immediately(self):
         self.cursor.fetchone.return_value = {'count': 5}

@@ -14,6 +14,7 @@ import hashlib
 from datetime import date, timedelta
 from unittest.mock import patch
 
+import pymysql
 import pytest
 
 from tests.integration.conftest import run_sql
@@ -114,6 +115,7 @@ READ_ENDPOINTS = [
     # row of nulls; the seeded label below proves the join.
     ('/api/curation/labels/Scantraxx/catalog', 404),
     ('/api/curation/genres/Hardcore', 404),
+    ('/api/curation/genre-hierarchy/cycles', 200),
     # The feeds surface. `headers` authenticates as the system key, which
     # `_resolve_username` in routers/feeds.py refuses without an explicit
     # `username` -- so the bare paths are a deliberate 400, not a miss. With a
@@ -283,6 +285,36 @@ class CurationEditPagesTest:
         page = api.get('/api/curation/genres/Industrial Hardcore', headers=headers).json()
         assert page['parents'] == ['Hardcore']
         assert api.get('/api/curation/genres/Hardcore', headers=headers).json()['children'] == ['Industrial Hardcore']
+
+    def test_a_genre_hierarchy_refuses_a_cycle(self, api, headers, db):
+        self._white_genre(db, 'Hardcore')
+        self._white_genre(db, 'Uptempo')
+        self._white_genre(db, 'Upterror')
+        assert (
+            api.put('/api/curation/genres/Uptempo/parents', headers=headers, json={'parents': ['Hardcore']}).status_code
+            == 200
+        )
+        assert (
+            api.put('/api/curation/genres/Upterror/parents', headers=headers, json={'parents': ['Uptempo']}).status_code
+            == 200
+        )
+
+        refused = api.put('/api/curation/genres/Hardcore/parents', headers=headers, json={'parents': ['Upterror']})
+        assert refused.status_code == 409, refused.text
+        assert refused.json()['detail'] == 'Hardcore is already an ancestor of Upterror'
+        assert api.get('/api/curation/genres/Hardcore', headers=headers).json()['descendants'] == [
+            'Uptempo',
+            'Upterror',
+        ]
+        assert api.get('/api/curation/genre-hierarchy/cycles', headers=headers).json() == {'count': 0, 'cycles': []}
+
+    def test_the_cycle_check_reports_a_stored_cycle(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES ('Uptempo', 'Terror'), ('Terror', 'Uptempo')"
+            )
+        report = api.get('/api/curation/genre-hierarchy/cycles', headers=headers).json()
+        assert report == {'count': 1, 'cycles': [['Terror', 'Uptempo']]}
 
     def test_a_rejected_genre_has_no_hierarchy_to_edit(self, api, headers, db):
         self._white_genre(db, 'Hardcore')
@@ -1057,3 +1089,133 @@ class ScrobbleReconcileSqlTest:
             response = api.get(f'/api/scrobble/reconcile/lms{query}', headers=headers)
             assert response.status_code == 200, response.text
             assert response.json()['totals']['lms_unmapped'] == 1
+
+
+class TransactionTest:
+    """`database.transaction` against the real server: a rolled-back DELETE leaves its rows.
+
+    The pool runs autocommit, so these prove the two things the unit tests cannot: that
+    `begin()` really suspends autocommit on MariaDB, and that a connection DBUtils hands
+    back after a rollback -- or after being closed mid-transaction -- is clean again.
+    """
+
+    SEED = (('Industrial Hardcore', 'Hardcore'), ('Industrial Hardcore', 'Terror'))
+
+    def _seed(self, db):
+        with db.cursor() as cursor:
+            cursor.executemany('INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)', self.SEED)
+
+    @staticmethod
+    def _parents(db):
+        """What a separate connection sees: only committed rows."""
+        with db.cursor() as cursor:
+            cursor.execute("SELECT genre FROM rules_subgenre_hierarchy WHERE subgenre = 'Industrial Hardcore'")
+            return sorted(row['genre'] for row in cursor.fetchall())
+
+    @staticmethod
+    def _pool():
+        from dbutils.pooled_db import PooledDB
+
+        from tests.integration.conftest import _connection_settings
+
+        return PooledDB(
+            creator=pymysql,
+            maxconnections=1,
+            mincached=0,
+            maxcached=1,
+            maxshared=0,
+            blocking=False,
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=True,
+            **_connection_settings(),
+        )
+
+    def test_a_failure_after_the_delete_leaves_every_row_in_place(self, db):
+        from services.music_manager.database import transaction
+        from tests.integration.conftest import _connect
+
+        self._seed(db)
+        conn = _connect()
+        try:
+            with pytest.raises(RuntimeError), transaction(conn), conn.cursor() as cursor:
+                cursor.execute("DELETE FROM rules_subgenre_hierarchy WHERE subgenre = 'Industrial Hardcore'")
+                # Mid-transaction another connection still sees the old rows; under plain
+                # autocommit they would already be gone.
+                assert self._parents(db) == ['Hardcore', 'Terror']
+                raise RuntimeError('crash between the DELETE and the INSERTs')
+        finally:
+            conn.close()
+        assert self._parents(db) == ['Hardcore', 'Terror']
+
+    def test_a_completed_block_replaces_the_rows_for_everyone(self, db):
+        from services.music_manager.database import transaction
+        from tests.integration.conftest import _connect
+
+        self._seed(db)
+        conn = _connect()
+        try:
+            with transaction(conn), conn.cursor() as cursor:
+                cursor.execute("DELETE FROM rules_subgenre_hierarchy WHERE subgenre = 'Industrial Hardcore'")
+                cursor.execute(
+                    "INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES ('Industrial Hardcore', 'Hardcore')"
+                )
+        finally:
+            conn.close()
+        assert self._parents(db) == ['Hardcore']
+
+    def test_a_pooled_connection_is_clean_after_a_rollback(self, db):
+        from services.music_manager.database import transaction
+
+        self._seed(db)
+        pool = self._pool()
+        conn = pool.connection()
+        with pytest.raises(RuntimeError), transaction(conn), conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rules_subgenre_hierarchy WHERE subgenre = 'Industrial Hardcore'")
+            raise RuntimeError('crash')
+        conn.close()
+
+        again = pool.connection()  # maxconnections=1: the very same connection
+        try:
+            with again.cursor() as cursor:
+                cursor.execute('SELECT @@autocommit AS autocommit, @@in_transaction AS in_transaction')
+                state = cursor.fetchone()
+                assert (int(state['autocommit']), int(state['in_transaction'])) == (1, 0)
+                # Autocommit really is back: a single statement is visible at once.
+                cursor.execute("DELETE FROM rules_subgenre_hierarchy WHERE genre = 'Terror'")
+            assert self._parents(db) == ['Hardcore']
+        finally:
+            again.close()
+            pool.close()
+
+    def test_a_connection_closed_mid_transaction_is_rolled_back_by_the_pool(self, db):
+        self._seed(db)
+        pool = self._pool()
+        conn = pool.connection()
+        conn.begin()
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rules_subgenre_hierarchy WHERE subgenre = 'Industrial Hardcore'")
+        conn.close()  # back to the pool without commit or rollback
+        try:
+            assert self._parents(db) == ['Hardcore', 'Terror']
+        finally:
+            pool.close()
+
+    def test_a_festival_update_that_fails_half_way_keeps_its_aliases(self, api, headers, db):
+        """End to end: the alias INSERT fails after the DELETE ran (strict mode refuses
+        an alias longer than the column), and the old alias and name survive."""
+        created = api.post('/api/rules/festivals', headers=headers, json={'name': 'Defqon.1', 'aliases': ['Defqon']})
+        assert created.status_code == 201, created.text
+        festival_id = created.json()['id']
+
+        with pytest.raises(pymysql.err.MySQLError):
+            api.put(
+                f'/api/rules/festivals/{festival_id}',
+                headers=headers,
+                json={'name': 'Renamed', 'aliases': ['x' * 300]},
+            )
+
+        festival = next(
+            row for row in api.get('/api/rules/festivals', headers=headers).json() if row['id'] == festival_id
+        )
+        assert festival['name'] == 'Defqon.1'
+        assert festival['aliases'] == ['Defqon']

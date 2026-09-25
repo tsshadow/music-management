@@ -48,11 +48,20 @@ ARG	BUILD_PACKAGES=" \
 
 RUN	apk add --no-cache --update ${BUILD_PACKAGES}
 
+# Every tarball below is pinned to a version *and* a sha256 of the exact file, and
+# `sha256sum -c` fails the build if what arrives is not that file. A version alone
+# does not pin a GitHub /archive/ tarball: it is generated on request and has been
+# served with a different checksum before. Renovate does not look inside this
+# directory (see renovate.json), so a bump is by hand: change the version, download
+# the new file once, put its sha256 here. See docs/deployment.md, "Pinned build inputs".
+
 # FFmpeg
 ARG	FFMPEG_VERSION=6.1.4
+ARG	FFMPEG_SHA256=5cb1da15edb8958263214ad86b3a84af546e875c62cb1903f147ebf99bbda659
 RUN  \
 	DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
-	curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
+	curl -fsSLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
+	echo "${FFMPEG_SHA256}  ffmpeg-${FFMPEG_VERSION}.tar.bz2" | sha256sum -c - && \
 	tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
 RUN \
@@ -91,10 +100,12 @@ RUN \
 
 # WT
 ARG	WT_VERSION=4.12.5
+ARG	WT_SHA256=e5078b1c0a21aae79ded5b7ccbb65db221162f621396effe16f0a2617ecc0727
 ARG WT_DEBUG=OFF
 RUN \
 	DIR=/tmp/wt && mkdir -p ${DIR} && cd ${DIR} && \
-	curl -sLO https://github.com/emweb/wt/archive/${WT_VERSION}.tar.gz && \
+	curl -fsSLO https://github.com/emweb/wt/archive/${WT_VERSION}.tar.gz && \
+	echo "${WT_SHA256}  ${WT_VERSION}.tar.gz" | sha256sum -c - && \
 	tar -x --strip-components=1 -f ${WT_VERSION}.tar.gz
 
 RUN \
@@ -104,18 +115,22 @@ RUN \
 
 # STB
 ARG	STB_VERSION=f1c79c02822848a9bed4315b12c8c8f3761e1296
+ARG	STB_SHA256=a39b0f2d96d9b64171ac1fd73295b7c5866f904e653b379da886d050a6900db9
 RUN \
 	DIR=/tmp/stb && mkdir -p ${DIR} && cd ${DIR} && \
-	curl -sLO https://github.com/nothings/stb/archive/${STB_VERSION}.tar.gz && \
+	curl -fsSLO https://github.com/nothings/stb/archive/${STB_VERSION}.tar.gz && \
+	echo "${STB_SHA256}  ${STB_VERSION}.tar.gz" | sha256sum -c - && \
 	tar -x --strip-components=1 -f ${STB_VERSION}.tar.gz && \
 	mkdir -p ${PREFIX}/include/stb && \
 	cp ./*.h ${PREFIX}/include/stb
 
 # TAGLIB
 ARG TAGLIB_VERSION=v2.2
+ARG TAGLIB_SHA256=96f4e78a5d33c204b01389840951ba8aba6e80fb35323dcd51c10de03f974336
 RUN \
 	DIR=/tmp/taglib && mkdir -p ${DIR} && cd ${DIR} && \
-	curl -sLO https://github.com/taglib/taglib/archive/${TAGLIB_VERSION}.tar.gz && \
+	curl -fsSLO https://github.com/taglib/taglib/archive/${TAGLIB_VERSION}.tar.gz && \
+	echo "${TAGLIB_SHA256}  ${TAGLIB_VERSION}.tar.gz" | sha256sum -c - && \
 	tar -x --strip-components=1 -f ${TAGLIB_VERSION}.tar.gz
 
 RUN \

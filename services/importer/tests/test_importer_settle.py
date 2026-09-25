@@ -19,7 +19,13 @@ from services.importer import flattener, mover, renamer, settle  # noqa: E402
 from services.importer.flattener import Flattener  # noqa: E402
 from services.importer.mover import Mover  # noqa: E402
 from services.importer.renamer import Renamer  # noqa: E402
-from services.importer.settle import STAGING_PREFIX, is_settled, newest_mtime, settle_seconds  # noqa: E402
+from services.importer.settle import (  # noqa: E402
+    STAGING_PREFIX,
+    folder_signature,
+    is_settled,
+    newest_mtime,
+    settle_seconds,
+)
 
 AN_HOUR_AGO = time.time() - 3600
 
@@ -78,6 +84,24 @@ class IsSettledTest(unittest.TestCase):
         write(os.path.join(self.release, 'CD1', '03.mp3'), mtime=recent)
         os.utime(os.path.join(self.release, 'CD1'), (AN_HOUR_AGO, AN_HOUR_AGO))
         self.assertAlmostEqual(newest_mtime(self.release), recent, places=0)
+
+    def test_the_signature_is_stable_while_nothing_changes(self):
+        self.assertEqual(folder_signature(self.release), folder_signature(self.release))
+
+    def test_the_signature_changes_with_a_new_file_a_new_size_or_a_new_mtime(self):
+        before = folder_signature(self.release)
+        write(os.path.join(self.release, 'CD1', '03.mp3'))
+        os.utime(os.path.join(self.release, 'CD1'), (AN_HOUR_AGO, AN_HOUR_AGO))
+        added = folder_signature(self.release)
+        write(os.path.join(self.release, 'CD1', '03.mp3'), content='a longer file')
+        os.utime(os.path.join(self.release, 'CD1'), (AN_HOUR_AGO, AN_HOUR_AGO))
+        grown = folder_signature(self.release)
+        os.utime(os.path.join(self.release, 'CD1', '03.mp3'), (AN_HOUR_AGO + 5, AN_HOUR_AGO + 5))
+        touched = folder_signature(self.release)
+        self.assertEqual(len({before, added, grown, touched}), 4)
+
+    def test_the_signature_of_an_unreadable_folder_is_none(self):
+        self.assertIsNone(folder_signature(os.path.join(self.root, 'gone')))
 
     def test_skipping_is_logged_at_debug_only(self):
         write(os.path.join(self.release, 'new.mp3'), mtime=time.time())

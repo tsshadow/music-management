@@ -2,12 +2,15 @@ import logging
 import os
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait
+from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
 
 from mutagen import MutagenError
 
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers import RoundScope
 from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
@@ -106,6 +109,27 @@ def record_failure(file: str, error: BaseException) -> int:
     return attempts
 
 
+@dataclass
+class RoundStats:
+    """What one round did, for the one summary line it logs. Only the round's own thread writes it."""
+
+    #: Files the rules ran on (tagged, written or failed); an up-to-date file is not one.
+    tagged: int = 0
+    #: Of those, the files that were actually written.
+    written: int = 0
+    #: Files that turned out to be up to date and were not parsed.
+    skipped: int = 0
+
+    def count(self, status: str) -> None:
+        """Count one file by the status a worker reported for it (see Tagger._parse_worker)."""
+        if status == 'SKIPPED':
+            self.skipped += 1
+            return
+        self.tagged += 1
+        if status == 'SAVED':
+            self.written += 1
+
+
 class Tagger:
     """
     Handles automatic tagging of music files using Mutagen,
@@ -115,6 +139,12 @@ class Tagger:
     def __init__(self):
         self.parallel = True
         self.stop_requested = False
+        #: The worker pool of the running round; None outside one. One pool for the whole
+        #: round rather than one per slice, because each worker thread holds its own
+        #: database connection for the round (RoundScope) and a thread that exits takes
+        #: its connection with it.
+        self._pool: ThreadPoolExecutor | None = None
+        self._stats = RoundStats()
         processed_files_helper.create_table()
 
     def run(
@@ -139,6 +169,21 @@ class Tagger:
         # rule added today would only take effect after a restart.
         reload_rule_caches()
         self.stop_requested = False
+        started = time.monotonic()
+        self._stats = RoundStats()
+        # One database connection per thread and one rule stack per song type for the
+        # whole round, instead of three to six connects and a fresh rule stack per file.
+        # See RoundScope and Song/rule_stack.py, and bug report 063.
+        with RoundScope.round_scope() as scope, self._round_pool(scope):
+            self._run_round(walk, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
+        self._log_round_summary(time.monotonic() - started, scope.opened)
+        # One scan per run, not per file: LMS only reprocesses what changed, so this is
+        # cheap, and it is what makes a new or corrected tag show up in the app without
+        # waiting for LMS's own schedule. Best effort -- it never raises.
+        lms_scan_trigger.trigger()
+
+    def _run_round(self, walk, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram):
+        """The body of a round: the queue, then the walk when asked for."""
         # What the scanner has indexed and this table has never seen: a file dropped in
         # by hand. Queued with its own reason so it goes after the decisions.
         self._queue_new_library_files()
@@ -160,10 +205,48 @@ class Tagger:
                 processed_files_helper.drop_snapshot()
         if self.stop_requested:
             logging.info('Tagging process was interrupted by user')
-        # One scan per run, not per file: LMS only reprocesses what changed, so this is
-        # cheap, and it is what makes a new or corrected tag show up in the app without
-        # waiting for LMS's own schedule. Best effort -- it never raises.
-        lms_scan_trigger.trigger()
+
+    def _round_pool(self, scope: RoundScope.RoundScope):
+        """The worker pool for one round, joined to the round's scope; nothing when serial.
+
+        Used as a context manager: on the way out the pool is shut down and waited for,
+        before the round closes the connections its workers hold.
+        """
+        stack = ExitStack()
+        if not self.parallel:
+            return stack
+        pool = ThreadPoolExecutor(
+            max_workers=int(TAGGER_WORKERS), initializer=scope.attach, thread_name_prefix='tagger'
+        )
+        self._pool = pool
+
+        def shut_down():
+            self._pool = None
+            pool.shutdown(wait=True, cancel_futures=True)
+
+        stack.callback(shut_down)
+        return stack
+
+    def _log_round_summary(self, seconds: float, connects: int) -> None:
+        """One line per round with what it cost, so a change in per-file cost shows up in the event log.
+
+        INFO when the round tagged anything; an idle round (the loop runs every five
+        minutes and most rounds find an empty queue) is DEBUG, so it does not add a row to
+        the events table for nothing.
+        """
+        stats = self._stats
+        per_file = f'{seconds * 1000 / stats.tagged:.0f} ms/file' if stats.tagged else 'n/a ms/file'
+        level = logging.INFO if stats.tagged else logging.DEBUG
+        logging.log(
+            level,
+            'Tagging round: %d file(s) tagged (%d written, %d up to date) in %.1fs, %s, %d database connection(s) opened',
+            stats.tagged,
+            stats.written,
+            stats.skipped,
+            seconds,
+            per_file,
+            connects,
+        )
 
     def _walk(self, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram):
         logging.info(
@@ -260,26 +343,43 @@ class Tagger:
         rules never hold the process for more than a slice at a stretch.
         """
         written: list[Path] = []
-        for start in range(0, len(files), self.PARALLEL_SLICE):
-            if self.stop_requested:
-                break
-            chunk = files[start : start + self.PARALLEL_SLICE]
-            parsed = False
-            with ThreadPoolExecutor(max_workers=TAGGER_WORKERS) as executor:
-                futures = {
-                    executor.submit(Tagger._parse_worker, str(file), song_type_name(file), None, extra_info): file
-                    for file in chunk
-                }
-                for future in as_completed(futures):
-                    if self.stop_requested:
-                        executor.shutdown(wait=False, cancel_futures=True)
-                        break
-                    status = future.result()[1]
-                    parsed = parsed or status != 'SKIPPED'
-                    if status == 'SAVED':
-                        written.append(futures[future])
-            self._breathe(parsed)
+        with ExitStack() as stack:
+            executor = self._pool
+            if executor is None:
+                # Called outside a round (a test, a caller of parse_folder): a pool of its own.
+                executor = stack.enter_context(ThreadPoolExecutor(max_workers=int(TAGGER_WORKERS)))
+            for start in range(0, len(files), self.PARALLEL_SLICE):
+                if self.stop_requested:
+                    break
+                chunk = files[start : start + self.PARALLEL_SLICE]
+                parsed = self._tag_slice(executor, chunk, song_type_name, extra_info, written)
+                self._breathe(parsed)
         return written
+
+    def _tag_slice(self, executor, chunk: list[Path], song_type_name, extra_info, written: list[Path]) -> bool:
+        """Hand one slice to the pool and wait for all of it. True when a worker parsed something.
+
+        On a stop request the files not started yet are cancelled and the running ones
+        waited for, so the slice has drained when this returns either way -- which is
+        what `_breathe` relies on.
+        """
+        parsed = False
+        futures = {
+            executor.submit(Tagger._parse_worker, str(file), song_type_name(file), None, extra_info): file
+            for file in chunk
+        }
+        for future in as_completed(futures):
+            if self.stop_requested:
+                for pending in futures:
+                    pending.cancel()
+                wait(futures)
+                break
+            status = future.result()[1]
+            self._stats.count(status)
+            parsed = parsed or status != 'SKIPPED'
+            if status == 'SAVED':
+                written.append(futures[future])
+        return parsed
 
     def _breathe(self, parsed: bool) -> None:
         """Let the API have the process for a moment after a slice of real work.
@@ -412,12 +512,18 @@ class Tagger:
         try:
             mtime = file.stat().st_mtime
             if not processed_files_helper.needs_processing(str(file), mtime):
+                self._stats.count('SKIPPED')
                 return False
+            # Counted before the rules run: a file that fails is a file the round paid for.
+            self._stats.count('OK')
             song = self.parse_song(file, song_type, extra_info)
             # The mtime *after* the save: a file the tagger itself just wrote has a newer one
             # than the stat above, and storing the old value made it "changed" on the next walk.
             processed_files_helper.mark_processed(str(file), file.stat().st_mtime)
-            return Tagger._was_written(song)
+            written = Tagger._was_written(song)
+            if written:
+                self._stats.written += 1
+            return written
         except KeyboardInterrupt:
             logging.info('KeyboardInterrupt')
             sys.exit(1)

@@ -21,6 +21,7 @@ from services.common.Helpers import Cache
 from services.common.Helpers.ReleaseFolder import CONFLICT, MOVED
 from services.music_manager.main import app
 from services.music_manager.routers import management as management_router
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 API_KEY = resolve_system_api_key()
 
@@ -886,6 +887,41 @@ class LabelProposalsTest(ManagementTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(any("status = 'rejected'" in s for s in self.statements()))
+
+
+class DecideGenreAtomicityTest(ManagementTestCase):
+    """A genre decision's expansions are deleted and re-inserted in one transaction."""
+
+    def decide(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'Upterror'}, {'id': 8}, {'id': 9}]
+        return self.client.post(
+            '/api/rules/genres/1/decide',
+            headers=self.headers,
+            json={'state': management_router.BLACK, 'canonical_ids': [8, 9]},
+        )
+
+    def test_the_update_delete_and_inserts_are_one_transaction_and_the_retag_comes_after(self):
+        log = transaction_log(self.conn, self.cursor)
+        with patch.object(
+            management_router.rescan_invalidator,
+            'invalidate_by_genre_id',
+            side_effect=lambda *_a: log.append('INVALIDATE'),
+        ):
+            self.assertEqual(self.decide().json(), {'status': 'ok'})
+        assert_atomic(
+            self, log, 'UPDATE rules_genres', 'DELETE FROM rules_genre_expansions', 'INSERT INTO rules_genre_expansions'
+        )
+        self.assertGreater(log.index('INVALIDATE'), log.index('COMMIT'))
+
+    def test_a_failing_insert_rolls_the_decision_back_and_queues_no_retag(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_genre_expansions')
+        with (
+            patch.object(management_router.rescan_invalidator, 'invalidate_by_genre_id') as invalidate,
+            self.assertRaises(RuntimeError),
+        ):
+            self.decide()
+        assert_rolled_back(self, log)
+        invalidate.assert_not_called()
 
 
 if __name__ == '__main__':

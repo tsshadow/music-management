@@ -57,15 +57,21 @@ export function mbidUrl(kind, mbid) {
  * Compared on the normalized key rather than the raw string, so 'Hardcore' and
  * 'hard-core' are recognised as one genre -- the same rule the tagger applies.
  *
+ * A genre below `subject` (any depth, from the page's `descendants`) is refused too:
+ * filing a genre under its own subgenre closes a cycle, which the backend answers
+ * with a 409 anyway -- refusing it here just saves the round trip.
+ *
  * @param {string} subject - The genre being edited.
  * @param {string} parent - The candidate parent.
  * @param {string[]} current - Parents already on the list.
+ * @param {string[]} [descendants] - Every genre below `subject`.
  * @returns {boolean}
  */
-export function parentIsAllowed(subject, parent, current) {
+export function parentIsAllowed(subject, parent, current, descendants = []) {
   const key = normalizeGenre(parent);
   if (!key) return false;
   if (key === normalizeGenre(subject)) return false;
+  if (descendants.some((below) => normalizeGenre(below) === key)) return false;
   return !current.some((existing) => normalizeGenre(existing) === key);
 }
 

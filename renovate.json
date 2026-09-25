@@ -2,7 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":semanticCommitTypeAll(chore)"
+    ":semanticCommitTypeAll(chore)",
+    "customManagers:dockerfileVersions"
   ],
   "dependencyDashboard": false,
   "description": "Dependency updates for the music-management monorepo. Every ecosystem in here (pip, npm, Gradle, Dockerfile) is picked up automatically; the rules below only decide how the updates are grouped and how eagerly they are merged.",
@@ -60,7 +61,7 @@
       ]
     },
     {
-      "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green, and exempt it from the repo-wide cooldown -- a three-day wait here is three days of failing downloads.",
+      "description": "yt-dlp ships breaking extractor fixes as ordinary releases; being behind on it is what actually breaks downloading. Merge automatically once the pipeline is green, and exempt it from the repo-wide cooldown -- a three-day wait here is three days of failing downloads. One group, because the version is pinned in three places -- requirements.txt and the `# renovate:` ARGs in docker/Dockerfile.downloader and docker/Dockerfile.tools -- and they have to move in the same merge request.",
       "matchPackageNames": [
         "yt-dlp"
       ],
@@ -68,7 +69,8 @@
       "minimumReleaseAge": "0 days",
       "schedule": [
         "at any time"
-      ]
+      ],
+      "groupName": "yt-dlp"
     },
     {
       "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",
@@ -191,11 +193,47 @@
       ]
     },
     {
+      "description": "Images that used to float on :latest (or on a bare tag like nginx:alpine) are pinned to a version and a digest. pinDigests keeps it that way when Renovate rewrites the line, and for autoheal, which publishes no version tags, the digest is the only pin there is.",
+      "matchManagers": [
+        "dockerfile",
+        "docker-compose"
+      ],
+      "matchPackageNames": [
+        "phpmyadmin",
+        "jlesage/firefox",
+        "willfarrell/autoheal",
+        "nginx",
+        "mobiledevops/android-sdk-image"
+      ],
+      "pinDigests": true
+    },
+    {
+      "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see docs/deployment.md, \"Pinned build inputs\". It never merges on its own.",
+      "matchPackageNames": [
+        "denoland/deno"
+      ],
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "docker"
+      ]
+    },
+    {
       "description": "Vendored upstream fork; its dependencies are managed by that project, not here.",
       "matchFileNames": [
         "services/music-management-server/**"
       ],
       "enabled": false
+    },
+    {
+      "description": "Exception to the rule above: services/music-management-server/docker-compose.yml is this repository's own production stack for LMS, not upstream's, and its autoheal and nginx images are pinned by digest. Without this they would stay on the digest of the day they were pinned.",
+      "matchFileNames": [
+        "services/music-management-server/docker-compose.yml"
+      ],
+      "matchManagers": [
+        "docker-compose"
+      ],
+      "enabled": true
     }
   ]
 }

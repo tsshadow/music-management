@@ -33,6 +33,13 @@ bounds one slice, so the deep run costs seconds per round instead of hours once 
 Re-reading a file is cheap: a rule that produces the same value writes nothing, so a slice that
 finds no news touches no files and gives LMS nothing to re-index.
 
+## 🧵 What a round shares
+
+A round (`Tagger.run`) holds one database connection per worker thread and builds each song
+type's rule stack once, instead of per file; it ends with one `Tagging round: ...` summary line
+(files, wall time, ms/file, connections opened). See
+[docs/designs/tagger/technical.md](../../docs/designs/tagger/technical.md#round-structure).
+
 ## ⏸ Files that keep failing
 
 A file that raises in the tagger is not retried every round. Its queue row counts the failures

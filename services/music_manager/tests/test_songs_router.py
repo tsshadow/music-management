@@ -25,7 +25,12 @@ from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import songs as songs_router
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -222,6 +227,39 @@ class DatabaseDownTest(unittest.TestCase):
             self.assertEqual(client.get('/api/songs/5', headers=headers).status_code, 503)
             self.assertEqual(client.post('/api/songs/5/pin', json={'track_id': 1}, headers=headers).status_code, 503)
             self.assertEqual(client.post('/api/songs/tracks/1/split', headers=headers).status_code, 503)
+
+
+class PinAtomicityTest(SongsTestCase):
+    """The pin and the canonical recompute it triggers are one transaction."""
+
+    rules = PinVersionTest.rules
+
+    def test_the_pin_is_written_inside_a_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.recompute.side_effect = lambda *_a: log.append('RECOMPUTE')
+        response = self.client.post('/api/songs/5/pin', json={'track_id': 22}, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'UPDATE library_works SET pinned_track_id', 'RECOMPUTE')
+
+
+class SplitAtomicityTest(SongsTestCase):
+    """A split's new work, the moved track and the recompute land together."""
+
+    rules = SplitTrackTest.rules
+    lastrowid = SplitTrackTest.lastrowid
+
+    def test_the_split_is_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.post('/api/songs/tracks/22/split', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'INSERT INTO library_works', 'UPDATE library_tracks SET work_id')
+
+    def test_a_failing_recompute_rolls_the_split_back(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.recompute.side_effect = RuntimeError('deadlock')
+        with self.assertRaises(RuntimeError):
+            self.client.post('/api/songs/tracks/22/split', headers=self.headers)
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

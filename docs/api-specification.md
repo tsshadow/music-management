@@ -92,6 +92,18 @@ The system key passes every check. Routes not marked otherwise need any authenti
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait
   until the file changes or a retag is requested (bug report 051).
+- **PUT `/api/curation/genres/{name}/parents`** (`rules.manage`): body `{"parents": [<genre>, ...]}`,
+  replaces the genre's parents in `rules_subgenre_hierarchy`. `400` for a genre listed as its own parent
+  or an unknown/unaccepted parent, `403` when curation has not accepted the genre itself, and `409` with
+  detail `"<genre> is already an ancestor of <parent>"` when a parent sits below the genre (at any depth),
+  since storing it would close a cycle. Nothing is written when any parent is refused (bug report 064).
+- **GET `/api/curation/genres/{name}`**: the edit page's view -- `name`, `genre_id`, `state`, `editable`,
+  `occurrences`, `hardness`, `parents`, `children`, and (added, additive) `descendants`: every genre below
+  this one at any depth, the ones the page will not offer as a parent.
+- **GET `/api/curation/genre-hierarchy/cycles`**: read-only integrity check, any authenticated account.
+  `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
+  its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
+  fixed by removing a parent on the genre edit page in Beheer.
 - **Admin**: `POST /api/soundcloud`, `DELETE /api/soundcloud/{name}`, `POST /api/youtube`,
   `DELETE /api/youtube/{name}`.
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
@@ -132,6 +144,7 @@ The system key passes every check. Routes not marked otherwise need any authenti
 ### ❤️ Health
 - **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Response: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "database": "ok"|"unreachable", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}}`. `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable or any of those threads has died or gone stale.
 - **Any endpoint — 503 `{"detail": "No free database connection: the pool is exhausted"}`** with `Retry-After: 5`, when every pooled database connection stayed busy for `DB_POOL_WAIT_SECONDS` (default 5). Before, such a request waited forever.
+- **Any endpoint — 503 `{"detail": "Database unavailable"}`** with `Retry-After: 5`, when the connection pool could not be created at all (MariaDB unreachable at startup). The curation, festival, genre and artist rules, radio, news and songs routers used to answer this with a 500.
 
 ### 📚 Library track lists
 - **GET `/api/library/tracks`**: newest-first track list, `?q=` searches title, artist and label.

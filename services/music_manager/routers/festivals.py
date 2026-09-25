@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from services.common.Helpers.FestivalHelper import Festival, FestivalHelper
 from services.music_manager import curation_rules
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, require_connection, transaction
 from services.music_manager.rbac import require_permission
 
 router = APIRouter(tags=['festivals'])
@@ -49,10 +49,8 @@ class ProbeRequest(BaseModel):
 
 
 def _connect():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='No database connection')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 def _key(value: str) -> str:
@@ -144,7 +142,7 @@ def create_festival(request: FestivalRequest, _auth: dict = WRITE):
     editions = _clean_editions(request.editions)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT id FROM rules_festivals WHERE normalized_name = %s', (key,))
             if cursor.fetchone():
                 raise HTTPException(status_code=409, detail=f"'{name}' already exists")
@@ -154,7 +152,6 @@ def create_festival(request: FestivalRequest, _auth: dict = WRITE):
             )
             festival_id = cursor.lastrowid
             _write_children(cursor, festival_id, aliases, editions)
-            conn.commit()
     finally:
         conn.close()
     curation_rules.refresh(FESTIVAL_HELPER)
@@ -171,7 +168,7 @@ def update_festival(festival_id: int, request: FestivalRequest, _auth: dict = WR
     editions = _clean_editions(request.editions)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT id FROM rules_festivals WHERE id = %s', (festival_id,))
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Unknown festival')
@@ -183,7 +180,6 @@ def update_festival(festival_id: int, request: FestivalRequest, _auth: dict = WR
                 (name, key, 1 if request.active else 0, festival_id),
             )
             _write_children(cursor, festival_id, aliases, editions)
-            conn.commit()
     finally:
         conn.close()
     curation_rules.refresh(FESTIVAL_HELPER)

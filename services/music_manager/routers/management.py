@@ -19,7 +19,7 @@ from services.common.Helpers.ReleaseFolder import MOVED, move_release_folder
 from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan_invalidator
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_admin, require_permission
 
 # Re-exported: news, radio and events import it from here. It is the canonical
@@ -630,7 +630,7 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Dep
     if not conn:
         raise HTTPException(status_code=500)
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT id, name FROM rules_genres WHERE id = %s', (genre_id,))
             genre_row = cursor.fetchone()
             if not genre_row:
@@ -656,11 +656,11 @@ def decide_genre(genre_id: int, decision: GenreDecisionRequest, auth: dict = Dep
                     'INSERT INTO rules_genre_expansions (genre_id, target_id, position) VALUES (%s, %s, %s)',
                     (genre_id, target, position),
                 )
-            conn.commit()
-            try:
-                rescan_invalidator.invalidate_by_genre_id(genre_id, genre_row.get('name') or '', 'genre_decision')
-            except Exception as e:
-                logging.warning('Genre decision saved but marking files for retag failed: %s', e)
+        # After the commit: the retag has to see the decision it was queued for.
+        try:
+            rescan_invalidator.invalidate_by_genre_id(genre_id, genre_row.get('name') or '', 'genre_decision')
+        except Exception as e:
+            logging.warning('Genre decision saved but marking files for retag failed: %s', e)
     finally:
         conn.close()
     # Outside the connection: the decision has to reach the running tagger, which holds a

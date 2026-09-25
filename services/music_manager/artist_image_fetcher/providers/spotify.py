@@ -3,7 +3,15 @@ import time
 
 import requests
 
-from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, credential
+from .base import (
+    ArtistImageProvider,
+    ProviderRateLimited,
+    ProviderUnavailable,
+    credential,
+    forget_logged_once,
+    log_once,
+    parse_retry_after,
+)
 
 
 class SpotifyArtistImageProvider(ArtistImageProvider):
@@ -24,9 +32,14 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         self._token = None
         self._token_expires_at = 0.0
         self.logger = logging.getLogger(__name__)
-        if not self.configured:
-            self.logger.warning(
-                'Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.'
+        if self.configured:
+            forget_logged_once('spotify-credentials')
+        else:
+            log_once(
+                self.logger,
+                'spotify-credentials',
+                logging.WARNING,
+                'Spotify API credentials (SPOTIFY_CLIENT_ID/SECRET) not found. Spotify provider will be disabled.',
             )
 
     @property
@@ -44,18 +57,7 @@ class SpotifyArtistImageProvider(ArtistImageProvider):
         back to `DEFAULT_RETRY_AFTER`; the result lies between 1 s and
         `MAX_RETRY_AFTER`, so a hostile or broken header cannot park the run for a day.
         """
-        headers = getattr(response, 'headers', None) or {}
-        try:
-            value = headers.get('Retry-After')
-        except AttributeError:
-            value = None
-        seconds = float(self.DEFAULT_RETRY_AFTER)
-        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
-            try:
-                seconds = float(value)
-            except ValueError:
-                seconds = float(self.DEFAULT_RETRY_AFTER)
-        return min(max(seconds, 1.0), float(self.MAX_RETRY_AFTER))
+        return parse_retry_after(response, self.DEFAULT_RETRY_AFTER, self.MAX_RETRY_AFTER)
 
     def _rate_limited(self, what, response):
         """The ProviderRateLimited for a 429 on `what`, carrying the bounded wait."""

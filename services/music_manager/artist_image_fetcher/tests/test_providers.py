@@ -396,11 +396,24 @@ class MusicBrainzProviderTest(unittest.TestCase):
         self.assertEqual(metadata['mbid'], 'mb1')
         self.assertEqual(http.get.call_count, 2)
 
-    def test_a_persistent_timeout_gives_up_and_returns_nothing(self):
+    # A timeout is MusicBrainz not answering, not "no such artist": the fetcher counts
+    # it into the run summary instead of every attempt being a WARNING and a push.
+    def test_a_persistent_timeout_gives_up_as_not_answering(self):
         with patch.object(musicbrainz, 'requests') as http:
             http.get.side_effect = Timeout('read timed out')
-            self.assertIsNone(self.provider.get_artist_metadata('Angerfist'))
+            with self.assertRaises(ProviderUnavailable) as raised:
+                self.provider.get_artist_metadata('Angerfist')
+        self.assertNotIsInstance(raised.exception, ProviderRateLimited)
         self.assertGreater(http.get.call_count, 1)
+
+    def test_every_timed_out_attempt_is_logged_at_info_only(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.side_effect = Timeout('read timed out')
+            with self.assertLogs(musicbrainz.__name__, level='INFO') as logs:
+                with self.assertRaises(ProviderUnavailable):
+                    self.provider.get_artist_metadata('Angerfist')
+        self.assertEqual({r.levelname for r in logs.records}, {'INFO'})
+        self.assertEqual(len(logs.records), self.provider._attempts)
 
     def test_the_read_timeout_is_longer_than_the_connect_timeout(self):
         with patch.object(musicbrainz, 'requests') as http:
@@ -427,15 +440,54 @@ class MusicBrainzProviderTest(unittest.TestCase):
         self.assertTrue(http.get.call_args.args[0].endswith('/mb1'))
         self.assertEqual(metadata['external_ids'], {'spotify': 'sp1', 'soundcloud': 'angerfist', 'lastfm': 'Angerfist'})
 
-    def test_a_non_200_response_returns_nothing(self):
+    # An unknown MBID is a real answer: there is nothing to find.
+    def test_a_404_returns_nothing(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = make_response(status_code=404)
+            self.assertIsNone(self.provider.get_artist_metadata('Angerfist', mbid='gone'))
+
+    def test_a_server_error_without_retry_after_is_not_answering(self):
         with patch.object(musicbrainz, 'requests') as http:
             http.get.return_value = make_response(status_code=503)
-            self.assertIsNone(self.provider.get_artist_metadata('Angerfist'))
+            with self.assertRaises(ProviderUnavailable) as raised:
+                self.provider.get_artist_metadata('Angerfist')
+        self.assertNotIsInstance(raised.exception, ProviderRateLimited)
 
-    def test_a_transport_error_returns_nothing(self):
+    # MusicBrainz documents 503 as its rate-limit answer; with Retry-After it is one.
+    def test_a_503_with_retry_after_is_a_rate_limit(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = make_response(status_code=503, headers={'Retry-After': '12'})
+            with self.assertRaises(ProviderRateLimited) as raised:
+                self.provider.get_artist_metadata('Angerfist')
+        self.assertEqual(raised.exception.retry_after, 12.0)
+
+    def test_a_429_is_a_rate_limit_even_without_retry_after(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = make_response(status_code=429)
+            with self.assertRaises(ProviderRateLimited) as raised:
+                self.provider.get_artist_metadata('Angerfist')
+        self.assertEqual(raised.exception.retry_after, float(musicbrainz.MusicBrainzArtistProvider.DEFAULT_RETRY_AFTER))
+
+    def test_a_huge_retry_after_is_capped(self):
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = make_response(status_code=429, headers={'Retry-After': '86400'})
+            with self.assertRaises(ProviderRateLimited) as raised:
+                self.provider.get_artist_metadata('Angerfist')
+        self.assertEqual(raised.exception.retry_after, float(musicbrainz.MusicBrainzArtistProvider.MAX_RETRY_AFTER))
+
+    def test_a_transport_error_is_not_answering(self):
         with patch.object(musicbrainz, 'requests') as http:
             http.get.side_effect = RuntimeError('network down')
-            self.assertIsNone(self.provider.get_artist_metadata('Angerfist'))
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_metadata('Angerfist')
+
+    def test_an_unreadable_body_is_not_answering(self):
+        response = make_response()
+        response.json.side_effect = ValueError('not json')
+        with patch.object(musicbrainz, 'requests') as http:
+            http.get.return_value = response
+            with self.assertRaises(ProviderUnavailable):
+                self.provider.get_artist_metadata('Angerfist')
 
 
 class SoundCloudProviderTest(unittest.TestCase):

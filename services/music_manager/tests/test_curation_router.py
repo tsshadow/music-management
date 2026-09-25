@@ -27,7 +27,12 @@ from fastapi.testclient import TestClient
 from services.common.Helpers import Cache
 from services.music_manager.main import app
 from services.music_manager.routers import curation as curation_router
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -528,8 +533,26 @@ class GenreReadTest(CurationTestCase):
         self.assertEqual(body['children'], ['Industrial Hardcore'])
 
 
+def white(genre_id, name):
+    """A curated genre row, answered only for its own normalized name."""
+    return (
+        'FROM rules_genres WHERE normalized_name',
+        (name.lower(),),
+        {'id': genre_id, 'name': name, 'state': 'white'},
+    )
+
+
+GENRE_ROWS = (
+    white(12, 'Hardcore'),
+    white(13, 'Industrial Hardcore'),
+    white(14, 'Uptempo'),
+    white(15, 'Upterror'),
+    white(16, 'Terror'),
+)
+
+
 class GenreHierarchyTest(CurationTestCase):
-    rules = (('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),)
+    rules = GENRE_ROWS
 
     def test_parents_replace_the_previous_set_rather_than_merging(self):
         response = self.client.put(
@@ -558,6 +581,101 @@ class GenreHierarchyTest(CurationTestCase):
             '/api/curation/genres/Hardcore/parents', json={'parents': ['hardcore']}, headers=self.headers
         )
         self.assertEqual(response.status_code, 400)
+
+
+class GenreCycleTest(CurationTestCase):
+    """Filing a genre under one of its own descendants would close a cycle: 409."""
+
+    # Upterror -> Uptempo -> Hardcore, and Upterror -> Terror -> Hardcore.
+    rules = GENRE_ROWS + (
+        (
+            'SELECT subgenre, genre FROM rules_subgenre_hierarchy',
+            None,
+            [
+                {'subgenre': 'Uptempo', 'genre': 'Hardcore'},
+                {'subgenre': 'Upterror', 'genre': 'Uptempo'},
+                {'subgenre': 'Upterror', 'genre': 'Terror'},
+                {'subgenre': 'Terror', 'genre': 'Hardcore'},
+            ],
+        ),
+    )
+
+    def put(self, name, parents):
+        return self.client.put(f'/api/curation/genres/{name}/parents', json={'parents': parents}, headers=self.headers)
+
+    def test_a_direct_cycle_is_refused(self):
+        response = self.put('Hardcore', ['Uptempo'])
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['detail'], 'Hardcore is already an ancestor of Uptempo')
+        self.assertEqual(self.statements('DELETE FROM rules_subgenre_hierarchy'), [])
+        self.assertEqual(self.statements('INSERT INTO rules_subgenre_hierarchy'), [])
+
+    def test_an_indirect_cycle_is_refused(self):
+        response = self.put('Hardcore', ['Upterror'])
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['detail'], 'Hardcore is already an ancestor of Upterror')
+
+    def test_one_bad_parent_refuses_the_whole_list(self):
+        response = self.put('Uptempo', ['Terror', 'Upterror'])
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.statements('INSERT INTO rules_subgenre_hierarchy'), [])
+
+    def test_a_self_parent_is_refused_before_the_graph_is_read(self):
+        response = self.put('Uptempo', ['uptempo'])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.statements('SELECT subgenre, genre FROM rules_subgenre_hierarchy'), [])
+
+    def test_a_valid_reparent_is_still_stored(self):
+        # Uptempo moves from Hardcore to Terror: no cycle, Uptempo is not above Terror.
+        response = self.put('Uptempo', ['Terror'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['parents'], ['Terror'])
+        self.assertEqual(
+            self.statements('INSERT INTO rules_subgenre_hierarchy'),
+            [('INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)', ('Uptempo', 'Terror'))],
+        )
+
+    def test_the_genre_page_lists_every_descendant(self):
+        response = self.client.get('/api/curation/genres/Hardcore', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['descendants'], ['Terror', 'Uptempo', 'Upterror'])
+
+
+class PreexistingCycleTest(CurationTestCase):
+    """A cycle stored before the check existed must neither hang a write nor hide."""
+
+    rules = GENRE_ROWS + (
+        (
+            'SELECT subgenre, genre FROM rules_subgenre_hierarchy',
+            None,
+            [
+                {'subgenre': 'Uptempo', 'genre': 'Terror'},
+                {'subgenre': 'Terror', 'genre': 'Uptempo'},
+                {'subgenre': 'Upterror', 'genre': 'Upterror'},
+            ],
+        ),
+    )
+
+    def test_a_write_elsewhere_terminates(self):
+        response = self.client.put(
+            '/api/curation/genres/Hardcore/parents', json={'parents': ['Uptempo']}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_the_check_endpoint_reports_every_cycle(self):
+        response = self.client.get('/api/curation/genre-hierarchy/cycles', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'count': 2, 'cycles': [['Terror', 'Uptempo'], ['Upterror']]})
+
+
+class AcyclicHierarchyCheckTest(CurationTestCase):
+    rules = (
+        ('SELECT subgenre, genre FROM rules_subgenre_hierarchy', None, [{'subgenre': 'Uptempo', 'genre': 'Hardcore'}]),
+    )
+
+    def test_a_clean_hierarchy_reports_nothing(self):
+        response = self.client.get('/api/curation/genre-hierarchy/cycles', headers=self.headers)
+        self.assertEqual(response.json(), {'count': 0, 'cycles': []})
 
 
 class GenreHardnessTest(CurationTestCase):
@@ -798,3 +916,109 @@ class RetagConfigurableCeilingTest(CurationTestCase):
         with patch.object(curation_router, 'Settings') as settings:
             settings.return_value.get.return_value = 'not a number'
             self.assertEqual(curation_router._max_retag_files(), curation_router.MAX_RETAG_FILES_DEFAULT)
+
+
+class AtomicReplaceTest(CurationTestCase):
+    """Every delete-then-insert on the curation pages runs in one transaction."""
+
+    rules = (
+        ('FROM library_artists', None, ARTIST_ROW),
+        ('FROM library_labels', None, LABEL_ROW),
+        white(13, 'Industrial Hardcore'),
+        ('FROM rules_genres WHERE normalized_name', None, WHITE_GENRE),
+    )
+    MBID = '5b11f4ce-a62d-471e-81fc-a69a8278c7da'
+
+    def test_an_artist_mbid_and_its_external_id_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/artists/Angerfist/mbid', json={'mbid': self.MBID}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(
+            self,
+            log,
+            'UPDATE library_artists SET mbid',
+            'DELETE FROM artist_external_ids',
+            'INSERT INTO artist_external_ids',
+        )
+
+    def test_an_artist_external_id_is_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/artists/Angerfist/external-ids',
+            json={'source': 'spotify', 'external_id': 'abc'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM artist_external_ids', 'INSERT INTO artist_external_ids')
+
+    def test_a_failing_external_id_insert_keeps_the_old_one(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO artist_external_ids')
+        with self.assertRaises(RuntimeError):
+            self.client.put(
+                '/api/curation/artists/Angerfist/external-ids',
+                json={'source': 'spotify', 'external_id': 'abc'},
+                headers=self.headers,
+            )
+        assert_rolled_back(self, log)
+
+    def test_a_label_mbid_and_its_external_id_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/mbid', json={'mbid': self.MBID}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(
+            self,
+            log,
+            'UPDATE library_labels SET mbid',
+            'DELETE FROM label_external_ids',
+            'INSERT INTO label_external_ids',
+        )
+
+    def test_a_label_external_id_is_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/labels/Masters%20of%20Hardcore/external-ids',
+            json={'source': 'discogs', 'external_id': '123'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM label_external_ids', 'INSERT INTO label_external_ids')
+
+    def test_genre_parents_are_replaced_in_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM rules_subgenre_hierarchy', 'INSERT INTO rules_subgenre_hierarchy')
+
+    def test_a_failing_parent_insert_keeps_the_old_hierarchy(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_subgenre_hierarchy')
+        with self.assertRaises(RuntimeError):
+            self.client.put(
+                '/api/curation/genres/Industrial%20Hardcore/parents',
+                json={'parents': ['Hardcore']},
+                headers=self.headers,
+            )
+        assert_rolled_back(self, log)
+        self.assertEqual(self.reloaded_helpers(), [])
+
+    def test_a_cycle_is_refused_before_a_transaction_opens(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.cursor.rules.insert(
+            0,
+            (
+                'SELECT subgenre, genre FROM rules_subgenre_hierarchy',
+                None,
+                [{'subgenre': 'Hardcore', 'genre': 'Industrial Hardcore'}],
+            ),
+        )
+        response = self.client.put(
+            '/api/curation/genres/Industrial%20Hardcore/parents', json={'parents': ['Hardcore']}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertNotIn('BEGIN', log)
+        self.assertFalse([entry for entry in log if entry.startswith(('DELETE', 'INSERT'))])

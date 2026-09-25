@@ -3,6 +3,8 @@
 #
 # Rebuilds and pushes the downloader image from the *already released* commit on
 # master, so production picks up a newer yt-dlp without waiting for a release.
+# The yt-dlp it installs is the one pinned on develop, where Renovate lands every
+# bump (see YT_DLP_VERSION below); nothing is taken from PyPI unpinned any more.
 #
 # Why this exists: yt-dlp chases a moving target. When SoundCloud or YouTube
 # changes something, the fix lands in a yt-dlp release within days, but our images
@@ -89,6 +91,28 @@ IMAGE_TELEGRAM="${IMAGE_TELEGRAM:-muma-telegram}"
 IMAGE_IMPORTER="${IMAGE_IMPORTER:-muma-importer}"
 
 REFRESH_TAG="refresh-$(date -u +%Y%m%d)"
+
+# Which yt-dlp to build. yt-dlp is pinned (requirements.txt, docker/Dockerfile.downloader)
+# and Renovate lands every bump on develop, usually within hours of the release. This job
+# builds master, which is a release behind develop, so building master's own pin would
+# ship nothing new between releases -- the one thing this job exists for. It takes
+# develop's pin instead: a version that has passed a develop pipeline, rather than
+# whatever PyPI serves today. If develop cannot be read, master's pin is used and the
+# log says so; the OS-package half of the refresh is still worth doing.
+# pinned_yt_dlp: print the yt-dlp version pinned in a requirements.txt read from stdin.
+pinned_yt_dlp() {
+    sed -n 's/^yt-dlp==\([^[:space:]#]*\).*/\1/p' | head -n 1
+}
+YT_DLP_VERSION=""
+if git fetch --quiet origin develop 2>/dev/null; then
+    YT_DLP_VERSION="$(git show FETCH_HEAD:requirements.txt | pinned_yt_dlp)"
+fi
+if [ -z "$YT_DLP_VERSION" ]; then
+    YT_DLP_VERSION="$(pinned_yt_dlp < requirements.txt)"
+    echo "Warning: could not read develop's yt-dlp pin, building master's (${YT_DLP_VERSION})."
+else
+    echo "--- yt-dlp ${YT_DLP_VERSION}, as pinned on develop ---"
+fi
 echo "--- Refreshing from $(git rev-parse --short HEAD) on ${CI_COMMIT_BRANCH:-unknown}, tagging ${REFRESH_TAG} ---"
 
 # --no-cache on the dependency layers is the whole point: a cached
@@ -106,6 +130,7 @@ echo "--- Building ${DOCKER_USER}/${IMAGE_DOWNLOADER} ---"
 docker build --no-cache \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="latest" \
+    --build-arg YT_DLP_VERSION="${YT_DLP_VERSION}" \
     -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest" \
     -t "${DOCKER_USER}/${IMAGE_DOWNLOADER}:${REFRESH_TAG}" \
     -f docker/Dockerfile.downloader .

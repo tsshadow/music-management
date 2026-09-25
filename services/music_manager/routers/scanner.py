@@ -4,7 +4,7 @@ import os
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from services.common.channels import (
     channel_from_path,
@@ -15,8 +15,9 @@ from services.common.channels import (
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_admin
+from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.music_manager.track_relink import relink_orphaned_tracks, relink_track, track_has_media_file
 from services.scanner.Song.ReadonlySong import ReadonlySong
@@ -24,18 +25,6 @@ from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Same system-or-user API key check the other routers use.
-
-    Delegates rather than re-implementing it (as library.py/management.py do) so there is one
-    place where "what counts as a valid key" is defined. Imported lazily because users.py is
-    itself a router module that main.py imports alongside this one.
-    """
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class ScannerManager:
@@ -60,20 +49,26 @@ class ScannerManager:
         return hashlib.sha256(path.encode('utf-8')).hexdigest()
 
     def scan_single(self, path: str | Path, force=False):
-        # Without this the curation rules are still empty on a process that has never run a
-        # full scan, and process_file writes that emptiness: _write_genres deletes the
-        # track's rows before inserting the nothing it resolved. Rescanning one track from
-        # the UI or from LMS therefore used to strip its genres.
-        #
-        # A full reload rather than a load-once: curation decisions refresh the helpers in
-        # the Cache registry (see curation_rules.refresh), never this instance, so a cached
-        # map here would stay stale for the process lifetime. One query per user-triggered
-        # single scan is the cheaper mistake.
-        self.genre_helper.reload()
+        """Scan one file into the library tables; False when it could not be done right now.
+
+        The lock comes first and the rules second. The reload is a query, and it used to
+        run before the lock was even tried: while a full scan held the lock, every single
+        scan paid for a reload whose result it then threw away when it gave up.
+        """
         if not self._lock.acquire(timeout=self.SINGLE_SCAN_LOCK_TIMEOUT):
             logger.info('Full scan in progress, %s waits for the next scanner round', path)
             return False
         try:
+            # Without this the curation rules are still empty on a process that has never run a
+            # full scan, and process_file writes that emptiness: _write_genres deletes the
+            # track's rows before inserting the nothing it resolved. Rescanning one track from
+            # the UI or from LMS therefore used to strip its genres.
+            #
+            # A full reload rather than a load-once: curation decisions refresh the helpers in
+            # the Cache registry (see curation_rules.refresh), never this instance, so a cached
+            # map here would stay stale for the process lifetime. One query per user-triggered
+            # single scan is the cheaper mistake.
+            self.genre_helper.reload()
             logger.info('Processing single file scan request: %s', path)
             conn = get_db_connection()
             if not conn:
@@ -336,35 +331,31 @@ class ScannerManager:
             )
             cursor.execute('SELECT id FROM library_tracks WHERE track_uid = %s', (track_uid,))
             track_id = cursor.fetchone()['id']
-            cursor.execute('DELETE FROM library_track_artists WHERE track_id = %s', (track_id,))
-            for i, a_id in enumerate(artist_ids):
-                role = 'primary' if i == 0 else 'featuring'
-                cursor.execute(
-                    'INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)',
-                    (track_id, a_id, role, i),
-                )
-            self._write_genres(cursor, track_id, self._resolve_genre_ids(song))
-            self._write_links(cursor, track_id, path_hash, label_id, channel_id)
+            genre_ids = self._resolve_genre_ids(song)
             # A retag that changed the title or the primary artist gives the file a new track_uid
-            # and so a new track row. Repointing the file and relinking the row it left are one
-            # change: the pool runs autocommit, so without an explicit transaction a failure
-            # half-way would leave ratings split between two rows.
+            # and so a new track row; the row it left is relinked below.
             previous_track_id = record.get('track_id') if record else None
             moving = previous_track_id is not None and previous_track_id != track_id
-            if moving:
-                conn.begin()
-            try:
+            # One transaction for everything that deletes and rewrites: the artist, genre, label
+            # and channel links, the file row and the relink. The pool runs autocommit, so without
+            # it a failure between a DELETE and its INSERTs leaves the track with no links at all,
+            # and a failed relink leaves ratings split between two rows.
+            with transaction(conn):
+                cursor.execute('DELETE FROM library_track_artists WHERE track_id = %s', (track_id,))
+                for i, a_id in enumerate(artist_ids):
+                    role = 'primary' if i == 0 else 'featuring'
+                    cursor.execute(
+                        'INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)',
+                        (track_id, a_id, role, i),
+                    )
+                self._write_genres(cursor, track_id, genre_ids)
+                self._write_links(cursor, track_id, path_hash, label_id, channel_id)
                 cursor.execute(
                     '\n                INSERT INTO library_media_files (file_path, file_path_hash, file_mtime, file_size, track_id, duration_secs)\n                VALUES (%s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE file_mtime=%s, file_size=%s, track_id=%s, duration_secs=%s\n            ',
                     (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
                 )
                 if moving:
                     self._settle_previous_track(cursor, previous_track_id, track_id, path_hash)
-                    conn.commit()
-            except Exception:
-                if moving:
-                    conn.rollback()
-                raise
             return True
 
 

@@ -120,6 +120,33 @@ describe("NowPlaying", () => {
     expect(star.className).toContain("h-11");
   });
 
+  it("centres the rating row and spreads the stars evenly, like the transport", () => {
+    renderNowPlaying();
+
+    const row = screen.getByTestId("now-playing-rating");
+    expect(row.className).toContain("mx-auto");
+    expect(row.className).toContain("justify-between");
+    expect(row.className).toContain("max-w-xs");
+    // The old left-edge alignment must not come back alongside the centring.
+    expect(row.className).not.toContain("-ml-2.5");
+    expect(row.querySelectorAll("button")).toHaveLength(5);
+  });
+
+  it("draws unset stars as grey outlines, not as a faded disabled glyph", () => {
+    renderNowPlaying({ rating: 3 });
+
+    const set = screen.getAllByLabelText("3 sterren")[0];
+    const unset = screen.getAllByLabelText("4 sterren")[0];
+    expect(set.dataset.filled).toBe("true");
+    expect(set.className).toContain("text-brand");
+    expect(set.querySelector("svg").getAttribute("fill")).toBe("currentColor");
+    expect(unset.dataset.filled).toBe("false");
+    expect(unset.className).toContain("text-[#b3b3b3]");
+    expect(unset.className).not.toContain("text-white/10");
+    expect(unset.querySelector("svg").getAttribute("fill")).toBe("none");
+    expect(unset.disabled).toBe(false);
+  });
+
   it("toggles shuffle and repeat", async () => {
     const ontoggleShuffle = vi.fn();
     const ontoggleRepeat = vi.fn();
@@ -480,6 +507,24 @@ describe("NowPlaying track info", () => {
     expect(screen.getByTestId("now-playing-date").textContent).toBe("05-01-2026");
   });
 
+  it("colours the label chip apart from the genre chips, by kind not by position", () => {
+    // Found by text, not by index: the colour has to follow what a chip names, wherever
+    // in the row it lands.
+    renderNowPlaying({ track: { ...TRACK, genre: "Hardstyle; Techno", labels: ["Scantraxx"] } });
+
+    const row = screen.getByTestId("now-playing-meta");
+    const label = [...row.children].find((chip) => chip.textContent === "Scantraxx");
+    const genres = [...row.children].filter((chip) => chip.textContent !== "Scantraxx");
+    expect(label.dataset.kind).toBe("label");
+    expect(label.className).toContain("bg-[#3a2c16]");
+    expect(genres.length).toBeGreaterThan(0);
+    for (const genre of genres) {
+      expect(genre.dataset.kind).toBe("genre");
+      expect(genre.className).not.toContain("bg-[#3a2c16]");
+      expect(genre.className).toContain("bg-[#282828]");
+    }
+  });
+
   it("shows a radio button only when the player wires one, tinted while a channel plays", async () => {
     renderNowPlaying();
     expect(screen.queryByTestId("now-playing-radio")).toBeNull();
@@ -491,6 +536,29 @@ describe("NowPlaying track info", () => {
     expect(button.className).toContain("b266ff");
     await fireEvent.click(button);
     expect(ontoggleRadio).toHaveBeenCalled();
+  });
+
+  it("shows a news button only when the player wires one, tinted while a bulletin plays", async () => {
+    renderNowPlaying();
+    expect(screen.queryByTestId("now-playing-news")).toBeNull();
+
+    const ontoggleNews = vi.fn();
+    renderNowPlaying({ ontoggleNews, newsActive: true });
+    const button = screen.getByTestId("now-playing-news");
+    expect(button.getAttribute("aria-label")).toBe("Nieuws van het uur");
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.className).toContain("b266ff");
+    await fireEvent.click(button);
+    expect(ontoggleNews).toHaveBeenCalled();
+  });
+
+  it("leaves the news button grey and unpressed while no bulletin plays", () => {
+    renderNowPlaying({ ontoggleNews: vi.fn(), newsActive: false });
+
+    const button = screen.getByTestId("now-playing-news");
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(button.className).toContain("text-[#b3b3b3]");
+    expect(button.className).not.toContain("b266ff");
   });
 
   it("offers the channel choice as a bottom sheet and starts the tapped channel", async () => {

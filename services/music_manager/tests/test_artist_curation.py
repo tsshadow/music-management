@@ -29,7 +29,12 @@ from services.common.Helpers import Cache
 from services.common.Helpers.ArtistNameAnalyzer import REJECT, REWRITE, UNKNOWN
 from services.music_manager.main import app
 from services.music_manager.routers import artist_curation
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -381,6 +386,26 @@ class AnalyzeTest(ArtistCurationTestCase):
 
     def test_an_unknown_job_is_a_404(self):
         self.assertEqual(self.client.get('/api/rules/artists/analyze/nope', headers=self.headers).status_code, 404)
+
+
+class AnalyzeAtomicityTest(ArtistCurationTestCase):
+    """The proposals table is emptied and refilled in one transaction."""
+
+    rules = AnalyzeTest.rules
+
+    def run_analysis(self):
+        job_id = self.client.post('/api/rules/artists/analyze', headers=self.headers).json()['job_id']
+        return self.client.get(f'/api/rules/artists/analyze/{job_id}', headers=self.headers).json()
+
+    def test_the_delete_and_the_inserts_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.run_analysis()['status'], 'finished')
+        assert_atomic(self, log, 'DELETE FROM rules_artist_proposals', 'INSERT INTO rules_artist_proposals')
+
+    def test_a_failing_insert_keeps_the_previous_proposals(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO rules_artist_proposals')
+        self.assertEqual(self.run_analysis()['status'], 'failed')
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

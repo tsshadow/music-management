@@ -190,7 +190,7 @@
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.genres')}</span>
         <MetaChips
-          items={genres.map((genre) => ({ text: genre, view: `genre:${genre}`, testid: 'genre-chip' }))}
+          items={genres.map((genre) => ({ text: genre, view: `genre:${genre}`, testid: 'genre-chip', kind: 'genre' }))}
           onnavigate={navigate}
         />
       </div>
@@ -200,7 +200,7 @@
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.labels')}</span>
         <MetaChips
-          items={labels.map((label) => ({ text: label, view: `label:${label}`, testid: 'label-chip' }))}
+          items={labels.map((label) => ({ text: label, view: `label:${label}`, testid: 'label-chip', kind: 'label' }))}
           onnavigate={navigate}
         />
       </div>
@@ -210,7 +210,7 @@
       <div class="flex flex-col gap-1">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-[#727272]">{$t('nav.festivals')}</span>
         <MetaChips
-          items={festivals.map((festival) => ({ text: festival, view: `festival:${festival}`, testid: 'festival-chip' }))}
+          items={festivals.map((festival) => ({ text: festival, view: `festival:${festival}`, testid: 'festival-chip', kind: 'festival' }))}
           onnavigate={navigate}
         />
       </div>

@@ -46,7 +46,7 @@ from services.common.Helpers.ArtistNameAnalyzer import (
 )
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import curation_rules
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, require_connection, transaction
 from services.music_manager.job_store import job_store
 from services.music_manager.rbac import require_permission
 
@@ -85,10 +85,8 @@ class DecisionRequest(BaseModel):
 
 
 def _connect():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='No database connection')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 def _decided_by(auth: dict, requested: str | None = None) -> str:
@@ -463,7 +461,7 @@ def _run_analysis(job_id: str) -> None:
         job_store.finish(job_id, state)
         return
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT name FROM rules_artists WHERE state = %s', (WHITE,))
             approved = [row['name'] for row in cursor.fetchall()]
             cursor.execute(
@@ -507,7 +505,6 @@ def _run_analysis(job_id: str) -> None:
                     rows[start : start + 1000],
                 )
                 state['progress'] = min(len(rows), start + 1000)
-            conn.commit()
         state['status'] = 'finished'
         state['summary'] = {kind: sum(1 for row in rows if row[1] == kind) for kind in PROPOSAL_KINDS}
     except Exception as e:  # pylint: disable=broad-except

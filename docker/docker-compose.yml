@@ -117,7 +117,7 @@ services:
   phpmyadmin:
     security_opt:
       - no-new-privileges:true
-    image: phpmyadmin:latest
+    image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
     container_name: music-management-phpmyadmin-1
     logging: *default-logging
     restart: unless-stopped
@@ -642,7 +642,7 @@ services:
   firefox:
     security_opt:
       - no-new-privileges:true
-    image: jlesage/firefox:latest
+    image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
     container_name: muma-firefox
     logging: *default-logging
     restart: unless-stopped

@@ -86,6 +86,35 @@ def newest_mtime(path: str) -> float:
     return newest
 
 
+def folder_signature(path: str) -> str | None:
+    """What a release folder looks like from the outside: entries, total size, newest mtime.
+
+    One walk of `stat` calls -- the walk `newest_mtime` makes -- and no file is opened.
+    The mover compares it before deciding whether an unplaceable folder's tags need to be
+    read again: a file added, removed, replaced or rewritten changes at least one of the
+    three. Returns None when anything under `path` cannot be read, which the caller
+    treats as "changed" -- the safe direction, it only costs a re-read.
+    """
+    try:
+        newest = os.stat(path).st_mtime
+    except OSError:
+        return None
+    entries = 0
+    total_size = 0
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if d != SYNOLOGY_FOLDER]
+        for name, is_file in [(d, False) for d in dirs] + [(f, True) for f in files]:
+            try:
+                info = os.lstat(join(root, name))
+            except OSError:
+                return None
+            entries += 1
+            newest = max(newest, info.st_mtime)
+            if is_file:
+                total_size += info.st_size
+    return f'{entries}:{total_size}:{newest!r}'
+
+
 def is_settled(path: str, min_age_seconds: int | None = None, now: float | None = None) -> bool:
     """Whether nothing under `path` changed within the last `min_age_seconds`.
 

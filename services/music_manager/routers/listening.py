@@ -37,9 +37,10 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['listening'])
 
@@ -66,13 +67,6 @@ _HOURLY_SQL = """
     GROUP BY slot
     ORDER BY slot
 """
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests override."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 class ListeningScope:

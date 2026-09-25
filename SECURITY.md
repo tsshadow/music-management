@@ -72,7 +72,9 @@ Summarised here because it affects what counts as a vulnerability;
   key 401, disabled account 403, database unreachable 503. A router must
   not carry its own copy: three did, from before RBAC, and accepted any enabled
   account on every management route (docs/bug-reports/037-management-routes-open-to-every-user.md); two more swallowed
-  every error into 401 "Invalid API key" (docs/bug-reports/052). A route that changes rules
+  every error into 401 "Invalid API key" (docs/bug-reports/052), and the wrappers left
+  after that are gone too (docs/bug-reports/065; `test_router_api_key_dependency.py` fails on a
+  new copy). A route that changes rules
   needs `rules.manage`; one that operates the installation (container logs,
   downloader sources, event deletion, the lms.db sync) needs the admin role; a
   webhook that names the acting user in its body (the LMS rating webhook)

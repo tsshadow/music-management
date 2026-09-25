@@ -22,7 +22,10 @@ for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
 
 from services.music_manager import scrobble_rematch as rematch
 from services.music_manager.scrobble_matching import MatchTier, normalize
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    transaction_log,
+)
 
 EXACT_SQL = 'WHERE a.name = %s AND t.title = %s'
 NORMALIZED_SQL = 'WHERE a.normalized_name = %s AND t.normalized_title = %s'
@@ -279,6 +282,40 @@ class RematchOnceTest(unittest.TestCase):
         sql, params = cursor.statements_matching('FROM scrobble_unmatched_listens WHERE')[0]
         self.assertIn('ORDER BY listened_at ASC', sql)
         self.assertEqual(params, (17,))
+
+
+class RematchAtomicityTest(unittest.TestCase):
+    """A rematched listen is inserted and dequeued in one transaction per row."""
+
+    DUE = RematchOnceTest.DUE
+    _conn = RematchOnceTest._conn
+
+    def rules(self):
+        return [
+            ('FROM scrobble_unmatched_listens WHERE', None, self.DUE[:1]),
+            (EXACT_SQL, ('Angerfist', 'Raise Your Fist'), {'id': 5}),
+        ]
+
+    def test_the_insert_and_the_dequeue_are_one_transaction(self):
+        cursor = ScriptedCursor(self.rules())
+        conn = self._conn(cursor)
+        log = transaction_log(conn, cursor)
+        with patch.object(rematch, 'tiers', return_value=[MatchTier.EXACT]):
+            rematch.rematch_once(conn, limit=50)
+        row = log[log.index('BEGIN') :]
+        insert = next(i for i, entry in enumerate(row) if 'INSERT INTO scrobble_listens' in entry)
+        delete = next(i for i, entry in enumerate(row) if 'DELETE FROM scrobble_unmatched_listens' in entry)
+        self.assertLess(insert, delete)
+        self.assertLess(delete, row.index('COMMIT'))
+
+    def test_a_failing_dequeue_rolls_the_listen_back(self):
+        cursor = ScriptedCursor(self.rules())
+        conn = self._conn(cursor)
+        log = transaction_log(conn, cursor, fail_on='DELETE FROM scrobble_unmatched_listens')
+        with patch.object(rematch, 'tiers', return_value=[MatchTier.EXACT]), self.assertRaises(RuntimeError):
+            rematch.rematch_once(conn, limit=50)
+        self.assertEqual(log.count('ROLLBACK'), 1)
+        self.assertEqual(log[-1], 'ROLLBACK')
 
 
 if __name__ == '__main__':

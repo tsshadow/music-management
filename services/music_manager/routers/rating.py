@@ -12,17 +12,11 @@ from services.music_manager.library_paths import (
     candidate_paths,
 )
 from services.music_manager.rbac import is_admin_auth
+from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['rating'])
 
 __all__ = ['LMS_MUSIC_ROOT', 'MUMA_MUSIC_ROOT', 'candidate_paths', 'router']
-
-
-def verify_api_key(x_api_key: str | None = Header(None)):
-    """Delegates to the canonical users.verify_api_key; kept as a name tests patch."""
-    from services.music_manager.routers.users import verify_api_key as _verify
-
-    return _verify(x_api_key)
 
 
 def require_system_key(x_api_key: str | None = Header(None)):

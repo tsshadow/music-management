@@ -309,3 +309,30 @@ def test_the_join_columns_are_indexed(database):
     listen question through scrobble_listens.track_id; neither was indexed (migrate_v34)."""
     assert _index_columns(database, 'library_tracks', 'idx_tracks_primary_artist') == ['primary_artist_id']
     assert _index_columns(database, 'scrobble_listens', 'idx_listens_track_user') == ['track_id', 'username']
+
+
+def test_the_importer_skips_an_unchanged_proposal_against_real_mariadb(db):
+    """migrate_v38: the fingerprint is written whatever the status, and the rules version the
+    mover compares against moves when a catalogue rule is added or its label edited."""
+    from services.importer.label_proposal_store import KNOWN_QUERY, RECORD_QUERY, RULES_VERSION_QUERY
+
+    def rules_version(cursor):
+        cursor.execute(RULES_VERSION_QUERY)
+        return tuple(cursor.fetchone().values())
+
+    with db.cursor() as cursor:
+        empty = rules_version(cursor)
+        cursor.execute("INSERT INTO rules_catid_label (catid, label) VALUES ('SCAN', 'Scantraxx')")
+        added = rules_version(cursor)
+        cursor.execute("UPDATE rules_catid_label SET label = 'Scantraxx Records' WHERE catid = 'SCAN'")
+        edited = rules_version(cursor)
+        assert len({empty, added, edited}) == 3
+
+        cursor.execute(RECORD_QUERY, ('NOPE123 - Release', 'NOPE', None, 'none', 0, 'a' * 64))
+        cursor.execute("UPDATE rules_label_proposals SET status = 'rejected', decided_at = NOW()")
+        cursor.execute(RECORD_QUERY, ('NOPE123 - Release', 'NOPE', 'Other', 'tag:label', 90, 'b' * 64))
+        cursor.execute(KNOWN_QUERY)
+        row = cursor.fetchone()
+    assert row['status'] == 'rejected'
+    assert row['resolved_fingerprint'] == 'b' * 64
+    assert row['decided_at'] is not None

@@ -25,7 +25,8 @@ from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.RescanInvalidator import invalidate_quietly
 from services.music_manager import catalog_series
 from services.music_manager import curation_rules as rules
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, require_connection, transaction
+from services.music_manager.feeds.hierarchy import MAX_DEPTH, find_cycles
 from services.music_manager.job_store import job_store
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.tagger import tagger_manager
@@ -110,10 +111,8 @@ class RetagRequest(BaseModel):
 
 
 def _connect():
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='No database connection')
-    return conn
+    """A pooled connection; no pool at all is a 503 (database.require_connection)."""
+    return require_connection(get_db_connection())
 
 
 # Delete-then-insert rather than ON DUPLICATE KEY UPDATE, because the two tables do
@@ -219,7 +218,7 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
     mbid = rules.parse_mbid(request.mbid)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
             cursor.execute('UPDATE library_artists SET mbid = %s WHERE id = %s', (mbid, artist['id']))
             if mbid:
@@ -231,7 +230,6 @@ def set_artist_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
                     'DELETE FROM artist_external_ids WHERE artist_id = %s AND source = %s',
                     (artist['id'], rules.MUSICBRAINZ),
                 )
-            conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
         conn.close()
@@ -247,10 +245,9 @@ def set_artist_external_id(name: str, request: ExternalIdRequest, _auth: dict = 
         rules.parse_mbid(external_id)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             artist = _require_artist(cursor, name)
             _store_artist_external_id(cursor, artist['id'], source, external_id, request.external_url, request.verified)
-            conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -508,7 +505,7 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
     mbid = rules.parse_mbid(request.mbid)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             label = _require_label(cursor, name)
             cursor.execute('UPDATE library_labels SET mbid = %s WHERE id = %s', (mbid, label['id']))
             if mbid:
@@ -520,7 +517,6 @@ def set_label_mbid(name: str, request: MbidRequest, _auth: dict = WRITE):
                     'DELETE FROM label_external_ids WHERE label_id = %s AND source = %s',
                     (label['id'], rules.MUSICBRAINZ),
                 )
-            conn.commit()
             return {'status': 'ok', 'mbid': mbid}
     finally:
         conn.close()
@@ -567,10 +563,9 @@ def set_label_external_id(name: str, request: ExternalIdRequest, _auth: dict = W
         rules.parse_mbid(external_id)
     conn = _connect()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             label = _require_label(cursor, name)
             _store_label_external_id(cursor, label['id'], source, external_id, request.external_url, request.verified)
-            conn.commit()
             return {'status': 'ok'}
     finally:
         conn.close()
@@ -721,6 +716,82 @@ def list_genres(q: str | None = None, limit: int = 500, offset: int = 0, _auth: 
         conn.close()
 
 
+def _genre_graph(cursor) -> tuple[dict[str, set[str]], dict[str, str]]:
+    """The whole subgenre graph, keyed case-insensitively, plus a display name per key.
+
+    The table is small (one row per parent edge) and every question asked of it here
+    -- "would this close a cycle", "what is below this genre", "which cycles exist"
+    -- walks it transitively, so one read beats a query per hop.
+    """
+    cursor.execute('SELECT subgenre, genre FROM rules_subgenre_hierarchy')
+    parents: dict[str, set[str]] = {}
+    names: dict[str, str] = {}
+    for row in cursor.fetchall():
+        child, parent = row['subgenre'], row['genre']
+        parents.setdefault(child.lower(), set()).add(parent.lower())
+        names.setdefault(child.lower(), child)
+        names.setdefault(parent.lower(), parent)
+    return parents, names
+
+
+def _closes_cycle(subject: str, parent: str, parents: dict[str, set[str]]) -> bool:
+    """Whether filing `subject` under `parent` would make `subject` its own ancestor.
+
+    Walks up from the proposed parent. The subject's current parent edges are left
+    out, because the write replaces them. Bounded by `MAX_DEPTH` and a seen set, so a
+    cycle already in the table (from before this check existed) cannot hang the
+    request.
+    """
+    subject, parent = subject.lower(), parent.lower()
+    seen = {parent}
+    frontier = {parent}
+    for _ in range(MAX_DEPTH):
+        if subject in frontier:
+            return True
+        frontier = {p for child in frontier if child != subject for p in parents.get(child, set())} - seen
+        if not frontier:
+            return False
+        seen |= frontier
+    return subject in frontier
+
+
+def _descendants(genre: str, parents: dict[str, set[str]], names: dict[str, str]) -> list[str]:
+    """Every genre below `genre`, at any depth, by display name -- the ones that may
+    not become its parent. Bounded like every other walk of this graph."""
+    children: dict[str, set[str]] = {}
+    for child, ps in parents.items():
+        for p in ps:
+            children.setdefault(p, set()).add(child)
+    key = genre.lower()
+    seen = {key}
+    frontier = {key}
+    for _ in range(MAX_DEPTH):
+        frontier = {c for p in frontier for c in children.get(p, set())} - seen
+        if not frontier:
+            break
+        seen |= frontier
+    return sorted(names.get(k, k) for k in seen - {key})
+
+
+@router.get('/genre-hierarchy/cycles')
+def get_genre_hierarchy_cycles(_auth: dict = READ):
+    """Read-only integrity check: every cycle in `rules_subgenre_hierarchy`.
+
+    The edit page refuses new cycles, but one stored before that check existed stays
+    until a curator removes a parent in Beheer; SQL cannot pick which edge is the
+    wrong one. The feeds cope (they log the cycle and choose deterministically), so
+    this is where an operator finds out what to fix.
+    """
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            parents, names = _genre_graph(cursor)
+    finally:
+        conn.close()
+    cycles = [[names.get(k, k) for k in cycle] for cycle in find_cycles(parents)]
+    return {'count': len(cycles), 'cycles': cycles}
+
+
 @router.get('/genres/{name}')
 def get_genre(name: str, _auth: dict = READ):
     """Where this genre sits in the hierarchy, and whether it may be edited at all.
@@ -744,6 +815,7 @@ def get_genre(name: str, _auth: dict = READ):
                 (genre['name'],),
             )
             children = [row['subgenre'] for row in cursor.fetchall()]
+            graph, names = _genre_graph(cursor)
             return {
                 'name': genre['name'],
                 'genre_id': genre['id'],
@@ -753,6 +825,7 @@ def get_genre(name: str, _auth: dict = READ):
                 'hardness': genre.get('hardness'),
                 'parents': parents,
                 'children': children,
+                'descendants': _descendants(genre['name'], graph, names),
             }
     finally:
         conn.close()
@@ -764,6 +837,10 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
 
     Replaces rather than merges, so clearing the hierarchy is an empty list — the same
     contract the genre decision endpoint uses for its rewrite targets.
+
+    Refuses, with 409, a parent the genre is already an ancestor of: storing it would
+    close a cycle, and every walker of the graph (feeds, hardness inheritance, the
+    genre tree) would then have to guess which edge was meant.
     """
     subject_key = rules.normalize_genre(name)
     wanted: list[str] = []
@@ -778,6 +855,8 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
 
     conn = _connect()
     try:
+        # Validation first, outside the transaction: a refused request (404, 403, 400,
+        # or the 409 for a cycle) reads only and never opens one.
         with conn.cursor() as cursor:
             genre = rules.find_genre_by_name(cursor, name)
             if not genre:
@@ -796,13 +875,20 @@ def set_genre_parents(name: str, request: ParentGenresRequest, _auth: dict = WRI
                         status_code=400, detail=f"Genre '{parent_row['name']}' has not been accepted by curation"
                     )
                 resolved.append(parent_row['name'])
+            if resolved:
+                graph, _names = _genre_graph(cursor)
+                for parent_name in resolved:
+                    if _closes_cycle(genre['name'], parent_name, graph):
+                        raise HTTPException(
+                            status_code=409, detail=f"{genre['name']} is already an ancestor of {parent_name}"
+                        )
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('DELETE FROM rules_subgenre_hierarchy WHERE LOWER(subgenre) = LOWER(%s)', (genre['name'],))
             for parent_name in resolved:
                 cursor.execute(
                     'INSERT INTO rules_subgenre_hierarchy (subgenre, genre) VALUES (%s, %s)',
                     (genre['name'], parent_name),
                 )
-            conn.commit()
     finally:
         conn.close()
     rules.refresh(rules.SUBGENRE_HELPER)

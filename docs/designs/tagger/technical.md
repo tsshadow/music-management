@@ -97,6 +97,30 @@ forever, with an `ERROR` — and so an alert push — each time
 6. **Error Handling**: Failed tagging operations for individual files are logged and added to the `broken_song_helper` (persisted to `broken-files.log`) without stopping the entire batch run. A file that keeps failing is retried with an exponential backoff and parked after `TAGGER_PARK_AFTER` failures (see "Retag Queue: Backoff and Parking").
 7. **Idempotency**: Running the tagger multiple times on the same file with no rule changes results in no changes to the file's modification time (mtime) after the first successful pass, handled via `ProcessedFilesHelper`.
 
+## Round Structure
+
+`Tagger.run` is one round: reload the rule caches, queue the files the scanner found, serve the
+retag queue reason by reason, walk the folders when the walk is due, log one summary line, ask LMS
+to scan. What the files of a round share is set up once for the round
+([bug report 063](../../bug-reports/063-tagger-reconnects-and-rebuilds-rules-per-file.md)):
+
+- **Connections.** `RoundScope.round_scope()` (`services/common/Helpers/RoundScope.py`) makes
+  `DatabaseConnector.connect()` lend each participating thread the one connection it holds for the
+  round; a helper's `close()` ends the transaction, not the socket. The round's worker pool is one
+  `ThreadPoolExecutor` for the whole round, whose initializer joins each worker thread to the round,
+  so a round opens at most one connection per worker plus one for the round's own thread. A
+  connection is never shared between threads. Threads outside the round, and every caller outside a
+  round (`TagSingleFile`, the downloader, the importer), still get a fresh connection per call.
+- **Rules.** `services/tagger/Song/rule_stack.py` builds each song type's rule list once per round
+  and hands the same rule objects to every file; a song only carries its file and its tags. The
+  lists read at the start of the round (ignore list, genre list) behave like every other rule
+  cache: a change made mid-round applies from the next round. `InferArtistFromTitleRule` follows
+  the `library_artists` helper's snapshot and rebuilds its name sets when a new one is published.
+- **Summary.** `Tagging round: N file(s) tagged (W written, S up to date) in Xs, M ms/file,
+  C database connection(s) opened`, at `INFO` when the round tagged anything and `DEBUG` otherwise.
+  `ms/file` is the round's wall time divided by the files the rules ran on, so a walk over
+  up-to-date folders raises it; compare rounds of the same kind.
+
 ## Genre Splitting
 
 A genre tag is split on `;` and `/` only, never on the artist separators of `ARTIST_REGEX`

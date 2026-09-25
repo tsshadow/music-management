@@ -9,7 +9,12 @@ from fastapi.testclient import TestClient
 from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
 from services.music_manager.routers import user_requests
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = resolve_system_api_key()
 
@@ -498,6 +503,48 @@ class InitDbTest(unittest.TestCase):
 
         self.assertIsNone(user_requests.init_db(cursor))
         self.assertEqual(cursor.executed, [])
+
+
+class ApprovalAtomicityTest(UserRequestsTestCase):
+    """Approving creates the account, its identity and the request update together or not at all."""
+
+    def approve(self, fail_on=None):
+        cursor = ScriptedCursor([('SELECT * FROM user_requests WHERE id = %s', None, PENDING_REQUEST)], lastrowid=99)
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        log = transaction_log(connection, cursor, fail_on=fail_on)
+        with (
+            patch.object(user_requests.rbac, 'get_role_by_name', return_value={'id': 2}),
+            patch.object(user_requests.rbac, 'record_audit_event'),
+        ):
+            response, _cursor, _connection = self.call(
+                'post', '/api/user-requests/7/approve', body={}, connection=connection
+            )
+        return response, log
+
+    def test_the_account_identity_and_request_are_one_transaction(self):
+        response, log = self.approve()
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'INSERT INTO users', 'INSERT INTO user_identities', 'UPDATE user_requests SET status')
+
+    def test_a_failing_identity_insert_leaves_no_orphan_account(self):
+        response, log = self.approve(fail_on='INSERT INTO user_identities')
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
+
+    def test_unapproving_deletes_the_account_and_reopens_the_request_together(self):
+        approved = {**PENDING_REQUEST, 'status': 'approved', 'created_user_id': 99, 'linked_existing': True}
+        cursor = ScriptedCursor([('SELECT * FROM user_requests WHERE id = %s', None, approved)])
+        connection = MagicMock()
+        connection.cursor.return_value = cursor
+        log = transaction_log(connection, cursor, fail_on='UPDATE user_requests SET status')
+        with patch.object(user_requests.rbac, 'record_audit_event'):
+            response, _cursor, _connection = self.call(
+                'post', '/api/user-requests/7/unapprove', body={}, connection=connection
+            )
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
+        self.assertLess(log.index('BEGIN'), log.index(cursor.statements_matching('DELETE FROM user_identities')[0][0]))
 
 
 if __name__ == '__main__':

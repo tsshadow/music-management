@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.5] - 2026-09-25
+
+### Changed
+- **The label chip on the now-playing screen looked exactly like a genre.** "Hardstyle", "Raw
+  Hardstyle", "Techno", "Scantraxx": four identical grey pills, and only knowing the name told you
+  the last one is the label. A label chip is now amber, genres stay grey, on the now-playing screen
+  and in the track details sheet. The colour follows what the chip names, not where it sits.
+
+### Fixed
+- **The now-playing screen had no news button.** The web player bar always offered the news of the
+  hour next to the radio, but the full-screen player on the phone was never given it, so in the app
+  the bulletin was only reachable from the notification or the car. The button is back in the row
+  under the controls, right after the radio button, purple while a bulletin plays. Bug report 059.
+
+- **The rating stars on the now-playing screen hung off the left edge.** Seek bar and transport run
+  the full width, the five stars sat left-aligned under the genre chips and looked detached from
+  them. The row is now centred and spreads its stars evenly over a fixed width, each star a little
+  larger (28px) with the same 44px tap target. An unrated track shows five grey outlines instead
+  of five barely visible filled stars, which read as a disabled control rather than "no rating
+  yet". Tapping a star still sets exactly that rating.
 ## [7.4.4] - 2026-09-24
 
 ### Fixed

@@ -1,4 +1,4 @@
--- migrate_v40_channel_link_proposals.sql
+-- migrate_v41_channel_link_proposals.sql
 --
 -- channel_link_proposals: a proposed link from a channel (SoundCloud/YouTube account folder) to
 -- the label or artist it is, waiting for a curator to confirm or reject it. One row per

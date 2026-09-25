@@ -317,7 +317,7 @@ class CoverageEndpointTest(DownloaderApiTestBase):
         self.assertEqual(NOW.isoformat(), body['accounts'][0]['last_download_at'])
 
     def test_a_soundcloud_account_is_found_in_the_archive_by_its_numeric_id(self):
-        """Bug report 087: the archive files rows under soundcloud_id, never under the slug."""
+        """Bug report 089: the archive files rows under soundcloud_id, never under the slug."""
         body = self.client.get('/api/downloaders/coverage/soundcloud', headers=self.headers).json()
         rows = {row['account']: row for row in body['accounts']}
         self.assertEqual(NOW.isoformat(), rows['dj_a']['last_download_at'])

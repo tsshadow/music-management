@@ -170,7 +170,7 @@ class CoverageQueries:
                         for row in cursor.fetchall()
                     ]
                 # The archive files a SoundCloud download under the numeric id, not the slug
-                # (docs/bug-reports/087-soundcloud-coverage-last-download-never-found.md).
+                # (docs/bug-reports/089-soundcloud-coverage-last-download-never-found.md).
                 cursor.execute('SELECT name, soundcloud_id FROM downloads_soundcloud_accounts ORDER BY name')
                 return [
                     ConfiguredAccount(
@@ -281,7 +281,7 @@ def get_coverage(source: str, _auth: dict = Depends(verify_api_key)):
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f'Could not read the coverage: {exc}') from exc
     # The links are context too: a missing channel_link_proposals table (a deploy that has
-    # not run migrate_v40 yet) must not take the counts down.
+    # not run migrate_v41 yet) must not take the counts down.
     try:
         known = coverage_queries.channels(source)
         channels = {key: downloader_coverage.channel_for(path, known) for key, path in samples.items()}

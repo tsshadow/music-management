@@ -135,7 +135,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
     behind it, `{status: "unlinked"}`; `400` unknown kind, `404` unknown channel.
 - **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
   `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
-  path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 087).
+  path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).
 - **GET `/api/tagger/retag/pending`**: `{"total": <int>, "by_reason": [{"reason", "count"}], "failed": <int>,
   "busy": <bool>, "stopping": <bool>}`. `total` counts the queued files; `failed` (added, additive) counts
   the files parked after failing `TAGGER_PARK_AFTER` times in a row, which are not in `total` and wait

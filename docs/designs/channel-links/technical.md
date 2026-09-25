@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS channel_link_proposals (
 - `decided_by` mirrors `rules_artists.decided_by` (`curation_rules.actor_name`).
 
 Three edits (AGENTS.md): the `CREATE TABLE` in `services/common/db_init.py` (ordered after
-`channels`), `migrate_v40_channel_link_proposals.sql` (the same `CREATE TABLE IF NOT EXISTS`,
+`channels`), `migrate_v41_channel_link_proposals.sql` (the same `CREATE TABLE IF NOT EXISTS`,
 re-runnable; recorded by the `schema_migrations` ledger since bug report 068, but correct without
 it), and an explicit assertion in `tests/integration/test_schema.py` next to the ledger one
 (`EXPECTED_TABLES` itself is derived from the sources since the drift fix).
@@ -147,7 +147,7 @@ artist and open-proposal count). An account that never wrote a file has no chann
 changed name over time, the lexically last sample wins; the account then shows one of its channels,
 not all.
 
-**Fixed along the way** (bug report 087): the SoundCloud archive files every row under the account's
+**Fixed along the way** (bug report 089): the SoundCloud archive files every row under the account's
 numeric `soundcloud_id` (157.887 of 157.888 rows), but coverage looked the last download up by
 account name, so `last_download_at` was `null` for every SoundCloud account. `configured()` now also
 reads `soundcloud_id`, and the archive lookups key on it.
@@ -186,7 +186,7 @@ reads `soundcloud_id`, and the archive lookups key on it.
     links and open-proposal count; one without archive rows carries `null`; SoundCloud
     `last_download_at` is found by `soundcloud_id`.
 11. Every new GET and the coverage change run against MariaDB in `tests/integration/test_router_sql.py`;
-    `migrate_v40` is re-runnable.
+    `migrate_v41` is re-runnable.
 12. Frontend (vitest): the Koppelingen tab lists proposals from a mocked response, filters by kind,
     confirms and rejects through the right endpoints, and runs the search showing its counts; the
     coverage table shows a linked label/artist and a "voorstel" marker.
@@ -196,4 +196,4 @@ reads `soundcloud_id`, and the archive lookups key on it.
 - [channel-coverage/technical.md](../channel-coverage/technical.md) — the coverage endpoint.
 - [artist-curation/technical.md](../artist-curation/technical.md) — white/black/canonical.
 - `services/common/text_normalize.py` — the name key variants.
-- `docs/bug-reports/087-soundcloud-coverage-last-download-never-found.md`.
+- `docs/bug-reports/089-soundcloud-coverage-last-download-never-found.md`.

@@ -45,7 +45,7 @@ def test_the_migration_ledger_is_an_expected_table():
 
 
 def test_the_channel_link_proposals_are_an_expected_table():
-    """docs/designs/channel-links: db_init creates it and migrate_v40 declares it."""
+    """docs/designs/channel-links: db_init creates it and migrate_v41 declares it."""
     assert 'channel_link_proposals' in schema_sources.code_declared_tables()
     assert 'channel_link_proposals' in schema_sources.migration_declared_tables()
 

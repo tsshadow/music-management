@@ -22,9 +22,9 @@ The UI uses a limited but high-contrast color palette.
 
 - **Main Background**: `#191414` (Body background - `bg-muma-spotify-black`)
 - **Section Background**: `#121212` (Main content area - `bg-muma-spotify-dark`)
-- **Panel/Card Background**: `#181818` (Sidebar, Track Cards, Filter Bar)
+- **Panel/Card Background**: `#181818` (Sidebar, Track Cards, Filter Bar - `bg-muma-spotify-panel`)
 - **Elevated/Hover Background**: `#282828` (Inputs, Hover states - `bg-muma-spotify-light`)
-- **Lighter Hover**: `#3e3e3e` (Active/Secondary hover states)
+- **Lighter Hover**: `#3e3e3e` (Active/Secondary hover states - `bg-muma-spotify-highlight`)
 
 ### Token Names (Web UI)
 
@@ -39,7 +39,14 @@ for a token that is declared there. Use the token, never the raw hex, and never 
 | `muma-spotify-dark`          | `#121212`             | Main content area                             |
 | `muma-spotify-panel`         | `#181818`             | Sidebar, cards, filter bar                    |
 | `muma-spotify-light`         | `#282828`             | Inputs and hover surfaces                     |
+| `muma-spotify-raised`        | `#242424`             | Surface one step above the panel              |
+| `muma-spotify-hover`         | `#333333`             | Hover / pressed state of a `light` surface    |
+| `muma-spotify-highlight`     | `#3e3e3e`             | Hover of a control already on `hover`         |
 | `muma-spotify-text`          | `#b3b3b3`             | Secondary text                                |
+| `muma-spotify-muted`         | `#727272`             | Muted text (timestamps, disabled)             |
+| `muma-spotify-subtle`        | `#535353`             | Dimmest text, placeholder glyphs              |
+
+The full palette, with the arbitrary colours that still have no token, is in `docs/styleguide.md`.
 
 Transparency uses the slash syntax (`bg-white/10`, `bg-brand/20`). The `bg-opacity-*` family was
 removed in Tailwind v4 and silently produces nothing.
@@ -129,8 +136,8 @@ Instead of traditional dropdowns or modals, use "Bottom Sheets" for:
 
 ### Track Cards
 
-- **Container**: `bg-[#181818]`, `p-4`, `rounded-lg`.
-- **Hover State**: `bg-[#282828]`.
+- **Container**: `bg-muma-spotify-panel`, `p-4`, `rounded-lg`.
+- **Hover State**: `bg-muma-spotify-light`.
 - **Cover Art**: `aspect-square`, `shadow-[0_8px_24px_rgba(0,0,0,0.5)]`, `rounded`.
 - **Play Button**: Circular green/blue button that appears on hover.
 
@@ -142,9 +149,9 @@ Instead of traditional dropdowns or modals, use "Bottom Sheets" for:
 
 ### Filter Bar
 
-- **Container**: `bg-[#181818]`, `p-4`, `rounded-lg`, `mb-6`.
-- **Search Input**: Pill-shaped (`rounded-[20px]`), `bg-[#282828]`, `px-4 py-2`.
-- **Selects/Dropdowns**: Minimal styling, `bg-[#282828]`, `rounded`.
+- **Container**: `bg-muma-spotify-panel`, `p-4`, `rounded-lg`, `mb-6`.
+- **Search Input**: Pill-shaped (`rounded-[20px]`), `bg-muma-spotify-light`, `px-4 py-2`.
+- **Selects/Dropdowns**: Minimal styling, `bg-muma-spotify-light`, `rounded`.
 
 ### Buttons & Inputs
 
@@ -154,7 +161,7 @@ Instead of traditional dropdowns or modals, use "Bottom Sheets" for:
 
 ### Search Results (Grouped)
 
-- **Overlay**: Appears as a floating panel below the search bar (`bg-[#282828]`, `rounded-md`, `shadow-2xl`).
+- **Overlay**: Appears as a floating panel below the search bar (`bg-muma-spotify-light`, `rounded-md`, `shadow-2xl`).
 - **Sections**: Group results by category: Tracks, Artists, Albums, and Genres.
 - **Section Headers**: `text-white`, `font-bold`, `text-sm`, with a "Zie meer" button on the right for expansion.
 
@@ -182,7 +189,7 @@ The UI supports two main "flavors":
 - **Page Transitions**: Use simple "Fade" transitions (`200ms`) when switching between main views (Home, Artist, Album).
 - **Modals**: Appear with a "Fade + Scale" effect (`200ms`, starting at `95%` scale).
 - **Hover Effects**:
-    - Cards and list items should have a subtle background color change (`bg-[#282828]` for cards, `bg-white/10` for list rows).
+    - Cards and list items should have a subtle background color change (`bg-muma-spotify-light` for cards, `bg-white/10` for list rows).
     - Buttons should scale slightly (`1.05x`) on hover to indicate interactivity.
 - **Loading State**: Use "Pulse" animations (`animate-pulse`) for skeleton loaders or text messages during long operations (like library scans).
 

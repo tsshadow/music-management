@@ -141,7 +141,7 @@ describe("NowPlaying", () => {
     expect(set.className).toContain("text-brand");
     expect(set.querySelector("svg").getAttribute("fill")).toBe("currentColor");
     expect(unset.dataset.filled).toBe("false");
-    expect(unset.className).toContain("text-[#b3b3b3]");
+    expect(unset.className).toContain("text-muma-spotify-text");
     expect(unset.className).not.toContain("text-white/10");
     expect(unset.querySelector("svg").getAttribute("fill")).toBe("none");
     expect(unset.disabled).toBe(false);
@@ -521,7 +521,7 @@ describe("NowPlaying track info", () => {
     for (const genre of genres) {
       expect(genre.dataset.kind).toBe("genre");
       expect(genre.className).not.toContain("bg-[#3a2c16]");
-      expect(genre.className).toContain("bg-[#282828]");
+      expect(genre.className).toContain("bg-muma-spotify-light");
     }
   });
 
@@ -557,7 +557,7 @@ describe("NowPlaying track info", () => {
 
     const button = screen.getByTestId("now-playing-news");
     expect(button.getAttribute("aria-pressed")).toBe("false");
-    expect(button.className).toContain("text-[#b3b3b3]");
+    expect(button.className).toContain("text-muma-spotify-text");
     expect(button.className).not.toContain("b266ff");
   });
 

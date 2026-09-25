@@ -71,22 +71,22 @@
 
 <div class="flex flex-col gap-6">
   {#if isLoading}
-    <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
+    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
   {:else if failed}
-    <p class="text-[#b3b3b3]">{$t('track.versionsFailed')}</p>
+    <p class="text-muma-spotify-text">{$t('track.versionsFailed')}</p>
   {:else if !canonical}
-    <p class="text-[#b3b3b3]">{$t('song.notFound')}</p>
+    <p class="text-muma-spotify-text">{$t('song.notFound')}</p>
   {:else}
     <header class="flex flex-col gap-2">
-      <span class="text-xs uppercase tracking-wide text-[#b3b3b3]">{$t('song.heading')}</span>
+      <span class="text-xs uppercase tracking-wide text-muma-spotify-text">{$t('song.heading')}</span>
       <h2 class="text-3xl font-bold m-0 text-white">{canonical.title}</h2>
       <button
-        class="self-start bg-transparent border-none p-0 text-[#b3b3b3] hover:text-white hover:underline cursor-pointer"
+        class="self-start bg-transparent border-none p-0 text-muma-spotify-text hover:text-white hover:underline cursor-pointer"
         onclick={() => canonical.artistId && onnavigate && onnavigate(`artist:${canonical.artistId}`)}
       >
         {canonical.artist}
       </button>
-      <p class="text-sm text-[#b3b3b3] m-0">
+      <p class="text-sm text-muma-spotify-text m-0">
         {versions.length === 1 ? $t('track.onlyVersion') : $t('song.versionCount', { count: versions.length })}
       </p>
     </header>

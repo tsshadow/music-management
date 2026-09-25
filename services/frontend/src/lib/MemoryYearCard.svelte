@@ -25,7 +25,7 @@
 </script>
 
 <div
-  class="group relative flex flex-col bg-[#181818] rounded-lg overflow-hidden hover:bg-[#282828] transition-all"
+  class="group relative flex flex-col bg-muma-spotify-panel rounded-lg overflow-hidden hover:bg-muma-spotify-light transition-all"
 >
   <button
     class="text-left border-none bg-transparent p-0 cursor-pointer"
@@ -68,7 +68,7 @@
     <ol class="list-none m-0 px-4 pt-4 pb-2 flex flex-col gap-1">
       {#each tile.top as song, index (song.id)}
         <li class="flex gap-2 text-sm min-w-0">
-          <span class="text-[#b3b3b3] tabular-nums w-3 shrink-0">{index + 1}</span>
+          <span class="text-muma-spotify-text tabular-nums w-3 shrink-0">{index + 1}</span>
           <span class="text-white truncate">{song.title}</span>
         </li>
       {/each}
@@ -86,7 +86,7 @@
         <path d="M7 6v12l10-6z"></path>
       </svg>
     </button>
-    <span class="text-sm text-[#b3b3b3] truncate">
+    <span class="text-sm text-muma-spotify-text truncate">
       {$t('common.trackCount', { count: tile.count })}
     </span>
   </div>

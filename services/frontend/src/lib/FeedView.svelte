@@ -84,11 +84,11 @@
       <div class="flex items-center gap-2 text-sm font-medium">
         <span class="text-white">{subtitle}</span>
         {#if tracks.length > 0}
-          <span class="text-[#b3b3b3]">• {$t('common.trackCount', { count: tracks.length })}</span>
+          <span class="text-muma-spotify-text">• {$t('common.trackCount', { count: tracks.length })}</span>
         {/if}
       </div>
       {#if bandLine}
-        <div class="text-xs text-[#b3b3b3] mt-1">{bandLine}</div>
+        <div class="text-xs text-muma-spotify-text mt-1">{bandLine}</div>
       {/if}
     </div>
   </header>
@@ -109,9 +109,9 @@
     </div>
 
     {#if isLoading}
-      <div class="text-[#b3b3b3] p-12 text-center">{$t('common.loading')}</div>
+      <div class="text-muma-spotify-text p-12 text-center">{$t('common.loading')}</div>
     {:else if tracks.length === 0}
-      <div class="text-[#b3b3b3] p-12 text-center">
+      <div class="text-muma-spotify-text p-12 text-center">
         <p class="mb-2">{$t('feed.empty')}</p>
         <p class="text-sm">{isRadar ? $t('feed.emptyRadarHelp') : $t('feed.emptyMixHelp')}</p>
       </div>

@@ -64,7 +64,7 @@
       </div>
     {/each}
     {#if loaded && cards.length === 0}
-      <p class="text-[#b3b3b3]">{$t('dashboard.noTracksInSection')}</p>
+      <p class="text-muma-spotify-text">{$t('dashboard.noTracksInSection')}</p>
     {/if}
   </div>
 </section>

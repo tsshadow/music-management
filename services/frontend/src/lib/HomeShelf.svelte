@@ -26,7 +26,7 @@
   <div class="flex justify-between items-end mb-4">
     <h2 class="{$isMobile ? 'text-xl' : 'text-2xl'} font-bold m-0">{title}</h2>
     <button
-      class="bg-transparent border-none text-[#b3b3b3] text-[13px] font-bold cursor-pointer hover:underline"
+      class="bg-transparent border-none text-muma-spotify-text text-[13px] font-bold cursor-pointer hover:underline"
       onclick={onshowall}
     >{showAllLabel}</button>
   </div>
@@ -36,7 +36,7 @@
         <TrackRowCompact {track} {onnavigate} />
       {/each}
       {#if tracks.length === 0}
-        <p class="text-[#b3b3b3]">{noTracksText}</p>
+        <p class="text-muma-spotify-text">{noTracksText}</p>
       {/if}
     </div>
   {:else}
@@ -51,7 +51,7 @@
         </div>
       {/each}
       {#if tracks.length === 0}
-        <p class="text-[#b3b3b3] col-span-full">{noTracksText}</p>
+        <p class="text-muma-spotify-text col-span-full">{noTracksText}</p>
       {/if}
     </div>
   {/if}

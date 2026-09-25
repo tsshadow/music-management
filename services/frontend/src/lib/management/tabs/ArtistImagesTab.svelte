@@ -153,7 +153,7 @@
         headers: getHeaders()
       });
       await readJson(res);
-      onMessage(`Zoeken naar afbeelding voor ${artist.name} gestart...`);
+      onMessage($t('management.images.searchStarted', { name: artist.name }));
       setTimeout(() => refreshArtist(artist.id), 4000);
     });
   }
@@ -165,7 +165,7 @@
         headers: getHeaders()
       });
       await readJson(res);
-      onMessage(`Afbeelding van ${artist.name} verwijderd.`);
+      onMessage($t('management.images.deleted', { name: artist.name }));
       await refreshArtist(artist.id);
       if (selected?.id === artist.id) await loadStoredImages(artist.id);
     });
@@ -189,7 +189,7 @@
         body: JSON.stringify({ url })
       });
       await readJson(res);
-      onMessage(`Afbeelding voor ${artist.name} opgeslagen.`);
+      onMessage($t('management.images.saved', { name: artist.name }));
       await refreshArtist(artist.id);
     });
   }
@@ -209,7 +209,7 @@
       const data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error('Kon bestand niet lezen'));
+        reader.onerror = () => reject(new Error($t('management.images.readFailed')));
         reader.readAsDataURL(file);
       });
       const res = await fetch(`${API_BASE}/api/artists/${artistId}/image/upload`, {
@@ -218,7 +218,7 @@
         body: JSON.stringify({ filename: file.name, data })
       });
       await readJson(res);
-      onMessage(`Afbeelding voor ${artist?.name ?? 'artiest'} geüpload.`);
+      onMessage($t('management.images.uploaded', { name: artist?.name ?? $t('management.images.artistFallback') }));
       await refreshArtist(artistId);
     });
   }
@@ -278,7 +278,7 @@
         <p class="text-2xl font-black text-white">
           <span class="text-brand">{imageStats.artists_with_images}</span>
           <span class="text-muma-spotify-text mx-1">/</span>
-          {imageStats.total_artists} <span class="text-sm font-normal text-muma-spotify-text">artiesten</span>
+          {imageStats.total_artists} <span class="text-sm font-normal text-muma-spotify-text">{$t('management.images.artistsUnit')}</span>
         </p>
       </div>
 
@@ -348,7 +348,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        {#each [['all', 'Alle'], ['with', 'Met afbeelding'], ['without', 'Zonder afbeelding']] as [value, label] (value)}
+        {#each [['all', $t('management.images.filterAll')], ['with', $t('management.images.filterWith')], ['without', $t('management.images.filterWithout')]] as [value, label] (value)}
           <button
             onclick={() => setFilter(value)}
             class="px-4 py-2 rounded-full text-sm font-bold transition-all border {filter === value ? 'bg-brand text-black border-brand' : 'bg-muma-spotify-panel/40 text-muma-spotify-text border-white/10 hover:text-white'}"
@@ -362,12 +362,12 @@
     {#if searchError}
       <div class="bg-red-900/40 border border-red-500/40 text-red-200 p-4 rounded-xl flex items-center justify-between gap-4">
         <span>{$t('management.images.searchFailed', { message: searchError })}</span>
-        <button onclick={() => runSearch()} class="font-bold underline shrink-0">Opnieuw</button>
+        <button onclick={() => runSearch()} class="font-bold underline shrink-0">{$t('management.images.retry')}</button>
       </div>
     {/if}
 
     {#if artists.length > 0}
-      <p class="text-sm text-muma-spotify-text">{artists.length} van {total} artiesten</p>
+      <p class="text-sm text-muma-spotify-text">{$t('management.images.countOf', { shown: artists.length, total })}</p>
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         {#each artists as artist (artist.id)}
           <div class="bg-muma-spotify-panel/30 rounded-xl overflow-hidden border border-white/5 hover:bg-muma-spotify-panel/50 transition-all group shadow-lg flex flex-col">
@@ -375,7 +375,7 @@
               type="button"
               onclick={() => openArtist(artist)}
               class="aspect-square bg-black flex items-center justify-center overflow-hidden relative w-full"
-              title="Beheer afbeeldingen van {artist.name}"
+              title={$t('management.images.manageFor', { name: artist.name })}
             >
               {#if artist.has_image && !brokenArtistIds.has(artist.id)}
                 <img
@@ -402,7 +402,7 @@
                 <h3 class="font-bold truncate text-lg" title={artist.name}>{artist.name}</h3>
                 <p class="text-xs text-muma-spotify-text mt-1">
                   {#if artist.has_image}
-                    {artist.width}x{artist.height} • {artist.source || 'onbekend'}
+                    {artist.width}x{artist.height} • {artist.source || $t('management.images.unknownSource')}
                   {:else}
                     <span class={artist.image_status === 'failed' ? 'text-red-400' : ''}>
                       {artist.image_status === 'failed'
@@ -443,7 +443,7 @@
             disabled={searching}
             class="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full font-bold transition-all disabled:opacity-40"
           >
-            Meer laden
+            {$t('common.loadMore')}
           </button>
         </div>
       {/if}
@@ -452,9 +452,9 @@
         <Search size={48} class="mx-auto mb-4 text-muma-spotify-text opacity-20" />
         <p class="text-muma-spotify-text text-xl font-medium">
           {#if query}
-            Geen artiesten gevonden met de naam "{query}"
+            {$t('management.images.noneForQuery', { query })}
           {:else}
-            Geen artiesten gevonden voor dit filter.
+            {$t('management.images.noneForFilter')}
           {/if}
         </p>
       </div>
@@ -476,7 +476,7 @@
         class="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-brand"
       />
       <div class="flex justify-end gap-2">
-        <button onclick={() => (urlDialogArtist = null)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20">Annuleren</button>
+        <button onclick={() => (urlDialogArtist = null)} class="px-4 py-2 rounded-full font-bold bg-white/10 hover:bg-white/20">{$t('common.cancel')}</button>
         <button onclick={saveImageUrl} disabled={!imageUrlInput.trim()} class="px-4 py-2 rounded-full font-bold bg-brand text-black disabled:opacity-40">{$t('common.save')}</button>
       </div>
     </div>
@@ -490,7 +490,7 @@
         <div>
           <h3 class="text-2xl font-black">{selected.name}</h3>
           <p class="text-sm text-muma-spotify-text">
-            {selected.has_image ? `${selected.width}x${selected.height} • bron: ${selected.source || 'onbekend'}` : 'Nog geen primaire afbeelding'}
+            {selected.has_image ? $t('management.images.dimensionsSource', { width: selected.width, height: selected.height, source: selected.source || $t('management.images.unknownSource') }) : $t('management.images.noPrimary')}
           </p>
         </div>
         <button onclick={() => (selected = null)} class="p-1 hover:text-brand"><X size={22} /></button>
@@ -527,11 +527,11 @@
                   <li class="flex items-center justify-between gap-3 bg-black/30 rounded-lg px-3 py-2">
                     <div class="text-sm min-w-0">
                       <p class="font-bold truncate">
-                        {image.source || 'onbekend'}
+                        {image.source || $t('management.images.unknownSource')}
                         {#if image.is_primary}<span class="text-brand ml-1">• primair</span>{/if}
                       </p>
                       <p class="text-xs text-muma-spotify-text truncate">
-                        {image.width}x{image.height} • betrouwbaarheid {image.confidence}
+                        {$t('management.images.dimensionsConfidence', { width: image.width, height: image.height, confidence: image.confidence })}
                         {#if !image.exists_on_disk}<span class="text-red-400"> • bestand ontbreekt</span>{/if}
                       </p>
                     </div>

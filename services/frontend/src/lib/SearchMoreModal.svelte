@@ -77,7 +77,7 @@
       <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
     </div>
   {:else if items.length === 0}
-    <div class="text-[#b3b3b3] p-12 text-center border border-white/5 rounded-xl bg-white/5">
+    <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
         <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>
         <p class="text-sm opacity-60">{$t('search.tryAnother')}</p>
     </div>
@@ -90,7 +90,7 @@
           <div
             role="button"
             tabindex="0"
-            class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+            class="bg-muma-spotify-panel p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
             onclick={() => navigate(`artist:${artist.id}`)}
             onkeydown={(e) => e.key === 'Enter' && navigate(`artist:${artist.id}`)}
           >
@@ -101,7 +101,7 @@
                 onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
               />
               <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-              <span class="text-sm text-[#b3b3b3]">{$t('common.artist')}</span>
+              <span class="text-sm text-muma-spotify-text">{$t('common.artist')}</span>
           </div>
         {/each}
       </div>
@@ -111,7 +111,7 @@
           <div
             role="button"
             tabindex="0"
-            class="bg-[#181818] p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-[#282828]"
+            class="bg-muma-spotify-panel p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
             onclick={() => navigate(`album:${album.id}`)}
             onkeydown={(e) => e.key === 'Enter' && navigate(`album:${album.id}`)}
           >

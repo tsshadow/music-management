@@ -103,10 +103,10 @@
       if (res.ok) {
         rows = await res.json();
       } else {
-        onError('Kon genres niet ophalen.');
+        onError($t('management.genres.overviewLoadFailed'));
       }
     } catch (err) {
-      onError('Netwerkfout bij ophalen genres.');
+      onError($t('management.genres.overviewLoadNetworkError'));
     } finally {
       loading = false;
     }
@@ -174,9 +174,9 @@
     const names = await postDecision(row, state, canonicalIds);
     if (names === null) return;
     if (names.length) {
-      onMessage(`${row.name} wordt voortaan vervangen door ${names.join(' + ')}.`);
+      onMessage($t('management.genres.replacedFromNow', { name: row.name, targets: names.join(' + ') }));
     } else {
-      onMessage(`${row.name} ${state === WHITE ? 'goedgekeurd' : 'afgekeurd'}.`);
+      onMessage($t(state === WHITE ? 'management.artists.approved' : 'management.artists.rejected', { name: row.name }));
     }
     deciding = null;
     await refresh();
@@ -292,7 +292,7 @@
             class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors {stateFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
             onclick={() => (stateFilter = filter.id)}
           >
-            {filter.label}
+            {$t(filter.labelKey)}
           </button>
         {/each}
       </div>
@@ -330,11 +330,11 @@
         <p class="text-2xl font-extrabold m-0">{summary.unknown ?? 0}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
-        <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">Goedgekeurd</p>
+        <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.genres.filterWhite')}</p>
         <p class="text-2xl font-extrabold m-0 text-brand">{summary.white ?? 0}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4">
-        <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">Afgekeurd</p>
+        <p class="text-[10px] uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.genres.filterBlack')}</p>
         <p class="text-2xl font-extrabold m-0 text-red-400">{summary.black ?? 0}</p>
       </div>
       <div class="bg-muma-spotify-panel/40 rounded-xl border border-white/5 p-4 flex flex-col gap-2">
@@ -367,7 +367,7 @@
         {#if stateFilter === UNKNOWN}<HelpCircle size={20} class="text-yellow-500" />{/if}
         {#if stateFilter === WHITE}<CircleCheck size={20} class="text-brand" />{/if}
         {#if stateFilter === BLACK}<CircleSlash size={20} class="text-red-500" />{/if}
-        {STATE_FILTERS.find((f) => f.id === stateFilter)?.label}
+        {$t(STATE_FILTERS.find((f) => f.id === stateFilter)?.labelKey)}
         <span class="text-muma-spotify-text text-sm font-normal">({counts.total})</span>
       </h3>
 
@@ -425,11 +425,11 @@
           <ListChecks size={48} class="mb-4 opacity-20" />
           <p>
             {#if search}
-              Geen genre gevonden voor '{search}'.
+              {$t('management.genres.noneForSearch', { search })}
             {:else if stateFilter === UNKNOWN}
-              Niets te beoordelen. Alle genres hebben een beslissing.
+              {$t('management.genres.queueEmpty')}
             {:else}
-              Geen genres in deze lijst.
+              {$t('management.genres.listEmpty')}
             {/if}
           </p>
         </div>
@@ -458,7 +458,7 @@
                       <span
                         class="text-[10px] font-bold uppercase px-2 py-0.5 rounded {row.state === WHITE ? 'bg-brand/20 text-brand' : 'bg-red-500/10 text-red-500'}"
                       >
-                        {row.state === WHITE ? 'Goedgekeurd' : 'Afgekeurd'}
+                        {row.state === WHITE ? $t('management.genres.filterWhite') : $t('management.genres.filterBlack')}
                       </span>
                     {/if}
                   </td>
@@ -533,7 +533,7 @@
 
 {#if deciding}
   <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[1100] animate-in fade-in duration-200">
-    <div class="bg-[#282828] p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
+    <div class="bg-muma-spotify-light p-8 rounded-xl border border-white/10 max-w-md w-full shadow-2xl">
       <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
         <Replace class="text-brand" /> {deciding.name}
       </h3>
@@ -597,13 +597,13 @@
           disabled={!pendingDecision.valid}
           onclick={() => decide(deciding, decisionState, decisionTargetIds)}
         >
-          Opslaan
+          {$t('common.save')}
         </button>
         <button
           class="flex-1 py-3 rounded-full font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
           onclick={() => (deciding = null)}
         >
-          Annuleren
+          {$t('common.cancel')}
         </button>
       </div>
     </div>

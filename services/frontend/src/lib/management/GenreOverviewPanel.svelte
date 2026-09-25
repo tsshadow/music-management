@@ -8,7 +8,7 @@
    * This replaces the "Genre Overzicht" that lived on the tagger page and listed
    * every row of the rules table, rejected and queued ones included.
    */
-  import { t } from '../i18n/index.js';
+  import { format, t } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { RefreshCw, Search, Pencil } from '@lucide/svelte';
   import { activeView } from '../store.js';
@@ -22,7 +22,7 @@
   let search = $state('');
 
   const visibleRows = $derived(filterOverview(rows, search));
-  const n = (value) => Number(value ?? 0).toLocaleString('nl-NL');
+  const n = (value) => $format.number(value);
 
   async function fetchRows() {
     loading = true;

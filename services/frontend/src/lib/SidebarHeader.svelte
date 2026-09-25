@@ -32,7 +32,7 @@
 
   {#if canLeave}
     <button
-      class="flex items-center gap-2 py-2 px-3 rounded-md text-[13px] font-bold bg-[#121212] border border-white/5 text-[#b3b3b3] hover:text-white transition-all mx-1"
+      class="flex items-center gap-2 py-2 px-3 rounded-md text-[13px] font-bold bg-muma-spotify-dark border border-white/5 text-muma-spotify-text hover:text-white transition-all mx-1"
       onclick={goBack}
     >
       <ArrowLeft size={14} strokeWidth={2.5} />

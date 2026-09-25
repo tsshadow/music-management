@@ -8,6 +8,8 @@
  * agree.
  */
 
+import { formatDateTime } from "../i18n/index.js";
+
 export const WHITE = "white";
 export const BLACK = "black";
 export const UNKNOWN = "unknown";
@@ -154,7 +156,7 @@ export function planFromProposals(rows) {
  */
 export function describeDecision(row) {
   if (!row.decided_at) return null;
-  const when = new Date(String(row.decided_at).replace(" ", "T")).toLocaleString("nl-NL");
+  const when = formatDateTime(row.decided_at);
   return { when, by: row.decided_by || null };
 }
 

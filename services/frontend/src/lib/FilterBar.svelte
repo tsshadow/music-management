@@ -180,7 +180,7 @@
   const chipBase =
     'px-3 py-1.5 rounded-full text-[13px] font-bold border transition-colors cursor-pointer whitespace-nowrap shrink-0';
   const chipOn = 'bg-brand text-black border-brand';
-  const chipOff = 'bg-[#282828] text-[#b3b3b3] border-transparent hover:text-white hover:bg-[#333]';
+  const chipOff = 'bg-muma-spotify-light text-muma-spotify-text border-transparent hover:text-white hover:bg-muma-spotify-hover';
 </script>
 
 {#snippet chevron()}
@@ -238,8 +238,8 @@
 {#if $isMobile}
   <div class="flex flex-col gap-2 mb-4" data-testid="mobile-filter-bar">
     {#if mobileSearchOpen}
-      <div class="flex items-center gap-2 bg-[#282828] rounded-[20px] px-3 py-2">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" class="text-[#b3b3b3] shrink-0">
+      <div class="flex items-center gap-2 bg-muma-spotify-light rounded-[20px] px-3 py-2">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" class="text-muma-spotify-text shrink-0">
           <circle cx="11" cy="11" r="7"></circle>
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
@@ -254,7 +254,7 @@
         />
         <button
           type="button"
-          class="bg-transparent border-none text-[#b3b3b3] hover:text-white cursor-pointer p-0.5"
+          class="bg-transparent border-none text-muma-spotify-text hover:text-white cursor-pointer p-0.5"
           aria-label={$t('filter.searchClose')}
           onclick={() => (mobileSearchOpen = false)}
         >
@@ -317,7 +317,7 @@
 
       <button
         type="button"
-        class="flex items-center justify-center w-9 h-9 rounded-full shrink-0 bg-[#282828] text-[#b3b3b3] hover:bg-[#333] hover:text-white"
+        class="flex items-center justify-center w-9 h-9 rounded-full shrink-0 bg-muma-spotify-light text-muma-spotify-text hover:bg-muma-spotify-hover hover:text-white"
         title={$t('common.refresh')}
         aria-label={$t('filter.refreshList')}
         data-testid="chip-refresh"
@@ -389,12 +389,12 @@
     </BottomSheet>
   {/if}
 {:else}
-  <div class="flex flex-col gap-4 mb-6 bg-[#181818] p-3 md:p-4 rounded-lg">
+  <div class="flex flex-col gap-4 mb-6 bg-muma-spotify-panel p-3 md:p-4 rounded-lg">
     <div class="w-full">
       <input
         type="text"
         placeholder={$t('common.searchPlaceholder')}
-        class="w-full bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-[#333]"
+        class="w-full bg-muma-spotify-light text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-muma-spotify-hover"
         bind:value={search}
         oninput={handleSearchInput}
       />
@@ -403,8 +403,8 @@
     <div class="flex flex-wrap gap-x-6 gap-y-4 items-center">
       {#if (view === 'songs' || view === 'albums') && showGenre}
         <div class="flex items-center gap-2">
-          <label for="genre" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('nav.genres')}</label>
-          <select id="genre" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={genre} onchange={handleChange}>
+          <label for="genre" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('nav.genres')}</label>
+          <select id="genre" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={genre} onchange={handleChange}>
             <option value="">{$t('filter.allGenres')}</option>
             {#each genres as g (g.value)}
               <option value={g.value}>{g.value} ({g.songCount})</option>
@@ -415,8 +415,8 @@
 
       {#if view === 'songs' && showYear}
         <div class="flex items-center gap-2">
-          <label for="year" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.year')}</label>
-          <select id="year" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={year} onchange={handleChange}>
+          <label for="year" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.year')}</label>
+          <select id="year" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={year} onchange={handleChange}>
             <option value="">{$t('filter.allYears')}</option>
             {#each years as y (y.value)}
               <option value={y.value}>{y.value}</option>
@@ -427,8 +427,8 @@
 
       {#if view === 'artists'}
         <div class="flex items-center gap-2">
-          <label for="role" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.role')}</label>
-          <select id="role" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={role} onchange={handleChange}>
+          <label for="role" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.role')}</label>
+          <select id="role" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={role} onchange={handleChange}>
             {#each roles as r (r.value)}
               <option value={r.value}>{$t(r.labelKey)}</option>
             {/each}
@@ -439,8 +439,8 @@
       {#if view === 'songs'}
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2">
-            <label for="minRating" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.rating')}</label>
-            <select id="minRating" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minRating} onchange={handleChange}>
+            <label for="minRating" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.rating')}</label>
+            <select id="minRating" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minRating} onchange={handleChange}>
               <option value="0">{$t('filter.allRatings')}</option>
               <option value="1">{$t('filter.starsMin', { count: 1 })}</option>
               <option value="2">{$t('filter.starsMin', { count: 2 })}</option>
@@ -451,8 +451,8 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <label for="minQuality" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.quality.label')}</label>
-            <select id="minQuality" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minQuality} onchange={handleChange}>
+            <label for="minQuality" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.quality.label')}</label>
+            <select id="minQuality" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={minQuality} onchange={handleChange}>
               <option value="">{$t('filter.quality.any')}</option>
               {#each QUALITY_FLOORS as tier (tier)}
                 <option value={tier}>{$t(QUALITY_LABEL_KEYS[tier])}</option>
@@ -468,15 +468,15 @@
               bind:checked={includeUnrated}
               onchange={handleChange}
             />
-            <label for="unrated" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider cursor-pointer select-none">{$t('filter.unrated')}</label>
+            <label for="unrated" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider cursor-pointer select-none">{$t('filter.unrated')}</label>
           </div>
         </div>
       {/if}
 
       <div class="flex items-center gap-2">
-        <label for="sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.sortBy')}</label>
+        <label for="sort" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.sortBy')}</label>
         <div class="flex items-center gap-1.5">
-          <select id="sort" class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
+          <select id="sort" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort} onchange={handleChange}>
             {#each allSortOptions[view] || [] as option (option.id)}
               {#if $visibleSortOptions[view]?.includes(option.id)}
                 <option value={option.id}>{$t(option.labelKey)}</option>
@@ -485,7 +485,7 @@
           </select>
           <button
             type="button"
-            class="bg-[#282828] text-[#b3b3b3] p-1.5 rounded hover:bg-[#333] hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand"
+            class="bg-muma-spotify-light text-muma-spotify-text p-1.5 rounded hover:bg-muma-spotify-hover hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand"
             onclick={handleChange}
             title={$t('common.refresh')}
             aria-label={$t('filter.refreshList')}

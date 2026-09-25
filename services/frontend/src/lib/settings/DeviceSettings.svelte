@@ -185,11 +185,11 @@
 <div class="settings-density p-0 max-w-4xl mx-auto pb-24">
   <header class="mb-8">
     <h1 class="text-3xl font-bold mb-2">{$t('settings.device.title')}</h1>
-    <p class="text-[#b3b3b3]">{$t('settings.device.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('settings.device.subtitle')}</p>
   </header>
 
   {#if isLoading}
-    <p class="text-[#b3b3b3]">{$t('settings.device.loading')}</p>
+    <p class="text-muma-spotify-text">{$t('settings.device.loading')}</p>
   {:else if !settings}
     <p class="text-red-400">{loadError}</p>
   {:else}
@@ -201,27 +201,27 @@
 
     <div class="flex flex-col gap-6">
       <!-- Downloads -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.downloads')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.wifiOnly')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.wifiOnlyHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.wifiOnlyHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.wifiOnly} onchange={() => toggle('wifiOnly')} aria-label={$t('settings.device.wifiOnly')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.parallelDownloads')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.parallelDownloadsHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.parallelDownloadsHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.parallelDownloads')}
               value={settings.parallelDownloads}
               onchange={(e) => writeFromSelect('parallelDownloads', e)}
@@ -235,10 +235,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.cacheSize')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.cacheSizeHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.cacheSizeHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.cacheSize')}
               value={settings.cacheSizeMB}
               onchange={(e) => writeFromSelect('cacheSizeMB', e)}
@@ -253,14 +253,14 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.clearCache')}</h3>
-              <p class="text-sm text-[#b3b3b3]">
+              <p class="text-sm text-muma-spotify-text">
                 {cacheStatus || $t('settings.device.clearCacheHelp')}
               </p>
             </div>
             <button
               onclick={clearCache}
               disabled={isClearingCache}
-              class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
+              class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0 disabled:opacity-50"
             >
               {isClearingCache ? $t('settings.device.clearingCache') : $t('settings.device.clearCache')}
             </button>
@@ -269,15 +269,15 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.cacheLocation')}</h3>
-              <span class="text-sm text-[#b3b3b3]">{settings.cacheLocationUri || $t('settings.device.cacheLocationDefault')}</span>
+              <span class="text-sm text-muma-spotify-text">{settings.cacheLocationUri || $t('settings.device.cacheLocationDefault')}</span>
             </div>
             <div class="flex gap-2 shrink-0">
               {#if settings.customCacheLocation}
-                <button onclick={clearCustomCacheLocation} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
+                <button onclick={clearCustomCacheLocation} class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
                   {$t('settings.device.cacheLocationReset')}
                 </button>
               {/if}
-              <button onclick={pickCacheLocation} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
+              <button onclick={pickCacheLocation} class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap">
                 {$t('settings.device.cacheLocationChoose')}
               </button>
             </div>
@@ -286,10 +286,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.directoryCacheTime')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.directoryCacheTimeHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.directoryCacheTimeHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.directoryCacheTime')}
               value={settings.directoryCacheTime}
               onchange={(e) => writeFromSelect('directoryCacheTime', e)}
@@ -303,27 +303,27 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.mediaDeviceExport')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.mediaDeviceExportHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.mediaDeviceExportHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.mediaDeviceExport} onchange={() => toggle('mediaDeviceExport')} aria-label={$t('settings.device.mediaDeviceExport')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
         </div>
       </section>
 
       <!-- Streaming -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.streaming')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.maxBitrateMobile')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitrateMobileHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.maxBitrateMobileHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.maxBitrateMobile')}
               value={settings.maxBitrateMobile}
               onchange={(e) => writeFromSelect('maxBitrateMobile', e)}
@@ -338,10 +338,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.maxBitrateWifi')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitrateWifiHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.maxBitrateWifiHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.maxBitrateWifi')}
               value={settings.maxBitrateWifi}
               onchange={(e) => writeFromSelect('maxBitrateWifi', e)}
@@ -356,10 +356,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.preloadCount')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.preloadCountHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.preloadCountHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.preloadCount')}
               value={settings.preloadCount}
               onchange={(e) => writeFromSelect('preloadCount', e)}
@@ -374,10 +374,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.maxBitratePinning')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.maxBitratePinningHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.maxBitratePinningHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.maxBitratePinning')}
               value={settings.maxBitratePinning}
               onchange={(e) => writeFromSelect('maxBitratePinning', e)}
@@ -392,10 +392,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.networkTimeout')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.networkTimeoutHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.networkTimeoutHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.networkTimeout')}
               value={settings.networkTimeout}
               onchange={(e) => writeFromSelect('networkTimeout', e)}
@@ -409,38 +409,38 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.autoSwitchOffline')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.autoSwitchOfflineHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.autoSwitchOfflineHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.autoSwitchOffline} onchange={() => toggle('autoSwitchOffline')} aria-label={$t('settings.device.autoSwitchOffline')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
         </div>
       </section>
 
       <!-- Playback -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.playback')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.resumeOnHeadphonesPlug')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.resumeOnHeadphonesPlugHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.resumeOnHeadphonesPlugHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.resumeOnHeadphonesPlug} onchange={() => toggle('resumeOnHeadphonesPlug')} aria-label={$t('settings.device.resumeOnHeadphonesPlug')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.resumeOnBluetoothDevice')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.resumeOnBluetoothDeviceHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.resumeOnBluetoothDeviceHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.resumeOnBluetoothDevice')}
               value={settings.resumeOnBluetoothDevice}
               onchange={(e) => writeFromSelect('resumeOnBluetoothDevice', e)}
@@ -454,10 +454,10 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.pauseOnBluetoothDevice')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.pauseOnBluetoothDeviceHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.pauseOnBluetoothDeviceHelp')}</p>
             </div>
             <select
-              class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+              class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
               aria-label={$t('settings.device.pauseOnBluetoothDevice')}
               value={settings.pauseOnBluetoothDevice}
               onchange={(e) => writeFromSelect('pauseOnBluetoothDevice', e)}
@@ -471,41 +471,41 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.hardwareOffload')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.hardwareOffloadHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.hardwareOffloadHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.hardwareOffload} onchange={() => toggle('hardwareOffload')} aria-label={$t('settings.device.hardwareOffload')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
         </div>
       </section>
 
       <!-- Car -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.car')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.carModeManual')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.carModeManualHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.carModeManualHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.carModeManual} onchange={() => toggle('carModeManual')} aria-label={$t('settings.device.carModeManual')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
 
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.carModeDevices')}</h3>
-              <p class="text-sm text-[#b3b3b3]">
+              <p class="text-sm text-muma-spotify-text">
                 {settings.carModeDevices?.length > 0
                   ? $t('settings.device.carModeDevicesCount', { count: settings.carModeDevices.length })
                   : $t('settings.device.carModeDevicesNone')}
               </p>
             </div>
-            <button onclick={openDevicePicker} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
+            <button onclick={openDevicePicker} class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.carModeDevicesEdit')}
             </button>
           </div>
@@ -514,14 +514,14 @@
             <div class="flex items-center justify-between gap-4">
               <div class="flex flex-col gap-1">
                 <h3 class="text-lg font-bold">{$t('settings.device.carModeFullScreen')}</h3>
-                <p class="text-sm text-[#b3b3b3]">
+                <p class="text-sm text-muma-spotify-text">
                   {settings.carModeFullScreenGranted
                     ? $t('settings.device.carModeFullScreenGranted')
                     : $t('settings.device.carModeFullScreenDenied')}
                 </p>
               </div>
               {#if !settings.carModeFullScreenGranted}
-                <button onclick={requestCarModeFullScreenPermission} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
+                <button onclick={requestCarModeFullScreenPermission} class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
                   {$t('settings.device.carModeFullScreenAction')}
                 </button>
               {/if}
@@ -531,17 +531,17 @@
       </section>
 
       <!-- Diagnostics -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.diagnostics')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.sendDiagnostics')}</h3>
-              <p class="text-sm text-[#b3b3b3]">
+              <p class="text-sm text-muma-spotify-text">
                 {diagnosticsStatus || $t('settings.device.sendDiagnosticsHelp')}
               </p>
             </div>
-            <button onclick={sendDiagnostics} class="bg-[#333] hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
+            <button onclick={sendDiagnostics} class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full transition-colors whitespace-nowrap shrink-0">
               {$t('settings.device.sendDiagnostics')}
             </button>
           </div>
@@ -549,11 +549,11 @@
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.scrobbleEnabled')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.scrobbleEnabledHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.scrobbleEnabledHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.scrobbleEnabled} onchange={() => toggle('scrobbleEnabled')} aria-label={$t('settings.device.scrobbleEnabled')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
         </div>
@@ -561,33 +561,33 @@
 
 
       <!-- Other -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.other')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <div class="flex flex-col gap-1">
               <h3 class="text-lg font-bold">{$t('settings.device.hideMedia')}</h3>
-              <p class="text-sm text-[#b3b3b3]">{$t('settings.device.hideMediaHelp')}</p>
+              <p class="text-sm text-muma-spotify-text">{$t('settings.device.hideMediaHelp')}</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" class="sr-only peer" checked={settings.hideMedia} onchange={() => toggle('hideMedia')} aria-label={$t('settings.device.hideMedia')}>
-              <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+              <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
             </label>
           </div>
         </div>
       </section>
 
       <!-- Muma sync: read-only, filled by login -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.mumaSync')}</h2>
         <div class="flex flex-col gap-6">
           <div class="flex items-center justify-between gap-4">
             <h3 class="text-lg font-bold">{$t('settings.device.mumaUserId')}</h3>
-            <span class="text-sm text-[#b3b3b3]">{settings.mumaUserId ?? $t('settings.device.mumaSyncNotLinked')}</span>
+            <span class="text-sm text-muma-spotify-text">{settings.mumaUserId ?? $t('settings.device.mumaSyncNotLinked')}</span>
           </div>
           <div class="flex items-center justify-between gap-4">
             <h3 class="text-lg font-bold">{$t('settings.device.mumaApiKeySet')}</h3>
-            <span class="text-sm text-[#b3b3b3]">
+            <span class="text-sm text-muma-spotify-text">
               {settings.mumaApiKeySet ? $t('settings.device.mumaSyncLinked') : $t('settings.device.mumaSyncNotLinked')}
             </span>
           </div>
@@ -598,15 +598,15 @@
     {#if isDevicePickerOpen}
       <Modal title={$t('settings.device.carModeDevicesEdit')} onclose={() => (isDevicePickerOpen = false)}>
         {#if isLoadingDevices}
-          <p class="text-[#b3b3b3]">{$t('settings.device.loading')}</p>
+          <p class="text-muma-spotify-text">{$t('settings.device.loading')}</p>
         {:else if !bondedPermissionGranted}
-          <p class="text-[#b3b3b3]">{$t('settings.device.bluetoothPermissionDenied')}</p>
+          <p class="text-muma-spotify-text">{$t('settings.device.bluetoothPermissionDenied')}</p>
         {:else if bondedDevices.length === 0}
-          <p class="text-[#b3b3b3]">{$t('settings.device.carModeDevicesNone')}</p>
+          <p class="text-muma-spotify-text">{$t('settings.device.carModeDevicesNone')}</p>
         {:else}
           <div class="flex flex-col gap-3 mb-6">
             {#each bondedDevices as device (device.address)}
-              <label class="flex items-center gap-3 p-3 bg-[#282828] rounded-md cursor-pointer">
+              <label class="flex items-center gap-3 p-3 bg-muma-spotify-light rounded-md cursor-pointer">
                 <input
                   type="checkbox"
                   class="w-5 h-5 accent-brand"

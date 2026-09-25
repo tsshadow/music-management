@@ -327,7 +327,7 @@
    */
   async function refreshTrack(e, track) {
       e.stopPropagation();
-      if (!confirm(`Weet je zeker dat je "${track.title}" opnieuw wilt parsen en scannen?`)) return;
+      if (!confirm($t('track.confirmRefresh', { title: track.title }))) return;
       
       try {
           const response = await fetch(`${$mumaApiUrl}/api/tracks/${track.id}/refresh?${$authParams}`, {
@@ -403,7 +403,7 @@
      the title keeps what is left. Touch devices never get the rating column: their stars
      sit under the artist, so the column stayed empty there. -->
 <div class="@container w-full">
-<table class="w-full table-fixed border-collapse text-[#b3b3b3] text-sm">
+<table class="w-full table-fixed border-collapse text-muma-spotify-text text-sm">
   <thead class="border-b border-white/10">
     <tr>
       <th class="text-left p-2 px-4 font-normal uppercase text-[11px] tracking-[0.1em] w-[50px] text-right hidden @2xl:table-cell">#</th>
@@ -471,7 +471,7 @@
                 {#if downloadStateOf(track) !== 'none'}
                   {@const state = downloadStateOf(track)}
                   <span
-                    class="inline-block align-middle ml-1.5 {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-[#b3b3b3]'}"
+                    class="inline-block align-middle ml-1.5 {state === 'failed' ? 'text-red-400' : state === 'done' ? 'text-brand' : 'text-muma-spotify-text'}"
                     aria-label={$t(`downloads.state.${state}`)}
                     title={$t(`downloads.state.${state}`)}
                     data-testid="download-glyph"
@@ -500,7 +500,7 @@
                 />
               </div>
               {#if $isMobile && Number($trackListLines) === 3}
-                <div class="text-xs text-[#b3b3b3] truncate" data-testid="track-third-line">
+                <div class="text-xs text-muma-spotify-text truncate" data-testid="track-third-line">
                   {#if track.albumId}
                     <button class="bg-transparent border-none p-0 text-inherit hover:underline cursor-pointer" onclick={(e) => { e.stopPropagation(); onnavigate?.(`album:${track.albumId}`); }}>{track.album || ''}</button>
                   {:else}{track.album || ''}{/if}
@@ -588,7 +588,7 @@
                       <button
                         aria-label={$t('track.moveUp')}
                         title={$t('track.moveUp')}
-                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, -1)}
                         disabled={i === 0}
                       >
@@ -599,7 +599,7 @@
                       <button
                         aria-label={$t('track.moveDown')}
                         title={$t('track.moveDown')}
-                        class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
+                        class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white disabled:text-[#555] disabled:cursor-not-allowed"
                         onclick={(e) => moveTrack(e, i, 1)}
                         disabled={i === tracks.length - 1}
                       >
@@ -613,7 +613,7 @@
                   <button
                     aria-label={$t('common.remove')}
                     title={$t('common.remove')}
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white hover:text-pink-500"
+                    class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white hover:text-pink-500"
                     onclick={(e) => removeTrack(e, i)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -626,7 +626,7 @@
                   <button
                     aria-label={$t('track.reload')}
                     title={$t('track.reload')}
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                     onclick={(e) => refreshTrack(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -636,7 +636,7 @@
                   <button
                     aria-label={$t('track.playNext')}
                     title={$t('track.playNext')}
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                     onclick={(e) => addAfterCurrent(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -647,7 +647,7 @@
                   <button
                     aria-label={$t('track.addToQueue')}
                     title={$t('track.addToQueue')}
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                     onclick={(e) => addToEnd(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -660,7 +660,7 @@
                 <button
                   aria-label={$t('track.versions')}
                   title={$t('track.versions')}
-                  class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                  class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                   onclick={(e) => { e.stopPropagation(); onnavigate?.(`song:${track.workId}`); }}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -672,7 +672,7 @@
               <button
                 aria-label={$t('track.lyrics')}
                 title={$t('track.lyrics')}
-                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                 onclick={(e) => showLyrics(e, track)}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -688,7 +688,7 @@
                   <button
                     aria-label={$t('downloads.download')}
                     title={$t('downloads.download')}
-                    class="bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    class="bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                     onclick={(e) => download(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -699,7 +699,7 @@
                   <button
                     aria-label={$t('downloads.remove')}
                     title={$t('downloads.remove')}
-                    class="bg-transparent border-none text-brand cursor-pointer p-1 flex items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                    class="bg-transparent border-none text-brand cursor-pointer p-1 flex items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                     onclick={(e) => removeDownload(e, track)}
                   >
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -714,7 +714,7 @@
                 download={`${track.artist} - ${track.title}.mp3`}
                 aria-label={$t('common.download')}
                 title={$t('common.download')}
-                class="hidden md:flex bg-transparent border-none text-[#b3b3b3] cursor-pointer p-1 items-center justify-center rounded hover:bg-[#333] hover:text-white"
+                class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
                 onclick={(e) => e.stopPropagation()}
               >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -757,12 +757,12 @@
            part of it: `size` off the library when LMS sent one, otherwise
            bitrate times length, which the note underneath says out loud. -->
       <p class="text-2xl font-bold text-brand m-0" data-testid="set-size">{formatBytes(size.bytes, $locale)}</p>
-      <p class="text-sm text-[#b3b3b3] m-0">
+      <p class="text-sm text-muma-spotify-text m-0">
         {size.estimated ? $t('downloads.sizeEstimated') : $t('downloads.sizeExact')}
       </p>
       <div class="flex gap-3 justify-end">
         <button
-          class="bg-transparent border border-[#727272] text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
+          class="bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
           onclick={() => (pendingSet = null)}
         >{$t('common.cancel')}</button>
         <button
@@ -781,7 +781,7 @@
   >
     <div class="flex flex-col items-center py-8">
       {#if isLoadingLyrics}
-        <div class="flex items-center gap-2 text-[#b3b3b3]">
+        <div class="flex items-center gap-2 text-muma-spotify-text">
           <svg class="animate-spin" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
           </svg>
@@ -796,7 +796,7 @@
           {/each}
         </div>
       {:else}
-        <div class="text-[#b3b3b3] text-center">
+        <div class="text-muma-spotify-text text-center">
           <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" class="mb-4 opacity-20 inline-block">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"></path>
           </svg>

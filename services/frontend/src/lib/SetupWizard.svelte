@@ -102,7 +102,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-  class="fixed inset-0 z-50 bg-[#121212] text-white flex flex-col overflow-y-auto"
+  class="fixed inset-0 z-50 bg-muma-spotify-dark text-white flex flex-col overflow-y-auto"
   role="dialog"
   aria-modal="true"
   aria-labelledby="setup-title"
@@ -112,13 +112,13 @@
     <header class="flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <img src="/images/logo.svg" alt="" class="w-10 h-10" onerror={(e) => (e.currentTarget.style.display = 'none')} />
-        <span class="text-sm text-[#b3b3b3]">
+        <span class="text-sm text-muma-spotify-text">
           {update ? $t('setup.updateIntro') : $t('setup.welcome')}
         </span>
       </div>
       <button
         type="button"
-        class="text-sm text-[#b3b3b3] hover:text-white bg-transparent border-none cursor-pointer"
+        class="text-sm text-muma-spotify-text hover:text-white bg-transparent border-none cursor-pointer"
         onclick={() => finish()}
       >
         {$t('setup.skip')}
@@ -134,7 +134,7 @@
 
       <section class="flex flex-col gap-4 flex-1" data-testid="setup-step-{step.id}">
         <div class="flex items-center gap-3">
-          <p class="text-xs uppercase tracking-widest text-[#b3b3b3] m-0">
+          <p class="text-xs uppercase tracking-widest text-muma-spotify-text m-0">
             {$t('setup.progress', { current: index + 1, total: steps.length })}
           </p>
           {#if update}
@@ -142,9 +142,9 @@
           {/if}
         </div>
         <h1 id="setup-title" class="text-3xl font-bold m-0">{$t(`setup.steps.${step.id}.title`)}</h1>
-        <p class="text-[#b3b3b3] leading-relaxed m-0">{$t(`setup.steps.${step.id}.body`)}</p>
+        <p class="text-muma-spotify-text leading-relaxed m-0">{$t(`setup.steps.${step.id}.body`)}</p>
 
-        <div class="mt-4 bg-[#181818] rounded-lg p-5 border border-white/5 flex flex-col gap-5">
+        <div class="mt-4 bg-muma-spotify-panel rounded-lg p-5 border border-white/5 flex flex-col gap-5">
           {#if step.id === 'language'}
             <LanguageSetting />
           {:else if step.id === 'mode'}
@@ -162,13 +162,13 @@
                 onclick={() => viewMode.set('sets')}
               >{$t('nav.sets')}</button>
             </div>
-            <p class="text-xs text-[#b3b3b3] m-0">{$t('setup.steps.mode.hint')}</p>
+            <p class="text-xs text-muma-spotify-text m-0">{$t('setup.steps.mode.hint')}</p>
           {:else if step.id === 'home'}
             {#each HOME_SECTIONS as section (section.labelKey)}
               <div class="flex items-center justify-between gap-4">
                 <span class="font-bold">{$t(section.labelKey)}</span>
                 <select
-                  class="bg-[#282828] border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand"
+                  class="bg-muma-spotify-light border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand"
                   aria-label={$t(section.labelKey)}
                   value={section.value.current}
                   onchange={(e) => section.store.set(e.currentTarget.value)}
@@ -192,7 +192,7 @@
             <label class="flex items-center justify-between gap-4 cursor-pointer">
               <span class="flex flex-col gap-0.5">
                 <span class="font-bold">{$t('settings.general.dedupe')}</span>
-                <span class="text-xs text-[#b3b3b3]">{$t('settings.general.dedupeHelp')}</span>
+                <span class="text-xs text-muma-spotify-text">{$t('settings.general.dedupeHelp')}</span>
               </span>
               <input
                 type="checkbox"
@@ -204,7 +204,7 @@
             <div class="flex items-center justify-between gap-4">
               <span class="font-bold">{$t('settings.general.display.trackListLines')}</span>
               <select
-                class="bg-[#282828] border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand"
+                class="bg-muma-spotify-light border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-brand"
                 aria-label={$t('settings.general.display.trackListLines')}
                 value={$trackListLines}
                 onchange={(e) => trackListLines.set(Number(e.currentTarget.value))}
@@ -226,7 +226,7 @@
             <label class="flex items-center justify-between gap-4 cursor-pointer">
               <span class="flex flex-col gap-0.5">
                 <span class="font-bold">{$t('settings.general.wifiOnly')}</span>
-                <span class="text-xs text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</span>
+                <span class="text-xs text-muma-spotify-text">{$t('settings.general.wifiOnlyHelp')}</span>
               </span>
               <input type="checkbox" class="w-5 h-5 accent-brand" checked={wifiOnly} onchange={toggleWifiOnly} />
             </label>
@@ -245,7 +245,7 @@
       <footer class="flex items-center justify-between gap-4 pt-4 border-t border-white/10">
         <button
           type="button"
-          class="text-sm font-bold text-[#b3b3b3] hover:text-white bg-transparent border-none cursor-pointer disabled:opacity-30 disabled:cursor-default"
+          class="text-sm font-bold text-muma-spotify-text hover:text-white bg-transparent border-none cursor-pointer disabled:opacity-30 disabled:cursor-default"
           disabled={index === 0}
           onclick={back}
         >
@@ -264,7 +264,7 @@
            and offer the way out rather than a blank screen. -->
       <section class="flex flex-col gap-4 flex-1">
         <h1 id="setup-title" class="text-3xl font-bold m-0">{$t('setup.nothingTitle')}</h1>
-        <p class="text-[#b3b3b3] m-0">{$t('setup.nothingBody')}</p>
+        <p class="text-muma-spotify-text m-0">{$t('setup.nothingBody')}</p>
       </section>
       <footer class="flex justify-end pt-4 border-t border-white/10">
         <button

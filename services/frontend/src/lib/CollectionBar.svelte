@@ -121,7 +121,7 @@
   const chip =
     'px-3 py-1.5 rounded-full text-[12px] font-bold border transition-colors cursor-pointer whitespace-nowrap shrink-0';
   const chipOn = 'bg-brand text-black border-brand';
-  const chipOff = 'bg-[#282828] text-[#b3b3b3] border-transparent hover:text-white hover:bg-[#333]';
+  const chipOff = 'bg-muma-spotify-light text-muma-spotify-text border-transparent hover:text-white hover:bg-muma-spotify-hover';
 
   const currentSortLabel = $derived($t(sortOption(type, collectionState?.sort)?.labelKey ?? 'filter.sortBy'));
 </script>
@@ -146,8 +146,8 @@
 {#if $isMobile}
   <div class="flex flex-col gap-2 mb-4" data-testid="mobile-collection-bar">
     {#if mobileSearchOpen}
-      <div class="flex items-center gap-2 bg-[#282828] rounded-[20px] px-3 py-2">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" class="text-[#b3b3b3] shrink-0">
+      <div class="flex items-center gap-2 bg-muma-spotify-light rounded-[20px] px-3 py-2">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" class="text-muma-spotify-text shrink-0">
           <circle cx="11" cy="11" r="7"></circle>
           <path d="M21 21l-4.3-4.3"></path>
         </svg>
@@ -162,7 +162,7 @@
         />
         <button
           type="button"
-          class="bg-transparent border-none text-[#b3b3b3] hover:text-white cursor-pointer p-0.5"
+          class="bg-transparent border-none text-muma-spotify-text hover:text-white cursor-pointer p-0.5"
           aria-label={$t('filter.searchClose')}
           onclick={() => (mobileSearchOpen = false)}
         >
@@ -243,7 +243,7 @@
       </div>
     </div>
 
-    <span class="text-[12px] text-[#b3b3b3] tabular-nums px-1" data-testid="mobile-collection-count">{countLabel}</span>
+    <span class="text-[12px] text-muma-spotify-text tabular-nums px-1" data-testid="mobile-collection-count">{countLabel}</span>
   </div>
 
   {#if sortSheetOpen}
@@ -260,22 +260,22 @@
     </BottomSheet>
   {/if}
 {:else}
-  <div class="flex flex-col gap-4 mb-6 bg-[#181818] p-3 md:p-4 rounded-lg">
+  <div class="flex flex-col gap-4 mb-6 bg-muma-spotify-panel p-3 md:p-4 rounded-lg">
     <div class="flex flex-col md:flex-row gap-3 md:items-center">
       <input
         type="text"
         placeholder={$t('common.searchPlaceholder')}
         aria-label={$t('collection.searchLabel')}
-        class="flex-1 min-w-0 bg-[#282828] text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-[#333]"
+        class="flex-1 min-w-0 bg-muma-spotify-light text-white border-none px-4 py-2 rounded-[20px] text-sm focus:outline focus:outline-1 focus:outline-brand focus:bg-muma-spotify-hover"
         bind:value={collectionState.search}
         oninput={handleSearchInput}
       />
 
       <div class="flex items-center gap-2 shrink-0">
-        <label for="{type}-sort" class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('filter.sortBy')}</label>
+        <label for="{type}-sort" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.sortBy')}</label>
         <select
           id="{type}-sort"
-          class="bg-[#282828] text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand"
+          class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand"
           value={collectionState.sort}
           onchange={handleSortChange}
         >
@@ -285,7 +285,7 @@
         </select>
         <button
           type="button"
-          class="bg-[#282828] text-[#b3b3b3] p-1.5 rounded hover:bg-[#333] hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand cursor-pointer"
+          class="bg-muma-spotify-light text-muma-spotify-text p-1.5 rounded hover:bg-muma-spotify-hover hover:text-white transition-colors focus:outline focus:outline-1 focus:outline-brand cursor-pointer"
           onclick={toggleDirection}
           title={collectionState.direction === 'asc' ? $t('collection.sortedAscending') : $t('collection.sortedDescending')}
           aria-label={$t('collection.reverseOrder')}
@@ -330,7 +330,7 @@
 
       {#if type !== 'playlists' && showThreshold}
         <span class="w-px h-5 bg-white/10 mx-1" aria-hidden="true"></span>
-        <span class="text-[11px] font-bold text-[#b3b3b3] uppercase tracking-wider">{$t('collection.minimum')}</span>
+        <span class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('collection.minimum')}</span>
         {#each SIZE_THRESHOLDS as option (option.id)}
           <button
             type="button"
@@ -341,7 +341,7 @@
         {/each}
       {/if}
 
-      <span class="ml-auto text-[12px] text-[#b3b3b3] tabular-nums">
+      <span class="ml-auto text-[12px] text-muma-spotify-text tabular-nums">
         {shown === total ? total : $t('collection.shownOfTotal', { shown, total })}
       </span>
     </div>

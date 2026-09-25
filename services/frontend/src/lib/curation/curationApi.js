@@ -7,6 +7,9 @@
  * ("Genre 'Arts' has not been accepted by curation"), so the pages surface it as-is
  * rather than replacing it with a generic failure message.
  */
+import { get } from "svelte/store";
+
+import { t } from "../i18n/index.js";
 import { apiBase, getHeaders, jsonHeaders } from "../mumaApi";
 
 async function request(path, options = {}) {
@@ -95,7 +98,7 @@ export async function loadWhiteGenres() {
  */
 export function marked(result, base) {
   const count = result?.marked_for_retag ?? 0;
-  if (!count) return `${base} Geen bestanden gevonden om opnieuw te taggen.`;
-  const files = count === 1 ? "1 bestand staat" : `${count} bestanden staan`;
-  return `${base} ${files} in de wachtrij om opnieuw getagd te worden.`;
+  const translate = get(t);
+  if (!count) return translate("curation.markedNone", { base });
+  return translate("curation.markedSome", { base, count });
 }

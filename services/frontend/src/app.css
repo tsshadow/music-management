@@ -9,6 +9,16 @@
   --color-muma-spotify-panel: #181818;
   --color-muma-spotify-light: #282828;
   --color-muma-spotify-text: #b3b3b3;
+  /* Muted text: timestamps, disabled items (styleguide "Muted"). */
+  --color-muma-spotify-muted: #727272;
+  /* Dimmer still: placeholder icons, empty-state glyphs, disabled controls. */
+  --color-muma-spotify-subtle: #535353;
+  /* Raised surface one step above the panel (inline editors, nested cards). */
+  --color-muma-spotify-raised: #242424;
+  /* Hover / pressed surface on top of a `light` card or row. */
+  --color-muma-spotify-hover: #333333;
+  /* Strongest hover: a hovered button that already sits on the hover surface. */
+  --color-muma-spotify-highlight: #3e3e3e;
 }
 
 :root {

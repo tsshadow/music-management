@@ -10,6 +10,7 @@
    */
   import { onMount } from 'svelte';
 
+  import { t } from '../i18n/index.js';
   import ChipEditor from './ChipEditor.svelte';
   import CurationShell from './CurationShell.svelte';
   import { addParent, canEditGenre, isHardness, parentIsAllowed, parseHardness, removeParent } from './curation.js';
@@ -38,7 +39,7 @@
     try {
       await setGenreParents(name, parents);
       await refresh();
-      message = 'Hiërarchie opgeslagen.';
+      message = $t('curation.hierarchySaved');
     } catch (e) {
       error = e.message;
     } finally {
@@ -48,7 +49,7 @@
 
   async function saveHardness() {
     if (!isHardness(hardnessInput)) {
-      hardnessError = 'Moet een geheel getal tussen 0 en 100 zijn, of leeg.';
+      hardnessError = $t('curation.hardnessInvalid');
       return;
     }
     hardnessError = null;
@@ -58,7 +59,7 @@
     try {
       await setGenreHardness(name, parseHardness(hardnessInput));
       await refresh();
-      message = 'Hardheid opgeslagen.';
+      message = $t('curation.hardnessSaved');
     } catch (e) {
       error = e.message;
     } finally {
@@ -79,33 +80,31 @@
   <CurationShell
     title={genre.name}
     subtitle={editable
-      ? `${genre.occurrences ?? 0} keer gezien in de bibliotheek`
-      : 'Dit genre is niet goedgekeurd door de curatie'}
+      ? $t('curation.genreSeen', { count: genre.occurrences ?? 0 })
+      : $t('curation.genreNotApproved')}
     {error}
     {message}
     {onback}
   >
     {#if editable}
       <ChipEditor
-        title="Valt onder"
-        hint="Bredere genres waar dit genre bij hoort. De tagger voegt ze toe aan elke track met dit genre."
-        placeholder="Bijvoorbeeld Hardcore"
+        title={$t('curation.parentsTitle')}
+        hint={$t('curation.parentsHint')}
+        placeholder={$t('curation.parentsPlaceholder')}
         items={genre.parents}
         {busy}
         validate={(candidate) =>
           parentIsAllowed(genre.name, candidate, genre.parents, genre.descendants ?? [])
             ? null
-            : 'Dat kan niet: een genre valt niet onder zichzelf of onder een eigen subgenre, en staat er maar één keer in.'}
+            : $t('curation.parentNotAllowed')}
         onadd={(parent) => saveParents(addParent(genre.parents, parent))}
         onremove={(parent) => saveParents(removeParent(genre.parents, parent))}
       />
 
       <section>
-        <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Hardheid</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">{$t('management.genres.hardness')}</h2>
         <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-          0 (zacht) tot 100 (hard). Bepaalt in welke van de zachte, middelste of harde
-          daily mix dit genre terechtkomt. Leeg laten geeft het genre terug aan de
-          automatische schatting.
+          {$t('curation.hardnessHelp')}
         </p>
         <div class="flex items-center gap-2 mt-3">
           <input
@@ -113,18 +112,18 @@
             min="0"
             max="100"
             step="1"
-            aria-label="Hardheid"
+            aria-label={$t('management.genres.hardness')}
             class="w-24 rounded bg-muma-spotify-light px-3 py-1 text-sm"
             bind:value={hardnessInput}
             disabled={busy}
           />
           <button
             type="button"
-            class="text-sm rounded bg-muma-spotify-light px-3 py-1 hover:bg-opacity-80 disabled:opacity-50"
+            class="text-sm rounded bg-muma-spotify-light px-3 py-1 hover:bg-muma-spotify-light/80 disabled:opacity-50"
             disabled={busy}
             onclick={saveHardness}
           >
-            Opslaan
+            {$t('common.save')}
           </button>
         </div>
         {#if hardnessError}
@@ -133,31 +132,29 @@
       </section>
 
       <section>
-        <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">Subgenres</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text m-0">{$t('curation.subgenres')}</h2>
         <p class="text-xs text-muma-spotify-text mt-1 mb-0">
-          Genres die onder dit genre vallen. Te wijzigen op hun eigen pagina.
+          {$t('curation.subgenresHelp')}
         </p>
         <div class="flex flex-wrap gap-2 mt-3">
           {#each genre.children as child (child)}
             <span class="bg-muma-spotify-light rounded-full px-3 py-1 text-sm">{child}</span>
           {:else}
-            <span class="text-sm text-muma-spotify-text">Geen subgenres.</span>
+            <span class="text-sm text-muma-spotify-text">{$t('curation.noSubgenres')}</span>
           {/each}
         </div>
       </section>
     {:else}
       <section class="text-sm text-muma-spotify-text">
         <p class="m-0">
-          De curatie bepaalt of een genre bestaat; deze pagina bewerkt een genre dat al
-          is goedgekeurd. Dit genre staat op <strong>{genre.state}</strong>, dus er is
-          niets om in te stellen — de tagger schrijft het nergens weg.
+          {$t('curation.genreNotEditableBefore')} <strong>{genre.state}</strong>{$t('curation.genreNotEditableAfter')}
         </p>
-        <p class="mt-3 mb-0">Beoordeel het eerst onder Beheer → Genre-curatie.</p>
+        <p class="mt-3 mb-0">{$t('curation.reviewFirst')}</p>
       </section>
     {/if}
   </CurationShell>
 {:else}
   <div class="p-10 text-muma-spotify-text">
-    {#if error}{error}{:else}Laden…{/if}
+    {#if error}{error}{:else}{$t('common.loading')}{/if}
   </div>
 {/if}

@@ -1,5 +1,5 @@
 <script>
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { Search, Filter, List, Info, PieChart, X } from '@lucide/svelte';
   import { apiGet, emptyFilters } from '../library/api.js';
@@ -149,36 +149,36 @@
 
   /** POST, so it does not go through apiGet, which only issues GETs. */
   async function rerunParse(track) {
-    if (!confirm(`Analyse voor '${track.title}' opnieuw uitvoeren?`)) return;
+    if (!confirm($t('management.library.confirmRerunParse', { title: track.title }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/library/tracks/${track.id}/rerun-parse`, {
         method: 'POST', headers: getHeaders(),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
-        onMessage(`Scan voor '${track.title}' gestart.`);
+        onMessage($t('management.library.rerunStarted', { title: track.title }));
       } else {
-        onError(body.detail || `Scan starten mislukt (${res.status}).`);
+        onError(body.detail || $t('management.library.rerunFailed', { status: res.status }));
       }
     } catch (err) {
-      onError('Server niet bereikbaar.');
+      onError($t('management.library.serverUnreachable'));
     }
   }
 
   async function redownload(track) {
-    if (!confirm(`'${track.title}' opnieuw downloaden?`)) return;
+    if (!confirm($t('management.library.confirmRedownload', { title: track.title }))) return;
     try {
       const res = await fetch(`${API_BASE}/api/library/tracks/${track.id}/redownload`, {
         method: 'POST', headers: getHeaders(),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
-        onMessage(body.message || 'Download gestart.');
+        onMessage(body.message || $t('management.library.redownloadStarted'));
       } else {
-        onError(body.detail || `Downloaden mislukt (${res.status}).`);
+        onError(body.detail || $t('management.library.redownloadFailed', { status: res.status }));
       }
     } catch (err) {
-      onError('Server niet bereikbaar.');
+      onError($t('management.library.serverUnreachable'));
     }
   }
 
@@ -201,28 +201,28 @@
 
 <div class="flex flex-col gap-6">
 
-  <div class="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
+  <div class="bg-muma-spotify-panel border border-white/5 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
     <div class="flex gap-7 overflow-x-auto no-scrollbar py-1">
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('management.library.tracks')}</span>
-        <span class="text-xl font-black text-white tabular-nums">{summary.tracks.toLocaleString('nl-NL')}</span>
+        <span class="text-[10px] uppercase tracking-widest text-muma-spotify-text font-bold">{$t('management.library.tracks')}</span>
+        <span class="text-xl font-black text-white tabular-nums">{$format.number(summary.tracks)}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('nav.artists')}</span>
-        <span class="text-xl font-black text-white tabular-nums">{summary.artists.toLocaleString('nl-NL')}</span>
+        <span class="text-[10px] uppercase tracking-widest text-muma-spotify-text font-bold">{$t('nav.artists')}</span>
+        <span class="text-xl font-black text-white tabular-nums">{$format.number(summary.artists)}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('nav.labels')}</span>
-        <span class="text-xl font-black text-white tabular-nums">{summary.labels.toLocaleString('nl-NL')}</span>
+        <span class="text-[10px] uppercase tracking-widest text-muma-spotify-text font-bold">{$t('nav.labels')}</span>
+        <span class="text-xl font-black text-white tabular-nums">{$format.number(summary.labels)}</span>
       </div>
       <div class="flex flex-col">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('library.duration')}</span>
-        <span class="text-xl font-black text-white tabular-nums">{hours.toLocaleString('nl-NL')}u</span>
+        <span class="text-[10px] uppercase tracking-widest text-muma-spotify-text font-bold">{$t('library.duration')}</span>
+        <span class="text-xl font-black text-white tabular-nums">{$t('management.library.hoursShort', { hours: $format.number(hours) })}</span>
       </div>
       <div class="flex flex-col border-l border-white/10 pl-7">
-        <span class="text-[10px] uppercase tracking-widest text-[#b3b3b3] font-bold">{$t('management.library.coverage')}</span>
-        <span class="text-xs font-mono text-[#b3b3b3] tabular-nums">
-          bpm {pct(summary.coverage.bpm)} · genre {pct(summary.coverage.genre)} · artiest {pct(summary.coverage.artist)}
+        <span class="text-[10px] uppercase tracking-widest text-muma-spotify-text font-bold">{$t('management.library.coverage')}</span>
+        <span class="text-xs font-mono text-muma-spotify-text tabular-nums">
+          {$t('management.library.coverageDetail', { bpm: pct(summary.coverage.bpm), genre: pct(summary.coverage.genre), artist: pct(summary.coverage.artist) })}
         </span>
       </div>
     </div>
@@ -235,15 +235,15 @@
     </div>
   </div>
 
-  <div class="bg-[#181818] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
+  <div class="bg-muma-spotify-panel border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
     <div class="relative flex-1">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-[#b3b3b3]" size={18} />
+      <Search class="absolute left-3 top-1/2 -translate-y-1/2 text-muma-spotify-text" size={18} />
       <input
         type="text"
         bind:value={searchInput}
         on:keydown={submitSearch}
         placeholder={$t('management.library.searchPlaceholder')}
-        class="w-full bg-[#242424] border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand outline-none"
+        class="w-full bg-muma-spotify-raised border-none rounded-full py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-brand outline-none"
       />
     </div>
     <div class="flex gap-3">
@@ -269,7 +269,7 @@
       <FacetSidebar {API_BASE} {getHeaders} {filters} {genres} onChange={onFilterChange} />
     {/if}
 
-    <div class="flex-1 min-w-0 w-full bg-[#181818] border border-white/5 rounded-xl overflow-hidden">
+    <div class="flex-1 min-w-0 w-full bg-muma-spotify-panel border border-white/5 rounded-xl overflow-hidden">
       {#if view === 'library'}
         <TrackTable {tracks} {total} {page} limit={LIMIT} {loading} error={loadError}
                     {selectedTrack} onSelect={(t) => selectedTrack = t} onPage={goToPage}

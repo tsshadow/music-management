@@ -54,15 +54,15 @@
 <div class="flex flex-col gap-8 pb-12">
   <header class="mb-2">
     <h1 class="text-4xl md:text-6xl font-black mb-2">{$t('memories.title')}</h1>
-    <p class="text-[#b3b3b3]">{$t('memories.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('memories.subtitle')}</p>
   </header>
 
   {#if isLoading}
-    <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
+    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
   {:else if tiles.length === 0}
     <div class="flex flex-col gap-2">
       <p class="text-white font-bold">{$t('memories.empty')}</p>
-      <p class="text-[#b3b3b3]">{$t('memories.emptyHelp')}</p>
+      <p class="text-muma-spotify-text">{$t('memories.emptyHelp')}</p>
     </div>
   {:else}
     <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 md:gap-6">

@@ -221,7 +221,7 @@
   <header class="mb-8 flex justify-between items-end gap-4">
     <div class="min-w-0">
       <h1 class="text-3xl font-bold mb-2">{$t('settings.general.title')}</h1>
-      <p class="text-[#b3b3b3]">{$t('settings.general.subtitle')}</p>
+      <p class="text-muma-spotify-text">{$t('settings.general.subtitle')}</p>
     </div>
     <button
       onclick={saveSettings}
@@ -244,7 +244,7 @@
 
   <div class="flex flex-col gap-6">
     <!-- Interface Section -->
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.interface')}</h2>
 
       <div class="flex flex-col gap-6">
@@ -253,32 +253,32 @@
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.dedupe')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.dedupeHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.dedupeHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$deduplicateEnabled} onchange={toggleDeduplicate}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.memoriesOnHome')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.memoriesOnHomeHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.memoriesOnHomeHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$memoriesOnHomeEnabled} onchange={toggleMemoriesOnHome}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.pageSize')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.pageSizeHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.pageSizeHelp')}</p>
           </div>
           <select
-            class="bg-[#333] border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
+            class="bg-muma-spotify-hover border border-white/10 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-brand"
             aria-label={$t('settings.general.pageSize')}
             value={$trackPageSize}
             onchange={(e) => trackPageSize.set(Number(e.currentTarget.value))}
@@ -292,9 +292,9 @@
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.albumSort')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.albumSortHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.albumSortHelp')}</p>
           </div>
-          <select bind:value={settings.uiArtistReleaseSortMethod} aria-label={$t('settings.general.albumSort')} class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
+          <select bind:value={settings.uiArtistReleaseSortMethod} aria-label={$t('settings.general.albumSort')} class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
             <option value={2}>{$t('settings.general.sortByName')}</option>
             <option value={5}>{$t('settings.general.sortYearAsc')}</option>
             <option value={6}>{$t('settings.general.sortYearDesc')}</option>
@@ -307,11 +307,11 @@
             <div class="flex items-center justify-between">
                 <div class="flex flex-col gap-1">
                     <h3 class="text-lg font-bold">{$t('settings.general.artistRelations')}</h3>
-                    <p class="text-sm text-[#b3b3b3]">{$t('settings.general.artistRelationsHelp')}</p>
+                    <p class="text-sm text-muma-spotify-text">{$t('settings.general.artistRelationsHelp')}</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" class="sr-only peer" bind:checked={settings.uiEnableInlineArtistRelationships}>
-                    <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                    <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
                 </label>
             </div>
 
@@ -320,7 +320,7 @@
                     {#each artistRoles as role (role.id)}
                         <button
                             onclick={() => toggleRole(role.id)}
-                            class="px-4 py-2 rounded-full text-xs font-bold transition-all {settings.uiInlineArtistRelationships.includes(role.id) ? 'bg-brand text-black' : 'bg-[#282828] text-white hover:bg-[#333]'}"
+                            class="px-4 py-2 rounded-full text-xs font-bold transition-all {settings.uiInlineArtistRelationships.includes(role.id) ? 'bg-brand text-black' : 'bg-muma-spotify-light text-white hover:bg-muma-spotify-hover'}"
                         >
                             {$t(role.labelKey)}
                         </button>
@@ -332,15 +332,15 @@
     </section>
 
     <!-- Home Section -->
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.home.title')}</h2>
-      <p class="text-xs text-[#b3b3b3] mb-6">{$t('settings.general.home.help')}</p>
+      <p class="text-xs text-muma-spotify-text mb-6">{$t('settings.general.home.help')}</p>
 
       <div class="flex flex-col gap-6">
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.releaseRadar')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.releaseRadar')}
             value={$homeModeReleaseRadar}
             onchange={(e) => homeModeReleaseRadar.set(e.currentTarget.value)}
@@ -354,7 +354,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.dailyMix')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.dailyMix')}
             value={$homeModeDailyMix}
             onchange={(e) => homeModeDailyMix.set(e.currentTarget.value)}
@@ -368,7 +368,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.favorites')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.favorites')}
             value={$homeModeFavorites}
             onchange={(e) => homeModeFavorites.set(e.currentTarget.value)}
@@ -382,7 +382,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.shortcuts')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.shortcuts')}
             value={$homeModeShortcuts}
             onchange={(e) => homeModeShortcuts.set(e.currentTarget.value)}
@@ -396,7 +396,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.recentlyReleased')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.recentlyReleased')}
             value={$homeModeRecentlyReleased}
             onchange={(e) => homeModeRecentlyReleased.set(e.currentTarget.value)}
@@ -410,7 +410,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.recentlyAdded')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.recentlyAdded')}
             value={$homeModeRecentlyAdded}
             onchange={(e) => homeModeRecentlyAdded.set(e.currentTarget.value)}
@@ -424,7 +424,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.dailyMixCount')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.dailyMixCount')}
             value={$homeCountDailyMix}
             onchange={(e) => homeCountDailyMix.set(Number(e.currentTarget.value))}
@@ -438,7 +438,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.favoritesCount')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.favoritesCount')}
             value={$homeCountFavorites}
             onchange={(e) => homeCountFavorites.set(Number(e.currentTarget.value))}
@@ -452,7 +452,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.shortcutCount')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.shortcutCount')}
             value={$homeShortcutCount}
             onchange={(e) => homeShortcutCount.set(Number(e.currentTarget.value))}
@@ -466,7 +466,7 @@
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.home.listCount')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.home.listCount')}
             value={$homeListCount}
             onchange={(e) => homeListCount.set(Number(e.currentTarget.value))}
@@ -480,18 +480,18 @@
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.home.separateHistory')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.home.separateHistoryHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.home.separateHistoryHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$separateHomeHistory} onchange={() => separateHomeHistory.update((v) => !v)}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
       </div>
     </section>
 
     <!-- Weergave (display) Section -->
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.display.title')}</h2>
 
       <div class="flex flex-col gap-6">
@@ -499,7 +499,7 @@
           <h3 class="text-lg font-bold">{$t('settings.general.display.showConfirmationDialog')}</h3>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$showConfirmationDialog} onchange={() => showConfirmationDialog.update((v) => !v)}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
@@ -507,14 +507,14 @@
           <h3 class="text-lg font-bold">{$t('settings.general.display.showTrackNumber')}</h3>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$showTrackNumber} onchange={() => showTrackNumber.update((v) => !v)}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
         <div class="flex items-center justify-between gap-4">
           <h3 class="text-lg font-bold">{$t('settings.general.display.trackListLines')}</h3>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.display.trackListLines')}
             value={$trackListLines}
             onchange={(e) => trackListLines.set(Number(e.currentTarget.value))}
@@ -529,28 +529,28 @@
           <h3 class="text-lg font-bold">{$t('settings.general.display.displayBitrateWithArtist')}</h3>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$displayBitrateWithArtist} onchange={() => displayBitrateWithArtist.update((v) => !v)}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.display.discSort')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.display.discSortHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.display.discSortHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$discSort} onchange={() => discSort.update((v) => !v)}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
 
         <div class="flex items-center justify-between gap-4">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.display.genreTrackLimit')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.display.genreTrackLimitHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.display.genreTrackLimitHelp')}</p>
           </div>
           <select
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand"
             aria-label={$t('settings.general.display.genreTrackLimit')}
             value={$genreTrackLimit}
             onchange={(e) => genreTrackLimit.set(Number(e.currentTarget.value))}
@@ -565,27 +565,27 @@
 
     {#if downloadsSupported}
       <!-- Downloads Section -->
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.downloads')}</h2>
 
         <div class="flex items-center justify-between">
           <div class="flex flex-col gap-1">
             <h3 class="text-lg font-bold">{$t('settings.general.wifiOnly')}</h3>
-            <p class="text-sm text-[#b3b3b3]">{$t('settings.general.wifiOnlyHelp')}</p>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.wifiOnlyHelp')}</p>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={nativeWifiOnly} onchange={toggleWifiOnly} aria-label={$t('settings.general.wifiOnly')}>
-            <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>
       </section>
     {/if}
 
     <!-- Subsonic Section -->
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.externalClients')}</h2>
 
-      <p class="text-xs text-[#b3b3b3] mb-6">
+      <p class="text-xs text-muma-spotify-text mb-6">
         {$t('settings.general.apiKeyHelp')}
       </p>
 
@@ -593,8 +593,8 @@
         <div class="grid grid-cols-2 gap-8">
             <div class="flex flex-col gap-2">
                 <h3 class="font-bold">{$t('settings.general.artistListMode')}</h3>
-                <p class="text-xs text-[#b3b3b3] mb-2">{$t('settings.general.artistListModeHelp')}</p>
-                <select bind:value={settings.subsonicArtistListMode} aria-label={$t('settings.general.artistListMode')} class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
+                <p class="text-xs text-muma-spotify-text mb-2">{$t('settings.general.artistListModeHelp')}</p>
+                <select bind:value={settings.subsonicArtistListMode} aria-label={$t('settings.general.artistListMode')} class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
                     <option value={0}>{$t('settings.general.allArtists')}</option>
                     <option value={1}>{$t('settings.general.releaseArtists')}</option>
                     <option value={2}>{$t('settings.general.trackArtists')}</option>
@@ -604,11 +604,11 @@
             <div class="flex items-center justify-between">
                 <div class="flex flex-col gap-1">
                     <h3 class="font-bold">{$t('settings.general.transcodingDefault')}</h3>
-                    <p class="text-xs text-[#b3b3b3]">{$t('settings.general.transcodingHelp')}</p>
+                    <p class="text-xs text-muma-spotify-text">{$t('settings.general.transcodingHelp')}</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" class="sr-only peer" bind:checked={settings.subsonicEnableTranscodingByDefault}>
-                    <div class="w-11 h-6 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                    <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
                 </label>
             </div>
         </div>
@@ -616,7 +616,7 @@
         <div class="grid grid-cols-2 gap-8">
             <div class="flex flex-col gap-2">
                 <h3 class="font-bold">{$t('settings.general.subsonicFormat')}</h3>
-                <select bind:value={settings.subsonicDefaultTranscodeFormat} aria-label={$t('settings.general.subsonicFormat')} class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
+                <select bind:value={settings.subsonicDefaultTranscodeFormat} aria-label={$t('settings.general.subsonicFormat')} class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
                     <option value={1}>MP3</option>
                     <option value={2}>OGG Opus</option>
                     <option value={3}>OGG Vorbis</option>
@@ -624,7 +624,7 @@
             </div>
             <div class="flex flex-col gap-2">
                 <h3 class="font-bold">{$t('settings.general.subsonicBitrate')}</h3>
-                <select bind:value={settings.subsonicDefaultTranscodeBitrate} aria-label={$t('settings.general.subsonicBitrate')} class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
+                <select bind:value={settings.subsonicDefaultTranscodeBitrate} aria-label={$t('settings.general.subsonicBitrate')} class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
                     <option value={64000}>64 kbps</option>
                     <option value={96000}>96 kbps</option>
                     <option value={128000}>128 kbps</option>
@@ -638,13 +638,13 @@
     </section>
 
     <!-- Services Section -->
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.general.externalServices')}</h2>
 
       <div class="flex flex-col gap-6">
         <div class="flex flex-col gap-2">
           <h3 class="font-bold">{$t('settings.general.feedbackSystem')}</h3>
-          <select bind:value={settings.feedbackBackend} aria-label={$t('settings.general.feedbackSystem')} class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
+          <select bind:value={settings.feedbackBackend} aria-label={$t('settings.general.feedbackSystem')} class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand">
             <option value={0}>{$t('settings.general.internal')}</option>
             <option value={1}>ListenBrainz</option>
             <option value={2}>Muma Rating Service</option>
@@ -653,14 +653,14 @@
 
         <div class="flex flex-col gap-2">
           <h3 class="font-bold">{$t('settings.general.listenBrainzToken')}</h3>
-          <p class="text-xs text-[#b3b3b3] mb-2">
+          <p class="text-xs text-muma-spotify-text mb-2">
             {$t('settings.general.listenBrainzHelp')}
           </p>
           <input
             type="password"
             bind:value={settings.listenbrainzToken}
             placeholder={$t('settings.general.listenBrainzPlaceholder')}
-            class="bg-[#282828] text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand w-full"
+            class="bg-muma-spotify-light text-white px-4 py-2 rounded border border-white/10 outline-none focus:border-brand w-full"
           />
         </div>
       </div>

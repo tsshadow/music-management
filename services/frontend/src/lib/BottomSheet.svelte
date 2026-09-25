@@ -90,7 +90,7 @@
     aria-modal="true"
     aria-label={title}
     tabindex="-1"
-    class="relative w-full max-h-[80vh] bg-[#181818] rounded-t-2xl shadow-2xl flex flex-col overflow-hidden border-t border-white/10 outline-none"
+    class="relative w-full max-h-[80vh] bg-muma-spotify-panel rounded-t-2xl shadow-2xl flex flex-col overflow-hidden border-t border-white/10 outline-none"
     in:fly={{ y: 300, duration: 200 }}
   >
     <!-- Grip -->
@@ -102,7 +102,7 @@
       <div class="flex items-center justify-between px-4 pb-2 shrink-0">
         <h2 class="text-base font-bold m-0 text-white">{title}</h2>
         <button
-          class="text-[#b3b3b3] hover:text-white transition-colors bg-transparent border-none p-1 cursor-pointer"
+          class="text-muma-spotify-text hover:text-white transition-colors bg-transparent border-none p-1 cursor-pointer"
           onclick={onclose}
           aria-label={$t('common.close')}
         >

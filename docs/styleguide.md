@@ -57,9 +57,9 @@
 ## Components
 - **Buttons**:
   - Primary: Rounded full (`rounded-full`), brand background (`bg-brand` on the web; green in songs mode, see "Brand token" above), dark text or white bold text.
-  - Secondary: Transparent with border or surface gray background (`bg-[#282828]`), white text.
-- **Forms & Inputs**: Dark background (`bg-[#282828]`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
-- **Cards**: Surface gray (`bg-[#282828]`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
+  - Secondary: Transparent with border or surface gray background (`bg-muma-spotify-light`), white text.
+- **Forms & Inputs**: Dark background (`bg-muma-spotify-light`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
+- **Cards**: Surface gray (`bg-muma-spotify-light`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
@@ -106,7 +106,39 @@
 - **Accessibility**: High contrast between text (`#FFFFFF` / `#B3B3B3`) and background (`#121212`), clear focus states, touch targets at least 48x48px on mobile.
 
 ## Coding Conventions
-- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes using the color tokens declared in the `@theme` block of `src/app.css`: `brand` (the mode-dependent accent), `brand-green`, `brand-blue`, and the `muma-spotify-*` surfaces (`-black`, `-dark`, `-panel`, `-light`, `-text`). A token that is not declared there compiles to no CSS rule at all, silently.
+- **Web (`services/frontend`)**: Svelte components + Tailwind CSS utility classes using the color tokens
+  declared in the `@theme` block of `src/app.css`. A token that is not declared there compiles to no CSS
+  rule at all, silently -- add it to `@theme` first, then use it. Write the token, never the hex it stands
+  for (`text-muma-spotify-text`, not `text-[#b3b3b3]`); an arbitrary `-[#hex]` value is only for a colour
+  that has no token yet.
+
+  | Token | Hex | Use |
+  |---|---|---|
+  | `brand` | mode: `#1DB954` / `#2D5AFC` | the accent (active states, primary buttons) |
+  | `brand-green` / `brand-blue` | `#1DB954` / `#2D5AFC` | a fixed accent that must not follow the mode (login page) |
+  | `muma-spotify-black` | `#191414` | page ground |
+  | `muma-spotify-dark` | `#121212` | main content background |
+  | `muma-spotify-panel` | `#181818` | panels, sidebars, filter bar |
+  | `muma-spotify-raised` | `#242424` | a surface one step above the panel (inline editors, nested cards) |
+  | `muma-spotify-light` | `#282828` | cards, rows, inputs, neutral chips |
+  | `muma-spotify-hover` | `#333333` | hover / pressed state of a `light` surface |
+  | `muma-spotify-highlight` | `#3E3E3E` | hover of a control that already sits on `hover` |
+  | `muma-spotify-text` | `#B3B3B3` | secondary text (subtitles, metadata, inactive items) |
+  | `muma-spotify-muted` | `#727272` | muted text (timestamps, disabled) |
+  | `muma-spotify-subtle` | `#535353` | dimmest text: placeholder glyphs, empty states |
+
+  Opacity uses the Tailwind v4 modifier on the colour (`hover:bg-muma-spotify-light/80`); the v3
+  `bg-opacity-*` / `text-opacity-*` utilities compile to nothing in v4.
+
+  Colours still written as arbitrary values, because no token covers them yet: `#1a1a1a` (settings and
+  management sidebars), `#2a2a2a` (login inputs, search field), `#444` (device settings hover), `#4d4d4d`,
+  `#4e4e4e`, `#555`, `#777`, `#8a8a8a`, `#d0d0d0`, `#e5e5e5`, `#1ed760` (login button hover), `#e91429`,
+  `#eb743b`, `#b266ff` (radio/news active) and the label-chip ambers `#3a2c16`, `#4a3820`, `#ffcc80`,
+  `#ffe0b2`. Promote one to a token (with a name for its role) when a second place needs it.
+- **Web text**: every user-visible string comes from `src/lib/i18n/locales/*.json` through `$t`, and
+  numbers and dates are formatted with the active locale (`$format.number`, `$format.date`,
+  `$format.dateTime` from `src/lib/i18n/index.js`), never a fixed `'nl-NL'`.
+  `tests/unit/noHardcodedDutch.test.js` fails on the phrases that were moved and on `nl-NL`.
 - **Android (`services/muma-mobile`)**: Kotlin + Material Design components customized with dark theme color attributes matching the web palette.
 
 ## Do's & Don'ts
@@ -189,7 +221,7 @@ To maintain clean design governance and prevent ad-hoc style drift:
     bar's), `#B3B3B3` idle, `#b266ff` while a bulletin plays, `aria-pressed` (bug report 059).
   - L (done, 2026-09-24): meta chips are coloured **by kind, never by position**. `MetaChips.svelte`
     reads `kind` per item. A genre chip (and any chip without a kind: festival, mood) keeps the
-    neutral chip -- `bg-[#282828] text-[#b3b3b3]`, hover `bg-[#333] text-white`. A label chip is a
+    neutral chip -- `bg-muma-spotify-light text-muma-spotify-text`, hover `bg-muma-spotify-hover text-white`. A label chip is a
     muted amber: `bg-[#3a2c16] text-[#ffcc80]`, hover `bg-[#4a3820] text-[#ffe0b2]` (contrast about
     9:1), so genres and label read apart at a glance on the player's sideways chip row. Not the
     brand token (the mode accent that marks active states), not `#b266ff` (radio/news active), not

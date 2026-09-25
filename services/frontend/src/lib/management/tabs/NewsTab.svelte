@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { t } from '../../i18n/index.js';
+  import { t, formatDateTime } from '../../i18n/index.js';
   import { Newspaper, RefreshCw, Save, Radio } from '@lucide/svelte';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
@@ -39,7 +39,7 @@
 
   function formatMoment(epochSeconds) {
     if (!epochSeconds) return $t('management.news.never');
-    return new Date(epochSeconds * 1000).toLocaleString();
+    return formatDateTime(epochSeconds * 1000);
   }
 
   async function fetchSources() {
@@ -158,35 +158,35 @@
     <Newspaper size={20} class="text-brand" />
     <h2 class="text-xl font-bold text-white">{$t('management.news.title')}</h2>
   </div>
-  <p class="text-sm text-[#b3b3b3] max-w-2xl">{$t('management.news.explain')}</p>
+  <p class="text-sm text-muma-spotify-text max-w-2xl">{$t('management.news.explain')}</p>
 
   {#if loading}
     <div class="flex justify-center py-10"><RefreshCw class="animate-spin text-brand" size={32} /></div>
   {:else}
-    <div class="bg-[#181818] rounded-lg p-4 space-y-3 max-w-2xl">
-      <label class="block text-sm text-[#b3b3b3]">
+    <div class="bg-muma-spotify-panel rounded-lg p-4 space-y-3 max-w-2xl">
+      <label class="block text-sm text-muma-spotify-text">
         {$t('management.news.name')}
-        <input class="w-full mt-1 bg-[#282828] text-white rounded px-3 py-2" bind:value={form.name} />
+        <input class="w-full mt-1 bg-muma-spotify-light text-white rounded px-3 py-2" bind:value={form.name} />
       </label>
-      <label class="block text-sm text-[#b3b3b3]">
+      <label class="block text-sm text-muma-spotify-text">
         {$t('management.news.streamUrl')}
-        <input class="w-full mt-1 bg-[#282828] text-white rounded px-3 py-2" bind:value={form.stream_url} />
+        <input class="w-full mt-1 bg-muma-spotify-light text-white rounded px-3 py-2" bind:value={form.stream_url} />
       </label>
       <div class="grid grid-cols-3 gap-3">
-        <label class="block text-sm text-[#b3b3b3]">
+        <label class="block text-sm text-muma-spotify-text">
           {$t('management.news.minute')}
-          <input type="number" min="0" max="59" class="w-full mt-1 bg-[#282828] text-white rounded px-3 py-2" bind:value={form.minute_of_hour} />
+          <input type="number" min="0" max="59" class="w-full mt-1 bg-muma-spotify-light text-white rounded px-3 py-2" bind:value={form.minute_of_hour} />
         </label>
-        <label class="block text-sm text-[#b3b3b3]">
+        <label class="block text-sm text-muma-spotify-text">
           {$t('management.news.duration')}
-          <input type="number" min="60" class="w-full mt-1 bg-[#282828] text-white rounded px-3 py-2" bind:value={form.duration_seconds} />
+          <input type="number" min="60" class="w-full mt-1 bg-muma-spotify-light text-white rounded px-3 py-2" bind:value={form.duration_seconds} />
         </label>
-        <label class="block text-sm text-[#b3b3b3]">
+        <label class="block text-sm text-muma-spotify-text">
           {$t('management.news.retention')}
-          <input type="number" min="1" class="w-full mt-1 bg-[#282828] text-white rounded px-3 py-2" bind:value={form.retention_count} />
+          <input type="number" min="1" class="w-full mt-1 bg-muma-spotify-light text-white rounded px-3 py-2" bind:value={form.retention_count} />
         </label>
       </div>
-      <label class="flex items-center gap-2 text-sm text-[#b3b3b3]">
+      <label class="flex items-center gap-2 text-sm text-muma-spotify-text">
         <input type="checkbox" bind:checked={form.enabled} />
         {$t('management.news.enabled')}
       </label>
@@ -210,7 +210,7 @@
         </button>
       </div>
 
-      <div class="text-xs text-[#b3b3b3] pt-2">
+      <div class="text-xs text-muma-spotify-text pt-2">
         <div>{$t('management.news.lastSuccess')}: {formatMoment(lastSuccessAt)}</div>
         {#if lastError}
           <div class="text-red-400">{$t('management.news.lastError')}: {lastError}</div>
@@ -222,7 +222,7 @@
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-sm font-bold text-white">{$t('management.news.bulletins')}</h3>
         <button
-          class="flex items-center gap-1 bg-transparent text-[#b3b3b3] border-none cursor-pointer text-xs hover:text-white"
+          class="flex items-center gap-1 bg-transparent text-muma-spotify-text border-none cursor-pointer text-xs hover:text-white"
           onclick={refresh}
         >
           <RefreshCw size={14} />
@@ -230,13 +230,13 @@
         </button>
       </div>
       {#if bulletins.length === 0}
-        <p class="text-sm text-[#b3b3b3]">{$t('management.news.noBulletins')}</p>
+        <p class="text-sm text-muma-spotify-text">{$t('management.news.noBulletins')}</p>
       {:else}
         <ul class="divide-y divide-white/5">
           {#each bulletins as bulletin (bulletin.id)}
             <li class="flex items-center justify-between py-2 text-sm text-white">
               <span>{formatMoment(bulletin.started_at)}</span>
-              <span class="text-[#b3b3b3]">{formatDuration(bulletin.duration_ms)} · {formatSize(bulletin.size_bytes)}</span>
+              <span class="text-muma-spotify-text">{formatDuration(bulletin.duration_ms)} · {formatSize(bulletin.size_bytes)}</span>
             </li>
           {/each}
         </ul>

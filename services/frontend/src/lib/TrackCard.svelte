@@ -28,7 +28,7 @@
 <div
   role="button"
   tabindex="0"
-  class="bg-[#181818] rounded-lg transition-colors cursor-pointer flex flex-col group hover:bg-[#282828] {$isMobile ? 'p-2 gap-1.5' : 'p-4 gap-3'}"
+  class="bg-muma-spotify-panel rounded-lg transition-colors cursor-pointer flex flex-col group hover:bg-muma-spotify-light {$isMobile ? 'p-2 gap-1.5' : 'p-4 gap-3'}"
   onclick={() => playTrack(track)}
   onkeydown={(e) => e.key === 'Enter' && playTrack(track)}
 >

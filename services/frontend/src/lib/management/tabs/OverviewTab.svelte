@@ -1,5 +1,5 @@
 <script >
-  import { t } from '../../i18n/index.js';
+  import { t, format } from '../../i18n/index.js';
   import { ShieldCheck, Clock, Info, Activity, RefreshCw } from '@lucide/svelte';
   
   export let containers;
@@ -33,9 +33,9 @@
       </div>
       <p class="text-xs text-muma-spotify-text mt-2">
         {#if containers.some(c => c.status !== 'running')}
-          <span class="text-red-500 font-bold">{containers.filter(c => c.status !== 'running').length} containers hebben problemen.</span>
+          <span class="text-red-500 font-bold">{$t('management.overview.containersWithProblems', { count: containers.filter(c => c.status !== 'running').length })}</span>
         {:else}
-          Alle systemen werken naar behoren.
+          {$t('management.overview.allSystemsOk')}
         {/if}
       </p>
     </div>
@@ -68,7 +68,7 @@
       <div>
         <h3 class="font-bold text-red-500 text-sm uppercase tracking-wider">{$t('management.overview.alert')}</h3>
         <p class="text-sm text-red-200">
-          {containers.filter(c => c.status !== 'running').length} service(s) zijn momenteel offline: 
+          {$t('management.overview.servicesOffline', { count: containers.filter(c => c.status !== 'running').length })}
           <span class="font-bold font-mono">{containers.filter(c => c.status !== 'running').map(c => c.name).join(', ')}</span>
         </p>
       </div>
@@ -86,11 +86,11 @@
           {#each activity.recent_added.slice(0, 5) as item, i (i)}
             <li class="p-4 hover:bg-white/5 flex justify-between items-center gap-4">
               <div class="truncate">
-                <div class="font-bold text-sm truncate">{item.title || (item.file_path ? item.file_path.split('/').pop() : 'Onbekend')}</div>
+                <div class="font-bold text-sm truncate">{item.title || (item.file_path ? item.file_path.split('/').pop() : $t('management.overview.unknown'))}</div>
                 <div class="text-xs text-muma-spotify-text truncate">{item.artist || item.source}</div>
               </div>
               <div class="text-[10px] text-muma-spotify-text whitespace-nowrap text-right">
-                {new Date(item.timestamp).toLocaleDateString()}
+                {$format.date(item.timestamp)}
               </div>
             </li>
           {/each}
@@ -132,15 +132,15 @@
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.totalTracks')}</div>
-      <div class="text-2xl font-extrabold text-brand">{stats.total_tracks.toLocaleString('nl-NL')}</div>
+      <div class="text-2xl font-extrabold text-brand">{$format.number(stats.total_tracks)}</div>
     </div>
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.totalArtists')}</div>
-      <div class="text-2xl font-extrabold text-white">{stats.total_artists.toLocaleString('nl-NL')}</div>
+      <div class="text-2xl font-extrabold text-white">{$format.number(stats.total_artists)}</div>
     </div>
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.totalScrobbles')}</div>
-      <div class="text-2xl font-extrabold text-blue-400">{stats.total_scrobbles.toLocaleString('nl-NL')}</div>
+      <div class="text-2xl font-extrabold text-blue-400">{$format.number(stats.total_scrobbles)}</div>
     </div>
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.matchRate')}</div>
@@ -156,7 +156,7 @@
           <div class="space-y-1">
             <div class="flex justify-between text-sm font-bold">
               <span>{genre.genre}</span>
-              <span class="text-muma-spotify-text tabular-nums">{genre.count.toLocaleString('nl-NL')}</span>
+              <span class="text-muma-spotify-text tabular-nums">{$format.number(genre.count)}</span>
             </div>
             <div class="w-full bg-muma-spotify-dark rounded-full h-1.5">
               <div class="bg-brand h-1.5 rounded-full" style="width: {stats.top_genres.length > 0 ? (genre.count / stats.top_genres[0].count) * 100 : 0}%"></div>
@@ -180,7 +180,7 @@
                 <div class="text-xs text-muma-spotify-text">{track.artist}</div>
               </td>
               <td class="p-3 text-right text-xs text-muma-spotify-text">
-                {new Date(track.created_at).toLocaleDateString('nl-NL')}
+                {$format.date(track.created_at)}
               </td>
             </tr>
           {/each}
@@ -199,7 +199,7 @@
     <span class="text-xs text-muma-spotify-text">
       {$t('management.overview.avgTrackLength')}
       <b class="text-white">{Math.floor(stats.avg_track_duration / 60)}:{Math.floor(stats.avg_track_duration % 60).toString().padStart(2, '0')}</b>
-      · Unmatched scrobbles <b class="text-yellow-500">{stats.total_unmatched.toLocaleString('nl-NL')}</b>
+      · Unmatched scrobbles <b class="text-yellow-500">{$format.number(stats.total_unmatched)}</b>
     </span>
   </div>
 </section>

@@ -144,11 +144,11 @@
 <div class="settings-density max-w-4xl pb-24">
   <header class="mb-8">
     <h1 class="text-3xl font-bold mb-2">{$t('settings.about.title')}</h1>
-    <p class="text-[#b3b3b3]">{$t('settings.about.subtitle')}</p>
+    <p class="text-muma-spotify-text">{$t('settings.about.subtitle')}</p>
   </header>
 
   <div class="flex flex-col gap-8">
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <div class="flex items-center gap-6">
         <img
           src="/images/logo.svg"
@@ -158,7 +158,7 @@
         />
         <div>
           <h2 class="text-white text-2xl font-bold">MuMa</h2>
-          <p class="text-[#b3b3b3]">
+          <p class="text-muma-spotify-text">
             {#if isLoading}
               {$t('common.loading')}
             {:else if isNative && appInfo}
@@ -171,24 +171,24 @@
           </p>
         </div>
       </div>
-      <p class="text-[#b3b3b3] text-sm mt-6">
+      <p class="text-muma-spotify-text text-sm mt-6">
         {$t('settings.about.blurb')}
       </p>
     </section>
 
     {#if isNative}
-      <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-app">
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-app">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.app')}</h2>
         <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt class="text-[#b3b3b3]">{$t('settings.about.appVersion')}</dt>
+          <dt class="text-muma-spotify-text">{$t('settings.about.appVersion')}</dt>
           <dd class="text-white m-0">{appInfo ? `${appInfo.version} (${appInfo.versionCode})` : $t('settings.about.unknown')}</dd>
-          <dt class="text-[#b3b3b3]">{$t('settings.about.buildType')}</dt>
+          <dt class="text-muma-spotify-text">{$t('settings.about.buildType')}</dt>
           <dd class="text-white m-0">{appInfo?.buildType || $t('settings.about.unknown')}</dd>
-          <dt class="text-[#b3b3b3]">{$t('settings.about.packageName')}</dt>
+          <dt class="text-muma-spotify-text">{$t('settings.about.packageName')}</dt>
           <dd class="text-white m-0 break-all">{appInfo?.packageName || $t('settings.about.unknown')}</dd>
-          <dt class="text-[#b3b3b3]">{$t('settings.about.android')}</dt>
+          <dt class="text-muma-spotify-text">{$t('settings.about.android')}</dt>
           <dd class="text-white m-0">{appInfo?.androidVersion || $t('settings.about.unknown')}</dd>
-          <dt class="text-[#b3b3b3]">{$t('settings.about.device')}</dt>
+          <dt class="text-muma-spotify-text">{$t('settings.about.device')}</dt>
           <dd class="text-white m-0">{appInfo?.device || $t('settings.about.unknown')}</dd>
         </dl>
         <div class="mt-6 flex flex-col gap-2">
@@ -205,7 +205,7 @@
           {:else if checkOutcome === 'releaseAhead'}
             <p class="text-sm text-brand m-0" data-testid="update-outcome">{$t('appUpdate.releaseAhead', { version: latestVersion, current: appInfo?.version ?? '' })}</p>
           {:else if checkOutcome === 'upToDate'}
-            <p class="text-sm text-[#b3b3b3] m-0" data-testid="update-outcome">{$t('settings.about.upToDate')}</p>
+            <p class="text-sm text-muma-spotify-text m-0" data-testid="update-outcome">{$t('settings.about.upToDate')}</p>
           {:else if checkOutcome === 'failed'}
             <p class="text-sm text-red-400 m-0" data-testid="update-outcome">{$t('settings.about.checkFailed')}</p>
           {/if}
@@ -213,21 +213,21 @@
       </section>
     {/if}
 
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-server">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-server">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.server')}</h2>
       <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-        <dt class="text-[#b3b3b3]">{$t('settings.about.serverUrl')}</dt>
+        <dt class="text-muma-spotify-text">{$t('settings.about.serverUrl')}</dt>
         <dd class="text-white m-0 break-all">{serverUrl || $t('settings.about.unknown')}</dd>
-        <dt class="text-[#b3b3b3]">{$t('settings.about.mumaVersion')}</dt>
+        <dt class="text-muma-spotify-text">{$t('settings.about.mumaVersion')}</dt>
         <dd class="text-white m-0">{mumaVersion || $t('settings.about.unknown')}</dd>
-        <dt class="text-[#b3b3b3]">{$t('settings.about.lmsVersion')}</dt>
+        <dt class="text-muma-spotify-text">{$t('settings.about.lmsVersion')}</dt>
         <dd class="text-white m-0">{lmsVersion || $t('settings.about.unknown')}</dd>
-        <dt class="text-[#b3b3b3]">{$t('settings.about.bundleVersion')}</dt>
+        <dt class="text-muma-spotify-text">{$t('settings.about.bundleVersion')}</dt>
         <dd class="text-white m-0">
           {#if bundle}
             <code class="font-mono">{bundle.version}</code>
             {#if bundle.builtAt}
-              <span class="text-[#b3b3b3]"> · {$t('settings.about.builtAt', { date: builtAtLabel(bundle.builtAt) })}</span>
+              <span class="text-muma-spotify-text"> · {$t('settings.about.builtAt', { date: builtAtLabel(bundle.builtAt) })}</span>
             {/if}
           {:else}
             {$t('settings.about.unknown')}
@@ -236,31 +236,31 @@
       </dl>
     </section>
 
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.howItWorksTitle')}</h2>
 
       <div>
         <h3 class="text-white font-bold mb-1">{$t('settings.about.howCarModeTitle')}</h3>
-        <p class="text-[#b3b3b3] text-sm">{$t('settings.about.howCarModeBody')}</p>
+        <p class="text-muma-spotify-text text-sm">{$t('settings.about.howCarModeBody')}</p>
       </div>
     </section>
 
-    <section class="bg-[#181818] rounded-lg p-6 shadow-lg border border-white/5">
+    <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">
         {isNative ? $t('settings.about.releaseNotesApp') : $t('settings.about.whatsNew')}
       </h2>
 
       {#if isLoading}
-        <p class="text-[#b3b3b3]">{$t('common.loading')}</p>
+        <p class="text-muma-spotify-text">{$t('common.loading')}</p>
       {:else if releaseNotes.length === 0}
-        <p class="text-[#b3b3b3] text-sm italic">{$t('settings.about.noReleaseNotes')}</p>
+        <p class="text-muma-spotify-text text-sm italic">{$t('settings.about.noReleaseNotes')}</p>
       {:else}
         <div class="flex flex-col gap-6">
           {#each releaseNotes as release (release.version)}
             <div class="border-l-2 border-brand pl-4">
               <div class="flex items-center gap-3 mb-2">
                 <span class="text-white font-bold">{release.version}</span>
-                <span class="text-xs text-[#b3b3b3]">{release.date}</span>
+                <span class="text-xs text-muma-spotify-text">{release.date}</span>
               </div>
               <div class="text-sm space-y-3">
                 {#each Object.entries(release.notes) as [category, items] (category)}

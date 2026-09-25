@@ -170,13 +170,13 @@
 
 <div class="flex flex-col gap-8 pb-12">
   <header>
-    <div class="text-xs font-bold uppercase tracking-wider mb-2 text-[#b3b3b3]">
+    <div class="text-xs font-bold uppercase tracking-wider mb-2 text-muma-spotify-text">
       {preset ? $t('presetBuilder.editKicker') : $t('presetBuilder.kicker')}
     </div>
     <h1 class="text-3xl md:text-5xl font-black mb-3 break-words">
       {preset ? preset.name : $t('presetBuilder.title')}
     </h1>
-    <p class="text-sm text-[#b3b3b3] max-w-2xl m-0">{$t('presetBuilder.intro')}</p>
+    <p class="text-sm text-muma-spotify-text max-w-2xl m-0">{$t('presetBuilder.intro')}</p>
   </header>
 
   <form class="grid gap-6 md:grid-cols-2" onsubmit={(event) => { event.preventDefault(); save(); }}>
@@ -186,7 +186,7 @@
           type="button"
           role="radio"
           aria-checked={mode === option}
-          class="px-4 py-1.5 rounded-full text-sm font-bold border-none cursor-pointer transition-colors {mode === option ? 'bg-white text-black' : 'bg-[#282828] text-white hover:bg-[#333]'}"
+          class="px-4 py-1.5 rounded-full text-sm font-bold border-none cursor-pointer transition-colors {mode === option ? 'bg-white text-black' : 'bg-muma-spotify-light text-white hover:bg-muma-spotify-hover'}"
           onclick={() => (mode = option)}
         >{$t(option === 'songs' ? 'nav.songs' : 'nav.sets')}</button>
       {/each}
@@ -199,8 +199,8 @@
     <MultiPicker id="pb-years" label={$t('presetBuilder.years')} selected={years} options={yearOptions} placeholder={$t('presetBuilder.addPlaceholder')} onchange={(v) => (years = v)} />
 
     <div class="flex flex-col gap-2">
-      <label for="pb-sort" class="text-xs font-bold uppercase tracking-wider text-[#b3b3b3]">{$t('presetBuilder.sort')}</label>
-      <select id="pb-sort" class="bg-[#282828] text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort}>
+      <label for="pb-sort" class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('presetBuilder.sort')}</label>
+      <select id="pb-sort" class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={sort}>
         {#each PRESET_SORTS as option (option.id)}
           <option value={option.id}>{$t(option.labelKey)}</option>
         {/each}
@@ -208,11 +208,11 @@
     </div>
 
     <div class="flex flex-col gap-2">
-      <span class="text-xs font-bold uppercase tracking-wider text-[#b3b3b3]">{$t('presetBuilder.rating')}</span>
+      <span class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('presetBuilder.rating')}</span>
       <div class="flex items-center gap-2 flex-wrap">
         <label class="flex items-center gap-2 text-sm">
           <span>{$t('presetBuilder.ratingMin')}</span>
-          <select class="bg-[#282828] text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer" bind:value={minRating} onchange={() => { if (maxRating < minRating) maxRating = minRating; }}>
+          <select class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer" bind:value={minRating} onchange={() => { if (maxRating < minRating) maxRating = minRating; }}>
             {#each ratingSteps as step (step)}
               <option value={step}>{step === 0 ? $t('filter.allRatings') : `${step}★`}</option>
             {/each}
@@ -220,7 +220,7 @@
         </label>
         <label class="flex items-center gap-2 text-sm">
           <span>{$t('presetBuilder.ratingMax')}</span>
-          <select class="bg-[#282828] text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer" bind:value={maxRating} onchange={() => { if (minRating > maxRating) minRating = maxRating; }}>
+          <select class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer" bind:value={maxRating} onchange={() => { if (minRating > maxRating) minRating = maxRating; }}>
             {#each ratingSteps as step (step)}
               <option value={step}>{`${step}★`}</option>
             {/each}
@@ -230,13 +230,13 @@
     </div>
 
     <div class="flex flex-col gap-2">
-      <label for="pb-size" class="text-xs font-bold uppercase tracking-wider text-[#b3b3b3]">{$t('presetBuilder.size')}</label>
-      <input id="pb-size" type="number" min="1" max="5000" class="bg-[#282828] text-white border-none px-3 py-2 rounded-md text-sm w-32" bind:value={size} />
+      <label for="pb-size" class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('presetBuilder.size')}</label>
+      <input id="pb-size" type="number" min="1" max="5000" class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm w-32" bind:value={size} />
     </div>
 
     <div class="flex flex-col gap-2">
-      <label for="pb-name" class="text-xs font-bold uppercase tracking-wider text-[#b3b3b3]">{$t('presetBuilder.name')}</label>
-      <input id="pb-name" type="text" class="bg-[#282828] text-white border-none px-3 py-2 rounded-md text-sm placeholder:text-[#777]" placeholder={defaultName()} bind:value={name} />
+      <label for="pb-name" class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('presetBuilder.name')}</label>
+      <input id="pb-name" type="text" class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm placeholder:text-[#777]" placeholder={defaultName()} bind:value={name} />
     </div>
 
     <div class="md:col-span-2 flex items-center gap-4 flex-wrap">
@@ -246,10 +246,10 @@
         disabled={saving || !$mumaUser?.id}
       >{preset ? $t('presetBuilder.saveChanges') : $t('presetBuilder.save')}</button>
       {#if !$mumaUser?.id}
-        <span class="text-sm text-[#b3b3b3]">{$t('presetBuilder.signInToSave')}</span>
+        <span class="text-sm text-muma-spotify-text">{$t('presetBuilder.signInToSave')}</span>
       {/if}
       {#if !hasFilter}
-        <span class="text-sm text-[#b3b3b3]">{$t('presetBuilder.noFilterHint')}</span>
+        <span class="text-sm text-muma-spotify-text">{$t('presetBuilder.noFilterHint')}</span>
       {/if}
     </div>
   </form>
@@ -258,13 +258,13 @@
     <h2 class="text-xl font-bold m-0">
       {$t('presetBuilder.preview')}
       {#if tracks.length > 0}
-        <span class="text-[#b3b3b3] text-sm font-medium">· {$t('presetBuilder.previewCount', { count: tracks.length })}</span>
+        <span class="text-muma-spotify-text text-sm font-medium">· {$t('presetBuilder.previewCount', { count: tracks.length })}</span>
       {/if}
     </h2>
     {#if previewLoading && tracks.length === 0}
-      <div class="text-[#b3b3b3] p-12 text-center">{$t('common.loading')}</div>
+      <div class="text-muma-spotify-text p-12 text-center">{$t('common.loading')}</div>
     {:else if tracks.length === 0}
-      <div class="text-[#b3b3b3] p-12 text-center">{$t('presets.empty')}</div>
+      <div class="text-muma-spotify-text p-12 text-center">{$t('presets.empty')}</div>
     {:else}
       <TrackList {tracks} onnavigate={onnavigate} />
     {/if}

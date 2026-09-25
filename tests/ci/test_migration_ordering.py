@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tools import apply_migrations
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Statements that remove, rename or narrow schema or data the running release
@@ -131,3 +133,35 @@ def test_the_patterns_catch_what_they_are_for(tmp_path: Path) -> None:
         path = tmp_path / "migrate_sample.sql"
         path.write_text(sql + "\n", encoding="utf-8")
         assert bool(_contract_steps(path)) is expected, sql
+
+
+# --- the ledger (bug report 068) ------------------------------------------------
+#
+# scripts/deploy.sh no longer runs every file on every deploy: tools/apply_migrations.py
+# skips a file whose name and sha256 are in schema_migrations. Editing an applied file
+# therefore re-runs it on the next deploy (new hash), which is why every file must stay
+# re-runnable even though most deploys no longer run it.
+
+
+def test_the_deploy_applies_migrations_through_the_ledger() -> None:
+    deploy = (REPO_ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
+    assert 'tools/apply_migrations.py" --password-stdin --exec run_remote_sql' in deploy
+    assert '"$PROJECT_ROOT"/migrate_*.sql' in deploy
+    assert "--lock-wait-timeout" in deploy
+
+
+def test_every_migration_name_can_be_recorded() -> None:
+    """record_sql() refuses a name it would have to quote; that would fail the deploy after the file ran."""
+    for path in sorted(REPO_ROOT.glob("migrate_*.sql")):
+        migration = apply_migrations.Migration(path, apply_migrations.file_sha256(path), "new")
+        assert path.name in apply_migrations.record_sql(migration)
+
+
+def test_the_order_is_byte_wise_lexical_not_by_version_number() -> None:
+    """migrate_v10_* runs before migrate_v2.sql, which runs before migrate_v29_*. Documented in
+    docs/deployment.md; a migration must not depend on a higher-numbered one."""
+    names = [p.name for p in sorted(REPO_ROOT.glob("migrate_*.sql"), key=lambda p: p.name.encode())]
+    assert names.index("migrate_v10_audio_features_relink.sql") < names.index("migrate_v2.sql")
+    assert names.index("migrate_v2.sql") < names.index("migrate_v29_processed_mtime_double.sql")
+    deployment = (REPO_ROOT / "docs" / "deployment.md").read_text(encoding="utf-8")
+    assert "`migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`" in deployment

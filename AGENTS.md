@@ -332,6 +332,9 @@ To maintain high code quality, the system employs an automated test suite:
   migration names it). `CREATE TABLE IF NOT EXISTS` never alters an existing
   table -- that is how `downloads_youtube_accounts.channel_id` and
   `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
+  The deploy records each applied file with its sha256 in `schema_migrations` and skips it while
+  it is unchanged (`tools/apply_migrations.py`), so editing an applied migration re-runs it on the
+  next deploy -- it must stay re-runnable all the same.
   The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous
   release is still running, before the new containers start. Dropping, renaming or narrowing
   what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,

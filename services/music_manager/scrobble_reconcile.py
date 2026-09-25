@@ -482,8 +482,24 @@ def _restore_zone(conn, previous: str) -> None:
         logger.warning('Could not restore the session time zone: %s', exc)
 
 
+#: The tables `LMS_LISTENS_SQL` joins. A database without all of them cannot answer it.
+LMS_REQUIRED_TABLES = frozenset({'listen', 'user', 'track'})
+
+
+def missing_lms_tables(server_conn: sqlite3.Connection) -> set[str]:
+    """The tables `LMS_LISTENS_SQL` needs that this database does not have."""
+    rows = server_conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    return set(LMS_REQUIRED_TABLES) - {row[0] for row in rows}
+
+
 def open_servers(targets: list[tuple[str, str]]) -> list[tuple[sqlite3.Connection, str]]:
-    """Open each server database read-only; the same file reached twice is opened once."""
+    """Open each server database read-only; the same file reached twice is opened once.
+
+    A database that lacks a table the listen query joins is skipped with a warning instead of
+    failing the whole reconcile: on production `alpha/lms.db` is a leftover at LMS schema 114,
+    with no `user` table and no server behind it, and it turned every dry run into a 500
+    (bug report 069).
+    """
     seen: set[str] = set()
     opened = []
     for path, server in targets:
@@ -492,9 +508,26 @@ def open_servers(targets: list[tuple[str, str]]) -> list[tuple[sqlite3.Connectio
             continue
         seen.add(real)
         try:
-            opened.append((sqlite3.connect(f'file:{path}?mode=ro', uri=True), server))
+            server_conn = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
         except sqlite3.Error as exc:
             logger.warning('scrobble reconcile: could not open %s (%s): %s', path, server, exc)
+            continue
+        try:
+            missing = missing_lms_tables(server_conn)
+        except sqlite3.Error as exc:
+            logger.warning('scrobble reconcile: could not read %s (%s): %s', path, server, exc)
+            server_conn.close()
+            continue
+        if missing:
+            logger.warning(
+                'scrobble reconcile: skipping %s (%s), it has no %s table(s); not an LMS listen database',
+                path,
+                server,
+                ', '.join(sorted(missing)),
+            )
+            server_conn.close()
+            continue
+        opened.append((server_conn, server))
     return opened
 
 

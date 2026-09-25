@@ -125,6 +125,8 @@ module = [
     # New code, so it starts here rather than being cleaned up later. __main__ is
     # deliberately absent: it is the only module that imports the MCP SDK, whose
     # decorators mypy cannot follow without the package installed.
+    # New code (bug report 068), so it starts strict.
+    "tools.apply_migrations",
     "tools.muma_mcp.api",
     "tools.muma_mcp.config",
     "tools.muma_mcp.db",

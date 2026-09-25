@@ -39,11 +39,13 @@ import contextlib
 import gzip
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -87,9 +89,26 @@ DEFAULT_STALE_AFTER_HOURS = 36
 LABEL_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{0,31}$')
 LABELLED_KEPT = 3
 
+# How long mariadb-dump may go without producing a byte before it is stopped. The dump has
+# no lock timeout of its own and accepts no --init-command to set one, so a dump queued
+# behind a table metadata lock waits for as long as that lock is held: on 2026-09-25 the
+# pre-deploy dump sat at 948 MB behind a queued ALTER until the CI job's one-hour timeout
+# (docs/bug-reports/068-deploy-hangs-on-no-op-alter-metadata-lock.md). A healthy dump with
+# --quick streams continuously, so five silent minutes mean it is waiting, not working.
+DEFAULT_STALL_SECONDS = 300
+# main()'s exit status for a stalled dump. scripts/deploy.sh does not fall back to a second
+# dump on it: that one would queue behind the same lock.
+EXIT_STALLED = 3
+_CHUNK = 1024 * 1024
+_TABLE_HEADER = re.compile(rb'-- (?:Table structure|Dumping data) for table `([^`]+)`')
+
 
 class BackupError(Exception):
     """Anything that means the backup did not happen."""
+
+
+class DumpStalled(BackupError):
+    """mariadb-dump produced no output for longer than the stall limit and was stopped."""
 
 
 def alert(title: str, message: str) -> None:
@@ -198,9 +217,7 @@ def dump(target: Path, creds: dict[str, str]) -> None:
         ]
         with gzip.open(target, 'wb') as out:
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            assert process.stdout is not None
-            for chunk in iter(lambda: process.stdout.read(1024 * 1024), b''):
-                out.write(chunk)
+            _copy_with_watchdog(process, out, stall_seconds())
             _, stderr = process.communicate()
         if process.returncode != 0:
             detail = stderr.decode('utf-8', 'replace').strip().splitlines()
@@ -208,6 +225,51 @@ def dump(target: Path, creds: dict[str, str]) -> None:
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(defaults_path)
+
+
+def stall_seconds() -> int:
+    """BACKUP_STALL_SECONDS, or the default; see DEFAULT_STALL_SECONDS."""
+    return int(os.getenv('BACKUP_STALL_SECONDS', str(DEFAULT_STALL_SECONDS)))
+
+
+def _copy_with_watchdog(process: subprocess.Popen, out, stall_limit: int) -> None:
+    """Copy the dump's stdout into OUT, stopping it once it has been silent for STALL_LIMIT s.
+
+    The pipe is read on a thread so the wait for the next chunk can time out; read1 returns
+    whatever has arrived rather than blocking until a full chunk has, so a slow but moving
+    dump is never mistaken for a stuck one.
+    """
+    stdout = process.stdout
+    assert stdout is not None
+    chunks: queue.Queue[bytes | None] = queue.Queue(maxsize=8)
+
+    def pump() -> None:
+        try:
+            for chunk in iter(lambda: stdout.read1(_CHUNK), b''):
+                chunks.put(chunk)
+        finally:
+            chunks.put(None)
+
+    threading.Thread(target=pump, name='db-backup-pump', daemon=True).start()
+    tail = b''
+    written = 0
+    while True:
+        try:
+            chunk = chunks.get(timeout=stall_limit)
+        except queue.Empty:
+            process.kill()
+            tables = _TABLE_HEADER.findall(tail)
+            where = f', last table header in the output: `{tables[-1].decode("utf-8", "replace")}`' if tables else ''
+            raise DumpStalled(
+                f'mariadb-dump produced no output for {stall_limit}s after {written} bytes{where} and was stopped. '
+                'It is almost certainly waiting on a table metadata lock held (or queued) by another session; '
+                'find it with SHOW PROCESSLIST as root and KILL QUERY it, see docs/deployment.md.'
+            ) from None
+        if chunk is None:
+            return
+        out.write(chunk)
+        written += len(chunk)
+        tail = (tail + chunk)[-65536:]
 
 
 def verify(path: Path) -> None:
@@ -558,6 +620,10 @@ def main(argv: list[str] | None = None) -> int:
             print('backup is current')
             return 0
         return run_backup(args.destination)
+    except DumpStalled as exc:
+        alert('Database backup stalled', str(exc))
+        print(f'db_backup: {exc}', file=sys.stderr)
+        return EXIT_STALLED
     except BackupError as exc:
         alert('Database backup failed', str(exc))
         print(f'db_backup: {exc}', file=sys.stderr)

@@ -201,21 +201,36 @@ e2e_stack_tag_fixture() {
 #
 # Applied here rather than in compose so the order is the same as the deploy's:
 # the services have already created their tables by the time this runs.
+#
+# Through tools/apply_migrations.py and the real `mariadb` client, as
+# scripts/deploy.sh does, and twice: the first pass applies every file and fills
+# the schema_migrations ledger, the second must find all of them recorded and
+# apply nothing (bug report 068). A second pass that re-runs anything means the
+# ledger stopped working, and the deploy would be back to re-running every ALTER.
 e2e_stack_apply_migrations() {
     echo "--- Applying migrate_*.sql, the way a deploy does ---"
     local db_cid
     db_cid=$($E2E_STACK_COMPOSE ps -q test-db)
-    local migration
-    for migration in "$E2E_STACK_ROOT"/migrate_*.sql; do
-        [ -e "$migration" ] || continue
-        # Credentials are docker/compose.test.yml's, for a database that exists
-        # for the length of one job and holds nothing but the fixture.
-        if ! docker exec -i "$db_cid" \
-            mariadb -uroot -ptest-root-password muma_test < "$migration"; then
-            echo "ERROR: $(basename "$migration") failed to apply"
-            exit 1
-        fi
-    done
+    # Credentials are docker/compose.test.yml's, for a database that exists for
+    # the length of one job and holds nothing but the fixture.
+    local client="docker exec -i $db_cid mariadb -uroot -ptest-root-password muma_test"
+    if ! python3 "$E2E_STACK_ROOT/tools/apply_migrations.py" --exec "$client" \
+            "$E2E_STACK_ROOT"/migrate_*.sql; then
+        echo "ERROR: applying the migrations failed"
+        exit 1
+    fi
+    local second
+    if ! second=$(python3 "$E2E_STACK_ROOT/tools/apply_migrations.py" --exec "$client" \
+            "$E2E_STACK_ROOT"/migrate_*.sql); then
+        echo "$second"
+        echo "ERROR: the second migration pass failed"
+        exit 1
+    fi
+    echo "$second"
+    if ! printf '%s\n' "$second" | grep -q -- '--- Migrations: 0 applied,'; then
+        echo "ERROR: the second pass re-applied migrations; the schema_migrations ledger is not skipping them"
+        exit 1
+    fi
 }
 
 # LMS keeps its own index, entirely separate from music-manager's. Until this

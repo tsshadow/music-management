@@ -602,6 +602,28 @@ class BaseSongExtraInfoTest(unittest.TestCase):
         self.collection.set_item.assert_any_call(TITLE, 'Raise Your Fist')
         self.collection.set_item.assert_any_call(DATE, '20240101')
 
+    def test_a_year_only_date_is_completed_from_the_upload_date(self):
+        # What an ID3v2.3 rewrite by EmbedThumbnail left of the date (bug report 088).
+        self.collection.get_item_as_string.side_effect = lambda key: '2026' if key == DATE else 'x'
+
+        self.song._apply_extra_info({'upload_date': '20260831'})
+
+        self.collection.set_item.assert_any_call(DATE, '2026-08-31')
+
+    def test_a_year_that_disagrees_with_the_upload_date_is_left_alone(self):
+        self.collection.get_item_as_string.side_effect = lambda key: '2019' if key == DATE else 'x'
+
+        self.song._apply_extra_info({'upload_date': '20260831'})
+
+        self.collection.set_item.assert_not_called()
+
+    def test_a_full_date_on_the_file_is_left_alone(self):
+        self.collection.get_item_as_string.side_effect = lambda key: '2026-08-30' if key == DATE else 'x'
+
+        self.song._apply_extra_info({'upload_date': '20260831'})
+
+        self.collection.set_item.assert_not_called()
+
     def test_a_genre_is_added_rather_than_replacing_what_is_there(self):
         self.song._apply_extra_info({'genre': 'Hardcore'})
 

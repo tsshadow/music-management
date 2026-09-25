@@ -13,6 +13,8 @@ three clients disagreeing about the date of one track is worse than any single c
 import re
 
 _ISO_LIKE = re.compile(r'\D')
+_UNDELIMITED = re.compile(r'(\d{4})(\d{2})(\d{2})')
+_YEAR_ONLY = re.compile(r'\d{4}')
 
 
 def precision(value) -> int:
@@ -45,3 +47,35 @@ def format_release_date(value) -> str | None:
     if len(digits) >= 8 and month != '00' and day != '00':
         return f'{day}-{month}-{year}'
     return year
+
+
+def iso_date(value) -> str | None:
+    """yt-dlp's `20260831` as `2026-08-31`; None for anything that is not a full date.
+
+    A zero month or day is not a date, so a partial one stays None and the caller keeps
+    whatever it had.
+    """
+    match = _UNDELIMITED.fullmatch(str(value or '').strip())
+    if not match:
+        return None
+    year, month, day = match.groups()
+    if month == '00' or day == '00':
+        return None
+    return f'{year}-{month}-{day}'
+
+
+def completed_date(current, upload_date) -> str | None:
+    """The full upload date to replace a year-only `current` with, or None to keep it.
+
+    Only when `current` is a bare year and the upload date falls in that same year: that
+    is exactly what an ID3v2.3 rewrite leaves of the date the downloader wrote (bug report
+    088). A year that disagrees came from somewhere else -- a tag the uploader set, a rule
+    -- and is left alone, as is any `current` that already carries more than a year.
+    """
+    current = str(current or '').strip()
+    if not _YEAR_ONLY.fullmatch(current):
+        return None
+    full = iso_date(upload_date)
+    if full and full[:4] == current:
+        return full
+    return None

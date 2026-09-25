@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.music_manager.database import get_db_connection, require_connection, transaction
+from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.song_version_worker import recompute_canonicals
 from services.music_manager.song_versions import SPLIT_PREFIX
@@ -97,7 +98,7 @@ def pin_version(work_id: int, pin: Pin, _auth: dict = Depends(verify_api_key)):
     return {'status': 'ok', 'work_id': work_id, 'pinned_track_id': pin.track_id}
 
 
-@router.post('/tracks/{track_id}/split')
+@router.post('/tracks/{track_id}/split', deprecated=True, dependencies=[DEPRECATED_CALL])
 def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
     """Pull a track out of its group, give it a work of its own, and lock it there.
 

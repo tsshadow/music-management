@@ -444,7 +444,7 @@ class ListenBrainzTest(UsersEndpointTestCase):
 
     def test_an_unlinked_account_returns_empty_values(self):
         self.cursor.fetchone.return_value = None
-        response = self.client.get('/api/users/4/lb-account', headers=self.headers)
+        response = self.client.get('/api/users/4/listenbrainz', headers=self.headers)
         self.assertEqual(response.json(), {'lb_username': '', 'lb_token': ''})
 
     def test_an_account_can_be_linked(self):
@@ -562,7 +562,7 @@ class ServerSyncTest(unittest.TestCase):
     def test_the_sync_endpoint_reports_how_many_users_were_synced(self):
         client = TestClient(app)
         with patch.object(users_router, 'run_lms_db_sync', return_value=3):
-            response = client.post('/api/users/sync/lms', headers={'x-api-key': API_KEY})
+            response = client.post('/api/users/sync/muma-server', headers={'x-api-key': API_KEY})
         self.assertEqual(response.json()['synced'], 3)
 
     def test_every_configured_server_host_is_notified(self):

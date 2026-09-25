@@ -17,6 +17,7 @@ from services.downloader.settings_store import DatabaseSettingsStore
 from services.downloader.timing import SOURCES, TIMING_FIELDS, load_timing
 from services.music_manager import downloader_coverage
 from services.music_manager.database import get_db_connection
+from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.downloader_coverage import ConfiguredAccount, youtube_key
 from services.music_manager.routers.users import verify_api_key
 
@@ -123,7 +124,7 @@ def reset_rate_state(source: str, _auth: dict = Depends(verify_api_key)):
     return {'status': 'success', 'source': source}
 
 
-@router.get('/schedule/{source}')
+@router.get('/schedule/{source}', deprecated=True, dependencies=[DEPRECATED_CALL])
 def get_schedule(source: str, _auth: dict = Depends(verify_api_key)):
     """When each account of a source was last checked."""
     if source not in SOURCES:

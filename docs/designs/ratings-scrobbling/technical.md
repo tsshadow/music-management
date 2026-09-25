@@ -73,7 +73,9 @@ continues below it.
 ## Cross-App Impact
 
 - **Music Management Server (LMS)**: Must be configured with the Music Manager's URL to send webhooks on rating changes. LMS handles Subsonic `star` actions and translates them into these webhooks.
-- **Frontend (Svelte)**: Uses `GET /api/rating/ratings/{username}` to display user ratings and includes ratings in dynamic playlist track listings.
+- **Frontend (Svelte)**: includes ratings in dynamic playlist track listings. `GET /api/rating/ratings/{username}`
+  has no frontend caller (checked in bug report 084); the end-to-end suite (`tests/bdd`) reads it to
+  verify the rating round trip.
 - **MuMa Mobile (Android)**: No direct impact; relies on LMS to proxy rating changes via the established webhook.
 
 ## Technical Acceptance Criteria

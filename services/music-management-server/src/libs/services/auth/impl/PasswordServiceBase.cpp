@@ -69,7 +69,7 @@ namespace lms::auth
                 return CheckResult{ .state = CheckResult::State::Throttled, .userId = {} };
         }
 
-        const PasswordCheckOutcome outcome{ checkUserPassword(loginName, password) };
+        const PasswordCheckOutcome outcome{ checkUserPasswordFrom(clientAddress, loginName, password) };
 
         // Only the backend can tell us the password was wrong. Anything else - it rate-limited us,
         // it was unreachable - must not be counted as a failed attempt, or an outage turns into a

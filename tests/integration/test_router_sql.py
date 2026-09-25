@@ -394,6 +394,24 @@ class UserLifecycleTest:
         assert deleted.status_code == 200, deleted.text
         assert {row['username'] for row in api.get('/api/users', headers=headers).json()} == {'root'}
 
+    def test_approving_a_google_request_whose_email_is_taken_is_a_409(self, api, headers, db):
+        """The e-mail becomes the username; an account already carrying it, in any case,
+        used to hit the unique index and answer a 500 (bug report 079)."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        assert api.post('/api/users', headers=headers, json={'username': 'Teun@Example.com'}).status_code == 200
+        run_sql(
+            db,
+            "INSERT INTO user_requests (google_subject, email, display_name, status) "
+            "VALUES ('google-sub-1', 'user@example.com', 'Teun', 'pending')",
+        )
+        request_id = run_sql(db, "SELECT id FROM user_requests WHERE google_subject = 'google-sub-1'")[0]['id']
+
+        approved = api.post(f'/api/user-requests/{request_id}/approve', headers=headers, json={})
+
+        assert approved.status_code == 409, approved.text
+        pending = run_sql(db, 'SELECT status FROM user_requests WHERE id = %s', (request_id,))
+        assert pending[0]['status'] == 'pending'
+
     def test_the_last_admin_is_protected(self, api, headers, db):
         setup = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         admin_id = setup.json()['id']

@@ -254,6 +254,24 @@ namespace lms::api::muma::tests
         EXPECT_TRUE(isPublicAuthPath("/api/auth/access-request"));
     }
 
+    // MuMa rate limits logins per client address, and a login through lms.<domain> reaches it via
+    // this server. The address sent on is the one this server resolved, never the client's header.
+    TEST(MumaAuthentication, theForwardedClientAddressIsTheResolvedPeer)
+    {
+        EXPECT_EQ(forwardedClientAddress("203.0.113.7"), "203.0.113.7");
+        EXPECT_EQ(forwardedClientAddress("2001:db8::1"), "2001:db8::1");
+    }
+
+    TEST(MumaAuthentication, anUnusableClientAddressIsNotForwarded)
+    {
+        EXPECT_EQ(forwardedClientAddress(""), "");
+        EXPECT_EQ(forwardedClientAddress("0.0.0.0"), "");
+        EXPECT_EQ(forwardedClientAddress("::"), "");
+        // A comma-separated chain is not an address: the resolved value is always a single one.
+        EXPECT_EQ(forwardedClientAddress("1.2.3.4, 203.0.113.7"), "");
+        EXPECT_EQ(forwardedClientAddress("not-an-address"), "");
+    }
+
     TEST(MumaAuthentication, otherAuthPathsAreNotPublic)
     {
         EXPECT_FALSE(isPublicAuthPath("/api/auth/verify"));

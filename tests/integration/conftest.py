@@ -237,13 +237,13 @@ def _reset_auth_rate_limiter():
     """Same reason as in services/conftest.py: the auth endpoints are rate
     limited per client address and the TestClient always presents the same one."""
     try:
-        from services.music_manager.rate_limit import auth_limiter
+        from services.music_manager.rate_limit import reset_limiters
     except Exception:
         yield
         return
-    auth_limiter.reset()
+    reset_limiters()
     yield
-    auth_limiter.reset()
+    reset_limiters()
 
 
 @pytest.fixture

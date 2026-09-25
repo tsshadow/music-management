@@ -6,6 +6,8 @@
 #include <Wt/Utils.h>
 #include <algorithm>
 #include <array>
+#include <boost/asio/ip/address.hpp>
+#include <boost/system/error_code.hpp>
 #include <utility>
 
 #include "core/String.hpp"
@@ -196,6 +198,15 @@ namespace lms::api::muma
             "/api/auth/login",
         };
         return std::find(publicAuthPaths.begin(), publicAuthPaths.end(), pathInfo) != publicAuthPaths.end();
+    }
+
+    std::string forwardedClientAddress(std::string_view clientAddress)
+    {
+        boost::system::error_code ec;
+        const boost::asio::ip::address address{ boost::asio::ip::make_address(std::string{ clientAddress }, ec) };
+        if (ec || address.is_unspecified())
+            return {};
+        return address.to_string();
     }
 
     bool isSystemCaller(const CallerRights& rights)

@@ -328,10 +328,174 @@ class UndoTest(ArtistCurationTestCase):
         self.assertTrue(self.statements('DELETE FROM rules_artists'))
         self.assertTrue(self.statements('DELETE FROM rules_ignored_artists'))
         self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists'])
+        self.assertEqual(response.json()['returned_to_queue'], [])
 
     def test_a_name_without_a_decision_is_a_404(self):
         self.cursor.rowcount = 0
+        log = transaction_log(self.conn, self.cursor)
         self.assertEqual(self.client.delete('/api/rules/artists/Nobody', headers=self.headers).status_code, 404)
+        # Nothing else is touched on the way to that 404.
+        assert_rolled_back(self, log)
+        self.assertFalse(self.statements('DELETE FROM rules_ignored_artists'))
+
+
+#: What `_redirect_dependents` finds pointing at the name being decided.
+DEPENDENTS = ('UNION SELECT name FROM rules_ignored_artists', None, [{'name': 'Angerfst'}, {'name': 'Angerfist!'}])
+
+
+class UndoWithRedirectsTest(ArtistCurationTestCase):
+    """Bug 080: undoing X left `Y -> X` rows pointing at a name nobody approved any more."""
+
+    rules = (DEPENDENTS,)
+
+    def test_redirects_to_the_undone_name_go_back_to_the_queue_with_it(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.delete('/api/rules/artists/Angerfist', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['returned_to_queue'], ['Angerfist!', 'Angerfst'])
+        requeue = self.statements('DELETE FROM rules_artists WHERE state = %s AND LOWER(canonical_name)')
+        self.assertEqual(requeue[0][1], ('black', 'Angerfist'))
+        self.assertTrue(self.statements('DELETE FROM rules_ignored_artists WHERE LOWER(corrected_name)'))
+        assert_atomic(self, log, 'DELETE FROM rules_artists', 'DELETE FROM rules_ignored_artists')
+
+
+class RejectWithRedirectsTest(ArtistCurationTestCase):
+    rules = (DEPENDENTS,)
+
+    def test_rejecting_with_a_correction_repoints_the_redirects_to_it(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.post(
+            '/api/rules/artists/decide',
+            json={'names': ['Angerfist'], 'state': 'black', 'canonical_name': 'Angerfist (NL)'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['repointed'], ['Angerfist!', 'Angerfst'])
+        self.assertEqual(body['returned_to_queue'], [])
+        decisions = self.statements('UPDATE rules_artists SET canonical_name')
+        self.assertEqual(decisions[0][1], ('Angerfist (NL)', 'black', 'Angerfist', 'Angerfist (NL)'))
+        mirrored = self.statements('UPDATE rules_ignored_artists SET corrected_name = %s WHERE LOWER(corrected_name)')
+        self.assertEqual(mirrored[0][1], ('Angerfist (NL)', 'Angerfist', 'Angerfist (NL)'))
+        # Nothing is thrown away when the chain can be collapsed.
+        self.assertFalse(self.statements('DELETE FROM rules_artists'))
+        assert_atomic(self, log, 'UPDATE rules_artists', 'INSERT INTO rules_artists')
+
+    def test_rejecting_without_a_correction_returns_the_redirects_to_the_queue(self):
+        response = self.client.post(
+            '/api/rules/artists/decide', json={'names': ['Angerfist'], 'state': 'black'}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['returned_to_queue'], ['Angerfist!', 'Angerfst'])
+        self.assertTrue(self.statements('DELETE FROM rules_artists WHERE state = %s AND LOWER(canonical_name)'))
+        self.assertFalse(self.statements('UPDATE rules_artists SET canonical_name'))
+        # They are not rejected in its wake: a plain rejection would strip the credit.
+        rejected = [params[0] for _sql, params in self.statements('INSERT INTO rules_artists')]
+        self.assertEqual(rejected, ['Angerfist'])
+
+    def test_a_dependent_decided_in_the_same_call_is_not_reported_twice(self):
+        response = self.client.post(
+            '/api/rules/artists/decide',
+            json={'names': ['Angerfist', 'Angerfst'], 'state': 'black'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.json()['returned_to_queue'], ['Angerfist!'])
+
+    def test_approving_leaves_the_redirects_alone(self):
+        self.client.post(
+            '/api/rules/artists/decide', json={'names': ['Angerfist'], 'state': 'white'}, headers=self.headers
+        )
+        self.assertFalse(self.statements('UNION SELECT name FROM rules_ignored_artists'))
+
+
+class CorrectToRejectedIsNotATransactionTest(ArtistCurationTestCase):
+    rules = (('SELECT state FROM rules_artists WHERE name', None, {'state': 'black'}),)
+
+    def test_a_refused_target_never_opens_a_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        response = self.client.post(
+            '/api/rules/artists/decide',
+            json={'names': ['Dr.Peacock'], 'state': 'black', 'canonical_name': 'Premiere'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('BEGIN', log)
+
+
+class RedirectIssuesPureTest(unittest.TestCase):
+    def test_a_clean_table_has_no_issues(self):
+        report = artist_curation.find_redirect_issues(
+            [('Dr.Peacock', 'Dr. Peacock'), ('Premiere', None)],
+            [
+                {'name': 'Dr. Peacock', 'state': 'white', 'canonical_name': None, 'decided_by': 'user'},
+                {'name': 'Dr.Peacock', 'state': 'black', 'canonical_name': 'Dr. Peacock', 'decided_by': 'user'},
+            ],
+        )
+        self.assertEqual(report, {'count': 0, 'dangling': [], 'cycles': [], 'chains': []})
+
+    def test_a_redirect_to_a_rejected_or_dropped_name_is_dangling(self):
+        report = artist_curation.find_redirect_issues(
+            [('Y', 'Premiere'), ('Premiere', None), ('W', 'OUT NOW')],
+            [{'name': 'OUT NOW', 'state': 'black', 'canonical_name': None, 'decided_by': 'user'}],
+        )
+        self.assertEqual(
+            [(row['name'], row['reason']) for row in report['dangling']],
+            [('W', 'target is rejected'), ('Y', 'target is dropped by the tagger')],
+        )
+        self.assertEqual(report['count'], 2)
+
+    def test_a_page_redirect_whose_target_was_undone_is_dangling_but_a_legacy_one_is_not(self):
+        report = artist_curation.find_redirect_issues(
+            [('Angerfst', 'Angerfist'), ('Ran D', 'Ran-D')],
+            [
+                {'name': 'Angerfst', 'state': 'black', 'canonical_name': 'Angerfist', 'decided_by': 'user'},
+                {'name': 'Ran D', 'state': 'black', 'canonical_name': 'Ran-D', 'decided_by': 'legacy-redirect'},
+            ],
+        )
+        self.assertEqual([row['name'] for row in report['dangling']], ['Angerfst'])
+
+    def test_a_chain_ending_at_a_rejected_name_is_dangling_with_its_path(self):
+        report = artist_curation.find_redirect_issues(
+            [('Y', 'X'), ('X', 'Z')],
+            [{'name': 'Z', 'state': 'black', 'canonical_name': None, 'decided_by': 'user'}],
+        )
+        dangling = {row['name']: row for row in report['dangling']}
+        self.assertEqual(dangling['Y']['path'], ['Y', 'X', 'Z'])
+        self.assertEqual(report['chains'], [{'name': 'Y', 'path': ['Y', 'X', 'Z']}])
+
+    def test_a_loop_is_reported_and_its_members_are_not_also_dangling(self):
+        report = artist_curation.find_redirect_issues([('A', 'B'), ('B', 'A')], [])
+        self.assertEqual(report['cycles'], [['A', 'B']])
+        self.assertEqual(report['dangling'], [])
+        self.assertEqual(report['count'], 1)
+
+    def test_an_unmirrored_curation_redirect_still_counts(self):
+        report = artist_curation.find_redirect_issues(
+            [],
+            [
+                {'name': 'A', 'state': 'black', 'canonical_name': 'B', 'decided_by': 'user'},
+                {'name': 'B', 'state': 'black', 'canonical_name': 'A', 'decided_by': 'user'},
+            ],
+        )
+        self.assertEqual(report['cycles'], [['A', 'B']])
+
+
+class RedirectIssuesEndpointTest(ArtistCurationTestCase):
+    rules = (
+        ('SELECT name, corrected_name FROM rules_ignored_artists', None, [{'name': 'Y', 'corrected_name': 'X'}]),
+        (
+            'SELECT name, state, canonical_name, decided_by FROM rules_artists',
+            None,
+            [{'name': 'X', 'state': 'black', 'canonical_name': None, 'decided_by': 'user'}],
+        ),
+    )
+
+    def test_the_report_reads_both_tables_and_writes_nothing(self):
+        response = self.client.get('/api/rules/artists/redirects/issues', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['dangling'][0]['name'], 'Y')
+        self.assertTrue(all(sql.startswith('SELECT') for sql, _params in self.cursor.executed))
+        self.assertEqual(self.reloaded_helpers(), [])
 
 
 class SummaryTest(ArtistCurationTestCase):

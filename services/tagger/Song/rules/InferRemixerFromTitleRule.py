@@ -29,7 +29,7 @@ class InferRemixerFromTitleRule(TagRule):
         self.ignored_db = (
             ignored_db
             or databaseHelpers.get('rules_ignored_artists')
-            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name')
+            or FilterTableHelper('rules_ignored_artists', 'name', 'corrected_name', follow_chains=True)
         )
         self.ask_for_missing = ask_for_missing
 

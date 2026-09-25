@@ -53,6 +53,7 @@ READ_ENDPOINTS = [
     ('/api/rules/artists?state=white', 200),
     ('/api/rules/artists?state=all&q=a&proposal=reject&sort=name', 200),
     ('/api/rules/artists/summary', 200),
+    ('/api/rules/artists/redirects/issues', 200),
     ('/api/rules/festivals', 200),
     ('/api/curation/labels', 200),
     ('/api/curation/labels?q=a', 200),
@@ -858,6 +859,84 @@ class DownloadAccountsTest:
         assert api.get('/api/youtube', headers=headers).json() == []
 
 
+class ArtistRedirectsTest:
+    """Bug 080: rejecting or undoing a name must not leave redirects pointing at it."""
+
+    @staticmethod
+    def _redirects(db):
+        with db.cursor() as cursor:
+            cursor.execute('SELECT name, corrected_name FROM rules_ignored_artists ORDER BY name')
+            tagger = {row['name']: row['corrected_name'] for row in cursor.fetchall()}
+            cursor.execute('SELECT name, state, canonical_name FROM rules_artists ORDER BY name')
+            decisions = {row['name']: (row['state'], row['canonical_name']) for row in cursor.fetchall()}
+        return tagger, decisions
+
+    def _correct(self, api, headers, name, target):
+        response = api.post(
+            '/api/rules/artists/decide',
+            headers=headers,
+            json={'names': [name], 'state': 'black', 'canonical_name': target},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    def test_rejecting_a_target_with_a_correction_repoints_its_redirects(self, api, headers, db):
+        self._correct(api, headers, 'Angerfst', 'Angerfist')
+        with db.cursor() as cursor:
+            # A redirect typed on the Tagger tab, never a curation decision.
+            cursor.execute(
+                "INSERT INTO rules_ignored_artists (name, corrected_name) VALUES ('ANGERFIST!', 'angerfist')"
+            )
+        body = self._correct(api, headers, 'Angerfist', 'Angerfist (NL)')
+        assert body['repointed'] == ['ANGERFIST!', 'Angerfst']
+        tagger, decisions = self._redirects(db)
+        assert tagger == {'ANGERFIST!': 'Angerfist (NL)', 'Angerfist': 'Angerfist (NL)', 'Angerfst': 'Angerfist (NL)'}
+        assert decisions['Angerfst'] == ('black', 'Angerfist (NL)')
+        assert api.get('/api/rules/artists/redirects/issues', headers=headers).json()['count'] == 0
+
+    def test_rejecting_a_target_outright_returns_its_redirects_to_the_queue(self, api, headers, db):
+        self._correct(api, headers, 'Angerfst', 'Angerfist')
+        response = api.post(
+            '/api/rules/artists/decide', headers=headers, json={'names': ['Angerfist'], 'state': 'black'}
+        )
+        assert response.json()['returned_to_queue'] == ['Angerfst']
+        tagger, decisions = self._redirects(db)
+        assert tagger == {'Angerfist': None}
+        assert 'Angerfst' not in decisions
+
+    def test_undoing_a_target_returns_its_redirects_to_the_queue(self, api, headers, db):
+        self._correct(api, headers, 'Angerfst', 'Angerfist')
+        response = api.delete('/api/rules/artists/Angerfist', headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json()['returned_to_queue'] == ['Angerfst']
+        tagger, decisions = self._redirects(db)
+        assert tagger == {}
+        assert decisions == {}
+
+    def test_the_check_reports_dangling_redirects_and_loops_stored_before_the_fix(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.executemany(
+                'INSERT INTO rules_ignored_artists (name, corrected_name) VALUES (%s, %s)',
+                [('Y', 'Premiere'), ('Premiere', None), ('Loop A', 'Loop B'), ('Loop B', 'Loop A')],
+            )
+            cursor.execute(
+                "INSERT INTO rules_artists (name, state, canonical_name, decided_by) VALUES "
+                "('Premiere', 'black', NULL, 'legacy-redirect')"
+            )
+        report = api.get('/api/rules/artists/redirects/issues', headers=headers).json()
+        assert [(row['name'], row['target']) for row in report['dangling']] == [('Y', 'Premiere')]
+        assert report['cycles'] == [['Loop A', 'Loop B']]
+        assert report['count'] == 2
+
+    def test_the_tagger_tab_refuses_a_rejected_target(self, api, headers, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO rules_artists (name, state) VALUES ('Premiere', 'black')")
+        refused = api.post(
+            '/api/rules/artist-redirects', headers=headers, json={'name': 'Y', 'corrected_name': 'Premiere'}
+        )
+        assert refused.status_code == 400, refused.text
+
+
 class ArtistImagesTest:
     def test_the_stats_count_artists_with_and_without_an_image(self, api, headers, db):
         with db.cursor() as cursor:
@@ -907,6 +986,37 @@ class ArtistImagesTest:
             artist_images.run_fetch_missing()
         asked = [call.args[1] for call in fetcher.fetch_for_artist.call_args_list]
         assert asked == ['Never Asked']
+
+    def test_a_cleared_portrait_is_taken_back_from_the_server(self, api, headers, db):
+        """Bug 080: the server kept the artwork it had been given, so the player kept it too."""
+        import sqlite3
+
+        from services.music_manager.routers import artist_images
+
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_artist_images (artist_id, source, cached_path) VALUES (%s, 'spotify', '/mnt/a.jpg')",
+                (artist_id,),
+            )
+        assert api.post(f'/api/artists/{artist_id}/image/clear', headers=headers).status_code == 200
+        server = sqlite3.connect(':memory:')
+        server.executescript(
+            """
+            CREATE TABLE image (id INTEGER PRIMARY KEY, absolute_file_path TEXT);
+            CREATE TABLE artwork (id INTEGER PRIMARY KEY, image_id INTEGER);
+            CREATE TABLE artist (id INTEGER PRIMARY KEY, name TEXT, preferred_artwork_id INTEGER);
+            INSERT INTO image VALUES (1, '/mnt/a.jpg');
+            INSERT INTO artwork VALUES (10, 1);
+            INSERT INTO artist VALUES (100, 'Angerfist', 10);
+            """
+        )
+        try:
+            assert artist_images._unset_cleared_artwork_on_server(db, server) == 1
+            assert server.execute('SELECT preferred_artwork_id FROM artist').fetchone()[0] is None
+        finally:
+            server.close()
 
 
 class FeedsPipelineTest:

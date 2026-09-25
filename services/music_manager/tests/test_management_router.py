@@ -1044,6 +1044,34 @@ class ArtistRedirectTest(ManagementTestCase):
         response = self.client.post('/api/rules/artist-redirects', json={'name': '   '}, headers=self.headers)
         self.assertEqual(response.status_code, 400)
 
+    def test_a_redirect_to_a_rejected_artist_is_refused(self):
+        """Bug 080: the Tagger tab could still point a name at one curation had rejected."""
+        self.cursor.fetchone.return_value = {'state': 'black'}
+        response = self.client.post(
+            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Premiere'}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(any(s.startswith(('INSERT', 'UPDATE')) for s in self.statements()))
+
+    def test_a_redirect_that_closes_a_loop_is_refused(self):
+        self.cursor.fetchone.return_value = None
+        self.cursor.fetchall.return_value = [{'name': 'Ran-D', 'corrected_name': 'Ran D'}]
+        response = self.client.post(
+            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('loop', response.json()['detail'])
+
+    def test_a_casing_fix_is_not_a_loop(self):
+        self.cursor.fetchone.return_value = None
+        self.cursor.fetchall.return_value = [{'name': 'Angerfst', 'corrected_name': 'angerfist'}]
+        response = self.client.post(
+            '/api/rules/artist-redirects',
+            json={'name': 'angerfist', 'corrected_name': 'Angerfist'},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_deleting_a_redirect_uses_the_name_from_before_the_delete(self):
         self.cursor.fetchone.return_value = {'name': 'Ran D'}
         with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:

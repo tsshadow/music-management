@@ -2,6 +2,70 @@ import logging
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
+#: How many hops a redirect chain is followed before it counts as broken. Far more
+#: than any real chain (one or two hops); it only has to stop a malformed table.
+MAX_CHAIN_DEPTH = 32
+
+
+def resolve_redirect_chains(
+    corrections: dict[str, str],
+) -> tuple[dict[str, str], dict[str, list[str]], list[list[str]]]:
+    """Follow every correction to the end of its chain, refusing to go round in circles.
+
+    `corrections` maps a name to the spelling it is rewritten to. When that spelling is
+    itself rewritten (`Y -> X`, `X -> Z`), a one-hop lookup writes `X` -- a name that
+    was rejected -- and only a second tagger pass gets to `Z`. Names are compared
+    case-insensitively, the way `FilterTableHelper` matches, and a correction that only
+    changes the casing of its own key (`angerfist -> Angerfist`) ends a chain rather
+    than looping.
+
+    Returns three things:
+
+    * `resolved` -- every key mapped to its final target. A key whose chain loops, or
+      runs past `MAX_CHAIN_DEPTH`, keeps its own one-hop correction: there is no right
+      answer to pick, and the one-hop answer is what the tagger always did.
+    * `paths` -- every key whose chain is longer than one hop, as `[key, hop, ..., end]`.
+    * `cycles` -- each loop once, as its member names starting at the alphabetically
+      first one (case-insensitive), so a report is the same on every call.
+
+    @param corrections: `{name: corrected_name}`; names without a correction must not be in it.
+    """
+    by_lower = {name.lower(): (name, target) for name, target in corrections.items()}
+    resolved: dict[str, str] = {}
+    paths: dict[str, list[str]] = {}
+    cycles: dict[tuple[str, ...], list[str]] = {}
+    for name, first_target in corrections.items():
+        path = [name]
+        target = first_target
+        looping = False
+        while True:
+            target_key = target.lower()
+            if target_key == path[-1].lower():
+                break  # a casing fix of the name itself: the end of the chain
+            entry = by_lower.get(target_key)
+            if entry is None:
+                break
+            lowered = [hop.lower() for hop in path]
+            if target_key in lowered:
+                looping = True
+                members = path[lowered.index(target_key) :]
+                start = min(range(len(members)), key=lambda i: members[i].lower())
+                ordered = members[start:] + members[:start]
+                cycles.setdefault(tuple(sorted(m.lower() for m in ordered)), ordered)
+                break
+            if len(path) > MAX_CHAIN_DEPTH:
+                looping = True
+                break
+            path.append(entry[0])
+            target = entry[1]
+        if looping:
+            resolved[name] = first_target
+            continue
+        resolved[name] = target
+        if len(path) > 1:
+            paths[name] = path + [target]
+    return resolved, paths, sorted(cycles.values(), key=lambda members: [m.lower() for m in members])
+
 
 class FilterTableHelper:
     """Looks a value up in a rules table, case-insensitively.
@@ -12,12 +76,25 @@ class FilterTableHelper:
     normalises to lowercase and answers with the *stored* spelling -- or with
     the correction, when the table defines one. That keeps one genre from
     entering the library under three different casings.
+
+    With `follow_chains`, a correction whose target is itself corrected is followed
+    to the end (`resolve_redirect_chains`), so the answer is never a name the table
+    rewrites again. Only the preloaded path does this; the uncached one answers one
+    hop, as it always did.
     """
 
-    def __init__(self, table_name: str, column_name: str, corrected_column_name: str, preload: bool = True):
+    def __init__(
+        self,
+        table_name: str,
+        column_name: str,
+        corrected_column_name: str,
+        preload: bool = True,
+        follow_chains: bool = False,
+    ):
         self.table_name = table_name
         self.column_name = column_name
         self.corrected_column_name = corrected_column_name
+        self.follow_chains = follow_chains
         self.db_connector = DatabaseConnector()
         self.cache_enabled = preload
         self._exists_cache: set[str] = set()
@@ -43,6 +120,12 @@ class FilterTableHelper:
                     self._canonical_map[name.lower()] = name
                     if corrected:
                         self._corrected_map[name.lower()] = corrected
+            if self.follow_chains:
+                self._corrected_map, _paths, cycles = resolve_redirect_chains(self._corrected_map)
+                if cycles:
+                    # INFO, not WARNING: every process that preloads this table would push
+                    # the same line. The consistency endpoint is where a cycle is found.
+                    logging.info(f'[{self.table_name}] Redirect cycles left at one hop: {cycles}')
         except Exception as e:
             logging.error(f'[{self.table_name}] Error preloading table: {e}')
         finally:

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import docker
 from services.common.config_store import ConfigStore as Settings
+from services.common.Helpers.FilterTableHelper import resolve_redirect_chains
 from services.common.Helpers.GenreNameAnalyzer import KINDS as PROPOSAL_KINDS
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
@@ -1071,6 +1072,34 @@ def get_artist_redirects(_auth: dict = Depends(verify_api_key)):
         conn.close()
 
 
+def _refuse_bad_redirect_target(cursor, name: str, corrected: str) -> None:
+    """400 for a redirect that would end at a rejected artist or close a loop.
+
+    The same rule the artist curation page applies (routers/artist_curation.py): a
+    correction must never rewrite one problem into another. A correction that only
+    changes the casing of the name itself is fine -- that is not a loop.
+    """
+    cursor.execute('SELECT state FROM rules_artists WHERE name = %s', (corrected,))
+    decision = cursor.fetchone()
+    if decision and decision.get('state') == BLACK:
+        raise HTTPException(status_code=400, detail=f"'{corrected}' is rejected; pick an approved name")
+    if corrected.lower() == name.lower():
+        return
+    cursor.execute('SELECT name, corrected_name FROM rules_ignored_artists WHERE corrected_name IS NOT NULL')
+    corrections = {
+        row['name']: row['corrected_name']
+        for row in cursor.fetchall()
+        if row['corrected_name'] and row['name'].lower() != name.lower()
+    }
+    corrections[name] = corrected
+    _resolved, _paths, cycles = resolve_redirect_chains(corrections)
+    for cycle in cycles:
+        if name.lower() in {member.lower() for member in cycle}:
+            raise HTTPException(
+                status_code=400, detail=f"'{name}' -> '{corrected}' closes a loop: {' -> '.join(cycle)}"
+            )
+
+
 @router.post('/rules/artist-redirects')
 def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require_rules_manage)):
     """Add a redirect, or change the correction on one that already exists."""
@@ -1083,6 +1112,8 @@ def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
+            if corrected:
+                _refuse_bad_redirect_target(cursor, name, corrected)
             cursor.execute('SELECT id FROM rules_ignored_artists WHERE LOWER(name) = LOWER(%s)', (name,))
             if cursor.fetchone():
                 cursor.execute(

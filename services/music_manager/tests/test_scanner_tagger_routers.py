@@ -382,6 +382,42 @@ class ProcessFileTest(unittest.TestCase):
         )
         self.assertIsNone(params[4])
 
+    def _track_row_params(self):
+        return next(
+            call.args[1] for call in self.cursor.execute.call_args_list if 'INSERT INTO library_tracks' in call.args[0]
+        )
+
+    def test_a_short_file_is_written_as_a_track_without_a_performance_date(self):
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        params = self._track_row_params()
+        self.assertEqual(params[5:7], ('track', None))
+        self.assertEqual(params[-2:], ('track', None))
+
+    def test_a_long_file_in_the_liveset_folder_gets_its_edition_date(self):
+        from datetime import date
+
+        from services.common.Helpers.FestivalHelper import Festival
+
+        self.manager.music_path = '/music'
+        self.manager.festival_helper.set_festivals(
+            [Festival(name='Defqon.1', aliases=['Defqon.1'], editions={2012: date(2012, 6, 23)})]
+        )
+        song = self.song(publisher=None)
+        song.length.return_value = 3600
+        song.title.return_value = 'Headhunterz @ Defqon.1 2012'
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=song),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/Livesets/Defqon/a.mp3')
+        self.assertEqual(self._track_row_params()[5:7], ('liveset', '2012-06-23'))
+
     def test_a_null_display_artist_never_overwrites_one_a_sibling_copy_already_captured(self):
         """Two media files can resolve to the same track_uid. Scanning the copy that has not
         been retagged yet must not erase a display_artist a previously-scanned sibling copy

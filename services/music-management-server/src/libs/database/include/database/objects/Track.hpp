@@ -115,6 +115,14 @@ namespace lms::db
             //: canonical, plus everything it has not grouped. A predicate rather than a
             //: collapse loop, so paging, sorting and counting keep agreeing with each other.
             bool canonicalOnly{};
+            //: Only tracks of one of these forms (track, set, liveset, podcast), as muma
+            //: classified them (migration 122). A track muma has not classified has an empty
+            //: form and matches none. Honoured by both query builders.
+            std::vector<std::string> forms;
+            //: Only tracks that file under this year: the year of the performance date when muma
+            //: supplied one (a live set whose festival edition is known), otherwise the year of
+            //: the date tag -- the same year the YEAR cluster carries. Honoured by both builders.
+            std::optional<int> year;
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)
@@ -341,6 +349,10 @@ namespace lms::db
         void setIsCanonical(bool isCanonical) { _isCanonical = isCanonical; }
         void setVersionKind(std::string_view kind) { _versionKind = kind; }
         void setVersionScore(int score) { _versionScore = score; }
+        // Also muma's, from services/common/track_form.py: what the file is, and when a live
+        // set was played ('YYYY-MM-DD'). Empty means muma has not said.
+        void setForm(std::string_view form) { _form = form; }
+        void setPerformanceDate(std::string_view performanceDate) { _performanceDate = performanceDate; }
         void setComment(std::string_view comment) { _comment = comment; }
         void clearArtistLinks();
         void addArtistLink(const ObjectPtr<TrackArtistLink>& artistLink);
@@ -401,6 +413,8 @@ namespace lms::db
         bool isCanonical() const { return _isCanonical; }
         std::string_view getVersionKind() const { return _versionKind; }
         int getVersionScore() const { return _versionScore; }
+        std::string_view getForm() const { return _form; }
+        std::string_view getPerformanceDate() const { return _performanceDate; }
         std::string_view getComment() const { return _comment; }
         Advisory getAdvisory() const { return _advisory; }
 
@@ -463,6 +477,8 @@ namespace lms::db
             Wt::Dbo::field(a, _isCanonical, "is_canonical");
             Wt::Dbo::field(a, _versionKind, "version_kind");
             Wt::Dbo::field(a, _versionScore, "version_score");
+            Wt::Dbo::field(a, _form, "form");
+            Wt::Dbo::field(a, _performanceDate, "performance_date");
             Wt::Dbo::field(a, _comment, "comment"); // TODO: move in a dedicated table?
             Wt::Dbo::field(a, _advisory, "advisory");
 
@@ -522,6 +538,8 @@ namespace lms::db
         bool _isCanonical{ true };
         std::string _versionKind;
         int _versionScore{};
+        std::string _form;
+        std::string _performanceDate;
         std::string _comment;
         Advisory _advisory{ Advisory::UnSet };
 

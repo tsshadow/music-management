@@ -316,6 +316,8 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS track_id_idx ON track(id)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_absolute_path_idx ON track(absolute_file_path)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_date_idx ON track(date)");
+            // The form filter of getSpotifyTracks and getSongs (migration 122).
+            tryExecute("CREATE INDEX IF NOT EXISTS track_form_idx ON track(form)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_directory_release_idx ON track(directory_id, release_id)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_file_added_idx ON track(file_added)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_file_last_write_idx ON track(file_last_write)");

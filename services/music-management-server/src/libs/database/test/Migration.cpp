@@ -415,6 +415,22 @@ VALUES
             EXPECT_EQ(session.getDboSession()->query<int>(R"(SELECT COUNT(*) FROM pragma_table_info('user') WHERE name = 'disabled' AND "notnull" = 1 AND dflt_value = '0')").resultValue(), 1);
         }
 
+        // migrateFromV122: form and performance_date exist, empty by default (muma has not said),
+        // and running the step again on a database that already has them changes nothing.
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>(R"(SELECT COUNT(*) FROM pragma_table_info('track') WHERE name IN ('form', 'performance_date') AND "notnull" = 1 AND dflt_value = '''''')").resultValue(), 2);
+        }
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("UPDATE version_info SET db_version = 122");
+        }
+        db.getTLSSession().migrateSchemaIfNeeded();
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name IN ('form', 'performance_date')").resultValue(), 2);
+        }
+
         // Now perform some dummy finds to ensure all fields are correctly mapped
         {
             auto transaction{ session.createReadTransaction() };

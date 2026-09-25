@@ -4,6 +4,7 @@
   import { authParams, visibleSortOptions, allSortOptions, isMobile } from './store.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { QUALITY_FLOORS, QUALITY_LABEL_KEYS } from './quality.js';
+  import { FORM_LABEL_KEYS, SET_FORMS } from './trackForm.js';
   import BottomSheet from './BottomSheet.svelte';
 
   let {
@@ -16,6 +17,10 @@
     // A floor on the QUALITY cluster, '' for no floor. Rarely touched -- it exists for
     // trying a new car stereo on lossless files -- so it sits after the rating.
     minQuality = $bindable(''),
+    // What kind of long recording: '' for all, else 'set' / 'liveset' / 'podcast' (see
+    // trackForm.js). Only offered when showForm is set -- the sets view.
+    form = $bindable(''),
+    showForm = false,
     role = $bindable('all'),
     view = 'songs',
     showGenre = true,
@@ -91,7 +96,7 @@
    * Notifies the parent component of filter/sort changes.
    */
   function handleChange() {
-    if (onchange) onchange({ genre, sort, year, search, role, minRating, includeUnrated, minQuality });
+    if (onchange) onchange({ genre, sort, year, search, role, minRating, includeUnrated, minQuality, form });
   }
 
   let searchTimeout;
@@ -121,6 +126,7 @@
   );
   const unratedActive = $derived(!includeUnrated);
   const currentQualityLabel = $derived(minQuality ? $t(QUALITY_LABEL_KEYS[minQuality]) : '');
+  const currentFormLabel = $derived(form && FORM_LABEL_KEYS[form] ? $t(FORM_LABEL_KEYS[form]) : '');
 
   function selectGenre(value) {
     genre = value;
@@ -144,6 +150,11 @@
   }
   function selectQuality(value) {
     minQuality = value;
+    openSheet = null;
+    handleChange();
+  }
+  function selectForm(value) {
+    form = value;
     openSheet = null;
     handleChange();
   }
@@ -174,6 +185,10 @@
   }
   function clearQuality() {
     minQuality = '';
+    handleChange();
+  }
+  function clearForm() {
+    form = '';
     handleChange();
   }
 
@@ -294,6 +309,10 @@
         {@render filterChip('year', $t('filter.year'), year, () => (openSheet = 'year'), clearYear)}
       {/if}
 
+      {#if view === 'songs' && showForm}
+        {@render filterChip('form', $t('filter.form.label'), currentFormLabel, () => (openSheet = 'form'), clearForm)}
+      {/if}
+
       {#if view === 'artists'}
         {@render filterChip('role', $t('filter.role'), currentRoleLabel, () => (openSheet = 'role'), clearRole)}
       {/if}
@@ -347,6 +366,15 @@
         {@render sheetOption($t('filter.allYears'), year === '', () => selectYear(''))}
         {#each years as y (y.value)}
           {@render sheetOption(y.value, year === y.value, () => selectYear(y.value))}
+        {/each}
+      </div>
+    </BottomSheet>
+  {:else if openSheet === 'form'}
+    <BottomSheet title={$t('filter.form.label')} onclose={() => (openSheet = null)}>
+      <div role="listbox" aria-label={$t('filter.form.label')}>
+        {@render sheetOption($t('filter.form.any'), form === '', () => selectForm(''))}
+        {#each SET_FORMS as value (value)}
+          {@render sheetOption($t(FORM_LABEL_KEYS[value]), form === value, () => selectForm(value))}
         {/each}
       </div>
     </BottomSheet>
@@ -420,6 +448,18 @@
             <option value="">{$t('filter.allYears')}</option>
             {#each years as y (y.value)}
               <option value={y.value}>{y.value}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
+
+      {#if view === 'songs' && showForm}
+        <div class="flex items-center gap-2">
+          <label for="form" class="text-[11px] font-bold text-muma-spotify-text uppercase tracking-wider">{$t('filter.form.label')}</label>
+          <select id="form" class="bg-muma-spotify-light text-white border-none px-3 py-1.5 rounded text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={form} onchange={handleChange}>
+            <option value="">{$t('filter.form.any')}</option>
+            {#each SET_FORMS as value (value)}
+              <option value={value}>{$t(FORM_LABEL_KEYS[value])}</option>
             {/each}
           </select>
         </div>

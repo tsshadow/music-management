@@ -179,6 +179,14 @@
     "allYears": "All years",
     "clearFilter": "Clear {name}",
     "filtersGroup": "Filters",
+    "form": {
+      "label": "Kind",
+      "any": "All",
+      "track": "Tracks",
+      "set": "Sets & mixes",
+      "liveset": "Live sets",
+      "podcast": "Podcasts"
+    },
     "genre": "Genre",
     "quality": {
       "label": "Quality",

@@ -58,16 +58,15 @@ The year axis resolves differently per kind of material:
 The fallback is acceptable because for a live set the two dates are usually close enough that a year
 filter lands in the same place.
 
-This rule is written down here because it is currently unimplementable and nothing else records the
-intent. The library holds a single date column, `release_date`. Whether something is a track, a set
-or a live set is not a field at all — it is inferred from the folder a file sits in (`Livesets`,
-`Podcasts`, `Top 100`, `Warm Up Mixes`; see `services/tagger/tagger.py`). `SongTypeEnum` looks like
-it might carry this distinction but does not: its values are `LABEL`, `YOUTUBE`, `SOUNDCLOUD`,
-`TELEGRAM` and `GENERIC`, which describe where a file came from, not what it is.
-
-A performance date is reachable in principle: `rules_festival_editions(festival_id, year, date)`
-already stores the real date of each festival edition, so a live set tagged with a festival and a
-year can resolve one. That path depends entirely on festival tagging coverage.
+Implemented in docs/designs/track-form/: every track carries a **form** (`track`, `set`,
+`liveset`, `podcast`, in `library_tracks.form` and LMS `track.form`), derived from its length, its
+top folder (`Livesets`, `Telegram`, `Podcasts`) and the festival and podcast rules
+(`services/common/track_form.py`). `SongTypeEnum` still records where a file came from, not what it
+is. A live set naming a festival and a year that has an edition in `rules_festival_editions` gets a
+`performance_date`, and the year filters (`getSpotifyTracks`/`getSongs` `year`, `/api/library/advanced`
+`year_min`/`year_max`) file it under that year. It depends entirely on festival tagging coverage:
+a live set without a recognised festival, or without an edition date, falls back to its release
+date.
 
 ## Where it must work
 

@@ -179,6 +179,14 @@
     "allYears": "Alle Jaren",
     "clearFilter": "{name} wissen",
     "filtersGroup": "Filters",
+    "form": {
+      "label": "Soort",
+      "any": "Alles",
+      "track": "Nummers",
+      "set": "Sets & mixes",
+      "liveset": "Livesets",
+      "podcast": "Podcasts"
+    },
     "genre": "Genre",
     "quality": {
       "label": "Kwaliteit",

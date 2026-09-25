@@ -38,6 +38,7 @@
 #include "FestivalLineupRepository.hpp"
 #include "ParameterParsing.hpp"
 #include "SubsonicId.hpp"
+#include "TrackForm.hpp"
 #include "document.h"
 #include "responses/Album.hpp"
 #include "responses/Artist.hpp"
@@ -597,6 +598,11 @@ namespace lms::api::subsonic
         // One row per song rather than one per file. Off unless asked: every existing client
         // browses this endpoint and none of them expects rows to disappear.
         const bool canonicalOnly{ getParameterAs<bool>(context.getParameters(), "canonicalOnly").value_or(false) };
+        // What muma classified the track as, and the year it files under (performance date for a
+        // live set, else the date tag) -- the same two filters getSpotifyTracks takes, so the car
+        // and voice can ask what the web asks. The YEAR cluster keeps its tag-year meaning.
+        std::vector<std::string> forms{ parseTrackForms(context.getParameters()) };
+        const std::optional<int> year{ getParameterAs<int>(context.getParameters(), "year") };
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -611,6 +617,8 @@ namespace lms::api::subsonic
         // Asking for one song's versions and collapsing to one of them are opposites, so the
         // filter never applies when a workId was named.
         params.canonicalOnly = canonicalOnly && !workId.has_value();
+        params.forms = std::move(forms);
+        params.year = year;
 
         std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())

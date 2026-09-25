@@ -43,6 +43,12 @@ READ_ENDPOINTS = [
     ('/api/library/tracks?page=0', 422),
     ('/api/library/tracks?limit=501', 422),
     ('/api/library/advanced?page=0', 422),
+    # Form and the effective year (docs/designs/track-form/): both reach the SQL, and a form
+    # outside the closed set is refused before any runs.
+    ('/api/library/advanced?form=liveset&form=set&year_min=2012&year_max=2012', 200),
+    ('/api/library/advanced?form=mixtape', 422),
+    ('/api/analytics/summary?form=podcast&year_min=2010', 200),
+    ('/api/analytics/year-histogram?form=liveset', 200),
     ('/api/library/genres', 200),
     # A file MuMa never scanned is a deliberate 404, never a 500.
     ('/api/library/tracks/by-path?path=nope.mp3', 404),
@@ -741,6 +747,70 @@ class LibraryReadsTest:
     def test_the_genre_sidebar_counts_tracks(self, api, headers, a_track):
         genres = api.get('/api/library/genres', headers=headers).json()
         assert genres == [{'genre': 'Hardcore', 'state': 'white', 'count': 1, 'tint': '#e5002b'}]
+
+    def _insert_set(self, db, uid, title, path, **columns):
+        names = ['track_uid', 'title', 'duration_secs', *columns]
+        values = [uid, title, 3600, *columns.values()]
+        with db.cursor() as cursor:
+            cursor.execute(
+                f"INSERT INTO library_tracks ({', '.join(names)}) VALUES ({', '.join(['%s'] * len(names))})", values
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (path, hashlib.sha256(path.encode()).hexdigest(), track_id),
+            )
+        return track_id
+
+    def test_a_live_set_files_under_the_year_it_was_played(self, api, headers, db, a_track):
+        """product-goal.md: a live set filters on its performance date, everything else on its
+        release date -- and the form filter leaves the plain track out."""
+        self._insert_set(
+            db,
+            'uid-live',
+            'Defqon 2012 set',
+            '/mnt/music/Livesets/a.mp3',
+            form='liveset',
+            performance_date='2012-06-23',
+            release_date='2016-01-01',
+        )
+        self._insert_set(
+            db, 'uid-mix', 'Yearmix', '/mnt/music/Soundcloud/x/b.mp3', form='set', release_date='2012-12-31'
+        )
+
+        def titles(query):
+            return sorted(
+                t['title'] for t in api.get(f'/api/library/advanced?{query}', headers=headers).json()['tracks']
+            )
+
+        assert titles('year_min=2012&year_max=2012') == ['Defqon 2012 set', 'Yearmix']
+        assert titles('year_min=2016&year_max=2016') == []
+        assert titles('form=liveset') == ['Defqon 2012 set']
+        assert titles('form=liveset&form=set') == ['Defqon 2012 set', 'Yearmix']
+
+    def test_the_form_pass_classifies_the_library_against_mariadb(self, db, a_track):
+        """track_form_sync's window query and UPDATE run on MariaDB, and a second pass writes nothing."""
+        from datetime import date
+
+        from services.common.Helpers.FestivalHelper import Festival, FestivalHelper
+        from services.common.Helpers.PodcastHelper import PodcastHelper
+        from services.music_manager import track_form_sync
+
+        live = self._insert_set(db, 'uid-live', 'Headhunterz @ Defqon.1 2012', '/mnt/music/Youtube/q/c.mp3')
+        festivals = FestivalHelper(preload=False)
+        festivals.set_festivals([Festival(name='Defqon.1', aliases=['Defqon.1'], editions={2012: date(2012, 6, 23)})])
+        podcasts = PodcastHelper(preload=False)
+
+        first = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
+        second = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
+
+        assert first == {'considered': 2, 'written': 2}
+        assert second == {'considered': 2, 'written': 0}
+        with db.cursor() as cursor:
+            cursor.execute('SELECT id, form, performance_date FROM library_tracks ORDER BY id')
+            rows = {row['id']: (row['form'], row['performance_date']) for row in cursor.fetchall()}
+        assert rows == {a_track: ('track', None), live: ('liveset', '2012-06-23')}
 
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404

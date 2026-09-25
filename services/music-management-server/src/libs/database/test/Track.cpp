@@ -905,6 +905,106 @@ namespace lms::db::tests
         }
     }
 
+    // Form and filing year (docs/designs/track-form/) must mean the same in both query builders:
+    // the web UI browses through find_advanced, radio and the older endpoints through find.
+    namespace
+    {
+        struct FormFixtureTracks
+        {
+            TrackId liveset;
+            TrackId set;
+            TrackId track;
+            TrackId unclassified;
+        };
+
+        // A live set played in 2012 but tagged 2016, a set and a track tagged 2012, and a track
+        // muma never classified, also tagged 2012.
+        void fillFormFixture(Session& session, ScopedTrack& liveset, ScopedTrack& set, ScopedTrack& track, ScopedTrack& unclassified)
+        {
+            auto transaction{ session.createWriteTransaction() };
+            liveset.get().modify()->setForm("liveset");
+            liveset.get().modify()->setPerformanceDate("2012-06-23");
+            liveset.get().modify()->setDate(core::PartialDateTime{ 2016, 1, 1 });
+            set.get().modify()->setForm("set");
+            set.get().modify()->setDate(core::PartialDateTime{ 2012, 12, 31 });
+            track.get().modify()->setForm("track");
+            track.get().modify()->setDate(core::PartialDateTime{ 2012, 3, 1 });
+            unclassified.get().modify()->setDate(core::PartialDateTime{ 2012, 5, 5 });
+        }
+
+        std::vector<TrackId> findAdvancedIds(Session& session, const Track::FindParameters& params)
+        {
+            std::vector<TrackId> ids;
+            Track::find_advanced(session, params, {}, [&](const Track::pointer& t) { ids.push_back(t->getId()); });
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        }
+
+        std::vector<TrackId> findTrackIds(Session& session, const Track::FindParameters& params)
+        {
+            const auto results{ Track::findIds(session, params) };
+            std::vector<TrackId> ids{ results.results.begin(), results.results.end() };
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        }
+
+        std::vector<TrackId> sorted(std::vector<TrackId> ids)
+        {
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        }
+    } // namespace
+
+    TEST_F(DatabaseFixture, Track_findByForm_bothBuilders)
+    {
+        ScopedTrack liveset{ session };
+        ScopedTrack set{ session };
+        ScopedTrack track{ session };
+        ScopedTrack unclassified{ session };
+        fillFormFixture(session, liveset, set, track, unclassified);
+
+        auto transaction{ session.createReadTransaction() };
+
+        Track::FindParameters params;
+        params.forms = { "liveset" };
+        EXPECT_EQ(findAdvancedIds(session, params), std::vector<TrackId>{ liveset.getId() });
+        EXPECT_EQ(findTrackIds(session, params), std::vector<TrackId>{ liveset.getId() });
+        EXPECT_EQ(Track::countAdvanced(session, params, {}), 1);
+
+        // Several forms are OR; a track muma never classified matches none of them.
+        params.forms = { "liveset", "set" };
+        EXPECT_EQ(findAdvancedIds(session, params), sorted({ liveset.getId(), set.getId() }));
+        EXPECT_EQ(findTrackIds(session, params), sorted({ liveset.getId(), set.getId() }));
+    }
+
+    TEST_F(DatabaseFixture, Track_findByFilingYear_bothBuilders)
+    {
+        ScopedTrack liveset{ session };
+        ScopedTrack set{ session };
+        ScopedTrack track{ session };
+        ScopedTrack unclassified{ session };
+        fillFormFixture(session, liveset, set, track, unclassified);
+
+        auto transaction{ session.createReadTransaction() };
+
+        // The live set files under the year it was played, not the 2016 on its tag.
+        Track::FindParameters params;
+        params.year = 2012;
+        const std::vector<TrackId> in2012{ sorted({ liveset.getId(), set.getId(), track.getId(), unclassified.getId() }) };
+        EXPECT_EQ(findAdvancedIds(session, params), in2012);
+        EXPECT_EQ(findTrackIds(session, params), in2012);
+
+        params.year = 2016;
+        EXPECT_TRUE(findAdvancedIds(session, params).empty());
+        EXPECT_TRUE(findTrackIds(session, params).empty());
+
+        // Combined: live sets from 2012.
+        params.year = 2012;
+        params.forms = { "liveset" };
+        EXPECT_EQ(findAdvancedIds(session, params), std::vector<TrackId>{ liveset.getId() });
+        EXPECT_EQ(Track::countAdvanced(session, params, {}), 1);
+    }
+
     TEST_F(DatabaseFixture, Track_getCountByArtist)
     {
         ScopedArtist artistA{ session, "artistA" };

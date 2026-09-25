@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.75.0] - 2026-09-25
+
+### Added
+- **A name a tagger rule guessed no longer confirms itself on the next file.** The tagger matched
+  titles against every name in `library_artists`, and the scanner records every artist it reads, so a
+  guess was a trusted artist one scan later -- the loop that once put 9.188 tracks under `Premiere`.
+  The artist rules now trust only approved names (by hand or by the external-evidence run) and the
+  names that were already in the library before this release (`rules_artist_legacy_trust`, seeded
+  once by `migrate_v40`). A new name is recorded, stays on the file it came from, and is listed in
+  Artiestcuratie with a **Nieuw** badge (`state=pending`, `pending` in the summary) until it is
+  decided. Measured on production: ~3.500 new names in 30 days, 20-35 on a quiet day, over a thousand
+  after a mass retag.
+- **A rejected artist is now also removed or corrected by CheckArtistRule.** It asked the artist list
+  before the ignore list, and every rejected name that was ever on a file was in that list, so the
+  rejection was skipped: 996 rejected names are still on 29.772 tracks. They change the next time
+  each file is tagged.
+
+- **Channels get a proposed label or artist.** Since 0.70.0 every SoundCloud and YouTube channel is
+  its own row in the database, but none pointed at a label or an artist. Beheer -> Downloaders ->
+  **Koppelingen** now compares every channel name with the known labels and the approved artists
+  (case, accents and punctuation ignored; an alias or a redirect from artist curation counts too) and
+  proposes only exact equality. Confirming records the link, rejecting does so for good. Measured on
+  production: roughly 860 of the 1.376 channels get a proposal, 18 are skipped as ambiguous. The
+  Volledigheid table shows the linked label or artist in a new "Gekoppeld aan" column, with a
+  "voorstel" marker where one is still open. New table `channel_link_proposals` (`migrate_v41`), new
+  endpoints under `/api/channel-links`; the coverage response gained an additive `channel` per account.
+- **The Volledigheid table showed no last download for any SoundCloud channel.** The archive files a
+  SoundCloud download under the numeric `soundcloud_id` (157.887 of 157.888 rows); the page looked it
+  up by account name and never found it, so all 1.113 accounts read "onbekend". Now by id (bug
+  report 089).
+
+- **A repair for the SoundCloud files that lost their full date.**
+  `python -m services.tagger.soundcloud_date_repair` (dry run by default, `--apply` to queue) finds
+  the SoundCloud downloads since 0.72.0 whose file still carries only the year. It queues them for
+  the tagger with reason `soundcloud_full_date`, and the tagger restores the date from the stored
+  download info.
+- **A new SoundCloud download that arrives with only the year now logs a WARNING.** The tagger
+  repairs the date silently, so without this warning the defect from bug report 088 could come
+  back unnoticed. The warning reaches the alerts topic and the nightly prod check.
+
+- **Every track now has a form -- track, set, live set or podcast -- and a live set files under
+  the year it was played.** Until now "what is this file" was only guessed from its folder or its
+  length, so no filter could ask for live sets and leave the weekly radio shows out, and a Defqon.1
+  2012 recording uploaded in 2016 filed under 2016. `library_tracks` gets `form` and
+  `performance_date` (`migrate_v42_track_form.sql`, columns only), LMS gets the same two columns
+  (migration step 122, database version 123). The form is derived from length (under ten minutes
+  is always a track -- the short files under `Podcasts/` and `Top 100/` are countdown tracks), top
+  folder (`Livesets`, `Telegram`, `Podcasts`) and the festival and podcast rules the tagger already
+  uses (`services/common/track_form.py`); a live set whose festival and year have an edition date
+  gets that date. The scanner writes both for every file it reads, and the hourly LMS sync
+  recomputes the whole library first (writing only what changed -- this is the backfill, no
+  deploy-time data migration) and then pushes both into each server. `getSpotifyTracks` and
+  `getSongs` take `form` (unknown values are refused) and `year` now uses the performance date for
+  live sets, in both LMS query builders (`find_advanced` and `find`); `/api/library/advanced` and
+  the analytics take `form` and compare `year_min`/`year_max` against the same filing year. The
+  sets view has a new **Soort** filter (Sets & mixes / Livesets / Podcasts), on the phone and in
+  the browser. Design: `docs/designs/track-form/`.
+
+### Changed
+- The `services/music_manager/tests` router modules no longer stub `pymysql`, `dbutils`, `mutagen` or `markdown`: they run against the real libraries. The one test that leaned on the stubbed pool (`test_radio`'s permission check) now overrides the dependency the route actually uses. Test-only; no behaviour change.
+
+### Fixed
+- **MariaDB, LMS, Firefox and the rest of production now have a memory ceiling.** Only music-manager
+  and the workers had one; on an 8 GB host a runaway LMS scan or a Firefox with full shared memory
+  could drag MariaDB into the OOM killer. The limits come from `docker stats` on production
+  (2026-09-25): `db` 2g (661 MiB used, 128 MiB buffer pool), `lms` 1536m (549 MiB), `firefox` 2g
+  (626 MiB, above its 1 GB `shm_size`), phpMyAdmin 256m, the LMS proxy and autoheal 128m, the
+  one-shots 1g and the backup jobs 512m, each overridable in the stack's `.env`. They apply when a
+  container is recreated; for `db` that takes a `DEPLOY_DB=1` deploy. Bug report 086.
+- **`scripts/dev.sh` starts its stack again.** The dev overlay named an LMS container that is not in
+  that stack, and the overlays repeated `security_opt`, which compose 2.26 rejects as a duplicate --
+  so neither the dev stack nor README's base + tools combination rendered.
+  `tests/ci/test_compose_render.py` now renders every documented compose combination.
+
+- **Files stamped `__TODO` as their record label can now be repaired, and the fixed tagger stops
+  creating new ones.** GenericSong fell back to the publisher for a copyright, so a release waiting
+  in the import queue still got `copyright = __TODO`; LabelSong kept an old `__TODO (2021)` copyright
+  after filing. Both now empty the placeholder first. `GET|POST /api/tagger/todo-label-repair` pages
+  the label tree (primary-key ranges, no join), counts poisoned files per label derived from their
+  folder -- the importer's resolver for files still in the queue -- lists the undecidable ones, and
+  queues the rest for the tagger under reason `todo_label_repair`. Bug report 087.
+- **The import queue's location is one setting.** Every walker of the label tree asks one predicate
+  (`ImportQueue`) instead of checking for `__TODO` or a leading underscore itself, and a CI test
+  refuses a new hard-coded `__TODO`. Moving the queue out of `EPs/` is now `import_folder_path` plus
+  a folder move; the tagger keeps tagging it as generic songs wherever it lives.
+- **Crooked ` - ` import folder names get a rename tool.** `python -m
+  services.importer.catid_prefix_repair` plans a catalogue-number prefix only where the number routes
+  to a label in `rules_catid_label`, with a rename log and rollback. On production that is at most ~27
+  of 2.613; the rest need a label decision.
 ## [0.74.3] - 2026-09-25
 
 ### Fixed

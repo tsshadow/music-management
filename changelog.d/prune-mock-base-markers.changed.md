@@ -1,1 +1,0 @@
-- The `services/music_manager/tests` router modules no longer stub `pymysql`, `dbutils`, `mutagen` or `markdown`: they run against the real libraries. The one test that leaned on the stubbed pool (`test_radio`'s permission check) now overrides the dependency the route actually uses. Test-only; no behaviour change.

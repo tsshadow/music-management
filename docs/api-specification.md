@@ -38,7 +38,9 @@ The system key passes every check. Routes not marked otherwise need any authenti
   (`users.disable`), **DELETE `/users/{user_id}`**: `409` when the change would leave no enabled
   admin -- demoting, disabling or deleting the last one. Delete answered 400 before and counted
   disabled admins; demote and disable did not check at all. Disabling or demoting an unknown id is
-  now 404.
+  now 404. Enable, disable and delete each poke the music server's user sync (`/muma/users/sync`)
+  after the commit; LMS disables a user whose account is disabled or gone from `GET /users/` and
+  revokes its keys.
 - **POST `/users/sync/lms-db`** (also `/sync/lms`, `/sync/muma-server`): run the lms.db sync now and
   return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly loop) is running.
 - **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., `app_id=ultrasonic` for MuMa Mobile's settings backup, `app_id=frontend` for the web player's favorite genres).

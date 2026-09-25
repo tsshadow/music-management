@@ -47,6 +47,8 @@ namespace lms::db
         static void find(Session& session, std::string_view domain, UserId userId, std::function<void(const AuthToken::pointer&)> visitor);
         static void removeExpiredTokens(Session& session, std::string_view domain, const Wt::WDateTime& now);
         static void clearUserTokens(Session& session, std::string_view domain, UserId user);
+        // Every token of the user, whatever its domain (Subsonic keys and web-UI sessions alike).
+        static void clearAllUserTokens(Session& session, UserId user);
 
         // Accessors
         const Wt::WDateTime& getExpiry() const { return _expiry; }

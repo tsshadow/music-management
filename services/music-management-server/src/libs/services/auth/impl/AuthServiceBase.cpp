@@ -87,6 +87,15 @@ namespace lms::auth
         }
     }
 
+    bool AuthServiceBase::isUserDisabled(UserId userId)
+    {
+        Session& session{ getDbSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        const User::pointer user{ User::find(session, userId) };
+        return !user || user->isDisabled();
+    }
+
     Session& AuthServiceBase::getDbSession()
     {
         return _db.getTLSSession();

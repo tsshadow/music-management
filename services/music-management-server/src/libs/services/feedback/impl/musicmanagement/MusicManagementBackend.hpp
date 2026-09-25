@@ -24,6 +24,9 @@ namespace lms::feedback::musicManagement
     {
     public:
         MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db);
+        // Sends through `client` (null switches the relay off) with `apiKey` as X-API-Key.
+        // What the configured constructor delegates to, and what the tests use.
+        MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey);
         ~MusicManagementBackend() override;
 
     private:
@@ -45,9 +48,7 @@ namespace lms::feedback::musicManagement
 
         void sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating = 0, const std::string& path = "");
 
-        boost::asio::io_context& _ioContext;
         db::IDb& _db;
-        std::string _apiUrl;
         std::string _apiKey;
         std::unique_ptr<core::http::IClient> _client;
     };

@@ -29,18 +29,30 @@
 
 namespace lms::feedback::musicManagement
 {
-    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
-        : _ioContext{ ioContext }
-        , _db{ db }
+    namespace
+    {
         // NOTE: "music-management-url" already includes the "/api" prefix (see
         // UserSynchronizer.cpp / MusicManagementPasswordService.cpp). The real
         // route is "/api/rating/lms-event", so only "/rating/lms-event" must
         // be appended here (was incorrectly "/rating/api/lms-event").
-        , _apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/rating/lms-event" }
-        , _apiKey{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
+        std::unique_ptr<core::http::IClient> createConfiguredClient(boost::asio::io_context& ioContext)
+        {
+            const std::string apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/rating/lms-event" };
+            LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << apiUrl << "'");
+            return core::http::createClient(ioContext, apiUrl);
+        }
+    } // namespace
+
+    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
+        : MusicManagementBackend{ db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
     {
-        LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << _apiUrl << "'");
-        _client = core::http::createClient(_ioContext, _apiUrl);
+    }
+
+    MusicManagementBackend::MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey)
+        : _db{ db }
+        , _apiKey{ std::move(apiKey) }
+        , _client{ std::move(client) }
+    {
     }
 
     MusicManagementBackend::~MusicManagementBackend()

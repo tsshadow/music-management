@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -78,6 +79,8 @@ namespace lms::db
 
         std::mutex _tlsSessionsMutex;
         std::vector<std::unique_ptr<Session>> _tlsSessions;
+        // Unique for the life of the process, unlike this object's address: see getTLSSession().
+        const std::uint64_t _instanceId;
     };
 
 } // namespace lms::db

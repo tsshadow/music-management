@@ -3,6 +3,7 @@ add_library(lmsmuma STATIC
     Authentication.cpp
     MumaResource.cpp
     PathEncoding.cpp
+    Routing.cpp
 )
 
 target_include_directories(lmsmuma INTERFACE

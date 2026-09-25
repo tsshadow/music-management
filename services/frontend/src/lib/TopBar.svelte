@@ -4,7 +4,7 @@
   import SearchBar from './SearchBar.svelte';
   import ModeChips from './ModeChips.svelte';
   import ReleaseNotesModal from './ReleaseNotesModal.svelte';
-  import { activeView, authParams, activeModal, sidebarDrawerOpen, searchResultsOpen, restUrl, isMobile } from './store.js';
+  import { activeView, authParams, activeModal, sidebarDrawerOpen, searchResultsOpen, restUrl, isMobile, isWideLayout } from './store.js';
   import { phoneTabForView } from './router.js';
   import { t } from './i18n/index.js';
   import { Menu, SlidersHorizontal } from '@lucide/svelte';
@@ -76,7 +76,7 @@
 
 </script>
 
-{#if $isMobile}
+{#if $isMobile && !$isWideLayout}
   <!-- Phone: one line -- search, then the Songs/Sets mode control, then the profile
        button. The mode control replaces the row `App.svelte` used to render above the
        content; it stays gated by `phoneTab` the same way that row was, so detail pages
@@ -84,6 +84,11 @@
        `$isMobile` rather than the wider `md:hidden` alone -- see the same choice on
        `HomeShelf.svelte` -- with `md:hidden` kept alongside it as the CSS backstop the
        app's other phone/desktop forks (the queue panel below) also carry.
+
+       `$isWideLayout` is the other half of the gate: `isMobile` is also true on any touch
+       screen, so a tablet in landscape used to land here while `md:hidden` hid the whole bar
+       and the `{:else}` branch was never rendered -- no search box, no profile button (bug
+       report 090). From `md` up the layout is the desktop one, so the desktop bar is too.
 
        This bar is also what covers the status bar: the app runs edge-to-edge in the WebView
        (`viewport-fit=cover` in index.html), so the top inset is padding here rather than a

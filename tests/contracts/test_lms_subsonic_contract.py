@@ -467,8 +467,10 @@ def test_save_play_queue_accepts_the_queue_in_a_post_body(admin_credentials, med
     assert resp.status_code == 200, resp.text[:500]
     queue = resp.json()["subsonic-response"]["playQueue"]
     entries = queue.get("entry", [])
-    assert len(entries) == QUEUE_LENGTH
-    assert all(entry["id"] == song_id for entry in entries)
+    # The test library holds one track, and LMS keeps a track in a play queue once however often
+    # it is listed -- so the proof that the body was read is that the queue is not empty and
+    # points at that track, not a count of 400.
+    assert [entry["id"] for entry in entries] == [song_id]
 
     # Leave the account's queue empty for whatever runs next: no id clears it.
     _subsonic_post("savePlayQueue.view", username, password, data={})

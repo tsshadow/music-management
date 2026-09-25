@@ -11,6 +11,35 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.73.1 (2026-09-25)
+
+- **The artist-image run no longer sends an alert per artist when MusicBrainz is slow or a portrait
+  download fails.** It reports those once, in the summary at the end of the run.
+
+- **A failed save could leave genre parents, festival aliases or a track's links empty.** Saves
+  that replace a list now land completely or not at all.
+
+- **Fetching a single artist's portrait no longer sends a "credentials missing" alert every time.**
+
+- **Genre hierarchy:** a genre can no longer be placed under one of its own subgenres; existing
+  loops are reported and no longer make the daily mixes skip those genres.
+
+- **The importer no longer re-reads thousands of unplaceable folders after every restart.** A
+  folder it could not place is read again only when it, a catalogue rule, or its proposal changes,
+  and the per-folder warnings every five minutes are replaced by one summary line.
+
+- **Fixed a possible server crash when an artist picture was still loading as you scrolled past it.**
+
+- **Player and track details:** the label chip is amber, so it no longer reads as another genre.
+
+- **Phone player (web):** rating stars centred, unrated stars shown as outlines, and the news
+  button is back next to the radio.
+
+- **Builds:** every downloaded build input and third-party image is pinned to a version and
+  checksum; yt-dlp updates now arrive as their own reviewed change.
+
+- **Tagging:** new and changed files are tagged with less overhead per file, which leaves more
+  room for the app while a large retag runs.
 ## Global Version 0.73.0 (2026-09-24)
 
 - **The artist-image run no longer sends an alert every five minutes when Spotify slows it down.** It

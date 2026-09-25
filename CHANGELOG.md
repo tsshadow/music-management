@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.73.1] - 2026-09-25
+
+### Changed
+- **Web UI: the label chip looked exactly like a genre chip.** `MetaChips` now colours a chip by
+  its `kind`: a label is amber (`#ffcc80` on `#3a2c16`), genres, festivals and moods keep the
+  neutral grey. Applies to the phone now-playing screen and the track details sheet, the two places
+  that render label chips through `MetaChips`.
+
+- **Image builds no longer pull whatever is newest on the day.** yt-dlp is pinned (2026.8.19) in
+  `requirements.txt` and both images that install it, and Renovate bumps the three together in one
+  MR, automerged when green: a new yt-dlp is now a merge request instead of an implicit rebuild.
+  `muma:refresh-downloader` still ships it between releases, by installing the version pinned on
+  develop. deno (v2.9.7) and the ffmpeg, Wt, stb and TagLib tarballs in the LMS image are pinned and
+  checked against a sha256 after download; phpmyadmin, jlesage/firefox, autoheal, nginx and the
+  Android SDK image are pinned to a version and a digest instead of `latest`. A new test fails on any
+  unchecked download or floating image. How to bump: `docs/deployment.md`, "Pinned build inputs".
+  See bug report 067.
+
+- **Tagger: one database connection per worker and one rule stack per round, instead of per file.**
+  Every helper the tagger calls per file used to open its own MariaDB connection (three to six per
+  file at ~14 ms each), and every song rebuilt its whole rule stack, including two 37k-name artist
+  sets and two uncached list queries for SoundCloud, Telegram and YouTube files. A round now lends
+  each thread one connection for its duration and builds each song type's rules once; the artist
+  names still follow the helper's snapshot, so tagging results are unchanged. Each round that tagged
+  something logs one `Tagging round: ...` line with files, wall time, ms/file and connections opened.
+  A single-file scan no longer reloads the genre rules before it knows it can get the scanner lock.
+  See bug report 063.
+
+### Fixed
+- **MusicBrainz timeouts and failed portrait downloads still pushed an alert per artist during the
+  artist-image run.** Bug report 058 fixed the Spotify path only: the MusicBrainz provider logged every
+  timed-out attempt as a `WARNING`, image-download retries were `WARNING`s and a failed save an `ERROR`
+  (logged twice), each one a push on the alerts topic. These are now `INFO` and counted into the run's
+  single summary, which reports failed downloads and non-answers per provider. A MusicBrainz `429`, or
+  a `503` with `Retry-After`, pauses the run the way a Spotify `429` does. The only `ERROR` left is an
+  image directory that cannot be written, once per run. Bug report 060.
+
+- **A write that replaced a set of rows could leave the set empty.** The database pool runs
+  autocommit, so every "delete the old rows, insert the new ones" was two separate commits and the
+  `conn.commit()` after it did nothing: a failure in between -- a festival alias longer than the
+  column was enough -- left a genre without parents, a festival without aliases (but already
+  renamed), a track without artist or genre links, or a rematched listen in both tables. Those
+  writes, and the multi-statement account writes (approve/unapprove an access request, delete and
+  merge a user), the song pin and split, now run in one explicit transaction via
+  `database.transaction()`: all of it lands, or none of it. The scanner now always writes a file's
+  links in one transaction, not only when the file moved to another track. Bug report 062.
+
+- **Every router checks the API key through the one shared dependency.** Eleven routers carried a
+  `verify_api_key` of their own -- once copies that answered a database outage with
+  `401 Invalid API key`, lately thin wrappers where such a copy could return. They now all import
+  `routers.users.verify_api_key`, and a test fails if a router defines one again. Answers are
+  unchanged: unknown key `401`, disabled account `403`, outage `503`. The routers' own "no database
+  connection" checks now answer `503` with `Retry-After` instead of `500`. Bug report 065.
+- **A missing image-provider credential is reported once per process.** Every single-artist portrait
+  fetch built a new fetcher, which logged the missing Spotify credentials and Last.fm key as
+  `WARNING`s and "no configured image provider" as an `ERROR` again -- each one an alert push. They
+  are now logged at full level once, then at `DEBUG`. Bug report 065.
+
+- **A genre could be filed under its own subgenre, and the daily mixes then lost both.**
+  `PUT /api/curation/genres/{name}/parents` only refused a genre as its own parent, so Hardcore
+  under Uptempo under Hardcore was stored, and `deepest()` in the feeds dropped every genre in the
+  loop. The write now answers `409` ("Hardcore is already an ancestor of Uptempo"), the edit page
+  refuses a subgenre as a parent up front, the feed walkers keep one genre of a stored cycle (the
+  alphabetically first) and log the cycle once per load, and
+  `GET /api/curation/genre-hierarchy/cycles` lists any cycle already in the table so it can be
+  fixed in Beheer (bug report 064).
+
+- **The importer re-read the tags of every unplaceable `__TODO` folder after every restart, and
+  logged a warning per folder every five minutes.** Since 0.73.0 the mover remembered a resolved
+  folder only in process memory, so each deploy started the ~2,266-folder backlog over, reading
+  every track over CIFS; and the `CAT ID ... not found` / `No valid CAT ID` warning was still
+  logged for every one of those folders on every cycle, each one an event row. The proposal row
+  now stores a fingerprint of the folder (entries, size, newest mtime), the catalogue-number rules
+  and the row's own decision; while it matches, the folder is skipped without reading a tag or
+  logging a warning. A changed folder, a new or edited `rules_catid_label` rule, or a decision on
+  the proposal makes it resolve once more, exactly as before. Each cycle logs one line:
+  `Unplaceable folders: N checked, N skipped as unchanged, N re-read`. New column
+  `rules_label_proposals.resolved_fingerprint` (migrate_v38). Bug report 061.
+
+- **LMS could read freed memory when a client hung up on a slow artist picture.** The `getCoverArt`
+  proxy to MuMa kept a raw pointer to Wt's response continuation, and Wt frees that continuation
+  when the client disconnects. If MuMa's answer or the 504 deadline landed after that, it went
+  through the dangling pointer. The proxy now holds the continuation weakly and does nothing once it
+  is gone. Normal completion still cancels the deadline. Bug report 066.
+
+- **Web UI on a phone: the now-playing rating stars hung off the left edge.** The same full-screen
+  player the app bundles (`NowPlaying.svelte`) now centres the rating row and shows an unrated
+  track as grey outlined stars instead of a faded glyph that read as disabled. The desktop player
+  bar is unchanged.
+- **Web UI on a phone: the now-playing screen had no news button.** Only the desktop player bar
+  rendered it; `NowPlaying.svelte` now has it next to the radio button, wired to the same
+  `toggleNews` (bug report 059).
 ## [0.73.0] - 2026-09-24
 
 ### Added

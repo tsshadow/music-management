@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## Global Version 7.4.5 (2026-09-25)
+
+- **Now playing:** the label chip is amber, so it no longer reads as another genre.
+
+- **Now playing:** the news of the hour button is back, next to the radio button.
+
+- **Now playing:** the rating stars are centred under the chips, and an unrated track shows
+  outlined stars instead of greyed-out ones.
 ## Global Version 7.4.4 (2026-09-24)
 
 - **Android Auto:** another attempt at bringing the rating, shuffle, repeat and news buttons back

@@ -28,7 +28,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 EXPECTED_VERSION="$(tr -d '[:space:]' < "$PROJECT_ROOT/VERSION")"
 
 echo "--- Asking production which version it is serving ---"
-body="$(ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" \
+body="$(ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" \
     "curl -sS --max-time 10 http://localhost:8000/health" 2>&1 || true)"
 
 version="$(printf '%s' "$body" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"

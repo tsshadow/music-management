@@ -4,6 +4,10 @@
 
 set -e
 
+# Host key checking for run_ssh below: pinned for production, accept-new elsewhere.
+# shellcheck source=scripts/lib/ssh_host_keys.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/lib/ssh_host_keys.sh"
+
 # Nothing secret may appear on a command line in this script: argv is readable
 # through `ps` by every account on the runner and on the production host. The
 # env file travels on ssh's stdin instead. See
@@ -22,10 +26,14 @@ run_ssh() {
         return 1
     fi
 
+    # Pinned host key for production, accept-new elsewhere (scripts/lib/ssh_host_keys.sh).
+    local -a key_opts
+    mapfile -t key_opts < <(ssh_host_key_opts "$host")
+
     if [ -z "$pass" ]; then
-        ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        ssh "${key_opts[@]}" "${user}@${host}" "${cmd}"
     elif command -v sshpass >/dev/null 2>&1; then
-        SSHPASS="${pass}" sshpass -e ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        SSHPASS="${pass}" sshpass -e ssh "${key_opts[@]}" "${user}@${host}" "${cmd}"
     else
         echo "Error: sshpass not found. Install it or unset password variable."
         exit 1

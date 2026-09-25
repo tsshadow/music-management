@@ -1,5 +1,32 @@
+# Every service logs through json-file with rotation. Docker's default is
+# json-file *without* a size cap, so a chatty container grows its log under
+# /var/lib/docker until the disk is full -- and on the production host a full
+# disk has already looked like an unrelated 502 (nginx logs just stop). 3 x 10 MB
+# per container is plenty for `docker logs`; the event log is the real history.
+# Same values as docker/docker-compose.yml; tests/ci/test_compose_log_rotation.py
+# checks that every service in every compose file has a logging block.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# LMS and its nginx front log one line per HTTP request at the configured "info"
+# level (Wt's access log on stdout, nginx's access log on stdout): every
+# Subsonic call, every stream range request, every cover art fetch -- where a
+# worker logs a line per track. With the default 3 x 10 MB the history behind
+# `docker logs lms` would be the shortest of any container, while LMS is the one
+# most often read after an incident. 5 x 20 MB gives it more room at a bounded
+# worst case of 100 MB per container.
+x-request-logging: &request-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   lms:
+    logging: *request-logging
     container_name: lms
     image: ${IMAGE_NAME}:${LMS_TAG}
     expose:
@@ -61,6 +88,7 @@ services:
   # while :latest keeps being rebuilt, so the tag stays "latest" and the digest is
   # the pin; Renovate moves the digest (renovate.json).
   autoheal:
+    logging: *default-logging
     container_name: lms-autoheal
     image: willfarrell/autoheal:latest@sha256:3d5c946ac4c14612e7e1096137f27f71a7b3d7b6909ee89cc98412df184882e8
     environment:
@@ -78,6 +106,7 @@ services:
   # its own WApplication routing and cannot serve the frontend there directly
   # (see main.cpp SpotifyResource fallback). See docs/deployment.md.
   reverse-proxy:
+    logging: *request-logging
     container_name: lms-reverse-proxy
     image: nginx:1.31.6-alpine@sha256:d10753d9289b8e3f884386351f73554ce72b631378949deddd75e83ee296c427
     ports:

@@ -1,16 +1,15 @@
 # 🧠 ML Analyzer Service
 
-This service analyzes audio files and extracts musical features for machine learning purposes.
+> **DEPRECATED — disabled since 2026-09-25, code kept. See [DEPRECATED.md](DEPRECATED.md).**
+> Nobody is working on it, it was never deployed, and it would not work if it ran: the
+> already-analysed check reads the wrong key, the `library_track_ml_labels` key has bug report
+> 028's stale-join shape, and the predict pipeline does not match what the trainer builds. It is
+> not built, deployed, dependency-audited or tested by default; its tests only run in the manual CI
+> job `backend:ml-analyzer-unit`. Its tables and their data stay, and the features that read them
+> keep showing what is there — new tracks just get no analysis. DEPRECATED.md has the details, with
+> file and line, and the checklist for bringing it back.
 
-> **Status: not deployed, and known not to work as-is.** Its service is commented out of
-> `docker/docker-compose.yml`, so production never runs it (only the unused
-> `docker/docker-compose.full.yml` still defines it). The 2026-09-24 dead-code sweep found it would
-> not work if it did run: the already-analysed check reads the wrong key, the
-> `library_track_ml_labels` join repeats bug report 028's stale join key, and `predict.py` writes
-> `library_track_ml_predictions`, a table only `db_init.sql` here creates and no deploy applies.
-> Whether to repair or retire it is an open decision — see "ml-analyzer: retire it or repair it"
-> in [docs/open-work.md](../../docs/open-work.md). The code is still unit-tested (see
-> [docs/testing-inventory.md](../../docs/testing-inventory.md)).
+This service analyzes audio files and extracts musical features for machine learning purposes.
 
 ## ⚙️ Functionality
 

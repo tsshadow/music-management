@@ -54,7 +54,9 @@ REQUIREMENTS=(
     requirements-dev.txt
     services/music_manager/requirements.txt
     services/music_manager/artist_image_fetcher/requirements.txt
-    services/ml-analyzer/requirements.txt
+    # services/ml-analyzer/requirements.txt is left out on purpose: the service is
+    # deprecated, not built and not deployed (services/ml-analyzer/DEPRECATED.md), so a
+    # finding there would be a red audit about code that runs nowhere.
 )
 
 STATUS=0

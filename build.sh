@@ -115,8 +115,11 @@ build_importer() {
     $DOCKER_CMD build $DOCKER_FLAGS --build-arg DOCKER_USER="${DOCKER_USER}" --build-arg VERSION="${VERSION}" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:latest" -t "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}" -f docker/Dockerfile.importer .
 }
 
+# Deprecated and disabled (services/ml-analyzer/DEPRECATED.md): not part of the
+# build-all run below, only built when `ml` is asked for by name.
 build_ml() {
     local cmd=$DOCKER_CMD
+    echo "WARNING: ml-analyzer is deprecated and not deployed -- see services/ml-analyzer/DEPRECATED.md"
     if [ "$SEMI_REMOTE_MODE" = true ]; then cmd="docker -c remote-lxc"; fi
     echo "--- Building ML Analyzer ($VERSION) ---"
     $cmd build $DOCKER_FLAGS -t "${DOCKER_USER}/${IMAGE_ML}:latest" -t "${DOCKER_USER}/${IMAGE_ML}:${VERSION}" -f services/ml-analyzer/Dockerfile .
@@ -192,8 +195,8 @@ fi
 
 if [ ${#REQUESTED_MODULES[@]} -eq 0 ]; then
     echo "--- Building all modules in parallel ---"
-    # Group 1: Independent builds
-    build_ml &
+    # Group 1: Independent builds. The ml-analyzer image is left out on
+    # purpose: it is deprecated (services/ml-analyzer/DEPRECATED.md).
     build_tools &
     
     # Group 2: Base-dependent builds

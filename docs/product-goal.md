@@ -139,8 +139,9 @@ are outdated by this line.
 The intended purpose is **automatic genre classification** — closing the coverage gap on the axis
 that matters most, without hand-curating every unknown genre.
 
-It has not got there. What runs today extracts BPM, loudness, spectral centroid and duration
-(`services/ml-analyzer/`); the genre and subgenre models sketched in `docs/machine-learning.md` were
+It has not got there, and since 2026-09-25 it is deprecated and disabled, with the code kept
+([services/ml-analyzer/DEPRECATED.md](../services/ml-analyzer/DEPRECATED.md)). What it did
+extract was BPM, loudness, spectral centroid and duration (`services/ml-analyzer/`); the genre and subgenre models sketched in `docs/machine-learning.md` were
 never built, because the training and inference cost in RAM and CPU stalled the work. There is a
 learning-exercise element to the service as well, and that is fine.
 
@@ -214,7 +215,8 @@ guessed at. Candidate material is catalogued in `docs/designs/wrapped/research.m
 note on daily mixes; what any of it becomes is a later design.
 
 Phase 1 is the axis list above: genre, year, artist, label, festival, rating. BPM is unplaced —
-the ML analyzer already produces it and filtering on it is clearly useful ("uptempo above 190"), but
+the ML analyzer produced it for part of the library (deprecated since 2026-09-25, so new tracks
+get none) and filtering on it is clearly useful ("uptempo above 190"), but
 it was not named as a phase 1 axis. Treat it as available rather than required.
 
 ## What the goal implies about today's state

@@ -644,10 +644,10 @@ backend:unit:
         - services/tagger/**/*
         - services/scanner/**/*
         - services/common/**/*
-        # Not test-bearing today, but pytest runs with --cov=services and a
-        # coverage floor: untested code added here drops the total and must
-        # fail in its own pipeline, not in the next unrelated merge request.
-        - services/ml-analyzer/**/*
+        # services/ml-analyzer is deprecated and deliberately absent: the unit
+        # script skips its tests and pyproject.toml omits it from coverage, so
+        # it cannot move this job's result. backend:ml-analyzer-unit below is its only
+        # job (services/ml-analyzer/DEPRECATED.md).
         # A change to a test, or to a script a test covers, has to run the tests.
         - services/tests/**/*
         # The script also collects tools/, the pipeline policy suite and the
@@ -676,6 +676,31 @@ backend:unit:
       coverage_report:
         coverage_format: cobertura
         path: coverage-python.xml
+
+# The deprecated ml-analyzer's tests, out of the default pipeline since
+# 2026-09-25 (services/ml-analyzer/DEPRECATED.md). Manual and allow_failure:
+# the service does not run anywhere, so nothing waits on it; the button stays
+# so the kept code can still be checked, and it only appears on a pipeline that
+# touches the service or its tests. tests/ci/test_ml_analyzer_deprecated.py
+# fails if any other job starts referencing services/ml-analyzer again.
+# Reviving the service means turning this back into a gating job -- see the
+# checklist in DEPRECATED.md.
+backend:ml-analyzer-unit:
+  stage: unit
+  timeout: 15m
+  allow_failure: true
+  retry: !reference [.infra_retry, retry]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
+    - changes:
+        - services/ml-analyzer/**/*
+        - services/tests/MlAnalyzer*Test.py
+        - scripts/test/ml-analyzer-unit.sh
+      when: manual
+      allow_failure: true
+  script:
+    - ./scripts/test/ml-analyzer-unit.sh
 
 server:unit:
   stage: unit

@@ -14,7 +14,7 @@
 | `services/scanner` | Python (integrated into music-manager) | n/a | via music-manager | n/a |
 | `services/importer` | Python, standalone worker process | n/a | none | MariaDB (shared) |
 | `services/downloader` (soundcloud/youtube/telegram) | Python, standalone workers | n/a | none | MariaDB (shared) |
-| `services/ml-analyzer` | Python | n/a | none | own (`db_init.sql`) |
+| `services/ml-analyzer` (deprecated, disabled) | Python | n/a | none | own (`db_init.sql`) |
 | `services/frontend` | Svelte 5 + Vite | 5173 (dev) | n/a (static build) | n/a |
 | `services/muma-mobile` | Kotlin / Android (Gradle) | n/a (client) | n/a | local (Room, on device) |
 | `services/common` | Python (shared helpers) | n/a | n/a | n/a |
@@ -72,17 +72,23 @@
 - Dockerfile: `docker/Dockerfile.downloader`; compose services: `youtube_worker`, `soundcloud_worker`, `telegram_worker` (telegram uses `docker/Dockerfile.telegram`)
 - Some download tests may make real `yt-dlp`/SoundCloud calls — still needs to be verified whether these are mocked for CI (Phase 3.2 concern)
 
-### ml-analyzer
+### ml-analyzer (deprecated)
+- **Deprecated and disabled since 2026-09-25, code kept** -- see
+  [services/ml-analyzer/DEPRECATED.md](../services/ml-analyzer/DEPRECATED.md) for why and the
+  revive checklist
 - Own `db_init.sql` and `requirements.txt`
-- Tested from `services/tests/`: `MlAnalyzerTest.py` (analyzer), `MlAnalyzerApproveTest.py`,
+- Tests live in `services/tests/`: `MlAnalyzerTest.py` (analyzer), `MlAnalyzerApproveTest.py`,
   `MlAnalyzerPredictTest.py` and `MlAnalyzerScriptsTest.py` (`fix_db_schema`, `migrate_paths`,
-  `update_metadata`) -- 100 tests, run by the unit suite with the heavy dependencies stubbed by
-  `mock_base.py`. Coverage on source only (2026-09-23): `approve`, `fix_db_schema`,
-  `migrate_paths` and `update_metadata` 96-98%, `predict` 63%, `analyzer` 49%, `trainer` 0% --
-  `trainer.py` (125 statements) is the one module with no test at all
-- Compose service is commented out in `docker/docker-compose.yml` (inactive; only the unused
-  `docker/docker-compose.full.yml` still defines it). The tests pass on code that would not work
-  if it ran -- repair or retire is an open decision in [open-work.md](open-work.md)
+  `update_metadata`) -- 100 tests, heavy dependencies stubbed by `mock_base.py`. **Not** part of
+  `scripts/test/music-management-unit.sh` any more (it passes `--ignore` for them) and omitted from
+  the coverage figure (`[tool.coverage.run]` in `pyproject.toml`). Run them with
+  `./scripts/test/ml-analyzer-unit.sh`, or the manual CI job `backend:ml-analyzer-unit`. Coverage
+  when last counted (2026-09-23): `approve`, `fix_db_schema`, `migrate_paths` and
+  `update_metadata` 96-98%, `predict` 63%, `analyzer` 49%, `trainer` 0%
+- Still linted (`scripts/lint.sh`, `backend:format`); never type-checked (mypy exclude); not
+  dependency-audited; ignored by Renovate
+- Compose service commented out in every `docker/*compose*.yml`, and `./build.sh` no longer builds
+  its image unless asked for `ml`. `tests/ci/test_ml_analyzer_deprecated.py` keeps it that way
 
 ### music-management-server (C++)
 - Formatting: `./scripts/test/muma-server-format.sh` (`server:format`), clang-format pinned
@@ -177,7 +183,7 @@ These gaps are **not resolved in this step** (per Task 1: inventory only, no pro
    (`@testing-library/svelte` is installed but unused).
 3. ~~The pre-commit hook mentioned in `AGENTS.md` was not found as a file.~~ It is `scripts/hooks/pre-commit`.
 4. Downloader tests that may perform real external calls need to be mocked for CI (Phase 3.2).
-5. `ml-analyzer` is tested from `services/tests/` (see its section above) except `trainer.py`; its compose service is still disabled.
+5. `ml-analyzer` is deprecated and disabled (see its section above); its tests only run on demand, and `trainer.py` has none.
 6. MuMa Mobile instrumentation/Android Auto tests: not yet found, needs a separate inventory pass once Phase 6 is addressed.
 7. `docker/Dockerfile.music-manager` runs `COPY .env /app/.env`, baking the real `.env` (with real secrets) into every built image. This is safe at runtime for `compose.test.yml` because `load_dotenv()` defaults to `override=False`, so container `environment:` values still win — but it's bad image hygiene (secrets end up in image layers) and should be fixed later (tracked as a follow-up, not done in Task 3).
 8. **Production config likely has the same bug as the Task 6 scrobble/rating URL fix.** All `music_manager` routes are mounted under `/api/*` (`main.py`: `app.include_router(..., prefix="/api/...")`), and this is what `UserSynchronizer.cpp` (`/users/`) and `MusicManagementPasswordService.cpp` (`/auth/login`) assume when appending directly onto `music-management-url`. On the production host (192.0.2.27, read-only SSH inspection), the deployed `LMS_MUSIC_MANAGEMENT_URL` is `http://192.0.2.27:8003` — **without** an `/api` suffix. This strongly suggests LMS→MusicManagement scrobbling/rating/user-sync is currently broken in production too, for the same root cause fixed in this session's `MusicManagementBackend.cpp` changes (scrobbling + feedback). Recommended fix: update the production `LMS_MUSIC_MANAGEMENT_URL` env var to `http://192.0.2.27:8003/api` (or the internal Docker service equivalent) once this fix is deployed. **Not changed in this session** — production was only inspected read-only, per explicit agreement; a production env change needs a deliberate, monitored rollout.

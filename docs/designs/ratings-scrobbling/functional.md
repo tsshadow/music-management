@@ -56,3 +56,24 @@ Acceptance criteria:
    scrobbles are left as they are.
 3. A listen whose time agrees with LMS within five seconds is never touched.
 4. A second apply over the same data writes nothing.
+
+## LMS listen backfill (2026-09-25)
+
+LMS passes each listen on to MuMa once. While MuMa restarts (every deploy), those listens are lost
+from MuMa's history even though LMS still has them (bug report 075). MuMa now fetches them back by
+itself.
+
+| Situation | Observable outcome |
+|---|---|
+| A listen is played through LMS while MuMa is down | Within about half an hour of the play (at most one interval later) it appears in MuMa's history with LMS's time and source `lms-backfill`, and counts in statistics and feeds like any listen. |
+| The same play also reached MuMa another way (the app's own scrobble, under the same or another track, or unmatched) | Nothing is added; a play is never counted twice. |
+| A listen was moved by bug 039 | The loop leaves it alone; restoring times stays the admin's manual reconcile. |
+| Lost listens older than the window (48 h by default) | Left for a one-off admin reconcile with "insert lost listens". |
+| An admin switches it off on Beheer > Config (Scrobbling) | No more listens are added from the next round on. |
+
+Acceptance criteria:
+
+1. A lost listen is inserted exactly once; later rounds add nothing for it.
+2. Only listens inside the window are read and inserted.
+3. No existing listen is ever changed by the loop.
+4. The loop appears in `/health`; a failing round is reported once, not every round.

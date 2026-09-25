@@ -1141,6 +1141,26 @@ class ScrobbleReconcileSqlTest:
             assert response.status_code == 200, response.text
             assert response.json()['totals']['lms_unmapped'] == 1
 
+        # The `lms-listen-backfill` loop's windowed reads (bug report 075): LMS's `julianday`
+        # bound, and muma's listened_at-or-created_at bound on both listen tables.
+        import time
+        from datetime import UTC, datetime
+
+        from services.music_manager import lms_listen_backfill
+
+        now = int(datetime(2026, 8, 22, tzinfo=UTC).timestamp())
+        # Like apply(), the backfill refuses to write unless process and database share a zone;
+        # the test database runs in UTC, as the music-manager image does.
+        monkeypatch.setenv('TZ', 'UTC')
+        time.tzset()
+        try:
+            result = lms_listen_backfill.run_once(now, 48 * 3600)
+        finally:
+            monkeypatch.undo()
+            time.tzset()
+        assert result['found']['lms_unmapped'] == 1
+        assert result['written'] == {'lms_only_inserted': 0, 'collisions': 0}
+
 
 class TransactionTest:
     """`database.transaction` against the real server: a rolled-back DELETE leaves its rows.

@@ -223,3 +223,38 @@ def test_without_an_lms_database_the_dry_run_is_a_503(api, headers, db, tmp_path
     monkeypatch.setenv('MUMA_SERVER_DB_ROOT', str(tmp_path / 'no-root'))
     assert os.path.exists(tmp_path / 'missing.db') is False
     assert api.get('/api/scrobble/reconcile/lms', headers=headers).status_code == 503
+
+
+def test_the_backfill_loop_inserts_only_the_recent_lost_listen_once_and_never_repairs(db, lms_db, seeded, utc_process):
+    """Bug report 075: the `lms-listen-backfill` round, against the real schema.
+
+    A second lost listen, three days older, is as insertable as the recent one for a full-history
+    run; the loop's window leaves it alone. The shifted row is inside the window's muma side but
+    is never moved back: that stays the manual reconcile's job.
+    """
+    from services.music_manager import lms_listen_backfill as loop
+
+    old_lost = _ts(LOST) - 3 * 86400
+    lms = sqlite3.connect(lms_db)
+    lms.execute(
+        'INSERT INTO "listen" (date_time, backend, sync_state, user_id, track_id) VALUES (?, 0, 1, 1, 3)',
+        (_lms_text(datetime.fromtimestamp(old_lost, tz=UTC)),),
+    )
+    lms.commit()
+    lms.close()
+    now = _ts(LOST) + 5 * 3600
+
+    first = loop.run_once(now, 24 * 3600)
+    assert first['written'] == {'lms_only_inserted': 1, 'collisions': 0}
+    assert first['found']['shifted'] == 0
+    rows = {(row['track_id'], row['at']): row for row in _listens(db)}
+    assert rows[(seeded['lost'], _ts(LOST))]['source'] == 'lms-backfill'
+    assert (seeded['lost'], old_lost) not in rows
+    assert (seeded['shifted'], _ts(SHIFTED_TO)) in rows
+    assert (seeded['shifted'], _ts(PLAYED)) not in rows
+
+    before = _listens(db)
+    second = loop.run_once(now + 900, 24 * 3600)
+    assert second['written'] == {'lms_only_inserted': 0, 'collisions': 0}
+    assert second['found']['exact'] == 1
+    assert _listens(db) == before

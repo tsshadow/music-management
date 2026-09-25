@@ -489,6 +489,33 @@ def _config_fields() -> list[ConfigField]:
             description='Two comma-separated hardness values, "<soft/mid>,<mid/hard>", e.g. "50,75", fixing '
             'where the three spectrum daily mixes split. Empty or unparsable falls back to 50,75.',
         ),
+        ConfigField(
+            key='lms_listen_backfill_enabled',
+            type='boolean',
+            default=True,
+            env='LMS_LISTEN_BACKFILL_ENABLED',
+            group='Scrobbling',
+            description='Every few minutes, insert the listens LMS recorded in its own history but never '
+            'relayed to MuMa (lost during a MuMa restart or deploy). Only recent listens with no MuMa listen '
+            'of the same user within ten minutes are inserted; nothing existing is ever changed.',
+        ),
+        ConfigField(
+            key='lms_listen_backfill_interval_minutes',
+            type='integer',
+            default=15,
+            env='LMS_LISTEN_BACKFILL_INTERVAL_MINUTES',
+            group='Scrobbling',
+            description='Minutes between two rounds of the LMS listen backfill.',
+        ),
+        ConfigField(
+            key='lms_listen_backfill_window_hours',
+            type='integer',
+            default=48,
+            env='LMS_LISTEN_BACKFILL_WINDOW_HOURS',
+            group='Scrobbling',
+            description='How many hours of LMS listens each backfill round reads. Older history is left to the '
+            'manual reconcile (POST /api/scrobble/reconcile/lms with insert_lms_only).',
+        ),
     ]
 
 

@@ -182,7 +182,9 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
 - **POST `/api/scrobble/reconcile/lms`**: body `{"username"?, "apply_shifted": bool,
   "insert_lms_only": bool}`; at least one must be true (400 otherwise). Starts the apply in the
   background (409 while one runs); one transaction per user, UNIQUE collisions skipped and counted,
-  refused when `zones.consistent` is false. Response `{message, last}`.
+  refused when `zones.consistent` is false. Response `{message, last}`. Since bug report 075 the
+  `lms-listen-backfill` loop inserts recent lost listens (last 48 h) by itself; this call with
+  `insert_lms_only` is the one-off path for the older backlog, and the only way to apply `shifted`.
 - **GET `/api/scrobble/reconcile/lms/status`**: `{running, last, error}`; `last` holds
   `{found, written: {shifted_fixed, lms_only_inserted, collisions, changed_since_read}, users, zones, ...}`.
 

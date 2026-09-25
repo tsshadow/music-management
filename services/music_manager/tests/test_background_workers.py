@@ -72,6 +72,8 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
                 # Keeps every active listener's feeds built ahead of the read
                 # (docs/designs/feeds/home-load.md).
                 'feeds-refresh',
+                # Inserts the listens LMS recorded but never relayed (bug report 075).
+                'lms-listen-backfill',
             },
             registered,
         )

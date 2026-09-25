@@ -9,9 +9,37 @@ from yt_dlp.postprocessor import PostProcessor
 from services.common.Helpers.NotificationService import notification_service
 from services.tagger.announce import announce
 from services.tagger.constants import SongTypeEnum
+from services.tagger.Song.ReleaseDate import completed_date
+from services.tagger.soundcloud_date_repair import read_date
 from services.tagger.tagger import Tagger
 
 from .SoundcloudArchive import SoundcloudArchive
+
+#: Its own logger, so the alerts brake (one push per logger per five minutes) and the nightly
+#: prod check's fingerprint both treat every occurrence as the one cause it is.
+date_logger = logging.getLogger('downloader.soundcloud.date')
+
+
+def warn_if_date_was_cut(path: str, info: dict, read=read_date) -> bool:
+    """Warn when a download arrived with only the year although its upload date is full.
+
+    That is bug report 088 coming back: something in the post-processor chain rewrote the
+    file and dropped month and day. The tagger still completes the date from the info dict,
+    so nothing visible breaks -- which is exactly why it has to be said out loud. A WARNING
+    reaches the event log and the alerts topic, and the nightly prod check reports it.
+    """
+    upload_date = info.get('upload_date')
+    if not upload_date:
+        return False
+    if completed_date(read(path), upload_date):
+        date_logger.warning(
+            'SoundCloud download arrived with a year-only date although upload_date is %s '
+            '(bug report 088 regression): %s',
+            upload_date,
+            path,
+        )
+        return True
+    return False
 
 
 class SoundcloudSongProcessor(PostProcessor):
@@ -72,6 +100,7 @@ class SoundcloudSongProcessor(PostProcessor):
                 # without a second request to a service that answers a burst with 403.
                 raw_info=enriched_info,
             )
+        warn_if_date_was_cut(path, enriched_info)
         song = Tagger.parse_song(Path(path), SongTypeEnum.SOUNDCLOUD, extra_info=enriched_info)
         if song:
             # Bookkeeping, LMS and the scanner -- the file is tagged, now make it exist

@@ -66,6 +66,17 @@ its dates.
   generated mp3 and asserts both the defect (without the fix: `2026`) and the fix
   (`2026-08-31`); `services/downloader/tests/test_metadata_date.py` pins the post-processor and
   its registration in both downloaders; `ReleaseDateTest` and `BaseSongTest` the completion.
-- Repair of the files downloaded since 2026-09-22 follows in its own MR (branch
-  `fix/soundcloud-date-repair`): queue them for the tagger with rescan reason
-  `soundcloud_full_date`, so the completion above rewrites their DATE from the stored info dict.
+- Repair (second MR, `fix/soundcloud-date-repair`): `services/tagger/soundcloud_date_repair.py`
+  takes the archive rows added since 2026-09-22 09:00 that have a full `upload_date`, reads each
+  file's DATE from disk, and queues only the files where it is the bare upload year, with
+  rescan reason `soundcloud_full_date`. The tagger round then completes the date as above. It
+  reads the file rather than `library_ingestion_records`, which is written once and would still
+  say "year only" after the repair, so re-running it skips repaired files. Dry run by default;
+  `--apply` queues. The guided production run is `/tmp/muma-person/repair-soundcloud-full-date.sh`.
+  Files *redownloaded* in the window are not covered: their archive row predates the cutoff.
+- Regression guard: `SoundcloudSongProcessor` logs a WARNING (logger
+  `downloader.soundcloud.date`) when a new download arrives with a year-only DATE although its
+  `upload_date` is full. Because the tagger now repairs the date silently, nothing else would
+  show the defect coming back. The warning reaches the event log and the alerts topic, and the
+  nightly prod check reports it as a new fingerprint. The nightly collector itself reads only the
+  HTTP API, so an extra collector check would have needed a new endpoint for no added signal.

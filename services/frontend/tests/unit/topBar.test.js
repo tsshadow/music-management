@@ -198,3 +198,64 @@ describe("TopBar on the phone", () => {
     expect(screen.queryByLabelText("Geavanceerd zoeken")).toBeNull();
   });
 });
+
+// Bug report 090: a tablet in landscape has a coarse pointer, so `isMobile` is true, while its
+// width is past Tailwind's `md` -- the desktop layout. TopBar used to pick the phone bar on
+// `isMobile` alone, and that bar carries `md:hidden`, so the tablet got no search box and no
+// profile button at all. jsdom applies no CSS, so the test asserts the rendered branch is one the
+// CSS does not hide at that width: no `md:hidden` anywhere above the search field or the button.
+describe("TopBar on a tablet in landscape", () => {
+  let originalMatchMedia;
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = (query) => ({
+      matches: query === "(min-width: 48rem)" || query === "(pointer: coarse)",
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    });
+    credentials.set({ url: "", username: "user", password: "pw" });
+    activeModal.set(null);
+    activeView.set("home");
+    isMobile.set(true);
+    viewMode.set("songs");
+    window.localStorage.clear();
+    globalThis.fetch = subsonic();
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
+    isMobile.set(false);
+  });
+
+  function hiddenFromMdUp(element) {
+    for (let node = element; node; node = node.parentElement) {
+      if (node.classList?.contains("md:hidden")) return true;
+    }
+    return false;
+  }
+
+  it("renders the search field and the profile button in a bar the md layout shows", () => {
+    const { container } = render(TopBar, { greeting: "Goedemiddag" });
+
+    const search = screen.getByPlaceholderText("Wat wil je luisteren?");
+    const profile = container.querySelector('button[aria-haspopup="true"]');
+
+    expect(profile).toBeTruthy();
+    expect(hiddenFromMdUp(search)).toBe(false);
+    expect(hiddenFromMdUp(profile)).toBe(false);
+  });
+
+  it("uses the desktop bar there, not the phone's one-line bar", () => {
+    render(TopBar, { greeting: "Goedemiddag" });
+
+    expect(screen.getByText("Goedemiddag")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Modus wisselen" })).toBeNull();
+  });
+});

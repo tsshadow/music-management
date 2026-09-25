@@ -1247,3 +1247,55 @@ class TransactionTest:
         )
         assert festival['name'] == 'Defqon.1'
         assert festival['aliases'] == ['Defqon']
+
+
+class EventsRetentionSqlTest:
+    """The retention pass against a real events table: per-level windows, primary-key batches, size cap."""
+
+    def _event(self, db, level, days_old):
+        run_sql(
+            db,
+            'INSERT INTO events (created_at, level, source, logger, title) '
+            "VALUES (NOW(3) - INTERVAL %s DAY, %s, 'music-manager', 'test', 'retention')",
+            (days_old, level),
+        )
+
+    def _levels(self, db):
+        return [row['level'] for row in run_sql(db, 'SELECT level FROM events ORDER BY level, created_at')]
+
+    def test_each_level_keeps_its_own_window_in_batches(self, db):
+        from services.music_manager import events_retention
+
+        days = {'DEBUG': 3, 'INFO': 14, 'WARNING': 30, 'ERROR': 90, 'CRITICAL': 365}
+        for level, window in days.items():
+            self._event(db, level, window - 1)
+            for _ in range(3):
+                self._event(db, level, window + 1)
+
+        with patch.object(events_retention, 'BATCH_SIZE', 2):
+            result = events_retention.purge_once(db, days, 0, sleep=lambda _s: None)
+
+        assert result.complete
+        assert result.by_age == dict.fromkeys(days, 3)
+        assert self._levels(db) == ['CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'WARNING']
+
+    def test_the_size_cap_counts_and_removes_the_oldest_noise(self, db):
+        from services.music_manager import events_retention
+
+        days = {'DEBUG': 3, 'INFO': 14, 'WARNING': 30, 'ERROR': 90, 'CRITICAL': 365}
+        for age in (1, 2, 3):
+            self._event(db, 'INFO', age)
+            self._event(db, 'CRITICAL', age)
+
+        # The cap reads InnoDB's row estimate first; make it current for a table this small.
+        run_sql(db, 'ANALYZE TABLE events')
+        result = events_retention.purge_once(db, days, 4, sleep=lambda _s: None)
+
+        # The app's own event logging may add a row of its own while this runs, so the
+        # assertions are on what must be gone and what must stay, not on exact counts.
+        assert result.by_size.get('INFO', 0) >= 2
+        older_info = run_sql(
+            db, "SELECT id FROM events WHERE level = 'INFO' AND created_at < NOW(3) - INTERVAL 36 HOUR"
+        )
+        assert not older_info
+        assert self._levels(db).count('CRITICAL') == 3

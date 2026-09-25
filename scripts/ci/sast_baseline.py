@@ -65,7 +65,10 @@ REASONS = {
         'always a bound %s. scripts/backfill_artwork.py interpolates the same '
         'kind of archive table name, from argparse choices that admit only '
         '"soundcloud" or "youtube"; its filename and account are bound. '
-        'Audited 2026-09-22.'
+        'Audited 2026-09-22. events_retention.py (2026-09-25) formats only a '
+        'join of %s placeholders, one per id it selected itself, and an integer '
+        'module constant for max_statement_time into its DELETE; the ids go in '
+        'as bound parameters.'
     ),
     'avoid-sqlalchemy-text': 'Same as sqlalchemy-execute-raw-query.',
     'formatted-sql-query': (

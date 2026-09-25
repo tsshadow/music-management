@@ -124,6 +124,8 @@ c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.p
 10e24284b8f6249c x1  # formatted-sql-query tools/db_backup.py
 0ef994afd2808dff x1  # formatted-sql-query tools/describe_tables_pymysql.py
 8225184b90648e9b x2  # formatted-sql-query tools/quick_inspect.py
+ca3641fe8527c571 x2  # formatted-sql-query tools/repair_username_case.py
+be399114a500d0c0 x1  # formatted-sql-query tools/test_repair_username_case.py
 
 # --- github-actions-mutable-action-tag --- [r:c9a318ff]
 # services/muma-mobile/.github/ is dead weight inherited from Ultrasonic at
@@ -237,6 +239,8 @@ c1ede732ba67a9b6 x1  # sqlalchemy-execute-raw-query services/music_manager/route
 c79553c62628547a x1  # sqlalchemy-execute-raw-query tools/db_backup.py
 14159bf1eeaa1ec5 x1  # sqlalchemy-execute-raw-query tools/describe_tables_pymysql.py
 55c4d816bb7bb039 x2  # sqlalchemy-execute-raw-query tools/quick_inspect.py
+d074aeb075825a8f x6  # sqlalchemy-execute-raw-query tools/repair_username_case.py
+67ece2ec4ce9c102 x1  # sqlalchemy-execute-raw-query tools/test_repair_username_case.py
 
 # --- unsafe-formatstring --- [r:54a5b3d3]
 # Format strings built from internal constants in one-off tools, not from

@@ -140,6 +140,45 @@ class ClassifyTest(unittest.TestCase):
         result = rec.classify([muma(1, T0 + 5000, track=2, created=T0 + 1)], [lms(10, T0, track=1)])
         self.assertEqual([(listen.id, ok) for listen, ok in result.lms_only], [(10, False)])
 
+    def test_the_app_s_scrobble_of_another_track_a_minute_later_blocks_the_insert(self):
+        """Bug 070: LMS records the start, the app scrobbles ~55 s later -- that is the same play."""
+        result = rec.classify([muma(1, T0 + 55, track=2, created=T0 + 55, source='mobile')], [lms(10, T0, track=1)])
+        self.assertEqual([(listen.id, ok) for listen, ok in result.lms_only], [(10, False)])
+
+    def test_an_unmatched_listen_a_minute_later_blocks_the_insert(self):
+        result = rec.classify([], [lms(10, T0)], {'user': [T0 + 55, T0 + 56]})
+        self.assertEqual([(listen.id, ok) for listen, ok in result.lms_only], [(10, False)])
+
+    def test_the_same_play_window_boundary(self):
+        at_edge = rec.classify(
+            [muma(1, T0 + rec.SAME_PLAY_WINDOW_SECONDS, track=2, created=T0 + rec.SAME_PLAY_WINDOW_SECONDS)],
+            [lms(10, T0, track=1)],
+        )
+        self.assertEqual([ok for _, ok in at_edge.lms_only], [False])
+        past_edge = rec.classify(
+            [muma(1, T0 - rec.SAME_PLAY_WINDOW_SECONDS - 1, track=2, created=T0 - rec.SAME_PLAY_WINDOW_SECONDS - 1)],
+            [lms(10, T0, track=1)],
+        )
+        self.assertEqual([ok for _, ok in past_edge.lms_only], [True])
+
+    def test_a_listen_twenty_minutes_away_does_not_block_the_insert(self):
+        result = rec.classify(
+            [muma(1, T0 + 1200, track=2, created=T0 + 1200), muma(2, T0 - 1200, track=3, created=T0 - 1200)],
+            [lms(10, T0, track=1)],
+            {'user': [T0 + 1200, T0 - 1200]},
+        )
+        self.assertEqual([(listen.id, ok) for listen, ok in result.lms_only], [(10, True)])
+
+    def test_the_wide_guard_does_not_change_exact_or_shifted_pairing(self):
+        """Six seconds is still not exact, and a rewritten row a minute later is still shifted."""
+        result = rec.classify([muma(1, T0 + 6, created=T0 + 6)], [lms(10, T0)])
+        self.assertEqual(result.exact, [])
+        self.assertEqual([m.id for m in result.muma_only], [1])
+        result = rec.classify([muma(1, T0 + 60)], [lms(10, T0)])
+        self.assertEqual([(m.id, listen.id) for m, listen in result.shifted], [(1, 10)])
+        result = rec.classify([muma(1, T0 + 5, created=T0 + 5)], [lms(10, T0)])
+        self.assertEqual([(m.id, listen.id) for m, listen in result.exact], [(1, 10)])
+
     def test_two_muma_listens_near_one_lms_listen_pair_the_closest(self):
         result = rec.classify([muma(1, T0 + 4), muma(2, T0 + 1)], [lms(10, T0)])
         self.assertEqual([(m.id, listen.id) for m, listen in result.exact], [(2, 10)])
@@ -207,6 +246,61 @@ class ClassifyTest(unittest.TestCase):
         self.assertTrue(shown['shifted'][0]['lms_listened_at'].endswith('Z'))
         self.assertEqual(shown['lms_only'][0]['insertable'], True)
         self.assertEqual(rec.sample(result, limit=0)['shifted'], [])
+
+
+class UsernameCaseTest(unittest.TestCase):
+    """`user` and `Teun` are one account on both sides (bug reports 070 and 074)."""
+
+    def test_the_same_play_pairs_as_exact_across_spellings(self):
+        result = rec.classify([muma(1, T0 + 1, user='user')], [lms(10, T0, user='Teun')])
+        self.assertEqual([(m.id, listen.id) for m, listen in result.exact], [(1, 10)])
+        self.assertEqual(result.lms_only, [])
+
+    def test_the_same_play_guard_ignores_case(self):
+        result = rec.classify(
+            [muma(1, T0 + 55, track=2, user='user', created=T0 + 55)], [lms(10, T0, track=1, user='Teun')]
+        )
+        self.assertEqual([ok for _, ok in result.lms_only], [False])
+        result = rec.classify([], [lms(10, T0, user='Teun')], {'user': [T0 + 55]})
+        self.assertEqual([ok for _, ok in result.lms_only], [False])
+
+    def test_canonicalize_uses_muma_s_users_spelling(self):
+        muma_rows, lms_rows, unmatched = rec.canonicalize(
+            {'user': 'user'},
+            [muma(1, T0, user='Teun'), muma(2, T0, user='anna')],
+            [lms(10, T0, user='Teun'), lms(11, T0, user='ANNA'), lms(12, T0, user='ghost')],
+            {'Teun': [T0], 'user': [T0 + 1]},
+        )
+        self.assertEqual([m.username for m in muma_rows], ['user', 'anna'])
+        self.assertEqual([listen.username for listen in lms_rows], ['user', 'anna', 'ghost'])
+        self.assertEqual(unmatched, {'user': [T0, T0 + 1]})
+
+    def test_load_canonical_usernames_keeps_the_oldest_account(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [{'username': 'user'}, {'username': 'Teun'}, {'username': 'anna'}]
+        self.assertEqual(rec.load_canonical_usernames(cursor), {'user': 'user', 'anna': 'anna'})
+        self.assertIn('ORDER BY id', cursor.execute.call_args[0][0])
+
+    def test_an_insert_carries_muma_s_spelling_and_an_unknown_user_is_never_insertable(self):
+        lms_rows = [lms(10, T0, user='Teun'), lms(11, T0 + 99999, user='ghost')]
+        with (
+            patch.object(rec, 'load_lms_listens', return_value=lms_rows),
+            patch.object(rec, 'load_muma_listens', return_value=[]),
+            patch.object(rec, 'load_unmatched_times', return_value={}),
+            patch.object(rec, 'load_canonical_usernames', return_value={'user': 'user'}),
+        ):
+            result = rec._analyse(MagicMock(), [], None)
+        self.assertEqual([(listen.username, ok) for listen, ok in result.lms_only], [('ghost', False), ('user', True)])
+        conn = MagicMock()
+        cursor = conn.cursor.return_value.__enter__.return_value
+        rec._apply_user(conn, result, apply_shifted=False, insert_lms_only=True)
+        inserted = [c.args[1] for c in cursor.execute.call_args_list if 'INSERT' in c.args[0]]
+        self.assertEqual([params[2] for params in inserted], ['user'])
+
+    def test_an_lms_username_filter_ignores_case(self):
+        server = lms_db([('2026-08-21T19:02:05.000', 0, 1, 1, 1)], [(1, '/music/a/b.mp3')], users=(('Teun',),))
+        rows = rec.read_lms_listens(server, 'server-a', 'user')
+        self.assertEqual([row['username'] for row in rows], ['Teun'])
 
 
 class FakeCursor:
@@ -480,7 +574,11 @@ if __name__ == '__main__':
 
 
 class OpenServersTest(unittest.TestCase):
-    """open_servers keeps real LMS databases and skips files without the listen schema."""
+    """open_servers opens every target it is given, once per file.
+
+    Dropping databases without the LMS schema happens earlier, in `lms_db_targets()`; see
+    test_lms_schema.py.
+    """
 
     def _db(self, directory, name, tables):
         """Create an on-disk SQLite file with the given empty tables."""
@@ -494,21 +592,6 @@ class OpenServersTest(unittest.TestCase):
         conn.close()
         return path
 
-    def test_a_database_without_the_user_table_is_skipped(self):
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp:
-            good = self._db(tmp, 'stable.db', ['listen', 'user', 'track'])
-            stale = self._db(tmp, 'alpha.db', ['listen', 'track', 'user_starred_artists'])
-            with self.assertLogs('music-manager.scrobble-reconcile', level='WARNING') as logs:
-                servers = rec.open_servers([(good, 'stable'), (stale, 'alpha')])
-            try:
-                self.assertEqual([name for _, name in servers], ['stable'])
-                self.assertTrue(any('alpha' in line and 'user' in line for line in logs.output))
-            finally:
-                for conn, _ in servers:
-                    conn.close()
-
     def test_every_complete_database_is_kept(self):
         import tempfile
 
@@ -521,11 +604,3 @@ class OpenServersTest(unittest.TestCase):
             finally:
                 for conn, _ in servers:
                     conn.close()
-
-    def test_missing_tables_names_what_is_absent(self):
-        conn = sqlite3.connect(':memory:')
-        conn.execute('CREATE TABLE listen (id INTEGER)')
-        try:
-            self.assertEqual(rec.missing_lms_tables(conn), {'user', 'track'})
-        finally:
-            conn.close()

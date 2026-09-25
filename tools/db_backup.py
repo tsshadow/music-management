@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import gzip
+import io
 import json
 import os
 import queue
@@ -48,6 +49,7 @@ import tempfile
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
@@ -239,7 +241,8 @@ def _copy_with_watchdog(process: subprocess.Popen, out, stall_limit: int) -> Non
     whatever has arrived rather than blocking until a full chunk has, so a slow but moving
     dump is never mistaken for a stuck one.
     """
-    stdout = process.stdout
+    # Popen types stdout as IO[bytes]; with stdout=PIPE and no text mode it is a BufferedReader.
+    stdout = cast(io.BufferedReader, process.stdout)
     assert stdout is not None
     chunks: queue.Queue[bytes | None] = queue.Queue(maxsize=8)
 

@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## Global Version 7.4.8 (2026-09-25)
+
+- On a tablet in landscape the search box and the profile button are back in the top bar.
 ## Global Version 7.4.7 (2026-09-25)
 
 - **The app ships the web UI fixes of server 0.74.1.** A rating set in one place (a list, the

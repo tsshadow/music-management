@@ -141,6 +141,20 @@ per service — only the `logger` column is uninformative for those rows. Filter
 source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
 and scanner loops run as threads inside the music-manager process and emit under its source.
 
+### Retention: how long an event stays
+The `events-retention` loop (`services/music_manager/events_retention.py`) deletes events per level
+once a day: `DEBUG` after 3 days, `INFO` 14, `WARNING` 30, `ERROR` 90, `CRITICAL` 365 — configurable
+as `events_retention_<level>_days` on the Beheer config page (group *Events*). It picks at most 10k
+ids per statement through the `(level, created_at)` index and deletes them by primary key, pausing
+between batches, and stops after 5 minutes; a pass cut short comes back after an hour instead of a
+day, so a backlog is worked off in hourly passes. If the table still holds more than
+`events_max_rows` (default 10 million) afterwards, the oldest `DEBUG`/`INFO`, then `WARNING`, then
+`ERROR` rows go; `CRITICAL` is never removed by size, and a pass that needed the cap logs a
+`WARNING`. Each pass logs one summary line at `INFO` on `music-manager.events-retention`. Every
+`WARNING`+ still reaches the table; retention only decides how long it stays. Deleted rows do not
+shrink the InnoDB file — reclaiming the space is an operator step, see `docs/deployment.md`
+("Reclaiming space in the events table") and bug report 072.
+
 ### Deployment prerequisite: `upstream-base-url`
 Instant delivery on the phone depends on a setting outside this repository. The official ntfy
 Android app uses Firebase for push, but only for topics hosted on `ntfy.sh` itself; against a

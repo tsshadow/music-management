@@ -10,6 +10,9 @@
 #include <string>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/address.hpp>
+
+#include <Wt/Http/Message.h>
 
 #include "services/auth/IPasswordService.hpp"
 
@@ -26,6 +29,25 @@ namespace lms::auth::musicManagement
     // anything else, or no answer at all -> we learned nothing about the password.
     PasswordCheckOutcome outcomeFromResponseStatus(int status);
 
+    // The POST /api/auth/login request for one password check, headers and body.
+    //
+    // It carries the address of the client that is logging in, as the only X-Forwarded-For entry:
+    // music-manager counts failed logins per account *and* per client address, and without it every
+    // check that reaches it through this server -- every Subsonic request on lms.<domain> -- came
+    // from this server's own address. The value is the one this server resolved itself (the TCP
+    // peer, or the address a trusted proxy reported when behind-reverse-proxy is on), never a
+    // header the client sent, and music-manager only believes it because it comes from a trusted
+    // network (services/music_manager/rate_limit.py). An unspecified address (the default, when
+    // the caller did not say) adds no header.
+    struct LoginRequestFields
+    {
+        std::string_view loginName;
+        std::string_view password;
+        std::string_view apiKey; // this server's key for music-manager; empty sends none
+        boost::asio::ip::address clientAddress;
+    };
+    Wt::Http::Message buildLoginRequest(const LoginRequestFields& fields);
+
     class MusicManagementPasswordService final : public PasswordServiceBase
     {
     public:
@@ -35,6 +57,7 @@ namespace lms::auth::musicManagement
     private:
         // IPasswordService
         PasswordCheckOutcome checkUserPassword(std::string_view loginName, std::string_view password) override;
+        PasswordCheckOutcome checkUserPasswordFrom(const boost::asio::ip::address& clientAddress, std::string_view loginName, std::string_view password) override;
         bool canSetPasswords() const override { return false; }
         PasswordAcceptabilityResult checkPasswordAcceptability(std::string_view password, const PasswordValidationContext& context) const override;
         void setPassword(db::UserId userId, std::string_view newPassword) override;

@@ -88,18 +88,83 @@ class SlidingWindowTest(unittest.TestCase):
 
 
 class ClientKeyTest(unittest.TestCase):
-    def make_request(self, headers=None, host='10.0.0.1'):
+    """Who the caller is: X-Forwarded-For only counts when whoever wrote it can be believed.
+
+    docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md: LMS now sends
+    the client address it resolved, so music-manager has to tell that header apart from one
+    a client typed itself.
+    """
+
+    def make_request(self, headers=None, host='172.18.0.5'):
         request = MagicMock()
         request.headers = headers or {}
         request.client = MagicMock(host=host) if host else None
         return request
 
     def test_the_peer_address_is_used_without_a_proxy_header(self):
-        self.assertEqual(rate_limit.client_key(self.make_request()), '10.0.0.1')
+        self.assertEqual(rate_limit.client_key(self.make_request()), '172.18.0.5')
 
-    def test_the_left_most_forwarded_address_wins(self):
-        request = self.make_request(headers={'x-forwarded-for': '203.0.113.9, 10.0.0.1'})
+    def test_a_trusted_proxy_is_believed(self):
+        """LMS (or the nginx in front of spotify.<domain>) on the Docker network reports the client."""
+        request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'})
         self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
+
+    def test_a_forged_header_from_an_untrusted_caller_is_ignored(self):
+        """An internet caller reaching music-manager directly cannot name itself someone else."""
+        request = self.make_request(headers={'x-forwarded-for': '198.51.100.1'}, host='203.0.113.50')
+        self.assertEqual(rate_limit.client_key(request), '203.0.113.50')
+
+    def test_a_forged_header_from_an_untrusted_caller_cannot_start_fresh_buckets(self):
+        keys = {
+            rate_limit.client_key(
+                self.make_request(headers={'x-forwarded-for': f'198.51.100.{n}'}, host='203.0.113.50')
+            )
+            for n in range(20)
+        }
+        self.assertEqual(keys, {'203.0.113.50'})
+
+    def test_the_system_key_makes_the_header_believable_from_anywhere(self):
+        """LMS's password checks carry the system key; a deployment where it reaches
+        music-manager over a public address still passes the client on."""
+        with patch.dict('os.environ', {'API_KEY': 'the-system-key'}):
+            request = self.make_request(
+                headers={'x-forwarded-for': '198.51.100.1', 'x-api-key': 'the-system-key'}, host='203.0.113.50'
+            )
+            self.assertEqual(rate_limit.client_key(request), '198.51.100.1')
+
+    def test_a_wrong_key_does_not_make_the_header_believable(self):
+        with patch.dict('os.environ', {'API_KEY': 'the-system-key'}):
+            request = self.make_request(
+                headers={'x-forwarded-for': '198.51.100.1', 'x-api-key': 'a-guess'}, host='203.0.113.50'
+            )
+            self.assertEqual(rate_limit.client_key(request), '203.0.113.50')
+
+    def test_the_client_written_left_end_of_the_chain_is_not_believed(self):
+        """A trusted proxy appends the real client; anything left of it is the client's own claim.
+        Taking the left-most entry used to let every guess arrive under a fresh address."""
+        request = self.make_request(headers={'x-forwarded-for': '1.2.3.4, 203.0.113.9, 192.0.2.10'})
+        self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
+
+    def test_a_chain_of_trusted_hops_falls_back_to_the_left_most(self):
+        """LMS not looking behind the proxy in front of it reports that proxy: the best there is."""
+        request = self.make_request(headers={'x-forwarded-for': '192.0.2.10, 10.0.0.2'})
+        self.assertEqual(rate_limit.client_key(request), '192.0.2.10')
+
+    def test_an_ipv4_mapped_peer_is_recognised_as_trusted(self):
+        request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'}, host='::ffff:172.18.0.5')
+        self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
+
+    def test_a_non_address_peer_is_not_trusted(self):
+        request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'}, host='testclient')
+        self.assertEqual(rate_limit.client_key(request), 'testclient')
+
+    def test_the_trusted_networks_are_configurable(self):
+        with patch.dict('os.environ', {'AUTH_TRUSTED_PROXIES': '203.0.113.0/24, not-a-network'}):
+            trusted = self.make_request(headers={'x-forwarded-for': '198.51.100.1'}, host='203.0.113.50')
+            self.assertEqual(rate_limit.client_key(trusted), '198.51.100.1')
+            # The private default is replaced, not extended.
+            private = self.make_request(headers={'x-forwarded-for': '198.51.100.1'}, host='172.18.0.5')
+            self.assertEqual(rate_limit.client_key(private), '172.18.0.5')
 
     def test_a_request_without_a_client_is_still_keyed(self):
         self.assertEqual(rate_limit.client_key(self.make_request(host=None)), 'unknown')
@@ -152,9 +217,11 @@ def _connection_returning(user):
 
 class AuthEndpointRateLimitTest(unittest.TestCase):
     def setUp(self):
-        self.client = TestClient(app)
-        rate_limit.auth_limiter.reset()
-        self.addCleanup(rate_limit.auth_limiter.reset)
+        # A peer on the Docker network, like LMS or the nginx in front of spotify.<domain>:
+        # its X-Forwarded-For is believed, so a test can present a different client.
+        self.client = TestClient(app, client=('172.18.0.5', 50000))
+        rate_limit.reset_limiters()
+        self.addCleanup(rate_limit.reset_limiters)
         # No such user and no such refresh token: every call below is a genuine
         # rejection, which is what the limiter counts.
         self.answer_queries_with(None)
@@ -164,8 +231,9 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def login(self, username='root', password='wrong'):
-        return self.client.post('/api/auth/login', json={'username': username, 'password': password})
+    def login(self, username='root', password='wrong', client=None):
+        headers = {'x-forwarded-for': client} if client else None
+        return self.client.post('/api/auth/login', json={'username': username, 'password': password}, headers=headers)
 
     def test_a_burst_of_failed_logins_for_one_account_is_eventually_refused(self):
         for _ in range(rate_limit.auth_limiter.attempts):
@@ -175,11 +243,43 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
         self.assertIn('Retry-After', refused.headers)
 
     def test_one_account_being_guessed_does_not_lock_out_another(self):
-        """The LMS -> music-manager hop carries no client address, so every user
-        would otherwise share a single bucket (see rate_limit's module doc)."""
+        """A login is bucketed per account, so a caller hammering one account
+        leaves the others alone (see rate_limit's module doc)."""
         for _ in range(rate_limit.auth_limiter.attempts + 5):
             self.login(username='alice')
         self.assertNotEqual(self.login(username='bob').status_code, 429)
+
+    def test_one_client_on_a_stale_password_does_not_lock_the_account_for_the_others(self):
+        """LMS now passes the client address on, so a phone stuck on an old password
+        uses up its own budget, not the account's (bug report 079)."""
+        for _ in range(rate_limit.auth_limiter.attempts + 5):
+            self.login(client='203.0.113.9')
+        self.assertEqual(self.login(client='203.0.113.9').status_code, 429)
+        self.assertNotEqual(self.login(client='198.51.100.7').status_code, 429)
+
+    def test_guessing_spread_over_many_addresses_still_meets_an_account_ceiling(self):
+        for n in range(rate_limit.account_limiter.attempts):
+            self.assertNotEqual(self.login(client=f'198.51.100.{n % 250 + 1}').status_code, 429)
+        refused = self.login(client='203.0.113.200')
+        self.assertEqual(refused.status_code, 429)
+        self.assertIn('Retry-After', refused.headers)
+        # Another account is untouched by that ceiling.
+        self.assertNotEqual(self.login(username='bob', client='203.0.113.200').status_code, 429)
+
+    def test_a_forged_address_from_an_untrusted_caller_does_not_reset_its_budget(self):
+        outsider = TestClient(app, client=('203.0.113.50', 50000))
+        for n in range(rate_limit.auth_limiter.attempts):
+            outsider.post(
+                '/api/auth/login',
+                json={'username': 'root', 'password': 'wrong'},
+                headers={'x-forwarded-for': f'198.51.100.{n + 1}'},
+            )
+        refused = outsider.post(
+            '/api/auth/login',
+            json={'username': 'root', 'password': 'wrong'},
+            headers={'x-forwarded-for': '198.51.100.99'},
+        )
+        self.assertEqual(refused.status_code, 429)
 
     def test_the_refresh_endpoint_has_its_own_budget(self):
         for _ in range(rate_limit.auth_limiter.attempts + 5):
@@ -229,8 +329,8 @@ class SuccessfulLoginsAreNotAttemptsTest(unittest.TestCase):
 
     def setUp(self):
         self.client = TestClient(app)
-        rate_limit.auth_limiter.reset()
-        self.addCleanup(rate_limit.auth_limiter.reset)
+        rate_limit.reset_limiters()
+        self.addCleanup(rate_limit.reset_limiters)
         user = {'id': 1, 'username': 'root', 'enabled': True, 'password_hash': None, 'api_key': 'sekrit'}
         patcher = patch.object(users_router, 'get_db_connection', return_value=_connection_returning(user))
         patcher.start()

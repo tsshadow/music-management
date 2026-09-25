@@ -37,6 +37,22 @@ namespace lms::auth::musicManagement
         }
     }
 
+    Wt::Http::Message buildLoginRequest(const LoginRequestFields& fields)
+    {
+        Wt::Http::Message message;
+        message.addHeader("Content-Type", "application/json");
+        if (!fields.apiKey.empty())
+            message.addHeader("X-API-Key", std::string{ fields.apiKey });
+        if (!fields.clientAddress.is_unspecified())
+            message.addHeader("X-Forwarded-For", fields.clientAddress.to_string());
+
+        Wt::Json::Object body;
+        body["username"] = Wt::Json::Value(std::string{ fields.loginName });
+        body["password"] = Wt::Json::Value(std::string{ fields.password });
+        message.addBodyText(Wt::Json::serialize(body));
+        return message;
+    }
+
     MusicManagementPasswordService::MusicManagementPasswordService(boost::asio::io_context& /*ioContext*/, db::IDb& db, std::size_t maxThrottlerEntryCount)
         // music-manager rate limits per account on its own side, so LMS must not also throttle:
         // its throttler keys on the client address, which for Subsonic requests is the internal
@@ -53,6 +69,11 @@ namespace lms::auth::musicManagement
     MusicManagementPasswordService::~MusicManagementPasswordService() = default;
 
     PasswordCheckOutcome MusicManagementPasswordService::checkUserPassword(std::string_view loginName, std::string_view password)
+    {
+        return checkUserPasswordFrom(boost::asio::ip::address{}, loginName, password);
+    }
+
+    PasswordCheckOutcome MusicManagementPasswordService::checkUserPasswordFrom(const boost::asio::ip::address& clientAddress, std::string_view loginName, std::string_view password)
     {
         if (_apiUrl.empty())
         {
@@ -103,15 +124,7 @@ namespace lms::auth::musicManagement
                 LMS_LOG(AUTH, WARNING, "MusicManagement authentication: rate limited for user '" << loginName << "'");
         });
 
-        Wt::Http::Message message;
-        message.addHeader("Content-Type", "application/json");
-        if (!_apiKey.empty())
-            message.addHeader("X-API-Key", _apiKey);
-
-        Wt::Json::Object body;
-        body["username"] = Wt::Json::Value(std::string{ loginName });
-        body["password"] = Wt::Json::Value(std::string{ password });
-        message.addBodyText(Wt::Json::serialize(body));
+        const Wt::Http::Message message{ buildLoginRequest({ .loginName = loginName, .password = password, .apiKey = _apiKey, .clientAddress = clientAddress }) };
 
         if (!client.post(_apiUrl, message))
         {

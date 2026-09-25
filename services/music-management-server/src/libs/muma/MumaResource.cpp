@@ -1000,6 +1000,9 @@ namespace lms::api::muma
                 // 401 for whatever needs one.
                 if (!auth.forwardKey.empty())
                     getParams.headers.emplace_back("X-API-Key", auth.forwardKey);
+                // Who is really asking, as this server resolved it -- see forwardedClientAddress().
+                if (const std::string forwardedFor{ forwardedClientAddress(request.clientAddress()) }; !forwardedFor.empty())
+                    getParams.headers.emplace_back("X-Forwarded-For", forwardedFor);
 
                 // This is a raw pass-through proxy: MuMa's exact status code (401,
                 // 403, 404, ...) and body are meaningful to the original caller and
@@ -1023,6 +1026,11 @@ namespace lms::api::muma
                 // See the matching comment in the GET branch above: the caller's own key only.
                 if (!auth.forwardKey.empty())
                     bodyParams.message.addHeader("X-API-Key", auth.forwardKey);
+                // Who is really asking: the login on lms.<domain> reaches MuMa through here, and
+                // MuMa's per-client login limit needs the client, not this server. See
+                // forwardedClientAddress().
+                if (const std::string forwardedFor{ forwardedClientAddress(request.clientAddress()) }; !forwardedFor.empty())
+                    bodyParams.message.addHeader("X-Forwarded-For", forwardedFor);
 
                 std::string contentType = request.headerValue("Content-Type");
                 if (!contentType.empty())

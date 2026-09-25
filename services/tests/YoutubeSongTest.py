@@ -1,8 +1,11 @@
 import unittest
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'Cache')
+
 from services.tagger.constants import ARTIST, ORIGINAL_ARTIST, PUBLISHER, TITLE
 from services.tagger.Song.YoutubeSong import YoutubeSong
 

@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import threading
 import time
 import unittest
@@ -9,8 +8,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 import services.music_manager.routers.users
 
 services.music_manager.routers.users.run_lms_db_sync = lambda: None

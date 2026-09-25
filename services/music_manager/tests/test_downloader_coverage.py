@@ -3,10 +3,6 @@
 import unittest
 from datetime import datetime, timedelta
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
-
 from services.downloader.account_schedule import AccountCheck
 from services.downloader.account_snapshot import SNAPSHOT_CAPPED, SNAPSHOT_COMPLETE, AccountSnapshot
 from services.music_manager.downloader_coverage import (

@@ -1,11 +1,11 @@
 """Coverage for the /api management router: rules, accounts, system info and proxies."""
 
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector', 'Cache')
 
 
 import services.common.Helpers.RescanInvalidator as rescan_invalidator_module

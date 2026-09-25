@@ -14,8 +14,10 @@ _REAL_SOURCE = Path(__file__).resolve().parents[1] / 'common' / 'Helpers' / 'Dat
 def _load_real_module():
     spec = importlib.util.spec_from_file_location('_real_database_connector', _REAL_SOURCE)
     module = importlib.util.module_from_spec(spec)
-    sys.modules['pymysql'] = MagicMock()
-    spec.loader.exec_module(module)
+    # patch.dict puts sys.modules back afterwards: the module keeps its MagicMock
+    # pymysql as a global, nothing else in the session sees it.
+    with patch.dict(sys.modules, {'pymysql': MagicMock()}):
+        spec.loader.exec_module(module)
     return module
 
 

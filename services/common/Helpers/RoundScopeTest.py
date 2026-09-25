@@ -215,13 +215,8 @@ class RealDatabaseConnectorTest(unittest.TestCase):
     def setUp(self):
         spec = importlib.util.spec_from_file_location('_real_database_connector_round', _REAL_SOURCE)
         self.module = importlib.util.module_from_spec(spec)
-        saved = sys.modules.get('pymysql')
-        sys.modules['pymysql'] = MagicMock()
-        try:
+        with patch.dict(sys.modules, {'pymysql': MagicMock()}):
             spec.loader.exec_module(self.module)
-        finally:
-            if saved is not None:
-                sys.modules['pymysql'] = saved
         env = {'DB_HOST': 'localhost', 'DB_USER': 'user', 'DB_PORT': '3306', 'DB_PASS': 'x', 'DB_DB': 'db'}
         patcher = patch.dict(os.environ, env)
         patcher.start()

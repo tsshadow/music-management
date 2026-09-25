@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'Cache')
+
 from services.common.Helpers.GenreRulesHelper import BLACK, WHITE, GenreRow
 from services.tagger.constants import ARTIST, GENRE
 from services.tagger.Song.LabelSong import LabelSong

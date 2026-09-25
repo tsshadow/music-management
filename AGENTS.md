@@ -275,7 +275,14 @@ To maintain high code quality, the system employs an automated test suite:
   `tools/`, `tests/ci/` (pipeline policy) and `tests/unit/` (tests that need a real library the
   `services/` stubs replace) — all collected by `scripts/test/music-management-unit.sh`. The suites
   that need a live database or stack live under `tests/integration/`, `tests/contracts/` and `tests/bdd/`.
-- **Mocking**: Uses a unified `mock_base.py` to provide an isolated environment (mocking `mutagen`, `yt-dlp`, and database helpers).
+- **Mocking**: `services/tests/mock_base.py` offers stubs for `mutagen`, `yt_dlp`, `pymysql`, `config_store`,
+  `Cache`, `DatabaseConnector` and more, **opt-in per test module**: a module declares what it relies on with
+  a module-level `pytestmark = pytest.mark.mock_base('mutagen', 'Cache')` (literal names only; the marker is
+  read from the source before import, so it cannot go on a class or test). `services/tests/mock_base_plugin.py`
+  installs those stubs only while that module is imported and its tests run, and lifts them -- and every
+  project module imported under them -- out of `sys.modules` afterwards. A module without the marker gets
+  the real libraries. Never put a MagicMock into `sys.modules` by hand outside `patch.dict`;
+  `tests/ci/test_mock_base_isolation.py` fails if a stub is still there after collection (bug report 085).
 - **Enforcement**: 
     - **Build Check**: `build.sh` runs pylint over `services/` (floor 8.5) and a subset of the unit tests
       (`services/downloader/soundcloud/tests/`, `services/importer/tests/`,

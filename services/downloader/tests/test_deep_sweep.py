@@ -3,9 +3,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader.deep_sweep import (
     DeepSweepReport,
@@ -16,6 +14,8 @@ from services.downloader.deep_sweep import (
     wanted_tracks,
 )
 from services.downloader.write_offs import WriteOff
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 NOW = datetime(2026, 8, 23, 12, 0, 0)
 DAY = timedelta(days=1)

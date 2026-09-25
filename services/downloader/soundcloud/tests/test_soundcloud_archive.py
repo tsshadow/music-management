@@ -2,8 +2,12 @@ import json
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.downloader.soundcloud.SoundcloudArchive import SoundcloudArchive
 from services.tests.connector_fakes import wire_connector
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 TRACK = {
     'account_name': 'Angerfist',

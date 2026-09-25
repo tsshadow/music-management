@@ -15,9 +15,9 @@ import unittest
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
+import pytest
 
-setup_mocks()
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class RecordingConnector:
@@ -143,8 +143,8 @@ class DatabaseConnectorContextManagerTest(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'common' / 'Helpers' / 'DatabaseConnector.py'
         spec = importlib.util.spec_from_file_location('_leaktest_connector', source)
         module = importlib.util.module_from_spec(spec)
-        sys.modules['pymysql'] = MagicMock()
-        spec.loader.exec_module(module)
+        with patch.dict(sys.modules, {'pymysql': MagicMock()}):
+            spec.loader.exec_module(module)
 
         connector = module.DatabaseConnector()
         opened = MagicMock()
@@ -161,8 +161,8 @@ class DatabaseConnectorContextManagerTest(unittest.TestCase):
         source = Path(__file__).resolve().parents[1] / 'common' / 'Helpers' / 'DatabaseConnector.py'
         spec = importlib.util.spec_from_file_location('_leaktest_connector2', source)
         module = importlib.util.module_from_spec(spec)
-        sys.modules['pymysql'] = MagicMock()
-        spec.loader.exec_module(module)
+        with patch.dict(sys.modules, {'pymysql': MagicMock()}):
+            spec.loader.exec_module(module)
 
         connector = module.DatabaseConnector()
         opened = MagicMock()

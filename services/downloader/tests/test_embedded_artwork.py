@@ -16,9 +16,10 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
+import pytest
 
-setup_mocks()
+pytestmark = pytest.mark.mock_base('yt_dlp', 'config_store')
+
 
 from services.downloader.rate_state import InMemoryRateStateStore, RateState  # isort:skip
 from services.downloader.soundcloud import soundcloud as soundcloud_module  # isort:skip

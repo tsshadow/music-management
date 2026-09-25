@@ -8,9 +8,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from services.tests.connector_fakes import wire_connector
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
 
 from services.downloader.soundcloud import soundcloud as soundcloud_module  # isort:skip
 from services.downloader.soundcloud.soundcloud import (  # isort:skip
@@ -19,6 +16,9 @@ from services.downloader.soundcloud.soundcloud import (  # isort:skip
     account_from_url,
     get_accounts_from_db,
 )
+import pytest
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class AccountFromUrlTest(unittest.TestCase):

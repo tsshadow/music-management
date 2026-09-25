@@ -11,10 +11,13 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
-from services.tests.connector_fakes import fake_connector
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.connector_fakes import fake_connector
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('Cache')
+
 from services.importer import mover as mover_module  # noqa: E402
 from services.importer import settle  # noqa: E402
 from services.importer.label_proposal_store import KnownProposal, ProposalSnapshot  # noqa: E402

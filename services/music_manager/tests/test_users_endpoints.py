@@ -8,13 +8,13 @@ rather than the permission wiring (that already lives in test_rbac.py).
 import json
 import os
 import sqlite3
-import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
 
 
 import services.music_manager.routers.users as users_router

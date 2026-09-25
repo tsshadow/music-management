@@ -5,9 +5,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from yt_dlp.utils import sanitize_filename
 
 from services.tagger.constants import SongTypeEnum
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class DummyYoutubeArchive:

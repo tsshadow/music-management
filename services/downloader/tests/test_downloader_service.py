@@ -4,13 +4,13 @@ import types
 import unittest
 from unittest.mock import MagicMock, call, patch
 
-from services.tests.mock_base import setup_mocks
-
-setup_mocks()
+import pytest
 
 from services.downloader import downloader_service
 from services.downloader.downloader_service import DownloaderService, main, parse_args, sweep_sleep_seconds
 from services.downloader.timing import load_timing
+
+pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 @contextlib.contextmanager

@@ -1,13 +1,13 @@
-import sys
 import unittest
 from unittest.mock import MagicMock
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.common.Helpers.GenreRulesHelper import GenreRow, GenreRulesHelper
 from services.music_manager.routers.scanner import ScannerManager
 from services.tagger.Song.BaseSong import BaseSong
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils')
 
 
 def helper_with(rows, expansions=None):

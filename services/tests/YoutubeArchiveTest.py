@@ -3,9 +3,12 @@ import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('yt_dlp', 'Cache')
+
 # Import under the fully-qualified "services." name, the same one the code under
 # test uses. This file used to swap sys.modules['...DatabaseConnector'] for a stub
 # at import time, which leaked into every test module that ran after it and made

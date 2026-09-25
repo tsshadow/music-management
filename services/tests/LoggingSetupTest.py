@@ -5,8 +5,7 @@ import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.common.Helpers.logging_setup import (
     EventLogHandler,
@@ -14,6 +13,8 @@ from services.common.Helpers.logging_setup import (
     level_name,
     setup_logging,
 )
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 
 def make_record(name='music-manager.radio', levelno=logging.INFO, msg='iets gebeurde', exc_info=None):

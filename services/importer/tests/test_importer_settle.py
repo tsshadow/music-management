@@ -12,9 +12,12 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('Cache')
+
 from services.importer import flattener, mover, renamer, settle  # noqa: E402
 from services.importer.flattener import Flattener  # noqa: E402
 from services.importer.mover import Mover  # noqa: E402

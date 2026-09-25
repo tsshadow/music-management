@@ -7,7 +7,11 @@ session endpoints now live on `users.auth_router`, mounted at `/api` on its own.
 
 import unittest
 
+import pytest
+
 from services.music_manager.main import app
+
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 def _routes() -> set[tuple[str, str]]:

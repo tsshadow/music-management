@@ -19,9 +19,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import setup_mocks
+import pytest
 
-setup_mocks()
+pytestmark = pytest.mark.mock_base('librosa', 'sqlalchemy', 'pandas', 'tqdm', 'dotenv')
+
 
 ML_ANALYZER_DIR = Path(__file__).resolve().parents[1] / 'ml-analyzer'
 

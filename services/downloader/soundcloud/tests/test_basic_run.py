@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'yt_dlp', 'config_store', 'Cache')
+
 from services.downloader.soundcloud.soundcloud import SoundcloudDownloader
 from services.tagger.constants import TITLE
 

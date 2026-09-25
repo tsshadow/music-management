@@ -4,12 +4,16 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.common.Helpers import RoundScope
 from services.common.Helpers.TableHelper import TableHelper
 from services.tagger.constants import ARTIST, ORIGINAL_TITLE, TITLE
 from services.tagger.Song import rule_stack
 from services.tagger.Song.GenericSong import GenericSong
 from services.tagger.Song.rules.InferArtistFromTitleRule import InferArtistFromTitleRule
+
+pytestmark = pytest.mark.mock_base('Cache')
 
 
 def bare_generic_song():

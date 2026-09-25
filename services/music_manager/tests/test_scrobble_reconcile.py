@@ -8,14 +8,15 @@ runs the same flow against a real MariaDB.
 import os
 import random
 import sqlite3
-import sys
 import time
 import unittest
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql', 'mutagen', 'mutagen.easyid3', 'markdown'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
+
+pytestmark = pytest.mark.mock_base('mutagen', 'markdown', 'pymysql', 'dbutils', 'DatabaseConnector')
+
 
 import services.music_manager.routers.users as users_router
 

@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from services.tests.mock_base import reset_database_helpers, setup_mocks
+import pytest
 
-setup_mocks()
+from services.tests.mock_base import reset_database_helpers
+
+pytestmark = pytest.mark.mock_base('mutagen', 'yt_dlp', 'Cache')
+
 from services.downloader.timing import load_timing
 from services.downloader.youtube.DropCategoryGenre import DropCategoryGenrePP
 from services.downloader.youtube.youtube import YoutubeDownloader

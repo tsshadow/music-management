@@ -7,12 +7,15 @@ which audited endpoint was kept, deprecated or removed, and why.
 import unittest
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from services.music_manager import deprecation
 from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
 from services.music_manager.routers import management as management_router
+
+pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 API_KEY = resolve_system_api_key()
 

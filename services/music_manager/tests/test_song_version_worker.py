@@ -12,16 +12,16 @@ real database in production, and tests/integration is where the SQL meets a
 schema; here it meets a script, so what is asserted is the statements it issued.
 """
 
-import sys
 import unittest
 from unittest.mock import MagicMock
 
-for _mod_name in ('dbutils', 'dbutils.pooled_db', 'pymysql'):
-    sys.modules.setdefault(_mod_name, MagicMock())
+import pytest
 
 from services.music_manager import song_version_worker as worker
 from services.music_manager.song_versions import version_score
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
+
+pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 
 # Seconds and bytes chosen so the derived bitrate lands in different tiers: the
 # FLAC is a lossless-sized file, the MP3 a 128k one.

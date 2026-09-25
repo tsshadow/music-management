@@ -1,8 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from services.importer import importer_service
 from services.importer.importer_service import ImporterService, parse_args
+
+pytestmark = pytest.mark.mock_base('patoolib')
 
 
 class ParseArgsTest(unittest.TestCase):

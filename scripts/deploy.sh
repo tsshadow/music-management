@@ -16,6 +16,10 @@
 #                         (soundcloud-fetcher, genre-processor)
 #   PREDEPLOY_BACKUP=0    skip the pre-deploy dump (loudly); for emergencies
 #   DEPLOY_PRE_UP_HOOK=<cmd>  run locally after the migrations, before `up`
+#   MIGRATION_LOCK_WAIT_SECONDS=120  how long one migration may wait for a lock
+#                         before it errors and the deploy stops (bug report 068)
+#   PREDEPLOY_DUMP_STALL_SECONDS=300  how long the fallback pre-deploy dump may
+#                         produce no output before it is stopped (bug report 068)
 
 set -e
 
@@ -107,8 +111,14 @@ BACKUP_COMPOSE_DIR="${BACKUP_COMPOSE_DIR:-/opt/muma-backup}"
 PREDEPLOY_DUMP_MIN_BYTES="${PREDEPLOY_DUMP_MIN_BYTES:-1048576}"
 PREDEPLOY_DUMPS_KEPT="${PREDEPLOY_DUMPS_KEPT:-3}"
 DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-180}"
-case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS" in
-    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT and DB_WAIT_SECONDS must be numbers."; exit 1 ;;
+# A migration waiting longer than this for a lock errors instead of hanging the
+# job until its timeout (docs/bug-reports/068-deploy-hangs-on-no-op-alter-metadata-lock.md).
+MIGRATION_LOCK_WAIT_SECONDS="${MIGRATION_LOCK_WAIT_SECONDS:-120}"
+# The fallback dump is stopped once its file has not grown for this long; the
+# db-backup service has the same watchdog in tools/db_backup.py (BACKUP_STALL_SECONDS).
+PREDEPLOY_DUMP_STALL_SECONDS="${PREDEPLOY_DUMP_STALL_SECONDS:-300}"
+case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS" in
+    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS and PREDEPLOY_DUMP_STALL_SECONDS must be numbers."; exit 1 ;;
 esac
 
 # 1. Trigger Portainer Webhook if configured
@@ -377,10 +387,19 @@ $1" < /dev/null
                     BACKUP_COMPOSE=\"docker-compose\"
                 fi
                 echo \"Running the db-backup service from \$BACKUP_DIR (tools/db_backup.py)\"
-                if \$BACKUP_COMPOSE --env-file \"\$BACKUP_DIR/.env\" -f \"\$BACKUP_DIR/docker-compose.backup.yml\" -p $STACK_NAME \\
-                        run --rm -T -e BACKUP_LABEL=pre-deploy db-backup < /dev/null; then
+                BACKUP_RC=0
+                \$BACKUP_COMPOSE --env-file \"\$BACKUP_DIR/.env\" -f \"\$BACKUP_DIR/docker-compose.backup.yml\" -p $STACK_NAME \\
+                        run --rm -T -e BACKUP_LABEL=pre-deploy db-backup < /dev/null || BACKUP_RC=\$?
+                if [ \"\$BACKUP_RC\" = 0 ]; then
                     echo 'PREDEPLOY_BACKUP_OK (db-backup service)'
                     exit 0
+                fi
+                # Exit 3 is tools/db_backup.py's stall watchdog: the dump stopped
+                # producing output, almost certainly waiting on a metadata lock. A
+                # second dump would queue behind the same lock (bug report 068).
+                if [ \"\$BACKUP_RC\" = 3 ]; then
+                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/deployment.md#when-a-deploy-stops-on-a-lock-wait.'
+                    exit 1
                 fi
                 echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
             else
@@ -400,16 +419,50 @@ $1" < /dev/null
             FILE=\"\$DEST/muma_db_pre-deploy_\$STAMP.sql.gz\"
             PART=\"\$FILE.partial\"
             STATUS_FILE=\$(mktemp)
-            trap 'rm -f \"\$STATUS_FILE\" \"\$PART\"' EXIT
+            PID_FILE=\$(mktemp)
+            trap 'rm -f \"\$STATUS_FILE\" \"\$PID_FILE\" \"\$PART\"' EXIT
             # The dump's own exit status goes through a file: in a pipe into
             # gzip it would otherwise be lost, and a dump that died halfway
             # would look like a short success.
+            #
+            # It runs in the background under a watchdog: mariadb-dump has no
+            # lock timeout of its own (no --init-command either), so one queued
+            # behind a table metadata lock waits for as long as the lock is held
+            # -- in bug report 068 until the job's own timeout killed it. When the
+            # file has not grown for $PREDEPLOY_DUMP_STALL_SECONDS s the client is
+            # stopped and the deploy refused. The dump inside the container then
+            # ends by itself once the lock clears and it finds its output gone.
             {
                 MYSQL_PWD=\"\$DUMP_PWD\" docker exec -i -e MYSQL_PWD music-management-db-1 mariadb-dump \\
                     -u $Q_MIGRATION_USER --single-transaction --quick --routines --triggers --events \\
-                    --default-character-set=utf8mb4 $Q_DB_DB < /dev/null
-                echo \$? > \"\$STATUS_FILE\"
-            } | gzip > \"\$PART\"
+                    --default-character-set=utf8mb4 $Q_DB_DB < /dev/null &
+                echo \$! > \"\$PID_FILE\"
+                DUMP_RC=0
+                wait \$! || DUMP_RC=\$?
+                echo \"\$DUMP_RC\" > \"\$STATUS_FILE\"
+            } | gzip > \"\$PART\" &
+            PIPE_PID=\$!
+            LAST_SIZE=-1
+            STILL=0
+            while kill -0 \"\$PIPE_PID\" 2>/dev/null; do
+                sleep 1
+                SIZE=\$(stat -c %s \"\$PART\" 2>/dev/null || echo 0)
+                if [ \"\$SIZE\" = \"\$LAST_SIZE\" ]; then
+                    STILL=\$((STILL + 1))
+                else
+                    STILL=0
+                    LAST_SIZE=\$SIZE
+                fi
+                if [ \"\$STILL\" -ge $PREDEPLOY_DUMP_STALL_SECONDS ]; then
+                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/deployment.md#when-a-deploy-stops-on-a-lock-wait.\"
+                    if [ -s \"\$PID_FILE\" ]; then
+                        kill \"\$(cat \"\$PID_FILE\")\" 2>/dev/null || true
+                    fi
+                    wait \"\$PIPE_PID\" 2>/dev/null || true
+                    exit 1
+                fi
+            done
+            wait \"\$PIPE_PID\" || true
             if [ \"\$(cat \"\$STATUS_FILE\")\" != 0 ]; then
                 echo \"Error: mariadb-dump exited \$(cat \"\$STATUS_FILE\"); refusing to deploy without a backup.\"
                 exit 1
@@ -444,43 +497,53 @@ $1" < /dev/null
     # Glob is migrate_*.sql, matching the !migrate_*.sql exception in .gitignore
     # exactly: one naming rule decides both what gets committed and what gets
     # applied, so a migration can no longer be silently skipped by one of the two
-    # (see docs/bug-reports/021-genre-migration-never-shipped.md). Every match
-    # runs on every deploy, so migrations must be re-runnable -- and, because
-    # they run before the new containers start, expand-only: the release that is
+    # (see docs/bug-reports/021-genre-migration-never-shipped.md). The helper
+    # sorts the files byte-wise by name -- bash's glob order follows the runner's
+    # locale -- so migrate_v10_* runs before migrate_v2.sql, which runs before
+    # migrate_v29_*; no migration may depend on a higher-numbered one having run
+    # first. Because they run before
+    # the new containers start, migrations are expand-only: the release that is
     # still running has to keep working on the migrated schema.
+    #
+    # tools/apply_migrations.py decides what runs (docs/bug-reports/068-deploy-
+    # hangs-on-no-op-alter-metadata-lock.md):
+    #   - the schema_migrations ledger records each file's name and sha256 once it
+    #     applied; a recorded, unchanged file is skipped, a changed or unrecorded
+    #     one runs. Every file stays re-runnable -- the ledger only saves work;
+    #   - each file runs with lock_wait_timeout and innodb_lock_wait_timeout set to
+    #     MIGRATION_LOCK_WAIT_SECONDS, so a statement queued behind another
+    #     session's lock errors instead of hanging the job, naming the file and
+    #     printing the server's sessions. The deploy stops here, before `up`.
+    #
+    # How the SQL gets there is unchanged. stdin carries the password on its
+    # first line and the SQL after it (the helper prepends the password to every
+    # batch). The remote shell reads the first line into MYSQL_PWD (the mariadb
+    # client's password variable) and hands the rest of stdin straight to the
+    # client; `docker exec -e MYSQL_PWD` without a value copies it from the
+    # environment, so the password is on no command line -- not the ssh one here,
+    # not docker's or mariadb's there -- and no SQL file is left in /tmp either.
+    # Same idea as the --defaults-extra-file in tools/db_backup.py. The function
+    # and the variables the helper's `bash -c` needs are exported; the
+    # environment, unlike argv, is not readable by other accounts.
+    #
+    # The migration's exit status is the remote command's status, because docker
+    # exec is its last command (bug report 021). `mariadb`, not `mysql`: MariaDB
+    # dropped the old client name in 12.
     echo "--- [3/5] Applying database migrations (old containers still running) ---"
-    for sql_file in "$PROJECT_ROOT"/migrate_*.sql; do
-        if [ -f "$sql_file" ]; then
-            fname=$(basename "$sql_file")
-            echo "--- Executing database migration: $fname ---"
-
-            # stdin carries the password on its first line and the SQL after
-            # it. The remote shell reads the first line into MYSQL_PWD (the
-            # mariadb client's password variable) and hands the rest of stdin
-            # straight to the client; `docker exec -e MYSQL_PWD` without a value
-            # copies it from the environment, so the password is on no command
-            # line -- not the ssh one here, not docker's or mariadb's there --
-            # and no SQL file is left in /tmp either. Same idea as the
-            # --defaults-extra-file in tools/db_backup.py.
-            #
-            # The migration's exit status is the remote command's status,
-            # because docker exec is its last command. It used to be masked by
-            # a trailing "rm" and the deploy reported success while the schema
-            # had aborted halfway. See
-            # docs/bug-reports/021-genre-migration-never-shipped.md.
-            #
-            # `mariadb`, not `mysql`: MariaDB renamed the client in 10.5 and
-            # dropped the old name in 12, where this would exit 127 and fail
-            # every migration on a server that is otherwise perfectly healthy.
-            REMOTE_MIGRATE_CMD="
-                IFS= read -r MYSQL_PWD
-                export MYSQL_PWD
-                docker exec -i -e MYSQL_PWD music-management-db-1 mariadb -u \"$MIGRATION_USER\" \"$DB_DB\"
-            "
-            { printf '%s\n' "$MIGRATION_PASS"; cat "$sql_file"; } \
-                | run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
-        fi
-    done
+    REMOTE_MIGRATE_CMD="
+        IFS= read -r MYSQL_PWD
+        export MYSQL_PWD
+        docker exec -i -e MYSQL_PWD music-management-db-1 mariadb -u \"$MIGRATION_USER\" \"$DB_DB\"
+    "
+    # run_remote_sql: run the SQL on stdin (password first) against production.
+    run_remote_sql() {
+        run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
+    }
+    export -f run_ssh run_remote_sql
+    export REMOTE_HOST REMOTE_USER REMOTE_PASS REMOTE_MIGRATE_CMD
+    printf '%s\n' "$MIGRATION_PASS" \
+        | python3 "$PROJECT_ROOT/tools/apply_migrations.py" --password-stdin --exec run_remote_sql \
+            --lock-wait-timeout "$MIGRATION_LOCK_WAIT_SECONDS" "$PROJECT_ROOT"/migrate_*.sql
 
     # d. hook ----------------------------------------------------------------
     if [ -n "${DEPLOY_PRE_UP_HOOK:-}" ]; then

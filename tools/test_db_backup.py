@@ -1,7 +1,11 @@
 import gzip
+import io
 import json
 import os
 import stat
+import subprocess
+import sys
+import time
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -106,7 +110,7 @@ class DumpTest(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 seen['command'] = args[0]
                 self.stdout = MagicMock()
-                self.stdout.read.side_effect = [b'data', b'']
+                self.stdout.read1.side_effect = [b'data', b'']
                 self.returncode = returncode
 
             def communicate(self):
@@ -329,6 +333,14 @@ class AlertingTest(unittest.TestCase):
             self.assertEqual(db_backup.main([]), 1)
         alert.assert_called_once()
         self.assertIn('disk gone', alert.call_args[0][1])
+
+    def test_main_exits_3_on_a_stalled_dump_so_the_deploy_does_not_retry_it(self):
+        with (
+            patch.object(db_backup, 'run_backup', side_effect=db_backup.DumpStalled('no output for 300s')),
+            patch.object(db_backup, 'alert') as alert,
+        ):
+            self.assertEqual(db_backup.main([]), db_backup.EXIT_STALLED)
+        self.assertEqual(alert.call_args[0][0], 'Database backup stalled')
 
     def test_main_stays_quiet_on_success(self):
         with patch.object(db_backup, 'run_backup', return_value=0), patch.object(db_backup, 'alert') as alert:
@@ -604,3 +616,42 @@ class ReadOnlyDestinationTest(unittest.TestCase):
                 self.assertEqual(db_backup.resolve_destination(str(dest), None, require_writable=False), dest.resolve())
             finally:
                 dest.chmod(0o700)
+
+
+class StallWatchdogTest(unittest.TestCase):
+    """Bug report 068: a dump queued behind a metadata lock must fail, not hang the job."""
+
+    def _spawn(self, script: str) -> subprocess.Popen:
+        process = subprocess.Popen([sys.executable, '-c', script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.addCleanup(process.communicate)
+        return process
+
+    def test_a_silent_dump_is_stopped_and_named(self):
+        process = self._spawn(
+            'import sys, time\n'
+            'sys.stdout.write("-- Dumping data for table `tagger_processed_files`\\n")\n'
+            'sys.stdout.flush()\n'
+            'time.sleep(60)\n'
+        )
+        started = time.monotonic()
+        with self.assertRaises(db_backup.DumpStalled) as caught:
+            db_backup._copy_with_watchdog(process, io.BytesIO(), stall_limit=1)
+        self.assertLess(time.monotonic() - started, 30)
+        self.assertIn('no output for 1s', str(caught.exception))
+        self.assertIn('tagger_processed_files', str(caught.exception))
+        self.assertIsNotNone(process.wait(timeout=10), 'the stalled dump must have been killed')
+
+    def test_a_slow_but_moving_dump_is_left_alone(self):
+        process = self._spawn(
+            'import sys, time\nfor _ in range(6):\n    sys.stdout.write("x"); sys.stdout.flush(); time.sleep(0.4)\n'
+        )
+        out = io.BytesIO()
+        db_backup._copy_with_watchdog(process, out, stall_limit=1)
+        self.assertEqual(out.getvalue(), b'xxxxxx')
+
+    def test_the_limit_comes_from_the_environment(self):
+        with patch.dict(os.environ, {'BACKUP_STALL_SECONDS': '42'}):
+            self.assertEqual(db_backup.stall_seconds(), 42)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('BACKUP_STALL_SECONDS', None)
+            self.assertEqual(db_backup.stall_seconds(), db_backup.DEFAULT_STALL_SECONDS)

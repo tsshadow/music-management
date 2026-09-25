@@ -55,6 +55,9 @@ REQUIRED_TABLES = [
     'library_track_audio_features',
     'library_track_ml_labels',
     'library_ingestion_records',
+    # The deploy's migration ledger: which migrate_*.sql applied, with the sha256 of its
+    # content (tools/apply_migrations.py, bug report 068).
+    'schema_migrations',
 ]
 
 
@@ -145,6 +148,12 @@ def ensure_tables_exist() -> None:
         # already rewrote, so its idea of "arrival" is worth less than the first one's.
         # See services/tagger/ingestion.py and migrate_v22_ingestion_records.sql.
         'library_ingestion_records': '\n            CREATE TABLE IF NOT EXISTS library_ingestion_records (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                file_path TEXT NOT NULL,\n                file_path_hash VARCHAR(64) NOT NULL UNIQUE,\n                file_size BIGINT NULL,\n                source VARCHAR(32) NOT NULL,\n                tags_json LONGTEXT NOT NULL,\n                code_version VARCHAR(32) NULL,\n                rules_fingerprint VARCHAR(32) NULL,\n                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX idx_ingestion_recorded_at (recorded_at)\n            )\n        ',
+        # One row per migrate_*.sql the deploy applied, keyed by file name, with the sha256
+        # of the content it applied. scripts/deploy.sh skips a file whose name and hash are
+        # recorded here; a changed file runs again. Kept identical to LEDGER_DDL in
+        # tools/apply_migrations.py, which creates it too: the first deploy reads the ledger
+        # before this code has ever run. See bug report 068.
+        'schema_migrations': '\n            CREATE TABLE IF NOT EXISTS schema_migrations (\n                filename VARCHAR(255) NOT NULL PRIMARY KEY,\n                sha256 CHAR(64) NOT NULL,\n                applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
     }
     queries = [table_queries[table] for table in REQUIRED_TABLES]
     try:

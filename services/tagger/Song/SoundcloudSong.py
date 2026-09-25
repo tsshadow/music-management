@@ -7,6 +7,11 @@ s = Settings()
 
 
 class SoundcloudSong(BaseSong):
+    """A SoundCloud download: album, publisher and copyright from the uploader."""
+
+    # See BaseSong: a SoundCloud mp3 lost month and day to EmbedThumbnail (bug report 088).
+    completes_year_only_date = True
+
     def __init__(self, path, extra_info=None):
         super().__init__(path, extra_info)
         paths = path.rsplit(s.delimiter, 2)

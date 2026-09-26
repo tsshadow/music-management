@@ -302,17 +302,35 @@ class ScannerManager:
             logger.debug('Relinked track %s to %s: %s', previous_track_id, track_id, counts)
         return counts
 
+    @staticmethod
+    def _is_up_to_date(record, mtime, size) -> bool:
+        """Whether a file's row still describes it, so reading its tags again would change nothing.
+
+        An unchanged mtime and size used to be enough. A row without a length is not up to date
+        whatever the file's mtime says: an early scan in May 2026 stored ~39,000 files with the
+        file name as title and no length, and because their files never changed, no later walk
+        read them again -- so the hourly form pass could never classify them (bug report 093).
+        A length is the one thing every readable audio file has, so its absence marks a row the
+        scanner has to redo; once written, the file drops back onto the fast path.
+        """
+        if not record:
+            return False
+        if not record.get('duration_secs'):
+            return False
+        return record['file_mtime'] == mtime and record['file_size'] == size
+
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
         size = os.path.getsize(path)
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT id, file_mtime, file_size, track_id FROM library_media_files WHERE file_path_hash = %s',
+                'SELECT id, file_mtime, file_size, track_id, duration_secs FROM library_media_files '
+                'WHERE file_path_hash = %s',
                 (path_hash,),
             )
             record = cursor.fetchone()
-            if not force and record and (record['file_mtime'] == mtime) and (record['file_size'] == size):
+            if not force and self._is_up_to_date(record, mtime, size):
                 return False
             try:
                 song = ReadonlySong(path)

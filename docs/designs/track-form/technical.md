@@ -72,7 +72,16 @@ has a year and an edition date for it.
   No file is touched, so the tagger queue is not involved.
 - **Push to LMS** (`push_forms_to_server`, same module): per server, read-first/write-the-diff in
   batches of 100, reusing `song_version_sync`'s lock handling (`_write_batch` now takes the UPDATE
-  statement). A server without the columns is skipped.
+  statement). A server without the columns is skipped. The push converges (bug report 093): muma
+  rows are read sorted by path and only the first row per path is pushed -- the scanner's own
+  media row (its `file_path_hash` is the hash of its path) before a stale duplicate, then one that
+  knows a form, then the newest -- and the UPDATE compares before it writes
+  (`WHERE ... AND (form IS NOT ?1 OR performance_date IS NOT ?2)`). A second run over an unchanged
+  library issues no UPDATE and so never takes LMS's write lock.
+- **Unclassified tracks**: `form` stays NULL when the length is unknown. The pass logs how many of
+  those have no media file (rows a retag left behind, bug report 042 -- deliberately left NULL)
+  and how many have a file but no length; the scanner re-reads a file whose media row has no
+  length even when its mtime and size are unchanged, so the second kind drains on the next walk.
 
 ## Filtering
 
@@ -114,7 +123,8 @@ match for live sets only (a live set with no performance date matches exactly as
    (podcast before festival, length before folder), and a missing duration.
 2. `classify_library` writes only differing rows, clears a performance date that no longer applies,
    and leaves a window's rows unchanged when nothing changed.
-3. The push skips a server without the columns and writes only rows the server disagrees with.
+3. The push skips a server without the columns and writes only rows the server disagrees with;
+   run twice -- including two muma rows naming one file -- the second run issues no UPDATE.
 4. LMS `Track_findByForm_bothBuilders` and `Track_findByFilingYear_bothBuilders` (both builders,
    plus `countAdvanced`) pass, the migration test sees step 122 and re-runs it, and the `TrackForm`
    tests refuse an unknown form (`parseTrackForms`, shared by both endpoints).

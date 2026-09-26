@@ -65,7 +65,16 @@ class ClassifyLibraryTest(unittest.TestCase):
         )
         cursor.executemany.assert_called_once_with(track_form_sync._UPDATE_MUMA, [('liveset', '2012-06-23', 2)])
         conn.commit.assert_called_once()
-        self.assertEqual(stats, {'considered': 3, 'written': 1})
+        self.assertEqual(stats, {'considered': 3, 'written': 1, 'unclassified_no_file': 0, 'unclassified_no_length': 0})
+
+    def test_tracks_without_a_length_are_counted_by_whether_they_have_a_file(self):
+        # Bug report 093: a retag's leftover row (no file) and a row waiting for its length both
+        # stay NULL; the log line says how many of each there are.
+        stats, cursor, _conn = self.run_pass(
+            [track(1, None, None, 'orphan'), track(2, f'{ROOT}/EPs/l/c/a.mp3', None, 'a'), track(3, None, None, 'x')]
+        )
+        cursor.executemany.assert_not_called()
+        self.assertEqual((stats['unclassified_no_file'], stats['unclassified_no_length']), (2, 1))
 
     def test_a_date_that_no_longer_applies_is_cleared(self):
         # The edition was removed: the live set keeps its form and loses its date.
@@ -83,7 +92,8 @@ class ClassifyLibraryTest(unittest.TestCase):
         conn, cursor = muma_cursor(fetchall=[])
         cursor.fetchone.return_value = {'low': None, 'high': None}
         stats = track_form_sync.classify_library(conn, ROOT, None, None)
-        self.assertEqual(stats, {'considered': 0, 'written': 0})
+        self.assertEqual(stats['considered'], 0)
+        self.assertEqual(stats['written'], 0)
 
     def test_a_database_error_is_logged_not_raised(self):
         conn, cursor = muma_cursor()
@@ -142,6 +152,59 @@ class PushFormsTest(unittest.TestCase):
         )
         self.assertEqual(stats['considered'], 3)
         self.assertEqual(stats['matched'], 1)
+
+    def push(self, rows):
+        conn, _cursor = muma_cursor(fetchmany=[dict(row) for row in rows])
+        return track_form_sync.push_forms_to_server(conn, self.server, 'test')
+
+    def updates_issued(self, rows):
+        """The UPDATE statements one push sends to the server, as SQLite saw them."""
+        statements = []
+        self.server.set_trace_callback(statements.append)
+        try:
+            self.push(rows)
+        finally:
+            self.server.set_trace_callback(None)
+        return [s for s in statements if s.lstrip().upper().startswith('UPDATE')]
+
+    def test_a_second_run_writes_nothing_and_sends_no_update(self):
+        rows = [
+            {'file_path': '/mnt/music/Livesets/a.mp3', 'form': 'liveset', 'performance_date': '2012-06-23'},
+            {'file_path': '/mnt/music/EPs/b.flac', 'form': 'track', 'performance_date': ''},
+        ]
+        self.assertEqual(self.push(rows)['matched'], 1)
+        self.assertEqual(self.updates_issued(rows), [])
+
+    def test_two_rows_for_one_file_push_the_first_and_converge(self):
+        # Bug report 093: the scanner's row (sorted first by the query) says `track`, a stale
+        # duplicate on a length-less stub says nothing. Pushing both made LMS flip every hour.
+        rows = [
+            {'file_path': '/mnt/music/Livesets/a.mp3', 'form': 'set', 'performance_date': ''},
+            {'file_path': '/mnt/music/Livesets/a.mp3', 'form': '', 'performance_date': ''},
+        ]
+        first = self.push(rows)
+        second = self.push(rows)
+        self.assertEqual((first['matched'], first['duplicates_skipped']), (1, 1))
+        self.assertEqual((second['matched'], second['duplicates_skipped']), (0, 1))
+        self.assertEqual(self.stored()[0], ('/music/Livesets/a.mp3', 'set', ''))
+        self.assertEqual(self.updates_issued(rows), [])
+
+    def test_a_duplicate_across_a_chunk_boundary_is_still_skipped(self):
+        first_chunk = [{'file_path': '/mnt/music/Livesets/a.mp3', 'form': 'set', 'performance_date': ''}]
+        second_chunk = [{'file_path': '/mnt/music/Livesets/a.mp3', 'form': '', 'performance_date': ''}]
+        conn, cursor = muma_cursor()
+        cursor.fetchmany.side_effect = [first_chunk, second_chunk, []]
+        stats = track_form_sync.push_forms_to_server(conn, self.server, 'test')
+        self.assertEqual((stats['matched'], stats['duplicates_skipped']), (1, 1))
+        self.assertEqual(self.stored()[0], ('/music/Livesets/a.mp3', 'set', ''))
+
+    def test_the_update_leaves_a_row_that_already_holds_the_pair_alone(self):
+        # Settled by another writer between the read and the write: the guard makes it a no-op.
+        cursor = self.server.cursor()
+        cursor.execute(track_form_sync._SERVER_UPDATE, ('track', '', '/music/EPs/b.flac'))
+        self.assertEqual(cursor.rowcount, 0)
+        cursor.execute(track_form_sync._SERVER_UPDATE, ('set', '', '/music/EPs/b.flac'))
+        self.assertEqual(cursor.rowcount, 1)
 
     def test_a_server_without_the_columns_is_skipped(self):
         server = sqlite3.connect(':memory:')

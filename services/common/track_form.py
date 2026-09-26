@@ -15,6 +15,8 @@ back would answer the same question at the price of a file read per track.
 
 from __future__ import annotations
 
+import re
+
 TRACK = 'track'
 SET = 'set'
 LIVESET = 'liveset'
@@ -38,6 +40,17 @@ FOLDER_FORMS = {
     'podcasts': PODCAST,
 }
 
+#: Top-level folders that hold label releases (`EPs/<label>/<release>/`). Their titles name
+#: festivals all the time -- "Decibel Dictature" is a track, "Defqon.1 2015 Mix 1" is the label's
+#: mix album for that edition -- so there a festival match alone only makes a `set` (bug report 109).
+LABEL_FOLDERS = frozenset({'eps'})
+
+#: What marks a label release as a recording of the event itself: "Live at Reverze 2009", "The
+#: Live Registration", a DVD rip. Matched as whole words after `_ - . ( ) [ ]` became spaces, so
+#: "Qlimax_2005-DVD-2006" and "Tha_Playah_Live-STREAM" count and "Oliver" or "delivery" do not.
+_LIVE_MARKER = re.compile(r'\b(live|livesets?|dvda?)\b')
+_SEPARATORS = re.compile(r'[_\-.()\[\]]+')
+
 
 def _top_folder(path: str | None, music_root: str | None) -> str:
     """The first folder below the music root, lower-cased, or '' when the path is not under it."""
@@ -53,6 +66,12 @@ def _top_folder(path: str | None, music_root: str | None) -> str:
     if len(parts) < 2:
         return ''
     return parts[0].lower()
+
+
+def _names_a_live_recording(path: str | None, title: str | None) -> bool:
+    """Whether the title or the path says the file was recorded at the event (live, DVD)."""
+    haystack = _SEPARATORS.sub(' ', f'{title or ""} {path or ""}'.lower())
+    return bool(_LIVE_MARKER.search(haystack))
 
 
 def _festival_matches(path: str | None, title: str | None, festivals) -> list[dict]:
@@ -79,13 +98,15 @@ def derive_form(
 
     First hit wins: length, then the folder, then an approved podcast show, then a festival.
     Podcast before festival because "Defqon.1 Podcast #12" names a festival and is an episode.
+    In the label tree a festival counts only together with a live marker (bug report 109).
     """
     if not duration_secs or duration_secs <= 0:
         return None
     if duration_secs < MIN_SET_SECONDS:
         return TRACK
 
-    folder_form = FOLDER_FORMS.get(_top_folder(path, music_root))
+    top_folder = _top_folder(path, music_root)
+    folder_form = FOLDER_FORMS.get(top_folder)
     if folder_form:
         return folder_form
 
@@ -95,6 +116,8 @@ def derive_form(
             return PODCAST
 
     if _festival_matches(path, title, festivals):
+        if top_folder in LABEL_FOLDERS and not _names_a_live_recording(path, title):
+            return SET
         return LIVESET
     return SET
 

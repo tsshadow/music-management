@@ -243,7 +243,7 @@ case "$1" in
                 printf '%s' "${MYSQL_PWD-<unset>}" > "$FAKE_LOG/dump-pwd"
                 [ "${FAKE_FAIL_DUMP:-0}" = 1 ] && exit 2
                 # A dump queued behind a metadata lock: no output, no exit.
-                [ "${FAKE_DUMP_STALL:-0}" = 1 ] && exec sleep 60
+                [ "${FAKE_DUMP_STALL:-0}" = 1 ] && exec sleep 600
                 printf -- '-- MariaDB dump\nCREATE TABLE t (id INT);\n'
                 [ "${FAKE_DUMP_NO_TRAILER:-0}" = 1 ] || printf -- '-- Dump completed on 2026-09-24\n'
                 exit 0
@@ -931,7 +931,10 @@ def test_a_stalled_fallback_dump_is_stopped_and_refuses_the_deploy(tmp_path: Pat
     started = time.monotonic()
     result, log_dir = _run_deploy(tmp_path, FAKE_DUMP_STALL="1", PREDEPLOY_DUMP_STALL_SECONDS="2")
     assert result.returncode != 0
-    assert time.monotonic() - started < 45, "the watchdog must not wait for the stalled dump"
+    # The fake dump sleeps 600 s. Anything well under that proves the watchdog stopped it; the
+    # margin is wide because the rest of deploy.sh takes tens of seconds on a loaded runner
+    # (a 45 s bound against a 60 s sleep failed backend:unit on 2026-09-27).
+    assert time.monotonic() - started < 300, "the watchdog must not wait for the stalled dump"
     assert "wrote nothing for 2 s" in result.stdout + result.stderr
     events = _events(log_dir)
     assert "migrate" not in events

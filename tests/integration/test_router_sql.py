@@ -148,6 +148,13 @@ READ_ENDPOINTS = [
     # genre-hardness digest (CRC32 over rules_genres) before the snapshot read.
     ('/api/feeds?username=root', 200),
     ('/api/feeds/daily-mix-hard?username=root', 200),
+    # The Versions page in Beheer (docs/designs/song-versions/): the list, its sorts and
+    # filter, the ranking status, and a song that does not exist.
+    ('/api/songs/curation', 200),
+    ('/api/songs/curation?q=fist&sort=changed&changed_only=true&page=2&page_size=10', 200),
+    ('/api/songs/curation?sort=title', 200),
+    ('/api/songs/ranking', 200),
+    ('/api/songs/999999', 404),
 ]
 
 

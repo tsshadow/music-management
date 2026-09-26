@@ -689,7 +689,7 @@ export async function loadFrontendSettings(userId) {
 // queued here, and one debounced flush reads the blob once, merges everything pending into it and
 // writes it once. One debounce per key used to mean one read-modify-write per key, and two of
 // them in flight together each wrote back a blob without the other's change.
-// The durable fix is a per-key write on the server; see docs/open-work.md.
+// The durable fix is a per-key write on the server; see GitLab issue #39.
 
 /** How long a change waits for company before it is written. */
 const SETTINGS_SAVE_DELAY_MS = 400;

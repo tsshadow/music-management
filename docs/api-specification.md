@@ -206,6 +206,31 @@ Removed outright, because every caller already uses the target: `GET|PUT
 - **GET `/api/scanner/relink-orphans`** (admin only): `{"running": bool, "last": <totals or null>}` --
   the state of the relink above, kept in memory for the life of the process.
 
+### 🎚 Song versions (`/api/songs`)
+Which of a song's versions plays, and the Versions page in Beheer that corrects it
+([docs/designs/song-versions/](designs/song-versions/technical.md)). Reads need an API key, writes
+need `rules.manage`.
+- **GET `/api/songs/curation?q=&sort=versions|changed|title&changed_only=&page=&page_size=`**: every
+  song (work) with more than one version, paged (`page_size` at most 100, `422` above). `q` matches
+  the title or the artist. `changed` sorts songs whose automatic choice the last rescore changed
+  first, newest change first. Response `{"items": [{work_id, title, artist, version_count,
+  canonical_track_id, canonical_title, pinned_track_id, previous_canonical_track_id,
+  canonical_changed_at}], "total", "page", "page_size"}`. An unknown `sort` is a `422`.
+- **GET `/api/songs/ranking`**: `{"signature": "v2-lossless", "prefer_lossless": true,
+  "pending_works": <works still scored under another ranking>, "changed_works": <works flagged by a
+  rescore>}`.
+- **GET `/api/songs/{work_id}`**: one song and its versions, one entry per file, best score first:
+  `track_id, title, version_kind, version_score, file_path, format, bitrate_kbps` (derived from size and
+  length), `duration_secs, source` (`label|soundcloud|youtube|other`), `is_official, rating` (highest any
+  user gave), `plays, is_canonical`; plus the song's `artist, canonical_track_id, pinned_track_id,
+  previous_canonical_track_id, canonical_changed_at`. `404` for an unknown song.
+- **POST `/api/songs/{work_id}/pin`** `{"track_id": int | null}`: pin a version as best, or `null` to
+  reset to automatic. Clears the rescore flag. `404` unknown song or track, `400` a track of another
+  song, `403` without `rules.manage` (since 2026-09-26; it accepted any API key before, and had no
+  consumer outside tests).
+- **POST `/api/songs/{work_id}/dismiss-change`**: accept what the rescore chose; clears the flag, keeps
+  the canonical. `404` unknown song.
+
 ### 🎨 Artist images
 - Reads (`/api/artists/search`, `/search-all`, `/images/stats`, `/fetch-progress`, `/manage/search`,
   `/{id}/images`) need any authenticated account; `GET /api/artists/{name}/image` is public.

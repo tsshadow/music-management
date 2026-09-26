@@ -19,6 +19,7 @@
   import LineupsTab from './tabs/LineupsTab.svelte';
   import LabelProposalsTab from './tabs/LabelProposalsTab.svelte';
   import PodcastCurationTab from './tabs/PodcastCurationTab.svelte';
+  import VersionsTab from './tabs/VersionsTab.svelte';
   import RadioTab from './tabs/RadioTab.svelte';
   import NewsTab from './tabs/NewsTab.svelte';
   import DownloadersTab from './tabs/DownloadersTab.svelte';
@@ -487,6 +488,12 @@
         />
       {:else if $activeManagementTab === 'podcast-curation'}
         <PodcastCurationTab
+          {API_BASE} getHeaders={getHeaders}
+          onMessage={(m) => message = m}
+          onError={(e) => error = e}
+        />
+      {:else if $activeManagementTab === 'song-versions'}
+        <VersionsTab
           {API_BASE} getHeaders={getHeaders}
           onMessage={(m) => message = m}
           onError={(e) => error = e}

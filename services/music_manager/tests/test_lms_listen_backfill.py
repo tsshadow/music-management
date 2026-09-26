@@ -441,19 +441,18 @@ class LoopThreadTest(unittest.TestCase):
             thread.join(timeout=2)
         self.assertFalse(thread.is_alive())
 
-    def test_run_forever_without_a_stop_event_still_sleeps(self):
+    def test_run_forever_without_a_stop_event_still_pauses_and_loops(self):
         calls = []
 
         def tick():
             calls.append(1)
-            return 0.0
+            if len(calls) == 2:
+                raise KeyboardInterrupt
+            return 0.01
 
-        with (
-            patch.object(thread_registry.time, 'sleep', side_effect=KeyboardInterrupt),
-            self.assertRaises(KeyboardInterrupt),
-        ):
+        with self.assertRaises(KeyboardInterrupt):
             thread_registry.run_forever('sleeper', tick, 1.0)
-        self.assertEqual(calls, [1])
+        self.assertEqual(calls, [1, 1])
 
 
 if __name__ == '__main__':

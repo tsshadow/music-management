@@ -42,19 +42,42 @@ running it against the old code would only reproduce the same grouping.
 
 Idempotent: a second run finds nothing to do.
 
+Bug report 098 made it the regroup step for every change to the key rules:
+
+  * The --dry-run counts how many tracks move, split into moves that join a work that
+    already exists and moves that found a new one, and how many works they leave.
+  * Pins are respected twice over. A hand-split track (`work_locked = 1`) is never read;
+    a track that is its work's pinned version stays where it is and is counted as
+    'pinned-kept', because detaching it would silently throw the pin away. Review those
+    in the Versies page.
+  * --report lists the works that look like several songs (song_work_audit), and
+    --split-false-merges splits the ones the unambiguous rule marks 'split' -- more than
+    AUTO_SPLIT_LENGTHS different lengths -- before anything is re-keyed. The split locks
+    each track in a work of its own, exactly like the split endpoint.
+  * The last line is a JSON summary, for scripts/prod/person/regroup-song-works.sh.
+
 Usage:
-    python3 scripts/repair_song_works.py --dry-run
-    python3 scripts/repair_song_works.py
+    python3 scripts/repair_song_works.py --dry-run [--split-false-merges]
+    python3 scripts/repair_song_works.py [--split-false-merges]
+    python3 scripts/repair_song_works.py --report
 """
 
 import argparse
+import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Streamed into the container as `python3 - < repair_song_works.py` there is no __file__;
+# the caller sets PYTHONPATH=/app instead.
+if '__file__' in globals():
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.music_manager.database import get_db_connection  # noqa: E402
-from services.music_manager.song_version_worker import recompute_canonicals  # noqa: E402
+from services.music_manager.song_version_worker import (  # noqa: E402
+    find_suspicious_works,
+    recompute_canonicals,
+    split_work,
+)
 from services.music_manager.song_versions import LONG_FORM_SECONDS, UNGROUPABLE_PREFIX, work_key  # noqa: E402
 
 SAMPLE_SIZE = 10
@@ -63,7 +86,7 @@ UPDATE_CHUNK = 500
 # Every grouped track that the worker is still allowed to move, with the key of the
 # work it currently sits in. work_locked = 1 is a hand-made split and stays put.
 _GROUPED = '''
-    SELECT t.id, t.title, t.work_id, t.duration_secs, w.work_key, a.name AS artist
+    SELECT t.id, t.title, t.work_id, t.duration_secs, w.work_key, w.pinned_track_id, a.name AS artist
     FROM library_tracks t
     JOIN library_works w ON w.id = t.work_id
     LEFT JOIN library_artists a ON a.id = t.primary_artist_id
@@ -102,6 +125,19 @@ def parse_args():
         help='Report what would be detached and write nothing.',
     )
     parser.add_argument(
+        '--report',
+        action='store_true',
+        help='Only list the works that look like several songs, and write nothing.',
+    )
+    parser.add_argument(
+        '--split-false-merges',
+        action='store_true',
+        help=(
+            "Split every work the unambiguous rule marks 'split' (song_work_audit) before "
+            're-keying. With --dry-run it only counts them.'
+        ),
+    )
+    parser.add_argument(
         '--rescore-downloads',
         action='store_true',
         help=(
@@ -136,7 +172,12 @@ def misfiled(rows) -> list[dict]:
         expected = work_key(row['artist'], row['title'], row['id'], row['duration_secs'])
         if expected == row['work_key']:
             continue
-        if expected.startswith(UNGROUPABLE_PREFIX) and _is_long_form(row):
+        if row.get('pinned_track_id') is not None and row['pinned_track_id'] == row['id']:
+            # Someone chose this version to play for its work. Moving it would carry the
+            # track to its new key and leave the choice behind, so it stays -- and is
+            # reported, because its siblings may now group somewhere else.
+            reason = 'pinned-kept'
+        elif expected.startswith(UNGROUPABLE_PREFIX) and _is_long_form(row):
             # A set or a radio episode, which stopped grouping by title when
             # LONG_FORM_SECONDS arrived. Counted apart from a title that says nothing:
             # these tracks have a perfectly good title and are moving for their length.
@@ -157,6 +198,57 @@ def by_reason(wrong) -> dict:
     for row in wrong:
         counts[row['reason']] = counts.get(row['reason'], 0) + 1
     return counts
+
+
+def movable(wrong) -> list[dict]:
+    """The misfiled tracks the repair actually detaches: everything but the pinned ones."""
+    return [row for row in wrong if row['reason'] != 'pinned-kept']
+
+
+def movement_summary(wrong, existing_keys) -> dict:
+    """How many tracks change work, and where they go.
+
+    `existing_keys` holds the expected keys that already name a work. A track whose key
+    is there joins that work; any other track founds a new one -- always the case for a
+    `track:` key, which is unique by construction.
+    """
+    moving = movable(wrong)
+    existing = set(existing_keys)
+    into_existing = sum(1 for row in moving if row['expected_key'] in existing)
+    return {
+        'tracks_moving': len(moving),
+        'into_existing_work': into_existing,
+        'into_new_work': len(moving) - into_existing,
+        'source_works': len({row['work_id'] for row in moving}),
+        'target_works': len({row['expected_key'] for row in moving}),
+        'pinned_kept': len(wrong) - len(moving),
+    }
+
+
+def existing_work_keys(cursor, keys) -> set[str]:
+    """Which of `keys` already name a work.
+
+    Reads every key once instead of an IN list per chunk: a few hundred thousand short
+    strings is nothing for a one-off script, and the statement stays literal SQL.
+    """
+    wanted = set(keys)
+    if not wanted:
+        return set()
+    cursor.execute('SELECT work_key FROM library_works')
+    return {row['work_key'] for row in cursor.fetchall() if row['work_key'] in wanted}
+
+
+def print_suspicious(works) -> None:
+    """The false-merge report, one line per work."""
+    split = [work for work in works if work['verdict'] == 'split']
+    print(f'repair-song-works: {len(works)} works look like several songs, {len(split)} clear enough to split')
+    for work in works[: SAMPLE_SIZE * 3]:
+        print(
+            f'  work {work["work_id"]} [{work["verdict"]}] {work["work_key"]!r}: '
+            f'{work["members"]} versions, ' + '; '.join(work['reasons'])
+        )
+    if len(works) > SAMPLE_SIZE * 3:
+        print(f'  ... and {len(works) - SAMPLE_SIZE * 3} more')
 
 
 def _chunks(values, size):
@@ -239,15 +331,55 @@ def main() -> int:
         print('repair-song-works: no database connection', file=sys.stderr)
         return 1
 
+    summary: dict = {'dry_run': bool(args.dry_run or args.report)}
     try:
+        with conn.cursor() as cursor:
+            suspicious = find_suspicious_works(cursor)
+        print_suspicious(suspicious)
+        to_split = [work for work in suspicious if work['verdict'] == 'split']
+        summary['suspicious_works'] = len(suspicious)
+        summary['works_to_split'] = len(to_split)
+        summary['tracks_in_works_to_split'] = sum(work['members'] for work in to_split)
+        if args.report:
+            print('repair-song-works: summary ' + json.dumps(summary, sort_keys=True))
+            return 0
+
+        split_ids: set[int] = set()
+        if args.split_false_merges and to_split:
+            split_ids = {work['work_id'] for work in to_split}
+            if not args.dry_run:
+                moved = 0
+                with conn.cursor() as cursor:
+                    for work in to_split:
+                        moved += len(split_work(cursor, work['work_id']))
+                    settle_works(cursor, split_ids)
+                conn.commit()
+                summary['tracks_split'] = moved
+                print(f'repair-song-works: split {len(to_split)} works, {moved} tracks now stand alone')
+
         with conn.cursor() as cursor:
             cursor.execute(_GROUPED)
             rows = cursor.fetchall()
+        if args.dry_run and split_ids:
+            # These are about to be locked in works of their own; re-keying them as well
+            # would count every one of them twice.
+            rows = [row for row in rows if row['work_id'] not in split_ids]
 
         wrong = misfiled(rows)
+        with conn.cursor() as cursor:
+            existing = existing_work_keys(cursor, [row['expected_key'] for row in movable(wrong)])
+        movement = movement_summary(wrong, existing)
+        summary.update(movement)
+        summary['by_reason'] = by_reason(wrong)
+
         print(f'repair-song-works: {len(rows)} grouped tracks, {len(wrong)} in the wrong work')
         for reason, count in sorted(by_reason(wrong).items(), key=lambda item: -item[1]):
             print(f'  {reason}: {count}')
+        print(
+            f'repair-song-works: {movement["tracks_moving"]} tracks move out of {movement["source_works"]} works: '
+            f'{movement["into_existing_work"]} join an existing work, {movement["into_new_work"]} found a new one; '
+            f'{movement["pinned_kept"]} pinned tracks stay'
+        )
         for row in wrong[:SAMPLE_SIZE]:
             print(f'  track {row["id"]} ({row["reason"]}): {row["work_key"]!r} -> {row["expected_key"]!r}')
         if len(wrong) > SAMPLE_SIZE:
@@ -259,16 +391,20 @@ def main() -> int:
                 cursor.execute(_MISSCORED_DOWNLOADS)
                 misscored = cursor.fetchall()
             print(f'repair-song-works: {len(misscored)} labelled downloads to score again')
+            summary['rescore_downloads'] = len(misscored)
 
         # A track can be in both lists; detaching it once is enough for either reason.
-        track_ids = sorted({row['id'] for row in wrong} | {row['id'] for row in misscored})
-        work_ids = {row['work_id'] for row in wrong} | {row['work_id'] for row in misscored}
+        moving = movable(wrong)
+        track_ids = sorted({row['id'] for row in moving} | {row['id'] for row in misscored})
+        work_ids = {row['work_id'] for row in moving} | {row['work_id'] for row in misscored}
 
         if not track_ids:
+            print('repair-song-works: summary ' + json.dumps(summary, sort_keys=True))
             return 0
 
         if args.dry_run:
             print(f'repair-song-works: dry run, {len(work_ids)} works would be revisited')
+            print('repair-song-works: summary ' + json.dumps(summary, sort_keys=True))
             return 0
         with conn.cursor() as cursor:
             detach(cursor, track_ids)
@@ -286,6 +422,8 @@ def main() -> int:
                 + ', '.join(str(work_id) for work_id in stats['works_emptied_not_deleted'])
             )
         print('repair-song-works: the worker regroups them on its next pass')
+        summary.update({'detached': len(track_ids), 'works_deleted': stats['works_deleted']})
+        print('repair-song-works: summary ' + json.dumps(summary, sort_keys=True))
     finally:
         conn.close()
 

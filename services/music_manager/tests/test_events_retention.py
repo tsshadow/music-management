@@ -15,6 +15,7 @@ from services.music_manager.events_retention import (
     retention_tick,
     run_events_retention,
 )
+from services.tests.stop_after import StopAfter
 
 
 def _real_config_store():
@@ -279,76 +280,67 @@ class RetentionTickTest(unittest.TestCase):
             self.assertIsNone(retention_tick())
 
 
-class _StopLoop(Exception):
-    """Sentinel used to escape run_events_retention's infinite loop in tests."""
-
-
 class RunEventsRetentionTest(unittest.TestCase):
     """run_events_retention must never die: every path through the loop body
-    must be caught, logged as an ERROR, and followed by a sleep.
+    must be caught, logged as an ERROR, and followed by a pause.
 
-    The loop now runs through thread_registry.run_forever, so the sleep is patched there
-    and the failure is asserted on the `music-manager.threads` logger (which reaches the
-    events pipeline) instead of on stderr.
+    The loop runs through thread_registry.run_forever. Each test hands it a StopAfter event,
+    which ends it after an exact number of rounds without touching `time.sleep` -- the
+    process-wide function a patched side_effect list used to share with the event writer
+    thread (bug report 099). The failure is asserted on the `music-manager.threads` logger,
+    which reaches the events pipeline.
     """
-
-    SLEEP = 'services.music_manager.thread_registry.time.sleep'
 
     def test_purge_once_raising_is_caught_and_loop_continues(self):
         conn = MagicMock()
+        stop = StopAfter(2)
         with (
             patch('services.music_manager.events_retention.get_db_connection', return_value=conn),
             patch('services.music_manager.events_retention.purge_once', side_effect=RuntimeError('boom')),
-            patch(self.SLEEP, side_effect=[None, _StopLoop()]) as mock_sleep,
             self.assertLogs('music-manager.threads', 'ERROR') as logs,
         ):
-            with self.assertRaises(_StopLoop):
-                run_events_retention()
+            run_events_retention(stop=stop)
 
-        self.assertEqual(mock_sleep.call_count, 2)
+        self.assertEqual(len(stop.delays), 2)
         self.assertIn('boom', '\n'.join(logs.output))
         conn.close.assert_called()
 
     def test_get_db_connection_raising_is_caught_and_loop_continues(self):
+        stop = StopAfter(2)
         with (
             patch('services.music_manager.events_retention.get_db_connection', side_effect=RuntimeError('db down')),
             patch('services.music_manager.events_retention.purge_once') as mock_purge,
-            patch(self.SLEEP, side_effect=[None, _StopLoop()]) as mock_sleep,
             self.assertLogs('music-manager.threads', 'ERROR') as logs,
         ):
-            with self.assertRaises(_StopLoop):
-                run_events_retention()
+            run_events_retention(stop=stop)
 
-        self.assertEqual(mock_sleep.call_count, 2)
+        self.assertEqual(len(stop.delays), 2)
         mock_purge.assert_not_called()
         self.assertIn('db down', '\n'.join(logs.output))
 
     def test_conn_close_raising_is_caught_and_loop_continues(self):
         conn = MagicMock()
         conn.close.side_effect = RuntimeError('close failed')
+        stop = StopAfter(2)
         with (
             patch('services.music_manager.events_retention.get_db_connection', return_value=conn),
             patch('services.music_manager.events_retention.purge_once') as mock_purge,
-            patch(self.SLEEP, side_effect=[None, _StopLoop()]) as mock_sleep,
             self.assertLogs('music-manager.threads', 'ERROR') as logs,
         ):
-            with self.assertRaises(_StopLoop):
-                run_events_retention()
+            run_events_retention(stop=stop)
 
-        self.assertEqual(mock_sleep.call_count, 2)
+        self.assertEqual(len(stop.delays), 2)
         mock_purge.assert_called_with(conn)
         self.assertIn('close failed', '\n'.join(logs.output))
 
     def test_none_connection_skips_purge_and_still_sleeps(self):
+        stop = StopAfter(2)
         with (
             patch('services.music_manager.events_retention.get_db_connection', return_value=None),
             patch('services.music_manager.events_retention.purge_once') as mock_purge,
-            patch(self.SLEEP, side_effect=[None, _StopLoop()]) as mock_sleep,
         ):
-            with self.assertRaises(_StopLoop):
-                run_events_retention()
+            run_events_retention(stop=stop)
 
         mock_purge.assert_not_called()
-        self.assertEqual(mock_sleep.call_count, 2)
         # A pass without a connection is not a failure: the full day's interval follows.
-        self.assertEqual(mock_sleep.call_args_list[0].args[0], 86400)
+        self.assertEqual(stop.delays, [86400, 86400])

@@ -78,15 +78,32 @@ class EventServiceWriteTest(unittest.TestCase):
         self.assertEqual(params[5], '{"track": "x"}')
         mock_conn.commit.assert_called_once()
 
-    @patch('services.common.Helpers.EventService.time.sleep')
     @patch('services.common.Helpers.EventService.DatabaseConnector')
-    def test_write_retries_then_gives_up(self, mock_connector, mock_sleep):
+    def test_write_retries_then_gives_up(self, mock_connector):
         mock_connector.return_value.connect.side_effect = RuntimeError('db weg')
 
-        self.assertFalse(self.service._write(make_event()))
+        with patch.object(self.service._retry_pause, 'wait', return_value=False) as mock_pause:
+            self.assertFalse(self.service._write(make_event()))
 
         self.assertEqual(mock_connector.return_value.connect.call_count, 4)
-        self.assertEqual([c[0][0] for c in mock_sleep.call_args_list], [1, 4, 16])
+        self.assertEqual([c[0][0] for c in mock_pause.call_args_list], [1, 4, 16])
+
+    @patch('services.common.Helpers.EventService.DatabaseConnector')
+    def test_a_retry_never_calls_the_process_wide_sleep(self, mock_connector):
+        """Bug report 099: loop tests patch `time.sleep` with a finite side_effect list.
+
+        The writer thread used to pause between retries with that same function, so a retry
+        landing inside such a test consumed its items and the test died on StopIteration.
+        """
+        mock_connector.return_value.connect.side_effect = RuntimeError('db weg')
+
+        with (
+            patch.object(self.service._retry_pause, 'wait', return_value=False),
+            patch('time.sleep', side_effect=AssertionError('the writer used time.sleep')) as mock_sleep,
+        ):
+            self.assertFalse(self.service._write(make_event()))
+
+        mock_sleep.assert_not_called()
 
     def test_dispatch_survives_a_failing_sink(self):
         angry = MagicMock()
@@ -124,16 +141,12 @@ class PushDoesNotWaitOnTheDatabaseTest(unittest.TestCase):
             raise RuntimeError('db weg')
 
         self.mock_connector.return_value.connect.side_effect = connect
-        sleeper = patch('services.common.Helpers.EventService.time.sleep', side_effect=lambda _s: self.outage.wait(5))
-        sleeper.start()
-        self.addCleanup(sleeper.stop)
 
     def _wait_for(self, predicate, timeout=2.0):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if predicate():
                 return True
-            # Not time.sleep: setUp patched that module-wide to simulate the stuck writer.
             threading.Event().wait(0.01)
         return False
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.2] - 2026-09-26
+
+### Changed
+- No app changes of its own: a code comment now points at GitLab issue #39 instead of docs/open-work.md. The version moves with server release 0.76.0 because the release check bumps the app whenever its directory changed.
+
 ## [7.5.1] - 2026-09-26
 
 ### Fixed

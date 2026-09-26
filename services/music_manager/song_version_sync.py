@@ -51,6 +51,7 @@ import sqlite3
 import time
 from typing import NamedTuple
 
+from services.common.config_store import ConfigStore
 from services.music_manager.library_paths import candidate_paths
 from services.music_manager.song_versions import derived_bitrate, format_tier
 
@@ -191,17 +192,20 @@ def first_per_path(rows, previous_path: str | None, stats: dict) -> tuple[list, 
     return kept, previous_path
 
 
-def file_rank(row) -> tuple:
+def file_rank(row, prefer_lossless: bool = True) -> tuple:
     """How good one file of a track is as the one to show; lower sorts first.
 
     The scanner's own row first (bug report 093), then the best quality by the song-version
     format tiers and the bitrate derived from size and length, then the newest row. Every key
     is a stored value, so the same library picks the same file on every pass.
+
+    `prefer_lossless` is the same setting the ranking reads (docs/designs/song-versions/), so
+    the file LMS shows for a track follows the format order that chose the track.
     """
     bitrate = derived_bitrate(row['file_size'], row['duration_secs'])
     return (
         0 if row['own_row'] else 1,
-        format_tier(row['file_path'] or '', bitrate),
+        format_tier(row['file_path'] or '', bitrate, prefer_lossless),
         -bitrate,
         -int(row['media_id'] or 0),
     )
@@ -301,7 +305,7 @@ def _write(server_conn, server_cursor, pending, stats: dict, source: str) -> int
     return matched
 
 
-def _read_chunk(server_cursor, rows, works: dict, seen: set, stats: dict) -> list[tuple]:
+def _read_chunk(server_cursor, rows, works: dict, seen: set, stats: dict, prefer_lossless: bool = True) -> list[tuple]:
     """Look one chunk up in the server. Ungrouped files are settled at once and returned as
     pending writes; files of a work are parked in `works` until the whole library is read,
     because a work's files can sit anywhere in the path order."""
@@ -333,13 +337,15 @@ def _read_chunk(server_cursor, rows, works: dict, seen: set, stats: dict) -> lis
                 version_kind=str(row['version_kind'] or ''),
                 version_score=int(row['version_score'] or 0),
                 canonical_track_id=None if row['canonical_track_id'] is None else int(row['canonical_track_id']),
-                rank=file_rank(row),
+                rank=file_rank(row, prefer_lossless),
             )
         )
     return pending
 
 
-def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown') -> dict:
+def sync_song_versions_to_server(
+    muma_conn, server_conn, source: str = 'unknown', prefer_lossless: bool | None = None
+) -> dict:
     """Write muma's version model into the server database. Returns what it did.
 
     Two phases. The first streams every muma file in path order, keeps one row per path,
@@ -351,7 +357,11 @@ def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown'
     `source` names which server database this is. There is more than one -- a stable and an
     alpha instance -- and a line that does not say which one it skipped costs somebody the
     time to go and find out.
+
+    `prefer_lossless` defaults to the configured setting, read once per pass.
     """
+    if prefer_lossless is None:
+        prefer_lossless = getattr(ConfigStore(), 'prefer_lossless', True) is not False
     stats = {
         'considered': 0,
         'matched': 0,
@@ -380,7 +390,7 @@ def sync_song_versions_to_server(muma_conn, server_conn, source: str = 'unknown'
                     break
                 stats['considered'] += len(rows)
                 rows, previous_path = first_per_path(rows, previous_path, stats)
-                pending = _read_chunk(server_cursor, rows, works, seen, stats)
+                pending = _read_chunk(server_cursor, rows, works, seen, stats, prefer_lossless)
                 stats['matched'] += _write(server_conn, server_cursor, pending, stats, source)
         stats['works'] = len(works)
         pending = []

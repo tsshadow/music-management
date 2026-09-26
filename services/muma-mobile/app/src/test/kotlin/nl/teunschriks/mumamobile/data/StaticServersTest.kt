@@ -32,7 +32,7 @@ class StaticServersTest {
     /**
      * LMS verifies a `t`/`s` token against the per-user Subsonic API token, not the login password
      * the app holds, so the salted form would lock every account out. Flip this together with the
-     * work in docs/open-work.md, not on its own.
+     * work in GitLab issue #21, not on its own.
      */
     @Test
     fun `the password mode is the hex form LMS accepts for a login password`() {

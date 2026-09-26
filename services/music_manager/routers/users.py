@@ -1459,7 +1459,7 @@ def sync_single_server_db(muma_conn, db_path, source):
     return synced_users
 
 
-def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
+def run_lms_db_sync_loop(sleeptime: int = 3600, stop: threading.Event | None = None) -> None:
     """Keep the server's copy of the version model current.
 
     Running this once at startup was not enough, twice over. A deploy restarts both
@@ -1470,7 +1470,8 @@ def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
     of a song that had been grouped hours earlier.
 
     Users and playlists ride along, which is harmless -- that sync is idempotent and cheap
-    next to walking the library.
+    next to walking the library. `stop` ends the loop when set (tests use it to run an exact
+    number of rounds).
     """
 
     # backoff=False: a failed pass waits the full interval, as it always did. The sync
@@ -1481,7 +1482,7 @@ def run_lms_db_sync_loop(sleeptime: int = 3600) -> None:
         with lms_db_sync_lock:
             run_lms_db_sync_with_retry()
 
-    run_forever('lms-db-sync', tick, sleeptime, backoff=False)
+    run_forever('lms-db-sync', tick, sleeptime, backoff=False, stop=stop)
 
 
 def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:

@@ -889,7 +889,7 @@ def test_the_loose_type_floor_is_checked_somewhere():
     """backend:typecheck runs the strict list only, so the floor the whole tree is
     held to ran nowhere -- and could not have started, since tools/ was "found twice
     under different module names". The job may be orange while the backlog is
-    worked down (docs/open-work.md); it may not disappear."""
+    worked down (GitLab issue #41); it may not disappear."""
     ci = load_ci()
     job = ci["backend:typecheck-all"]
     assert job["script"] == ["./scripts/typecheck.sh --all"]

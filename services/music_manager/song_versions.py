@@ -25,6 +25,12 @@ from services.music_manager.scrobble_matching import normalize
 _MODIFIER_TOKENS = frozenset(
     {
         'radio',
+        # 'pro', 'audio' and 'music' joined in bug report 098: "(Pro Mix)", "(Official
+        # Audio)" and "(Official Music Video)" were the three most common markers still
+        # left inside production's work keys (552, 859 and 533 works).
+        'pro',
+        'audio',
+        'music',
         'extended',
         'original',
         'album',
@@ -64,20 +70,33 @@ _MODIFIER_TOKENS = frozenset(
 _TRAILING_BRACKET = re.compile(r'\s*[\(\[]([^\(\)\[\]]*)[\)\]]\s*$')
 _TOKEN_SPLIT = re.compile(r'[^\w]+', re.UNICODE)
 
-# Ranking order for tier two, best first. `none` sits between original and extended:
-# an unmarked official single is usually the radio cut, an unmarked album track is
-# the album version, and either beats an extended mix.
-KIND_ORDER = ('radio', 'edit', 'original', 'none', 'extended', 'instrumental')
+# Version kinds, best first -- the second tier of the ranking (docs/designs/song-versions/).
+# A pro edit or pro mix is the cut made for listening and wins; then the radio edit, a
+# plain edit, the original mix, no marker at all (an unmarked single is usually the radio
+# cut, an unmarked album track the album version), the extended mix, the instrumental
+# family (never what you are looking for), and last anything recorded for a screen: a
+# music video, visualizer or "official audio" upload, whose audio is often cut to the
+# picture.
+KIND_ORDER = ('pro', 'radio', 'edit', 'original', 'none', 'extended', 'instrumental', 'video')
 
-# Checked in this order, so "Radio Instrumental" is instrumental (never canonical)
-# and "Radio Edit" is radio rather than edit.
+# Checked in this order, so "Radio Instrumental" is instrumental (never canonical), "Radio
+# Edit (Official Video)" is a video, "Pro Edit" is pro rather than edit and "Radio Edit"
+# radio rather than edit.
 _KIND_MARKERS = (
     ('instrumental', ('instrumental', 'acapella', 'accapella', 'dub')),
+    ('video', ('video', 'videoclip', 'clip', 'visualizer', 'visualiser', 'audio')),
+    ('pro', ('pro',)),
     ('radio', ('radio',)),
     ('extended', ('extended',)),
     ('original', ('original',)),
     ('edit', ('edit',)),
 )
+
+# Words that name a kind. Kept as their own set even though bug report 098 moved all three
+# into the grouping vocabulary above: a kind word added here first does not regroup the
+# library, and joining the grouping vocabulary stays a separate, deliberate change.
+_KIND_ONLY_TOKENS = frozenset({'pro', 'music', 'audio'})
+_KIND_VOCABULARY = _MODIFIER_TOKENS | _KIND_ONLY_TOKENS
 
 WORK_KEY_MAX = 191
 
@@ -105,8 +124,12 @@ def _tokens(text: str) -> list[str]:
     return [token for token in _TOKEN_SPLIT.split(text.lower()) if token]
 
 
-def _strip_version_brackets(title: str) -> tuple[str, list[str]]:
-    """The title without its version markers, plus the tokens that were removed."""
+def _strip_version_brackets(title: str, vocabulary: frozenset[str] = _MODIFIER_TOKENS) -> tuple[str, list[str]]:
+    """The title without its version markers, plus the tokens that were removed.
+
+    A trailing bracket goes when every token in it comes from `vocabulary`: the grouping
+    vocabulary by default, the wider kind vocabulary for `version_kind`.
+    """
     stripped: list[str] = []
     result = title
     while True:
@@ -114,30 +137,162 @@ def _strip_version_brackets(title: str) -> tuple[str, list[str]]:
         if not match:
             break
         tokens = _tokens(match.group(1))
-        if not tokens or not all(token in _MODIFIER_TOKENS for token in tokens):
+        if not tokens or not all(token in vocabulary for token in tokens):
             break
         stripped.extend(tokens)
         result = result[: match.start()].strip()
     return result, stripped
 
 
+# Genre words, allowed inside a version marker only next to "official" and a word for
+# the upload itself: "(Official Hardcore Visualizer)" and "Official Hardstyle Video" are
+# packaging, but "(Hardcore Mix)" or "(Hardstyle Edit)" is somebody's rework and keeps its
+# own work. Bug report 098.
+_GENRE_TOKENS = frozenset(
+    {
+        'hardcore',
+        'hardstyle',
+        'uptempo',
+        'frenchcore',
+        'rawstyle',
+        'raw',
+        'euphoric',
+        'terror',
+        'terrorcore',
+        'speedcore',
+        'industrial',
+        'gabber',
+        'crossbreed',
+        'hardtek',
+        'hard',
+        'dance',
+        'techno',
+        'trance',
+        'psytrance',
+        'house',
+        'dnb',
+        'mainstream',
+        'early',
+    }
+)
+_UPLOAD_TOKENS = frozenset(
+    {'video', 'videoclip', 'clip', 'visualizer', 'visualiser', 'audio', 'lyric', 'lyrics', 'preview'}
+)
+
+# A trailing " - Official Video" or " | Official Visualizer": the separator must have
+# whitespace on both sides, so a hyphenated word ("Man-At-Arms") never splits.
+_DASH_SUFFIX = re.compile(r'^(?P<head>.*\S)\s+[-\u2013\u2014|\uff5c]\s+(?P<tail>[^-\u2013\u2014|\uff5c]+)$')
+# An unbracketed tail that starts with the word "official": "Shum (Billx remix) official video".
+_OFFICIAL_TAIL = re.compile(r'^(?P<head>.*\S)\s+(?P<tail>official\b.*)$', re.IGNORECASE)
+# Decoration after the last marker: emoji, daggers, stray punctuation. It hid a bracket from
+# _TRAILING_BRACKET, which only matches at the very end of the title.
+_TRAILING_JUNK = re.compile(r'[^\w\)\]]+$', re.UNICODE)
+
+
+def _is_version_marker(text: str) -> bool:
+    """Whether a bracket, dash suffix or tail says nothing but "another cut of this".
+
+    Every word has to be known. One unknown word -- a remixer's name, "Bootleg", "Anthem"
+    -- means the suffix names something, and a name means a different recording.
+    """
+    tokens = _tokens(text)
+    if not tokens:
+        return False
+    if all(token in _MODIFIER_TOKENS for token in tokens):
+        return True
+    return (
+        'official' in tokens
+        and any(token in _UPLOAD_TOKENS for token in tokens)
+        and all(token in _MODIFIER_TOKENS or token in _GENRE_TOKENS for token in tokens)
+    )
+
+
+def _strip_one_marker(title: str) -> str:
+    """The title with its last version marker removed, or unchanged when it has none."""
+    cleaned = _TRAILING_JUNK.sub('', title).strip()
+
+    match = _TRAILING_BRACKET.search(cleaned)
+    if match:
+        if _is_version_marker(match.group(1)):
+            # May leave nothing: "(Radio Edit)" alone is no title, and work_key gives
+            # such a track a key of its own, exactly as before bug report 098.
+            return cleaned[: match.start()].strip()
+        # A bracket that names something ends the search: whatever sits before it is
+        # part of that name's title, not a marker of this recording.
+        return cleaned
+
+    for pattern in (_DASH_SUFFIX, _OFFICIAL_TAIL):
+        match = pattern.match(cleaned)
+        if match and _is_version_marker(match.group('tail')) and _tokens(match.group('head')):
+            return match.group('head').strip()
+    return cleaned
+
+
+def _strip_grouping_markers(title: str) -> str:
+    """Peel version markers off the end until what is left names the song.
+
+    Brackets, " - Official ..." suffixes and a bare "official ..." tail, in any order and
+    any number: "Hurricane - Official Preview [OUT NOW]" loses both. A dash suffix or an
+    "official" tail needs words in front of it, so a bare "Official Visualizer" -- what a
+    misparse leaves in the title -- stays as it is; a lone bracket still strips to nothing.
+    """
+    result = title
+    while True:
+        stripped = _strip_one_marker(result)
+        if stripped == result:
+            return result
+        result = stripped
+
+
+# Separators between the artists of a collaboration, on the raw name: "A & B", "A x B",
+# "A feat. B", "A vs. B", "A, B & C". Not "and" or "with": those occur inside names.
+_COLLAB_SPLIT = re.compile(r'\s+(?:&|\+|x|\u00d7|feat\.?|ft\.?|featuring|vs\.?)\s+|\s*,\s+', re.IGNORECASE)
+
+
+def grouping_artist(artist: str | None) -> str:
+    """The artist half of the grouping key.
+
+    The first artist of a collaboration stands for all of them, so "CHEEVA & D-sire" and
+    "Cheeva" meet -- but only on a title that matches exactly, since the title half of the
+    key still has to be equal. Two different lead artists never share a key.
+
+    A name that is only a kind phrase ("Official Preview", "Official Visualizer") is a
+    parsing accident, not an artist: it counts as no artist, the same as a track without a
+    primary artist.
+    """
+    if not artist:
+        return ''
+    lead = _COLLAB_SPLIT.split(artist.strip(), maxsplit=1)[0]
+    tokens = _tokens(lead)
+    if tokens and 'official' in tokens and _is_version_marker(lead):
+        return ''
+    return normalize(lead) or normalize(artist)
+
+
 def version_free_title(title: str | None) -> str:
     """The normalized title with every version marker removed.
 
     A bracketed group goes only when all of its tokens are known modifiers, so
-    "(Radio Edit)" goes and "(Wildstylez Edit)" stays even though both say "edit".
+    "(Radio Edit)" goes and "(Wildstylez Edit)" stays even though both say "edit". The
+    same rule applies to a " - Official Video" dash suffix and a bare "official ..." tail
+    (bug report 098), and genre words count as known only inside an "official" upload
+    marker, so "(Official Hardcore Visualizer)" goes and "(Hardcore Mix)" stays.
     """
     if not title:
         return ''
-    result, _ = _strip_version_brackets(title)
-    return normalize(result)
+    return normalize(_strip_grouping_markers(title))
 
 
 def version_kind(title: str | None) -> str:
-    """Which length of the recording this is: one of KIND_ORDER."""
+    """Which cut of the recording this is: one of KIND_ORDER.
+
+    Reads the trailing brackets with the kind vocabulary, which is wider than the grouping
+    one, so "(Pro Mix)" and "(Official Music Video)" get a kind without changing which
+    work the track lands in.
+    """
     if not title:
         return 'none'
-    _, stripped = _strip_version_brackets(title)
+    _, stripped = _strip_version_brackets(title, _KIND_VOCABULARY)
     for kind, markers in _KIND_MARKERS:
         if any(marker in stripped for marker in markers):
             return kind
@@ -174,18 +329,47 @@ def work_key(artist: str | None, title: str | None, track_id: int, duration_secs
         return f'{UNGROUPABLE_PREFIX}{track_id}'
     if duration_secs and duration_secs > LONG_FORM_SECONDS:
         return f'{UNGROUPABLE_PREFIX}{track_id}'
-    return f'{normalize(artist)}:::{versionless}'[:WORK_KEY_MAX]
+    return f'{grouping_artist(artist)}:::{versionless}'[:WORK_KEY_MAX]
 
 
-# Each tier weighted above the maximum of every tier below it, so adding them is
-# still a lexicographic comparison. This is exactly what the implementation being
-# replaced got wrong: its weights overlapped, so format outranked version.
-_PROVENANCE_WEIGHT = 1_000_000
-_KIND_WEIGHT = 10_000
-_FORMAT_WEIGHT = 100
+# The ranking, decided by Teun on 2026-09-26 (docs/designs/song-versions/): format first,
+# driven by the `prefer_lossless` setting, then the version kind, then the bitrate, then
+# whether the file is an official release, then -- in SQL -- the oldest.
+#
+# Bump RANKING_VERSION whenever the order below changes. Every work stores the signature it
+# was scored under, and the worker rescores every work whose signature differs (see
+# song_version_worker.rescore_once), so a new order reaches the stored scores and the
+# canonicals without anyone running anything by hand.
+RANKING_VERSION = 2
 
-_LOSSLESS = {'flac', 'wav', 'aiff', 'alac'}
-_FORMAT_TIERS = 5  # flac, mp3@320, m4a/aac, mp3@192, everything else
+# Each tier weighted above the maximum of every tier below it, so adding them is still a
+# lexicographic comparison. Summing overlapping weights is the defect the first version of
+# this model removed; the packing keeps it removed. The largest score, 4*10^8 + 7*10^6 +
+# 9990 + 1, fits the INT column with room to spare.
+_FORMAT_WEIGHT = 100_000_000
+_KIND_WEIGHT = 1_000_000
+_BITRATE_WEIGHT = 10
+_OFFICIAL_POINTS = 1
+
+# Bitrate is compared in steps, not per kilobit. The derived bitrate carries container and
+# tag overhead (a 320 MP3 reads anywhere from 321 to 330), so a per-kilobit comparison
+# would let a large embedded cover outvote the official-release tier below it. 32 kbps is
+# the smallest step between two real encoder settings.
+BITRATE_STEP_KBPS = 32
+_BITRATE_STEPS_MAX = 999
+
+_LOSSLESS = frozenset({'flac', 'wav', 'aiff', 'alac'})
+_AAC_FAMILY = frozenset({'m4a', 'aac', 'opus', 'ogg'})
+_FORMAT_TIERS = 5
+
+
+def ranking_signature(prefer_lossless: bool) -> str:
+    """What a stored score was computed under: the ranking version plus the format setting.
+
+    Flipping the setting changes the signature exactly like a new ranking version does, so
+    it triggers the same rescore.
+    """
+    return f'v{RANKING_VERSION}-{"lossless" if prefer_lossless else "lossy"}'
 
 
 def derived_bitrate(file_size: int | None, duration_secs: float | None) -> int:
@@ -200,23 +384,66 @@ def derived_bitrate(file_size: int | None, duration_secs: float | None) -> int:
     return int((file_size * 8) / duration_secs / 1000)
 
 
-def format_tier(file_path: str, bitrate_kbps: int) -> int:
-    """0 is best. Lossless, then 320, then AAC, then 192, then the rest."""
-    extension = file_path.rsplit('.', 1)[-1].lower() if '.' in file_path else ''
-    if extension in _LOSSLESS:
+def file_extension(file_path: str | None) -> str:
+    """The lowercased extension, '' when there is none."""
+    if not file_path or '.' not in file_path:
+        return ''
+    return file_path.rsplit('.', 1)[-1].lower()
+
+
+def format_tier(file_path: str, bitrate_kbps: int, prefer_lossless: bool = True) -> int:
+    """0 is best.
+
+    With `prefer_lossless` (the default): lossless, MP3 320, AAC and friends, MP3 192, the
+    rest. Without it -- storage over fidelity -- MP3 320 first, then AAC, then lossless,
+    then the lower bitrates, which is still better than a 128k rip.
+    """
+    extension = file_extension(file_path)
+    lossless = extension in _LOSSLESS
+    if prefer_lossless and lossless:
         return 0
-    if bitrate_kbps >= 300:
-        return 1
-    if extension in ('m4a', 'aac', 'opus', 'ogg'):
+    if not lossless and bitrate_kbps >= 300:
+        return 0 if not prefer_lossless else 1
+    if extension in _AAC_FAMILY:
+        return 1 if not prefer_lossless else 2
+    if lossless:
         return 2
     if bitrate_kbps >= 180:
         return 3
     return 4
 
 
-def version_score(is_official: bool, kind: str, file_path: str, bitrate_kbps: int) -> int:
-    """The three tiers packed into one sortable integer. Higher is better."""
-    provenance = _PROVENANCE_WEIGHT if is_official else 0
+def is_official_release(
+    file_path: str | None,
+    has_label: bool,
+    from_download_archive: bool,
+    label_tree_roots: tuple[str, ...] = (),
+) -> bool:
+    """Whether a file is an official release rather than a rip.
+
+    A file under the label tree counts whatever its tags say -- including one still waiting
+    in the import queue (`EPs/__TODO`), which has no label yet but is a proper release all
+    the same. Outside the tree a label link counts only when the bytes did not come from a
+    download archive: the tagger attaches labels to SoundCloud rips too.
+    """
+    if file_path:
+        for root in label_tree_roots:
+            base = root.rstrip('/')
+            if base and file_path.startswith(base + '/'):
+                return True
+    return bool(has_label) and not from_download_archive
+
+
+def version_score(
+    kind: str,
+    file_path: str,
+    bitrate_kbps: int,
+    *,
+    is_official: bool,
+    prefer_lossless: bool = True,
+) -> int:
+    """The tiers packed into one sortable integer. Higher is better."""
+    format_points = (_FORMAT_TIERS - 1 - format_tier(file_path, bitrate_kbps, prefer_lossless)) * _FORMAT_WEIGHT
 
     try:
         kind_index = KIND_ORDER.index(kind)
@@ -224,6 +451,9 @@ def version_score(is_official: bool, kind: str, file_path: str, bitrate_kbps: in
         kind_index = KIND_ORDER.index('none')
     kind_points = (len(KIND_ORDER) - 1 - kind_index) * _KIND_WEIGHT
 
-    format_points = (_FORMAT_TIERS - 1 - format_tier(file_path, bitrate_kbps)) * _FORMAT_WEIGHT
+    steps = min(max(bitrate_kbps, 0) // BITRATE_STEP_KBPS, _BITRATE_STEPS_MAX)
+    bitrate_points = steps * _BITRATE_WEIGHT
 
-    return provenance + kind_points + format_points
+    official_points = _OFFICIAL_POINTS if is_official else 0
+
+    return format_points + kind_points + bitrate_points + official_points

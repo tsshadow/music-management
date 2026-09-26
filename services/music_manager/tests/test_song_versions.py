@@ -9,10 +9,13 @@ import unittest
 from services.music_manager.song_versions import (
     KIND_ORDER,
     LONG_FORM_SECONDS,
+    RANKING_VERSION,
     SPLIT_PREFIX,
     UNGROUPABLE_PREFIX,
     derived_bitrate,
     format_tier,
+    is_official_release,
+    ranking_signature,
     version_free_title,
     version_kind,
     version_score,
@@ -97,15 +100,49 @@ class VersionKindTest(unittest.TestCase):
     def test_no_marker_at_all_is_none(self):
         self.assertEqual(version_kind('Raise Your Fist'), 'none')
 
-    def test_a_marker_that_names_no_length_is_none(self):
-        self.assertEqual(version_kind('Raise Your Fist (Official Video)'), 'none')
+    def test_an_official_video_is_a_video(self):
+        self.assertEqual(version_kind('Raise Your Fist (Official Video)'), 'video')
+
+    def test_every_screen_upload_is_a_video(self):
+        for title in (
+            'Raise Your Fist (Official Music Video)',
+            'Raise Your Fist [Videoclip]',
+            'Raise Your Fist (Visualizer)',
+            'Raise Your Fist (Official Audio)',
+            'Raise Your Fist (Lyric Video)',
+        ):
+            self.assertEqual(version_kind(title), 'video', title)
+
+    def test_a_video_of_the_radio_edit_is_still_a_video(self):
+        self.assertEqual(version_kind('Raise Your Fist (Radio Edit) [Official Video]'), 'video')
+
+    def test_a_pro_edit_and_a_pro_mix_are_pro(self):
+        self.assertEqual(version_kind('Raise Your Fist (Pro Edit)'), 'pro')
+        self.assertEqual(version_kind('Raise Your Fist (Pro Mix)'), 'pro')
+        self.assertEqual(version_kind('Raise Your Fist (Pro-Mix)'), 'pro')
+
+    def test_pro_and_music_video_group_with_the_song_and_keep_their_kind(self):
+        # Bug report 098 taught the grouping key these words: a pro edit and a music video
+        # now share the song's work, and the kind still tells them apart for the ranking.
+        self.assertEqual(version_free_title('Raise Your Fist (Pro Edit)'), 'raise your fist')
+        self.assertEqual(version_free_title('Raise Your Fist (Official Music Video)'), 'raise your fist')
+        self.assertEqual(version_kind('Raise Your Fist (Pro Edit)'), 'pro')
+        self.assertEqual(version_kind('Raise Your Fist (Official Music Video)'), 'video')
+
+    def test_a_name_in_the_bracket_is_still_no_kind(self):
+        self.assertEqual(version_kind('Raise Your Fist (Promo Edit By Wildstylez)'), 'none')
 
     def test_a_remix_is_none_because_it_is_a_song_of_its_own(self):
         self.assertEqual(version_kind('Raise Your Fist (Wildstylez Remix)'), 'none')
 
     def test_every_kind_appears_in_the_ranking_order(self):
-        kinds = {'radio', 'edit', 'original', 'none', 'extended', 'instrumental'}
+        kinds = {'pro', 'radio', 'edit', 'original', 'none', 'extended', 'instrumental', 'video'}
         self.assertEqual(set(KIND_ORDER), kinds)
+
+    def test_the_kind_order_is_the_one_teun_decided(self):
+        # docs/designs/song-versions/functional.md: pro > radio > edit > original > none >
+        # extended > instrumental > video.
+        self.assertEqual(KIND_ORDER, ('pro', 'radio', 'edit', 'original', 'none', 'extended', 'instrumental', 'video'))
 
 
 class WorkKeyTest(unittest.TestCase):
@@ -246,33 +283,125 @@ class FormatTierTest(unittest.TestCase):
     def test_the_extension_is_case_insensitive(self):
         self.assertEqual(format_tier('a.FLAC', 1000), format_tier('a.flac', 1000))
 
+    def test_the_lossless_order_in_full(self):
+        order = [
+            format_tier('a.flac', 1000),
+            format_tier('a.wav', 1411),
+            format_tier('a.mp3', 320),
+            format_tier('a.m4a', 256),
+            format_tier('a.mp3', 192),
+            format_tier('a.mp3', 128),
+        ]
+        self.assertEqual(order, [0, 0, 1, 2, 3, 4])
+
+    def test_the_storage_order_puts_mp3_320_first_and_lossless_after_aac(self):
+        order = [
+            format_tier('a.mp3', 320, prefer_lossless=False),
+            format_tier('a.m4a', 256, prefer_lossless=False),
+            format_tier('a.flac', 1000, prefer_lossless=False),
+            format_tier('a.mp3', 192, prefer_lossless=False),
+            format_tier('a.mp3', 128, prefer_lossless=False),
+        ]
+        self.assertEqual(order, [0, 1, 2, 3, 4])
+
+    def test_a_lossless_file_is_never_mistaken_for_an_mp3_320_by_its_bitrate(self):
+        # A FLAC reads around 1000 kbps; without the extension check first it would pass
+        # the >= 300 test and land in the MP3 320 tier under the storage setting.
+        self.assertEqual(format_tier('a.flac', 1000, prefer_lossless=False), 2)
+
+
+class OfficialReleaseTest(unittest.TestCase):
+    ROOTS = ('/mnt/music/EPs',)
+
+    def test_a_file_in_the_label_tree_is_official_without_a_label(self):
+        self.assertTrue(is_official_release('/mnt/music/EPs/Scantraxx/SCAN1/a.flac', False, False, self.ROOTS))
+
+    def test_a_release_waiting_in_the_import_queue_is_official(self):
+        # Hysta & RDO - TOGETHER: in EPs/__TODO, no label yet, lost to a SoundCloud rip.
+        self.assertTrue(is_official_release('/mnt/music/EPs/__TODO/TOGETHER/a.flac', False, False, self.ROOTS))
+
+    def test_a_queue_outside_the_tree_counts_when_it_is_listed(self):
+        roots = ('/mnt/music/EPs', '/mnt/music/Import')
+        self.assertTrue(is_official_release('/mnt/music/Import/x/a.flac', False, False, roots))
+
+    def test_a_folder_that_only_starts_like_the_root_does_not_count(self):
+        self.assertFalse(is_official_release('/mnt/music/EPs-old/a.flac', False, False, self.ROOTS))
+
+    def test_a_labelled_file_outside_the_tree_is_official_unless_downloaded(self):
+        self.assertTrue(is_official_release('/mnt/music/Lidarr/a.flac', True, False, self.ROOTS))
+        self.assertFalse(is_official_release('/mnt/music/Soundcloud/a.mp3', True, True, self.ROOTS))
+
+    def test_nothing_known_is_not_official(self):
+        self.assertFalse(is_official_release(None, False, False, self.ROOTS))
+        self.assertFalse(is_official_release('/mnt/music/Youtube/a.m4a', False, False, ()))
+
+
+class RankingSignatureTest(unittest.TestCase):
+    def test_the_setting_is_part_of_the_signature(self):
+        self.assertNotEqual(ranking_signature(True), ranking_signature(False))
+
+    def test_the_version_is_part_of_the_signature(self):
+        self.assertTrue(ranking_signature(True).startswith(f'v{RANKING_VERSION}-'))
+
+
+def _score(kind, path, kbps, official=False, lossless=True):
+    return version_score(kind, path, kbps, is_official=official, prefer_lossless=lossless)
+
 
 class VersionScoreTest(unittest.TestCase):
-    def test_an_official_192k_radio_edit_beats_a_320k_rip(self):
-        official = version_score(True, 'radio', 'a.mp3', 192)
-        rip = version_score(False, 'none', 'b.mp3', 320)
-        self.assertGreater(official, rip)
+    """The ranking table, both settings. Each case: (winner, loser, why)."""
 
-    def test_within_one_provenance_the_version_decides_before_the_format(self):
-        radio_mp3 = version_score(True, 'radio', 'a.mp3', 192)
-        extended_flac = version_score(True, 'extended', 'b.flac', 1000)
-        self.assertGreater(radio_mp3, extended_flac)
+    LOSSLESS_CASES = (
+        (('radio', 'a.flac', 1000), ('radio', 'b.mp3', 320), 'format first: flac beats mp3 320'),
+        (('extended', 'a.flac', 1000), ('radio', 'b.mp3', 320), 'format before kind'),
+        (('radio', 'a.mp3', 320), ('pro', 'b.m4a', 256), 'mp3 320 beats aac whatever the kind'),
+        (('none', 'a.m4a', 128), ('radio', 'b.mp3', 128), 'aac beats a low mp3'),
+        (('pro', 'a.flac', 1000), ('radio', 'b.flac', 1000), 'pro edit beats radio edit'),
+        (('radio', 'a.flac', 1000), ('edit', 'b.flac', 1000), 'radio beats edit'),
+        (('edit', 'a.flac', 1000), ('original', 'b.flac', 1000), 'edit beats original'),
+        (('original', 'a.flac', 1000), ('none', 'b.flac', 1000), 'original beats unmarked'),
+        (('none', 'a.flac', 1000), ('extended', 'b.flac', 1000), 'unmarked beats extended'),
+        (('extended', 'a.flac', 1000), ('instrumental', 'b.flac', 1000), 'extended beats instrumental'),
+        (('instrumental', 'a.flac', 1000), ('video', 'b.flac', 1000), 'a video is last'),
+        (('radio', 'a.mp3', 256), ('radio', 'b.mp3', 192), 'within a tier the bitrate decides'),
+    )
 
-    def test_within_one_version_the_format_decides(self):
-        flac = version_score(True, 'radio', 'a.flac', 1000)
-        mp3 = version_score(True, 'radio', 'b.mp3', 320)
-        self.assertGreater(flac, mp3)
+    LOSSY_CASES = (
+        (('radio', 'a.mp3', 320), ('radio', 'b.flac', 1000), 'storage: mp3 320 beats flac'),
+        (('radio', 'a.m4a', 256), ('radio', 'b.flac', 1000), 'storage: aac beats flac'),
+        (('radio', 'a.flac', 1000), ('radio', 'b.mp3', 192), 'storage: flac still beats a low mp3'),
+        (('extended', 'a.mp3', 320), ('pro', 'b.flac', 1000), 'storage: format before kind'),
+        (('pro', 'a.mp3', 320), ('radio', 'b.mp3', 320), 'storage: pro beats radio'),
+    )
 
-    def test_instrumental_is_the_worst_kind(self):
-        for kind in ('radio', 'edit', 'original', 'none', 'extended'):
-            self.assertGreater(
-                version_score(True, kind, 'a.flac', 1000),
-                version_score(True, 'instrumental', 'a.flac', 1000),
-                kind,
-            )
+    def test_the_lossless_ranking_table(self):
+        for winner, loser, why in self.LOSSLESS_CASES:
+            self.assertGreater(_score(*winner), _score(*loser), why)
+
+    def test_the_storage_ranking_table(self):
+        for winner, loser, why in self.LOSSY_CASES:
+            self.assertGreater(_score(*winner, lossless=False), _score(*loser, lossless=False), why)
+
+    def test_an_official_release_breaks_a_tie_the_bitrate_leaves(self):
+        self.assertGreater(_score('radio', 'a.mp3', 322, official=True), _score('radio', 'b.mp3', 330))
+
+    def test_container_overhead_does_not_outvote_the_official_release(self):
+        # A 320 with a large embedded cover reads a few kbps higher; the 32 kbps step keeps
+        # that from beating the official file.
+        self.assertGreater(_score('radio', 'a.mp3', 321, official=True), _score('radio', 'b.mp3', 351))
+
+    def test_a_real_bitrate_step_beats_official(self):
+        self.assertGreater(_score('radio', 'a.mp3', 256), _score('radio', 'b.mp3', 192, official=True))
+
+    def test_a_proper_release_beats_a_rip_of_the_same_edit(self):
+        # The case this change exists for: the FLAC in EPs/ over the SoundCloud rip.
+        self.assertGreater(_score('radio', 'a.flac', 900, official=True), _score('radio', 'b.mp3', 128))
 
     def test_an_unknown_kind_does_not_crash_and_ranks_as_none(self):
-        self.assertEqual(
-            version_score(True, 'nonsense', 'a.flac', 1000),
-            version_score(True, 'none', 'a.flac', 1000),
-        )
+        self.assertEqual(_score('nonsense', 'a.flac', 1000), _score('none', 'a.flac', 1000))
+
+    def test_the_largest_score_fits_a_signed_int_column(self):
+        self.assertLess(_score('pro', 'a.flac', 10_000_000, official=True), 2**31 - 1)
+
+    def test_a_missing_bitrate_scores_without_crashing(self):
+        self.assertIsInstance(_score('none', '', 0), int)

@@ -12,11 +12,13 @@ real database in production, and tests/integration is where the SQL meets a
 schema; here it meets a script, so what is asserted is the statements it issued.
 """
 
+import datetime
 import unittest
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from services.music_manager import song_version_worker as worker
-from services.music_manager.song_versions import version_score
+from services.music_manager.song_versions import ranking_signature, version_score
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
 # Seconds and bytes chosen so the derived bitrate lands in different tiers: the
@@ -41,7 +43,7 @@ class RankRowTest(unittest.TestCase):
     def test_a_labelled_release_that_was_not_downloaded_is_official(self):
         kind, score = worker._rank_row(_row(1, 'Raise Your Fist (Extended Mix)'))
         self.assertEqual(kind, 'extended')
-        self.assertEqual(score, version_score(True, 'extended', MP3['file_path'], 128))
+        self.assertEqual(score, version_score('extended', MP3['file_path'], 128, is_official=True))
 
     def test_a_labelled_track_from_soundcloud_is_not_official(self):
         # The label join alone would call a SoundCloud rip official whenever the
@@ -50,6 +52,18 @@ class RankRowTest(unittest.TestCase):
         _kind, official = worker._rank_row(_row(1, 'Raise Your Fist'))
         _kind, ripped = worker._rank_row(_row(1, 'Raise Your Fist', from_soundcloud=1))
         self.assertGreater(official, ripped)
+
+    def test_a_file_in_the_label_tree_is_official_without_a_label(self):
+        context = worker.RankingContext(label_tree_roots=('/mnt/music/EPs',))
+        todo = {'file_path': '/mnt/music/EPs/__TODO/x/a.mp3', 'file_size': 4_800_000, 'duration_secs': 300}
+        _kind, queued = worker._rank_row(_row(1, 'Together', files=todo, has_label=0), context)
+        _kind, loose = worker._rank_row(_row(1, 'Together', has_label=0), context)
+        self.assertEqual(queued - loose, 1)
+
+    def test_the_setting_reaches_the_score(self):
+        lossless = worker._rank_row(_row(1, 'Raise Your Fist', files=FLAC), worker.RankingContext(True))[1]
+        lossy = worker._rank_row(_row(1, 'Raise Your Fist', files=FLAC), worker.RankingContext(False))[1]
+        self.assertGreater(lossless, lossy)
 
     def test_a_track_without_a_file_still_ranks(self):
         kind, score = worker._rank_row(
@@ -101,6 +115,10 @@ class AssignWorksTest(unittest.TestCase):
         self.assertEqual(len(inserts), 2)
         self.assertEqual({params[0] for _sql, params in inserts}, {inserts[0][1][0]})
         self.assertIn('ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)', inserts[0][0])
+        # A new work carries the signature its tracks were just scored under; the upsert
+        # never rewrites an existing work's signature, or the rescore would skip it.
+        self.assertEqual(inserts[0][1][3], ranking_signature(True))
+        self.assertNotIn('ranking_signature =', inserts[0][0])
 
         updates = cursor.statements_matching('UPDATE library_tracks SET work_id')
         self.assertEqual([params[0] for _sql, params in updates], [40, 40])
@@ -319,6 +337,219 @@ class GroupOnceTest(unittest.TestCase):
         )
         stats = worker.group_once(self._conn(cursor))
         self.assertEqual(stats, {'assigned': 1, 'remaining': 499, 'recomputed': 1})
+
+
+class RankingContextTest(unittest.TestCase):
+    def test_the_label_tree_and_the_queue_inside_it_are_one_root(self):
+        settings = SimpleNamespace(prefer_lossless=True, eps_folder_path='/mnt/music/EPs', import_folder_path='')
+        context = worker.ranking_context(settings)
+        self.assertEqual(context.label_tree_roots, ('/mnt/music/EPs',))
+        self.assertTrue(context.prefer_lossless)
+
+    def test_a_queue_moved_out_of_the_tree_is_a_root_of_its_own(self):
+        settings = SimpleNamespace(
+            prefer_lossless=False, eps_folder_path='/mnt/music/EPs', import_folder_path='/mnt/music/Import'
+        )
+        context = worker.ranking_context(settings)
+        self.assertEqual(context.label_tree_roots, ('/mnt/music/EPs', '/mnt/music/Import'))
+        self.assertFalse(context.prefer_lossless)
+        self.assertEqual(context.signature, ranking_signature(False))
+
+    def test_nothing_configured_means_no_roots_and_lossless(self):
+        context = worker.ranking_context(SimpleNamespace())
+        self.assertEqual(context.label_tree_roots, ())
+        self.assertTrue(context.prefer_lossless)
+
+
+T0 = datetime.datetime(2026, 1, 1)
+T1 = datetime.datetime(2026, 2, 1)
+
+
+def _member(track_id, work_id, title, files=MP3, stored_kind=None, stored_score=None, created_at=T0, **flags):
+    row = _row(track_id, title, files=files, **flags)
+    row.update(work_id=work_id, version_kind=stored_kind, version_score=stored_score, created_at=created_at)
+    return row
+
+
+CONTEXT = worker.RankingContext(prefer_lossless=True, label_tree_roots=('/mnt/music/EPs',))
+EPS_FLAC = {'file_path': '/mnt/music/EPs/Label/a.flac', 'file_size': 30_000_000, 'duration_secs': 300}
+RIP = {'file_path': '/mnt/music/Soundcloud/a.mp3', 'file_size': 4_800_000, 'duration_secs': 300}
+
+
+class BestTrackTest(unittest.TestCase):
+    def test_only_a_member_with_a_file_can_win(self):
+        rows = [
+            _member(1, 40, 'A', files={'file_path': None, 'file_size': None, 'duration_secs': None}),
+            _member(2, 40, 'A'),
+        ]
+        self.assertEqual(worker.best_track(rows, {1: 999, 2: 1}), 2)
+
+    def test_ties_go_to_the_bigger_file_then_the_oldest_then_the_lowest_id(self):
+        big = {'file_path': '/x/b.mp3', 'file_size': 9_000_000, 'duration_secs': 300}
+        self.assertEqual(worker.best_track([_member(1, 40, 'A'), _member(2, 40, 'A', files=big)], {1: 5, 2: 5}), 2)
+        self.assertEqual(
+            worker.best_track([_member(1, 40, 'A', created_at=T1), _member(2, 40, 'A', created_at=T0)], {1: 5, 2: 5}),
+            2,
+        )
+        self.assertEqual(worker.best_track([_member(2, 40, 'A'), _member(1, 40, 'A')], {1: 5, 2: 5}), 1)
+
+    def test_no_member_with_a_file_is_no_canonical(self):
+        self.assertIsNone(worker.best_track([], {}))
+
+    def test_it_mirrors_the_sql_order(self):
+        # The same decision in two places; if _BEST_TRACK's ORDER BY moves, this must too.
+        for fragment in (
+            't.version_score DESC',
+            'mf.file_size / NULLIF(mf.duration_secs, 0)) DESC',
+            't.created_at ASC',
+            't.id ASC',
+        ):
+            self.assertIn(fragment, worker._BEST_TRACK)
+
+
+class RescoreBatchTest(unittest.TestCase):
+    """The rip used to win on the old ranking; the new one picks the release in EPs/."""
+
+    def _cursor(self, members):
+        return ScriptedCursor([('WHERE t.work_id BETWEEN', None, members)])
+
+    def _members(self):
+        return [
+            _member(1, 40, 'Together', files=RIP, from_soundcloud=1, has_label=0, stored_kind='none', stored_score=7),
+            _member(2, 40, 'Together', files=EPS_FLAC, has_label=0, stored_kind='none', stored_score=3),
+        ]
+
+    def test_a_changed_canonical_is_written_and_flagged(self):
+        cursor = self._cursor(self._members())
+        works = [{'id': 40, 'canonical_track_id': 1, 'pinned_track_id': None}]
+        stats = worker.rescore_batch(cursor, works, CONTEXT)
+
+        self.assertEqual(stats, {'works': 1, 'tracks_rescored': 2, 'canonicals_changed': 1})
+        flagged = cursor.statements_matching('previous_canonical_track_id = %s')
+        self.assertEqual([params for _sql, params in flagged], [(2, 1, 40)])
+        self.assertIn('canonical_changed_at = CURRENT_TIMESTAMP', flagged[0][0])
+        stamp = cursor.statements_matching('SET ranking_signature')
+        self.assertEqual(stamp[0][1], (CONTEXT.signature, 40, 40, CONTEXT.signature))
+
+    def test_it_never_regroups(self):
+        cursor = self._cursor(self._members())
+        worker.rescore_batch(cursor, [{'id': 40, 'canonical_track_id': 1, 'pinned_track_id': None}], CONTEXT)
+        self.assertEqual(cursor.statements_matching('SET work_id'), [])
+        self.assertEqual(cursor.statements_matching('INSERT'), [])
+
+    def test_a_pin_wins_and_nothing_is_flagged(self):
+        cursor = self._cursor(self._members())
+        works = [{'id': 40, 'canonical_track_id': 1, 'pinned_track_id': 1}]
+        stats = worker.rescore_batch(cursor, works, CONTEXT)
+        self.assertEqual(stats['canonicals_changed'], 0)
+        self.assertEqual(cursor.statements_matching('canonical_track_id = %s'), [])
+        # The scores are still refreshed: the page shows them, pinned or not.
+        self.assertEqual(len(cursor.statements_matching('UPDATE library_tracks SET version_kind')[0][1]), 2)
+
+    def test_a_pin_on_a_track_that_left_is_cleared_and_the_ranking_decides(self):
+        cursor = self._cursor(self._members())
+        works = [{'id': 40, 'canonical_track_id': 9, 'pinned_track_id': 9}]
+        worker.rescore_batch(cursor, works, CONTEXT)
+        cleared = cursor.statements_matching('SET pinned_track_id = NULL')
+        self.assertEqual([params for _sql, params in cleared], [(40,)])
+
+    def test_a_work_without_a_canonical_gains_one_without_a_flag(self):
+        cursor = self._cursor(self._members())
+        stats = worker.rescore_batch(cursor, [{'id': 40, 'canonical_track_id': None, 'pinned_track_id': None}], CONTEXT)
+        self.assertEqual(stats['canonicals_changed'], 0)
+        plain = cursor.statements_matching('UPDATE library_works SET canonical_track_id = %s WHERE id = %s')
+        self.assertEqual([params for _sql, params in plain], [(2, 40)])
+
+    def test_a_second_run_over_rescored_data_writes_only_the_stamp(self):
+        # Idempotence: feed the batch the scores and canonical the first run produced.
+        first = self._members()
+        best = worker._best_per_track(first, CONTEXT)
+        for row in first:
+            row['version_kind'] = best[row['id']]['kind']
+            row['version_score'] = best[row['id']]['score']
+        cursor = self._cursor(first)
+        stats = worker.rescore_batch(cursor, [{'id': 40, 'canonical_track_id': 2, 'pinned_track_id': None}], CONTEXT)
+        self.assertEqual(stats, {'works': 1, 'tracks_rescored': 0, 'canonicals_changed': 0})
+        writes = [sql for sql, _params in cursor.executed if sql.startswith('UPDATE')]
+        self.assertEqual(len(writes), 1)
+        self.assertIn('SET ranking_signature', writes[0])
+
+    def test_a_dry_run_counts_and_writes_nothing(self):
+        cursor = self._cursor(self._members())
+        stats = worker.rescore_batch(
+            cursor, [{'id': 40, 'canonical_track_id': 1, 'pinned_track_id': None}], CONTEXT, dry_run=True
+        )
+        self.assertEqual(stats['canonicals_changed'], 1)
+        self.assertEqual(cursor.statements_matching('UPDATE'), [])
+
+
+class RescoreOnceTest(unittest.TestCase):
+    def _conn(self, cursor):
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+        return conn
+
+    def test_it_walks_the_works_in_id_order_and_commits_per_batch(self):
+        cursor = ScriptedCursor(
+            [
+                (
+                    'AND id > %s',
+                    (CONTEXT.signature, 0, 1),
+                    [{'id': 40, 'canonical_track_id': None, 'pinned_track_id': None}],
+                ),
+                (
+                    'AND id > %s',
+                    (CONTEXT.signature, 40, 1),
+                    [{'id': 41, 'canonical_track_id': None, 'pinned_track_id': None}],
+                ),
+                ('WHERE t.work_id BETWEEN', None, []),
+            ]
+        )
+        conn = self._conn(cursor)
+        stats = worker.rescore_once(conn, CONTEXT, batch_size=1)
+        self.assertEqual(stats['works'], 2)
+        self.assertEqual(conn.commit.call_count, 2)
+        walked = [params for _sql, params in cursor.statements_matching('AND id > %s')]
+        self.assertEqual(walked, [(CONTEXT.signature, 0, 1), (CONTEXT.signature, 40, 1), (CONTEXT.signature, 41, 1)])
+
+    def test_a_dry_run_never_commits(self):
+        cursor = ScriptedCursor(
+            [
+                (
+                    'AND id > %s',
+                    (CONTEXT.signature, 0, 500),
+                    [{'id': 40, 'canonical_track_id': None, 'pinned_track_id': None}],
+                ),
+                ('WHERE t.work_id BETWEEN', None, []),
+            ]
+        )
+        conn = self._conn(cursor)
+        worker.rescore_once(conn, CONTEXT, dry_run=True)
+        conn.commit.assert_not_called()
+
+    def test_only_works_under_another_signature_are_selected(self):
+        self.assertIn('ranking_signature IS NULL OR ranking_signature <> %s', worker._RESCORE_WORKS)
+
+
+class RescoreTickTest(unittest.TestCase):
+    def test_nothing_pending_does_nothing(self):
+        conn = MagicMock()
+        conn.cursor.return_value = ScriptedCursor([])
+        with patch.object(worker, 'rescore_once') as rescore:
+            self.assertIsNone(worker.rescore_tick(conn, CONTEXT))
+        rescore.assert_not_called()
+
+    def test_a_pending_ranking_is_measured_before_it_is_applied(self):
+        conn = MagicMock()
+        conn.cursor.return_value = ScriptedCursor([('SELECT 1 AS pending', None, {'pending': 1})])
+        counts = {'works': 3, 'tracks_rescored': 2, 'canonicals_changed': 1}
+        with (
+            patch.object(worker, 'rescore_once', return_value=counts) as rescore,
+            self.assertLogs('music-manager.song-versions', 'INFO') as logs,
+        ):
+            worker.rescore_tick(conn, CONTEXT)
+        self.assertEqual([call.kwargs.get('dry_run', False) for call in rescore.call_args_list], [True, False])
+        self.assertIn('change 1 canonicals', logs.output[0])
 
 
 if __name__ == '__main__':

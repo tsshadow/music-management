@@ -41,11 +41,16 @@ ROOT = Path(__file__).resolve().parents[2]
 _ROOT_PREFIX = str(ROOT) + os.sep
 _MARKER = 'mock_base'
 
-# Never lifted out of sys.modules: the plugin and the stub library themselves with their
+# Never lifted out of sys.modules: the plugins and the stub library themselves with their
 # parent packages, and pytest's conftest modules, which pytest holds on to and which must
 # not be re-imported under a world.
 _RETAINED_PACKAGES = ('services', 'services.tests')
-_KEEP = {'services.tests.mock_base', 'services.tests.mock_base_plugin', *_RETAINED_PACKAGES}
+_KEEP = {
+    'services.tests.mock_base',
+    'services.tests.mock_base_plugin',
+    'services.tests.in_memory_events_plugin',
+    *_RETAINED_PACKAGES,
+}
 
 
 def _kept(name: str) -> bool:

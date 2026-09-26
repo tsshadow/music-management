@@ -67,6 +67,15 @@ change (`reset_database_helpers()` for the `Cache` helpers). To stub something j
 test, use `patch.dict(sys.modules, {...})`, never a bare assignment --
 `tests/ci/test_mock_base_isolation.py` fails when a stub outlives collection (bug report 085).
 
+**A loop test ends the loop with a stop event, never with a patched `time.sleep`.**
+`time.sleep` is one function for the whole process: a finite `side_effect` list on it is also
+consumed by any other thread that sleeps during the test, and the test dies on `StopIteration`.
+`thread_registry.run_forever` and the loops built on it take a `stop` event and never call
+`time.sleep`; hand them `services.tests.stop_after.StopAfter(n)`, which ends the loop after
+exactly `n` rounds without waiting and records the delays it was asked to wait. The process-wide
+event service writes to memory in every test (`services/tests/in_memory_events_plugin.py`), so a
+log line never leaves a writer thread retrying against a database (bug report 099).
+
 **Mocked tests are not enough for SQL.** Everything under `services/` mocks the
 database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in
@@ -125,3 +134,15 @@ comment as well, where the next person will actually hit it.
 Bugs that reached production get a numbered write-up in `docs/bug-reports/`
 covering the symptom, the cause and what now prevents a recurrence. That
 directory is the most useful documentation in this repository; keep it fed.
+
+## Open work
+
+Anything decided but not done, or done but not verified, becomes a
+[GitLab issue](https://gitlab.example.com/muma/music-management/-/issues)
+right away (`glab issue create`), with one kind label (`needs-person`,
+`decision`, `verify`, `code`, `deferred`) and one area label (`area-backend`,
+`area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a
+link to the bug report or design that holds the detail. A `verify` issue states
+the exact check. A merge request that finishes an issue says `Closes #N` in its
+description. `docs/open-work.md` is only a pointer to the issues now; do not add
+lines to it. AGENTS.md rule 14 is the rule.

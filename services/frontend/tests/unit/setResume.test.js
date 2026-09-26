@@ -96,7 +96,7 @@ describe("loadSetResumePositions / saveSetResumePosition", () => {
           }),
         };
       }
-      saved = JSON.parse(JSON.parse(options.body).settings);
+      saved = JSON.parse(options.body).set;
       return { ok: true, json: async () => ({}) };
     });
 
@@ -119,7 +119,7 @@ describe("loadSetResumePositions / saveSetResumePosition", () => {
     // test those land in depends on nothing this test controls.
     const stored = global.fetch.mock.calls
       .filter(([, options]) => options?.body)
-      .map(([, options]) => JSON.parse(JSON.parse(options.body).settings)[SET_RESUME_KEY] ?? {});
+      .map(([, options]) => JSON.parse(options.body).set?.[SET_RESUME_KEY] ?? {});
     const positions = stored.flatMap((map) => Object.values(map).map((entry) => entry.position));
     expect(positions.every((position) => position > 0)).toBe(true);
   });
@@ -134,7 +134,7 @@ describe("loadSetResumePositions / saveSetResumePosition", () => {
       if (!options?.body) {
         return { ok: true, json: async () => ({ settings: JSON.stringify({ setResume: many }) }) };
       }
-      saved = JSON.parse(JSON.parse(options.body).settings);
+      saved = JSON.parse(options.body).set;
       return { ok: true, json: async () => ({}) };
     });
 

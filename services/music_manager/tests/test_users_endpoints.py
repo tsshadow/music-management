@@ -485,6 +485,171 @@ class AppSettingsTest(UsersEndpointTestCase):
         self.assertNotIn('INSERT', self.cursor.execute.call_args.args[0])
 
 
+class MergeSettingsBlobTest(unittest.TestCase):
+    """The pure top-level merge behind PATCH /api/users/{id}/settings/{app_id}."""
+
+    def test_named_keys_are_set_and_every_other_key_is_kept(self):
+        merged = users_router.merge_settings_blob('{"language":"nl","favoriteGenres":["A"]}', {'trackPageSize': 50}, [])
+        self.assertEqual(merged, {'language': 'nl', 'favoriteGenres': ['A'], 'trackPageSize': 50})
+
+    def test_a_value_replaces_the_stored_one_whole_rather_than_merging_into_it(self):
+        merged = users_router.merge_settings_blob(
+            '{"setResume":{"work:1":{},"work:2":{}}}', {'setResume': {'work:3': {}}}, []
+        )
+        self.assertEqual(merged, {'setResume': {'work:3': {}}})
+
+    def test_removed_keys_are_gone_and_a_missing_one_is_no_error(self):
+        merged = users_router.merge_settings_blob('{"a":1,"b":2}', {}, ['a', 'never-there'])
+        self.assertEqual(merged, {'b': 2})
+
+    def test_a_missing_broken_or_non_object_blob_counts_as_empty(self):
+        for stored in (None, '', 'garbage', '[1,2]', 'null', '"text"'):
+            with self.subTest(stored=stored):
+                self.assertEqual(users_router.merge_settings_blob(stored, {'a': 1}, []), {'a': 1})
+
+    def test_null_is_a_value_like_any_other(self):
+        # Removing is explicit (`remove`), so a client can still store a JSON null on purpose.
+        self.assertEqual(users_router.merge_settings_blob('{"a":1}', {'a': None}, []), {'a': None})
+
+
+class PatchAppSettingsTest(UsersEndpointTestCase):
+    """PATCH /api/users/{id}/settings/{app_id}: a locked per-key read-merge-write."""
+
+    def patch(self, body, user_id=4):
+        return self.client.patch(f'/api/users/{user_id}/settings/frontend', headers=self.headers, json=body)
+
+    def write(self):
+        """The (statement, params) of the INSERT or UPDATE the endpoint wrote the blob with."""
+        for call in self.cursor.execute.call_args_list:
+            statement = call.args[0]
+            if statement.startswith(('UPDATE user_app_settings', 'INSERT INTO user_app_settings')):
+                return statement, call.args[1]
+        return None
+
+    def test_only_the_named_keys_change_and_the_rest_of_the_blob_is_kept(self):
+        self.cursor.fetchone.side_effect = [
+            {'id': 4},
+            {'settings_json': '{"language":"nl","favoriteGenres":["Hardcore"]}'},
+            {'updated_at': '2026-09-26 12:00:00'},
+        ]
+        response = self.patch({'set': {'trackPageSize': 50}, 'remove': ['language']})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        statement, params = self.write()
+        self.assertTrue(statement.startswith('UPDATE'))
+        self.assertEqual(json.loads(params[0]), {'favoriteGenres': ['Hardcore'], 'trackPageSize': 50})
+        self.assertEqual(params[1:], (4, 'frontend'))
+        body = response.json()
+        self.assertEqual(json.loads(body['settings']), {'favoriteGenres': ['Hardcore'], 'trackPageSize': 50})
+        self.assertEqual(body['updated_at'], '2026-09-26 12:00:00')
+        self.assertEqual(body['status'], 'ok')
+
+    def test_the_stored_blob_is_read_under_a_row_lock_inside_one_transaction(self):
+        # Without FOR UPDATE two concurrent writers read the same blob and the second UPDATE
+        # drops the first one's key -- exactly the lost update the endpoint exists to prevent.
+        self.cursor.fetchone.side_effect = [{'id': 4}, {'settings_json': '{}'}, {'updated_at': 'x'}]
+        self.patch({'set': {'a': 1}})
+
+        reads = [s for s in self.statements() if s.startswith('SELECT settings_json')]
+        self.assertEqual(len(reads), 1)
+        self.assertTrue(reads[0].rstrip().endswith('FOR UPDATE'))
+        self.conn.begin.assert_called_once()
+        self.conn.commit.assert_called_once()
+        self.conn.rollback.assert_not_called()
+
+    def test_an_account_without_a_blob_gets_one_inserted(self):
+        self.cursor.fetchone.side_effect = [{'id': 4}, None, {'updated_at': 'x'}]
+        response = self.patch({'set': {'language': 'en'}})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        statement, params = self.write()
+        self.assertTrue(statement.startswith('INSERT'))
+        self.assertEqual(params[:2], (4, 'frontend'))
+        self.assertEqual(json.loads(params[2]), {'language': 'en'})
+
+    def test_an_unknown_user_is_a_not_found_and_nothing_is_written(self):
+        self.cursor.fetchone.side_effect = [None]
+        response = self.patch({'set': {'a': 1}}, user_id=99)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIsNone(self.write())
+        self.conn.rollback.assert_called_once()
+
+    def test_a_key_both_set_and_removed_is_refused_before_the_database(self):
+        response = self.patch({'set': {'a': 1}, 'remove': ['a']})
+
+        self.assertEqual(response.status_code, 422)
+        self.cursor.execute.assert_not_called()
+
+    def test_set_must_be_an_object_and_remove_a_list_of_strings(self):
+        for body in ({'set': [1, 2]}, {'set': 'text'}, {'remove': 'a'}, {'remove': [{'a': 1}]}):
+            with self.subTest(body=body):
+                self.assertEqual(self.patch(body).status_code, 422)
+
+    def test_a_user_may_not_patch_another_users_settings(self):
+        auth = {'type': 'user', 'user': {'id': 5}, 'permissions': set()}
+        app.dependency_overrides[users_router.verify_api_key] = lambda: auth
+        self.addCleanup(app.dependency_overrides.pop, users_router.verify_api_key, None)
+
+        response = self.patch({'set': {'a': 1}}, user_id=4)
+
+        self.assertEqual(response.status_code, 403)
+        self.cursor.execute.assert_not_called()
+
+    def test_a_deadlock_is_retried_from_the_top(self):
+        # Two first writes of a missing row both hold its gap lock; MariaDB kills one with 1213.
+        # The retry reads the row again -- by then holding the other writer's key -- and merges.
+        self.cursor.fetchone.side_effect = [
+            {'id': 4},
+            None,
+            {'id': 4},
+            {'settings_json': '{"other":true}'},
+            {'updated_at': 'x'},
+        ]
+        attempts = []
+
+        def execute(statement, _params=None):
+            if statement.startswith('INSERT INTO user_app_settings'):
+                attempts.append(statement)
+                raise users_router.pymysql.err.OperationalError(1213, 'Deadlock found')
+
+        self.cursor.execute.side_effect = execute
+        response = self.patch({'set': {'mine': 1}})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(json.loads(response.json()['settings']), {'other': True, 'mine': 1})
+        self.assertEqual(self.conn.rollback.call_count, 1)
+
+    def test_a_write_that_keeps_colliding_gives_up_after_three_attempts(self):
+        self.cursor.fetchone.side_effect = lambda: {'id': 4, 'settings_json': '{}'}
+
+        def execute(statement, _params=None):
+            if statement.startswith('UPDATE user_app_settings'):
+                raise users_router.pymysql.err.OperationalError(1213, 'Deadlock found')
+
+        self.cursor.execute.side_effect = execute
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.patch('/api/users/4/settings/frontend', headers=self.headers, json={'set': {'a': 1}})
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(self.conn.begin.call_count, 3)
+
+    def test_other_database_errors_are_not_retried(self):
+        self.cursor.fetchone.side_effect = lambda: {'id': 4, 'settings_json': '{}'}
+
+        def execute(statement, _params=None):
+            if statement.startswith('UPDATE user_app_settings'):
+                raise users_router.pymysql.err.OperationalError(2013, 'Lost connection')
+
+        self.cursor.execute.side_effect = execute
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.patch('/api/users/4/settings/frontend', headers=self.headers, json={'set': {'a': 1}})
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(self.conn.begin.call_count, 1)
+
+
 class DeleteUserTest(UsersEndpointTestCase):
     def setUp(self):
         super().setUp()

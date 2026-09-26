@@ -59,6 +59,7 @@ class RouteMountTest(unittest.TestCase):
             ('DELETE', '/api/users/{user_id}'),
             ('GET', '/api/users/{user_id}/settings/{app_id}'),
             ('POST', '/api/users/{user_id}/settings/{app_id}'),
+            ('PATCH', '/api/users/{user_id}/settings/{app_id}'),
             ('GET', '/api/users/{user_id}/dynamic-playlists'),
             ('POST', '/api/users/sync/muma-server'),
         ):

@@ -1,11 +1,13 @@
 package nl.teunschriks.mumamobile.api.muma
 
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -71,6 +73,18 @@ interface MumaAPIDefinition {
         @retrofit2.http.Path("app_id") appId: String,
         @Body settings: MumaSettingsRequest
     ): Call<MumaStatusResponse>
+
+    /**
+     * Sets and removes individual top-level keys of the blob and leaves every other key as the
+     * server stored it (issue #39, bug report 116). [saveSettings] replaces the whole blob, so a
+     * write from another device between this app's read and its save was lost.
+     */
+    @PATCH("api/users/{user_id}/settings/{app_id}")
+    fun patchSettings(
+        @retrofit2.http.Path("user_id") userId: Int,
+        @retrofit2.http.Path("app_id") appId: String,
+        @Body patch: MumaSettingsPatchRequest
+    ): Call<MumaSettingsResponse>
 
     // --- Management (Beheer tab). Every one of these is guarded server-side by require_admin();
     // hiding the tab for non-admins is convenience, not the security boundary. ---
@@ -360,6 +374,15 @@ data class MumaSaveResponse(
 
 data class MumaSettingsRequest(
     val settings: String
+)
+
+/**
+ * A per-key change to a settings blob: each key in [set] replaces that key's value whole, each key
+ * in [remove] is deleted, every other key is left alone.
+ */
+data class MumaSettingsPatchRequest(
+    val set: JsonObject,
+    val remove: List<String> = emptyList()
 )
 
 data class MumaSettingsResponse(

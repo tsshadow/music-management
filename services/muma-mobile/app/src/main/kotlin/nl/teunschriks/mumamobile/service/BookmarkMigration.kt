@@ -64,8 +64,8 @@ object BookmarkMigration : KoinComponent {
             val setBookmarks = service.getBookmarks().filter { isSet(it) }
 
             if (setBookmarks.isNotEmpty()) {
-                val merged = mergeSetResume(service.getMumaSettings(userId, APP_ID), setBookmarks)
-                service.saveMumaSettings(userId, APP_ID, merged)
+                val change = setResumeChange(service.getMumaSettings(userId, APP_ID), setBookmarks)
+                service.patchMumaSettings(userId, APP_ID, change)
             }
             Settings.bookmarksMigratedToSetResume = true
             Timber.i("Migrated ${setBookmarks.size} bookmark(s) into setResume")
@@ -89,16 +89,16 @@ internal fun resumeKeyFor(bookmark: Bookmark): String {
 }
 
 /**
- * Puts every bookmark into [blob]'s `setResume` map and caps it at [MAX_SET_RESUME_ENTRIES],
- * exactly like the web's own throttled writes -- a bookmark is a resume position by another name,
- * so migrating it and the web writing one for the same set afterwards are safe to race; whichever
- * `updatedAt` is newer stays.
+ * The per-key settings change that puts every bookmark into [blob]'s `setResume` map, capped at
+ * [MAX_SET_RESUME_ENTRIES] exactly like the web's own throttled writes -- a bookmark is a resume
+ * position by another name, so migrating it and the web writing one for the same set afterwards
+ * are safe to race; whichever `updatedAt` is newer stays.
  *
- * Every other key already in the blob (favourite genres, the interface language, device settings)
- * is kept: the backend overwrites the whole blob on write, so anything the web or another migration
- * stored next to `setResume` has to be carried over rather than dropped.
+ * Only `{"setResume": {...}}` comes back. The server merges it into the blob, so the other keys
+ * (favourite genres, the interface language, device settings) are neither carried along nor
+ * written back from here, and a change another device makes to them meanwhile survives (issue #39).
  */
-internal fun mergeSetResume(blob: String?, bookmarks: List<Bookmark>): String {
+internal fun setResumeChange(blob: String?, bookmarks: List<Bookmark>): String {
     val root = blob?.let { parseObjectOrNull(it) } ?: JsonObject()
     val setResume = (root.get(KEY_SET_RESUME) as? JsonObject)?.deepCopy() ?: JsonObject()
 
@@ -115,8 +115,7 @@ internal fun mergeSetResume(blob: String?, bookmarks: List<Bookmark>): String {
         setResume.add(key, entry)
     }
 
-    root.add(KEY_SET_RESUME, capped(setResume))
-    return root.toString()
+    return JsonObject().apply { add(KEY_SET_RESUME, capped(setResume)) }.toString()
 }
 
 private const val MILLIS_PER_SECOND = 1000

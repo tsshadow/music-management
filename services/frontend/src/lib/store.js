@@ -815,12 +815,12 @@ export async function loadFrontendSettings(userId) {
   return (await readFrontendSettings(userId)).settings;
 }
 
-// Account-setting writes. The `frontend` blob is one JSON document shared by every key (and
-// written by the Android app too), and the server only accepts it whole. So every change is
-// queued here, and one debounced flush reads the blob once, merges everything pending into it and
-// writes it once. One debounce per key used to mean one read-modify-write per key, and two of
-// them in flight together each wrote back a blob without the other's change.
-// The durable fix is a per-key write on the server; see GitLab issue #39.
+// Account-setting writes. The `frontend` blob is one JSON document shared by every key, and every
+// device signed in to the account writes it: this browser, the app on a phone and on a tablet. So
+// only the keys that changed are sent, with a per-key `PATCH` the server merges into the stored
+// blob under a row lock (docs/designs/account-settings-merge/, bug report 116): two devices that
+// change different keys at the same moment both keep their change. Changes are still queued and
+// flushed together after a short debounce, so a burst of edits is one request, not one per key.
 
 /** How long a change waits for company before it is written. */
 const SETTINGS_SAVE_DELAY_MS = 400;
@@ -829,8 +829,8 @@ const SETTINGS_RETRY_DELAY_MS = 10000;
 /** `userId -> {key: value}`: the changes not yet on that account. */
 const pendingSettingWrites = new Map();
 let settingsFlushTimer = null;
-// Flushes run one after another, never overlapping: two concurrent read-merge-writes of the same
-// blob are exactly the lost update this queue exists to prevent.
+// Flushes run one after another, never overlapping, so two writes of the same key from this
+// browser always land in the order they were made.
 let settingsFlushChain = Promise.resolve();
 // Bumped by resetSessionState, so a write already in flight at logout does not re-queue its
 // changes for an account nobody is signed in to any more.
@@ -865,14 +865,42 @@ function queueFrontendSetting(userId, key, value) {
 }
 
 /**
- * Merges `changes` into `userId`'s blob: one read, one write. Refuses to write when the read
- * failed, since the blob it would write back would be missing every key it could not see.
+ * Writes `changes` into `userId`'s blob as a per-key `PATCH`: the server sets exactly these keys
+ * and leaves every other key -- including ones another device just wrote -- as it stored them.
+ *
+ * A server that predates the `PATCH` answers 405; then, and only then, this falls back to
+ * {@link writeWholeSettingsBlob}, the read-merge-write it replaced.
  *
  * @param {number} userId
  * @param {Object} changes
  * @returns {Promise<boolean>} Whether the account now holds the changes.
  */
 async function writeSettingsBlob(userId, changes) {
+  try {
+    const res = await gatedFetch(frontendSettingsUrl(userId), {
+      method: "PATCH",
+      headers: { "X-API-Key": get(mumaApiKey), "Content-Type": "application/json" },
+      body: JSON.stringify({ set: changes }),
+    });
+    if (res.status === 405) return writeWholeSettingsBlob(userId, changes);
+    return res.ok;
+  } catch (e) {
+    console.warn("Could not save the account settings", e);
+    return false;
+  }
+}
+
+/**
+ * The pre-`PATCH` write, kept for a server that does not have it yet: reads the whole blob,
+ * merges `changes` in and posts the result back. Refuses to write when the read failed, since the
+ * blob it would write back would be missing every key it could not see. Another device's write
+ * between the read and the post is lost -- the race the `PATCH` exists to close.
+ *
+ * @param {number} userId
+ * @param {Object} changes
+ * @returns {Promise<boolean>} Whether the account now holds the changes.
+ */
+async function writeWholeSettingsBlob(userId, changes) {
   const current = await readFrontendSettings(userId);
   if (!current.ok) return false;
   try {
@@ -924,9 +952,9 @@ export function flushFrontendSettings() {
 }
 
 /**
- * Saves a single key into `userId`'s `frontend` app-settings blob right away, merged with the
- * rest of the blob and with anything else queued. Resolves once the attempt is over; a failure is
- * kept and retried rather than thrown.
+ * Saves a single key into `userId`'s `frontend` app-settings blob right away, together with
+ * anything else queued; every other key in the blob is left alone. Resolves once the attempt is
+ * over; a failure is kept and retried rather than thrown.
  *
  * @param {number} userId
  * @param {string} key

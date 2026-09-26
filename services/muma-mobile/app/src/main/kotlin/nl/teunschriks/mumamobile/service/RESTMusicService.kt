@@ -1070,6 +1070,24 @@ open class RESTMusicService(
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
+    /**
+     * A per-key `PATCH`. A server from before it answers 405; only then does this fall back to the
+     * old read-merge-write, which can still lose another device's write made in between.
+     */
+    @Throws(Exception::class)
+    override fun patchMumaSettings(userId: Int, appId: String, changes: String) {
+        ensureMumaLogin()
+        val req = nl.teunschriks.mumamobile.api.muma.MumaSettingsPatchRequest(settingsChangesObject(changes))
+        val response = retryOnceWhenUnauthorized {
+            subsonicAPIClient.mumaApi.api.patchSettings(userId, appId, req).execute()
+        }
+        if (response.code() == HTTP_METHOD_NOT_ALLOWED) {
+            saveMumaSettings(userId, appId, mergeSettingsChanges(getMumaSettings(userId, appId), changes))
+            return
+        }
+        if (!response.isSuccessful) throw IOException("Failed to patch settings: ${response.code()}")
+    }
+
     @Throws(Exception::class)
     override fun uploadCrashReport(
         deviceModel: String,
@@ -1111,3 +1129,6 @@ open class RESTMusicService(
         private const val ROLE_RELEASE_ARTISTS = "release"
     }
 }
+
+/** What a server without the per-key settings `PATCH` answers it with. */
+private const val HTTP_METHOD_NOT_ALLOWED = 405

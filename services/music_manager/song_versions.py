@@ -25,6 +25,12 @@ from services.music_manager.scrobble_matching import normalize
 _MODIFIER_TOKENS = frozenset(
     {
         'radio',
+        # 'pro', 'audio' and 'music' joined in bug report 098: "(Pro Mix)", "(Official
+        # Audio)" and "(Official Music Video)" were the three most common markers still
+        # left inside production's work keys (552, 859 and 533 works).
+        'pro',
+        'audio',
+        'music',
         'extended',
         'original',
         'album',
@@ -86,10 +92,9 @@ _KIND_MARKERS = (
     ('edit', ('edit',)),
 )
 
-# Words that name a kind but are not (yet) part of the grouping vocabulary above. The kind
-# detector reads a bracket made of modifiers *or* these; the grouping key does not, so
-# adding a kind never regroups the library -- "(Pro Edit)" still keeps its own work until
-# the grouping itself learns the word. That is a separate, deliberate change.
+# Words that name a kind. Kept as their own set even though bug report 098 moved all three
+# into the grouping vocabulary above: a kind word added here first does not regroup the
+# library, and joining the grouping vocabulary stays a separate, deliberate change.
 _KIND_ONLY_TOKENS = frozenset({'pro', 'music', 'audio'})
 _KIND_VOCABULARY = _MODIFIER_TOKENS | _KIND_ONLY_TOKENS
 
@@ -139,16 +144,143 @@ def _strip_version_brackets(title: str, vocabulary: frozenset[str] = _MODIFIER_T
     return result, stripped
 
 
+# Genre words, allowed inside a version marker only next to "official" and a word for
+# the upload itself: "(Official Hardcore Visualizer)" and "Official Hardstyle Video" are
+# packaging, but "(Hardcore Mix)" or "(Hardstyle Edit)" is somebody's rework and keeps its
+# own work. Bug report 098.
+_GENRE_TOKENS = frozenset(
+    {
+        'hardcore',
+        'hardstyle',
+        'uptempo',
+        'frenchcore',
+        'rawstyle',
+        'raw',
+        'euphoric',
+        'terror',
+        'terrorcore',
+        'speedcore',
+        'industrial',
+        'gabber',
+        'crossbreed',
+        'hardtek',
+        'hard',
+        'dance',
+        'techno',
+        'trance',
+        'psytrance',
+        'house',
+        'dnb',
+        'mainstream',
+        'early',
+    }
+)
+_UPLOAD_TOKENS = frozenset(
+    {'video', 'videoclip', 'clip', 'visualizer', 'visualiser', 'audio', 'lyric', 'lyrics', 'preview'}
+)
+
+# A trailing " - Official Video" or " | Official Visualizer": the separator must have
+# whitespace on both sides, so a hyphenated word ("Man-At-Arms") never splits.
+_DASH_SUFFIX = re.compile(r'^(?P<head>.*\S)\s+[-\u2013\u2014|\uff5c]\s+(?P<tail>[^-\u2013\u2014|\uff5c]+)$')
+# An unbracketed tail that starts with the word "official": "Shum (Billx remix) official video".
+_OFFICIAL_TAIL = re.compile(r'^(?P<head>.*\S)\s+(?P<tail>official\b.*)$', re.IGNORECASE)
+# Decoration after the last marker: emoji, daggers, stray punctuation. It hid a bracket from
+# _TRAILING_BRACKET, which only matches at the very end of the title.
+_TRAILING_JUNK = re.compile(r'[^\w\)\]]+$', re.UNICODE)
+
+
+def _is_version_marker(text: str) -> bool:
+    """Whether a bracket, dash suffix or tail says nothing but "another cut of this".
+
+    Every word has to be known. One unknown word -- a remixer's name, "Bootleg", "Anthem"
+    -- means the suffix names something, and a name means a different recording.
+    """
+    tokens = _tokens(text)
+    if not tokens:
+        return False
+    if all(token in _MODIFIER_TOKENS for token in tokens):
+        return True
+    return (
+        'official' in tokens
+        and any(token in _UPLOAD_TOKENS for token in tokens)
+        and all(token in _MODIFIER_TOKENS or token in _GENRE_TOKENS for token in tokens)
+    )
+
+
+def _strip_one_marker(title: str) -> str:
+    """The title with its last version marker removed, or unchanged when it has none."""
+    cleaned = _TRAILING_JUNK.sub('', title).strip()
+
+    match = _TRAILING_BRACKET.search(cleaned)
+    if match:
+        if _is_version_marker(match.group(1)):
+            # May leave nothing: "(Radio Edit)" alone is no title, and work_key gives
+            # such a track a key of its own, exactly as before bug report 098.
+            return cleaned[: match.start()].strip()
+        # A bracket that names something ends the search: whatever sits before it is
+        # part of that name's title, not a marker of this recording.
+        return cleaned
+
+    for pattern in (_DASH_SUFFIX, _OFFICIAL_TAIL):
+        match = pattern.match(cleaned)
+        if match and _is_version_marker(match.group('tail')) and _tokens(match.group('head')):
+            return match.group('head').strip()
+    return cleaned
+
+
+def _strip_grouping_markers(title: str) -> str:
+    """Peel version markers off the end until what is left names the song.
+
+    Brackets, " - Official ..." suffixes and a bare "official ..." tail, in any order and
+    any number: "Hurricane - Official Preview [OUT NOW]" loses both. A dash suffix or an
+    "official" tail needs words in front of it, so a bare "Official Visualizer" -- what a
+    misparse leaves in the title -- stays as it is; a lone bracket still strips to nothing.
+    """
+    result = title
+    while True:
+        stripped = _strip_one_marker(result)
+        if stripped == result:
+            return result
+        result = stripped
+
+
+# Separators between the artists of a collaboration, on the raw name: "A & B", "A x B",
+# "A feat. B", "A vs. B", "A, B & C". Not "and" or "with": those occur inside names.
+_COLLAB_SPLIT = re.compile(r'\s+(?:&|\+|x|\u00d7|feat\.?|ft\.?|featuring|vs\.?)\s+|\s*,\s+', re.IGNORECASE)
+
+
+def grouping_artist(artist: str | None) -> str:
+    """The artist half of the grouping key.
+
+    The first artist of a collaboration stands for all of them, so "CHEEVA & D-sire" and
+    "Cheeva" meet -- but only on a title that matches exactly, since the title half of the
+    key still has to be equal. Two different lead artists never share a key.
+
+    A name that is only a kind phrase ("Official Preview", "Official Visualizer") is a
+    parsing accident, not an artist: it counts as no artist, the same as a track without a
+    primary artist.
+    """
+    if not artist:
+        return ''
+    lead = _COLLAB_SPLIT.split(artist.strip(), maxsplit=1)[0]
+    tokens = _tokens(lead)
+    if tokens and 'official' in tokens and _is_version_marker(lead):
+        return ''
+    return normalize(lead) or normalize(artist)
+
+
 def version_free_title(title: str | None) -> str:
     """The normalized title with every version marker removed.
 
     A bracketed group goes only when all of its tokens are known modifiers, so
-    "(Radio Edit)" goes and "(Wildstylez Edit)" stays even though both say "edit".
+    "(Radio Edit)" goes and "(Wildstylez Edit)" stays even though both say "edit". The
+    same rule applies to a " - Official Video" dash suffix and a bare "official ..." tail
+    (bug report 098), and genre words count as known only inside an "official" upload
+    marker, so "(Official Hardcore Visualizer)" goes and "(Hardcore Mix)" stays.
     """
     if not title:
         return ''
-    result, _ = _strip_version_brackets(title)
-    return normalize(result)
+    return normalize(_strip_grouping_markers(title))
 
 
 def version_kind(title: str | None) -> str:
@@ -197,7 +329,7 @@ def work_key(artist: str | None, title: str | None, track_id: int, duration_secs
         return f'{UNGROUPABLE_PREFIX}{track_id}'
     if duration_secs and duration_secs > LONG_FORM_SECONDS:
         return f'{UNGROUPABLE_PREFIX}{track_id}'
-    return f'{normalize(artist)}:::{versionless}'[:WORK_KEY_MAX]
+    return f'{grouping_artist(artist)}:::{versionless}'[:WORK_KEY_MAX]
 
 
 # The ranking, decided by Teun on 2026-09-26 (docs/designs/song-versions/): format first,

@@ -25,8 +25,9 @@ check, so a FLAC at ~1000 kbps is never mistaken for an MP3 320 under the storag
 
 `KIND_ORDER = ('pro', 'radio', 'edit', 'original', 'none', 'extended', 'instrumental', 'video')`.
 `version_kind()` reads trailing brackets with a *kind vocabulary* = the grouping modifiers plus
-`pro`, `music`, `audio`. The grouping key (`version_free_title`, `work_key`) still uses the grouping
-modifiers only, so this change never regroups. Marker precedence: instrumental, video, pro, radio,
+`pro`, `music`, `audio`. This change never regrouped anything by itself. Bug report 098 later
+added the same three words to the grouping modifiers, see
+[song-grouping-key](../song-grouping-key/technical.md). Marker precedence: instrumental, video, pro, radio,
 extended, original, edit.
 
 `is_official_release(path, has_label, from_download_archive, label_tree_roots)`: true under any root

@@ -24,6 +24,7 @@ from services.common.config_store import ConfigStore
 from services.common.import_queue import ImportQueue
 from services.music_manager.database import get_db_connection
 from services.music_manager.song_versions import (
+    SPLIT_PREFIX,
     derived_bitrate,
     is_official_release,
     ranking_signature,
@@ -31,6 +32,7 @@ from services.music_manager.song_versions import (
     version_score,
     work_key,
 )
+from services.music_manager.song_work_audit import AUTO_SPLIT_LENGTHS, assess_work, suspicious_works
 from services.music_manager.thread_registry import run_forever
 
 logger = logging.getLogger('music-manager.song-versions')
@@ -258,6 +260,114 @@ def recompute_canonicals(cursor, work_ids: set[int]) -> int:
     return len(work_ids)
 
 
+# Members of every work large enough to be worth assessing, for the false-merge report.
+_ASSESSABLE_MEMBERS = '''
+    SELECT t.work_id, w.work_key, t.id, t.duration_secs, t.release_date, t.work_locked
+    FROM library_tracks t
+    JOIN library_works w ON w.id = t.work_id
+    WHERE t.work_id IN (
+        SELECT work_id FROM (
+            SELECT work_id FROM library_tracks
+            WHERE work_id IS NOT NULL
+            GROUP BY work_id
+            HAVING COUNT(*) >= %s
+        ) AS big
+    )
+    ORDER BY t.work_id, t.id
+'''
+
+
+# Every work with more members than the split threshold -- the only works that can have
+# more different lengths than that.
+_LARGE_WORKS = '''
+    SELECT work_id FROM library_tracks
+    WHERE work_id IS NOT NULL
+    GROUP BY work_id
+    HAVING COUNT(*) > %s
+'''
+
+
+def find_suspicious_works(cursor, min_members: int = 4) -> list[dict]:
+    """Every work that looks like several songs, worst first (song_work_audit.assess_work)."""
+    cursor.execute(_ASSESSABLE_MEMBERS, (min_members,))
+    return suspicious_works(cursor.fetchall())
+
+
+def split_work(cursor, work_id: int) -> list[int]:
+    """Give every unlocked member of a work a work of its own, locked there.
+
+    The same move the split endpoint in routers/songs.py makes for one track: a `split:`
+    key that cannot collide with a real one, and `work_locked = 1` so neither this worker
+    nor scripts/repair_song_works.py puts the track back. Each statement states its own
+    precondition -- the track is still in this work and still unlocked -- because the
+    connection runs with autocommit on. Returns the ids of the tracks that moved.
+    """
+    cursor.execute(
+        'SELECT id, title, primary_artist_id FROM library_tracks WHERE work_id = %s AND work_locked = 0 ORDER BY id',
+        (work_id,),
+    )
+    members = cursor.fetchall()
+
+    moved: list[int] = []
+    new_works: set[int] = set()
+    for member in members:
+        key = f'{SPLIT_PREFIX}{member["id"]}'
+        cursor.execute(
+            'INSERT INTO library_works (work_key, title, primary_artist_id) VALUES (%s, %s, %s) '
+            'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)',
+            (key, member['title'], member['primary_artist_id']),
+        )
+        cursor.execute('SELECT id FROM library_works WHERE work_key = %s', (key,))
+        new_work = cursor.fetchone()
+        if new_work is None:
+            continue
+        cursor.execute(
+            'UPDATE library_tracks SET work_id = %s, work_locked = 1 WHERE id = %s AND work_id = %s AND work_locked = 0',
+            (new_work['id'], member['id'], work_id),
+        )
+        if cursor.rowcount:
+            moved.append(member['id'])
+            new_works.add(new_work['id'])
+
+    if moved:
+        # recompute_canonicals also clears the old work's pin when it named one of the
+        # tracks that just left -- the same rule a manual split relies on.
+        recompute_canonicals(cursor, new_works | {work_id})
+    return moved
+
+
+def split_false_merges(cursor, work_ids) -> dict[int, list[int]]:
+    """Split the works among `work_ids` that the unambiguous rule says hold several songs.
+
+    Only a work with more than AUTO_SPLIT_LENGTHS members can have that many different
+    lengths, so one indexed count over library_tracks finds every such work before any
+    member is read; the few it returns are intersected with `work_ids`. A single literal
+    statement rather than an IN list over the touched works: nothing is formatted into the
+    SQL. Returns {work_id: moved track ids} for the works that were split.
+    """
+    work_ids = set(work_ids)
+    if not work_ids:
+        return {}
+    cursor.execute(_LARGE_WORKS, (AUTO_SPLIT_LENGTHS,))
+    candidates = sorted(row['work_id'] for row in cursor.fetchall() if row['work_id'] in work_ids)
+
+    split: dict[int, list[int]] = {}
+    for work_id in candidates:
+        cursor.execute('SELECT duration_secs, release_date FROM library_tracks WHERE work_id = %s', (work_id,))
+        verdict = assess_work(cursor.fetchall())
+        if verdict and verdict['verdict'] == 'split':
+            moved = split_work(cursor, work_id)
+            if moved:
+                split[work_id] = moved
+                logger.info(
+                    'song-versions: split work %d (%d different lengths) into %d works',
+                    work_id,
+                    verdict['lengths'],
+                    len(moved),
+                )
+    return split
+
+
 def group_once(conn, context: RankingContext | None = None) -> dict:
     """One pass. Idempotent: a second call over unchanged data writes nothing new."""
     with conn.cursor() as cursor:
@@ -269,6 +379,10 @@ def group_once(conn, context: RankingContext | None = None) -> dict:
             'WHERE pinned_track_id IS NOT NULL AND pinned_track_id <> COALESCE(canonical_track_id, 0)'
         )
         touched.update(row['id'] for row in cursor.fetchall())
+
+        # A work that grew into a series of different songs is split before its canonical
+        # is chosen (bug report 098, song_work_audit.AUTO_SPLIT_LENGTHS).
+        split_false_merges(cursor, touched)
 
         recomputed = recompute_canonicals(cursor, touched)
 

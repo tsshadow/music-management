@@ -460,6 +460,16 @@ class RescoreBatchTest(unittest.TestCase):
         plain = cursor.statements_matching('UPDATE library_works SET canonical_track_id = %s WHERE id = %s')
         self.assertEqual([params for _sql, params in plain], [(2, 40)])
 
+    def test_a_work_whose_tracks_lost_their_files_loses_its_canonical_without_a_flag(self):
+        # Bug report 100: 77k such works landed on the Versies page's "changed" list.
+        no_file = {'file_path': None, 'file_size': None, 'duration_secs': None}
+        cursor = self._cursor([_member(7, 40, 'Gone', files=no_file, stored_kind='none', stored_score=3)])
+        stats = worker.rescore_batch(cursor, [{'id': 40, 'canonical_track_id': 7, 'pinned_track_id': None}], CONTEXT)
+        self.assertEqual(stats['canonicals_changed'], 0)
+        plain = cursor.statements_matching('UPDATE library_works SET canonical_track_id = %s WHERE id = %s')
+        self.assertEqual([params for _sql, params in plain], [(None, 40)])
+        self.assertEqual(cursor.statements_matching('previous_canonical_track_id = %s'), [])
+
     def test_a_second_run_over_rescored_data_writes_only_the_stamp(self):
         # Idempotence: feed the batch the scores and canonical the first run produced.
         first = self._members()

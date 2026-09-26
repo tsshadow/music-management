@@ -21,6 +21,7 @@ import {
   mumaSessionActive,
   userPermissions,
   mumaUser,
+  signedOut,
 } from "../../src/lib/store.js";
 
 /**
@@ -48,6 +49,7 @@ describe("ProfileButton logout", () => {
     mumaSessionActive.set(true);
     userPermissions.set(["admin"]);
     mumaUser.set({ username: "user" });
+    signedOut.set(false);
     window.localStorage.clear();
     window.localStorage.setItem("lms_active_view", "albums");
 
@@ -106,6 +108,37 @@ describe("ProfileButton logout", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(get(credentials).username).toBe("");
+  });
+
+  // Bug report 106: the native call crashed on a background thread and never answered, so the
+  // logout awaited it forever and the button visibly did nothing.
+  it("a phone sign-out that never answers does not hold the logout up", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(platform.system, "signOut").mockReturnValue(new Promise(() => {}));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
+      await openMenu(container);
+      await fireEvent.click(getByText("Uitloggen"));
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(reload).toHaveBeenCalledOnce();
+      expect(get(credentials).password).toBe("");
+      expect(get(signedOut)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks the device as signed out, and keeps the mark across the session reset", async () => {
+    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
+    await openMenu(container);
+    await fireEvent.click(getByText("Uitloggen"));
+    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+
+    expect(get(signedOut)).toBe(true);
+    expect(window.localStorage.getItem("muma_signed_out")).toBe("true");
   });
 
   it("a browser tab's no-op sign-out does not block the reload", async () => {

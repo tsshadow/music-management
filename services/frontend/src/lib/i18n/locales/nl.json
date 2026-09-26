@@ -345,7 +345,10 @@
     "setupFailed": "Setup mislukt",
     "noManagementConnection": "Kon geen verbinding maken met de management API",
     "accessRequestFailed": "Toegangsaanvraag mislukt",
-    "accessRequestError": "Fout bij indienen toegangsaanvraag"
+    "accessRequestError": "Fout bij indienen toegangsaanvraag",
+    "googleSignIn": "Inloggen met Google",
+    "googleNoCredential": "Google gaf geen account terug. Is er een Google-account op deze telefoon, en is deze app bij Google geregistreerd?",
+    "googleFailed": "Inloggen met Google is mislukt ({reason})."
   },
   "management": {
     "connectFailed": "Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.",

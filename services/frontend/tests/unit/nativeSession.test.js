@@ -7,6 +7,7 @@ import {
   mumaApiUrl,
   playerState,
   playlist,
+  signedOut,
 } from "../../src/lib/store.js";
 import { get } from "svelte/store";
 
@@ -79,6 +80,7 @@ beforeEach(() => {
     shuffle: false,
     repeat: "none",
   });
+  signedOut.set(false);
   global.fetch = vi.fn(async () => ({ ok: false, json: async () => ({}) }));
 });
 
@@ -124,6 +126,47 @@ describe("bootstrapShell", () => {
 });
 
 describe("restoreSession", () => {
+  // Bug report 106: a native sign-out that failed left the password on the phone, and the boot
+  // after the logout signed straight back in with it -- "Uitloggen" did nothing.
+  it("does not sign back in after a logout, whatever the phone still holds", async () => {
+    global.fetch = fakeLibrary({});
+    const platform = shell({
+      stored: { username: "user", password: "hunter2", mumaApiKey: "key-1" },
+    });
+    platform.system.signOut = vi.fn(async () => {});
+    signedOut.set(true);
+
+    expect(await restoreSession(platform)).toBe(false);
+
+    expect(platform.system.credentials).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(get(credentials).password).toBe("");
+    expect(get(mumaApiKey)).toBe("");
+    // And the phone is asked to forget its copy once more.
+    expect(platform.system.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("still shows the login page after a logout when the phone cannot be cleared", async () => {
+    const platform = shell({ stored: { username: "user", password: "hunter2" } });
+    platform.system.signOut = vi.fn(async () => {
+      throw new Error("bridge gone");
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    signedOut.set(true);
+
+    expect(await restoreSession(platform)).toBe(false);
+  });
+
+  it("a sign-in ends the logout, so the next boot signs in silently again", async () => {
+    global.fetch = fakeLibrary({});
+    signedOut.set(true);
+    const { signIn } = await import("../../src/lib/login.js");
+
+    expect((await signIn("user", "hunter2")).ok).toBe(true);
+
+    expect(get(signedOut)).toBe(false);
+  });
+
   // Bug report 074: a phone that stored "Teun" for the account "user" signed
   // every Subsonic call with it, and LMS created a second user for that spelling.
   it("writes the account's own spelling back to a phone that stored another case", async () => {

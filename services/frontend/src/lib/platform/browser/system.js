@@ -83,6 +83,28 @@ const system = {
   },
 
   /**
+   * A browser tab signs in with Google through Google Identity Services on the login page itself,
+   * so there is no native sign-in to offer.
+   *
+   * @returns {Promise<boolean>}
+   */
+  googleSignInAvailable() {
+    return Promise.resolve(false);
+  },
+
+  /**
+   * Never called in a browser (see {@link googleSignInAvailable}); rejects so a caller that does
+   * gets a clear answer rather than a silent nothing.
+   *
+   * @returns {Promise<never>}
+   */
+  googleSignIn() {
+    return Promise.reject(
+      Object.assign(new Error("no native Google sign-in in a browser"), { code: "not-configured" }),
+    );
+  },
+
+  /**
    * The phone-side half of persisting a verified sign-in. A browser tab has nowhere to write it
    * back to, so this resolves immediately.
    *

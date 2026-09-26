@@ -899,6 +899,12 @@ open class RESTMusicService(
             return false
         }
         val body = response.body()
+        // A sign-out while the request was out must win: storing the answer now would put a
+        // credential back that the sign-out just cleared (bug report 106).
+        if (activeServerProvider.getActiveServer().password.isEmpty()) {
+            Timber.i("Signed out while the Subsonic token was being fetched; answer dropped")
+            return false
+        }
         val adoption = SubsonicSigning.adopt(
             storedUserName = activeServerProvider.getActiveServer().userName,
             storedToken = SecureSettings.subsonicToken,

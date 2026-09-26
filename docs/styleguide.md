@@ -62,6 +62,13 @@
 - **Cards**: Surface gray (`bg-muma-spotify-light`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
+- **Sign in with Google**: in a browser the login page renders Google's own button (Google
+  Identity Services, `theme: "outline"`, pill shape). Inside the Android shell Google's web
+  sign-in cannot run, so `LoginPage.svelte` draws the same button itself and the shell signs in
+  natively: full-width `rounded-full` pill, white background, `#1f1f1f` text in `text-sm
+  font-medium`, 1px `#747775` border, Google's four-colour "G" at 18px left of the label, below the
+  hairline-flanked "OF" divider that separates it from the password form. It is only shown when the
+  app was built with a Google client ID; there is never a button that can only fail.
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
@@ -140,7 +147,9 @@
   management sidebars), `#2a2a2a` (login inputs, search field), `#444` (device settings hover), `#4d4d4d`,
   `#4e4e4e`, `#555`, `#777`, `#8a8a8a`, `#d0d0d0`, `#e5e5e5`, `#1ed760` (login button hover), `#e91429`,
   `#eb743b`, `#b266ff` (radio/news active) and the label-chip ambers `#3a2c16`, `#4a3820`, `#ffcc80`,
-  `#ffe0b2`. Promote one to a token (with a name for its role) when a second place needs it.
+  `#ffe0b2`, and Google's own button colours `#1f1f1f` (text) and `#747775` (outline) on the native
+  "Sign in with Google" button below -- Google's branding rules fix those, so they never become MuMa
+  tokens. Promote one to a token (with a name for its role) when a second place needs it.
 - **Web text**: every user-visible string comes from `src/lib/i18n/locales/*.json` through `$t`, and
   numbers and dates are formatted with the active locale (`$format.number`, `$format.date`,
   `$format.dateTime` from `src/lib/i18n/index.js`), never a fixed `'nl-NL'`.

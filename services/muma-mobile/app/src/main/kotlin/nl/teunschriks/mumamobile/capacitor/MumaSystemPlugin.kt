@@ -88,6 +88,7 @@ import timber.log.Timber
  * for an older `seq` is ignored.
  */
 @CapacitorPlugin(name = "MumaSystem")
+@Suppress("TooManyFunctions")
 class MumaSystemPlugin :
     Plugin(),
     KoinComponent {
@@ -349,21 +350,62 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Ends the session started in the Svelte shell, the same way the legacy logout menu does.
+     * Ends the session started in the Svelte shell.
      *
-     * The queue goes first -- [MediaPlayerManager.clear], never `onDestroy()`: both are root
-     * `single`s (see `di/MediaPlayerModule.kt`), application-scoped and started once, and
-     * `onDestroy()` tears down the controller and the external-storage monitor for the whole app,
-     * not just the session. [ActiveServerProvider.signOut] then clears the password, the muma API
-     * key/user id and the encrypted muma tokens, exactly as `NavigationActivity.logOut` does, so
-     * there is one definition of "signed out" for both UIs. The username and any downloaded files
-     * are left alone.
+     * [ActiveServerProvider.signOut] clears the password, the muma API key/user id, the encrypted
+     * muma tokens and the Subsonic token, so the shell's next boot has nothing to sign back in
+     * with; then the queue is emptied with [MediaPlayerManager.clear] -- never `onDestroy()`, which
+     * tears down the controller for the whole app, not just the session. The username and any
+     * downloaded files are left alone.
+     *
+     * On the main thread, through [SessionSignOut]: Capacitor calls plugin methods on a background
+     * thread, and `MediaPlayerManager` is a Media3 controller that throws from any thread but the
+     * main one. This method used to call it directly; the exception escaped, the call never
+     * settled and the credentials were never cleared, so "Uitloggen" did nothing (bug report 106).
      */
     @PluginMethod
     fun signOut(call: PluginCall) {
-        mediaPlayerManager.clear()
-        activeServerProvider.signOut()
-        call.resolve()
+        calls.runCall(call) { answer ->
+            withContext(Dispatchers.Main) {
+                SessionSignOut.run(
+                    clearCredentials = { activeServerProvider.signOut() },
+                    clearQueue = { mediaPlayerManager.clear() }
+                )
+                answer.resolve()
+            }
+        }
+    }
+
+    /**
+     * Whether this build can offer "Sign in with Google": a real Web client ID was compiled in.
+     * The page hides its button otherwise rather than showing one that can only fail.
+     */
+    @PluginMethod
+    fun googleSignInAvailable(call: PluginCall) {
+        call.resolve(JSObject().put("available", GoogleSignIn.isConfigured(BuildConfig.GOOGLE_WEB_CLIENT_ID)))
+    }
+
+    /**
+     * Native "Sign in with Google" (see [GoogleSignIn]): resolves `{idToken}` for the page to post
+     * to `/api/auth/google`, or rejects with a `code` of `not-configured`, `cancelled`,
+     * `no-credential` or `failed` (the message then carries the exception's class name, which is
+     * what tells an unregistered signing certificate apart from a Play Services problem).
+     */
+    @PluginMethod
+    fun googleSignIn(call: PluginCall) {
+        val running = runningActivity ?: return call.reject("no activity", "failed")
+        calls.runCall(call) { answer ->
+            val result = withContext(Dispatchers.Main) {
+                GoogleSignIn.signIn(running, BuildConfig.GOOGLE_WEB_CLIENT_ID)
+            }
+            when (result) {
+                is GoogleSignIn.Result.Token -> answer.resolve(JSObject().put("idToken", result.idToken))
+                is GoogleSignIn.Result.Refused -> answer.reject(
+                    result.detail.ifBlank { result.failure.code },
+                    result.failure.code
+                )
+            }
+        }
     }
 
     /**

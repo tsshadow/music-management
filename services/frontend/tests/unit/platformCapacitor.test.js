@@ -567,6 +567,45 @@ describe("capacitor system", () => {
     expect(plugins.MumaSystem.calls).toEqual([["signOut", undefined]]);
   });
 
+  it("reads googleSignInAvailable as a boolean, and a failure as unavailable", async () => {
+    const yes = nativePlatform({ MumaSystem: { googleSignInAvailable: { available: true } } });
+    const broken = nativePlatform({
+      MumaSystem: {
+        googleSignInAvailable: () => {
+          throw new Error("no such method");
+        },
+      },
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(await yes.platform.system.googleSignInAvailable()).toBe(true);
+    expect(await broken.platform.system.googleSignInAvailable()).toBe(false);
+  });
+
+  it("answers googleSignIn with the ID token, and a closed chooser with null", async () => {
+    const signedIn = nativePlatform({ MumaSystem: { googleSignIn: { idToken: "tok-1" } } });
+    const cancelled = nativePlatform({
+      MumaSystem: {
+        googleSignIn: () =>
+          Promise.reject(Object.assign(new Error("cancelled"), { code: "cancelled" })),
+      },
+    });
+
+    expect(await signedIn.platform.system.googleSignIn()).toBe("tok-1");
+    expect(await cancelled.platform.system.googleSignIn()).toBeNull();
+  });
+
+  it("passes any other googleSignIn refusal on with its code", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: {
+        googleSignIn: () =>
+          Promise.reject(Object.assign(new Error("no-credential"), { code: "no-credential" })),
+      },
+    });
+
+    await expect(platform.system.googleSignIn()).rejects.toMatchObject({ code: "no-credential" });
+  });
+
   it("forwards a verified pair to saveCredentials unchanged", async () => {
     const { platform, plugins } = nativePlatform();
     const creds = { url: "https://lms.example", username: "user", password: "hunter2" };

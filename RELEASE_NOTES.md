@@ -11,6 +11,9 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.76.1 (2026-09-26)
+
+- **The Versies page no longer lists 77,000 songs without a file as changed.** The first rescore under the new ranking (0.76.0) set the best version to "none" for every song none of whose tracks has a file any more, which is right, but flagged each of them for review and counted it: "79267 canonicals changed" where about 2,300 real changes exist. A song that loses its only playable version is now not a change to review, and migrate_v45 clears the flag on the songs it was set on. Bug report 100.
 ## Global Version 0.76.0 (2026-09-26)
 
 - **Setting `prefer_lossless` (Beheer → Configuratie, "Song versions").** On by default: FLAC plays

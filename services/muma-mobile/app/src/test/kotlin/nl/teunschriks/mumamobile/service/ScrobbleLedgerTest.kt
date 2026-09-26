@@ -162,6 +162,30 @@ class ScrobbleLedgerTest {
         ScrobbleDelivery.outcomeOf(SubsonicRESTException(SubsonicError.RequiredParamMissing)) `should be equal to` ScrobbleOutcome.REJECTED
     }
 
+    /**
+     * Bug report 095: rapid taps on "next" pass the player through several items within
+     * milliseconds -- and before the fix, a UI and service correcting each other flipped between two
+     * of them for as long as it lasted. Only what was actually listened to is a listen, once.
+     */
+    @Test
+    fun `a burst of quick skips records only the items that were actually played, once each`() {
+        ledger.onTrack("t1", SERVER, "mobile", playing = true)
+        play(40)
+        for (id in listOf("t2", "t3", "t2", "t3")) {
+            ledger.onTrack(id, SERVER, "mobile", playing = true)
+            elapsed += 80
+            wall += 80
+        }
+        play(60)
+        ledger.onTrack("t4", SERVER, "mobile", playing = true)
+
+        delivery().flush()
+
+        sent.map { it.trackId } `should be equal to` listOf("t1", "t3")
+        sent[1].playedSeconds `should be equal to` 60L
+        queue.snapshot().size `should be equal to` 0
+    }
+
     @Test
     fun `the same track played twice in a row is two listens`() {
         ledger.onTrack("t1", SERVER, "mobile", playing = true)

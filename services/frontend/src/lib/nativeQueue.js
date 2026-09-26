@@ -26,9 +26,14 @@ import { logAction } from "./diagnosticsLog.js";
  *   as a one-item list holding only what was already playing.
  * - **Never send back what just came in.** When the service moves the track by
  *   itself, the UI mirrors it into `currentTrack`, and that write looks just
- *   like a listener pressing next. The guard is the service's own snapshot: if
- *   it already holds this list and has that track loaded, there is nothing to
- *   ask it for.
+ *   like a listener pressing next. The UI says so with `follow()` before the
+ *   write, and the sync it triggers only catches up the bookkeeping. The
+ *   service's own snapshot is the second guard: if it already holds this list
+ *   and has that track loaded, there is nothing to ask it for. The snapshot
+ *   alone was not enough -- behind a `setQueue` still in flight it has often
+ *   moved on, and a replayed mirror undid the listener's newest move (bug
+ *   report 095). For the same reason a report older than the newest requested
+ *   move is dropped (`isStale()`).
  *
  * The third rule is also why `setQueue` carries the autoplay rather than a
  * `load` behind it: the plugin positions the service on `index` as part of
@@ -157,6 +162,8 @@ export function trackAfterCommand(
  *          onError?: function(Error): void}} options
  * @returns {{adopt: function(): Promise<string[]>,
  *            sync: function(Array<object>, object|null, {autoplay?: boolean}=): Promise<void>,
+ *            follow: function(string|number): void,
+ *            isStale: function(string|number|null): boolean,
  *            pushedIds: function(): string[]|null,
  *            currentIndex: function(): number}}
  */
@@ -166,6 +173,16 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
   /** The index last known to be on the far side, alongside [pushed]; -1 until `adopt` or a push. */
   let pushedIndex = -1;
   let chain = Promise.resolve();
+  /**
+   * Moves this side asked for that have not finished yet, and the track the newest of them asked
+   * for. A move is a sync whose current track differs from the previous sync's; see [isStale].
+   */
+  let movesInFlight = 0;
+  let moveTarget = null;
+  /** The track of the last sync call, to tell a move from an edit of the list around it. */
+  let lastRequestedId = null;
+  /** The track the UI last took over from a service report; see [follow]. */
+  let followed = null;
 
   /**
    * Takes over the queue the service is already holding.
@@ -208,15 +225,74 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
    * @returns {Promise<void>}
    */
   function sync(tracks, current, { autoplay = true } = {}) {
-    chain = chain.then(() => push(tracks, current, autoplay)).catch((error) => onError(error));
+    const currentId = current == null ? null : String(current.id);
+    // Decided now, not when the chain gets to it: by then the service may have reported a newer
+    // track, and a mirror that is replayed as a request is exactly the loop of bug 095.
+    const mirror = currentId !== null && currentId === followed;
+    followed = null;
+    // The boot sync (`autoplay` false) adopts what the service holds rather than asking it for
+    // anything, so it is never a move whose reports could be out of date.
+    const move = autoplay && !mirror && currentId !== null && currentId !== lastRequestedId;
+    lastRequestedId = currentId;
+    if (move) {
+      movesInFlight += 1;
+      moveTarget = currentId;
+    }
+    chain = chain
+      .then(() => push(tracks, current, autoplay, mirror))
+      .catch((error) => onError(error))
+      .finally(() => {
+        if (move) movesInFlight -= 1;
+      });
     return chain;
   }
 
-  async function push(tracks, current, autoplay) {
+  /**
+   * The UI is about to show [trackId] because the service said it is playing it -- a `command`,
+   * or a `durationchange` naming a new track. The sync that write triggers is a mirror and never a
+   * request, however late the chain gets to it.
+   *
+   * Without this the only test for "mirror" was the engine snapshot at the moment the push ran.
+   * Behind a `setQueue` still in flight that snapshot has often moved on already, and the mirror
+   * went across as "play [trackId]" -- undoing the move the listener had just asked for, whose
+   * own settled report then did the same to it. Two quick taps kept that going indefinitely.
+   *
+   * @param {string|number} trackId
+   */
+  function follow(trackId) {
+    followed = trackId == null ? null : String(trackId);
+    if (followed !== null) lastRequestedId = followed;
+  }
+
+  /**
+   * Whether a service report naming [trackId] predates the newest move this side asked for.
+   *
+   * The plugin reports each `setQueue`'s settled track before the call resolves, so while a
+   * requested move has not finished, a report of any other track is the service passing through
+   * an older request on its way to the newest one. Applying it would point the UI -- and through
+   * it the next sync -- back at a track the listener already left. Once every requested move has
+   * finished, every report is authoritative again: a failed load or a move nobody here asked for
+   * still reaches the UI.
+   *
+   * @param {string|number|null} trackId
+   * @returns {boolean}
+   */
+  function isStale(trackId) {
+    if (movesInFlight <= 0 || moveTarget === null || trackId == null) return false;
+    return String(trackId) !== moveTarget;
+  }
+
+  async function push(tracks, current, autoplay, mirror = false) {
     // `autoplay` false is the boot sync and nothing else; see [sync].
     const { queue, index } = queueToPush(tracks, current, !autoplay);
     const ids = queue.map((track) => String(track.id));
     const same = !isDifferentQueue(pushed, ids);
+
+    // Following the service, not steering it: see [follow]. Only the bookkeeping catches up.
+    if (mirror && same && index >= 0) {
+      pushedIndex = index;
+      return;
+    }
 
     // Nothing the service does not already know. Either the last push already told it this exact
     // list and index -- including a push it drove itself, which the UI mirrors back through
@@ -257,6 +333,8 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
   return {
     adopt,
     sync,
+    follow,
+    isStale,
     pushedIds: () => (pushed === null ? null : pushed.slice()),
     // Where the service is now, for `Player.svelte`'s `queueIndex` (what "now playing" and the
     // continuation sections in `NowPlaying.svelte` are built from). -1 before the first

@@ -491,3 +491,61 @@ describe("trackAfterCommand", () => {
     expect(trackAfterCommand(TRACKS, "1", { name: "next", trackId: null })).toBe(TRACKS[1]);
   });
 });
+
+// Bug report 095: a mirror of a service report that was replayed as a request, and a service
+// report from before the newest requested move that was applied as current.
+describe("createNativeQueue: mirrors and stale reports", () => {
+  const LIST = [{ id: "1" }, { id: "2" }, { id: "3" }];
+
+  it("never sends a followed track back, even when the engine has moved on by then", async () => {
+    const player = fakePlayer({
+      state: { trackId: "1" },
+      queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
+    });
+    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    await queue.adopt();
+
+    queue.follow("2");
+    // By the time the chain runs, the snapshot already names the track after it.
+    player.nowPlaying("3");
+    await queue.sync(LIST, LIST[1]);
+
+    expect(player.calls.filter(([name]) => name === "setQueue")).toEqual([]);
+    expect(queue.currentIndex()).toBe(1);
+  });
+
+  it("treats a report of another track as stale while a requested move is in flight", async () => {
+    const player = fakePlayer({
+      state: { trackId: "1" },
+      queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
+    });
+    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    await queue.adopt();
+
+    const first = queue.sync(LIST, LIST[1]);
+    const second = queue.sync(LIST, LIST[2]);
+
+    expect(queue.isStale("2")).toBe(true);
+    expect(queue.isStale("3")).toBe(false);
+    await first;
+    await second;
+    // Every requested move has finished: whatever the service says now is the truth.
+    expect(queue.isStale("2")).toBe(false);
+  });
+
+  it("does not hold back reports for a queue edit that keeps the current track", async () => {
+    const player = fakePlayer({
+      state: { trackId: "1" },
+      queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
+    });
+    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    await queue.adopt();
+    await queue.sync(LIST, LIST[0], { autoplay: false });
+
+    const edit = queue.sync([...LIST, { id: "4" }], LIST[0]);
+
+    // The service advancing on its own during the edit's round trip must still reach the UI.
+    expect(queue.isStale("2")).toBe(false);
+    await edit;
+  });
+});

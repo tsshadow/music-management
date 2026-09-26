@@ -628,8 +628,9 @@ def rescore_tick(conn, context: RankingContext) -> dict | None:
     return applied
 
 
-def drain_backlog(conn, context: RankingContext | None = None, *, budget: float = TICK_BUDGET_SECONDS,
-                  clock=time.monotonic) -> dict:
+def drain_backlog(
+    conn, context: RankingContext | None = None, *, budget: float = TICK_BUDGET_SECONDS, clock=time.monotonic
+) -> dict:
     """Run group_once batch after batch until nothing is left, a batch assigns nothing, or `budget` is spent.
 
     Every batch commits on its own (group_once does), so stopping between two loses nothing.
@@ -659,7 +660,10 @@ def grouping_tick() -> None:
         if stats['assigned'] or stats['recomputed']:
             logger.info(
                 'song-versions: grouped %d tracks in %d batches, recomputed %d works, %d left',
-                stats['assigned'], stats['batches'], stats['recomputed'], stats['remaining'],
+                stats['assigned'],
+                stats['batches'],
+                stats['recomputed'],
+                stats['remaining'],
             )
         rescore_tick(conn, context)
     finally:

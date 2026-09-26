@@ -600,11 +600,15 @@ class DrainBacklogTest(unittest.TestCase):
 
     def test_the_tick_drains_instead_of_running_one_batch(self):
         conn = MagicMock()
-        with patch.object(worker, 'get_db_connection', return_value=conn), \
-                patch.object(worker, 'ranking_context', return_value=CONTEXT), \
-                patch.object(worker, 'drain_backlog', return_value={'assigned': 3, 'recomputed': 1, 'remaining': 0, 'batches': 1}) as drain, \
-                patch.object(worker, 'rescore_tick') as rescore, \
-                patch.object(worker, 'group_once') as group_once:
+        with (
+            patch.object(worker, 'get_db_connection', return_value=conn),
+            patch.object(worker, 'ranking_context', return_value=CONTEXT),
+            patch.object(
+                worker, 'drain_backlog', return_value={'assigned': 3, 'recomputed': 1, 'remaining': 0, 'batches': 1}
+            ) as drain,
+            patch.object(worker, 'rescore_tick') as rescore,
+            patch.object(worker, 'group_once') as group_once,
+        ):
             worker.grouping_tick()
         drain.assert_called_once_with(conn, CONTEXT)
         group_once.assert_not_called()

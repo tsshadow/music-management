@@ -138,7 +138,9 @@ class MediaLibraryDataProvider(
                 sortMethod = query.sortMethod,
                 festivalLineup = query.festivalLineup,
                 minDuration = query.minDuration,
-                maxDuration = query.maxDuration
+                maxDuration = query.maxDuration,
+                forms = query.forms.takeIf { it.isNotEmpty() },
+                year = query.year
             )
         } ?: return null
         val tracks = songs.getTracks()

@@ -47,6 +47,7 @@ describe("normalizePreset", () => {
       maxRating: 5,
       minQuality: null,
       length: "short",
+      form: null,
       size: 200,
     });
   });
@@ -369,5 +370,95 @@ describe("updatePreset", () => {
   it("throws on a refusal", async () => {
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 403 }));
     await expect(updatePreset(7, "15", { name: "x" })).rejects.toThrow("403");
+  });
+});
+
+/**
+ * The track form a sets preset can carry (issue #47): saved by the builder and the filter bar,
+ * read by the web and by Android Auto (`TileInfo.form`), sent to `getSongs` as `form` -- and never
+ * a value LMS would refuse the whole request over.
+ */
+describe("preset track form", () => {
+  it("writes the form for a sets preset and round-trips it", () => {
+    const params = presetParams({ festivals: ["Defqon.1"], form: "liveset", viewMode: "sets" });
+    expect(JSON.parse(params)).toMatchObject({ form: "liveset", length: "long" });
+
+    const preset = normalizePreset({ id: 1, name: "x", params });
+    expect(preset.form).toBe("liveset");
+  });
+
+  it("never writes a form for a songs preset, or one LMS does not know", () => {
+    expect(JSON.parse(presetParams({ form: "liveset", viewMode: "songs" })).form).toBeUndefined();
+    expect(JSON.parse(presetParams({ form: "mixtape", viewMode: "sets" })).form).toBeUndefined();
+  });
+
+  it("reads an unknown or songs-side form back as none", () => {
+    const unknown = normalizePreset({
+      id: 1,
+      name: "x",
+      params: '{"length":"long","form":"mixtape"}',
+    });
+    const songs = normalizePreset({
+      id: 2,
+      name: "y",
+      params: '{"length":"short","form":"liveset"}',
+    });
+    expect(unknown.form).toBeNull();
+    expect(songs.form).toBeNull();
+  });
+
+  it("sends the form to getSongs, with one year as the filing year", () => {
+    const preset = normalizePreset({
+      id: 1,
+      name: "x",
+      params: '{"length":"long","festival":["Defqon.1"],"year":["2019"],"form":"liveset"}',
+    });
+    const { params } = presetQuery(preset, { viewMode: "sets" });
+    const clusters = JSON.parse(params.clusters);
+
+    expect(params.form).toBe("liveset");
+    expect(params.year).toBe(2019);
+    expect(clusters.some((c) => c.name === "YEAR")).toBe(false);
+    expect(clusters).toContainEqual({ name: "LENGTH", value: "long" });
+  });
+
+  it("keeps several years as the cluster even with a form", () => {
+    const preset = normalizePreset({
+      id: 1,
+      name: "x",
+      params: '{"length":"long","year":["2019","2020"],"form":"liveset"}',
+    });
+    const { params } = presetQuery(preset, { viewMode: "sets" });
+
+    expect(params.year).toBeUndefined();
+    expect(JSON.parse(params.clusters)).toContainEqual({ name: "YEAR", value: ["2019", "2020"] });
+  });
+
+  it("sends neither form nor year for a preset without a form", () => {
+    const preset = normalizePreset({
+      id: 1,
+      name: "x",
+      params: '{"length":"long","year":["2019"]}',
+    });
+    const { params } = presetQuery(preset, { viewMode: "sets" });
+
+    expect(params.form).toBeUndefined();
+    expect(params.year).toBeUndefined();
+  });
+
+  it("the filter bar's Soort is saved with a preset from the sets view", () => {
+    const params = JSON.parse(
+      presetParamsFromFilters({ year: "2012", form: "liveset", viewMode: "sets" }),
+    );
+    expect(params).toMatchObject({ form: "liveset", year: ["2012"], length: "long" });
+  });
+
+  it("names the form in the tile's summary", () => {
+    const preset = normalizePreset({
+      id: 1,
+      name: "x",
+      params: '{"length":"long","form":"podcast"}',
+    });
+    expect(presetSummary(preset, (key) => key)).toContain("filter.form.podcast");
   });
 });

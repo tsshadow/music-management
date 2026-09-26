@@ -55,7 +55,12 @@ class TileInfo(
     val maxDuration: Int? = null,
     val favorite: Boolean = false,
     /** A floor on the QUALITY cluster, one of [QualityTier.TIERS]; null filters nothing. */
-    val minQuality: String? = null
+    val minQuality: String? = null,
+    /**
+     * MuMa's track form for a sets preset, one of `TrackForm.SET_FORMS`; null filters nothing.
+     * Read through `TrackForm.known` before it is sent, so a value this app does not know is inert.
+     */
+    val form: String? = null
 ) {
     init {
         if (title == "") title = createDefaultTitle()
@@ -98,6 +103,7 @@ fun TileInfo.toSmartParamsJson(): String {
     map["favorite"] = favorite
     map["length"] = length.takeIf { it.isNotBlank() }
     map["minQuality"] = minQuality?.takeIf { it.isNotBlank() }
+    map["form"] = form?.takeIf { it.isNotBlank() }
     return Gson().toJson(map.filterValues { it != null })
 }
 

@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.service.androidauto
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
+import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 import nl.teunschriks.mumamobile.home.TileInfo
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
 
@@ -25,6 +26,12 @@ import nl.teunschriks.mumamobile.util.Settings.maxSongs
  * The cluster names are the server's own: `GENRE`, `YEAR`, `PUBLISHER` (a record label),
  * `PODCAST`, `FESTIVAL`, `ARTIST`, and `LENGTH` for the songs/sets split. `getSongs` accepts any
  * cluster type by name, which is what makes one class enough.
+ *
+ * Two filters are not clusters but parameters of their own: [forms] (MuMa's track/set/liveset/
+ * podcast classification) and [year], the year a track *files under* -- a live set's performance
+ * year where MuMa knows it, else the date tag. A year travels as [year] only together with a form,
+ * which is what "Livesets 2012" asks for; everywhere else it stays the `YEAR` cluster it always was,
+ * so no existing list changes meaning.
  */
 data class BrowseQuery(
     /** "short" for songs, "long" for sets: the `LENGTH` cluster the tagger writes. */
@@ -38,7 +45,11 @@ data class BrowseQuery(
     /** Minutes, like the endpoint. Only a preset sets these. */
     val minDuration: Int? = null,
     val maxDuration: Int? = null,
-    val count: Int = maxSongs
+    val count: Int = maxSongs,
+    /** Forms from [TrackForm.FORMS]; anything else is dropped before the request. */
+    val forms: List<String> = emptyList(),
+    /** The filing year, sent as `year`; see the class comment for when it is used. */
+    val year: Int? = null
 ) {
     fun toFilters(): Filters {
         val filters = Filters()
@@ -72,6 +83,12 @@ data class BrowseQuery(
          */
         const val TAG_LINEUP = "LINEUP"
 
+        /**
+         * Not a cluster either: the pseudo tag type of a form row in the Sets tab. Its value is one
+         * of [TrackForm.SET_FORMS], which `getSongs` takes as `form`.
+         */
+        const val TAG_FORM = "FORM"
+
         const val SORT_RELEASE = "DateDescAndRelease"
         const val SORT_ADDED = "AddedDesc"
         const val SORT_RANDOM = "Random"
@@ -87,7 +104,13 @@ data class BrowseQuery(
                 if (kept.isNotEmpty()) clusters[name] = kept
             }
             put(CLUSTER_GENRE, tile.genre)
-            put(CLUSTER_YEAR, tile.year)
+            val length = tile.length.ifBlank { "short" }
+            // The web only saves a form for a sets preset; one on a songs preset would contradict
+            // the LENGTH cluster and answer nothing, so it is ignored there.
+            val forms = if (length == "long") listOfNotNull(TrackForm.known(tile.form)) else emptyList()
+            val years = tile.year?.filter { it.isNotBlank() && it != "All" }.orEmpty()
+            val filingYear = years.singleOrNull()?.toIntOrNull()?.takeIf { forms.isNotEmpty() }
+            if (filingYear == null) put(CLUSTER_YEAR, years)
             put(CLUSTER_ARTIST, tile.artists)
             put(CLUSTER_LABEL, tile.label)
             put(CLUSTER_FESTIVAL, tile.festival)
@@ -96,7 +119,7 @@ data class BrowseQuery(
             put(CLUSTER_QUALITY, QualityTier.atLeast(tile.minQuality))
 
             return BrowseQuery(
-                length = tile.length.ifBlank { "short" },
+                length = length,
                 clusters = clusters,
                 sortMethod = tile.sortMethod.ifBlank { SORT_ADDED },
                 festivalLineup = tile.festivalLineup?.takeIf { it.isNotBlank() },
@@ -104,7 +127,9 @@ data class BrowseQuery(
                 ratingMax = tile.ratingMax,
                 minDuration = tile.minDuration,
                 maxDuration = tile.maxDuration,
-                count = tile.size.takeIf { it > 0 } ?: maxSongs
+                count = tile.size.takeIf { it > 0 } ?: maxSongs,
+                forms = forms,
+                year = filingYear
             )
         }
     }
@@ -113,7 +138,7 @@ data class BrowseQuery(
 /**
  * The tag half of a media id: `<action>|<length>|<type>|<value>|<year>|<sort>`.
  *
- * `type` is a cluster name, [BrowseQuery.TAG_LINEUP], or empty for "everything of this length"
+ * `type` is a cluster name, [BrowseQuery.TAG_LINEUP], [BrowseQuery.TAG_FORM], or empty for "everything of this length"
  * (the Random row at the top of a tab). `value` is the tag as the library spells it: the car hands
  * a media id back verbatim, so the name needs no escaping as long as it holds no `|`. `year` is
  * one year or empty. The old genre chain carried the same fields in the same order, minus type.
@@ -127,15 +152,23 @@ data class TagQuery(
 ) {
     fun toBrowseQuery(): BrowseQuery {
         val clusters = mutableMapOf<String, List<String>>()
-        if (type.isNotBlank() && type != BrowseQuery.TAG_LINEUP && value.isNotBlank()) {
+        val pseudo = type == BrowseQuery.TAG_LINEUP || type == BrowseQuery.TAG_FORM
+        if (type.isNotBlank() && !pseudo && value.isNotBlank()) {
             clusters[type] = listOf(value)
         }
-        if (year.isNotBlank()) clusters[BrowseQuery.CLUSTER_YEAR] = listOf(year)
+        // A form value the app does not know narrows nothing rather than failing the request.
+        val forms = if (type == BrowseQuery.TAG_FORM) listOfNotNull(TrackForm.known(value)) else emptyList()
+        // Under a form the year is the filing year -- a live set's performance year -- which is
+        // what "Livesets, 2012" means; elsewhere it stays the tag year.
+        val filingYear = year.toIntOrNull()?.takeIf { forms.isNotEmpty() }
+        if (year.isNotBlank() && filingYear == null) clusters[BrowseQuery.CLUSTER_YEAR] = listOf(year)
         return BrowseQuery(
             length = length,
             clusters = clusters,
             sortMethod = sortMethod,
-            festivalLineup = value.takeIf { type == BrowseQuery.TAG_LINEUP && it.isNotBlank() }
+            festivalLineup = value.takeIf { type == BrowseQuery.TAG_LINEUP && it.isNotBlank() },
+            forms = forms,
+            year = filingYear
         )
     }
 

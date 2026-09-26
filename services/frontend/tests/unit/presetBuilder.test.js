@@ -161,6 +161,26 @@ describe("PresetBuilder", () => {
     });
   });
 
+  it("offers the Soort only for sets, previews and saves it", async () => {
+    const onnavigate = vi.fn();
+    render(PresetBuilder, { onnavigate });
+
+    expect(screen.queryByLabelText("Soort")).toBeNull();
+    await fireEvent.click(screen.getByRole("radio", { name: "Sets" }));
+    await fireEvent.change(screen.getByLabelText("Soort"), { target: { value: "liveset" } });
+
+    await vi.advanceTimersByTimeAsync(400);
+    await waitFor(() => expect(String(songsCalls().at(-1)?.[0])).toContain("form=liveset"));
+
+    await fireEvent.click(screen.getByRole("button", { name: "Opslaan als snelkoppeling" }));
+    await waitFor(() => expect(onnavigate).toHaveBeenCalledWith("preset:42"));
+    const post = globalThis.fetch.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(JSON.parse(post[1].body).params)).toMatchObject({
+      form: "liveset",
+      length: "long",
+    });
+  });
+
   it("over an existing preset it starts filled in and PUTs on save", async () => {
     const existing = normalizePreset({
       id: 15,

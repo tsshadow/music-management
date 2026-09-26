@@ -89,18 +89,32 @@ class MediaLibraryBrowseTabsTest {
                 sortMethod = any(),
                 festivalLineup = any(),
                 minDuration = any(),
-                maxDuration = any()
+                maxDuration = any(),
+                artistIds = any(),
+                workId = any(),
+                canonicalOnly = any(),
+                forms = any(),
+                year = any()
             )
         } returns songs
     }
 
-    private class SongsCall(val filters: String, val sortMethod: String?, val lineup: String?, val offset: Int)
+    private class SongsCall(
+        val filters: String,
+        val sortMethod: String?,
+        val lineup: String?,
+        val offset: Int,
+        val forms: List<String>?,
+        val year: Int?
+    )
 
     private fun lastSongsCall(): SongsCall {
         val filters = slot<Filters>()
         val sort = slot<String?>()
         val lineup = slot<String?>()
         val offset = slot<Int>()
+        val forms = mutableListOf<List<String>?>()
+        val year = mutableListOf<Int?>()
         verify {
             musicService.getSongs(
                 filters = capture(filters),
@@ -111,10 +125,22 @@ class MediaLibraryBrowseTabsTest {
                 sortMethod = captureNullable(sort),
                 festivalLineup = captureNullable(lineup),
                 minDuration = any(),
-                maxDuration = any()
+                maxDuration = any(),
+                artistIds = any(),
+                workId = any(),
+                canonicalOnly = any(),
+                forms = captureNullable(forms),
+                year = captureNullable(year)
             )
         }
-        return SongsCall(filters.captured.toString(), sort.captured, lineup.captured, offset.captured)
+        return SongsCall(
+            filters.captured.toString(),
+            sort.captured,
+            lineup.captured,
+            offset.captured,
+            forms.lastOrNull(),
+            year.lastOrNull()
+        )
     }
 
     private fun tagList(length: String, type: String) = "${base.MEDIA_TAG_LIST}|$length|$type"
@@ -177,6 +203,79 @@ class MediaLibraryBrowseTabsTest {
             listOf(TagQuery("long", BrowseQuery.CLUSTER_GENRE, "Hardstyle").mediaId(base.MEDIA_TAG_TRACKS))
         childIds(base.MEDIA_FAVORITE_GENRES_ID) `should be equal to`
             listOf(TagQuery("short", BrowseQuery.CLUSTER_GENRE, "Hardstyle").mediaId(base.MEDIA_TAG_TRACKS))
+    }
+
+    // --- track form (issue #47) ------------------------------------------------------------
+
+    @Test
+    fun `the Sets tab offers the form list and the Songs tab does not`() {
+        childIds(base.MEDIA_SETS_ID) `should contain` tagList("long", BrowseQuery.TAG_FORM)
+        childIds(base.MEDIA_SONGS_ID) `should not contain` tagList("short", BrowseQuery.TAG_FORM)
+    }
+
+    @Test
+    fun `the form list is the three set forms, static, and asks the server nothing`() {
+        val ids = childIds(tagList("long", BrowseQuery.TAG_FORM))
+
+        ids `should be equal to` listOf("set", "liveset", "podcast").map {
+            TagQuery("long", BrowseQuery.TAG_FORM, it).mediaId(base.MEDIA_TAG_TRACKS)
+        }
+        verify(exactly = 0) { musicService.getTags(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a form list asked for on the songs side is empty rather than offering sets`() {
+        childIds(tagList("short", BrowseQuery.TAG_FORM)) `should be equal to` emptyList()
+    }
+
+    @Test
+    fun `a form folder sends the form parameter beside the long filter`() {
+        songsAnswer("Defqon.1 2019 | Headhunterz")
+        val folder = TagQuery("long", BrowseQuery.TAG_FORM, "liveset")
+
+        val ids = childIds(folder.mediaId(base.MEDIA_TAG_TRACKS))
+
+        ids `should contain` folder.mediaId(base.MEDIA_TAG_YEARS)
+        val call = lastSongsCall()
+        call.forms `should be equal to` listOf("liveset")
+        call.year `should be equal to` null
+        call.filters `should be equal to` """[{"name":"LENGTH","value":"long"}]"""
+    }
+
+    @Test
+    fun `a form folder narrowed to a year sends the filing year, not the year cluster`() {
+        songsAnswer("Defqon.1 2012 | Headhunterz")
+
+        children(TagQuery("long", BrowseQuery.TAG_FORM, "liveset", year = "2012").mediaId(base.MEDIA_TAG_TRACKS))
+
+        val call = lastSongsCall()
+        call.forms `should be equal to` listOf("liveset")
+        call.year `should be equal to` 2012
+        call.filters `should not contain` "YEAR"
+    }
+
+    @Test
+    fun `a mangled form id sends no form at all`() {
+        songsAnswer("Anything")
+
+        children(TagQuery("long", BrowseQuery.TAG_FORM, "mixtape").mediaId(base.MEDIA_TAG_TRACKS))
+
+        lastSongsCall().forms `should be equal to` null
+    }
+
+    @Test
+    fun `a sets preset saved with a form plays that form in the car`() {
+        every { musicService.getMumaTiles() } returns listOf(
+            serverPreset("9", "Defqon livesets", """{"length":"long","sortMethod":"AddedDesc","festival":["Defqon.1"],"form":"liveset","year":["2019"]}""")
+        )
+        songsAnswer("Defqon.1 2019 | Headhunterz")
+
+        dataProvider.tracksFromMediaId("${base.MEDIA_PRESET_PLAY}|9").`should not be null`()
+
+        val call = lastSongsCall()
+        call.forms `should be equal to` listOf("liveset")
+        call.year `should be equal to` 2019
+        call.filters `should be equal to` """[{"name":"FESTIVAL","value":"Defqon.1"}, {"name":"LENGTH","value":"long"}]"""
     }
 
     // --- tag lists ------------------------------------------------------------------------

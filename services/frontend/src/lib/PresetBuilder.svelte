@@ -14,13 +14,15 @@
     updatePreset,
   } from './presets.js';
   import { notify } from './notifications.js';
+  import { FORM_LABEL_KEYS, SET_FORMS } from './trackForm.js';
   import MultiPicker from './MultiPicker.svelte';
   import TrackList from './TrackList.svelte';
 
   /**
    * Advanced search, and the way to keep what it finds: every cluster LMS can filter on --
    * genres, artists, labels, festivals, years -- as lists that are OR'd within a kind and AND'd
-   * across kinds, plus a rating range, a sort and songs-or-sets. The list underneath answers
+   * across kinds, plus a rating range, a sort, songs-or-sets and -- for sets -- the Soort (track
+   * form: sets & mixes, live sets, podcasts), which Android Auto also plays the preset with. The list underneath answers
    * as the query changes, and "Opslaan als snelkoppeling" makes the query one of the user's
    * presets: a tile on the home grid, and a row in Android Auto's Afspeellijsten on the next
    * browse, since the car reads the same list from the server.
@@ -46,6 +48,8 @@
   let maxRating = $state(initial?.maxRating ?? 5);
   let mode = $state(initial ? (initial.length === 'long' ? 'sets' : 'songs') : untrack(() => $viewMode));
   let size = $state(initial?.size ?? DEFAULT_PRESET_SIZE);
+  // Only offered, and only saved, in sets mode: presetParams drops it for songs.
+  let form = $state(initial?.form ?? '');
 
   let genreOptions = $state([]);
   let labelOptions = $state([]);
@@ -62,14 +66,15 @@
     normalizePreset({
       id: preset?.id ?? '',
       name,
-      params: presetParams({ genres, artists, labels, festivals, years, sort, minRating, maxRating, viewMode: mode, size }),
+      params: presetParams({ genres, artists, labels, festivals, years, sort, minRating, maxRating, form, viewMode: mode, size }),
     }),
   );
 
   const hasFilter = $derived(
     genres.length + artists.length + labels.length + festivals.length + years.length > 0 ||
       minRating > 0 ||
-      maxRating < 5,
+      maxRating < 5 ||
+      (mode === 'sets' && Boolean(form)),
   );
 
   const ratingSteps = [0, 1, 2, 3, 4, 5];
@@ -147,7 +152,7 @@
     const userId = $mumaUser?.id;
     if (!userId || saving) return;
     const finalName = name.trim() || defaultName();
-    const params = presetParams({ genres, artists, labels, festivals, years, sort, minRating, maxRating, viewMode: mode, size });
+    const params = presetParams({ genres, artists, labels, festivals, years, sort, minRating, maxRating, form, viewMode: mode, size });
     saving = true;
     try {
       let id = preset?.id;
@@ -206,6 +211,18 @@
         {/each}
       </select>
     </div>
+
+    {#if mode === 'sets'}
+      <div class="flex flex-col gap-2">
+        <label for="pb-form" class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('filter.form.label')}</label>
+        <select id="pb-form" class="bg-muma-spotify-light text-white border-none px-3 py-2 rounded-md text-sm cursor-pointer focus:outline focus:outline-1 focus:outline-brand" bind:value={form}>
+          <option value="">{$t('filter.form.any')}</option>
+          {#each SET_FORMS as option (option)}
+            <option value={option}>{$t(FORM_LABEL_KEYS[option])}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
 
     <div class="flex flex-col gap-2">
       <span class="text-xs font-bold uppercase tracking-wider text-muma-spotify-text">{$t('presetBuilder.rating')}</span>

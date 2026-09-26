@@ -1,6 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { QUALITY_LABEL_KEYS } from './quality.js';
+  import { FORM_LABEL_KEYS } from './trackForm.js';
   import { onMount, onDestroy } from 'svelte';
   import { platform as defaultPlatform } from './platform/index.js';
   import { currentTrack, playerState } from './store.js';
@@ -54,7 +55,7 @@
   const supported = $derived(platform?.speech?.supported === true);
 
   /** The rows worth printing under "explanation", in a fixed, readable order. */
-  const FIELD_ORDER = ['genre', 'label', 'artist', 'album', 'playlist', 'year', 'rating', 'quality', 'sets', 'order'];
+  const FIELD_ORDER = ['genre', 'label', 'artist', 'album', 'playlist', 'year', 'rating', 'quality', 'form', 'sets', 'order'];
 
   onMount(() => {
     if (!supported) return;
@@ -251,6 +252,8 @@
         return $t('filter.rating');
       case 'quality':
         return $t('filter.quality.label');
+      case 'form':
+        return $t('filter.form.label');
       case 'sets':
         return $t('voice.setsLabel');
       case 'order':
@@ -262,6 +265,12 @@
 
   function fieldValue(field, value) {
     if (field === 'quality') return $t(QUALITY_LABEL_KEYS[value] ?? value);
+    // Comma-separated server spellings ("liveset", "set,podcast"), each named in the UI language.
+    if (field === 'form')
+      return String(value)
+        .split(',')
+        .map((form) => (FORM_LABEL_KEYS[form] ? $t(FORM_LABEL_KEYS[form]) : form))
+        .join(', ');
     if (field !== 'order') return value;
     if (value === 'added') return $t('voice.orderAdded');
     if (value === 'random') return $t('voice.orderRandom');

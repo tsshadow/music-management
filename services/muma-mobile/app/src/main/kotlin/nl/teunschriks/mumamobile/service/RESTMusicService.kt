@@ -15,6 +15,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.api.subsonic.models.JukeboxAction
+import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 import nl.teunschriks.mumamobile.api.subsonic.throwOnFailure
 import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -724,7 +725,9 @@ open class RESTMusicService(
         maxDuration: Int?,
         artistIds: List<String>?,
         workId: Int?,
-        canonicalOnly: Boolean?
+        canonicalOnly: Boolean?,
+        forms: List<String>?,
+        year: Int?
     ): MusicDirectory {
         Timber.d(filters.toString())
 
@@ -747,7 +750,11 @@ open class RESTMusicService(
             workId,
             // Asking for one song's versions and collapsing to one of them are opposites, so
             // a workId always wins over the setting.
-            if (workId != null) false else canonicalOnly ?: Settings.canonicalOnly
+            if (workId != null) false else canonicalOnly ?: Settings.canonicalOnly,
+            // The one place every caller's forms pass through: the server refuses an unknown
+            // form for the whole request, so nothing it does not know ever leaves the app.
+            TrackForm.sanitize(forms),
+            year
         ).execute().throwOnFailure()
 
         val result = MusicDirectory()

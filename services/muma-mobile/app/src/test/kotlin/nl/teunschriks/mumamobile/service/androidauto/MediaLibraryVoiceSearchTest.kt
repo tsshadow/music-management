@@ -131,6 +131,57 @@ class MediaLibraryVoiceSearchTest {
     }
 
     @Test
+    fun `livesets of a festival and a year reach getSongs as festival, form and filing year`() {
+        every { musicService.getTags(any(), "FESTIVAL", any(), any()) } returns listOf(Tag("1", "Defqon.1", 80))
+        every {
+            musicService.getSongs(
+                filters = any(),
+                ratingMin = any(),
+                ratingMax = any(),
+                count = any(),
+                offset = any(),
+                sortMethod = any(),
+                festivalLineup = any(),
+                minDuration = any(),
+                maxDuration = any(),
+                artistIds = any(),
+                workId = any(),
+                canonicalOnly = any(),
+                forms = any(),
+                year = any()
+            )
+        } returns songs
+
+        controller.tracksFromVoice("speel livesets van Defqon 2019 af", null)?.size `should be equal to` 2
+
+        val filters = slot<Filters>()
+        val forms = mutableListOf<List<String>?>()
+        val year = mutableListOf<Int?>()
+        verify {
+            musicService.getSongs(
+                filters = capture(filters),
+                ratingMin = any(),
+                ratingMax = any(),
+                count = any(),
+                offset = any(),
+                sortMethod = any(),
+                festivalLineup = any(),
+                minDuration = any(),
+                maxDuration = any(),
+                artistIds = any(),
+                workId = any(),
+                canonicalOnly = any(),
+                forms = captureNullable(forms),
+                year = captureNullable(year)
+            )
+        }
+        filters.captured.toString() `should be equal to`
+            """[{"name":"FESTIVAL","value":"Defqon.1"}, {"name":"LENGTH","value":"long"}]"""
+        forms.last() `should be equal to` listOf("liveset")
+        year.last() `should be equal to` 2019
+    }
+
+    @Test
     fun `the genre from the search extras wins over the utterance`() {
         controller.tracksFromVoice("speel iets van hardcore", "Hardstyle")
 

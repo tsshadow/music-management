@@ -37,12 +37,21 @@ data class Candidate(
 /** What running a resolved request means. */
 sealed interface Target {
 
-    /** A filtered `getSongs` call: the genre, label, artist and year path. */
+    /**
+     * A filtered `getSongs` call: the genre, label, artist and year path.
+     *
+     * @property forms `getSongs`'s `form` parameter, only ever values of `TrackForm.FORMS`
+     * @property year `getSongs`'s `year` parameter: the year a track files under, which for a live
+     *           set is the year it was played. Set instead of the `YEAR` cluster only when a form
+     *           was asked for too, so every request without one reads exactly as it always did.
+     */
     data class Filtered(
         val filters: Filters,
         val sortMethod: String,
         val ratingMin: Int? = null,
-        val ratingMax: Int? = null
+        val ratingMax: Int? = null,
+        val forms: List<String> = emptyList(),
+        val year: Int? = null
     ) : Target
 
     /**

@@ -165,6 +165,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — Versies page in Beheer (2026-09-26, `docs/designs/song-versions/`): built only from
+  existing tokens. The list is the curation table surface (`bg-muma-spotify-panel/40`, rows
+  `divide-muma-spotify-panel/30`); a row expands in place to the versions table instead of opening
+  a page. Badges follow "Curation state badges": *Best* and *Pinned* are brand, *Changed* and
+  *Was best* are yellow (a rescore result to review). Primary action ("Accept new choice") is the
+  brand pill; "Pick as best" and "Reset to automatic" are secondary pills (`bg-muma-spotify-light`).
 - **Pending** — Phone UI polish (2026-09-17, `docs/designs/phone-ui-polish/`), one item per increment:
   - A (done): artwork fallback chain cover → artist image → tinted title panel (`Artwork.svelte`); the
     full-screen player background is a vertical gradient from the track's genre tint (55% mix with

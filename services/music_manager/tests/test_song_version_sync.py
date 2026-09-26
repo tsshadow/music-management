@@ -423,6 +423,20 @@ class OneCanonicalPerWorkTest(SongVersionSyncTest):
         self.assertEqual(self.canonical_ids(), [1])
         self.assertEqual(self.stored(2), (42, 0, '', 0))
 
+    def test_the_storage_setting_shows_the_mp3_320_instead_of_the_flac(self):
+        # docs/designs/song-versions/: the file LMS shows follows the same format order as the
+        # ranking that chose the track, so prefer_lossless off picks the MP3 at 320.
+        self.add_track(1, '/mnt/music/EPs/Texcore/01.flac')
+        self.add_track(2, '/mnt/music/EPs/Texcore/01.mp3')
+        files = [
+            row('/mnt/music/EPs/Texcore/01.flac', work_id=42, track_id=10, canonical_track_id=10, file_size=40_000_000),
+            row('/mnt/music/EPs/Texcore/01.mp3', work_id=42, track_id=10, canonical_track_id=10, file_size=12_000_000),
+        ]
+        sync_song_versions_to_server(muma_with(files), self.server, prefer_lossless=False)
+        self.assertEqual(self.canonical_ids(), [2])
+        sync_song_versions_to_server(muma_with(files), self.server, prefer_lossless=True)
+        self.assertEqual(self.canonical_ids(), [1])
+
     def test_between_two_equal_files_the_higher_bitrate_then_the_newest_wins(self):
         self.add_track(1, '/mnt/music/EPs/a/01.mp3')
         self.add_track(2, '/mnt/music/EPs/b/01.mp3')

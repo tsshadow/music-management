@@ -518,6 +518,17 @@ def _config_fields() -> list[ConfigField]:
             description='How many hours of LMS listens each backfill round reads. Older history is left to the '
             'manual reconcile (POST /api/scrobble/reconcile/lms with insert_lms_only).',
         ),
+        ConfigField(
+            key='prefer_lossless',
+            type='boolean',
+            default=True,
+            env='PREFER_LOSSLESS',
+            group='Song versions',
+            description='Which file of a song plays when several versions exist. On: lossless (FLAC) first, then '
+            'MP3 320, AAC, lower bitrates. Off (saves storage and bandwidth): MP3 320 first, then AAC, then '
+            'lossless. The version kind (pro edit, radio edit, ...) decides within a format. Changing it rescores '
+            'every song within the hour; songs pinned on the Versions page keep their pin.',
+        ),
     ]
 
 

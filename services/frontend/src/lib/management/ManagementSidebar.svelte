@@ -26,7 +26,8 @@
     Tag,
     Inbox,
     Tent,
-    ListTree
+    ListTree,
+    Layers
   } from '@lucide/svelte';
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
@@ -53,6 +54,7 @@
     'podcast-curation': { labelKey: 'management.tabs.podcastCuration', icon: Podcast },
     'festivals': { labelKey: 'management.tabs.festivals', icon: Tent },
     'lineups': { labelKey: 'management.tabs.lineups', icon: ListTree },
+    'song-versions': { labelKey: 'management.tabs.songVersions', icon: Layers },
     'downloaders': { labelKey: 'management.tabs.downloaders', icon: Download },
     'radio': { labelKey: 'management.tabs.radio', icon: Radio, permission: 'radio.manage' },
     'news': { labelKey: 'management.tabs.news', icon: Newspaper, permission: 'news.manage' },

@@ -532,9 +532,12 @@ def rescore_batch(cursor, works: list[dict], context: RankingContext, *, dry_run
         for work_id in pins_cleared:
             cursor.execute('UPDATE library_works SET pinned_track_id = NULL WHERE id = %s', (work_id,))
         for work_id, old, new in changed:
-            if old is None:
-                # A work that had no canonical yet gained one; nothing was replaced, so
-                # there is nothing for a curator to review.
+            if old is None or new is None:
+                # A work that had no canonical yet gained one, or a work none of whose tracks
+                # has a file any more lost it (only a playable track can win). Neither
+                # replaced one playable version with another, so there is nothing for a
+                # curator to review -- flagging the second kind put 77k works with no file
+                # on the Versies page's "changed" list on 2026-09-26 (bug report 100).
                 cursor.execute(
                     'UPDATE library_works SET canonical_track_id = %s WHERE id = %s',
                     (new, work_id),
@@ -552,7 +555,7 @@ def rescore_batch(cursor, works: list[dict], context: RankingContext, *, dry_run
     return {
         'works': len(works),
         'tracks_rescored': len(track_updates),
-        'canonicals_changed': sum(1 for _work, old, _new in changed if old is not None),
+        'canonicals_changed': sum(1 for _work, old, new in changed if old is not None and new is not None),
     }
 
 

@@ -37,6 +37,8 @@ namespace lms::core::http
             : _parameters{ std::move(PUTParams) } {}
         ClientRequest(ClientDELETERequestParameters&& DELETEParams)
             : _parameters{ std::move(DELETEParams) } {}
+        ClientRequest(ClientPATCHRequestParameters&& PATCHParams)
+            : _parameters{ std::move(PATCHParams) } {}
 
         std::size_t retryCount{};
         std::size_t rateLimitRetryCount{}; // how many times a 429 sent this request back to the queue
@@ -59,6 +61,7 @@ namespace lms::core::http
             POST,
             PUT,
             DELETE,
+            PATCH,
         };
         Type getType() const
         {
@@ -68,6 +71,8 @@ namespace lms::core::http
                 return Type::PUT;
             if (std::holds_alternative<ClientDELETERequestParameters>(_parameters))
                 return Type::DELETE;
+            if (std::holds_alternative<ClientPATCHRequestParameters>(_parameters))
+                return Type::PATCH;
             return Type::POST;
         }
 
@@ -91,7 +96,12 @@ namespace lms::core::http
             return std::get<ClientDELETERequestParameters>(_parameters);
         }
 
+        const ClientPATCHRequestParameters& getPATCHParameters() const
+        {
+            return std::get<ClientPATCHRequestParameters>(_parameters);
+        }
+
     private:
-        std::variant<ClientGETRequestParameters, ClientPOSTRequestParameters, ClientPUTRequestParameters, ClientDELETERequestParameters> _parameters;
+        std::variant<ClientGETRequestParameters, ClientPOSTRequestParameters, ClientPUTRequestParameters, ClientDELETERequestParameters, ClientPATCHRequestParameters> _parameters;
     };
 } // namespace lms::core::http

@@ -160,9 +160,10 @@ namespace lms::core::http::tests
     // Every PUT and DELETE handed to the client used to leave as a POST, so a route that only
     // takes the real verb answered 405 for a request the caller never sent. The verb has to be
     // checked on the receiving end: nothing in the client's own bookkeeping would show it.
+    // PATCH joined for MuMa's per-key account-settings write (bug report 116).
     TEST(HttpClient, eachVerbReachesTheServerAsItself)
     {
-        LoopbackServer server{ 4 };
+        LoopbackServer server{ 5 };
 
         asio::io_context ioContext;
         auto work{ asio::make_work_guard(ioContext) };
@@ -202,7 +203,12 @@ namespace lms::core::http::tests
             fill(del, "/delete");
             client->sendDELETERequest(std::move(del));
 
-            ASSERT_TRUE(waitUntil(completed, 4, std::chrono::seconds{ 30 })) << "only " << completed.load() << " of 4 requests completed";
+            ClientPATCHRequestParameters patch;
+            fill(patch, "/patch");
+            patch.message.addBodyText("patched");
+            client->sendPATCHRequest(std::move(patch));
+
+            ASSERT_TRUE(waitUntil(completed, 5, std::chrono::seconds{ 30 })) << "only " << completed.load() << " of 5 requests completed";
         }
 
         work.reset();
@@ -212,7 +218,7 @@ namespace lms::core::http::tests
         EXPECT_EQ(failed.load(), 0);
 
         const std::vector<ReceivedRequest> received{ server.getReceivedRequests() };
-        ASSERT_EQ(received.size(), 4);
+        ASSERT_EQ(received.size(), 5);
 
         const ReceivedRequest* get{ findByTarget(received, "/get") };
         ASSERT_NE(get, nullptr);
@@ -231,5 +237,10 @@ namespace lms::core::http::tests
         const ReceivedRequest* del{ findByTarget(received, "/delete") };
         ASSERT_NE(del, nullptr);
         EXPECT_EQ(del->method, "DELETE");
+
+        const ReceivedRequest* patch{ findByTarget(received, "/patch") };
+        ASSERT_NE(patch, nullptr);
+        EXPECT_EQ(patch->method, "PATCH");
+        EXPECT_EQ(patch->body, "patched");
     }
 } // namespace lms::core::http::tests

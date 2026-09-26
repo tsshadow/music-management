@@ -29,21 +29,24 @@ class BookmarkMigrationTest {
 
     @Test
     fun `a bookmark's position converts from milliseconds to seconds`() {
-        val merged = mergeSetResume(null, listOf(bookmark(position = 605_000, track = setTrack(workId = 7))))
+        val merged = setResumeChange(null, listOf(bookmark(position = 605_000, track = setTrack(workId = 7))))
 
         merged.contains(""""work:7"""") `should be equal to` true
         merged.contains(""""position":605""") `should be equal to` true
     }
 
     @Test
-    fun `merging keeps every other key in the blob`() {
+    fun `the change keeps the stored resume entries but carries no other key of the blob`() {
+        // Issue #39: the server merges the change into the blob, so favoriteGenres stays there
+        // without this app ever writing it back -- and a newer copy from another device survives.
         val blob = """{"favoriteGenres":["Techno"],"setResume":{"work:1":{"position":10,"updatedAt":1}}}"""
 
-        val merged = mergeSetResume(blob, listOf(bookmark(track = setTrack(id = "2", workId = 2))))
+        val change = setResumeChange(blob, listOf(bookmark(track = setTrack(id = "2", workId = 2))))
 
-        merged.contains(""""favoriteGenres":["Techno"]""") `should be equal to` true
-        merged.contains(""""work:1"""") `should be equal to` true
-        merged.contains(""""work:2"""") `should be equal to` true
+        change.contains("favoriteGenres") `should be equal to` false
+        change.contains(""""work:1"""") `should be equal to` true
+        change.contains(""""work:2"""") `should be equal to` true
+        change.startsWith("""{"setResume":""") `should be equal to` true
     }
 
     @Test
@@ -51,22 +54,22 @@ class BookmarkMigrationTest {
         val blob = """{"setResume":{"work:1":{"position":500,"updatedAt":9999999999999}}}"""
         val old = bookmark(position = 10_000, track = setTrack(id = "1", workId = 1), changed = Date(1))
 
-        val merged = mergeSetResume(blob, listOf(old))
+        val merged = setResumeChange(blob, listOf(old))
 
         merged.contains(""""position":500""") `should be equal to` true
     }
 
     @Test
     fun `writing to a missing or broken blob still produces a valid one`() {
-        mergeSetResume(null, listOf(bookmark(track = setTrack(workId = 5))))
+        setResumeChange(null, listOf(bookmark(track = setTrack(workId = 5))))
             .contains(""""work:5"""") `should be equal to` true
-        mergeSetResume("garbage", listOf(bookmark(track = setTrack(workId = 5))))
+        setResumeChange("garbage", listOf(bookmark(track = setTrack(workId = 5))))
             .contains(""""work:5"""") `should be equal to` true
     }
 
     @Test
     fun `no bookmarks means nothing to add`() {
-        val merged = mergeSetResume(null, emptyList())
+        val merged = setResumeChange(null, emptyList())
 
         merged.contains("setResume") `should be equal to` true
     }

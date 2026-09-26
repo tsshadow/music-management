@@ -21,6 +21,7 @@ namespace lms::core::http::tests
         std::vector<ClientPOSTRequestParameters> posts;
         std::vector<ClientPUTRequestParameters> puts;
         std::vector<ClientDELETERequestParameters> deletes;
+        std::vector<ClientPATCHRequestParameters> patches;
         std::size_t abortCount{};
     };
 
@@ -36,6 +37,7 @@ namespace lms::core::http::tests
         void sendPOSTRequest(ClientPOSTRequestParameters&& request) override { _sent->posts.push_back(std::move(request)); }
         void sendPUTRequest(ClientPUTRequestParameters&& request) override { _sent->puts.push_back(std::move(request)); }
         void sendDELETERequest(ClientDELETERequestParameters&& request) override { _sent->deletes.push_back(std::move(request)); }
+        void sendPATCHRequest(ClientPATCHRequestParameters&& request) override { _sent->patches.push_back(std::move(request)); }
         void abortAllRequests() override { ++_sent->abortCount; }
 
     private:

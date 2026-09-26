@@ -277,15 +277,15 @@ describe("store - favoriteGenres account sync", () => {
     mockFetch(null);
     mumaUser.set({ id: 7 });
     await vi.waitFor(() => {
-      const postCall = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
+      const postCall = fetch.mock.calls.find(([, opts]) => opts?.method === "PATCH");
       expect(postCall).toBeDefined();
     });
-    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
+    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "PATCH");
     // One write carries everything the login uploads (the language too), not one per key.
-    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toMatchObject({
+    expect(JSON.parse(postOpts.body).set).toMatchObject({
       favoriteGenres: ["Trance"],
     });
-    expect(fetch.mock.calls.filter(([, opts]) => opts?.method === "POST")).toHaveLength(1);
+    expect(fetch.mock.calls.filter(([, opts]) => opts?.method === "PATCH")).toHaveLength(1);
     // The local value is kept, not wiped out while waiting for the upload.
     expect(get(favoriteGenres)).toEqual(["Trance"]);
   });
@@ -300,9 +300,9 @@ describe("store - favoriteGenres account sync", () => {
     favoriteGenres.set(["Dubstep", "DnB"]);
     await vi.advanceTimersByTimeAsync(400);
 
-    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === "POST");
+    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === "PATCH");
     expect(postCalls).toHaveLength(1);
-    expect(JSON.parse(JSON.parse(postCalls[0][1].body).settings)).toEqual({
+    expect(JSON.parse(postCalls[0][1].body).set).toEqual({
       favoriteGenres: ["Dubstep", "DnB"],
     });
   });
@@ -360,24 +360,20 @@ describe("store - frontend app-settings helpers", () => {
     expect(await loadFrontendSettings(1)).toBeNull();
   });
 
-  it("preserves unrelated keys when saving one setting", async () => {
-    global.fetch = vi.fn(async (_url, opts = {}) => {
-      if ((opts.method || "GET") === "GET") {
-        return {
-          ok: true,
-          json: async () => ({ settings: JSON.stringify({ favoriteGenres: ["Techno"] }) }),
-        };
-      }
-      return { ok: true, json: async () => ({ status: "ok" }) };
-    });
+  it("sends only the changed key, as a PATCH, without reading the blob first", async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ok" }),
+    }));
 
     await saveFrontendSetting(5, "language", "nl");
 
-    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
-    expect(JSON.parse(JSON.parse(postOpts.body).settings)).toEqual({
-      favoriteGenres: ["Techno"],
-      language: "nl",
-    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, opts] = fetch.mock.calls[0];
+    expect(String(url)).toContain("/api/users/5/settings/frontend");
+    expect(opts.method).toBe("PATCH");
+    expect(JSON.parse(opts.body)).toEqual({ set: { language: "nl" } });
   });
 });
 
@@ -419,8 +415,8 @@ describe("store - language account sync", () => {
     await vi.advanceTimersByTimeAsync(500);
 
     const languagePosts = fetch.mock.calls
-      .filter(([, opts]) => opts?.method === "POST")
-      .filter(([, opts]) => "language" in JSON.parse(JSON.parse(opts.body).settings));
+      .filter(([, opts]) => opts?.method === "PATCH")
+      .filter(([, opts]) => "language" in JSON.parse(opts.body).set);
     expect(languagePosts).toHaveLength(0);
   });
 
@@ -430,11 +426,11 @@ describe("store - language account sync", () => {
     mumaUser.set({ id: 7 });
 
     await vi.waitFor(() => {
-      const post = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
+      const post = fetch.mock.calls.find(([, opts]) => opts?.method === "PATCH");
       expect(post).toBeDefined();
     });
-    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "POST");
-    expect(JSON.parse(JSON.parse(postOpts.body).settings).language).toBe("nl");
+    const [, postOpts] = fetch.mock.calls.find(([, opts]) => opts?.method === "PATCH");
+    expect(JSON.parse(postOpts.body).set.language).toBe("nl");
     expect(get(locale)).toBe("nl");
   });
 
@@ -448,9 +444,9 @@ describe("store - language account sync", () => {
     locale.set("en");
     await vi.advanceTimersByTimeAsync(400);
 
-    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === "POST");
+    const postCalls = fetch.mock.calls.filter(([, opts]) => opts?.method === "PATCH");
     expect(postCalls).toHaveLength(1);
-    expect(JSON.parse(JSON.parse(postCalls[0][1].body).settings).language).toBe("en");
+    expect(JSON.parse(postCalls[0][1].body).set.language).toBe("en");
   });
 
   it("flushes a pending language save on request, and only once", async () => {
@@ -462,9 +458,9 @@ describe("store - language account sync", () => {
     locale.set("nl");
     await flushLocaleSave();
 
-    const posts = () => fetch.mock.calls.filter(([, opts]) => opts?.method === "POST");
+    const posts = () => fetch.mock.calls.filter(([, opts]) => opts?.method === "PATCH");
     expect(posts()).toHaveLength(1);
-    expect(JSON.parse(JSON.parse(posts()[0][1].body).settings).language).toBe("nl");
+    expect(JSON.parse(posts()[0][1].body).set.language).toBe("nl");
 
     // The debounce that was armed for the same change must not fire a second save.
     await vi.advanceTimersByTimeAsync(400);
@@ -585,27 +581,39 @@ describe("store - hydrateMumaUserFromApiKey", () => {
 });
 
 /**
- * The account's `frontend` blob is one JSON document and the server only takes it whole. Each key
- * used to do its own debounced read-modify-write, so two keys changed together raced and the last
- * write dropped the other's change; and a failed read (answered as `null`) made the save write a
- * blob holding only the one key, wiping every other setting -- the Android app's included.
+ * The account's `frontend` blob is one JSON document written by every device on the account. It
+ * used to be written whole: each save read the blob, merged its keys in and posted everything back,
+ * so a phone saving in between lost its change (issue #39, bug report 116). Now only the changed
+ * keys go out, as a PATCH the server merges under a row lock; the read-merge-write survives only as
+ * the fallback for a server that answers the PATCH with 405.
  */
 describe("store - account settings write queue", () => {
   let blob;
   let getStatus;
   let postStatus;
+  let patchStatus;
 
-  /** A settings endpoint backed by `blob`, answering GET with `getStatus` and POST with `postStatus`. */
+  /**
+   * A settings endpoint backed by `blob`: GET reads it, PATCH merges `set` into it the way the
+   * server does, POST replaces it whole. Each answers with its own status.
+   */
   function server() {
     global.fetch = vi.fn(async (_url, opts = {}) => {
-      if ((opts.method || "GET") === "GET") {
-        if (getStatus !== 200) {
-          return { ok: false, status: getStatus, json: async () => ({ detail: "boom" }) };
-        }
+      const method = opts.method || "GET";
+      const status = { GET: getStatus, POST: postStatus, PATCH: patchStatus }[method];
+      if (status !== 200) {
+        return { ok: false, status, json: async () => ({ detail: "boom" }) };
+      }
+      if (method === "GET") {
         return { ok: true, status: 200, json: async () => ({ settings: JSON.stringify(blob) }) };
       }
-      if (postStatus !== 200) {
-        return { ok: false, status: postStatus, json: async () => ({ detail: "boom" }) };
+      if (method === "PATCH") {
+        blob = { ...blob, ...JSON.parse(opts.body).set };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ status: "ok", settings: JSON.stringify(blob) }),
+        };
       }
       blob = JSON.parse(JSON.parse(opts.body).settings);
       return { ok: true, status: 200, json: async () => ({ status: "ok" }) };
@@ -635,6 +643,7 @@ describe("store - account settings write queue", () => {
     };
     getStatus = 200;
     postStatus = 200;
+    patchStatus = 200;
     server();
     mumaUser.set({ id: 11 });
     await vi.advanceTimersByTimeAsync(500);
@@ -644,27 +653,92 @@ describe("store - account settings write queue", () => {
   afterEach(async () => {
     getStatus = 200;
     postStatus = 200;
+    patchStatus = 200;
     await flushFrontendSettings();
     mumaUser.set(null);
     vi.useRealTimers();
   });
 
-  it("two settings changed together are read once, written once, and both kept", async () => {
+  it("two settings changed together go out as one PATCH carrying only those two keys", async () => {
     homeShortcutCount.set(4);
     homeListCount.set(9);
     await vi.advanceTimersByTimeAsync(400);
 
-    expect(calls("GET")).toHaveLength(1);
-    expect(calls("POST")).toHaveLength(1);
+    expect(calls("GET")).toHaveLength(0);
+    expect(calls("POST")).toHaveLength(0);
+    expect(calls("PATCH")).toHaveLength(1);
+    expect(JSON.parse(calls("PATCH")[0][1].body)).toEqual({
+      set: { homeShortcutCount: 4, homeListCount: 9 },
+    });
     expect(blob).toMatchObject({ homeShortcutCount: 4, homeListCount: 9, androidOnly: "keep me" });
   });
 
-  it("a failed read writes nothing, keeps the change, and retries it later", async () => {
+  it("a key another device wrote after this browser loaded the blob survives this browser's save", async () => {
+    // The phone saves while the browser still holds its login-time copy.
+    blob = { ...blob, androidOnly: "changed on the phone" };
+
+    homeShortcutCount.set(4);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(blob).toMatchObject({ homeShortcutCount: 4, androidOnly: "changed on the phone" });
+  });
+
+  it("a failed write is retried, and a newer change made meanwhile wins", async () => {
+    patchStatus = 500;
+    homeShortcutCount.set(2);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(blob.homeShortcutCount).toBe(8);
+
+    patchStatus = 200;
+    homeShortcutCount.set(6);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(blob).toMatchObject({ homeShortcutCount: 6, androidOnly: "keep me" });
+  });
+
+  it("a failed write is retried on its own after the retry delay", async () => {
+    patchStatus = 503;
+    homeShortcutCount.set(3);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(blob.homeShortcutCount).toBe(8);
+
+    patchStatus = 200;
+    await vi.advanceTimersByTimeAsync(10000);
+
+    expect(blob).toMatchObject({ homeShortcutCount: 3, androidOnly: "keep me" });
+  });
+
+  it("an explicit save goes out at once, together with what is still on its debounce", async () => {
+    homeListCount.set(7);
+    await saveFrontendSetting(11, "language", "nl");
+
+    expect(calls("PATCH")).toHaveLength(1);
+    expect(JSON.parse(calls("PATCH")[0][1].body)).toEqual({
+      set: { homeListCount: 7, language: "nl" },
+    });
+    expect(blob).toMatchObject({ language: "nl", homeListCount: 7, androidOnly: "keep me" });
+
+    // The debounce that was armed for homeListCount has nothing left to write.
+    await vi.advanceTimersByTimeAsync(400);
+    expect(calls("PATCH")).toHaveLength(1);
+  });
+
+  it("a server without the PATCH (405) gets the old read-merge-write instead", async () => {
+    patchStatus = 405;
+    homeShortcutCount.set(4);
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(calls("GET")).toHaveLength(1);
+    expect(calls("POST")).toHaveLength(1);
+    expect(blob).toMatchObject({ homeShortcutCount: 4, homeListCount: 5, androidOnly: "keep me" });
+  });
+
+  it("in the fallback, a failed read writes nothing and keeps the change for a retry", async () => {
+    patchStatus = 405;
     getStatus = 500;
     homeShortcutCount.set(3);
     await vi.advanceTimersByTimeAsync(400);
 
-    expect(calls("GET")).toHaveLength(1);
     expect(calls("POST")).toHaveLength(0);
     expect(blob.androidOnly).toBe("keep me");
 
@@ -673,30 +747,5 @@ describe("store - account settings write queue", () => {
 
     expect(calls("POST")).toHaveLength(1);
     expect(blob).toMatchObject({ homeShortcutCount: 3, homeListCount: 5, androidOnly: "keep me" });
-  });
-
-  it("a failed write is retried, and a newer change made meanwhile wins", async () => {
-    postStatus = 500;
-    homeShortcutCount.set(2);
-    await vi.advanceTimersByTimeAsync(400);
-    expect(blob.homeShortcutCount).toBe(8);
-
-    postStatus = 200;
-    homeShortcutCount.set(6);
-    await vi.advanceTimersByTimeAsync(400);
-
-    expect(blob).toMatchObject({ homeShortcutCount: 6, androidOnly: "keep me" });
-  });
-
-  it("an explicit save goes out at once, merged with what is still on its debounce", async () => {
-    homeListCount.set(7);
-    await saveFrontendSetting(11, "language", "nl");
-
-    expect(calls("POST")).toHaveLength(1);
-    expect(blob).toMatchObject({ language: "nl", homeListCount: 7, androidOnly: "keep me" });
-
-    // The debounce that was armed for homeListCount has nothing left to write.
-    await vi.advanceTimersByTimeAsync(400);
-    expect(calls("POST")).toHaveLength(1);
   });
 });

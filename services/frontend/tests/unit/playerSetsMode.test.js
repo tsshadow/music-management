@@ -27,7 +27,7 @@ const SONG = { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", dura
 const SET = { id: "set-1", title: "Defqon Set", artist: "Angerfist", duration: 7200 };
 
 /**
- * A fetch mock covering both the muma `settings/frontend` blob (GET/POST) and
+ * A fetch mock covering both the muma `settings/frontend` blob (GET/PATCH) and
  * every other `/rest/*` call (scrobble, rating) with a bare Subsonic "ok".
  *
  * @param {string|null} settingsBlob - What the account already has stored,
@@ -291,7 +291,7 @@ describe("Player in sets mode -- resume", () => {
     await fireEvent.timeUpdate(audioElement);
     await vi.advanceTimersByTimeAsync(0);
     const writesSoFar = () =>
-      global.fetch.mock.calls.filter(([, opts]) => opts?.method === "POST").length;
+      global.fetch.mock.calls.filter(([, opts]) => opts?.method === "PATCH").length;
     const firstBatch = writesSoFar();
 
     audioElement.currentTime = 105;
@@ -325,14 +325,14 @@ describe("Player in sets mode -- resume", () => {
 });
 
 /**
- * The most recent POST to the settings blob that actually carries a
+ * The most recent PATCH to the settings blob that actually carries a
  * `setResume` key -- `mumaUser.set(...)` above also triggers the unrelated
- * favourite-genres/language account sync, which POSTs to the same endpoint,
- * so picking the first or last POST regardless of its body is not reliable.
+ * favourite-genres/language account sync, which PATCHes the same endpoint,
+ * so picking the first or last PATCH regardless of its body is not reliable.
  */
 function setResumeWriteBody() {
   const bodies = global.fetch.mock.calls
-    .filter(([, opts]) => opts?.method === "POST")
-    .map(([, opts]) => JSON.parse(JSON.parse(opts.body).settings));
+    .filter(([, opts]) => opts?.method === "PATCH")
+    .map(([, opts]) => JSON.parse(opts.body).set);
   return bodies.reverse().find((body) => body.setResume);
 }

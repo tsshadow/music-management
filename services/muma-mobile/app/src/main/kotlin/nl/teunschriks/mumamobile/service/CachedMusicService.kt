@@ -758,6 +758,11 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
+    override fun patchMumaSettings(userId: Int, appId: String, changes: String) {
+        musicService.patchMumaSettings(userId, appId, changes)
+    }
+
+    @Throws(Exception::class)
     override fun uploadCrashReport(
         deviceModel: String,
         osVersion: String,

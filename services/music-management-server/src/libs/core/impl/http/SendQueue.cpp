@@ -77,6 +77,8 @@ namespace lms::core::http
                 return "PUT";
             case ClientRequest::Type::DELETE:
                 return "DELETE";
+            case ClientRequest::Type::PATCH:
+                return "PATCH";
             }
 
             return "?";
@@ -253,6 +255,10 @@ namespace lms::core::http
 
         case ClientRequest::Type::DELETE:
             res = _client.deleteRequest(url, request.getDELETEParameters().message);
+            break;
+
+        case ClientRequest::Type::PATCH:
+            res = _client.patch(url, request.getPATCHParameters().message);
             break;
         }
 

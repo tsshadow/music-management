@@ -41,7 +41,8 @@ object FavoriteGenres : KoinComponent {
     fun isFavorite(genre: String): Boolean = current().contains(genre)
 
     /**
-     * Adds or removes [genre] locally, then pushes the whole list. Returns its new state.
+     * Adds or removes [genre] locally, then pushes the whole list (only the `favoriteGenres` key of
+     * the blob; every other key is the server's to keep). Returns its new state.
      *
      * A failed push is logged and swallowed: the local list stays changed and the next toggle
      * sends it again in full, so a temporary outage costs a round trip, not the edit.
@@ -83,9 +84,7 @@ object FavoriteGenres : KoinComponent {
         val userId = userId() ?: return
 
         try {
-            val service = getMusicService()
-            val merged = mergeFavoriteGenres(service.getMumaSettings(userId, APP_ID), favorites)
-            service.saveMumaSettings(userId, APP_ID, merged)
+            getMusicService().patchMumaSettings(userId, APP_ID, favoriteGenresChange(favorites))
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Timber.w(e, "Could not save favorite genres to MuMa")
         }
@@ -120,16 +119,13 @@ internal fun readFavoriteGenres(blob: String?): List<String>? {
 }
 
 /**
- * Puts [favorites] into [blob] and leaves every other key alone. The backend overwrites the whole
- * blob on write, so anything the web UI stores next to this key has to be carried over.
+ * The per-key settings change that stores [favorites]: `{"favoriteGenres": [...]}` and nothing
+ * else. The server merges it into the blob, so whatever the web UI or another device keeps next to
+ * this key is never read, carried along or written back from here (issue #39).
  */
-internal fun mergeFavoriteGenres(blob: String?, favorites: List<String>): String {
-    val root = blob?.let { parseObjectOrNull(it) } ?: JsonObject()
+internal fun favoriteGenresChange(favorites: List<String>): String {
     val array = JsonArray().apply { favorites.forEach { add(it) } }
-
-    root.add(KEY_FAVORITE_GENRES, array)
-
-    return root.toString()
+    return JsonObject().apply { add(KEY_FAVORITE_GENRES, array) }.toString()
 }
 
 private const val KEY_FAVORITE_GENRES = "favoriteGenres"

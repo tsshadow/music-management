@@ -11,13 +11,16 @@ endpoint without adding it here is the only way to reintroduce that gap.
 """
 
 import hashlib
+import json
+import threading
+import time
 from datetime import date, timedelta
 from unittest.mock import patch
 
 import pymysql
 import pytest
 
-from tests.integration.conftest import run_sql
+from tests.integration.conftest import _connect, run_sql
 
 pytestmark = pytest.mark.integration
 
@@ -503,6 +506,96 @@ class UserLifecycleTest:
         stored = api.post('/api/users/1/settings/ultrasonic', headers=headers, json={'settings': '{"theme":"dark"}'})
         assert stored.status_code == 200, stored.text
         assert api.get('/api/users/1/settings/ultrasonic', headers=headers).json()['settings'] == '{"theme":"dark"}'
+
+    def test_a_settings_patch_changes_only_the_named_keys(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        api.post('/api/users/1/settings/frontend', headers=headers, json={'settings': '{"language":"nl","a":1}'})
+
+        patched = api.patch(
+            '/api/users/1/settings/frontend', headers=headers, json={'set': {'b': [1, 2]}, 'remove': ['a']}
+        )
+
+        assert patched.status_code == 200, patched.text
+        assert json.loads(patched.json()['settings']) == {'language': 'nl', 'b': [1, 2]}
+        stored = api.get('/api/users/1/settings/frontend', headers=headers).json()['settings']
+        assert json.loads(stored) == {'language': 'nl', 'b': [1, 2]}
+
+    def test_a_settings_patch_creates_a_missing_blob(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        patched = api.patch('/api/users/1/settings/frontend', headers=headers, json={'set': {'language': 'en'}})
+        assert patched.status_code == 200, patched.text
+        assert patched.json()['updated_at']
+        stored = api.get('/api/users/1/settings/frontend', headers=headers).json()['settings']
+        assert json.loads(stored) == {'language': 'en'}
+
+    def test_a_settings_patch_for_an_unknown_user_is_a_not_found(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        assert api.patch('/api/users/999/settings/frontend', headers=headers, json={'set': {'a': 1}}).status_code == 404
+
+    def test_two_concurrent_partial_writes_both_survive(self, api, headers, db):
+        """The lost update of issue #39, provoked on purpose.
+
+        A third connection holds the row lock -- and changes the row -- while two PATCHes of
+        different keys start, so both are guaranteed to be in flight at once and to find the row
+        changed under them. Were the endpoint to read the blob without FOR UPDATE, both would read
+        the same `{"base":0}` straight away (a consistent read does not wait for the lock), and the
+        later UPDATE would write back a blob without the other's key. Were it to open a read view
+        before taking the row lock (any plain SELECT first -- the first version checked the user
+        that way), MariaDB's snapshot isolation would refuse the locked read with error 1020.
+        """
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        api.post('/api/users/1/settings/frontend', headers=headers, json={'settings': '{"base":0}'})
+
+        holder = _connect()
+        try:
+            holder.begin()
+            with holder.cursor() as cursor:
+                cursor.execute(
+                    "SELECT settings_json FROM user_app_settings WHERE user_id = 1 AND app_id = 'frontend' FOR UPDATE"
+                )
+                cursor.execute(
+                    "UPDATE user_app_settings SET settings_json = '{\"base\":0,\"tablet\":1}' "
+                    "WHERE user_id = 1 AND app_id = 'frontend'"
+                )
+            results = {}
+
+            def patch(key):
+                results[key] = api.patch('/api/users/1/settings/frontend', headers=headers, json={'set': {key: key}})
+
+            threads = [threading.Thread(target=patch, args=(key,)) for key in ('phone', 'web')]
+            for thread in threads:
+                thread.start()
+            time.sleep(1.0)  # both requests are now parked on the lock (or would have read by now)
+            holder.commit()
+            for thread in threads:
+                thread.join(timeout=30)
+        finally:
+            holder.close()
+
+        assert {key: r.status_code for key, r in results.items()} == {'phone': 200, 'web': 200}
+        stored = api.get('/api/users/1/settings/frontend', headers=headers).json()['settings']
+        assert json.loads(stored) == {'base': 0, 'tablet': 1, 'phone': 'phone', 'web': 'web'}
+
+    def test_many_concurrent_first_writes_all_survive(self, api, headers, db):
+        """No blob yet: concurrent first writes race on the INSERT, and the losers retry."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        keys = [f'k{n}' for n in range(6)]
+        statuses = {}
+
+        def patch(key):
+            statuses[key] = api.patch(
+                '/api/users/1/settings/frontend', headers=headers, json={'set': {key: True}}
+            ).status_code
+
+        threads = [threading.Thread(target=patch, args=(key,)) for key in keys]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+
+        assert statuses == dict.fromkeys(keys, 200)
+        stored = api.get('/api/users/1/settings/frontend', headers=headers).json()['settings']
+        assert json.loads(stored) == dict.fromkeys(keys, True)
 
     def test_a_listenbrainz_account_round_trip(self, api, headers, db):
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})

@@ -35,20 +35,15 @@ class FavoriteGenresTest {
     }
 
     @Test
-    fun `writing favorites keeps every other key in the blob`() {
-        val blob = """{"theme":"dark","favoriteGenres":["Old"],"volume":3}"""
-
-        val merged = mergeFavoriteGenres(blob, listOf("Hardcore"))
-
-        readFavoriteGenres(merged) `should be equal to` listOf("Hardcore")
-        merged.contains(""""theme":"dark"""") `should be equal to` true
-        merged.contains(""""volume":3""") `should be equal to` true
+    fun `the change written for favorites carries that one key and nothing else`() {
+        // Issue #39: the server merges this into the blob, so the other keys are not ours to send.
+        favoriteGenresChange(listOf("Hardcore", "Techno")) `should be equal to`
+            """{"favoriteGenres":["Hardcore","Techno"]}"""
     }
 
     @Test
-    fun `writing to a missing or broken blob still produces a valid one`() {
-        readFavoriteGenres(mergeFavoriteGenres(null, listOf("A"))) `should be equal to` listOf("A")
-        readFavoriteGenres(mergeFavoriteGenres("garbage", listOf("A"))) `should be equal to`
-            listOf("A")
+    fun `an empty list is still written, as an empty array`() {
+        favoriteGenresChange(emptyList()) `should be equal to` """{"favoriteGenres":[]}"""
+        readFavoriteGenres(favoriteGenresChange(emptyList())) `should be equal to` emptyList()
     }
 }

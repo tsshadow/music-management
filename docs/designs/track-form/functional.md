@@ -121,7 +121,7 @@ existing list, preset or spoken request changes its answer.
 - ~~Android Auto, voice and saved presets did not know the form~~ -- wired in issue
   [#47](https://gitlab.example.com/muma/music-management/-/issues/47), see "On the phone" above.
 - A spoken **podcast name** ("speel de podcast van Q-dance") is not matched against the `PODCAST`
-  tag; only the form is. Not asked for yet.
+  tag; only the form is. Not asked for yet: issue [#88](https://gitlab.example.com/muma/music-management/-/issues/88).
 - The year picker lists the years the files carry. A year that exists only as a performance date
   is not in that list (rare: the tagger already writes the edition date into the file's date when
   it knows it).

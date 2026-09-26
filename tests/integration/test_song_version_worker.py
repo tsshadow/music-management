@@ -117,10 +117,12 @@ def test_the_remix_is_a_work_of_its_own(database, library):
     assert _work_of(database, library['remix']) != _work_of(database, library['official'])
 
 
-def test_the_official_radio_edit_wins_from_the_higher_bitrate_rip(database, library):
+def test_the_format_decides_first_so_the_flac_wins(database, library):
+    # docs/designs/song-versions/: format first (lossless by default), then the kind. The
+    # extended FLAC beats the MP3 radio edit; the old ranking chose the radio edit.
     song_version_worker.group_once(database)
     work_id = _work_of(database, library['official'])
-    assert _canonical_of_work(database, work_id) == library['official']
+    assert _canonical_of_work(database, work_id) == library['extended']
 
 
 def test_a_second_pass_changes_nothing(database, library):
@@ -194,7 +196,7 @@ def test_a_track_is_scored_on_all_of_its_files_even_at_the_batch_edge(database, 
         cursor.execute('SELECT version_score FROM library_tracks WHERE id = %s', (library['extended'],))
         assert cursor.fetchone()['version_score'] is None, 'the batch of one took a second track'
     # The FLAC is the best file of that track, and it has to be the one that scored.
-    assert scored == song_version_worker.version_score(True, 'radio', '.flac', 1600)
+    assert scored == song_version_worker.version_score('radio', '.flac', 1600, is_official=True)
 
 
 def test_a_locked_track_is_left_out_of_the_group(database, library):
@@ -208,3 +210,98 @@ def test_a_locked_track_is_left_out_of_the_group(database, library):
 
     song_version_worker.group_once(database)
     assert _work_of(database, library['rip']) is None
+
+
+LOSSLESS = song_version_worker.RankingContext(prefer_lossless=True)
+LOSSY = song_version_worker.RankingContext(prefer_lossless=False)
+
+
+def _work_row(database, work_id):
+    with database.cursor() as cursor:
+        cursor.execute(
+            'SELECT canonical_track_id, previous_canonical_track_id, canonical_changed_at, ranking_signature '
+            'FROM library_works WHERE id = %s',
+            (work_id,),
+        )
+        return cursor.fetchone()
+
+
+def test_a_new_work_is_stamped_with_the_ranking_it_was_scored_under(database, library):
+    song_version_worker.group_once(database, LOSSLESS)
+    work_id = _work_of(database, library['official'])
+    assert _work_row(database, work_id)['ranking_signature'] == LOSSLESS.signature
+    assert song_version_worker.rescore_pending(database, LOSSLESS) is False
+
+
+def test_flipping_the_setting_rescores_moves_the_canonical_and_flags_it(database, library):
+    song_version_worker.group_once(database, LOSSLESS)
+    work_id = _work_of(database, library['official'])
+    assert _canonical_of_work(database, work_id) == library['extended']
+
+    preview = song_version_worker.rescore_once(database, LOSSY, dry_run=True)
+    assert preview['canonicals_changed'] == 1
+    assert _canonical_of_work(database, work_id) == library['extended'], 'the dry run wrote'
+
+    applied = song_version_worker.rescore_once(database, LOSSY)
+    assert applied['canonicals_changed'] == preview['canonicals_changed']
+    row = _work_row(database, work_id)
+    # Storage setting: the MP3 at 320 beats the FLAC. The rip's archive row holds a bare
+    # basename, so it is not recognised as a rip here -- which is the point: format decides.
+    assert row['canonical_track_id'] == library['rip']
+    assert row['previous_canonical_track_id'] == library['extended']
+    assert row['canonical_changed_at'] is not None
+    assert row['ranking_signature'] == LOSSY.signature
+
+
+def test_a_rescore_is_idempotent(database, library):
+    song_version_worker.group_once(database, LOSSLESS)
+    song_version_worker.rescore_once(database, LOSSY)
+    with database.cursor() as cursor:
+        cursor.execute('SELECT id, version_kind, version_score FROM library_tracks ORDER BY id')
+        before = cursor.fetchall()
+
+    again = song_version_worker.rescore_once(database, LOSSY)
+    assert again == {'works': 0, 'tracks_rescored': 0, 'canonicals_changed': 0}
+    with database.cursor() as cursor:
+        cursor.execute('SELECT id, version_kind, version_score FROM library_tracks ORDER BY id')
+        assert cursor.fetchall() == before
+
+
+def test_a_rescore_never_regroups(database, library):
+    song_version_worker.group_once(database, LOSSLESS)
+    with database.cursor() as cursor:
+        cursor.execute('SELECT id, work_id FROM library_tracks ORDER BY id')
+        before = cursor.fetchall()
+        cursor.execute('UPDATE library_works SET ranking_signature = NULL')
+    database.commit()
+    song_version_worker.rescore_once(database, LOSSLESS)
+    with database.cursor() as cursor:
+        cursor.execute('SELECT id, work_id FROM library_tracks ORDER BY id')
+        assert cursor.fetchall() == before
+
+
+def test_a_pin_wins_through_a_rescore(database, library):
+    song_version_worker.group_once(database, LOSSLESS)
+    work_id = _work_of(database, library['official'])
+    with database.cursor() as cursor:
+        cursor.execute('UPDATE library_works SET pinned_track_id = %s WHERE id = %s', (library['official'], work_id))
+    database.commit()
+    song_version_worker.group_once(database, LOSSLESS)
+
+    song_version_worker.rescore_once(database, LOSSY)
+    row = _work_row(database, work_id)
+    assert row['canonical_track_id'] == library['official']
+    assert row['canonical_changed_at'] is None
+
+
+def test_the_python_canonical_matches_the_sql_one(database, library):
+    # best_track() and _BEST_TRACK decide the same thing; after a rescore the SQL
+    # recompute must not move the canonical again.
+    song_version_worker.group_once(database, LOSSLESS)
+    song_version_worker.rescore_once(database, LOSSY)
+    work_id = _work_of(database, library['official'])
+    chosen = _canonical_of_work(database, work_id)
+    with database.cursor() as cursor:
+        song_version_worker.recompute_canonicals(cursor, {work_id})
+    database.commit()
+    assert _canonical_of_work(database, work_id) == chosen

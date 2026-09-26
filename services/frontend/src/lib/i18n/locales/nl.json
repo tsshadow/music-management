@@ -1108,7 +1108,8 @@
       "artistCuration": "Artiestcuratie",
       "labels": "Labels",
       "festivals": "Festivals",
-      "lineups": "Lineups"
+      "lineups": "Lineups",
+      "songVersions": "Versies"
     },
     "tagger": {
       "addRuleFailed": "Kon regel niet toevoegen.",
@@ -1401,7 +1402,79 @@
       "show": "Tonen",
       "secretSet": "Er staat een waarde ingesteld. Typ een nieuwe om hem te vervangen, of maak het veld leeg om hem te wissen."
     },
-    "loadFailed": "Kon gegevens niet ophalen van de Management API."
+    "loadFailed": "Kon gegevens niet ophalen van de Management API.",
+    "songVersions": {
+      "description": "Nummers die in meer dan één versie bestaan. MuMa speelt de beste: eerst het formaat (lossless of MP3, volgens de instelling prefer_lossless), dan pro edit, radio edit, edit, original, extended, instrumental, video. Kies een andere versie om die vast te zetten, of zet terug op automatisch.",
+      "rankingLossless": "Rangorde: lossless eerst",
+      "rankingLossy": "Rangorde: MP3 320 eerst (opslag)",
+      "pending": {
+        "one": "{count} nummer wacht op herberekening",
+        "other": "{count} nummers wachten op herberekening"
+      },
+      "changedCount": {
+        "one": "{count} gewijzigd door de herberekening",
+        "other": "{count} gewijzigd door de herberekening"
+      },
+      "search": "Zoek op titel of artiest",
+      "sort": "Sorteren",
+      "sorts": {
+        "versions": "Meeste versies",
+        "changed": "Recent gewijzigd",
+        "title": "Titel"
+      },
+      "changedOnly": "Alleen gewijzigd door de herberekening",
+      "total": {
+        "one": "{count} nummer",
+        "other": "{count} nummers"
+      },
+      "empty": "Geen nummers met meer dan één versie.",
+      "unknownArtist": "Onbekende artiest",
+      "best": "Beste",
+      "versionCount": {
+        "one": "{count} versie",
+        "other": "{count} versies"
+      },
+      "badgePinned": "Vastgezet",
+      "badgeChanged": "Gewijzigd",
+      "badgeBest": "Beste",
+      "badgePrevious": "Was de beste",
+      "resetAuto": "Terug naar automatisch",
+      "acceptChange": "Nieuwe keuze accepteren",
+      "pickBest": "Kies als beste",
+      "pinned": "Versie vastgezet als beste.",
+      "reset": "Terug naar de automatische keuze.",
+      "accepted": "Nieuwe keuze geaccepteerd.",
+      "colVersion": "Versie",
+      "colSource": "Bron",
+      "colFormat": "Formaat",
+      "colKind": "Soort",
+      "colListening": "Waardering / keer gespeeld",
+      "colActions": "Acties",
+      "plays": {
+        "one": "{count} keer gespeeld",
+        "other": "{count} keer gespeeld"
+      },
+      "paging": "Pagina's",
+      "previous": "Vorige",
+      "next": "Volgende",
+      "pageOf": "Pagina {page} van {pages}",
+      "sources": {
+        "label": "Labelrelease",
+        "soundcloud": "SoundCloud",
+        "youtube": "YouTube",
+        "other": "Overig"
+      },
+      "kinds": {
+        "pro": "Pro edit",
+        "radio": "Radio edit",
+        "edit": "Edit",
+        "original": "Original mix",
+        "none": "Geen aanduiding",
+        "extended": "Extended mix",
+        "instrumental": "Instrumentaal",
+        "video": "Video"
+      }
+    }
   },
   "memories": {
     "allYears": "Alle jaren",

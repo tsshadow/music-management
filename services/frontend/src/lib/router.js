@@ -215,6 +215,7 @@ export const MANAGEMENT_TABS = [
   "podcast-curation",
   "festivals",
   "lineups",
+  "song-versions",
   "downloaders",
   "radio",
   "news",
@@ -252,7 +253,8 @@ export const MANAGEMENT_GROUPS = [
     // library is curated: what a track is (genre, artist, label), then the recordings
     // (podcast, festival) and who played (lineup). The genre page also carries the
     // artist->genre and label->genre rules; the tagger page is the tagger itself
-    // (rescan, retag).
+    // (rescan, retag). Versions comes last: it curates the outcome -- which of a song's
+    // versions plays -- rather than an input the tagger reads.
     pages: [
       "tagger",
       "genre-curation",
@@ -262,6 +264,7 @@ export const MANAGEMENT_GROUPS = [
       "podcast-curation",
       "festivals",
       "lineups",
+      "song-versions",
     ],
   },
   { id: "downloaders", labelKey: null, pages: ["downloaders"] },

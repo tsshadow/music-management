@@ -1108,7 +1108,8 @@
       "artistCuration": "Artist curation",
       "labels": "Labels",
       "festivals": "Festivals",
-      "lineups": "Lineups"
+      "lineups": "Lineups",
+      "songVersions": "Versions"
     },
     "tagger": {
       "addRuleFailed": "Could not add the rule.",
@@ -1401,7 +1402,79 @@
       "show": "Show",
       "secretSet": "A value is set. Type a new one to replace it, or clear the field to erase it."
     },
-    "loadFailed": "Could not load data from the Management API."
+    "loadFailed": "Could not load data from the Management API.",
+    "songVersions": {
+      "description": "Songs that exist in more than one version. MuMa plays the best one: format first (lossless or MP3, per the prefer_lossless setting), then pro edit, radio edit, edit, original, extended, instrumental, video. Pick another version to pin it, or reset to automatic.",
+      "rankingLossless": "Ranking: lossless first",
+      "rankingLossy": "Ranking: MP3 320 first (storage)",
+      "pending": {
+        "one": "{count} song awaiting rescore",
+        "other": "{count} songs awaiting rescore"
+      },
+      "changedCount": {
+        "one": "{count} changed by the rescore",
+        "other": "{count} changed by the rescore"
+      },
+      "search": "Search title or artist",
+      "sort": "Sort",
+      "sorts": {
+        "versions": "Most versions",
+        "changed": "Recently changed",
+        "title": "Title"
+      },
+      "changedOnly": "Only changed by the rescore",
+      "total": {
+        "one": "{count} song",
+        "other": "{count} songs"
+      },
+      "empty": "No songs with more than one version.",
+      "unknownArtist": "Unknown artist",
+      "best": "Best",
+      "versionCount": {
+        "one": "{count} version",
+        "other": "{count} versions"
+      },
+      "badgePinned": "Pinned",
+      "badgeChanged": "Changed",
+      "badgeBest": "Best",
+      "badgePrevious": "Was best",
+      "resetAuto": "Reset to automatic",
+      "acceptChange": "Accept new choice",
+      "pickBest": "Pick as best",
+      "pinned": "Version pinned as best.",
+      "reset": "Back to the automatic choice.",
+      "accepted": "New choice accepted.",
+      "colVersion": "Version",
+      "colSource": "Source",
+      "colFormat": "Format",
+      "colKind": "Kind",
+      "colListening": "Rating / plays",
+      "colActions": "Actions",
+      "plays": {
+        "one": "{count} play",
+        "other": "{count} plays"
+      },
+      "paging": "Pages",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pages}",
+      "sources": {
+        "label": "Label release",
+        "soundcloud": "SoundCloud",
+        "youtube": "YouTube",
+        "other": "Other"
+      },
+      "kinds": {
+        "pro": "Pro edit",
+        "radio": "Radio edit",
+        "edit": "Edit",
+        "original": "Original mix",
+        "none": "No marker",
+        "extended": "Extended mix",
+        "instrumental": "Instrumental",
+        "video": "Video"
+      }
+    }
   },
   "memories": {
     "allYears": "All years",

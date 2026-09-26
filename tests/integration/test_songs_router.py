@@ -125,3 +125,37 @@ def test_a_split_survives_the_next_grouping_pass(client, database, grouped):
     with database.cursor() as cursor:
         cursor.execute('SELECT work_id FROM library_tracks WHERE id = %s', (grouped['uid-ext'],))
         assert cursor.fetchone()['work_id'] != grouped['work_id']
+
+
+def test_the_curation_list_shows_the_song_and_its_version_count(client, grouped):
+    response = client.get('/api/songs/curation?q=Raise', headers=HEADERS)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body['total'] == 1
+    assert body['items'][0]['work_id'] == grouped['work_id']
+    assert body['items'][0]['version_count'] == 2
+
+
+def test_the_song_endpoint_reports_format_bitrate_rating_and_plays(client, grouped):
+    body = client.get(f"/api/songs/{grouped['work_id']}", headers=HEADERS).json()
+    version = body['versions'][0]
+    assert version['format'] == 'mp3'
+    assert version['bitrate_kbps'] == 192
+    assert version['plays'] == 0
+
+
+def test_a_changed_canonical_is_listed_and_dismissed(client, database, grouped):
+    with database.cursor() as cursor:
+        cursor.execute(
+            'UPDATE library_works SET previous_canonical_track_id = %s, canonical_changed_at = NOW() WHERE id = %s',
+            (grouped['uid-ext'], grouped['work_id']),
+        )
+    database.commit()
+
+    listed = client.get('/api/songs/curation?changed_only=true&sort=changed', headers=HEADERS).json()
+    assert [item['work_id'] for item in listed['items']] == [grouped['work_id']]
+    assert client.get('/api/songs/ranking', headers=HEADERS).json()['changed_works'] == 1
+
+    response = client.post(f"/api/songs/{grouped['work_id']}/dismiss-change", headers=HEADERS)
+    assert response.status_code == 200
+    assert client.get('/api/songs/curation?changed_only=true', headers=HEADERS).json()['total'] == 0

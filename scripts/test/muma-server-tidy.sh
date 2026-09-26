@@ -34,7 +34,7 @@ BASELINE="$ROOT_DIR/security/accepted-clang-tidy-findings.txt"
 LOG="$ROOT_DIR/clang-tidy.log"
 
 MODE=check
-[ "${1:-}" = "--write-baseline" ] && MODE=write
+[ "${1:-}" = "--write-baseline" ] && MODE="write"
 
 # shellcheck source=scripts/ci/cpp-tidy-image.sh
 source "$ROOT_DIR/scripts/ci/cpp-tidy-image.sh"

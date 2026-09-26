@@ -1,11 +1,12 @@
 #!/bin/bash
 # Shellcheck over every tracked shell script.
 #
-# Gates at `error` only. The tree currently carries 32 findings at `warning`
-# severity -- mostly SC2163, SC2034 and SC2164 -- and a gate that is red on the
-# day it is added teaches everyone to ignore it. Lowering the floor to `warning`
-# is a follow-up that fixes those 32 first; until then this catches the class of
-# problem that actually breaks a script.
+# Gates at `warning`. The gate started at `error` because the tree carried 32
+# warnings on the day it was added; those were fixed (issue #33), so the floor
+# is now `warning` and there is no baseline -- a new warning fails the job.
+# Where a warning is intentional, silence that one line with
+# `# shellcheck disable=SCxxxx # <reason>` rather than lowering the floor.
+# `info`/`style` findings are not gated.
 #
 # Runs shellcheck from its own image, so nothing has to be installed on the
 # runner or on a developer's machine.
@@ -14,7 +15,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-SEVERITY="${SHELLCHECK_SEVERITY:-error}"
+SEVERITY="${SHELLCHECK_SEVERITY:-warning}"
 IMAGE="${SHELLCHECK_IMAGE:-koalaman/shellcheck:stable}"
 
 mapfile -t FILES < <(

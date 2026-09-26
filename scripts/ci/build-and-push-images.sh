@@ -215,8 +215,10 @@ fi
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
 # 1. Build + push music-manager -----------------------------------------------
-# shellcheck disable=SC1090,SC1091
-set -a; source "$ROOT_ENV_FILE"; set +a
+set -a
+# shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
+source "$ROOT_ENV_FILE"
+set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_CORE="${IMAGE_CORE:-music-manager}"
 scope_image_names
@@ -234,8 +236,10 @@ docker_push "${DOCKER_USER}/${IMAGE_CORE}:rc"
 docker_push "${DOCKER_USER}/${IMAGE_CORE}:${VERSION}"
 
 # 2. Build + push lms (music-management-server) -------------------------------
-# shellcheck disable=SC1090,SC1091
-set -a; source "$LMS_ENV_FILE"; set +a
+set -a
+# shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
+source "$LMS_ENV_FILE"
+set +a
 scope_image_names
 if [ -z "${IMAGE_NAME}" ]; then
     echo "Error: IMAGE_NAME is not set in PROD_ENV_FILE_LMS."
@@ -259,8 +263,10 @@ docker_push "${IMAGE_NAME}:${LMS_VERSION}"
 # 3. Build + push muma-base ----------------------------------------------------
 # (re-source root .env: sourcing PROD_ENV_FILE_LMS above may have shadowed
 # some of its variables since both files are sourced into the same shell)
-# shellcheck disable=SC1090,SC1091
-set -a; source "$ROOT_ENV_FILE"; set +a
+set -a
+# shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
+source "$ROOT_ENV_FILE"
+set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"

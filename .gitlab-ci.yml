@@ -291,8 +291,8 @@ backend:lint:
   script:
     - ./scripts/lint.sh
 
-# Shell scripts. Gates at `error` only -- see scripts/shellcheck.sh for why the
-# floor is not `warning` yet. Deploy, release and test scripts are the ones that
+# Shell scripts. Gates at `warning`, no baseline -- see scripts/shellcheck.sh.
+# Deploy, release and test scripts are the ones that
 # break production quietly, and nothing else in the pipeline reads them.
 muma:shellcheck:
   stage: quality

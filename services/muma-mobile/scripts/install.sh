@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-JDK_VERSION="21.0.6+7"
+# JDK 21.0.6+7 (Temurin)
 JDK_URL="https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz"
 SDK_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
 INSTALL_DIR="$HOME/.local"

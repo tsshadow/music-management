@@ -20,6 +20,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
             # Use export for the cleaned line, handling possible spaces
+            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
             export "$clean_line"
         fi
     done < "$PROJECT_ROOT/.env"

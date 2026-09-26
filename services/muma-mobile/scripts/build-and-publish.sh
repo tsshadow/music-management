@@ -53,8 +53,9 @@ increment_version() {
     local type=$1
     local file="../app/build.gradle"
     
-    local current_name=$(grep "versionName" "$file" | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
-    local current_code=$(grep "versionCode" "$file" | head -n 1 | sed 's/[^0-9]*//g')
+    local current_name current_code
+    current_name=$(grep "versionName" "$file" | head -n 1 | sed 's/.*"\(.*\)".*/\1/')
+    current_code=$(grep "versionCode" "$file" | head -n 1 | sed 's/[^0-9]*//g')
     
     IFS='.' read -r major minor patch <<< "$current_name"
     

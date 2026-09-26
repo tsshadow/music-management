@@ -84,13 +84,11 @@ DISCOVERY_CMD="
 "
 
 COMPOSE_CONTENT=""
-SOURCE_HOST=""
 
 # 1. Use local compose file if provided (Source of truth for deployment)
 if [ -n "$LOCAL_COMPOSE_FILE" ] && [ -f "$LOCAL_COMPOSE_FILE" ]; then
     echo "Using local configuration file: $LOCAL_COMPOSE_FILE"
     COMPOSE_CONTENT=$(expand -t 4 "$LOCAL_COMPOSE_FILE")
-    SOURCE_HOST="local"
 fi
 
 # 2. Try discovery on PORTAINER_HOST if local not provided
@@ -101,7 +99,6 @@ if [ -z "$COMPOSE_CONTENT" ] && [ -n "$PORTAINER_HOST" ]; then
     RESULT=$(run_ssh "$PORTAINER_HOST" "$P_USER" "$P_PASS" "REMOTE_STACK_PATH='$REMOTE_STACK_PATH' $DISCOVERY_CMD" 2>/dev/null || true)
     if echo "$RESULT" | grep -q "^FOUND_FILE:"; then
         COMPOSE_CONTENT=$(echo "$RESULT" | sed -n '/^FOUND_FILE:/!p' | expand -t 4)
-        SOURCE_HOST="$PORTAINER_HOST"
         echo "Found template on $PORTAINER_HOST"
     fi
 fi
@@ -112,7 +109,6 @@ if [ -z "$COMPOSE_CONTENT" ] && [ -n "$REMOTE_HOST" ]; then
     RESULT=$(run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "REMOTE_STACK_PATH='$REMOTE_STACK_PATH' $DISCOVERY_CMD" 2>/dev/null || true)
     if echo "$RESULT" | grep -q "^FOUND_FILE:"; then
         COMPOSE_CONTENT=$(echo "$RESULT" | sed -n '/^FOUND_FILE:/!p' | expand -t 4)
-        SOURCE_HOST="$REMOTE_HOST"
         echo "Found existing configuration on $REMOTE_HOST"
     fi
 fi

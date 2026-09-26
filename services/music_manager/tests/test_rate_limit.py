@@ -215,6 +215,22 @@ def _connection_returning(user):
     return conn
 
 
+def _widen_windows(test):
+    """Give every module-level limiter an hour-long window for the duration of `test`.
+
+    The endpoint tests make ten-plus real logins, each a bcrypt check. On a loaded CI runner
+    those took longer than the 60 s window, so the first attempts expired before the last one
+    and the "refused" call came back 401 instead of 429 (backend:unit, 2026-09-27). The window
+    arithmetic itself is covered by SlidingWindowTest with an injected clock.
+    """
+    for limiter in [
+        value for value in vars(rate_limit).values() if isinstance(value, rate_limit.SlidingWindowRateLimiter)
+    ]:
+        patcher = patch.object(limiter, 'window_seconds', 3600)
+        patcher.start()
+        test.addCleanup(patcher.stop)
+
+
 class AuthEndpointRateLimitTest(unittest.TestCase):
     def setUp(self):
         # A peer on the Docker network, like LMS or the nginx in front of spotify.<domain>:
@@ -222,6 +238,7 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
         self.client = TestClient(app, client=('172.18.0.5', 50000))
         rate_limit.reset_limiters()
         self.addCleanup(rate_limit.reset_limiters)
+        _widen_windows(self)
         # No such user and no such refresh token: every call below is a genuine
         # rejection, which is what the limiter counts.
         self.answer_queries_with(None)
@@ -331,6 +348,7 @@ class SuccessfulLoginsAreNotAttemptsTest(unittest.TestCase):
         self.client = TestClient(app)
         rate_limit.reset_limiters()
         self.addCleanup(rate_limit.reset_limiters)
+        _widen_windows(self)
         user = {'id': 1, 'username': 'root', 'enabled': True, 'password_hash': None, 'api_key': 'sekrit'}
         patcher = patch.object(users_router, 'get_db_connection', return_value=_connection_returning(user))
         patcher.start()

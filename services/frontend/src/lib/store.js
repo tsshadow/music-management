@@ -8,6 +8,7 @@ import {
   CUSTOM_PRESET,
 } from "./equalizerPresets.js";
 import { gatedFetch } from "./mumaGate.js";
+import { md5 } from "./md5.js";
 
 /**
  * Every store handed to {@link persist}, with the value it was declared with, so a logout can put
@@ -148,6 +149,61 @@ export const credentials = writable({
 });
 persist("lms_credentials", credentials);
 
+/**
+ * The signed-in user's own Subsonic API token, and the LMS login name it was
+ * issued for (`GET /api/auth/subsonic-token`, see `refreshSubsonicToken`).
+ * While it matches `credentials.username`, every Subsonic URL is signed with
+ * `t=md5(token + salt)&s=salt` instead of carrying the password as `p=` --
+ * which put the password in every stream, cover and API URL, and so in every
+ * access log and browser history entry on the way (bug report 103).
+ */
+export const subsonicToken = writable({ username: "", token: "" });
+persist("lms_subsonic_token", subsonicToken);
+
+/**
+ * A random salt as hex. `authParams` draws one per page session and token (see
+ * `sessionSaltFor`), not per request: the URLs a page builds stay stable, so
+ * the browser's image cache keeps working, while no URL carries the token or
+ * the password.
+ *
+ * @returns {string}
+ */
+export function freshSalt() {
+  const bytes = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** The salt drawn for the current token; see `sessionSaltFor`. */
+let sessionSalt = { token: "", salt: "" };
+
+/**
+ * The salt `authParams` signs with while `token` is the token: drawn once and
+ * kept until the token changes or the page reloads. A derived store read with
+ * `get()` and no subscriber recomputes on every read, so the salt cannot live
+ * in the derivation itself.
+ *
+ * @param {string} token
+ * @returns {string}
+ */
+function sessionSaltFor(token) {
+  if (sessionSalt.token !== token || !sessionSalt.salt) sessionSalt = { token, salt: freshSalt() };
+  return sessionSalt.salt;
+}
+
+/**
+ * The Subsonic query string that signs a request as `username` with a token:
+ * `t = md5(token + salt)`, exactly what LMS checks.
+ *
+ * @param {string} username
+ * @param {string} token
+ * @param {string} [salt]
+ * @returns {string}
+ */
+export function subsonicTokenQuery(username, token, salt = freshSalt()) {
+  return `u=${encodeURIComponent(username)}&t=${md5(token + salt)}&s=${salt}&v=1.12.0&c=spotify&f=json`;
+}
+
 export const mumaApiUrl = writable(
   import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "" : "/muma"),
 );
@@ -183,6 +239,17 @@ persist("muma_refresh_token", mumaRefreshToken);
 export const mumaSessionActive = writable(false);
 persist("muma_session_active", mumaSessionActive);
 
+/**
+ * Set by a deliberate logout, cleared by the next successful sign-in. While it is set the Android
+ * shell's boot does not sign itself back in from whatever the phone still holds
+ * (`restoreSession` in nativeSession.js): a native sign-out that failed or never answered used to
+ * leave the password in Kotlin, and the reload after the logout put the user straight back in, so
+ * "Uitloggen" visibly did nothing (bug report 106). A device store on purpose: it has to survive
+ * the very `resetSessionState` the logout runs.
+ */
+export const signedOut = writable(false);
+persist("muma_signed_out", signedOut, { device: true });
+
 export const userPermissions = writable([]);
 export const mumaUser = writable(null);
 
@@ -196,6 +263,7 @@ export const mumaUser = writable(null);
  */
 export function endRejectedSession() {
   credentials.update((current) => ({ ...current, username: "", password: "" }));
+  subsonicToken.set({ username: "", token: "" });
   mumaApiKey.set("");
   mumaRefreshToken.set("");
   mumaSessionActive.set(false);
@@ -507,10 +575,61 @@ export const allSortOptions = {
  * Derived store that computes Subsonic authentication parameters.
  * Returns a query string with username, password, and client info.
  */
-export const authParams = derived(credentials, ($c) => {
+export const authParams = derived([credentials, subsonicToken], ([$c, $token]) => {
   if (!$c.username || !$c.password) return "";
+  // The token only signs for the name it was issued to: LMS compares login names byte for byte
+  // (bug report 074), and a token left over from another account must never sign for this one.
+  if ($token?.token && $token.username === $c.username) {
+    return subsonicTokenQuery($c.username, $token.token, sessionSaltFor($token.token));
+  }
+  // No token yet (a server without the endpoint, or the fetch failed): the password, as before.
   return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify&f=json`;
 });
+
+/**
+ * Asks MuMa for the signed-in user's Subsonic token and stores it, so
+ * `authParams` signs with it from then on. Needs the user's own MuMa key. A
+ * server without the endpoint, an account LMS does not know yet, or an outage
+ * leaves the stored token as it was -- the password stays the fallback until a
+ * fetch succeeds. The token is never logged.
+ *
+ * One plain request, deliberately not `gatedFetch`: that retries a 503 for
+ * several seconds, and the sign-in waits on this call. A token that is not
+ * there now is asked for again at the next start.
+ *
+ * @param {typeof fetch} [fetchImpl] - Injected by the tests.
+ * @param {string} [apiKey] - The key to ask with; the stored one by default.
+ *   The sign-in passes the key of the session it has not published yet.
+ * @returns {Promise<{username: string, token: string}|null>} The token, or null.
+ */
+export async function refreshSubsonicToken(fetchImpl = undefined, apiKey = undefined) {
+  const key = apiKey ?? get(mumaApiKey);
+  if (!key) return null;
+  try {
+    const call = fetchImpl ?? fetch;
+    const response = await call(`${get(mumaApiUrl)}/api/auth/subsonic-token`, {
+      headers: { "X-API-Key": key },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (
+      typeof data?.token !== "string" ||
+      !data.token ||
+      typeof data.username !== "string" ||
+      !data.username
+    ) {
+      return null;
+    }
+    const answer = { username: data.username, token: data.token };
+    const current = get(subsonicToken);
+    if (current.username !== answer.username || current.token !== answer.token)
+      subsonicToken.set(answer);
+    return answer;
+  } catch (error) {
+    console.warn("Could not fetch the Subsonic token", error?.name ?? "error");
+    return null;
+  }
+}
 
 // Whether the logged-in user has the Subsonic adminRole. `null` means "not
 // determined yet" (checking, or not logged in), `true`/`false` once known.
@@ -535,7 +654,8 @@ const subsonicIsAdmin = writable(null);
  */
 async function checkAdminStatus(creds) {
   try {
-    const params = `u=${encodeURIComponent(creds.username)}&p=${encodeURIComponent(creds.password)}&v=1.12.0&c=spotify&f=json`;
+    const params = get(authParams);
+    if (!params) return;
     const resp = await fetch(
       restUrl(`/rest/getUser?${params}&username=${encodeURIComponent(creds.username)}`),
     );
@@ -617,6 +737,8 @@ export async function hydrateMumaUserFromApiKey() {
       if (data.type === "user") {
         userPermissions.set(data.user.permissions || []);
         mumaUser.set(data.user);
+        // A session persisted by a build that signed with the password picks its token up here.
+        if (get(credentials).password) refreshSubsonicToken();
       } else if (data.type === "system") {
         endLeftoverSharedKeySession();
       }

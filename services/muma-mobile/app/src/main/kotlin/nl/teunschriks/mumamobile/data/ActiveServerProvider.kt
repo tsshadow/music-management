@@ -269,26 +269,25 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
     }
 
     /**
-     * Gets the Rest Url of the Active Server
+     * Gets the Rest Url of the Active Server, without credentials.
+     *
+     * Its one caller, `CachedMusicService.checkSettingsChanged`, compares it to tell a server or
+     * account switch; it is never requested. It used to carry the password as `p=enc:<hex>`, which
+     * kept a reversible copy of it in a string that had no reason to hold one (bug report 103). A
+     * different account still changes it through `u=`.
+     *
      * @param method: The Rest resource to use
      * @return The Rest Url of the method on the server
      */
     fun getRestUrl(method: String?): String {
-        val builder = StringBuilder(8192)
+        val builder = StringBuilder(256)
         val activeServer = getActiveServer()
-        val serverUrl: String = activeServer.url
-        val username: String = activeServer.userName
-        var password: String = activeServer.password
-
-        // Slightly obfuscate password
-        password = "enc:" + Util.utf8HexEncode(password)
-        builder.append(serverUrl)
-        if (builder[builder.length - 1] != '/') {
+        builder.append(activeServer.url)
+        if (builder.isEmpty() || builder[builder.length - 1] != '/') {
             builder.append('/')
         }
         builder.append("rest/").append(method).append(".view")
-        builder.append("?u=").append(username)
-        builder.append("&p=").append(password)
+        builder.append("?u=").append(activeServer.userName)
         builder.append("&v=").append(Constants.REST_PROTOCOL_VERSION)
         builder.append("&c=").append(Constants.REST_CLIENT_ID)
         return builder.toString()

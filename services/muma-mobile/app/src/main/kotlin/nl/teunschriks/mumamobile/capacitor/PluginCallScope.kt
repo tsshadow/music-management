@@ -107,4 +107,10 @@ class CallAnswer(private val call: PluginCall) {
         if (!settled.compareAndSet(false, true)) return
         call.reject(message)
     }
+
+    /** Rejects the call with [message] and a machine-readable [code] (`error.code` in JS), once. */
+    fun reject(message: String, code: String) {
+        if (!settled.compareAndSet(false, true)) return
+        call.reject(message, code)
+    }
 }

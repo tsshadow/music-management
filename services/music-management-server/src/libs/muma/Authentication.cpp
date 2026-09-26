@@ -104,6 +104,30 @@ namespace lms::api::muma
             }
             return AuthDecision::withOutcome(AuthDecision::Outcome::Unauthorized);
         }
+
+        /// Checks a u/t/s triple. As for u/p, the user id comes from the checker, never from `u`.
+        AuthDecision checkTokenTriple(const RequestCredentials& credentials, const TokenChecker& checker)
+        {
+            if (!checker || !credentials.user || !credentials.token || !credentials.salt)
+                return AuthDecision::withOutcome(AuthDecision::Outcome::Unauthorized);
+
+            const PasswordCheck result{ checker(*credentials.user, *credentials.token, *credentials.salt) };
+            switch (result.state)
+            {
+            case PasswordCheck::State::Granted:
+                {
+                    AuthDecision decision{ AuthDecision::withOutcome(AuthDecision::Outcome::Authenticated) };
+                    decision.method = AuthMethod::SubsonicToken;
+                    decision.lmsUserId = result.lmsUserId;
+                    return decision;
+                }
+            case PasswordCheck::State::BackendError:
+                return AuthDecision::withOutcome(AuthDecision::Outcome::BackendUnavailable);
+            case PasswordCheck::State::Denied:
+                break;
+            }
+            return AuthDecision::withOutcome(AuthDecision::Outcome::Unauthorized);
+        }
     } // namespace
 
     bool constantTimeEquals(std::string_view lhs, std::string_view rhs)
@@ -155,7 +179,7 @@ namespace lms::api::muma
         return KeyVerdict::withState(KeyVerdict::State::Unavailable);
     }
 
-    AuthDecision authenticate(const RequestCredentials& credentials, std::string_view lmsApiKey, const KeyVerifier& verifyWithMuma, const PasswordChecker& checkPassword)
+    AuthDecision authenticate(const RequestCredentials& credentials, std::string_view lmsApiKey, const KeyVerifier& verifyWithMuma, const PasswordChecker& checkPassword, const TokenChecker& checkToken)
     {
         // Credential-less entry points (login setup, Google). MuMa validates these itself; the
         // caller's own key, if it sent one, still travels with them, and nothing local is exposed.
@@ -173,6 +197,16 @@ namespace lms::api::muma
             keyDecision = checkKey(credentials, lmsApiKey, verifyWithMuma);
             if (keyDecision.outcome == AuthDecision::Outcome::Authenticated)
                 return keyDecision;
+        }
+
+        // Both a password and a token is a conflict on /rest (MultipleConflictingAuthentication...);
+        // here the token is simply tried first, and a password is only consulted without one.
+        if (credentials.user && credentials.token && credentials.salt)
+        {
+            AuthDecision tokenDecision{ checkTokenTriple(credentials, checkToken) };
+            if (tokenDecision.outcome == AuthDecision::Outcome::Unauthorized && keyDecision.outcome == AuthDecision::Outcome::BackendUnavailable)
+                return keyDecision;
+            return tokenDecision;
         }
 
         if (credentials.user && credentials.password)
@@ -216,7 +250,7 @@ namespace lms::api::muma
 
     bool isUserCaller(const CallerRights& rights)
     {
-        return rights.method == AuthMethod::Password || rights.method == AuthMethod::MumaUserKey;
+        return rights.method == AuthMethod::Password || rights.method == AuthMethod::SubsonicToken || rights.method == AuthMethod::MumaUserKey;
     }
 
     bool mayAdministerServer(const CallerRights& rights)

@@ -8,6 +8,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIVersions
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicClientConfiguration
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.log.TimberOkHttpLogger
 import nl.teunschriks.mumamobile.service.CachedMusicService
 import nl.teunschriks.mumamobile.service.FeedRepository
@@ -40,11 +41,23 @@ val musicServiceModule = module {
 
     single {
         val server = get<ActiveServerProvider>().getActiveServer()
+        // The Subsonic token when one is stored for this user, the password only until then
+        // (bug report 103). Offline has no credentials and needs no token.
+        val signing = if (server.id == ActiveServerProvider.OFFLINE_DB_ID) {
+            SubsonicSigning.Signing(secret = server.password, passwordInUrl = server.forcePlainTextPassword)
+        } else {
+            SubsonicSigning.signingFor(
+                userName = server.userName,
+                password = server.password,
+                token = nl.teunschriks.mumamobile.util.SecureSettings.subsonicToken,
+                tokenUser = nl.teunschriks.mumamobile.util.SecureSettings.subsonicTokenUser
+            )
+        }
 
         return@single SubsonicClientConfiguration(
             baseUrl = server.url,
             username = server.userName,
-            password = server.password,
+            password = signing.secret,
             apiKey = server.apiKey ?: nl.teunschriks.mumamobile.util.Settings.mumaApiKey.takeIf { it.isNotEmpty() },
             mumaUserId = server.mumaUserId ?: nl.teunschriks.mumamobile.util.Settings.mumaUserId.takeIf { it != -1 },
             minimalProtocolVersion = SubsonicAPIVersions.getClosestKnownClientApiVersion(
@@ -53,7 +66,7 @@ val musicServiceModule = module {
             ),
             clientID = Constants.REST_CLIENT_ID,
             allowSelfSignedCertificate = server.allowSelfSignedCertificate,
-            forcePlainTextPassword = server.forcePlainTextPassword,
+            forcePlainTextPassword = signing.passwordInUrl,
             debug = BuildConfig.DEBUG,
             isRealProtocolVersion = server.minimumApiVersion != null,
             tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings

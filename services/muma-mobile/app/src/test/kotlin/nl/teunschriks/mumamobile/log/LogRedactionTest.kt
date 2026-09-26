@@ -87,4 +87,30 @@ class LogRedactionTest {
             "14:41:06.313 D/UApp${'$'}onCreate: staticPassword: <redacted>"
         )
     }
+
+    /** The Subsonic token answer and a web action detail are JSON; bug report 103. */
+    @Test
+    fun `a credential member of a JSON object is masked`() {
+        val line = """{"status":"ok","username":"user","token":"s3cr3t-subsonic-token"}"""
+
+        val redacted = LogRedaction.redact(line)
+
+        redacted shouldBeEqualTo """{"status":"ok","username":"user","token":"<redacted>"}"""
+        LogRedaction.redact(redacted) shouldBeEqualTo redacted
+    }
+
+    @Test
+    fun `a JSON credential with an escaped quote is masked whole`() {
+        val redacted = LogRedaction.redact("""{"password" : "a\"b", "x": "y"}""")
+
+        redacted shouldBeEqualTo """{"password" : "<redacted>", "x": "y"}"""
+    }
+
+    @Test
+    fun `a token-signed stream URL keeps neither the hash nor the salt`() {
+        val redacted = LogRedaction.redactUrl("https://x/rest/stream.view?id=1&u=user&t=0a1b2c&s=f00d&v=1.16.1")
+
+        redacted shouldNotContain "0a1b2c"
+        redacted shouldNotContain "f00d"
+    }
 }

@@ -384,6 +384,13 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   Downloaded files are never touched by this. The caller still owns clearing its own
  *   stores and reloading; this only has to make sure the next boot has nothing left to
  *   sign back in with.
+ * @property {function(): Promise<boolean>} googleSignInAvailable Whether the platform can
+ *   do "Sign in with Google" natively. Only the Android shell can (Credential Manager), and only
+ *   when the APK was built with a Web client ID; a browser answers `false` and uses Google
+ *   Identity Services on the login page instead.
+ * @property {function(): Promise<string|null>} googleSignIn A Google ID token for
+ *   `/api/auth/google`, `null` when the user closed the chooser; rejects with `code`
+ *   `not-configured`, `no-credential` or `failed` otherwise.
  * @property {function({url?: string, username: string, password: string}): Promise<void>}
  *   saveCredentials Writes a pair the web login screen just verified back to the phone,
  *   so downloads and Android Auto see the same session afterwards. A

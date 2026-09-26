@@ -400,4 +400,69 @@ namespace lms::api::muma::tests
 
         EXPECT_FALSE(cache.find("bobs-key", now).has_value());
     }
+    // Bug report 103: a web page signs its <img> URLs with u/t/s instead of u/p, so the login
+    // password stays out of the URL. The triple is checked locally; neither MuMa nor the password
+    // service is asked.
+    namespace
+    {
+        /// A token check that grants exactly one user/token/salt triple.
+        TokenChecker tokenGrantsOnly(std::string user, std::string token, std::string salt, long long lmsUserId)
+        {
+            return [user = std::move(user), token = std::move(token), salt = std::move(salt), lmsUserId](std::string_view u, std::string_view t, std::string_view s) {
+                if (u == user && t == token && s == salt)
+                    return PasswordCheck{ .state = PasswordCheck::State::Granted, .lmsUserId = lmsUserId };
+                return PasswordCheck{ .state = PasswordCheck::State::Denied };
+            };
+        }
+    } // namespace
+
+    TEST(MumaAuthentication, acceptsASubsonicTokenTripleAsTheUserItNames)
+    {
+        RecordingVerifier muma;
+        const AuthDecision decision{ authenticate({ .user = "bob", .token = "md5hash", .salt = "salt1" }, lmsApiKey, muma.asFunction(), passwordMustNotBeChecked(), tokenGrantsOnly("bob", "md5hash", "salt1", 42)) };
+
+        EXPECT_EQ(decision.outcome, AuthDecision::Outcome::Authenticated);
+        EXPECT_EQ(decision.method, AuthMethod::SubsonicToken);
+        ASSERT_TRUE(decision.lmsUserId.has_value());
+        EXPECT_EQ(*decision.lmsUserId, 42);
+        EXPECT_TRUE(decision.forwardKey.empty());
+        EXPECT_TRUE(muma.asked.empty());
+        EXPECT_TRUE(isUserCaller(CallerRights{ .method = decision.method }));
+    }
+
+    TEST(MumaAuthentication, rejectsAWrongSubsonicTokenTriple)
+    {
+        RecordingVerifier muma;
+        const AuthDecision decision{ authenticate({ .user = "bob", .token = "forged", .salt = "salt1" }, lmsApiKey, muma.asFunction(), passwordMustNotBeChecked(), tokenGrantsOnly("bob", "md5hash", "salt1", 42)) };
+
+        EXPECT_EQ(decision.outcome, AuthDecision::Outcome::Unauthorized);
+        EXPECT_EQ(decision.method, AuthMethod::None);
+    }
+
+    TEST(MumaAuthentication, aTokenWithoutASaltIsNotATriple)
+    {
+        RecordingVerifier muma;
+        const AuthDecision decision{ authenticate({ .user = "bob", .token = "md5hash" }, lmsApiKey, muma.asFunction(), passwordMustNotBeChecked(), tokenGrantsOnly("bob", "md5hash", "", 42)) };
+
+        EXPECT_EQ(decision.outcome, AuthDecision::Outcome::Unauthorized);
+    }
+
+    TEST(MumaAuthentication, aTokenTripleWithoutATokenCheckerGrantsNothing)
+    {
+        RecordingVerifier muma;
+        const AuthDecision decision{ authenticate({ .user = "bob", .token = "md5hash", .salt = "salt1" }, lmsApiKey, muma.asFunction(), passwordMustNotBeChecked()) };
+
+        EXPECT_EQ(decision.outcome, AuthDecision::Outcome::Unauthorized);
+    }
+
+    TEST(MumaAuthentication, aTokenTripleIsAdminOnlyWhenItsUserIs)
+    {
+        // The identity is the checker's user id, never `u`: resolveCallerRights reads admin rights
+        // from that LMS user, so naming an admin in `u` with someone else's token proves nothing.
+        RecordingVerifier muma;
+        const AuthDecision decision{ authenticate({ .user = "admin", .token = "bobs-hash", .salt = "salt1" }, lmsApiKey, muma.asFunction(), passwordMustNotBeChecked(), tokenGrantsOnly("bob", "bobs-hash", "salt1", 42)) };
+
+        EXPECT_EQ(decision.outcome, AuthDecision::Outcome::Unauthorized);
+        EXPECT_FALSE(decision.lmsUserId.has_value());
+    }
 } // namespace lms::api::muma::tests

@@ -8,8 +8,10 @@ import {
   mumaRefreshToken,
   mumaSessionActive,
   mumaUser,
+  subsonicToken,
   userPermissions,
 } from "../../src/lib/store.js";
+import { md5 } from "../../src/lib/md5.js";
 
 /**
  * `startManagementSession` reads MuMa's own login answer. LMS used to answer
@@ -198,5 +200,144 @@ describe("login - the account's own spelling", () => {
     expect(canonicalUsername("user", { username: "someone-else" })).toBe("user");
     expect(canonicalUsername("user", null)).toBe("user");
     expect(canonicalUsername("user", { username: "" })).toBe("user");
+  });
+});
+
+/**
+ * Bug report 103: a sign-in puts the password in a POST body only. The ping
+ * that proves LMS accepts the account is signed with the Subsonic token the
+ * management session fetches; the password is the fallback when there is none.
+ */
+describe("login - signing the ping with the Subsonic token", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    subsonicToken.set({ username: "", token: "" });
+    mumaApiKey.set("");
+    mumaSessionActive.set(false);
+    mumaUser.set(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A server whose login, token endpoint and ping answer as given. */
+  function server({
+    token = { username: "user", token: "the-subsonic-token" },
+    pingAccepts = () => true,
+  } = {}) {
+    return vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) return { ok: true, json: async () => MUMA_ANSWER };
+      if (url.includes("/api/auth/subsonic-token")) {
+        if (!token) return { ok: false, status: 404, json: async () => ({}) };
+        return { ok: true, json: async () => ({ status: "ok", ...token }) };
+      }
+      const status = pingAccepts(new URL(url)) ? "ok" : "failed";
+      return {
+        json: async () => ({
+          "subsonic-response": {
+            status,
+            error: { code: 40, message: "Wrong username or password" },
+          },
+        }),
+      };
+    });
+  }
+
+  /** The URL of every /rest/ping the fake server saw. */
+  function pings() {
+    return globalThis.fetch.mock.calls
+      .map(([url]) => url)
+      .filter((url) => url.includes("/rest/ping"))
+      .map((url) => new URL(url));
+  }
+
+  it("never puts the password in a URL when a token comes back", async () => {
+    globalThis.fetch = server();
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result).toEqual({ ok: true, username: "user" });
+    for (const [url] of globalThis.fetch.mock.calls) expect(url).not.toContain("hunter2");
+    const [ping] = pings();
+    expect(ping.searchParams.has("p")).toBe(false);
+    expect(ping.searchParams.get("t")).toBe(md5(`the-subsonic-token${ping.searchParams.get("s")}`));
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+  });
+
+  it("falls back to the password when the server has no token endpoint", async () => {
+    globalThis.fetch = server({ token: null });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result.ok).toBe(true);
+    expect(pings()[0].searchParams.get("p")).toBe("hunter2");
+  });
+
+  it("a token LMS refuses is dropped and the password decides", async () => {
+    globalThis.fetch = server({ pingAccepts: (url) => url.searchParams.has("p") });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result.ok).toBe(true);
+    expect(pings()).toHaveLength(2);
+    expect(get(subsonicToken).token).toBe("");
+  });
+
+  it("a wrong password is still rejected", async () => {
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) return { ok: false, json: async () => ({}) };
+      return {
+        json: async () => ({
+          "subsonic-response": {
+            status: "failed",
+            error: { code: 40, message: "Wrong username or password" },
+          },
+        }),
+      };
+    });
+
+    const result = await signIn("user", "wrong");
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "rejected",
+      message: "Wrong username or password",
+    });
+    expect(get(credentials).password).toBe("");
+  });
+
+  it("publishes the management session only once the ping has passed", async () => {
+    let keyAtPing = "unset";
+    const base = server();
+    globalThis.fetch = vi.fn(async (url, options) => {
+      if (url.includes("/rest/ping")) keyAtPing = get(mumaApiKey);
+      return base(url, options);
+    });
+
+    await signIn("user", "hunter2");
+
+    expect(keyAtPing).toBe("");
+    expect(get(mumaApiKey)).toBe("own-key-of-user");
+  });
+
+  it("a rejected ping publishes no management session", async () => {
+    globalThis.fetch = server({ token: null, pingAccepts: () => false });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result.ok).toBe(false);
+    expect(get(mumaApiKey)).toBe("");
+    expect(get(mumaSessionActive)).toBe(false);
+  });
+
+  it("a token for another name is not used", async () => {
+    globalThis.fetch = server({ token: { username: "alice", token: "alices-token" } });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result.ok).toBe(true);
+    expect(pings()[0].searchParams.get("p")).toBe("hunter2");
+    expect(get(subsonicToken).token).toBe("");
   });
 });

@@ -24,10 +24,12 @@
 
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
+#include "core/Md5.hpp"
 #include "core/Service.hpp"
 #include "core/String.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
+#include "database/objects/AuthToken.hpp"
 #include "database/objects/Cluster.hpp"
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/Track.hpp"
@@ -166,6 +168,32 @@ namespace lms::api::muma
             return PasswordCheck::withState(PasswordCheck::State::Denied);
         }
 
+        /// Whether `token` is `md5(t + salt)` for one of the Subsonic API tokens of the enabled LMS
+        /// user `loginName` -- the check `SubsonicResource::authenticateUser` makes for `/rest`, so a
+        /// URL signed for one is accepted by the other. Local: no call to MuMa. `session` must be
+        /// inside a transaction.
+        struct TokenSignature
+        {
+            std::string_view token; // `t`
+            std::string_view salt;  // `s`
+        };
+
+        PasswordCheck checkSubsonicToken(db::Session& session, std::string_view loginName, const TokenSignature& signature)
+        {
+            const db::User::pointer user{ db::User::find(session, loginName) };
+            if (!user || user->isDisabled())
+                return PasswordCheck::withState(PasswordCheck::State::Denied);
+
+            bool matched{};
+            db::AuthToken::find(session, "subsonic", user->getId(), [&](const db::AuthToken::pointer& authToken) {
+                if (!matched && constantTimeEquals(core::crypto::md5(authToken->getValue() + std::string{ signature.salt }), signature.token))
+                    matched = true;
+            });
+            if (!matched)
+                return PasswordCheck::withState(PasswordCheck::State::Denied);
+            return PasswordCheck::withState(PasswordCheck::State::Granted, user->getId().getValue());
+        }
+
         /// Replaces every Subsonic token of `userId` with `token`, or only revokes them when
         /// `token` is empty. Returns why the token was refused, in which case nothing changed:
         /// a too-short token must not cost the user the working token they already have.
@@ -256,11 +284,13 @@ namespace lms::api::muma
         return verdict;
     }
 
-    AuthDecision MumaResource::authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath)
+    AuthDecision MumaResource::authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath, db::Session& session)
     {
         const std::string* apiKeyParam{ request.getParameter("apiKey") };
         const std::string* userParam{ request.getParameter("u") };
         const std::string* passParam{ request.getParameter("p") };
+        const std::string* tokenParam{ request.getParameter("t") };
+        const std::string* saltParam{ request.getParameter("s") };
         const std::string headerKey{ request.headerValue("X-API-Key") };
 
         RequestCredentials credentials;
@@ -272,6 +302,10 @@ namespace lms::api::muma
             credentials.user = *userParam;
         if (passParam)
             credentials.password = *passParam;
+        if (tokenParam)
+            credentials.token = *tokenParam;
+        if (saltParam)
+            credentials.salt = *saltParam;
 
         const std::string lmsApiKey{ core::Service<core::IConfig>::get()->getString("api-key", "") };
         const std::string clientAddress{ request.clientAddress() };
@@ -283,6 +317,9 @@ namespace lms::api::muma
                 if (!passwordService)
                     return PasswordCheck{};
                 return toPasswordCheck(passwordService->checkUserPassword(boost::asio::ip::make_address(clientAddress), user, password));
+            },
+            [&session](std::string_view user, std::string_view token, std::string_view salt) {
+                return checkSubsonicToken(session, user, TokenSignature{ .token = token, .salt = salt });
             }) };
 
         if (decision.outcome != AuthDecision::Outcome::Authenticated)
@@ -318,7 +355,7 @@ namespace lms::api::muma
         // accepted here, with the caller then named by the bare `u` parameter -- so any string plus
         // `u=<an admin>` was that admin on the routes below. See
         // docs/bug-reports/056-lms-any-key-is-admin.md.
-        const AuthDecision auth{ authenticateRequest(request, publicAuthPath) };
+        const AuthDecision auth{ authenticateRequest(request, publicAuthPath, session) };
         if (auth.outcome != AuthDecision::Outcome::Authenticated)
         {
             // Say "we could not check" rather than "you are not allowed", so the client keeps the

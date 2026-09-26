@@ -1,6 +1,6 @@
 # The App Trusts Any Certificate And Leaks Its Secrets
 
-# status: fixed — certificate checks on, cleartext limited to localhost, provider confined to the art cache, no upload password in the APK, WebView debugging debug-only, credentials redacted from logs; password mode deliberately unchanged (see solution)
+# status: fixed — certificate checks on, cleartext limited to localhost, provider confined to the art cache, no upload password in the APK, WebView debugging debug-only, credentials redacted from logs; password mode deliberately unchanged (see solution) -- item 2 since fixed by [bug report 103](103-subsonic-requests-signed-with-the-password.md)
 
 # reported problem
 A security review of `services/muma-mobile` found six defects, all confirmed by reading the code:
@@ -48,7 +48,9 @@ A security review of `services/muma-mobile` found six defects, all confirmed by 
    Capacitor WebView origin and the offline placeholder URL) and trusts only system CAs; user CAs
    are trusted in debuggable builds only, through `debug-overrides`. The redundant
    `android:usesCleartextTraffic="true"` is gone from the manifest.
-2. **Deliberately unchanged, and why.** The salted form (`t=md5(password+salt)&s=salt`) is not
+2. **Superseded by [bug report 103](103-subsonic-requests-signed-with-the-password.md)**, which
+   gives every user their own Subsonic token and signs with it. What follows is the reasoning at
+   the time. **Deliberately unchanged, and why.** The salted form (`t=md5(password+salt)&s=salt`) is not
    accepted by LMS for a login password: `SubsonicResource::authenticateUser` checks a `t`/`s` pair
    against the user's *Subsonic API token* (`db::AuthToken`, domain `subsonic`), and verifies `p`
    through the music-manager password service. LMS never holds the login password in a form it

@@ -12,6 +12,11 @@ namespace lms::auth
     class IUserSynchronizer;
 }
 
+namespace lms::db
+{
+    class Session;
+}
+
 namespace lms::api::muma
 {
     class MumaResource : public Wt::WResource
@@ -27,8 +32,10 @@ namespace lms::api::muma
         /// Answers `Unavailable` rather than `Invalid` whenever MuMa could not be asked.
         KeyVerdict verifyKeyWithMuma(std::string_view key);
 
-        /// Checks the request's credentials (key, or Subsonic u/p) -- see muma::authenticate.
-        AuthDecision authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath);
+        /// Checks the request's credentials (key, Subsonic u/t/s, or Subsonic u/p) -- see
+        /// muma::authenticate. `session` must be inside a transaction: the u/t/s check reads the
+        /// user's Subsonic tokens through it.
+        AuthDecision authenticateRequest(const Wt::Http::Request& request, bool publicAuthPath, db::Session& session);
 
         db::IDb& _db;
         auth::IUserSynchronizer& _userSynchronizer;

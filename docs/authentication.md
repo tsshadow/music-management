@@ -114,6 +114,16 @@ without a password hash (unknown, or Google-only) still runs one bcrypt check, a
 hash (`users._equalise_bcrypt_cost`), so it costs what a wrong password costs. "Account disabled" is
 only answered to a caller who has just proved the password.
 
+### Signing Subsonic requests: the Subsonic token (`GET /api/auth/subsonic-token`)
+
+LMS checks a salted `t`/`s` pair against the user's *Subsonic API token*, never against the login
+password. After a sign-in, clients (the web player, the Android app's native client and its web
+shell) fetch their own token with the key the login returned and sign every `/rest` call with
+`t=md5(token + salt)&s=salt`; the password is only ever in the login's POST body. music-manager
+reads the token from, or issues it into, LMS's own `lms.db` (`services/music_manager/subsonic_token.py`).
+Until a fetch succeeds the client falls back to `p=`. See
+[docs/designs/subsonic-token-signing/](designs/subsonic-token-signing/) and bug report 103.
+
 ### 2. Google Sign-In (`POST /api/auth/google`)
 
 | Situation | Result |
@@ -228,7 +238,9 @@ most of those to MuMa directly). Its authentication, in
 - A key (`X-API-Key`, else `?apiKey=`) counts only if it equals LMS's own `api-key` or MuMa
   confirms it via `GET /api/auth/verify`. MuMa's positive answers are cached for 60 s;
   `/muma/users/sync` clears the cache. When MuMa cannot be asked the answer is `503`, not `401`.
-- Otherwise a Subsonic `u`/`p` pair is checked through the password service.
+- Otherwise a Subsonic `u`/`t`/`s` triple is checked against the user's Subsonic API tokens, exactly
+  as `/rest` checks it (locally, no call to MuMa), and failing that a `u`/`p` pair through the
+  password service. The web player signs its artist-image URLs with the triple since bug report 103.
 - The caller is whoever the verified credential names -- the password service's user, or the user in
   MuMa's verify answer. The `u` parameter never names the caller when a key was used.
 - Media libraries and Subsonic tokens need a verified admin **user**; a system key (LMS's `api-key`

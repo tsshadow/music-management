@@ -61,6 +61,15 @@ object LogRedaction {
         "(?im)\\b([A-Za-z0-9_.]*(?:password|passwd|api_?key|token|secret)[A-Za-z0-9_.]*): (?!$MASK)\\S.*$"
     )
 
+    /**
+     * A credential-named member of a JSON object, `"token": "value"` -- the shape a response body
+     * or a web-UI action detail takes, which the `key: value` form above does not match (the quote
+     * sits between the name and the colon). Added with the Subsonic token (bug report 103).
+     */
+    private val SENSITIVE_JSON_MEMBER = Regex(
+        "(?i)(\"[A-Za-z0-9_.]*(?:password|passwd|api_?key|token|secret)[A-Za-z0-9_.]*\"\\s*:\\s*\")(?!$MASK\")(?:[^\"\\\\]|\\\\.)*\""
+    )
+
     /** Whether a preference named [key] must not have its value logged. */
     fun isSensitiveKey(key: String): Boolean = SENSITIVE_KEY.containsMatchIn(key)
 
@@ -73,13 +82,14 @@ object LogRedaction {
 
     /**
      * [text] with every credential it recognises replaced by [MASK]: the value of each
-     * credential-named `key: value` pair, of each credential header and of each credential query
+     * credential-named `key: value` pair or JSON member, of each credential header and of each credential query
      * parameter ([redactUrl]). Idempotent, so text that was already redacted can pass again.
      */
     fun redact(text: String): String {
         val pairs = SENSITIVE_PAIR.replace(text) { "${it.groupValues[1]}: $MASK" }
         val headers = SENSITIVE_HEADER.replace(pairs) { "${it.groupValues[1]}: $MASK" }
-        return redactUrl(headers)
+        val members = SENSITIVE_JSON_MEMBER.replace(headers) { "${it.groupValues[1]}$MASK\"" }
+        return redactUrl(members)
     }
 
     /**

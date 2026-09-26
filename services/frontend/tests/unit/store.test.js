@@ -17,7 +17,12 @@ import {
   homeListCount,
   hydrateMumaUserFromApiKey,
   restUrl,
+  subsonicToken,
+  subsonicTokenQuery,
+  refreshSubsonicToken,
+  endRejectedSession,
 } from "../../src/lib/store";
+import { md5 } from "../../src/lib/md5.js";
 import { locale } from "../../src/lib/i18n";
 
 describe("store - hasPermission", () => {
@@ -71,6 +76,124 @@ describe("store - authParams", () => {
     const params = get(authParams);
     expect(params).toContain("u=user%40example.com");
     expect(params).toContain("p=pass%20word");
+  });
+});
+
+/**
+ * Bug report 103: with the account's Subsonic token every URL is signed with
+ * `t = md5(token + salt)` and `s`, and the password is in none of them.
+ */
+describe("store - authParams with a Subsonic token", () => {
+  beforeEach(() => {
+    subsonicToken.set({ username: "", token: "" });
+  });
+
+  it("signs with the token, never the password, once one is stored for this user", () => {
+    credentials.set({ username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+
+    const params = new URLSearchParams(get(authParams));
+
+    expect(params.get("u")).toBe("user");
+    expect(params.has("p")).toBe(false);
+    expect(get(authParams)).not.toContain("hunter2");
+    expect(params.get("t")).toBe(md5(`the-subsonic-token${params.get("s")}`));
+    expect(params.get("s")).toMatch(/^[0-9a-f]{24}$/);
+  });
+
+  it("keeps one salt per session, so the URLs a page builds stay cacheable", () => {
+    credentials.set({ username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+
+    expect(get(authParams)).toBe(get(authParams));
+  });
+
+  it("ignores a token issued for another account", () => {
+    credentials.set({ username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "alice", token: "alices-token" });
+
+    expect(get(authParams)).toContain("p=hunter2");
+    expect(get(authParams)).not.toContain("t=");
+  });
+
+  it("signs nothing when signed out, token or not", () => {
+    credentials.set({ username: "", password: "" });
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+
+    expect(get(authParams)).toBe("");
+  });
+
+  it("builds the query the way LMS checks it", () => {
+    expect(subsonicTokenQuery("te un", "tok", "abc")).toBe(
+      `u=te%20un&t=${md5("tokabc")}&s=abc&v=1.12.0&c=spotify&f=json`,
+    );
+  });
+
+  it("a rejected session drops the token with the password", () => {
+    credentials.set({ username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+
+    endRejectedSession();
+
+    expect(get(subsonicToken)).toEqual({ username: "", token: "" });
+  });
+});
+
+describe("store - refreshSubsonicToken", () => {
+  beforeEach(() => {
+    subsonicToken.set({ username: "", token: "" });
+    mumaApiUrl.set("https://muma.example/muma");
+    mumaApiKey.set("own-key");
+  });
+
+  it("asks with the user's own key and stores the answer", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    }));
+
+    const answer = await refreshSubsonicToken(fetchImpl);
+
+    expect(answer).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe("https://muma.example/muma/api/auth/subsonic-token");
+    expect(options.headers["X-API-Key"]).toBe("own-key");
+  });
+
+  it("a server without the endpoint leaves the stored token alone", async () => {
+    subsonicToken.set({ username: "user", token: "kept" });
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) }));
+
+    expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "kept" });
+  });
+
+  it("an unreachable server leaves it alone too", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("network down");
+    });
+
+    expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
+    expect(get(subsonicToken)).toEqual({ username: "", token: "" });
+  });
+
+  it("does not ask without a key", async () => {
+    mumaApiKey.set("");
+    const fetchImpl = vi.fn();
+
+    expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("an answer without a token stores nothing", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user" }),
+    }));
+
+    expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
+    expect(get(subsonicToken).token).toBe("");
   });
 });
 

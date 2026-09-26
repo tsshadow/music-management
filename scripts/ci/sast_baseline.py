@@ -149,9 +149,14 @@ REASONS = {
     ),
     'detected-bcrypt-hash': 'An example hash in installation documentation.',
     'python-logger-credential-disclosure': (
-        'Both sites are logger.error(..., e) in the except branch of a Spotify '
+        'Two sites are logger.error(..., e) in the except branch of a Spotify '
         'token fetch. What is logged is the exception, not the token that the '
-        'try branch assigns; semgrep flags the token being in scope.'
+        'try branch assigns; semgrep flags the token being in scope. The rest '
+        'are the Subsonic token endpoint (routers/users.py, subsonic_token.py, '
+        'bug report 103): the rule matches the word "token" in the message; '
+        'the arguments are the username, a database path/source and a sqlite3 '
+        'error, never the token itself (test_subsonic_token.py asserts the '
+        'issued token is absent from the log).'
     ),
     'use-of-md5': (
         'Content and path hashing for cache keys and duplicate detection, never '

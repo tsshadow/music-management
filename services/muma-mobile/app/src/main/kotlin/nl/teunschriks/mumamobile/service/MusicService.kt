@@ -348,6 +348,15 @@ interface MusicService {
     @Throws(Exception::class)
     fun mumaLogin()
 
+    /**
+     * Fetches the signed-in user's Subsonic API token from MuMa and stores it, so every later
+     * `/rest` call is signed with it instead of the password (bug report 103). Returns whether the
+     * stored token changed, in which case the caller rebuilds the music service so the Subsonic
+     * client picks it up. Offline there is nothing to fetch.
+     */
+    @Throws(Exception::class)
+    fun refreshSubsonicToken(): Boolean = false
+
     @Throws(Exception::class)
     fun getMumaTiles(): List<MumaTile>
 

@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## Global Version 7.6.0 (2026-09-26)
+
+- **Inloggen met Google kan weer in de app.** Op het inlogscherm staat onder het wachtwoordformulier
+  een knop "Inloggen met Google"; je kiest je Google-account in het venster van Android zelf.
+
+- **Uitloggen werkt weer.** Na "Uitloggen" stopt het afspelen en zie je het inlogscherm, ook als je
+  de app daarna opnieuw opent. Je downloads blijven staan.
+
+- **Je wachtwoord gaat niet meer mee in elk verzoek aan de muziekserver.** De app haalt na het
+  inloggen een eigen token op en ondertekent elk nummer, elke hoes en elke lijst daarmee. Je merkt
+  er niets van: inloggen, afspelen en Android Auto werken zoals altijd.
 ## Global Version 7.5.2 (2026-09-26)
 
 - No app changes of its own: a code comment now points at GitLab issue #39 instead of docs/open-work.md. The version moves with server release 0.76.0 because the release check bumps the app whenever its directory changed.

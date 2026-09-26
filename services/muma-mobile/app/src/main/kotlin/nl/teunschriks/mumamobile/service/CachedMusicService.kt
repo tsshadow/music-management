@@ -329,6 +329,9 @@ class CachedMusicService(private val musicService: MusicService) :
     }
 
     @Throws(Exception::class)
+    override fun refreshSubsonicToken(): Boolean = musicService.refreshSubsonicToken()
+
+    @Throws(Exception::class)
     override fun getPlaylists(refresh: Boolean): List<Playlist> {
         checkSettingsChanged()
         var result = if (refresh) null else cachedPlaylists.get()

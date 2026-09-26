@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.6.1 (2026-09-26)
+
+- **Android Auto picks up a replaced login token by itself.** Before, it kept failing with "wrong
+  username or password" until the app was opened on the phone.
+
 ## Global Version 7.6.0 (2026-09-26)
 
 - **Inloggen met Google kan weer in de app.** Op het inlogscherm staat onder het wachtwoordformulier

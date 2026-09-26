@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.77.2 (2026-09-26)
+
+- The daily artist and label mixes now only pick an artist or label with enough songs to fill them,
+  and an artist mix is no longer cut to three tracks.
+
+- A long track or a label's festival mix album under `EPs/` is no longer filed under "Live sets"
+  just because its title names a festival ("Radium - Decibel Dictature" matched Decibel Outdoor;
+  "Defqon.1 2015 Mix 1" is the label's mix album, not a recording). In the label tree a festival
+  now makes a live set only together with "live" or "DVD" in the title or folder, so the "Live at
+  Reverze" DVD rips and live-registration releases stay live sets. The hourly form pass moves about
+  310 files from live set to set after deploy (issue #76, bug report 109).
+
 ## Global Version 0.77.1 (2026-09-26)
 
 - **Uitloggen in de app blijft uitgelogd.** Na uitloggen logt de app bij de volgende start niet meer

@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.79.0 (2026-09-27)
+
+- Presets remember the Soort (sets & mixes, live sets, podcasts), on the web and in the car.
+
+- Confirming a label, renaming a podcast, changing an artist's picture, signing a user out
+  everywhere and grouping song versions can no longer leave half-done data behind when something
+  fails midway.
+
 ## Global Version 0.78.1 (2026-09-26)
 
 - Artist image downloads can no longer be steered to an internal address by a DNS server that

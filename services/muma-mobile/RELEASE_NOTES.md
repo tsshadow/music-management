@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.7.0 (2026-09-27)
+
+- Android Auto and voice can ask for livesets, sets & mixes or podcasts, and a liveset is found under the year it was played.
+
 ## Global Version 7.6.3 (2026-09-26)
 
 - Release Radar and the daily mixes in the car no longer stop after the first 100 tracks.

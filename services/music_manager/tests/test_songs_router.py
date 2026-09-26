@@ -313,13 +313,16 @@ class CurationListTest(SongsTestCase):
     def test_sorting_by_recent_change_puts_unchanged_works_last(self):
         self.client.get('/api/songs/curation?sort=changed&changed_only=true', headers=self.headers)
         sql, params = self.cursor.statements_matching('SELECT w.id, w.title')[0]
-        self.assertIn('ORDER BY w.canonical_changed_at IS NULL, w.canonical_changed_at DESC', sql)
+        # The sort is a bound parameter read by CASE, never text in the statement.
+        self.assertIn("CASE WHEN %s = 'changed' THEN w.canonical_changed_at IS NULL END ASC", sql)
         self.assertEqual(params[3], 1)
+        self.assertEqual(params[4:8], ('changed',) * 4)
 
     def test_sorting_by_version_count_is_the_default(self):
         self.client.get('/api/songs/curation', headers=self.headers)
-        sql, _params = self.cursor.statements_matching('SELECT w.id, w.title')[0]
-        self.assertIn('ORDER BY counted.version_count DESC', sql)
+        sql, params = self.cursor.statements_matching('SELECT w.id, w.title')[0]
+        self.assertIn("CASE WHEN %s = 'versions' THEN counted.version_count END DESC", sql)
+        self.assertEqual(params[4], 'versions')
 
     def test_an_unknown_sort_is_refused_not_interpolated(self):
         response = self.client.get('/api/songs/curation?sort=id;DROP', headers=self.headers)

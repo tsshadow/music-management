@@ -60,8 +60,27 @@ _VERSIONS = '''
 '''
 
 # Works with more than one member. The count is taken in a derived table so the filter and
-# the paging apply to works, not to their tracks.
-_CURATION_FROM = '''
+# the paging apply to works, not to their tracks. The two statements share their FROM, spelled
+# out twice on purpose: each is one literal, so nothing is ever concatenated into SQL. The sort
+# is a bound parameter chosen from a Literal and read by CASE, not text in the statement.
+_CURATION_COUNT = '''
+    SELECT COUNT(*) AS n
+    FROM (
+        SELECT work_id FROM library_tracks
+        WHERE work_id IS NOT NULL
+        GROUP BY work_id
+        HAVING COUNT(*) > 1
+    ) AS counted
+    JOIN library_works w ON w.id = counted.work_id
+    LEFT JOIN library_artists a ON a.id = w.primary_artist_id
+    WHERE (%s = '' OR w.title LIKE %s OR a.name LIKE %s)
+      AND (%s = 0 OR w.canonical_changed_at IS NOT NULL)
+'''
+
+_CURATION_PAGE = '''
+    SELECT w.id, w.title, a.name AS artist, counted.version_count, w.canonical_track_id,
+           ct.title AS canonical_title, w.pinned_track_id, w.previous_canonical_track_id,
+           w.canonical_changed_at
     FROM (
         SELECT work_id, COUNT(*) AS version_count
         FROM library_tracks
@@ -74,14 +93,14 @@ _CURATION_FROM = '''
     LEFT JOIN library_tracks ct ON ct.id = w.canonical_track_id
     WHERE (%s = '' OR w.title LIKE %s OR a.name LIKE %s)
       AND (%s = 0 OR w.canonical_changed_at IS NOT NULL)
+    ORDER BY
+        CASE WHEN %s = 'versions' THEN counted.version_count END DESC,
+        CASE WHEN %s = 'changed' THEN w.canonical_changed_at IS NULL END ASC,
+        CASE WHEN %s = 'changed' THEN w.canonical_changed_at END DESC,
+        CASE WHEN %s = 'title' THEN w.title END ASC,
+        w.id ASC
+    LIMIT %s OFFSET %s
 '''
-
-# Fixed strings chosen by a validated literal, never built from the request.
-_CURATION_ORDER = {
-    'versions': 'counted.version_count DESC, w.id ASC',
-    'changed': 'w.canonical_changed_at IS NULL, w.canonical_changed_at DESC, w.id ASC',
-    'title': 'w.title ASC, w.id ASC',
-}
 
 
 class Pin(BaseModel):
@@ -127,18 +146,9 @@ def list_curation(
     conn = _connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT COUNT(*) AS n ' + _CURATION_FROM, filters)
+            cursor.execute(_CURATION_COUNT, filters)
             total = (cursor.fetchone() or {}).get('n', 0)
-            cursor.execute(
-                'SELECT w.id, w.title, a.name AS artist, counted.version_count, w.canonical_track_id, '
-                'ct.title AS canonical_title, w.pinned_track_id, w.previous_canonical_track_id, '
-                'w.canonical_changed_at '
-                + _CURATION_FROM
-                + ' ORDER BY '
-                + _CURATION_ORDER[sort]
-                + ' LIMIT %s OFFSET %s',
-                (*filters, page_size, (page - 1) * page_size),
-            )
+            cursor.execute(_CURATION_PAGE, (*filters, sort, sort, sort, sort, page_size, (page - 1) * page_size))
             rows = cursor.fetchall()
     finally:
         conn.close()

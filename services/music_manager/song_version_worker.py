@@ -303,6 +303,12 @@ _RESCORE_WORKS = '''
 
 # Same columns as _UNGROUPED, for the members of a batch of works instead of the tracks
 # without one, plus what the canonical choice needs.
+#
+# The batch is addressed as "the works between its first and last id that still carry
+# another signature" rather than as an IN list: _RESCORE_WORKS returned exactly the first
+# BATCH works with a differing signature above the cursor, so every such work in that id
+# range is in the batch and no other is. That keeps the statement fixed text -- no
+# placeholder list formatted into it.
 _RESCORE_TRACKS = '''
     SELECT
         t.id,
@@ -324,9 +330,17 @@ _RESCORE_TRACKS = '''
             WHERE yt.path = mf.file_path
         ) AS from_youtube
     FROM library_tracks t
+    JOIN library_works w ON w.id = t.work_id
     LEFT JOIN library_media_files mf ON mf.track_id = t.id
-    WHERE t.work_id IN ({placeholders})
+    WHERE t.work_id BETWEEN %s AND %s
+      AND (w.ranking_signature IS NULL OR w.ranking_signature <> %s)
     ORDER BY t.id
+'''
+
+_STAMP_BATCH = '''
+    UPDATE library_works SET ranking_signature = %s
+    WHERE id BETWEEN %s AND %s
+      AND (ranking_signature IS NULL OR ranking_signature <> %s)
 '''
 
 
@@ -358,10 +372,13 @@ def best_track(rows, scores: dict[int, int]) -> int | None:
 
 
 def rescore_batch(cursor, works: list[dict], context: RankingContext, *, dry_run: bool = False) -> dict:
-    """Rescore one batch of works. Returns counts; writes nothing when `dry_run`."""
-    work_ids = [work['id'] for work in works]
-    placeholders = ', '.join(['%s'] * len(work_ids))
-    cursor.execute(_RESCORE_TRACKS.format(placeholders=placeholders), tuple(work_ids))
+    """Rescore one batch of works. Returns counts; writes nothing when `dry_run`.
+
+    `works` is one result of _RESCORE_WORKS, in ascending id order: the batch is addressed by
+    its id range (see _RESCORE_TRACKS).
+    """
+    first, last = works[0]['id'], works[-1]['id']
+    cursor.execute(_RESCORE_TRACKS, (first, last, context.signature))
     rows = cursor.fetchall()
 
     by_work: dict[int, list[dict]] = {}
@@ -416,10 +433,7 @@ def rescore_batch(cursor, works: list[dict], context: RankingContext, *, dry_run
                     'canonical_changed_at = CURRENT_TIMESTAMP WHERE id = %s',
                     (new, old, work_id),
                 )
-        cursor.execute(
-            f'UPDATE library_works SET ranking_signature = %s WHERE id IN ({placeholders})',
-            (context.signature, *work_ids),
-        )
+        cursor.execute(_STAMP_BATCH, (context.signature, first, last, context.signature))
 
     return {
         'works': len(works),

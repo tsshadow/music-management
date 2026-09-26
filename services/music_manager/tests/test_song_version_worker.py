@@ -411,7 +411,7 @@ class RescoreBatchTest(unittest.TestCase):
     """The rip used to win on the old ranking; the new one picks the release in EPs/."""
 
     def _cursor(self, members):
-        return ScriptedCursor([('WHERE t.work_id IN', None, members)])
+        return ScriptedCursor([('WHERE t.work_id BETWEEN', None, members)])
 
     def _members(self):
         return [
@@ -429,7 +429,7 @@ class RescoreBatchTest(unittest.TestCase):
         self.assertEqual([params for _sql, params in flagged], [(2, 1, 40)])
         self.assertIn('canonical_changed_at = CURRENT_TIMESTAMP', flagged[0][0])
         stamp = cursor.statements_matching('SET ranking_signature')
-        self.assertEqual(stamp[0][1], (CONTEXT.signature, 40))
+        self.assertEqual(stamp[0][1], (CONTEXT.signature, 40, 40, CONTEXT.signature))
 
     def test_it_never_regroups(self):
         cursor = self._cursor(self._members())
@@ -502,7 +502,7 @@ class RescoreOnceTest(unittest.TestCase):
                     (CONTEXT.signature, 40, 1),
                     [{'id': 41, 'canonical_track_id': None, 'pinned_track_id': None}],
                 ),
-                ('WHERE t.work_id IN', None, []),
+                ('WHERE t.work_id BETWEEN', None, []),
             ]
         )
         conn = self._conn(cursor)
@@ -520,7 +520,7 @@ class RescoreOnceTest(unittest.TestCase):
                     (CONTEXT.signature, 0, 500),
                     [{'id': 40, 'canonical_track_id': None, 'pinned_track_id': None}],
                 ),
-                ('WHERE t.work_id IN', None, []),
+                ('WHERE t.work_id BETWEEN', None, []),
             ]
         )
         conn = self._conn(cursor)

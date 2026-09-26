@@ -41,7 +41,9 @@ def make_lms_db(path, users=(), tokens=()):
     )
     conn.execute('CREATE UNIQUE INDEX auth_token_domain_value_unique_idx ON auth_token(domain, value)')
     for user_id, login, muma_id in users:
-        conn.execute('INSERT INTO user (id, login_name, muma_id, disabled) VALUES (?, ?, ?, 0)', (user_id, login, muma_id))
+        conn.execute(
+            'INSERT INTO user (id, login_name, muma_id, disabled) VALUES (?, ?, ?, 0)', (user_id, login, muma_id)
+        )
     for user_id, value in tokens:
         conn.execute("INSERT INTO auth_token (domain, value, user_id) VALUES ('subsonic', ?, ?)", (value, user_id))
     conn.commit()
@@ -98,12 +100,18 @@ class OwnSubsonicTokenTest(unittest.TestCase):
         subsonic_token.own_subsonic_token([(self.path, 'server-direct')], 7, 'user')
 
         conn = sqlite3.connect(self.path)
-        row = conn.execute('SELECT version, domain, expiry, use_count, last_used, max_use_count FROM auth_token').fetchone()
+        row = conn.execute(
+            'SELECT version, domain, expiry, use_count, last_used, max_use_count FROM auth_token'
+        ).fetchone()
         conn.close()
         self.assertEqual(row, (0, 'subsonic', None, 0, None, None))
 
     def test_muma_id_decides_over_the_login_name(self):
-        make_lms_db(self.path, users=[(1, 'user', 99), (2, 'someone-else', 7)], tokens=[(1, 'the-wrong-users-token-x'), (2, 'the-callers-own-token-y')])
+        make_lms_db(
+            self.path,
+            users=[(1, 'user', 99), (2, 'someone-else', 7)],
+            tokens=[(1, 'the-wrong-users-token-x'), (2, 'the-callers-own-token-y')],
+        )
 
         result = subsonic_token.own_subsonic_token([(self.path, 'server-direct')], 7, 'user')
 
@@ -112,7 +120,11 @@ class OwnSubsonicTokenTest(unittest.TestCase):
 
     def test_the_exact_spelling_wins_over_a_case_fork(self):
         # Bug report 074 left a second LMS user for a case variant; the account's own spelling wins.
-        make_lms_db(self.path, users=[(1, 'Teun', None), (2, 'user', None)], tokens=[(1, 'the-forked-users-token-1'), (2, 'the-real-users-token-22')])
+        make_lms_db(
+            self.path,
+            users=[(1, 'Teun', None), (2, 'user', None)],
+            tokens=[(1, 'the-forked-users-token-1'), (2, 'the-real-users-token-22')],
+        )
 
         result = subsonic_token.own_subsonic_token([(self.path, 'server-direct')], 7, 'user')
 
@@ -215,7 +227,9 @@ class SubsonicTokenRouteTest(unittest.TestCase):
         self.user_key()
         self.targets([(self.path, 'server-direct')])
 
-        response = self.client.get('/api/auth/subsonic-token?username=other&user_id=8', headers={'x-api-key': 'user-key'})
+        response = self.client.get(
+            '/api/auth/subsonic-token?username=other&user_id=8', headers={'x-api-key': 'user-key'}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertNotEqual(response.json()['token'], 'the-other-users-token-zz')

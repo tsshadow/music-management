@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.1] - 2026-09-26
+
+### Fixed
+- **Two quick taps on "next" no longer leave the player flickering between the current and the next
+  track.** The on-screen next/previous buttons now ask the playback service to skip (the same
+  move the notification and Android Auto make), instead of the web player choosing a track and
+  replacing the service's queue position; a report from the service that is older than the newest
+  request is ignored. Several quick taps move exactly that many tracks. Bug report 095.
+
+- **Release Radar, the daily mixes (also in the car), favourites, search, shuffle and the home
+  shelves list a song once, playing its best version.** Two files of one song -- a YouTube and a
+  SoundCloud copy, or a rip next to the official release -- no longer take two places, and the
+  feeds play the official version rather than the rip. A song heard in any version counts as heard,
+  and the rating shown for a song is the one given to any of its versions. Bug report 096.
+
+- **Lists that show only the preferred version of a song no longer show a song twice or lose it.**
+  The server marked every file of the preferred version as preferred (the FLAC and the MP3 both), and
+  marked nothing when it did not have the preferred file itself, so the app and Android Auto showed
+  about 5,200 songs twice and hid about 1,100 entirely. Fixed server-side; the app needs no update.
+  Bug report 097.
 ## [7.5.0] - 2026-09-25
 
 ### Added

@@ -9,6 +9,7 @@ from services.music_manager.feeds.queries import (
     entity_hardness_query,
     genre_hardness_query,
     listens_query,
+    rotation_counts_query,
 )
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
@@ -361,3 +362,65 @@ class DominantGenreQueryTest(unittest.TestCase):
         """
         with self.assertRaises(ValueError):
             dominant_genre_query('label', [])
+
+
+class RotationCountsQueryTest(unittest.TestCase):
+    """rotation_counts_query: one grouped count over the top ten (bug report 110)."""
+
+    WINDOWS = (90, 365, None)
+
+    def _query(self, dimension='artist', names=('angerfist', 'unproven'), slug='daily-mix-artist'):
+        return rotation_counts_query('user', POLICIES[slug], NOW, dimension, list(names), self.WINDOWS)
+
+    def test_one_count_column_per_window(self):
+        sql, _ = self._query()
+        for index in range(len(self.WINDOWS)):
+            self.assertIn(f'AS songs_{index}', sql)
+
+    def test_it_counts_songs_not_tracks(self):
+        sql, _ = self._query()
+        self.assertIn('COUNT(DISTINCT COALESCE(t.work_id, -t.id))', sql)
+
+    def test_it_applies_the_candidate_filters(self):
+        sql, params = self._query()
+        self.assertIn('EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)', sql)
+        self.assertIn('t.duration_secs > 0', sql)
+        self.assertIn('t.duration_secs < %s', sql)
+        self.assertIn('NOT (EXISTS (SELECT 1 FROM scrobble_listens', sql)
+        self.assertIn(POLICIES['daily-mix-artist'].max_track_seconds, params)
+
+    def test_the_placeholders_and_params_line_up(self):
+        for dimension, slug in (('artist', 'daily-mix-artist'), ('label', 'daily-mix-label')):
+            with self.subTest(dimension=dimension):
+                sql, params = self._query(dimension=dimension, slug=slug)
+                self.assertEqual(sql.count('%s'), len(params))
+                self.assertEqual(params[-2:], ['angerfist', 'unproven'])
+
+    def test_the_window_params_come_first_in_text_order(self):
+        _, params = self._query()
+        self.assertEqual(
+            params[:4],
+            [
+                (NOW.date() - timedelta(days=90)).isoformat(),
+                NOW.date().isoformat(),
+                (NOW.date() - timedelta(days=365)).isoformat(),
+                NOW.date().isoformat(),
+            ],
+        )
+        self.assertEqual(params[4], 'user')
+
+    def test_the_artist_is_the_primary_artist_and_the_label_its_own_join(self):
+        artist_sql, _ = self._query()
+        self.assertIn('a.name IN (%s, %s)', artist_sql)
+        self.assertIn('GROUP BY a.name', artist_sql)
+        label_sql, _ = self._query(dimension='label', slug='daily-mix-label')
+        self.assertIn('el.name IN (%s, %s)', label_sql)
+        self.assertIn('GROUP BY el.name', label_sql)
+
+    def test_refuses_what_it_cannot_render(self):
+        with self.assertRaises(ValueError):
+            self._query(dimension='genre')
+        with self.assertRaises(ValueError):
+            self._query(names=())
+        with self.assertRaises(ValueError):
+            rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['x'], ())

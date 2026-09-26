@@ -24,7 +24,15 @@ class PolicyTest(unittest.TestCase):
         for policy in POLICIES.values():
             self.assertEqual(policy.max_track_seconds, 600)
             self.assertEqual(policy.size, 30)
-            self.assertEqual(policy.max_per_artist, 3)
+            if policy.slug != 'daily-mix-artist':
+                self.assertEqual(policy.max_per_artist, 3)
+
+    def test_the_artist_mix_is_not_capped_per_artist(self):
+        # Every candidate of an artist mix shares one primary artist; a cap of three
+        # would cut the whole mix to three tracks (bug report 110).
+        policy = POLICIES['daily-mix-artist']
+        self.assertEqual(policy.max_per_artist, policy.size)
+        self.assertEqual(POLICIES['daily-mix-label'].max_per_artist, 3)
 
     def test_a_policy_cannot_be_mutated_at_runtime(self):
         with self.assertRaises(dataclasses.FrozenInstanceError):

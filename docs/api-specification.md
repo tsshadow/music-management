@@ -266,7 +266,8 @@ need `rules.manage`.
 - **`rules.manage`**: `POST /api/artists/{id}/image/url`, `/image/upload`, `/image/select/{image_id}`,
   `/image/clear`, `POST /api/artists/fetch-missing` (alias `/fetch-images`), `POST /api/artists/{id}/fetch-image`.
 - `/image/url` accepts only http(s) URLs whose host resolves to public addresses (400 otherwise; each
-  redirect hop is re-checked) and downloads at most 10 MB (413). `/image/upload` takes base64 of at most
+  redirect hop is re-checked, at most three) and downloads at most 10 MB (413) within 10 seconds. The
+  host is resolved once and the download connects to that checked address (bug report 114). `/image/upload` takes base64 of at most
   10 MB (413).
 
 ### ⚙️ Configuration (`config.manage`)

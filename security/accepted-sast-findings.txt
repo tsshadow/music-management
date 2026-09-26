@@ -139,6 +139,15 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 853ee5818712edd1 x4  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/codeql.yml
 7ff42c6033f62fab x3  # github-actions-mutable-action-tag services/music-management-server/.github/workflows/lint.yml
 
+# --- http-not-https-connection --- [r:3efda51d]
+# safe_fetch.py opens an HTTPConnectionPool for http:// artist image URLs.
+# Plain HTTP is a supported input (a pasted URL or a provider answer may be
+# http, and a public http URL commonly redirects to https); the pool only
+# carries an image download from a checked public address, sends no
+# credentials, and https URLs go through HTTPSConnectionPool with full
+# certificate verification. Audited 2026-09-26 (bug report 114).
+e194609fb29b11bc x1  # http-not-https-connection services/music_manager/artist_image_fetcher/safe_fetch.py
+
 # --- insecure-file-permissions --- [r:115750c8]
 # The importer setting 0777/0666 on a release it just moved into the
 # library. That is what the whole tree carries after the 2026-09-05

@@ -16,6 +16,7 @@ import kotlinx.coroutines.guava.future
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.FeedPage
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.util.Settings.maxSongs
@@ -115,9 +116,15 @@ class MediaLibraryPlaybackController(
      * the repository catches and reports as an empty feed -- a car button that silently does
      * nothing.
      */
-    fun playFeed(slug: String): List<Track>? {
-        val tracks = serviceScope.future { dataProvider.feeds.tracksFor(slug) }.get()
-        return tracks.ifEmpty { null }
+    fun playFeed(slug: String): List<Track>? = feedPage(slug)?.tracks
+
+    /**
+     * The same, with where the feed's next page starts, for a queue that continues past its end
+     * ([FeedQueueContinuation]). Null when there is nothing to play.
+     */
+    fun feedPage(slug: String): FeedPage? {
+        val page = serviceScope.future { dataProvider.feeds.firstPage(slug) }.get()
+        return page.takeIf { it.tracks.isNotEmpty() }
     }
 
     fun playFeedSong(slug: String, songId: String): List<Track>? {
@@ -195,7 +202,7 @@ class MediaLibraryPlaybackController(
             MEDIA_SONG_STARRED_ITEM -> playStarredSongs() to parts[INDEX_ID]
             MEDIA_SONG_RANDOM_ITEM -> dataProvider.randomSongsCache to parts[INDEX_ID]
             MEDIA_SEARCH_SONG_ITEM -> dataProvider.searchSongsCache to parts[INDEX_ID]
-            MEDIA_FEED_ITEM -> playFeed(parts[INDEX_ID]) to parts[INDEX_NAME]
+            MEDIA_FEED_ITEM -> return feedQueueForTap(parts[INDEX_ID], parts[INDEX_NAME])
             else -> return null
         }
         if (tracks.isNullOrEmpty()) return null
@@ -204,8 +211,38 @@ class MediaLibraryPlaybackController(
         return CarQueue(tracks, index)
     }
 
-    /** A queue and where in it to start, for [queueForTap]. */
-    data class CarQueue(val tracks: List<Track>, val startIndex: Int)
+    /**
+     * "Alles afspelen" in a feed folder (`MEDIA_FEED_ID|<slug>`): the feed's first page from its
+     * start, with where it continues. Null for any other media id and for an empty feed.
+     *
+     * Blocks the calling thread through [feedPage]'s future, exactly like the legacy path it
+     * replaces for this one id; the page is usually cached, because the car listed the folder.
+     */
+    fun queueForFeedPlayAll(mediaId: String): CarQueue? {
+        val parts = mediaId.split('|')
+        if (parts.first() != MEDIA_FEED_ID) return null
+        val slug = parts.getOrNull(INDEX_ID) ?: return null
+        val page = feedPage(slug) ?: return null
+        return CarQueue(page.tracks, 0, feedSlug = slug, feedNextOffset = page.nextOffset)
+    }
+
+    private fun feedQueueForTap(slug: String, songId: String): CarQueue? {
+        val page = feedPage(slug) ?: return null
+        val index = page.tracks.indexOfFirst { it.id == songId }
+        if (index < 0) return null
+        return CarQueue(page.tracks, index, feedSlug = slug, feedNextOffset = page.nextOffset)
+    }
+
+    /**
+     * A queue and where in it to start, for [queueForTap]. A queue that is a feed also says which
+     * one and where its next page starts, so it can continue past its end.
+     */
+    data class CarQueue(
+        val tracks: List<Track>,
+        val startIndex: Int,
+        val feedSlug: String? = null,
+        val feedNextOffset: Int? = null
+    )
 
     fun onAddLegacyAutoItems(
         mediaItems: MutableList<MediaItem>

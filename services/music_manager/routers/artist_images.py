@@ -1,16 +1,13 @@
 import base64
 import binascii
-import ipaddress
 import logging
 import os
-import socket
-from urllib.parse import urljoin, urlsplit
 
-import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from services.music_manager.artist_image_fetcher import safe_fetch
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
@@ -31,65 +28,26 @@ MAX_IMAGE_REDIRECTS = 3
 DOWNLOAD_TIMEOUT_SECONDS = 10
 
 
-class UnsafeImageUrl(ValueError):
-    """A URL this service refuses to fetch: wrong scheme, unresolvable, or not public."""
-
-
-class ImageTooLarge(ValueError):
-    """An image that exceeds MAX_IMAGE_BYTES."""
-
-
-def ensure_public_url(url: str) -> None:
-    """Refuse a URL that is not http(s) or whose host resolves to a non-public address.
-
-    Without this, "set image from URL" is a request this server makes on the caller's
-    behalf to anything it can reach: the database, the Docker socket proxy, LMS, the
-    router's admin page. Every address the name resolves to must be globally routable,
-    so loopback, RFC 1918, link-local (cloud metadata), CGNAT (the tailnet) and the
-    reserved ranges are all refused. A name that resolves differently between this
-    check and the fetch (DNS rebinding) is not covered; each redirect hop is re-checked.
-    """
-    parts = urlsplit(url)
-    if parts.scheme.lower() not in ('http', 'https') or not parts.hostname:
-        raise UnsafeImageUrl('Only http(s) image URLs are supported')
-    try:
-        port = parts.port or (443 if parts.scheme.lower() == 'https' else 80)
-        infos = socket.getaddrinfo(parts.hostname, port, proto=socket.IPPROTO_TCP)
-    except (ValueError, OSError) as e:
-        raise UnsafeImageUrl(f'Cannot resolve {parts.hostname}') from e
-    if not infos:
-        raise UnsafeImageUrl(f'Cannot resolve {parts.hostname}')
-    for info in infos:
-        address = ipaddress.ip_address(str(info[4][0]).split('%', 1)[0])
-        if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
-            address = address.ipv4_mapped
-        if not address.is_global or address.is_multicast:
-            raise UnsafeImageUrl('Image URL points at a non-public address')
+# The download itself lives in artist_image_fetcher/safe_fetch.py, shared with the bulk
+# fetcher: it resolves each host once, refuses any internal address, and connects to the
+# checked address (bug report 114). These names stay for the route and its tests.
+UnsafeImageUrl = safe_fetch.UnsafeUrl
+ImageTooLarge = safe_fetch.ResponseTooLarge
 
 
 def download_public_image(url: str) -> bytes:
     """Fetch an image from a public http(s) URL, at most MAX_IMAGE_BYTES of it.
 
-    Redirects are followed by hand so every hop passes ensure_public_url, and the body
-    is streamed so an oversized or endless response is cut off rather than buffered.
+    Every hop is resolved once, checked, and connected to by that checked address, so a
+    DNS answer that changes between check and fetch cannot redirect the request inward.
+    The body is streamed and cut off at MAX_IMAGE_BYTES and DOWNLOAD_TIMEOUT_SECONDS.
     """
-    for _ in range(MAX_IMAGE_REDIRECTS + 1):
-        ensure_public_url(url)
-        with requests.get(url, timeout=DOWNLOAD_TIMEOUT_SECONDS, stream=True, allow_redirects=False) as response:
-            if response.is_redirect:
-                url = urljoin(url, response.headers.get('Location', ''))
-                continue
-            response.raise_for_status()
-            declared = response.headers.get('Content-Length', '')
-            if declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
-                raise ImageTooLarge('Image is larger than 10 MB')
-            data = bytearray()
-            for chunk in response.iter_content(chunk_size=64 * 1024):
-                data.extend(chunk)
-                if len(data) > MAX_IMAGE_BYTES:
-                    raise ImageTooLarge('Image is larger than 10 MB')
-            return bytes(data)
-    raise UnsafeImageUrl('Too many redirects')
+    return safe_fetch.fetch(
+        url,
+        max_bytes=MAX_IMAGE_BYTES,
+        max_redirects=MAX_IMAGE_REDIRECTS,
+        timeout=DOWNLOAD_TIMEOUT_SECONDS,
+    )
 
 
 STORAGE_PATH = os.getenv('STORAGE_PATH', '/mnt/music/artists')

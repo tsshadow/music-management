@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from services.common.Helpers.LmsEndpoint import redact_url
-from services.music_manager.database import get_db_connection, require_connection
+from services.music_manager.database import get_db_connection, require_connection, transaction
 from services.music_manager.lms_subsonic import fetch_candidate_tracks
 from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.routers.users import verify_api_key
@@ -382,9 +382,15 @@ def update_channel(slug: str, body: ChannelUpdate, _auth: dict = Depends(require
 
 @router.delete('/channels/{slug}')
 def delete_channel(slug: str, _auth: dict = Depends(require_permission('radio.manage'))):
+    """Delete a radio channel and its timeline, in one transaction.
+
+    Under the pool's autocommit a failure between the two DELETEs left a channel
+    that still plays but has lost its history, so both land or neither does
+    (docs/bug-reports/113-parent-child-deletes-without-transaction.md).
+    """
     conn = _require_db()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT id FROM radio_channels WHERE slug = %s', (slug,))
             channel = cursor.fetchone()
             if not channel:
@@ -392,7 +398,6 @@ def delete_channel(slug: str, _auth: dict = Depends(require_permission('radio.ma
             # The timeline goes with it; nothing would ever read those rows again.
             cursor.execute('DELETE FROM radio_timeline WHERE channel_id = %s', (channel['id'],))
             cursor.execute('DELETE FROM radio_channels WHERE id = %s', (channel['id'],))
-        conn.commit()
         return {'deleted': slug}
     finally:
         conn.close()

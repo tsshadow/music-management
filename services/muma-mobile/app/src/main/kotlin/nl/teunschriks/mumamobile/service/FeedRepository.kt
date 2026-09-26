@@ -49,7 +49,7 @@ class FeedRepository(
     // Concurrent because the browser reaches it from a coroutine on the service scope while a
     // tap can arrive on the session callback thread. Two simultaneous misses cost two requests,
     // which is wasteful but never wrong; a plain map could corrupt.
-    private val cache = ConcurrentHashMap<Key, List<Track>>()
+    private val cache = ConcurrentHashMap<Key, FeedPage>()
     private val feedsCache = ConcurrentHashMap<ListKey, List<MumaFeedInfo>>()
 
     /**
@@ -60,16 +60,42 @@ class FeedRepository(
      * them apart. That is deliberate for now: all three mean the car shows an empty folder, and
      * the only one worth acting on is logged.
      */
-    fun tracksFor(slug: String): List<Track> {
+    fun tracksFor(slug: String): List<Track> = firstPage(slug).tracks
+
+    /**
+     * The feed's tracks together with where its next page starts -- what a queue started from
+     * the feed needs to continue past the end (issue #84, `FeedQueueContinuation`).
+     *
+     * This is the day's whole stored list, which is what [tracksFor] always answered: the
+     * configured length (`feeds_size`), or more once the web has continued it. `nextOffset` is
+     * null when the server says there is nothing more, and on a server that predates paging.
+     */
+    fun firstPage(slug: String): FeedPage {
         val key = Key(slug, today(), serverId())
         cache[key]?.let { return it }
 
-        val outcome = fetch(slug)
+        val outcome = fetch(slug, offset = null)
         // A failed or incomplete answer is handed to the caller but not remembered: a folder
         // opened while the network blinked or while the server was halfway through a scan must
         // not stay short for the rest of the day.
-        if (outcome.worthKeeping) cache[key] = outcome.tracks
-        return outcome.tracks
+        if (outcome.worthKeeping) cache[key] = outcome.page
+        return outcome.page
+    }
+
+    /**
+     * The page of the feed that starts at [offset] -- a `next_offset` an earlier page handed
+     * out -- or null when it could not be fetched, so the caller can try again later rather than
+     * conclude the feed has ended.
+     *
+     * Never cached here: the server stores every continuation in the day's snapshot, so asking
+     * for the same page twice on one day answers the same tracks, and a Release Radar rebuilt
+     * within the hour answers its new list instead of this client's memory of the old one. A
+     * page of which only some paths resolved is still handed over: a queue that grows by 98 is
+     * better than one that stops.
+     */
+    fun pageAfter(slug: String, offset: Int): FeedPage? {
+        val outcome = fetch(slug, offset)
+        return if (outcome.failed) null else outcome.page
     }
 
     /**
@@ -127,31 +153,34 @@ class FeedRepository(
         const val SONGS_BY_PATH_LIMIT = 100
     }
 
-    /** What one attempt produced, and whether it is the whole feed or only what survived. */
-    private data class Outcome(val tracks: List<Track>, val worthKeeping: Boolean) {
+    /**
+     * What one attempt produced: the page, whether it is the whole of it or only what survived,
+     * and whether the attempt failed outright (no answer, or an exception on the way).
+     */
+    private data class Outcome(val page: FeedPage, val worthKeeping: Boolean, val failed: Boolean = false) {
         companion object {
-            val nothing = Outcome(emptyList(), false)
+            val nothing = Outcome(FeedPage(emptyList(), null), worthKeeping = false, failed = true)
         }
     }
 
-    private fun fetch(slug: String): Outcome = try {
-        val feed = mumaApiProvider().getFeed(slug).execute().body()
+    private fun fetch(slug: String, offset: Int?): Outcome = try {
+        val feed = mumaApiProvider().getFeed(slug, offset = offset).execute().body()
         if (feed == null) {
             Timber.w("Feed %s: no answer from MuMa", slug)
             Outcome.nothing
         } else {
             val paths = feed.tracks.mapNotNull { it.libraryPath }.filter { it.isNotBlank() }
             if (feed.state != "ok") Timber.i("Feed %s came back as %s", slug, feed.state)
-            resolve(slug, paths)
+            resolve(slug, paths, feed.nextOffset)
         }
     } catch (all: Exception) {
         Timber.w(all, "Could not fetch feed %s", slug)
         Outcome.nothing
     }
 
-    private fun resolve(slug: String, paths: List<String>): Outcome {
+    private fun resolve(slug: String, paths: List<String>, nextOffset: Int?): Outcome {
         // An empty feed is a real answer and worth keeping: nothing was released this week.
-        if (paths.isEmpty()) return Outcome(emptyList(), true)
+        if (paths.isEmpty()) return Outcome(FeedPage(emptyList(), nextOffset), true)
         return try {
             // getSongsByPath answers in the order it was asked, leaving out what it does not
             // have. So this is already MuMa's ranking, minus whatever the server is missing --
@@ -166,10 +195,16 @@ class FeedRepository(
             if (!complete) {
                 Timber.i("Feed %s: only %s of %s tracks resolved, not caching", slug, songs.size, paths.size)
             }
-            Outcome(songs, complete)
+            Outcome(FeedPage(songs, nextOffset), complete)
         } catch (all: Exception) {
             Timber.w(all, "Could not resolve feed %s to songs", slug)
             Outcome.nothing
         }
     }
 }
+
+/**
+ * One page of a feed as tracks this app can play, and the offset the page after it starts at
+ * (null when the server has nothing more to give).
+ */
+data class FeedPage(val tracks: List<Track>, val nextOffset: Int?)

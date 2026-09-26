@@ -102,9 +102,14 @@ Summarised here because it affects what counts as a vulnerability;
   same 401 text as a wrong password and still pays for one bcrypt check.
 * Refresh tokens are capped at 10 per account (oldest pruned on issue, and
   daily across all accounts); revoked rows go after 30 days.
-* A URL the server fetches on a caller's behalf (the artist image URL) must
-  resolve to globally routable addresses only, re-checked on every redirect, and
-  is size-capped; see `routers/artist_images.ensure_public_url`.
+* A URL the server fetches on a caller's or a provider's behalf (artist image
+  URLs, pasted or from an API answer) must resolve to globally routable addresses
+  only; the host is resolved once and the connection goes to that checked address
+  (original name as `Host`, TLS SNI and certificate name), so a DNS answer that
+  changes between check and fetch cannot redirect it inward. Every redirect hop is
+  re-checked, at most three, and the body is capped at 10 MB and 10 seconds; see
+  `artist_image_fetcher/safe_fetch.py` and
+  [bug report 114](docs/bug-reports/114-artist-image-dns-rebinding.md).
 * LMS's `/muma` bridge verifies a key before it grants anything: it must be
   LMS's own `api-key` or a key MuMa confirms through `/api/auth/verify`, and
   the caller's identity comes only from that verified credential or from a

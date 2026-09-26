@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.78.1 (2026-09-26)
+
+- Artist image downloads can no longer be steered to an internal address by a DNS server that
+  changes its answer between the check and the download.
+
+- Deleting a news source or radio channel and merging a podcast show can no longer leave half-done
+  data behind when something fails midway.
+
 ## Global Version 0.78.0 (2026-09-26)
 
 - Release Radar and the daily mixes now hold 100 tracks instead of 30 (adjustable in Beheer), and a

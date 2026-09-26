@@ -78,6 +78,15 @@ answered and none had a confident match; retried after `ARTIST_IMAGE_RETRY_AFTER
 answer, and a download or save that failed, write no status at all: the artist is asked again next
 run.
 
+## Downloading provider images
+
+A portrait URL comes from a provider's API answer, so it is downloaded through `safe_fetch.py`, the
+same path as the manual "image from URL" route: the host is resolved once, every address must be
+public (no loopback, RFC 1918, Docker bridge, CGNAT/tailnet, link-local/metadata or IPv6 forms of
+those), the connection goes to that checked address with the original name as `Host`, TLS SNI and
+certificate name, redirects are re-checked per hop (at most three), and the body is capped at 10 MB.
+A refused or oversized URL is not retried. See bug report 114.
+
 ## Logging and alerts
 
 Every `WARNING` and `ERROR` becomes an event and a push on the `music-management-alerts` ntfy

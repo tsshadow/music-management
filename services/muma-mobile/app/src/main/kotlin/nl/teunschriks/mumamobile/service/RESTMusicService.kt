@@ -19,6 +19,7 @@ import nl.teunschriks.mumamobile.api.subsonic.throwOnFailure
 import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.shouldUseId3Tags
+import nl.teunschriks.mumamobile.data.SignOutEpoch
 import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.domain.Album
@@ -891,6 +892,7 @@ open class RESTMusicService(
     override fun refreshSubsonicToken(): Boolean {
         val activeServer = activeServerProvider.getActiveServer()
         if (activeServer.userName.isEmpty() || activeServer.password.isEmpty()) return false
+        val epoch = SignOutEpoch.current()
         ensureMumaLogin()
         val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSubsonicToken().execute() }
         if (!response.isSuccessful) {
@@ -914,11 +916,19 @@ open class RESTMusicService(
         )
         return when (adoption) {
             is SubsonicSigning.Adoption.Store -> {
-                adoption.canonicalUserName?.let { activeServerProvider.adoptCanonicalUserName(it) }
-                SecureSettings.subsonicToken = adoption.token
-                SecureSettings.subsonicTokenUser = adoption.tokenUser
-                Timber.i("Subsonic token stored; requests are signed with it from now on")
-                true
+                // The check above leaves a gap before the write, and misses a sign-out followed by
+                // a new sign-in; the epoch closes both (bug report 111).
+                val stored = SignOutEpoch.storeIfUnchanged(epoch) {
+                    adoption.canonicalUserName?.let { activeServerProvider.adoptCanonicalUserName(it) }
+                    SecureSettings.subsonicToken = adoption.token
+                    SecureSettings.subsonicTokenUser = adoption.tokenUser
+                }
+                if (stored) {
+                    Timber.i("Subsonic token stored; requests are signed with it from now on")
+                } else {
+                    Timber.i("Signed out while the Subsonic token was being fetched; answer dropped")
+                }
+                stored
             }
             SubsonicSigning.Adoption.Unchanged -> false
             SubsonicSigning.Adoption.Ignore -> {

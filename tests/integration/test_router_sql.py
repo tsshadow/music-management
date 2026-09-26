@@ -1417,6 +1417,37 @@ class FeedsPipelineTest:
         # so only the never-heard candidate should come back.
         assert [track['title'] for track in body['tracks']] == ['Unheard Gem']
 
+    def _artist_with_history(self, db, artist, playable):
+        """Two heard tracks (enough for the profile to know `artist`) plus `playable`
+        unheard ones with no release date -- only reachable with no window at all."""
+        for index in range(2):
+            self._listen(db, self._track(db, f'{artist} heard {index}', artist=artist))
+        for index in range(playable):
+            self._track(db, f'{artist} unheard {index}', artist=artist)
+
+    def test_artist_mix_counts_its_top_ten_and_widens_the_window(self, api, headers, db):
+        """Bug report 110: rotation_counts_query parses on MariaDB, counts what the
+        candidate query then returns, and the mix is built at the widened window."""
+        self._artist_with_history(db, 'Angerfist', playable=15)
+
+        response = api.get('/api/feeds/daily-mix-artist?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        assert body['title'] == 'angerfist'
+        assert body['relaxed_to'] == 'none'
+        assert body['funnel']['candidates'] == 15, body['funnel']
+        # Not cut to max_per_artist: every track of an artist mix has one artist.
+        assert body['funnel']['emitted'] == 15, body['funnel']
+
+    def test_artist_mix_below_the_minimum_is_empty_not_near_empty(self, api, headers, db):
+        self._artist_with_history(db, 'Angerfist', playable=14)
+
+        body = api.get('/api/feeds/daily-mix-artist?username=root', headers=headers).json()
+        assert body['state'] == 'no_matches', body
+        assert body['tracks'] == []
+        assert body['title'] == 'Artiestmix'
+
 
 class FeedsProfileAndExclusionsTest:
     """`GET /api/feeds/profile` and `PUT /api/feeds/profile/exclusions`

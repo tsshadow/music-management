@@ -14,6 +14,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.SignOutEpoch
+import nl.teunschriks.mumamobile.data.SubsonicSigning
+import nl.teunschriks.mumamobile.util.SecureSettings
+import org.koin.java.KoinJavaComponent
 import timber.log.Timber
 
 /**
@@ -26,10 +30,37 @@ import timber.log.Timber
  * second an upgrade from a build that signed with the password, a token an administrator replaced,
  * and a sign-in whose fetch failed. One refresh runs at a time; a request while one is running is
  * dropped, since the running one answers it.
+ *
+ * Neither of those runs while only Android Auto is in use, so [recovery] covers the rest: every
+ * native Subsonic client refetches through it when LMS refuses the stored token, and retries the
+ * refused request once (issue #73, bug report 111).
  */
 object SubsonicTokenRefresher {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
+
+    /**
+     * The process-wide token recovery the Subsonic clients share ([SubsonicTokenRecoverer]). It
+     * lives here rather than in the Koin module because that module is rebuilt after every token
+     * change, and the back-off has to survive the rebuild.
+     */
+    val recovery: SubsonicTokenRecoverer by lazy {
+        SubsonicTokenRecoverer(
+            refetch = {
+                if (!ActiveServerProvider.isOffline()) {
+                    MusicServiceFactory.getOnlineMusicService().refreshSubsonicToken()
+                }
+            },
+            storedToken = {
+                val server = KoinJavaComponent.get<ActiveServerProvider>(ActiveServerProvider::class.java).getActiveServer()
+                SecureSettings.subsonicToken.takeIf {
+                    SubsonicSigning.isUsable(server.userName, it, SecureSettings.subsonicTokenUser)
+                }
+            },
+            signOutEpoch = { SignOutEpoch.current() },
+            onRecovered = { scope.launch(Dispatchers.Main) { MusicServiceFactory.resetMusicService() } }
+        )
+    }
 
     /**
      * Starts a refresh unless one is running. It first hops through the main thread, so a

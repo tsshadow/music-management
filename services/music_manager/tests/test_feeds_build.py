@@ -46,6 +46,9 @@ _SERVER_LISTENS_FRAGMENT = 'WHERE s.listened_at >= %s'
 # the candidate query selects.
 _CANDIDATES_FRAGMENT = 'library_media_files mf'
 _CANONICAL_ROWS_FRAGMENT = 'AND t.id IN ('
+# rotation_counts_query also carries the media-file EXISTS, so it is told apart by
+# the per-window count columns only it selects.
+_ROTATION_COUNTS_FRAGMENT = 'AS songs_0'
 _HIERARCHY_FRAGMENT = 'FROM rules_subgenre_hierarchy'
 _EXCLUSIONS_FRAGMENT = 'FROM feeds_profile_exclusions'
 _LABEL_DOMINANT_FRAGMENT = 'GROUP BY l.name, rg.name'
@@ -70,9 +73,11 @@ def scripted(
     label_hardness=(),
     artist_hardness=(),
     canonicals=(),
+    rotation_counts=(),
 ):
     """A connection whose cursor answers build_feed's queries from fixed rows."""
     rules = (
+        (_ROTATION_COUNTS_FRAGMENT, None, list(rotation_counts)),
         # canonical_rows_query shares candidates_query's SELECT, so it has to be matched
         # first, on the one thing only it has.
         (_CANONICAL_ROWS_FRAGMENT, None, list(canonicals)),
@@ -578,9 +583,19 @@ def _entity_listen(uid, artist, label, genres, days=1):
 SINGLE_ENTITY_LISTENS = [_entity_listen(f'single-{i}', 'Angerfist', 'Neophyte Records', ['Uptempo']) for i in range(30)]
 
 
+def _songs(name, *counts):
+    """One rotation_counts_query row: `counts` per window, 90 / 365 / no window."""
+    return {'name': name, **{f'songs_{index}': count for index, count in enumerate(counts)}}
+
+
+# Enough at the policy's own 90-day window, so nothing is relaxed.
+ANGERFIST_PLAYABLE = [_songs('Angerfist', 15, 15, 15)]
+NEOPHYTE_PLAYABLE = [_songs('Neophyte Records', 15, 15, 15)]
+
+
 class RotatingMixBuildTest(unittest.TestCase):
     def test_the_artist_mix_is_titled_and_filtered_by_the_only_top_artist(self):
-        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES)
+        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES, rotation_counts=ANGERFIST_PLAYABLE)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
         self.assertEqual(feed.title, 'angerfist')
         cursor = conn.cursor.return_value
@@ -588,7 +603,7 @@ class RotatingMixBuildTest(unittest.TestCase):
         self.assertEqual(params[-1], 'angerfist')
 
     def test_the_label_mix_is_titled_and_filtered_by_the_only_top_label(self):
-        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES)
+        conn = scripted(listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES, rotation_counts=NEOPHYTE_PLAYABLE)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-label'], NOW)
         self.assertEqual(feed.title, 'neophyte records')
         cursor = conn.cursor.return_value
@@ -601,6 +616,98 @@ class RotatingMixBuildTest(unittest.TestCase):
         conn = scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
         self.assertEqual(feed.state, 'not_enough_data')
+        # No name to count for, so the count query is never sent either.
+        self.assertEqual(conn.cursor.return_value.statements_matching(_ROTATION_COUNTS_FRAGMENT), [])
+
+
+# Two artists in the top ten: Angerfist with 20 distinct tracks, Unproven with 10.
+# Which of the two the day's hash lands on is deliberately not assumed by the tests
+# below -- each makes only one of them playable, so the answer is the same either way.
+TWO_ARTIST_LISTENS = [_entity_listen(f'ang-{i}', 'Angerfist', 'Neophyte Records', ['Uptempo']) for i in range(20)] + [
+    _entity_listen(f'unp-{i}', 'Unproven', 'Masters Of Hardcore', ['Uptempo']) for i in range(10)
+]
+ANGERFIST_FLOOD = [_candidate(f'ang{i}', 'Angerfist', 'Uptempo') for i in range(20)]
+
+
+class RotatingMixPlayableArtistTest(unittest.TestCase):
+    """Bug report 110: a rotating mix only ever draws a name it can fill."""
+
+    def _build(self, counts, slug='daily-mix-artist', candidates=ANGERFIST_FLOOD):
+        conn = scripted(listens=TWO_ARTIST_LISTENS, candidates=candidates, rotation_counts=counts)
+        return conn, build_feed(conn, 'user', POLICIES[slug], NOW)
+
+    def _candidate_params(self, conn):
+        statements = conn.cursor.return_value.statements_matching(_CANDIDATES_FRAGMENT)
+        return [params for sql, params in statements if _ROTATION_COUNTS_FRAGMENT not in sql]
+
+    def test_an_artist_with_no_playable_tracks_is_skipped(self):
+        # Unproven has no row at all: not one song with a file survives the pool.
+        conn, feed = self._build([_songs('Angerfist', 20, 20, 20)])
+        self.assertEqual(feed.title, 'angerfist')
+        self.assertEqual(feed.state, 'ok')
+        self.assertEqual(self._candidate_params(conn)[0][-1], 'angerfist')
+
+    def test_the_other_way_round_the_other_artist_is_taken(self):
+        conn, feed = self._build([_songs('Unproven', 20, 20, 20)])
+        self.assertEqual(feed.title, 'unproven')
+        self.assertEqual(self._candidate_params(conn)[0][-1], 'unproven')
+
+    def test_an_artist_below_the_minimum_at_every_window_is_skipped(self):
+        below = build.MIN_ROTATION_CANDIDATES - 1
+        conn, feed = self._build([_songs('Unproven', below, below, below), _songs('Angerfist', 20, 20, 20)])
+        self.assertEqual(feed.title, 'angerfist')
+
+    def test_the_whole_top_ten_is_counted_in_one_query(self):
+        conn, _ = self._build([_songs('Angerfist', 20, 20, 20)])
+        counts = conn.cursor.return_value.statements_matching(_ROTATION_COUNTS_FRAGMENT)
+        self.assertEqual(len(counts), 1)
+        self.assertEqual(sorted(counts[0][1][-2:]), ['angerfist', 'unproven'])
+
+    def test_the_window_is_widened_to_the_narrowest_one_that_fills_the_mix(self):
+        conn, feed = self._build([_songs('Angerfist', 2, 20, 40)])
+        self.assertEqual(feed.relaxed_to, 365)
+        params = self._candidate_params(conn)[0]
+        self.assertIn((NOW.date() - timedelta(days=365)).isoformat(), params)
+
+    def test_a_name_that_only_fills_with_no_window_is_built_without_one(self):
+        conn, feed = self._build([_songs('Angerfist', 0, 4, 119)])
+        self.assertEqual(feed.relaxed_to, 'none')
+        sql = [
+            s for s, _ in conn.cursor.return_value.statements_matching(_CANDIDATES_FRAGMENT) if 'AS songs_0' not in s
+        ]
+        self.assertNotIn('LENGTH(', sql[0])
+
+    def test_no_relaxation_is_reported_when_the_policy_s_own_window_suffices(self):
+        _, feed = self._build([_songs('Angerfist', 20, 20, 20)])
+        self.assertIsNone(feed.relaxed_to)
+
+    def test_when_no_artist_qualifies_the_mix_is_empty_not_near_empty(self):
+        conn, feed = self._build([_songs('Angerfist', 3, 5, 9), _songs('Unproven', 0, 2, 2)])
+        self.assertEqual(feed.state, 'no_matches')
+        self.assertEqual(feed.tracks, [])
+        self.assertEqual(feed.title, 'Artiestmix')
+        self.assertIsNone(feed.subtitle)
+        # Nothing was drawn, so no candidate query ran for anyone.
+        self.assertEqual(self._candidate_params(conn), [])
+
+    def test_the_listing_describes_the_same_artist_the_build_uses(self):
+        conn = scripted(listens=TWO_ARTIST_LISTENS, rotation_counts=[_songs('Unproven', 20, 20, 20)])
+        info = describe_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
+        self.assertEqual(info['title'], 'unproven')
+
+    def test_the_artist_mix_is_not_cut_to_three_tracks_by_the_per_artist_cap(self):
+        _, feed = self._build([_songs('Angerfist', 20, 20, 20)])
+        self.assertEqual(len(feed.tracks), 20)
+
+    def test_the_label_mix_still_caps_each_artist(self):
+        conn = scripted(
+            listens=TWO_ARTIST_LISTENS,
+            candidates=ANGERFIST_FLOOD,
+            rotation_counts=[_songs('Neophyte Records', 20, 20, 20)],
+        )
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-label'], NOW)
+        self.assertEqual(feed.title, 'neophyte records')
+        self.assertEqual(len(feed.tracks), POLICIES['daily-mix-label'].max_per_artist)
 
 
 def _version(id_, work_id, canonical_id, **overrides):

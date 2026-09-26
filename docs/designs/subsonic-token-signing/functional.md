@@ -33,7 +33,7 @@ apps use it.
 | Android Auto starts before the app's screen was ever opened after an update | Playback works (old way) until the app's screen is opened once. |
 | The listener has no token yet | One is created for them the first time they sign in. |
 | An administrator already gave the listener a token | The apps use that same token; external players keep working. |
-| An administrator replaces the listener's token | The web player asks the listener to sign in again; the phone picks the new token up the next time the app opens. |
+| An administrator replaces the listener's token | The web player asks the listener to sign in again; the phone, Android Auto included, fetches the new token on the first request the server refuses and repeats that request, without the app's screen having to open (issue #73). |
 | The music server cannot hand out a token (e.g. an older server) | Everything keeps working the old way. |
 | A listener signs out | The token is forgotten on that device along with the password. |
 
@@ -52,6 +52,5 @@ apps use it.
 
 - Whether the password fallback should be removed once every installed app has fetched a token.
   Deferred: tracked as a follow-up issue, decided after a release cycle.
-- The phone only re-reads a replaced token when the app's screen opens; Android Auto alone does not
-  notice until then. Accepted for now (administrators rarely replace tokens), tracked as a
-  follow-up issue.
+- ~~The phone only re-reads a replaced token when the app's screen opens.~~ Resolved (issue #73,
+  bug report 111): a refused token is fetched again and the request repeated once.

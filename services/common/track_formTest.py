@@ -11,12 +11,13 @@ SHORT = 300.0
 
 
 def festivals() -> FestivalHelper:
-    """Defqon with a 2012 edition, Qlimax with none."""
+    """Defqon with a 2012 edition, Qlimax and Decibel with none."""
     helper = FestivalHelper(preload=False)
     helper.set_festivals(
         [
             Festival(name='Defqon.1', aliases=['Defqon', 'Defqon.1'], editions={2012: date(2012, 6, 23)}),
             Festival(name='Qlimax', aliases=['Qlimax'], editions={}),
+            Festival(name='Decibel Outdoor', aliases=['Decibel Outdoor', 'Decibel'], editions={}),
         ]
     )
     return helper
@@ -71,6 +72,46 @@ class DeriveFormTest(unittest.TestCase):
         self.assertEqual(form(f'{ROOT}/Warm Up Mixes/a.mp3'), 'set')
         self.assertEqual(form(f'{ROOT}/EPs/Label/CAT001/01 continuous mix.flac'), 'set')
         self.assertEqual(form(f'{ROOT}/Soundcloud/dj/yearmix.mp3', title='Yearmix 2012'), 'set')
+
+    def test_a_festival_in_a_label_track_title_does_not_make_it_a_liveset(self):
+        # Issue #76 / bug report 109: a 13.5-minute EP track whose title contains "Decibel".
+        path = f'{ROOT}/EPs/Karnage Records/KRG_003-RE - Radium_-_Karnage_03_(remastered)-()-WEB-2021/01_radium_-_decibel_dictature.mp3'
+        self.assertEqual(form(path, duration=810.0, title='Decibel Dictature'), 'set')
+
+    def test_a_labels_festival_mix_album_is_a_set(self):
+        path = f'{ROOT}/EPs/QDance/QCD010 - Defqon (2015)/23_va_-_defqon.1_2015_mix_1_(mixed_by_ran-d).mp3'
+        self.assertEqual(form(path, title='Defqon.1 2015 Mix 1 (Mixed by Ran-D)'), 'set')
+
+    def test_a_live_recording_in_the_label_tree_stays_a_liveset(self):
+        dvd = f'{ROOT}/EPs/TOFF Music/TOFF006 VA_-_Reverze_Creation_Of_Live-DVD-2009-HB/103_coone.mp3'
+        self.assertEqual(form(dvd, duration=720.0, title='Live @ Defqon.1 2012'), 'liveset')
+        self.assertEqual(
+            form(f'{ROOT}/EPs/QDance/VA-Qlimax_2005-DVD-2006-DDS/04-qlimax_2005-zany.mp3', title='Zany'), 'liveset'
+        )
+        stream = f'{ROOT}/EPs/__TODO/ - Q-Base_2010-Tha_Playah_Live-STREAM-09-11-2010/01.mp3'
+        self.assertEqual(form(stream, title='Qlimax 2010 Tha Playah'), 'liveset')
+
+    def test_a_live_word_needs_a_festival_too(self):
+        self.assertEqual(form(f'{ROOT}/EPs/Label/CAT001 - Live Album/01.mp3', title='Live Forever'), 'set')
+
+    def test_live_only_counts_as_a_whole_word(self):
+        path = f'{ROOT}/EPs/Label/CAT002 - Oliver-WEB-2012/01-delivery.mp3'
+        self.assertEqual(form(path, title='Decibel Delivery'), 'set')
+
+    def test_a_festival_named_track_outside_the_label_tree_is_still_a_liveset(self):
+        self.assertEqual(form(f'{ROOT}/Soundcloud/Radium/a.mp3', title='Decibel Dictature'), 'liveset')
+        self.assertEqual(form(f'{ROOT}/Youtube/Q-dance/a.mp3', title='Decibel Outdoor 2019 | Warface'), 'liveset')
+
+    def test_a_label_mix_album_loses_its_performance_date(self):
+        path = f'{ROOT}/EPs/B2S/Defqon 2012/01-mix.mp3'
+        self.assertEqual(
+            track_form.classify(path, ROOT, LONG, 'Defqon.1 2012 Mix 1', festivals(), podcasts()), ('set', None)
+        )
+        live = f'{ROOT}/EPs/B2S/Defqon 2012 DVD/01-live.mp3'
+        self.assertEqual(
+            track_form.classify(live, ROOT, LONG, 'Live at Defqon.1 2012', festivals(), podcasts()),
+            ('liveset', '2012-06-23'),
+        )
 
     def test_a_path_outside_the_root_uses_no_folder_rule(self):
         self.assertEqual(track_form.derive_form('/elsewhere/Livesets/x/a.mp3', ROOT, LONG, 'x'), 'set')

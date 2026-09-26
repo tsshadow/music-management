@@ -82,6 +82,55 @@ place a fetch is started -- ever opening. The fallback is self-ending (every she
 travels only over verified TLS and is redacted from logs, i.e. exactly today's exposure, bounded to
 the time before the first fetch. Removing it later is a follow-up issue.
 
+## Recovering from a refused token (issue #73)
+
+The refresher above only runs when the web shell starts or signs in. Android Auto runs the media
+session without the UI, so after an administrator replaced the user's token
+(`PUT /muma/api/admin/subsonic-token`) every browse, stream and cover-art call from the car kept
+answering error 40 until the phone's UI was opened once (bug report
+[111](../../bug-reports/111-android-auto-keeps-a-replaced-subsonic-token.md)).
+
+- **Where.** `TokenRecoveryInterceptor` (`:core:subsonic-api`) is installed in every native
+  Subsonic client: the `SubsonicAPIClient` built by `MusicServiceModule` (all `RESTMusicService`
+  calls, the cover-art loaders `CoverArtRequestHandler`/`ImageLoader`, and the stream-URL builder,
+  which derives from the same client) and the plain `OkHttpClient` behind Media3's
+  `OkHttpDataSource` in `PlaybackService`, which fetches the pre-signed stream URL. It sits behind
+  the signing interceptors, so it sees the finished `t`/`s`. The offline client gets none.
+- **What counts as a refusal.** HTTP 401, or Subsonic error 40 in a JSON or XML body. LMS answers
+  an API call with HTTP 200 and the error inside, a stream or cover-art call with HTTP 400 and the
+  same body. Only a JSON/XML body is peeked (at most 8 KiB, not consumed); media is never read.
+  Only token-signed requests qualify: a request with `p=` uses the password fallback, which a new
+  token cannot repair.
+- **What happens.** When `t = md5(storedToken + s)` the stored token itself was refused, and the
+  interceptor asks `SubsonicTokenRecoverer` (process-wide, `SubsonicTokenRefresher.recovery`, so its
+  state survives the Koin rebuild) for a new one. The recoverer runs
+  `RESTMusicService.refreshSubsonicToken` -- the MuMa API key, re-logging in only if the key itself
+  is refused, exactly as the shell-triggered refresh does -- and, when a different token got
+  stored, rebuilds the music service on the main thread and hands it back. The interceptor re-signs
+  the same request with it (fresh salt) and sends it once more; that second answer is returned
+  whatever it is. A request signed with an older token than the stored one (a client built before
+  the last refresh) is retried with the stored token without a refetch.
+- **Single flight and back-off.** One refetch at a time, under a lock; a caller that waited and then
+  finds a different token stored uses it without fetching. After a refetch that brought no new
+  token -- MuMa unreachable, the endpoint refusing, or the same token again (a revoked account) --
+  no refetch runs for 5 minutes; after one that did, not for 30 seconds. A refused account costs
+  one MuMa round trip per window, never one per request.
+- **Sign-out wins.** `SignOutEpoch` counts sign-outs. `ActiveServerProvider.signOut` clears the
+  credentials under its lock; `refreshSubsonicToken` captures the epoch before the fetch and stores
+  its answer only through `SignOutEpoch.storeIfUnchanged`, which checks and writes under the same
+  lock. This closes the gap the password check of bug report 106 left between check and write, and
+  also catches a sign-out followed by a new sign-in during the fetch. The recoverer checks the epoch
+  again before retrying or rebuilding.
+- **Fallback unchanged.** When recovery brings no new token the stored token stays and the refused
+  answer reaches the caller as before (`AuthenticationFailureNotifier` included). The password
+  fallback still applies only while *no* token is stored -- dropping a refused token to fall back to
+  `p=` would widen the exposure issue #72 is about to narrow, and would not help anyway: the cases
+  where the refetch fails (MuMa down, account disabled) are the ones where LMS's password check,
+  which asks MuMa, fails too.
+- **Logging.** The recoverer logs what happened, never the token or an exception message (which can
+  quote a URL); the debug request log redacts `t`/`s`/`p` as before (`LogRedaction`,
+  `redactingLoggingInterceptor`).
+
 ## Technical Acceptance Criteria
 
 1. `GET /api/auth/subsonic-token` returns the caller's existing token unchanged, or issues one of
@@ -98,6 +147,13 @@ the time before the first fetch. Removing it later is a follow-up issue.
    when the endpoint is missing, and drop a token LMS refuses (`store.test.js`, `login.test.js`,
    `md5.test.js`).
 6. `LogRedactionTest` and `CrashReportManagerTest` pin the JSON-member and export redaction.
+7. A refused token triggers exactly one refetch and one retry signed with the new token; concurrent
+   refusals share one refetch; a second refusal after the refetch is returned, not retried; a
+   password-signed request, another Subsonic error and a media body are left alone
+   (`TokenRecoveryInterceptorTest`, through a real `SubsonicAPIClient` against a server that checks
+   `t` like LMS).
+8. Back-off after a refetch without a new token, a sign-out (also followed by a new sign-in) during
+   the refetch discards the answer, and no token reaches the log (`SubsonicTokenRecovererTest`).
 
 ## Related Docs
 

@@ -102,7 +102,13 @@ internal fun searchableRootParams(
  *
  * @note This class interacts with `MediaLibraryDataProvider` for data access and `MusicService`
  * for retrieving media items.
+ *
+ * TooManyFunctions is suppressed on purpose: there is one private builder per browse node the
+ * car can open, each reached from the single dispatch in [loadChildren], so the count follows the
+ * number of folders Android Auto shows. Splitting it by area (feeds, favourites, tags, library) is
+ * possible but is a refactor of its own, not a lint fix.
  */
+@Suppress("TooManyFunctions")
 @UnstableApi
 class MediaLibraryBrowser(
     val mainScope: CoroutineScope,

@@ -471,9 +471,7 @@ class MediaLibraryPlaybackController(
             filtered.sortMethod,
             tracks.size
         )
-        if (tracks.isEmpty()) return null
-
-        return tracks
+        return tracks.takeIf { it.isNotEmpty() }
     }
 
     /**

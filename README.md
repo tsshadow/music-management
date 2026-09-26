@@ -265,7 +265,7 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | `frontend:format` / `:lint` / `:typecheck` | the Svelte frontend changed | oxfmt, oxlint + eslint, svelte-check. |
 | `frontend:unit` | the Svelte frontend changed | Vitest with coverage. |
 | `mobile:format` | the Android app changed | ktlint. Fix with `./scripts/test/muma-mobile-ktlint.sh ktlintFormat`. |
-| `mobile:lint` | the Android app changed | detekt and Android Lint, both against a baseline. |
+| `mobile:lint` | the Android app changed | detekt (no baseline: every finding fails) and Android Lint (against a baseline). |
 | `mobile:unit` | the Android app changed | MuMa Mobile unit tests with coverage. |
 | `muma:contracts` | always on `develop`; elsewhere only if the server, music-manager or the test stack changed | Starts the real test stack and verifies the Subsonic/OpenSubsonic API still behaves as the mobile clients expect. |
 | `frontend:e2e` | always on `develop`; elsewhere only if the frontend or test stack changed | Real browser (Playwright) run against a live stack: import a track, scan it, click through the UI. Screenshots/traces are kept for 14 days. |

@@ -10,6 +10,14 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+/**
+ * The music-manager REST API as Retrofit sees it: one function per endpoint the app calls.
+ *
+ * TooManyFunctions is suppressed on purpose, as on [nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIDefinition]:
+ * the count is the size of the backend's surface, and splitting the interface would only spread
+ * the same endpoints over several Retrofit instances without making any one of them simpler.
+ */
+@Suppress("TooManyFunctions")
 interface MumaAPIDefinition {
     // Answers with the same envelope as /api/auth/google, /api/auth/refresh and /api/auth/verify:
     // status, a nested user, and the tokens. It used to be read with a flat model of its own, which
@@ -356,7 +364,7 @@ data class MumaSettingsRequest(
 
 data class MumaSettingsResponse(
     val settings: String?,
-    val updated_at: String? = null
+    @SerializedName("updated_at") val updatedAt: String? = null
 )
 
 data class MumaStatusResponse(
@@ -364,13 +372,13 @@ data class MumaStatusResponse(
 )
 
 data class CrashReportRequest(
-    val device_model: String,
-    val os_version: String,
-    val app_version_name: String,
-    val app_version_code: Int,
-    val build_type: String,
-    val ring_buffer_text: String,
-    val stacktrace_text: String? = null
+    @SerializedName("device_model") val deviceModel: String,
+    @SerializedName("os_version") val osVersion: String,
+    @SerializedName("app_version_name") val appVersionName: String,
+    @SerializedName("app_version_code") val appVersionCode: Int,
+    @SerializedName("build_type") val buildType: String,
+    @SerializedName("ring_buffer_text") val ringBufferText: String,
+    @SerializedName("stacktrace_text") val stacktraceText: String? = null
 )
 
 data class LoginRequest(
@@ -407,9 +415,9 @@ data class MumaAuthResponse(
     // docs/designs/authentication/technical.md), not flat at the top level of this response --
     // matching /api/auth/login and /api/auth/verify. Keep this in sync with those.
     val user: MumaAuthUser? = null,
-    val api_key: String? = null,
-    val access_token: String? = null,
-    val refresh_token: String? = null,
+    @SerializedName("api_key") val apiKey: String? = null,
+    @SerializedName("access_token") val accessToken: String? = null,
+    @SerializedName("refresh_token") val refreshToken: String? = null,
     val google: MumaGoogleInfo? = null,
     val request: MumaAccessRequest? = null
 )
@@ -417,13 +425,13 @@ data class MumaAuthResponse(
 data class MumaAuthUser(
     val id: Int,
     val username: String,
-    val display_name: String? = null,
+    @SerializedName("display_name") val displayName: String? = null,
     val email: String? = null,
-    val avatar_url: String? = null,
-    val server_user_id: String? = null,
-    val role_id: Int? = null,
-    val role_name: String? = null,
-    val is_admin: Boolean? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null,
+    @SerializedName("server_user_id") val serverUserId: String? = null,
+    @SerializedName("role_id") val roleId: Int? = null,
+    @SerializedName("role_name") val roleName: String? = null,
+    @SerializedName("is_admin") val isAdmin: Boolean? = null,
     val enabled: Boolean? = null,
     val permissions: List<String>? = null
 )
@@ -431,21 +439,21 @@ data class MumaAuthUser(
 data class MumaGoogleInfo(
     val subject: String,
     val email: String,
-    val display_name: String,
-    val avatar_url: String?
+    @SerializedName("display_name") val displayName: String,
+    @SerializedName("avatar_url") val avatarUrl: String?
 )
 
 data class MumaAccessRequest(
     val id: Int,
-    val google_subject: String,
+    @SerializedName("google_subject") val googleSubject: String,
     val email: String,
-    val display_name: String,
-    val avatar_url: String?,
+    @SerializedName("display_name") val displayName: String,
+    @SerializedName("avatar_url") val avatarUrl: String?,
     val status: String,
-    val requested_at: String,
-    val reviewed_at: String? = null,
-    val reviewed_by_user_id: Int? = null,
-    val created_user_id: Int? = null
+    @SerializedName("requested_at") val requestedAt: String,
+    @SerializedName("reviewed_at") val reviewedAt: String? = null,
+    @SerializedName("reviewed_by_user_id") val reviewedByUserId: Int? = null,
+    @SerializedName("created_user_id") val createdUserId: Int? = null
 )
 
 /** A SoundCloud account or YouTube channel the downloader watches. */

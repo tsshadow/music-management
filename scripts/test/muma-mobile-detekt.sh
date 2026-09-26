@@ -8,14 +8,14 @@
 # nothing ever failed and nobody noticed. `:app` carried 44 findings and
 # `:core:subsonic-api` 30 by the time it was switched on.
 #
-# Those are in per-module detekt-baseline.xml files rather than fixed in one go.
-# A gate that is red on the day it is added teaches everyone to ignore it; a
-# baseline makes it green today and red on anything new, which is the only way
-# it stays worth reading. Shrink a baseline by fixing findings and regenerating:
+# Those went into per-module detekt-baseline.xml files at first, so the gate was
+# green on the day it was added and red on anything new. By issue #34 most of
+# the entries had gone with the legacy UI; the rest were fixed or given a
+# targeted @Suppress with its reason, and both baselines were deleted. Every
+# finding now fails. Do not regenerate a baseline to get past one: fix it, or
+# suppress it on the declaration and say why.
 #
-#   ./scripts/test/muma-mobile-detekt.sh detektBaseline
-#
-# Called from muma-mobile:check rather than a job of its own, because every
+# Called from mobile:lint rather than a job of its own, because every
 # Android job shares one Gradle home and a second job would queue behind the
 # same resource group for no gain.
 set -e

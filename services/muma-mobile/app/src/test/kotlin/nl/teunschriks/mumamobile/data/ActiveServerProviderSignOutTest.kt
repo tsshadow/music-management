@@ -10,7 +10,6 @@ package nl.teunschriks.mumamobile.data
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
-import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
@@ -45,7 +44,7 @@ class ActiveServerProviderSignOutTest {
 
     @Before
     fun setUp() {
-        provider = ActiveServerProvider(mockk(relaxed = true))
+        provider = ActiveServerProvider()
         mockkObject(SecureSettings)
         every { SecureSettings.clear() } just Runs
 

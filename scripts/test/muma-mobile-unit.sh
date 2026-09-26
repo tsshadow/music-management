@@ -29,7 +29,7 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     "$ANDROID_CI_IMAGE" \
-    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :core:voice:test :app:jacocoTestReport'
+    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :core:voice:test :core:subsonic-api:test :app:jacocoTestReport'
 
 # Extract and fix the report
 REPORT_SRC="services/muma-mobile/app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml"

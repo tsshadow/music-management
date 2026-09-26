@@ -10,8 +10,8 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.TrustManagerFactory
 import okhttp3.mockwebserver.MockWebServer
-import org.amshove.kluent.`should throw`
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -78,11 +78,16 @@ class SubsonicApiSSLTest {
         val client = createSubsonicClient(false)
         mockWebServer.enqueueResponse("ping_ok.json")
 
-        val fail = {
-            client.api.ping().execute()
-        }
-
-        fail `should throw` SSLHandshakeException::class
+        // OkHttp tries every address "localhost" resolves to. After the TLS refusal on
+        // 127.0.0.1 it may try ::1, where nothing listens, and report that ConnectException
+        // with the handshake failure attached as suppressed -- so look through the chain.
+        val thrown = runCatching { client.api.ping().execute() }.exceptionOrNull()
+        val chain = generateSequence(thrown) { it.cause }.toList()
+        val all = chain + chain.flatMap { it.suppressed.toList() }
+        assertTrue(
+            "expected an SSLHandshakeException, got $thrown",
+            all.any { it is SSLHandshakeException }
+        )
     }
 
     @Test

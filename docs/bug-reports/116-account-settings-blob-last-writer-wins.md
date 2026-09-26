@@ -37,6 +37,11 @@ A per-key write, additive to the existing contract (design:
   `updated_at`. `POST` and `GET` are unchanged, so older app versions keep working.
 - **Web player**: the write queue sends `PATCH {"set": <pending keys>}` and no longer reads first;
   on 405 (a server without the PATCH) it falls back to the old read-merge-POST.
+- **LMS**: its generic `/muma/api/` proxy (`MumaResource.cpp`) did not forward PATCH at all -- the
+  request fell through, nothing was sent, and the thread plus a MuMa call slot waited 30 s for a
+  504. `frontend:e2e`, which reaches MuMa through LMS, showed it as management pages stuck on their
+  spinner. `core::http` gained PATCH, the proxy forwards it, and an unsupported verb now gets an
+  immediate 405.
 - **App**: `patchMumaSettings` with the same 405 fallback. Favourite genres send only
   `favoriteGenres`; the bookmark migration still reads `setResume` to keep newer entries but sends
   only that key.

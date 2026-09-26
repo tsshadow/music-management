@@ -6,7 +6,9 @@
   named top-level keys, as a `SELECT ... FOR UPDATE` read-merge-write in one transaction, and
   answers the merged blob. The web player now sends only the keys it changed, without reading
   first. Additive: `POST` still replaces the whole blob for older app versions, and a new client
-  falls back to it when a server answers the PATCH with 405.
+  falls back to it when a server answers the PATCH with 405. The music server's MuMa proxy now
+  forwards PATCH too; before, it sent nothing and held the call for 30 s, and it now answers any
+  verb it does not forward with an immediate 405.
 <!-- release notes -->
 - Settings changed on your phone and in the web player at the same time no longer overwrite each
   other.

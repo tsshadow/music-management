@@ -42,6 +42,7 @@ namespace lms::core::http
         void sendPOSTRequest(ClientPOSTRequestParameters&& request) override;
         void sendPUTRequest(ClientPUTRequestParameters&& request) override;
         void sendDELETERequest(ClientDELETERequestParameters&& request) override;
+        void sendPATCHRequest(ClientPATCHRequestParameters&& request) override;
         void abortAllRequests() override;
 
         SendQueue _sendQueue;

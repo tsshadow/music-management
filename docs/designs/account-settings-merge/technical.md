@@ -75,11 +75,18 @@ rule 10).
   shell uses `store.js`, so it gets the PATCH with the web change; Capacitor's native HTTP bridge
   (`CapacitorHttp`, `HttpURLConnection` on Android) supports `PATCH`, and music-manager's CORS
   already allows it.
-- **LMS / nginx**: `/muma/api/users/...` goes straight to music-manager
-  (`services/music-management-server/nginx/reverse-proxy.conf`), so the PATCH needs no LMS change.
-  `scripts/test/reverse-proxy-routing.sh` now pins that PATCH is forwarded. LMS's own
-  `/muma/users/{id}/settings/{app}` bridge (`MumaResource.cpp`) still knows only GET and POST; no
-  current client uses it for writes, so it was left alone.
+- **nginx**: behind the production reverse proxy `/muma/api/users/...` goes straight to
+  music-manager (`services/music-management-server/nginx/reverse-proxy.conf`);
+  `scripts/test/reverse-proxy-routing.sh` now pins that PATCH is forwarded.
+- **LMS** (`MumaResource.cpp`, `core::http`): wherever LMS is reached without that proxy -- the
+  test stack, a direct `lms.<domain>` -- `/muma/api/...` goes through LMS's generic MuMa proxy,
+  which only forwarded GET, POST, PUT and DELETE. A PATCH fell through every branch, sent nothing,
+  and parked the Wt thread and a MuMa call slot on an unfulfilled promise for 30 s before a 504;
+  in `frontend:e2e` that starved the management pages behind it (spinners that never cleared). The
+  HTTP client gained `sendPATCHRequest` (Wt's `Client::patch`), the proxy forwards PATCH, and any
+  other verb now gets an immediate 405 instead of the 30 s wait. `HttpClient.eachVerbReachesTheServerAsItself`
+  checks PATCH arrives as PATCH. LMS's own `/muma/users/{id}/settings/{app}` bridge still knows
+  only GET and POST; no current client writes through it.
 
 ## Technical Acceptance Criteria
 

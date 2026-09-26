@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.75.2] - 2026-09-26
+
+### Fixed
+- **A deploy no longer fills the production disk, and `DEPLOY_DB=1` backs the database up before
+  it replaces it.** After a verified deploy, `scripts/ci/prune-prod-images.sh` removes images that
+  no container uses. It keeps the three previous images of each repository for an `IMAGE_TAG`
+  rollback, plus `:latest`/`:stable`/`:rc`. It never uses `docker rmi -f` and logs the free space
+  before and after. On 2026-09-26 old images had filled the root disk to 95%. `deploy.sh` now
+  refuses to start with less than 8 GB free (`DEPLOY_MIN_FREE_GB`). `DEPLOY_DB=1` recreates `db`
+  after the verified pre-deploy dump rather than before it. `db` now runs
+  `mariadb:13.0.2@sha256:...` with `MARIADB_AUTO_UPGRADE=1`, so the coming 12.3 -> 13.0 move runs
+  `mariadb-upgrade`. The deploy waits for the real server over TCP, logs the upgrade and checks
+  it before any migration. Renovate now keeps the MariaDB digest current. `docs/deployment.md` no
+  longer offers an ssh tunnel for the read-only MCP, because the `muma-readonly@'192.0.2.1.%'`
+  account cannot log in through one. Bug report 094.
+
+- **Two quick taps on "next" in the app no longer leave the player flickering between two tracks.**
+  On the phone the web player worked out the next track itself and pushed it to the native
+  service as a new queue position. A second tap before the service had reported the first move
+  queued a second push; the report of the first move then pointed the UI back at the first
+  target, and that mirror went across as a request too -- so each settled move re-queued the other
+  one, indefinitely. "Next" and "previous" are now intents the service carries out (N taps move N
+  tracks, shuffle and repeat are the service's own), a UI write that follows a service report is
+  never sent back, and a report from before the newest requested move is dropped. The same race
+  also hit two tracks picked from the list in quick succession. Bug report 095.
+
+- **The Release Radar and the daily mixes list a song once, and play its best version.** A feed
+  treated every file as its own candidate, so two files of one song took two places (Deadly Guns -
+  KOPPEN ROLLEN twice on the radar of 2026-09-26, one YouTube and one SoundCloud file of the same
+  song), and "heard" was per file: a song heard in its official version made its 140 kbps rip rank
+  as unheard, above it (ERABREAK - Elevate and four more). Every feed now collapses to one entry per
+  song before ranking, plays the song's canonical even when only a rip fell inside the window,
+  dates the song by its newest version, and counts a listen or a rating of any version as the
+  song's. Bug report 096.
+- **Search, favourites, shuffle, genre lists, radio channels and the phone home shelves show each
+  song once.** The server's `search3` (with a query), `getStarred2`, `getRandomSongs`,
+  `getSongsByGenre` and `getSongsByFilter` return only the canonical of a song (a song not grouped
+  yet stays), a favourite version is listed as its song, and "Recent uitgebracht" / "Recent
+  toegevoegd" ask for one row per song. Albums, playlists and the song page are unchanged. The row
+  of a song shows the song's rating: the canonical's own, else the highest given to any version;
+  clearing it clears every version, so unstarring from favourites works. Bug report 096.
+
+- **A folder conflict in the import queue is warned about once, not every five minutes.** When the
+  importer's renamer or mover cannot use a name because a folder holding a different release already
+  has it, both folders stay in place as before, but the pair is now remembered in a new
+  `importer_conflicts` table (`migrate_v43`): one WARNING the first time, an unchanged pair is not
+  compared again, and each cycle ends with one `Standing folder conflicts` INFO line. A pair whose
+  folder was removed or renamed is forgotten. On production 49 pairs produced ~490 WARNING events an
+  hour. `GET /api/import-conflicts` and a read-only section under Beheer → Label proposals list what
+  stands. Bug report 091.
+
+- **Every song now has exactly one canonical row in LMS.** The song-version push marked canonical
+  per file, so a canonical track with several files (the FLAC and the MP3 of one release) put every
+  file in canonical-only lists -- 5,226 works were shown more than once -- and a work whose
+  canonical file LMS does not have got no canonical row at all, so 1,081 songs vanished from
+  canonical-only lists in the app and Android Auto. The push now decides per work: the canonical
+  track's best file (the scanner's own media row, then format and bitrate, then the newest) is the
+  only canonical row, and when LMS lacks that track the best version LMS does have stands in
+  (counted in the hourly log). It reuses bug report 093's one-row-per-path rule and compares before
+  writing, so an unchanged run writes nothing. Bug report 097.
+
+- **The hourly track-form push into LMS converges.** 1,481 files had two `library_media_files` rows
+  (the scanner's own and a stale one from July 2026 on a length-less stub track), and both were
+  pushed, so LMS flipped ~1,700 files between `track` and empty every hour and took its write lock
+  each time. The push now sends one row per path, the scanner's own first, and its UPDATE compares
+  before writing, so an unchanged run issues no UPDATE at all. The scanner also re-reads a file
+  whose row has no length even when mtime and size are unchanged, so ~38,000 files scanned in May
+  2026 with only their file name as title get a length, a title and a form. Tracks without a file
+  stay unclassified on purpose; the form pass now logs both counts. Bug report 093.
 ## [0.75.1] - 2026-09-25
 
 ### Fixed

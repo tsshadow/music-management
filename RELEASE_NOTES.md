@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.75.2 (2026-09-26)
+
+- **Deploys clean up old server images**, so the production disk no longer fills up release by
+  release. Database upgrades now always happen after a fresh backup.
+
+- **Tapping "next" twice quickly in the app no longer makes the player flicker between two tracks
+  without settling.**
+
+- **The Release Radar and daily mixes no longer list a song twice, and play the official version
+  instead of a SoundCloud or YouTube rip.** A song heard in any version now counts as heard.
+- **Search, favourites, shuffle, genre lists, radio and the home shelves show each song once**, with
+  the rating you gave any of its versions.
+
+- **The importer no longer repeats the same folder-conflict warning every five minutes.** Each
+  conflict is reported once and listed in Beheer under Label proposals, so it can be resolved by hand.
+
+- **Songs no longer show up twice, or go missing, in the player's lists when only the preferred
+  version is shown.**
+
+- **Fewer rating errors during the hourly sync, and about 38,000 older EP tracks get their proper
+  title and track/set classification** after the next library scan.
 ## Global Version 0.75.1 (2026-09-25)
 
 - **The `__TODO` label repair answered 500 on production.** The music-manager image did not

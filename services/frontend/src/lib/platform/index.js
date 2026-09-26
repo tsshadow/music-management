@@ -196,7 +196,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @typedef {object} VoiceExplanation What a resolution says, keyed the way a screen prints it:
  *   `heard` is the words the request arrived as; `understood` is the naming rows joined into one
  *   sentence ("Hardstyle, 2021"), present only when something was resolved; `genre`, `label`,
- *   `artist`, `album`, `playlist`, `year`, `rating`, `sets`, `order` are the same rows individually,
+ *   `artist`, `album`, `playlist`, `year`, `rating`, `form`, `sets`, `order` are the same rows individually,
  *   present only when the resolution carries that field; `question` is the term a pending
  *   {@link VoiceQuestion} is about; `reason` is why nothing could be run, present only on
  *   `kind: 'nothing'`. Every value is already the library's own spelling or a fixed token
@@ -210,6 +210,8 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {string} [playlist]
  * @property {string} [year]
  * @property {string} [rating]
+ * @property {string} [form] The track forms asked for, comma-separated server spellings
+ *   (`liveset`, `set,podcast`); replaces `sets` when present.
  * @property {string} [sets]
  * @property {string} [order]
  * @property {string} [question]
@@ -224,7 +226,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {string} [method] `'getSongs'`, for `type: 'filtered'`.
  * @property {Record<string, string>} [params] For `subsonicJson(query.method, params)`; already
  *   in that call's own shape (`clusters` is the JSON string `presetQuery` builds, `sortMethod` is
- *   one of the values `getSongs` accepts).
+ *   one of the values `getSongs` accepts). A request that named a track form also carries
+ *   `form` (comma-separated `set`/`liveset`/`podcast`) and, with one year, `year` -- the filing
+ *   year, a live set's performance year.
  * @property {'album'|'playlist'} [kind] For `type: 'item'`: which subsonic call to make.
  * @property {string} [id] For `type: 'item'`.
  * @property {string} [name] For `type: 'item'`, the name as the library spells it.

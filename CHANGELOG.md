@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-09-27
+
+### Added
+- **Presets keep the Soort** (issue #47). The preset builder has a Soort select in sets mode (All /
+  Sets & mixes / Live sets / Podcasts), and "save as preset" from the sets view keeps the filter
+  bar's Soort. The preset sends it to `getSongs` as `form`, and with one year that year becomes the
+  filing year (a live set's performance year). Android Auto plays the same preset the same way.
+  MuMa Voice's explanation names the Soort it heard.
+
+### Fixed
+- **Confirming a label proposal, renaming a podcast show, changing an artist's portrait, revoking a
+  user's sessions and grouping song versions could stop half-way.** The music-manager database pool
+  commits every statement on its own, and each of these wrote two or more statements in a row. A
+  failure in between could leave a CAT-ID rule in force behind a proposal that still read as open, a
+  renamed show whose old spelling was lost for good, a portrait flagged in the manager that the
+  artist did not actually show, an api_key cleared while its refresh tokens stayed valid, or grouped
+  song versions without a canonical that no later pass would ever repair. Each now runs in one
+  transaction: all of it lands, or none of it does (bug report 115).
+
 ## [0.78.1] - 2026-09-26
 
 ### Fixed

@@ -22,6 +22,7 @@ import { writable } from "svelte/store";
 
 import { apiBase, fetchMumaJson, getHeaders, jsonHeaders } from "./mumaApi.js";
 import { QUALITY_LABEL_KEYS, qualityAtLeast } from "./quality.js";
+import { FORM_LABEL_KEYS, formParam } from "./trackForm.js";
 
 /**
  * The signed-in user's presets, as the home grid shows them. Filled by {@link refreshPresets}
@@ -82,6 +83,7 @@ const SORT_LABEL_KEYS = Object.freeze({
  * @property {number} maxRating 5 means no ceiling.
  * @property {string|null} minQuality A floor on the QUALITY cluster, null for none.
  * @property {'short'|'long'|null} length Songs, sets, or whatever mode the listener is in.
+ * @property {string|null} form A track form from `SET_FORMS` for a sets preset, null for none.
  * @property {number} size
  */
 
@@ -113,6 +115,9 @@ export function normalizePreset(row) {
     minQuality:
       typeof raw.minQuality === "string" && raw.minQuality.trim() ? raw.minQuality.trim() : null,
     length: lengthOf(raw),
+    // Only a form the server knows, and only on the sets side; anything else is dropped here
+    // rather than sent for LMS to refuse the whole request over.
+    form: formParam(raw.form, lengthOf(raw) === "short" ? "songs" : "sets") ?? null,
     size: numberOr(raw.size, DEFAULT_PRESET_SIZE),
   };
 }
@@ -130,19 +135,22 @@ export function normalizePreset(row) {
  * @returns {{method: string, params: Record<string, unknown>}} For `subsonicJson`.
  */
 export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) {
+  const length = preset.length ?? (viewMode === "sets" ? "long" : "short");
+  const form = formParam(preset.form, length === "long" ? "sets" : "songs");
+  // With a form, one year is the year a track files under -- a live set's performance year --
+  // which only the `year` parameter knows. Otherwise, and for several years, the YEAR cluster.
+  const filingYear = form && preset.years.length === 1 ? Number(preset.years[0]) : NaN;
   const clusters = [];
   if (preset.genres.length) clusters.push({ name: "GENRE", value: preset.genres });
-  if (preset.years.length) clusters.push({ name: "YEAR", value: preset.years });
+  if (preset.years.length && !Number.isInteger(filingYear))
+    clusters.push({ name: "YEAR", value: preset.years });
   if (preset.artists.length) clusters.push({ name: "ARTIST", value: preset.artists });
   if (preset.labels.length) clusters.push({ name: "PUBLISHER", value: preset.labels });
   if (preset.festivals.length) clusters.push({ name: "FESTIVAL", value: preset.festivals });
   // A floor, as the list of tiers down to it; a floor this app does not know sends nothing.
   const quality = qualityAtLeast(preset.minQuality);
   if (quality) clusters.push({ name: "QUALITY", value: quality });
-  clusters.push({
-    name: "LENGTH",
-    value: preset.length ?? (viewMode === "sets" ? "long" : "short"),
-  });
+  clusters.push({ name: "LENGTH", value: length });
 
   const params = {
     clusters: JSON.stringify(clusters),
@@ -152,6 +160,8 @@ export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) 
   };
   if (preset.minRating > 0) params.ratingMin = preset.minRating;
   if (preset.maxRating < 5) params.ratingMax = preset.maxRating;
+  if (form) params.form = form;
+  if (Number.isInteger(filingYear)) params.year = filingYear;
   if (preset.sort === "random" && seed !== undefined) params.seed = seed;
 
   return { method: "getSongs", params };
@@ -167,9 +177,12 @@ export function presetQuery(preset, { viewMode, count, offset = 0, seed } = {}) 
  * missing key is what every reader already handles. A rating range of 0..5 is likewise left out,
  * since it filters nothing.
  *
+ * `form` is kept only for a sets preset and only when it is one of `SET_FORMS`, which is also
+ * what the Android Auto browser reads it as (`TileInfo.form`).
+ *
  * @param {{genres?: string[], artists?: string[], labels?: string[], festivals?: string[],
  *   years?: (string|number)[], sort?: string, minRating?: number, maxRating?: number,
- *   minQuality?: string|null, viewMode: 'songs'|'sets', size?: number}} query
+ *   minQuality?: string|null, form?: string|null, viewMode: 'songs'|'sets', size?: number}} query
  * @returns {string}
  */
 export function presetParams({
@@ -182,6 +195,7 @@ export function presetParams({
   minRating = 0,
   maxRating = 5,
   minQuality = null,
+  form = null,
   viewMode,
   size = DEFAULT_PRESET_SIZE,
 }) {
@@ -205,6 +219,8 @@ export function presetParams({
   // Only a tier the server has; anything else is left out, as an empty list would be.
   if (qualityAtLeast(minQuality)) params.minQuality = String(minQuality).trim().toLowerCase();
   params.length = viewMode === "sets" ? "long" : "short";
+  const kind = formParam(form, viewMode);
+  if (kind) params.form = kind;
   params.size = Math.max(1, Number(size) || DEFAULT_PRESET_SIZE);
   return JSON.stringify(params);
 }
@@ -214,8 +230,8 @@ export function presetParams({
  * label, one year and rating floor, through {@link presetParams}.
  *
  * @param {{genre?: string, label?: string, year?: string, sort?: string, minRating?: string|number,
- *   minQuality?: string, viewMode: 'songs'|'sets'}} filters The filter bar's state plus the
- *   listener's mode.
+ *   minQuality?: string, form?: string, viewMode: 'songs'|'sets'}} filters The filter bar's state
+ *   plus the listener's mode.
  * @returns {string}
  */
 export function presetParamsFromFilters({
@@ -225,6 +241,7 @@ export function presetParamsFromFilters({
   sort,
   minRating,
   minQuality,
+  form,
   viewMode,
 }) {
   return presetParams({
@@ -234,6 +251,7 @@ export function presetParamsFromFilters({
     sort,
     minRating: Number(minRating) || 0,
     minQuality: minQuality || null,
+    form: form || null,
     viewMode,
   });
 }
@@ -255,6 +273,7 @@ export const PRESET_SORTS = Object.freeze(
  */
 export function presetSummary(preset, t) {
   const parts = [t(SORT_LABEL_KEYS[preset.sort] ?? SORT_LABEL_KEYS.recent)];
+  if (preset.form && FORM_LABEL_KEYS[preset.form]) parts.push(t(FORM_LABEL_KEYS[preset.form]));
   const filters = [...preset.genres, ...preset.artists, ...preset.labels, ...preset.festivals];
   if (filters.length) parts.push(filters.join(", "));
   if (preset.years.length) parts.push(preset.years.join(", "));

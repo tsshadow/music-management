@@ -75,6 +75,28 @@ Parent-then-children deletes, added by [bug report 113](../../bug-reports/113-pa
 | `routers/radio.py` `delete_channel` | a channel's timeline + the channel row |
 | `routers/management.py` `decide_podcast` (merge) | the kept name as alias + the moved spellings + the merged-away show row |
 
+Multi-statement writes that delete nothing, added by [bug report 115](../../bug-reports/115-multi-statement-writes-without-transaction.md)
+(GitLab issue #85). Each one was checked for whether a failure between its statements leaves a
+state that a reader, or a later job, would misread:
+
+| Where | What lands together |
+|---|---|
+| `routers/management.py` `confirm_label_proposal` | the `rules_catid_label` rule + the proposal's `confirmed` verdict (the folder move for a proposal without a CAT ID runs before the transaction, since a move on disk cannot be rolled back) |
+| `routers/management.py` `rename_podcast` | the new show name + the old name kept as an alias |
+| `routers/artist_images.py` `select_artist_primary_image`, `_store_manual_image` | (the new image row +) the `is_primary` flags + `library_artists.primary_image_id` |
+| `routers/artist_images.py` `clear_artist_primary_image` | the cleared flags + the nulled pointer and `cleared` status |
+| `artist_image_fetcher/fetcher.py` `_set_primary_image` | the flags + the pointer, on the fetcher's own connection (pooled from the router, plain pymysql with autocommit off from the CLI) |
+| `routers/users.py` `revoke_sessions` | the cleared api_key + the revoked refresh tokens + the audit row |
+| `song_version_worker.py` `group_once` | one grouping batch: work assignment, automatic splits and canonical recompute. `drain_backlog` still commits between batches |
+
+Assessed and left alone, with the reasons in bug report 115: `save_artist_redirect` and
+`update_dynamic_playlist` (branches, one statement per request), `sync_artist_images_to_server`
+(SQLite, already one transaction per artist, and the next pass reuses any leftover row),
+`rescore_batch` (every value is recomputed from what the batch reads and the signature stamp comes
+last, so a partial batch is redone by the next tick; the per-batch design of bug reports 100/101
+stays), and `TrustedArtistHelper.add` (a non-autocommit connection that already commits or rolls
+back both INSERTs together).
+
 The artist-curation `decide` and `undo` got theirs in [bug report 080](../../bug-reports/080-artist-redirect-chains-and-portrait-reset.md).
 
 `scanner.process_file` used to open a transaction only when a file moved to a new track row. It now
@@ -114,9 +136,15 @@ None. music-manager only.
    class).
 5. End to end: a festival update whose alias INSERT is refused by MariaDB (an alias longer than the
    column) keeps both the old name and the old alias (same class).
+6. For each write of bug report 115, a failure raised inside pymysql on its last statement leaves
+   the earlier statements unapplied on MariaDB (`tests/integration/test_router_sql.py::MultiStatementWriteSqlTest`,
+   and `tests/integration/test_song_version_worker.py::test_a_batch_that_fails_before_its_canonicals_assigns_nothing`
+   for the grouping batch).
 
 ## Related Docs
 
 - [Bug report 062](../../bug-reports/062-delete-then-insert-not-atomic.md)
+- [Bug report 113](../../bug-reports/113-parent-child-deletes-without-transaction.md) and
+  [bug report 115](../../bug-reports/115-multi-statement-writes-without-transaction.md)
 - [Bug report 042](../../bug-reports/042-retag-orphans-ratings-and-listens.md) — where the scanner's
   move transaction came from.

@@ -932,3 +932,13 @@ def test_unit_coverage_is_measured_on_source_only():
     assert "--cov=services" in script and "--cov=tools" in script
     coverage = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["coverage"]["run"]
     assert {"*Test.py", "*/tests/*", "*/test_*.py", "*/conftest.py"} <= set(coverage["omit"])
+
+
+def test_shellcheck_gates_at_warning():
+    """The gate sat at `error` while 32 warnings stood open (issue #33). Those were
+    fixed; dropping the floor back would let the same SC2164/SC2155 class creep
+    into the deploy scripts again, unseen."""
+    ci = load_ci()
+    assert "./scripts/shellcheck.sh" in ci["muma:shellcheck"]["script"]
+    script = (REPO_ROOT / "scripts" / "shellcheck.sh").read_text(encoding="utf-8")
+    assert 'SEVERITY="${SHELLCHECK_SEVERITY:-warning}"' in script

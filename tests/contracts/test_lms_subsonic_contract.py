@@ -507,11 +507,12 @@ def _token_params(username, token, salt):
 def test_a_subsonic_token_signs_rest_and_the_muma_bridge(admin_credentials):
     """Bug report 103: clients sign with `u`/`t`/`s` against the user's Subsonic token, never `p`.
 
-    The token is issued here through the admin route, because the test stack's music-manager does
-    not share LMS's lms.db (GET /api/auth/subsonic-token answers 503 in this stack; its own tests
-    run against real SQLite files). What this pins is LMS's side of the contract: /rest accepts the
-    triple, and so does the /muma bridge -- which the web player's artist-image URLs go through --
-    with the identity taken from the token's user, so an admin's token opens an admin route.
+    The token is issued here through LMS's admin route, the way an administrator configures an
+    external client; the route music-manager's own clients use is pinned by
+    test_music_manager_issues_a_token_that_signs_lms_requests below. What this pins is LMS's side
+    of the contract: /rest accepts the triple, and so does the /muma bridge -- which the web
+    player's artist-image URLs go through -- with the identity taken from the token's user, so an
+    admin's token opens an admin route.
     """
     username, password = admin_credentials
     token = "ci-contract-subsonic-token-0123456789"
@@ -549,3 +550,96 @@ def test_a_subsonic_token_signs_rest_and_the_muma_bridge(admin_credentials):
         timeout=10,
     )
     assert forged.status_code == 401, forged.text
+
+
+#: The system key of the test stack (docker/compose.test.yml, `API_KEY`): a service's key, not a person's.
+SYSTEM_API_KEY = "test-api-key"
+TOKEN_LISTENER = "ci-contract-token-listener"
+TOKEN_LISTENER_PASSWORD = "ci-contract-token-listener-password"
+
+
+def _signed_get(endpoint, username, token, salt, **params):
+    """A Subsonic GET signed with `t`/`s` against `token` -- no `p` anywhere in the URL."""
+    query = {**_token_params(username, token, salt), "v": SUBSONIC_VERSION, "c": SUBSONIC_CLIENT, "f": "json", **params}
+    return requests.get(f"{LMS_URL}/rest/{endpoint}", params=query, timeout=10)
+
+
+@pytest.fixture(scope="module")
+def token_listener(admin_credentials):
+    """A normal (non-admin) account in music-manager that LMS has been told about.
+
+    Created with the system key and pushed to LMS with the same /muma/users/sync call
+    music-manager makes after the first-admin setup. Returns (login name, the account's own
+    API key from /auth/login) -- the key is what a signed-in client holds.
+    """
+    headers = {"X-API-Key": SYSTEM_API_KEY}
+    users = requests.get(f"{MUSIC_MANAGER_URL}/users/", headers=headers, timeout=10)
+    assert users.status_code == 200, users.text
+    if not any(u.get("username") == TOKEN_LISTENER for u in users.json()):
+        created = requests.post(
+            f"{MUSIC_MANAGER_URL}/users/",
+            headers=headers,
+            json={"username": TOKEN_LISTENER, "display_name": TOKEN_LISTENER, "password": TOKEN_LISTENER_PASSWORD},
+            timeout=10,
+        )
+        assert created.status_code == 200, created.text
+
+    synced = requests.post(f"{LMS_URL}/muma/users/sync", headers=headers, timeout=10)
+    assert synced.status_code == 200, synced.text
+
+    login = requests.post(
+        f"{MUSIC_MANAGER_URL}/auth/login",
+        json={"username": TOKEN_LISTENER, "password": TOKEN_LISTENER_PASSWORD},
+        timeout=10,
+    )
+    assert login.status_code == 200, login.text
+    body = login.json()
+    assert body["user"]["is_admin"] is False, body["user"]
+    return TOKEN_LISTENER, body["api_key"]
+
+
+def test_music_manager_issues_a_token_that_signs_lms_requests(token_listener, media_library):
+    """Issue #74 / bug report 103, end to end: GET /api/auth/subsonic-token against the real lms.db.
+
+    The test stack mounts LMS's database directory into music-manager where production does
+    (/app/data/stable), so the endpoint reads and writes the file LMS itself serves from. A normal
+    user asks with their own key, gets a token, and signs a ping and a stream with `t`/`s` -- the
+    password never appears in a URL. A system key has no "own" token (403), and asking again
+    returns the token already issued rather than a new one.
+    """
+    username, user_key = token_listener
+
+    def fetch():
+        resp = requests.get(f"{MUSIC_MANAGER_URL}/auth/subsonic-token", headers={"X-API-Key": user_key}, timeout=10)
+        # 404 until LMS's user synchroniser, which runs asynchronously after /muma/users/sync,
+        # has written the account into lms.db. Anything else is the answer.
+        return resp if resp.status_code != 404 else None
+
+    first = wait_until(fetch, timeout=30, interval=1, description="the listener to reach lms.db")
+    assert first.status_code == 200, first.text
+    issued = first.json()
+    assert issued["status"] == "ok", issued
+    assert issued["username"] == username
+    token = issued["token"]
+    assert len(token) >= 16, "LMS refuses a Subsonic token shorter than 16 characters"
+
+    ping = _signed_get("ping.view", username, token, "c0ffee01")
+    assert ping.status_code == 200, ping.text
+    assert ping.json()["subsonic-response"]["status"] == "ok", ping.text
+
+    song_id = getattr(pytest, "song_id", None)
+    assert song_id, "test_fixture_track_is_findable_with_correct_metadata must run first"
+    stream = _signed_get("stream.view", username, token, "c0ffee02", id=song_id)
+    assert stream.status_code == 200, stream.text[:500]
+    assert stream.headers.get("Content-Type", "").startswith("audio/"), stream.headers
+    assert len(stream.content) > 0
+
+    wrong = _signed_get("ping.view", username, "not-" + token, "c0ffee03")
+    assert wrong.json()["subsonic-response"]["status"] == "failed", wrong.text
+
+    system = requests.get(f"{MUSIC_MANAGER_URL}/auth/subsonic-token", headers={"X-API-Key": SYSTEM_API_KEY}, timeout=10)
+    assert system.status_code == 403, system.text
+
+    second = requests.get(f"{MUSIC_MANAGER_URL}/auth/subsonic-token", headers={"X-API-Key": user_key}, timeout=10)
+    assert second.status_code == 200, second.text
+    assert second.json()["token"] == token, "a second call must return the token already issued"

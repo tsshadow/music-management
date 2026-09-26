@@ -130,6 +130,10 @@
     <string name="auto.podcasts">Podcasts</string>
     <string name="auto.festivals">Festivals</string>
     <string name="auto.lineups">Lineups</string>
+    <string name="auto.forms">Soort</string>
+    <string name="auto.form_set">Sets &amp; mixes</string>
+    <string name="auto.form_liveset">Livesets</string>
+    <string name="auto.form_podcast">Podcasts</string>
     <string name="auto.by_year">Per jaar</string>
     <string name="auto.random_play">Willekeurig</string>
     <string name="auto.group_for_you">Voor jou</string>
@@ -153,7 +157,7 @@
     <string name="select_items">items kiezen</string>
     <string name="lineup_default">Lineup</string>
     <string name="voice.title">Spraakcommando\'s</string>
-    <string name="voice.text"><![CDATA[Vraag het de Assistent in de auto, of gebruik de spraakzoekfunctie van de app. Alles hieronder mag in één zin door elkaar.\n\n<b>Een genre</b>\nSpeel genre hardstyle af\nSpeel uptempo hardcore af\nSpeel drum and bass livesets af\n\n<b>Een artiest</b>\nSpeel muziek van headhunterz af\nSpeel artiest brennan heart af\n\n<b>Een label</b>\nSpeel label art of creation af\n\n<b>Een set</b>\nSpeel een set af\nSpeel een Defqon set af\nSpeel de nieuwste set van headhunterz af\n\n<b>Een jaar</b>\nSpeel hardstyle uit 2021 af\nSpeel headhunterz uit 2020 af\n\n<b>Een volgorde</b>\nSpeel random hardcore af\nSpeel recent af\nSpeel recent toegevoegd af\n\n<b>Je favorieten</b>\nSpeel favorieten af\nSpeel favorieten van headhunterz af\nSpeel favorieten uit 2021 af\n\n<b>Alles tegelijk</b>\nSpeel willekeurige favorieten uit 2023 af\nSpeel random uptempo hardcore uit 2021 af\n\n<b>Later in de wachtrij</b>\nSpeel project one hierna af\nSpeel dragonborn als volgende af\n\n<b>Een kwaliteit</b>\nSpeel flac hardstyle af\nSpeel hardcore in hoge kwaliteit af\n\nEen naam moet er één zijn die de bibliotheek kent. Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon; kan er niets geplaatst worden, dan neemt de gewone zoekfunctie het over en zoekt op titel.]]></string>
+    <string name="voice.text"><![CDATA[Vraag het de Assistent in de auto, of gebruik de spraakzoekfunctie van de app. Alles hieronder mag in één zin door elkaar.\n\n<b>Een genre</b>\nSpeel genre hardstyle af\nSpeel uptempo hardcore af\nSpeel drum and bass livesets af\n\n<b>Een artiest</b>\nSpeel muziek van headhunterz af\nSpeel artiest brennan heart af\n\n<b>Een label</b>\nSpeel label art of creation af\n\n<b>Een set</b>\nSpeel een set af\nSpeel een Defqon set af\nSpeel de nieuwste set van headhunterz af\n\n<b>Livesets, dj-sets of podcasts</b>\nSpeel livesets af\nSpeel livesets van Defqon 2019 af\nSpeel dj sets van headhunterz af\nSpeel podcasts af\nEen liveset valt onder het jaar waarin hij gespeeld is.\n\n<b>Een jaar</b>\nSpeel hardstyle uit 2021 af\nSpeel headhunterz uit 2020 af\n\n<b>Een volgorde</b>\nSpeel random hardcore af\nSpeel recent af\nSpeel recent toegevoegd af\n\n<b>Je favorieten</b>\nSpeel favorieten af\nSpeel favorieten van headhunterz af\nSpeel favorieten uit 2021 af\n\n<b>Alles tegelijk</b>\nSpeel willekeurige favorieten uit 2023 af\nSpeel random uptempo hardcore uit 2021 af\n\n<b>Later in de wachtrij</b>\nSpeel project one hierna af\nSpeel dragonborn als volgende af\n\n<b>Een kwaliteit</b>\nSpeel flac hardstyle af\nSpeel hardcore in hoge kwaliteit af\n\nEen naam moet er één zijn die de bibliotheek kent. Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon; kan er niets geplaatst worden, dan neemt de gewone zoekfunctie het over en zoekt op titel.]]></string>
 
     <!-- The audio-output label on the web player screen (MumaSystemPlugin.outputRoute). -->
     <string name="audio_output.wired">Bedrade koptelefoon</string>

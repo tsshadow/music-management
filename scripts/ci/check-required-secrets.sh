@@ -26,9 +26,6 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-
 read_env_value() {
     # $1: CI/CD variable value (either file content, or a path to a file
     #     containing it, since GitLab "file" type variables inject a path).

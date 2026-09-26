@@ -65,6 +65,15 @@ services:
     depends_on:
       test-db:
         condition: service_healthy
+      # music-manager opens LMS's lms.db directly (see the lms-data mount below), and its
+      # startup threads -- the lms.db sync, the listen backfill -- read it the moment they
+      # start. Waiting for LMS makes that moment deterministic: the file exists, LMS has
+      # applied its migrations and switched it to WAL, and LMS created the volume, so the
+      # directory and every file in it carry LMS's non-root owner rather than root's.
+      # LMS itself does not need music-manager to become healthy (its healthcheck is an
+      # unauthenticated ping), so this is not a cycle.
+      music-management-server:
+        condition: service_healthy
     environment:
       DB_HOST: test-db
       DB_PORT: "3306"
@@ -100,6 +109,14 @@ services:
       - /app/data
     volumes:
       - shared-music:/mnt/music
+      # LMS's own database directory, at the path production mounts it
+      # (docker/docker-compose.yml: `${LMS_DATA_PATH}/var/lms:/app/data/stable`), so
+      # `routers.users.lms_db_targets()` finds `/app/data/stable/lms.db` under the default
+      # MUMA_SERVER_DB_ROOT exactly as it does there. Without it GET /api/auth/subsonic-token
+      # answered 503 in this stack and the hourly lms.db sync never ran (issue #74). The
+      # volume is the disposable lms-data one below, never a real path; the nested mount
+      # lands inside the /app/data tmpfs the same way production's lands inside its bind.
+      - lms-data:/app/data/stable
     ports:
       - "${MUMA_TEST_PORT_MANAGER:-18000}:8000"
     healthcheck:
@@ -160,6 +177,7 @@ networks:
 volumes:
   # Named (but disposable) volumes: removed entirely by `docker compose down -v`,
   # never shared with the production docker-compose.yml volumes/paths.
+  # Also mounted into music-manager at /app/data/stable, as production does.
   lms-data:
   # Shared between LMS (/music) and music-manager (/mnt/music) so a fixture
   # file copied once is visible to both services' independent scanners.

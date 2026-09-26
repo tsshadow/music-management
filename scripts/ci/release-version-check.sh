@@ -64,7 +64,7 @@ echo "OK: CHANGELOG.md has a dated [${RELEASE_VERSION}] entry."
 # reset. Everything else is a patch bump. Without this the version number is
 # just a build counter - which is what 47 consecutive 0.0.x releases were.
 BASE_VERSION=$(git show "${BASE}:VERSION" | tr -d '[:space:]')
-IFS='.' read -r BASE_MAJOR BASE_MINOR BASE_PATCH <<< "$BASE_VERSION"
+IFS='.' read -r BASE_MAJOR BASE_MINOR _ <<< "$BASE_VERSION"
 IFS='.' read -r NEW_MAJOR NEW_MINOR NEW_PATCH <<< "$RELEASE_VERSION"
 
 # The section body for this release: everything between its heading and the

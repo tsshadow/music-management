@@ -43,6 +43,12 @@ object VoiceExplanation {
         /** Present only when the request asked for sets rather than tracks; the value is empty. */
         SETS,
 
+        /**
+         * The track forms asked for, as the server spells them and comma-separated: "liveset",
+         * "set,podcast". Replaces [SETS] when present, since every form is a kind of set.
+         */
+        FORM,
+
         /** The order the tracks were asked in; the value is one of [Order]. */
         ORDER,
 
@@ -115,8 +121,11 @@ object VoiceExplanation {
                 QueryResolver.FILTER_PUBLISHER -> rows.add(Row(Field.LABEL, value))
                 QueryResolver.FILTER_YEAR -> rows.add(Row(Field.YEAR, value))
                 QueryResolver.FILTER_FESTIVAL -> rows.add(Row(Field.FESTIVAL, value))
-                QueryResolver.FILTER_LENGTH ->
-                    if (value == VoiceQuery.LENGTH_LONG) rows.add(Row(Field.SETS))
+                QueryResolver.FILTER_LENGTH -> when {
+                    value != VoiceQuery.LENGTH_LONG -> Unit
+                    target.forms.isNotEmpty() -> rows.add(Row(Field.FORM, target.forms.joinToString(",")))
+                    else -> rows.add(Row(Field.SETS))
+                }
                 // The tag is only a fallback: the range is the wider truth, and the two are set
                 // together for the same request.
                 QueryResolver.FILTER_RATING -> ratingTag = value
@@ -127,6 +136,8 @@ object VoiceExplanation {
             }
         }
 
+        // The filing year travels beside the filters rather than in them, and names the same thing.
+        target.year?.let { rows.add(Row(Field.YEAR, it.toString())) }
         rating(target, ratingTag)?.let { rows.add(Row(Field.RATING, it)) }
         rows.add(Row(Field.ORDER, orderOf(target.sortMethod)))
         return rows

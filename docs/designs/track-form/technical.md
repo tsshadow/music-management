@@ -123,8 +123,25 @@ match for live sets only (a live set with no performance date matches exactly as
 - **music-manager**: schema, scanner, hourly pass + push, `analytics_filters`.
 - **frontend** (web and the phone, which bundles it): Soort chip in the sets view
   (`FilterBar.svelte`, `lib/trackForm.js`), `form` sent to `getSpotifyTracks`.
-- **MuMa Mobile native** (Android Auto, voice): not changed; the server accepts `form` on
-  `getSongs` for a follow-up (issue #47).
+- **MuMa Mobile native** (issue #47), no server change -- `getSongs` already took both:
+  - `core/subsonic-api`: `TrackForm` (`FORMS`, `SET_FORMS`, `known`, `sanitize`) and `form`/`year` on
+    `SubsonicAPIDefinition.getSongs`. `MusicService.getSongs` gains `forms`/`year`;
+    `RESTMusicService` passes forms through `TrackForm.sanitize`, the single choke point, so no
+    caller can put an unknown form on the wire. `OfflineMusicService` applies `year` to the date tag
+    and ignores `forms` (the cache has no form; the LENGTH cluster still keeps it on the sets side).
+  - Android Auto: pseudo tag type `FORM` (`BrowseQuery.TAG_FORM`), same id grammar as `LINEUP`:
+    `MEDIA_TAG_LIST|long|FORM` lists `TrackForm.SET_FORMS` statically, `MEDIA_TAG_TRACKS|long|FORM|
+    <form>|<year>|<sort>` is an ordinary tag folder. `BrowseQuery` carries `forms` and `year`.
+  - Voice (`core/voice`): `ParsedQuery.forms`, `Target.Filtered.forms`/`year`, explanation field
+    `FORM`; `VoiceBridge` adds `form` (comma-separated) and `year` to the web's `getSongs` params.
+    An artist slot that places no artist is tried as a festival on the sets side.
+  - Presets: `form` key in the preset JSON (`TileInfo.form`, `presets.js`), written only for a sets
+    preset and only when it is one of `SET_FORMS`; the preset builder has a Soort select in sets mode
+    and "save as preset" carries the filter bar's Soort.
+  - **Year rule, all three paths**: with a form and exactly one year, the year goes as `year` (filing
+    year) instead of the `YEAR` cluster; otherwise the cluster as before. The LENGTH cluster is kept
+    beside `form` in every path -- redundant on the server (a form implies the length) but it keeps
+    offline mode on the right side of ten minutes.
 
 ## Technical Acceptance Criteria
 
@@ -142,6 +159,11 @@ match for live sets only (a live set with no performance date matches exactly as
 5. `tests/integration/test_router_sql.py` runs the advanced/analytics SQL with `form` and a year
    range against MariaDB; `tests/integration/test_schema.py` expects both columns.
 6. The frontend sends `form` only in the sets view; the chip is absent in the songs view.
+7. MuMa Mobile (issue #47): `TrackFormTest` (only known forms survive `sanitize`), `BrowseQueryTest`
+   (preset and form-row round trips, filing year only with a form), `MediaLibraryBrowseTabsTest`
+   (Soort row in Sets only, static list, `form`/`year` reach `getSongs`, a mangled id sends no form),
+   `VoiceFormTest` + `MediaLibraryVoiceSearchTest` (spoken forms to request params, unknown forms
+   dropped) and `VoiceBridgeTest`; web `presets.test.js`, `presetBuilder.test.js`, `voiceView.test.js`.
 
 ## Related Docs
 

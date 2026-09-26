@@ -28,7 +28,7 @@ Exactly four tabs, never a fifth:
 |-----|----------------|
 | **Start** | Voor jou: Dagelijkse mixen, Release radar · Favorieten: Favoriete nummers, Favoriete genres (once one is favourited), Presets · Live: Radio, Nieuws |
 | **Nummers** | Bladeren: Genres, Labels, Jaren, Lineups · Afspelen: Willekeurig (plays), Recent toegevoegd, Recent uitgebracht |
-| **Sets** | Bladeren: Genres, Podcasts, Festivals, Jaren · Afspelen: the same three · Favorieten: Favoriete genres, Presets (sets) |
+| **Sets** | Bladeren: Genres, Soort (Sets & mixes / Livesets / Podcasts, see `track-form/`), Podcasts, Festivals, Jaren · Afspelen: the same three · Favorieten: Favoriete genres, Presets (sets) |
 | **Bibliotheek** | Playlists, Artiesten, Albums |
 
 Labels and lineups only exist under Nummers, podcasts and festivals only under Sets: the same split

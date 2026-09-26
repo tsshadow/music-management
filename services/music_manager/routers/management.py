@@ -249,13 +249,7 @@ def confirm_label_proposal(
             if not row:
                 raise HTTPException(status_code=404)
             folder, catid = row['folder'], row['catid']
-            if catid:
-                cursor.execute(
-                    'INSERT INTO rules_catid_label (catid, label) VALUES (%s, %s) '
-                    'ON DUPLICATE KEY UPDATE label = VALUES(label)',
-                    (catid, decision.label),
-                )
-            else:
+            if not catid:
                 src = os.path.join(settings.import_folder_path, folder)
                 if not folder_exists(src):
                     # Another import cycle moved it, or it was cleaned up by hand. Not an
@@ -280,11 +274,22 @@ def confirm_label_proposal(
                 # Both paths: the new one so LMS reads the files, the old one so the rows
                 # underneath a folder that is now gone get removed.
                 lms_scan_trigger.notify([src, dst])
-            cursor.execute(
-                "UPDATE rules_label_proposals SET status = 'confirmed', decided_label = %s, decided_at = NOW() WHERE id = %s",
-                (decision.label, proposal_id),
-            )
-        conn.commit()
+            # The rule and the verdict land together (bug report 115). A rule written
+            # without the verdict left the proposal open while the importer already
+            # acted on the rule -- and a later reject of that proposal left the rule in
+            # force. No folder move happens in here: it cannot be rolled back.
+            with transaction(conn):
+                if catid:
+                    cursor.execute(
+                        'INSERT INTO rules_catid_label (catid, label) VALUES (%s, %s) '
+                        'ON DUPLICATE KEY UPDATE label = VALUES(label)',
+                        (catid, decision.label),
+                    )
+                cursor.execute(
+                    "UPDATE rules_label_proposals SET status = 'confirmed', decided_label = %s, decided_at = NOW() "
+                    'WHERE id = %s',
+                    (decision.label, proposal_id),
+                )
         return {'status': 'confirmed', 'folder': folder, 'label': decision.label}
     finally:
         conn.close()
@@ -862,7 +867,9 @@ def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict =
     if not conn:
         raise HTTPException(status_code=500)
     try:
-        with conn.cursor() as cursor:
+        # One transaction (bug report 115): a rename whose alias INSERT failed dropped the
+        # old spelling for good, since a retry keeps the name the row already carries.
+        with transaction(conn), conn.cursor() as cursor:
             row = load_podcast(cursor, podcast_id)
             key = show_key(name, 'A show name')
             cursor.execute('SELECT id, name FROM rules_podcasts WHERE normalized_name = %s', (key,))
@@ -875,7 +882,6 @@ def rename_podcast(podcast_id: int, request: PodcastRenameRequest, _auth: dict =
                 'UPDATE rules_podcasts SET name = %s, normalized_name = %s WHERE id = %s', (name, key, podcast_id)
             )
             keep_as_alias(cursor, podcast_id, row['name'])
-            conn.commit()
     finally:
         conn.close()
     curation_rules.refresh(curation_rules.PODCAST_HELPER)

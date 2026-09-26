@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from services.music_manager.artist_image_fetcher import safe_fetch
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
 
@@ -277,6 +277,12 @@ def list_artist_images(artist_id: int, _auth: dict = Depends(verify_api_key)):
 
 
 def _set_primary_image(cursor, artist_id: int, image_id: int):
+    """Make `image_id` the artist's one primary image: the flags and the artist's pointer.
+
+    Three statements that must land together -- the caller runs them inside
+    `transaction(conn)`. Half of them left the manager flagging one image as primary while
+    the artist still pointed at another, or no image flagged at all (bug report 115).
+    """
     cursor.execute('UPDATE library_artist_images SET is_primary = 0 WHERE artist_id = %s', (artist_id,))
     cursor.execute('UPDATE library_artist_images SET is_primary = 1 WHERE id = %s', (image_id,))
     cursor.execute(
@@ -315,7 +321,7 @@ def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | N
         except Exception as e:
             logger.error(f'Failed to store manual image for artist {artist_id}: {e}')
             raise HTTPException(status_code=400, detail=f'Could not process image: {e}') from e
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute(
                 '''
                 INSERT INTO library_artist_images
@@ -339,7 +345,6 @@ def _store_manual_image(artist_id: int, image_data: bytes, original_url: str | N
             )
             image_id = cursor.lastrowid
             _set_primary_image(cursor, artist_id, image_id)
-        conn.commit()
         return {
             'status': 'ok',
             'artist_id': artist_id,
@@ -397,7 +402,7 @@ def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Dep
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute(
                 'SELECT id, cached_path FROM library_artist_images WHERE id = %s AND artist_id = %s',
                 (image_id, artist_id),
@@ -406,7 +411,6 @@ def select_artist_primary_image(artist_id: int, image_id: int, _auth: dict = Dep
             if not image:
                 raise HTTPException(status_code=404, detail='Image not found for this artist')
             _set_primary_image(cursor, artist_id, image_id)
-        conn.commit()
         # The fixed-URL copies follow the selection; they kept the previous portrait.
         _quietly(lambda: _image_storage().publish_primary(artist_id, image.get('cached_path')), artist_id)
         return {'status': 'ok', 'artist_id': artist_id, 'image_id': image_id}
@@ -434,7 +438,9 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
     try:
-        with conn.cursor() as cursor:
+        # The flags and the pointer together (bug report 115): half of it showed no image
+        # as primary in the manager while the artist kept its portrait everywhere else.
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('SELECT id FROM library_artists WHERE id = %s', (artist_id,))
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Artist not found')
@@ -447,7 +453,6 @@ def clear_artist_primary_image(artist_id: int, _auth: dict = Depends(require_rul
             """,
                 (artist_id,),
             )
-        conn.commit()
         _quietly(lambda: _image_storage().unpublish_primary(artist_id), artist_id)
         return {'status': 'ok', 'artist_id': artist_id}
     finally:

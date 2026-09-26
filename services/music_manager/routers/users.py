@@ -976,7 +976,9 @@ def revoke_sessions(user_id: int, auth: dict = Depends(verify_api_key)):
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
     try:
-        with conn.cursor() as cursor:
+        # All or nothing (bug report 115): half of it cleared the api_key while the refresh
+        # tokens stayed valid, or revoked everything without the audit row saying so.
+        with transaction(conn), conn.cursor() as cursor:
             cursor.execute('UPDATE users SET api_key = NULL WHERE id = %s', (user_id,))
             cursor.execute(
                 'UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = %s AND revoked_at IS NULL',
@@ -984,8 +986,7 @@ def revoke_sessions(user_id: int, auth: dict = Depends(verify_api_key)):
             )
             actor_id = (auth.get('user') or {}).get('id')
             rbac.record_audit_event(cursor, 'user.sessions_revoked', actor_user_id=actor_id, target_user_id=user_id)
-            conn.commit()
-            return {'status': 'ok'}
+        return {'status': 'ok'}
     finally:
         conn.close()
 

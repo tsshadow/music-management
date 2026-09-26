@@ -266,6 +266,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
   labelled `<select>` in the same row, same classes as the year select. Only in the sets view: in
   the songs view every row is a track, and a picker with one real choice is noise.
 
+- **Done** (2026-09-26, issue #47) — the same **Soort** choice in the preset builder and in Android
+  Auto. No new style: in `PresetBuilder.svelte` it is one more labelled `<select>` with exactly the
+  classes of the Sortering select, shown only in sets mode; in the car it is one more row in the
+  Sets tab's Bladeren group (text row, like Jaren), leading to three plain folder rows. MuMa Voice's
+  explanation card gets a "Soort" row in the existing row layout.
+
 - **Done** — Android login/welcome screens brought in line with the web's `LoginPage.svelte`: filled/rounded
   dark inputs (`MuMa Mobile.TextInputLayout`), a solid-green pill CTA
   (`MuMa Mobile.Button.Primary`), a branded white "Sign in with Google" pill button with the real

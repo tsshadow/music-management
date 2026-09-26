@@ -105,6 +105,30 @@ def _canonical_of_work(database, work_id):
         return cursor.fetchone()['canonical_track_id']
 
 
+def test_a_batch_that_fails_before_its_canonicals_assigns_nothing(database, library, monkeypatch):
+    """Bug report 115: a grouped track is never looked at again, so a half-done batch stuck.
+
+    With the canonical UPDATE refused, the batch rolls back whole: no track has a work and
+    no work exists. The next pass then groups everything and gives each work a canonical.
+    """
+    from tests.integration.test_router_sql import fail_on_statement
+
+    with monkeypatch.context() as patcher:
+        fail_on_statement(patcher, 'UPDATE library_works SET canonical_track_id')
+        with pytest.raises(RuntimeError):
+            song_version_worker.group_once(database)
+    with database.cursor() as cursor:
+        cursor.execute('SELECT COUNT(*) AS n FROM library_tracks WHERE work_id IS NOT NULL')
+        assert cursor.fetchone()['n'] == 0
+        cursor.execute('SELECT COUNT(*) AS n FROM library_works')
+        assert cursor.fetchone()['n'] == 0
+
+    song_version_worker.group_once(database)
+    with database.cursor() as cursor:
+        cursor.execute('SELECT COUNT(*) AS n FROM library_works WHERE canonical_track_id IS NULL')
+        assert cursor.fetchone()['n'] == 0
+
+
 def test_length_variants_and_the_rip_land_in_one_work(database, library):
     song_version_worker.group_once(database)
     works = {_work_of(database, library[name]) for name in ('official', 'extended', 'rip')}

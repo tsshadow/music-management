@@ -452,9 +452,16 @@ class OfflineMusicService :
         // Ignored for the same reason: grouping versions is a decision MuMa makes, and an
         // offline library has only the files it cached.
         workId: Int?,
-        canonicalOnly: Boolean?
+        canonicalOnly: Boolean?,
+        // Ignored: the form is MuMa's classification and the offline cache never stored it. The
+        // LENGTH cluster every form request also carries keeps the answer on the sets side.
+        forms: List<String>?,
+        year: Int?
     ): MusicDirectory {
         var list = getAllTracks()
+        // The cache holds only the date tag, which is what the year means for everything but a
+        // live set with a known performance date.
+        year?.let { wanted -> list = list.filter { it.year == wanted } }
 
         for (filter in filters.getAll()) {
             when (filter.name.uppercase(Locale.ROOT)) {

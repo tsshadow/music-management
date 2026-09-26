@@ -2,7 +2,6 @@
 set -e
 
 cd "$(dirname "$0")/.."
-ROOT_DIR=$(pwd)
 
 # Configuration
 APP_NAME="muma-mobile"

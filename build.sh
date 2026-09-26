@@ -53,6 +53,7 @@ if [ -f .env ]; then
         # Strip trailing comments and whitespace
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
             export "$clean_line"
         fi
     done < .env
@@ -66,6 +67,7 @@ if [ -f services/music-management-server/.env ]; then
         # Strip trailing comments and whitespace
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
+            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
             export "$clean_line"
         fi
     done < services/music-management-server/.env
@@ -155,7 +157,8 @@ run_linter() {
 
 run_tests() {
     echo "--- Running tests ---"
-    export PYTHONPATH=$PYTHONPATH:$(pwd)
+    PYTHONPATH=$PYTHONPATH:$(pwd)
+    export PYTHONPATH
     # Focus on downloader and importer tests as requested
     TEST_TARGETS="services/downloader/soundcloud/tests/ services/importer/tests/ services/tests/YoutubeDownloaderTest.py services/music_manager/tests/"
     if ! python3 -m pytest -p no:warnings $TEST_TARGETS; then

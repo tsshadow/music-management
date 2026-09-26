@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 API_KEY = resolve_system_api_key()
 # Captured before any test patches it, for the tests that need its URL checks.
@@ -315,6 +316,76 @@ class PrimaryImageTest(ArtistImagesTestCase):
         with patch.object(artist_images_router, '_image_storage') as storage:
             self.client.post('/api/artists/1/image/select/5', headers=self.headers)
         storage.return_value.publish_primary.assert_called_once_with(1, '/mnt/artists/1/spotify-abc.jpg')
+
+
+class PrimaryImageAtomicityTest(ArtistImagesTestCase):
+    """The primary flags and the artist's pointer land together (bug report 115)."""
+
+    PRIMARY = ('is_primary = 0', 'is_primary = 1', 'SET primary_image_id = %s')
+
+    def setUp(self):
+        super().setUp()
+        storage = patch.object(artist_images_router, '_image_storage')
+        self.storage = storage.start()
+        self.storage.return_value.save_image.return_value = {
+            'cached_path': '/mnt/a.jpg',
+            'public_path': '/media/a.jpg',
+            'width': 100,
+            'height': 100,
+            'mime_type': 'image/jpeg',
+            'file_size': 10,
+        }
+        self.addCleanup(storage.stop)
+
+    def select(self):
+        self.cursor.fetchone.return_value = {'id': 5, 'cached_path': '/mnt/a.jpg'}
+        return self.client.post('/api/artists/1/image/select/5', headers=self.headers)
+
+    def clear(self):
+        self.cursor.fetchone.return_value = {'id': 1}
+        return self.client.post('/api/artists/1/image/clear', headers=self.headers)
+
+    def upload(self):
+        self.cursor.fetchone.return_value = {'id': 1, 'name': 'Angerfist'}
+        self.cursor.lastrowid = 9
+        payload = base64.b64encode(b'binary').decode()
+        return self.client.post('/api/artists/1/image/upload', headers=self.headers, json={'data': payload})
+
+    def test_selecting_an_image_is_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.select().status_code, 200)
+        assert_atomic(self, log, *self.PRIMARY)
+
+    def test_a_failing_pointer_update_rolls_the_selection_back(self):
+        """Without it the manager flagged image 5 while the artist still showed the old one."""
+        log = transaction_log(self.conn, self.cursor, fail_on='SET primary_image_id = %s')
+        with self.assertRaises(RuntimeError):
+            self.select()
+        assert_rolled_back(self, log)
+        self.storage.return_value.publish_primary.assert_not_called()
+
+    def test_clearing_is_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.clear().status_code, 200)
+        assert_atomic(self, log, 'is_primary = 0', 'SET primary_image_id = NULL')
+
+    def test_a_failing_pointer_clear_rolls_the_flags_back(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='SET primary_image_id = NULL')
+        with self.assertRaises(RuntimeError):
+            self.clear()
+        assert_rolled_back(self, log)
+        self.storage.return_value.unpublish_primary.assert_not_called()
+
+    def test_storing_an_upload_is_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.upload().json()['image_id'], 9)
+        assert_atomic(self, log, 'INSERT INTO library_artist_images', *self.PRIMARY)
+
+    def test_a_failing_pointer_update_rolls_the_upload_back(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='SET primary_image_id = %s')
+        with self.assertRaises(RuntimeError):
+            self.upload()
+        assert_rolled_back(self, log)
 
 
 class ServeArtistImageTest(ArtistImagesTestCase):

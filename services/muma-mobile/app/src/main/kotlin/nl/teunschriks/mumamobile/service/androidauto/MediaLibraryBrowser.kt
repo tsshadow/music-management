@@ -32,6 +32,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
+import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.coverart.AppGenreTints
 import nl.teunschriks.mumamobile.coverart.BrowseArtwork
@@ -702,6 +703,9 @@ class MediaLibraryBrowser(
 
         mediaItems.add(R.string.main_genres_title, tagListId(length, BrowseQuery.CLUSTER_GENRE), browse)
         if (length == "long") {
+            // The web sets view's Soort chip: live sets, released sets and podcasts apart, by
+            // MuMa's classification rather than by the folder a file happens to sit in.
+            mediaItems.add(R.string.auto_forms, tagListId(length, BrowseQuery.TAG_FORM), browse)
             mediaItems.add(R.string.auto_podcasts, tagListId(length, BrowseQuery.CLUSTER_PODCAST), browse)
             mediaItems.add(R.string.auto_festivals, tagListId(length, BrowseQuery.CLUSTER_FESTIVAL), browse)
         } else {
@@ -1067,6 +1071,7 @@ class MediaLibraryBrowser(
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
         Timber.i("getTagList: type=$type length=$length")
+        if (type == BrowseQuery.TAG_FORM) return Futures.immediateFuture(itemListResult(formItems(length)))
         return mainScope.future {
             val tags: List<Pair<String, Int>>? = serviceScope.future {
                 callWithErrorHandling {
@@ -1095,6 +1100,31 @@ class MediaLibraryBrowser(
             }
             return@future itemListResult(mediaItems)
         }
+    }
+
+    /**
+     * The forms a sets list can be narrowed to, one tag folder each. Static, and only the forms the
+     * server knows: `getSongs` refuses an unknown `form` for the whole request, so the list is
+     * [TrackForm.SET_FORMS] and nothing read from anywhere else. Empty on the songs side, where
+     * every row is a track.
+     */
+    private fun formItems(length: String): MutableList<MediaItem> {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        if (length != "long") return mediaItems
+        TrackForm.SET_FORMS.forEach { form ->
+            val title = when (form) {
+                TrackForm.LIVESET -> R.string.auto_form_liveset
+                TrackForm.PODCAST -> R.string.auto_form_podcast
+                else -> R.string.auto_form_set
+            }
+            mediaItems.add(
+                title,
+                TagQuery(length, BrowseQuery.TAG_FORM, form).mediaId(MEDIA_TAG_TRACKS),
+                isBrowsable = true,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+        }
+        return mediaItems
     }
 
     /**

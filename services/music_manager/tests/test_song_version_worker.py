@@ -19,7 +19,12 @@ from unittest.mock import MagicMock, patch
 
 from services.music_manager import song_version_worker as worker
 from services.music_manager.song_versions import ranking_signature, version_score
-from services.music_manager.tests.scripted_cursor import ScriptedCursor
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 # Seconds and bytes chosen so the derived bitrate lands in different tiers: the
 # FLAC is a lossless-sized file, the MP3 a 128k one.
@@ -337,6 +342,44 @@ class GroupOnceTest(unittest.TestCase):
         )
         stats = worker.group_once(self._conn(cursor))
         self.assertEqual(stats, {'assigned': 1, 'remaining': 499, 'recomputed': 1})
+
+
+class GroupOnceAtomicityTest(unittest.TestCase):
+    """One grouping batch is one transaction (bug report 115).
+
+    The pool runs autocommit, so the commit the batch ended on committed nothing; a failure
+    after the assignment and before the canonical left grouped works without one, and no
+    later pass looks at a grouped track again.
+    """
+
+    RULES = [
+        ('AS batch', None, [_row(1, 'One')]),
+        ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
+        ('pinned_track_id <> COALESCE(canonical_track_id, 0)', None, []),
+        ('SELECT pinned_track_id FROM library_works', (40,), {'pinned_track_id': None}),
+        ('ORDER BY t.version_score DESC', (40,), {'id': 1}),
+        ('SELECT COUNT(*) AS n FROM library_tracks', None, {'n': 0}),
+    ]
+
+    def _run(self, fail_on=None):
+        cursor = ScriptedCursor(self.RULES)
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+        log = transaction_log(conn, cursor, fail_on=fail_on)
+        return conn, log
+
+    def test_assignment_and_canonical_are_one_transaction(self):
+        conn, log = self._run()
+        self.assertEqual(worker.group_once(conn)['assigned'], 1)
+        assert_atomic(
+            self, log, 'INSERT INTO library_works', 'UPDATE library_tracks SET work_id', 'SET canonical_track_id'
+        )
+
+    def test_a_failing_canonical_update_rolls_the_assignment_back(self):
+        conn, log = self._run(fail_on='SET canonical_track_id')
+        with self.assertRaises(RuntimeError):
+            worker.group_once(conn)
+        assert_rolled_back(self, log)
 
 
 class RankingContextTest(unittest.TestCase):

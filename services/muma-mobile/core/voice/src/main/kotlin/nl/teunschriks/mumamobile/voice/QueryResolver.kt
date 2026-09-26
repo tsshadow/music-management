@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.voice
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
+import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 
 /**
  * @brief Turns the parser's slots into the filters the library understands.
@@ -64,17 +65,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             val names = lookup(trace, "labels", "") { vocabulary.labels() }
             matched(trace, "label", it, VoiceQuery.match(it, names))
         }
-        var festival: String? = null
-        val known = if (parsed.years.isEmpty()) {
+        var festival: String? = festivalNamedAsArtist(parsed, artist, trace)
+        // Only forms the server knows: it refuses any other value for the whole request.
+        val forms = parsed.forms.mapNotNull { TrackForm.known(it) }.distinct()
+        val filingYear = filingYearOf(parsed, forms, trace)
+        val known = if (parsed.years.isEmpty() || filingYear != null) {
             emptyList()
         } else {
             lookup(trace, "years", "") { vocabulary.years() }
         }
-        val years = parsed.years.mapNotNull {
-            matched(trace, "year", it, it.takeIf { y -> known.contains(y) })
+        val years = if (filingYear != null) {
+            emptyList()
+        } else {
+            parsed.years.mapNotNull {
+                matched(trace, "year", it, it.takeIf { y -> known.contains(y) })
+            }
         }
 
-        val nothingNamedYet = namedGenres.isEmpty() && artist == null && label == null
+        val nothingNamedYet = namedGenres.isEmpty() && artist == null && label == null && festival == null
         val free = parsed.free?.takeIf { nothingNamedYet }
         if (free != null) {
             val candidates = candidatesFor(free, parsed, years.firstOrNull(), genres, trace)
@@ -103,7 +111,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val asksForARating = parsed.ratingMin != null
         val quality = QualityTier.atLeast(parsed.minQuality)
-        val named = namedGenres + listOfNotNull(artist, label, festival) + years
+        val named = namedGenres + listOfNotNull(artist, label, festival, filingYear?.toString()) + years
         val namesNothing = named.isEmpty() && !asksForARating && parsed.sort == null && quality == null
         // "Play a set" alone names none of the above, and it is still a request worth running:
         // the length filter is an answer on its own -- any liveset -- rather than nothing.
@@ -139,13 +147,17 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             // track, so a floor without a ceiling answers with the whole library. The parser sets
             // them as a pair for exactly that reason.
             ratingMin = parsed.ratingMin,
-            ratingMax = parsed.ratingMax
+            ratingMax = parsed.ratingMax,
+            forms = forms,
+            year = filingYear
         )
 
         here.filters(filters.toString())
         here.request(
             "getSongs sortMethod=${resolved.sortMethod} " +
-                "ratingMin=${resolved.ratingMin} ratingMax=${resolved.ratingMax}"
+                "ratingMin=${resolved.ratingMin} ratingMax=${resolved.ratingMax}" +
+                (if (forms.isNotEmpty()) " form=${forms.joinToString(",")}" else "") +
+                (filingYear?.let { " year=$it" } ?: "")
         )
         here.outcome("Resolved")
         return QueryResolution.Resolved(resolved, here)
@@ -189,6 +201,39 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         trace.outcome("NoMatch: the library places none of the ${hypotheses.size} readings")
         return QueryResolution.NoMatch("none of the readings named anything the library has", trace)
+    }
+
+    /**
+     * The festival a set request named where an artist would stand.
+     *
+     * "Speel livesets van Defqon 2019" opens the artist slot with "van", exactly as "livesets van
+     * Headhunterz" does; only the library can tell the two apart. So a spoken artist the library
+     * does not place is tried as a festival -- only on the sets side, where a festival means
+     * something, and with the partial fallback on, because "Defqon" is spelled "Defqon.1".
+     */
+    private fun festivalNamedAsArtist(parsed: ParsedQuery, artist: String?, trace: QueryTrace?): String? {
+        val spoken = parsed.artist ?: return null
+        if (artist != null || parsed.length != VoiceQuery.LENGTH_LONG) return null
+        val festivals = lookup(trace, "festivals", "") { vocabulary.festivals() }
+        val name = VoiceQuery.match(spoken, festivals) ?: return null
+        trace?.note("\"$spoken\" is no artist but a festival the library spells \"$name\"")
+        return name
+    }
+
+    /**
+     * The year to send as `getSongs`'s `year`, or null to keep the `YEAR` cluster.
+     *
+     * Only with a form, and only for one year. With a form the request is the web's sets view
+     * question -- "livesets from 2019" -- and the answer the product promises files a live set under
+     * the year it was played, which only `year` knows. It also cannot fail: an unknown year answers
+     * empty, where an unknown `YEAR` value errors the whole request, so it skips the year lookup.
+     * Several years stay the cluster, which is the only one of the two that takes a list.
+     */
+    private fun filingYearOf(parsed: ParsedQuery, forms: List<String>, trace: QueryTrace?): Int? {
+        if (forms.isEmpty()) return null
+        val year = parsed.years.singleOrNull()?.toIntOrNull() ?: return null
+        trace?.rule("a form and one year: $year is sent as the filing year, a live set's performance year")
+        return year
     }
 
     /**

@@ -48,4 +48,6 @@ answered 500, yet the festival carried the new name and had lost every alias it 
 
 Not wrapped, deliberately: deletes that remove a parent and its children in sequence with no INSERT
 (a news source, a radio channel, an artist-curation undo) and the artist-curation `decide`. Each
-leaves at worst an orphan the next run removes. They are listed in `docs/open-work.md`.
+leaves at worst an orphan the next run removes. They were wrapped later: `decide` and `undo` in
+[bug report 080](080-artist-redirect-chains-and-portrait-reset.md), the news source, the radio
+channel and the podcast merge in [bug report 113](113-parent-child-deletes-without-transaction.md).

@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
 from services.music_manager.routers import news
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 
 class NewsSchemaTest(unittest.TestCase):
@@ -650,6 +651,34 @@ class NewsManagementTest(unittest.TestCase):
             response = self.client.delete('/api/news/sources/nos', headers={'x-api-key': self.api_key})
         self.assertEqual(response.status_code, 200)
         conn.commit.assert_called_once()
+
+    @patch('services.music_manager.routers.news.get_db_connection')
+    def test_delete_removes_the_bulletins_and_the_source_in_one_transaction(self, mock_get_db):
+        conn = MagicMock()
+        mock_get_db.return_value = conn
+        cursor = conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = self._source_row()
+        cursor.fetchall.return_value = []
+        log = transaction_log(conn, cursor)
+        response = self.client.delete('/api/news/sources/nos', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM news_bulletins', 'DELETE FROM news_sources')
+
+    @patch('services.music_manager.routers.news.get_db_connection')
+    def test_a_failing_source_delete_rolls_the_bulletin_delete_back_and_keeps_the_files(self, mock_get_db):
+        """A failure between the DELETEs must not leave a source whose bulletins are gone."""
+        conn = MagicMock()
+        mock_get_db.return_value = conn
+        cursor = conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = self._source_row()
+        cursor.fetchall.return_value = [{'filename': 'nos-a.mp3'}]
+        log = transaction_log(conn, cursor, fail_on='DELETE FROM news_sources')
+        client = TestClient(app, raise_server_exceptions=False)
+        with patch('services.music_manager.routers.news._remove_bulletin_file') as remove:
+            response = client.delete('/api/news/sources/nos', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
+        remove.assert_not_called()
 
     @patch('services.music_manager.routers.news.get_db_connection')
     def test_updating_an_unknown_source_is_a_404(self, mock_get_db):

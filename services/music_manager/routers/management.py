@@ -813,16 +813,21 @@ def decide_podcast(podcast_id: int, decision: PodcastDecisionRequest, auth: dict
                 cursor.execute('SELECT id FROM rules_podcasts WHERE id = %s', (target_id,))
                 if not cursor.fetchone():
                     raise HTTPException(status_code=400, detail='Unknown merge target')
-                # The name this row was known by has to survive as an alias of the
-                # target, or every file that spells the show that way stops matching.
-                # The alias rows carry the detected spellings; the name itself is only
-                # an implicit one, and after a rename it is in neither place.
-                keep_as_alias(cursor, target_id, row['name'])
-                cursor.execute(
-                    'UPDATE rules_podcast_aliases SET podcast_id = %s WHERE podcast_id = %s', (target_id, podcast_id)
-                )
-                cursor.execute('DELETE FROM rules_podcasts WHERE id = %s', (podcast_id,))
-                conn.commit()
+                # One transaction: the kept name, the moved spellings and the dropped row
+                # land together. Under autocommit a failed DELETE left the show in the
+                # queue with its spellings already handed to the target
+                # (docs/bug-reports/113-parent-child-deletes-without-transaction.md).
+                with transaction(conn):
+                    # The name this row was known by has to survive as an alias of the
+                    # target, or every file that spells the show that way stops matching.
+                    # The alias rows carry the detected spellings; the name itself is only
+                    # an implicit one, and after a rename it is in neither place.
+                    keep_as_alias(cursor, target_id, row['name'])
+                    cursor.execute(
+                        'UPDATE rules_podcast_aliases SET podcast_id = %s WHERE podcast_id = %s',
+                        (target_id, podcast_id),
+                    )
+                    cursor.execute('DELETE FROM rules_podcasts WHERE id = %s', (podcast_id,))
                 curation_rules.refresh(curation_rules.PODCAST_HELPER)
                 return {'status': 'ok', 'merged_into': target_id}
             decided_by = (

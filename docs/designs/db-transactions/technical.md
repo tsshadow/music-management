@@ -66,6 +66,17 @@ Other multi-statement writes named by the audit, where a partial write leaves in
 | `routers/users.py` `merge_users` | every moved/deleted row + secondary account delete |
 | `routers/songs.py` `pin_version`, `split_track` | pin/new work + track move + canonical recompute |
 
+Parent-then-children deletes, added by [bug report 113](../../bug-reports/113-parent-child-deletes-without-transaction.md)
+(062 had left them out because a failure half-way leaves an orphan rather than an empty set):
+
+| Where | What lands together |
+|---|---|
+| `routers/news.py` `delete_source` | a source's bulletin rows + the source row (the audio files go after the commit) |
+| `routers/radio.py` `delete_channel` | a channel's timeline + the channel row |
+| `routers/management.py` `decide_podcast` (merge) | the kept name as alias + the moved spellings + the merged-away show row |
+
+The artist-curation `decide` and `undo` got theirs in [bug report 080](../../bug-reports/080-artist-redirect-chains-and-portrait-reset.md).
+
 `scanner.process_file` used to open a transaction only when a file moved to a new track row. It now
 always opens one, spanning the link rewrites, the media-file upsert and (when moving) the relink. The
 `library_artists` and `library_tracks` upserts before it stay outside: they are idempotent single

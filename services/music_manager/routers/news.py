@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from services.music_manager.database import get_db_connection, require_connection
+from services.music_manager.database import get_db_connection, require_connection, transaction
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import run_forever
@@ -680,16 +680,19 @@ def delete_source(slug: str, _auth: dict = Depends(require_permission('news.mana
     The files go after the commit and best effort: a file that cannot be removed
     is logged, and the source is gone either way. Deleting only the rows left the
     recordings on disk with nothing that would ever prune them.
+
+    The two DELETEs are one transaction: under the pool's autocommit a failure
+    between them left a source with no bulletin rows while its recordings stayed on
+    disk, no longer listed anywhere (docs/bug-reports/113-parent-child-deletes-without-transaction.md).
     """
     conn = _require_db()
     try:
-        with conn.cursor() as cursor:
+        with transaction(conn), conn.cursor() as cursor:
             source = _load_source(cursor, slug)
             cursor.execute('SELECT filename FROM news_bulletins WHERE source_id = %s', (source['id'],))
             filenames = [row['filename'] for row in cursor.fetchall() or []]
             cursor.execute('DELETE FROM news_bulletins WHERE source_id = %s', (source['id'],))
             cursor.execute('DELETE FROM news_sources WHERE id = %s', (source['id'],))
-        conn.commit()
     finally:
         conn.close()
     for filename in filenames:

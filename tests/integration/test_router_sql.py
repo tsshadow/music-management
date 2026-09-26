@@ -1576,6 +1576,116 @@ class NewsSqlTest:
             cursor.execute('SELECT COUNT(*) AS n FROM news_bulletins WHERE source_id = %s', (source_id,))
             assert cursor.fetchone()['n'] == 0
 
+    def test_a_failing_source_delete_keeps_the_bulletin_rows(self, api, headers, db, tmp_path, monkeypatch):
+        """Bug report 113: the bulletin DELETE is rolled back on the real server, and no file goes."""
+        monkeypatch.setenv('NEWS_DATA_DIR', str(tmp_path))
+        source_id = self._source(db)
+        self._bulletin(db, source_id, 1787248800.0, 'bnr-a.mp3')
+        (tmp_path / 'bnr-a.mp3').write_bytes(b'x')
+        fail_on_statement(monkeypatch, 'DELETE FROM news_sources')
+
+        with pytest.raises(RuntimeError):
+            api.delete('/api/news/sources/bnr', headers=headers)
+
+        assert [p.name for p in tmp_path.iterdir()] == ['bnr-a.mp3']
+        with db.cursor() as cursor:
+            cursor.execute('SELECT COUNT(*) AS n FROM news_bulletins WHERE source_id = %s', (source_id,))
+            assert cursor.fetchone()['n'] == 1
+            cursor.execute('SELECT COUNT(*) AS n FROM news_sources WHERE id = %s', (source_id,))
+            assert cursor.fetchone()['n'] == 1
+
+
+def fail_on_statement(monkeypatch, prefix):
+    """Make every pymysql statement starting with `prefix` raise, the way a lost connection would.
+
+    Patched on the cursor class, so it reaches the app's pooled connections too.
+    """
+    original = pymysql.cursors.Cursor.execute
+
+    def execute(self, query, args=None):
+        if ' '.join(str(query).split()).startswith(prefix):
+            raise RuntimeError(f'simulated failure on: {prefix}')
+        return original(self, query, args)
+
+    monkeypatch.setattr(pymysql.cursors.Cursor, 'execute', execute)
+
+
+class ParentChildDeleteSqlTest:
+    """The parent-then-children deletes of bug report 113 against the real server."""
+
+    @staticmethod
+    def _channel(db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO radio_channels (slug, name) VALUES ('qdance', 'Q-dance')")
+            channel_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO radio_timeline (channel_id, track_id, duration_ms, started_at, ends_at)'
+                " VALUES (%s, 'tr-1', 200000, 1787248800.0, 1787249000.0)",
+                (channel_id,),
+            )
+        return channel_id
+
+    @staticmethod
+    def _count(db, sql, params):
+        with db.cursor() as cursor:
+            cursor.execute(sql, params)
+            return cursor.fetchone()['n']
+
+    def test_deleting_a_channel_takes_its_timeline(self, api, headers, db):
+        channel_id = self._channel(db)
+        response = api.delete('/api/radio/channels/qdance', headers=headers)
+        assert response.status_code == 200, response.text
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM radio_timeline WHERE channel_id = %s', (channel_id,)) == 0
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM radio_channels WHERE id = %s', (channel_id,)) == 0
+
+    def test_a_failing_channel_delete_keeps_the_timeline(self, api, headers, db, monkeypatch):
+        channel_id = self._channel(db)
+        fail_on_statement(monkeypatch, 'DELETE FROM radio_channels')
+        with pytest.raises(RuntimeError):
+            api.delete('/api/radio/channels/qdance', headers=headers)
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM radio_timeline WHERE channel_id = %s', (channel_id,)) == 1
+
+    @staticmethod
+    def _shows(db):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rules_podcasts (name, normalized_name) VALUES ('DJ Isaac Sessions', 'dj isaac sessions')"
+            )
+            source = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO rules_podcasts (name, normalized_name) VALUES ('Hardstyle Sessions', 'hardstyle sessions')"
+            )
+            target = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO rules_podcast_aliases (podcast_id, alias, normalized_alias)'
+                " VALUES (%s, 'DJ ISAAC - SESSIONS', 'dj isaac sessions alias')",
+                (source,),
+            )
+        return source, target
+
+    def test_a_podcast_merge_moves_the_spellings_and_drops_the_row(self, api, headers, db):
+        source, target = self._shows(db)
+        response = api.post(
+            f'/api/rules/podcasts/{source}/decide',
+            headers=headers,
+            json={'state': 'white', 'merge_into_podcast_id': target},
+        )
+        assert response.status_code == 200, response.text
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM rules_podcasts WHERE id = %s', (source,)) == 0
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM rules_podcast_aliases WHERE podcast_id = %s', (target,)) == 2
+
+    def test_a_failing_podcast_merge_leaves_the_spellings_with_the_show(self, api, headers, db, monkeypatch):
+        source, target = self._shows(db)
+        fail_on_statement(monkeypatch, 'DELETE FROM rules_podcasts')
+        with pytest.raises(RuntimeError):
+            api.post(
+                f'/api/rules/podcasts/{source}/decide',
+                headers=headers,
+                json={'state': 'white', 'merge_into_podcast_id': target},
+            )
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM rules_podcast_aliases WHERE podcast_id = %s', (source,)) == 1
+        assert self._count(db, 'SELECT COUNT(*) AS n FROM rules_podcast_aliases WHERE podcast_id = %s', (target,)) == 0
+
 
 class ScrobbleReconcileSqlTest:
     """GET /api/scrobble/reconcile/lms runs every muma-side query against the real schema.

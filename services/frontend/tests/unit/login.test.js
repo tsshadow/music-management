@@ -307,6 +307,30 @@ describe("login - signing the ping with the Subsonic token", () => {
     expect(get(credentials).password).toBe("");
   });
 
+  it("publishes the management session only once the ping has passed", async () => {
+    let keyAtPing = "unset";
+    const base = server();
+    globalThis.fetch = vi.fn(async (url, options) => {
+      if (url.includes("/rest/ping")) keyAtPing = get(mumaApiKey);
+      return base(url, options);
+    });
+
+    await signIn("user", "hunter2");
+
+    expect(keyAtPing).toBe("");
+    expect(get(mumaApiKey)).toBe("own-key-of-user");
+  });
+
+  it("a rejected ping publishes no management session", async () => {
+    globalThis.fetch = server({ token: null, pingAccepts: () => false });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result.ok).toBe(false);
+    expect(get(mumaApiKey)).toBe("");
+    expect(get(mumaSessionActive)).toBe(false);
+  });
+
   it("a token for another name is not used", async () => {
     globalThis.fetch = server({ token: { username: "alice", token: "alices-token" } });
 

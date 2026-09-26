@@ -60,8 +60,10 @@ All in one MR (AGENTS.md rule 7):
   artist images through `/muma/api/artists/<name>/image?<authParams>` -- an `<img>` cannot send a
   header -- and those URLs would otherwise have kept the password.
 - **Web player** (`services/frontend`, also the Android shell's UI): `authParams` signs with the
-  token when one is stored for the signed-in name; `signIn` starts the MuMa session first (password
-  in the POST body), fetches the token, then pings signed with it; startup and the shell's restore
+  token when one is stored for the signed-in name; `signIn` asks for the MuMa session first (password
+  in the POST body), fetches the token with its key in one plain request (no 503 retries), pings
+  signed with it, and only then publishes the session together with the credentials -- a key
+  published earlier let the UI fire Subsonic calls before any credentials existed; startup and the shell's restore
   path fetch a missing token. `lib/md5.js` (Web Crypto has no MD5).
 - **MuMa Mobile**: `SubsonicSigning` decides token vs. password fallback per client build
   (`MusicServiceModule`); `RESTMusicService.refreshSubsonicToken` fetches and stores;

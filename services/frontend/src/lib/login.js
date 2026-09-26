@@ -63,15 +63,17 @@ export function subsonicAuthQuery(username, password) {
 export async function signIn(username, password) {
   // The management session first: it takes the password in a POST body, and its key is what
   // fetches the Subsonic token. It is a bonus, not a condition -- a server without the muma API
-  // still gives a working player, signed with the password as it always was.
-  const started = await startManagementSession(username, password);
+  // still gives a working player, signed with the password as it always was. It is published
+  // only once the ping has passed, together with the credentials: the app treats a stored key as
+  // "signed in", and a key published early let the UI run Subsonic calls with no credentials yet.
+  const session = await requestManagementSession(username, password);
   // Account names are case-insensitive, and the account's own spelling is the
   // one every later call signs in with -- not the one typed. "Teun" typed for
   // the account "user" used to be stored as typed and sent as Subsonic `u=` on
   // every request, and LMS, comparing names byte for byte, created a second
   // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
-  let canonical = canonicalUsername(username, started ? get(mumaUser) : null);
-  const token = started ? await refreshSubsonicToken() : null;
+  let canonical = canonicalUsername(username, session?.user ?? null);
+  const token = session ? await refreshSubsonicToken(undefined, session.api_key) : null;
   // LMS's own spelling of the login name is what the token opens; adopt it when it is only a case
   // variant of the name we have.
   if (token && token.username.toLowerCase() === canonical.toLowerCase()) canonical = token.username;
@@ -92,6 +94,7 @@ export async function signIn(username, password) {
     return { ok: false, reason: answer.reason, message: answer.message };
   }
 
+  if (session) publishManagementSession(session);
   credentials.update((current) => ({ ...current, username: canonical, password }));
   logAction("auth.login", { ok: true, signed: usable ? "token" : "password" });
   return { ok: true, username: canonical };
@@ -150,26 +153,51 @@ export function canonicalUsername(typed, account) {
  * @returns {Promise<boolean>} Whether a management session was started.
  */
 export async function startManagementSession(username, password) {
+  const session = await requestManagementSession(username, password);
+  if (!session) return false;
+  publishManagementSession(session);
+  return true;
+}
+
+/**
+ * MuMa's login answer for the pair, or null when there is no session to be had
+ * (refused, unreachable, or an answer without a key and a `user`). Stores
+ * nothing; see `publishManagementSession`.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<object|null>}
+ */
+async function requestManagementSession(username, password) {
   try {
     const response = await fetch(`${get(mumaApiUrl)}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const data = await response.json();
     if (!data?.api_key || !data.user || typeof data.user !== "object") {
       console.warn("Management API login answered without a user key");
-      return false;
+      return null;
     }
-    mumaApiKey.set(data.api_key);
-    mumaRefreshToken.set(data.refresh_token ?? "");
-    userPermissions.set(Array.isArray(data.user.permissions) ? data.user.permissions : []);
-    mumaUser.set(data.user);
-    mumaSessionActive.set(true);
-    return true;
+    return data;
   } catch (error) {
     console.warn("Management API login failed during Subsonic login", error);
-    return false;
+    return null;
   }
+}
+
+/**
+ * Stores a management session: the user's own key, refresh token, permissions
+ * and account.
+ *
+ * @param {object} data - A `requestManagementSession` answer.
+ */
+function publishManagementSession(data) {
+  mumaApiKey.set(data.api_key);
+  mumaRefreshToken.set(data.refresh_token ?? "");
+  userPermissions.set(Array.isArray(data.user.permissions) ? data.user.permissions : []);
+  mumaUser.set(data.user);
+  mumaSessionActive.set(true);
 }

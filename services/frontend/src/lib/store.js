@@ -582,14 +582,20 @@ export const authParams = derived([credentials, subsonicToken], ([$c, $token]) =
  * leaves the stored token as it was -- the password stays the fallback until a
  * fetch succeeds. The token is never logged.
  *
+ * One plain request, deliberately not `gatedFetch`: that retries a 503 for
+ * several seconds, and the sign-in waits on this call. A token that is not
+ * there now is asked for again at the next start.
+ *
  * @param {typeof fetch} [fetchImpl] - Injected by the tests.
+ * @param {string} [apiKey] - The key to ask with; the stored one by default.
+ *   The sign-in passes the key of the session it has not published yet.
  * @returns {Promise<{username: string, token: string}|null>} The token, or null.
  */
-export async function refreshSubsonicToken(fetchImpl = undefined) {
-  const key = get(mumaApiKey);
+export async function refreshSubsonicToken(fetchImpl = undefined, apiKey = undefined) {
+  const key = apiKey ?? get(mumaApiKey);
   if (!key) return null;
   try {
-    const call = fetchImpl ?? gatedFetch;
+    const call = fetchImpl ?? fetch;
     const response = await call(`${get(mumaApiUrl)}/api/auth/subsonic-token`, {
       headers: { "X-API-Key": key },
     });

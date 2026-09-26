@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.77.0] - 2026-09-26
+
+### Added
+- `POST /api/scanner/purge-orphans` (admin only, `?dry_run=1` supported) deletes fileless track
+  rows that nothing a user made points at: no listen, no rating, no work pin and no reviewed ml
+  label. It works in batches of 1000 and takes the rows' link rows with them. Orphans that do have
+  references are kept and listed on `GET /purge-orphans` for a person to decide. The operator
+  script `scripts/prod/person/relink-orphans-by-filename.sh` backs everything up first, then runs
+  the relink and then the purge (bug report 104).
+
+### Fixed
+- **LMS now refuses a second user whose login name differs only in case at the schema level.**
+  Bug 074's fix stopped the code from creating one, but the `user` table had no index on
+  `login_name` at all. Schema version 124 adds a unique index on `login_name COLLATE NOCASE`,
+  the collation the login lookup uses, so it also serves that lookup. A database that still holds
+  a case variant keeps starting: the index is skipped with an error naming the names, and retried
+  on every start until they are merged. Production had no case variants on 2026-09-26 (12 users).
+
+- **The hourly song-version sync, track-form push, release-date sync and feed rebuild summaries now reach the event log.** They log under `services.music_manager.*`, a namespace the event stream only accepted from WARNING, so their INFO lines existed only in `docker logs` and were lost at every deploy. The artist image fetcher, which logs per artist, stays at WARNING. Bug report 105.
+
+- The orphan relink (`POST /api/scanner/relink-orphans`) now also matches on the file name. About
+  50,000 fileless track rows from the first scan in May 2026 have the raw file name as their title
+  and no artist or duration, so the metadata match could never find their successor. An orphan
+  whose title is the file name (without extension) of exactly one track's file is now relinked to
+  that track, and its listens and ratings move with it. A name that several tracks share is left
+  alone. The totals, the event and `GET /relink-orphans` report how many rows each key relinked,
+  and `?dry_run=1` counts without writing (bug report 104, issue #71).
 ## [0.76.2] - 2026-09-26
 
 ### Fixed

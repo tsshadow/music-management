@@ -19,6 +19,7 @@ users_router.run_lms_db_sync = lambda: None
 
 from fastapi.testclient import TestClient
 
+from services.music_manager import orphan_purge, track_relink
 from services.music_manager.main import app
 from services.music_manager.routers import scanner as scanner_router
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
@@ -201,8 +202,10 @@ class WriteLinksTest(unittest.TestCase):
 class RelinkEndpointTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
-        scanner_router.relink_state.update({'running': False, 'last': None})
-        self.addCleanup(scanner_router.relink_state.update, {'running': False, 'last': None})
+        scanner_router.relink_state.update({'running': False, 'last': None, 'progress': None})
+        scanner_router.purge_state.update({'running': False, 'last': None, 'progress': None})
+        self.addCleanup(scanner_router.relink_state.update, {'running': False, 'last': None, 'progress': None})
+        self.addCleanup(scanner_router.purge_state.update, {'running': False, 'last': None, 'progress': None})
 
     def test_without_a_key_the_relink_is_unauthorized(self):
         self.assertEqual(self.client.post('/api/scanner/relink-orphans').status_code, 401)
@@ -224,7 +227,50 @@ class RelinkEndpointTest(unittest.TestCase):
             response = self.client.post('/api/scanner/relink-orphans', headers={'x-api-key': API_KEY})
         self.assertEqual(response.status_code, 200)
         self.assertIn('started', response.json()['message'])
-        run.assert_called_once_with()
+        run.assert_called_once_with(False)
+
+    def test_dry_run_is_passed_to_the_background_task(self):
+        with patch.object(scanner_router, 'run_orphan_relink') as run:
+            response = self.client.post('/api/scanner/relink-orphans?dry_run=1', headers={'x-api-key': API_KEY})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['dry_run'])
+        run.assert_called_once_with(True)
+
+    def test_a_relink_is_refused_while_a_purge_runs(self):
+        scanner_router.purge_state['running'] = True
+        with patch.object(scanner_router, 'run_orphan_relink') as run:
+            response = self.client.post('/api/scanner/relink-orphans', headers={'x-api-key': API_KEY})
+        self.assertEqual(response.status_code, 409)
+        run.assert_not_called()
+
+    def test_an_admin_starts_a_purge_dry_run(self):
+        with patch.object(scanner_router, 'run_orphan_purge') as run:
+            response = self.client.post('/api/scanner/purge-orphans?dry_run=true', headers={'x-api-key': API_KEY})
+        self.assertEqual(response.status_code, 200)
+        run.assert_called_once_with(True)
+
+    def test_a_purge_is_refused_while_a_relink_runs(self):
+        scanner_router.relink_state['running'] = True
+        with patch.object(scanner_router, 'run_orphan_purge') as run:
+            response = self.client.post('/api/scanner/purge-orphans', headers={'x-api-key': API_KEY})
+        self.assertEqual(response.status_code, 409)
+        run.assert_not_called()
+
+    def test_the_purge_is_admin_only(self):
+        user = {'type': 'user', 'user': {'id': 4, 'username': 'anna', 'role_name': 'user', 'permissions': []}}
+        with (
+            patch.object(users_router, 'verify_api_key', return_value=user),
+            patch.object(scanner_router, 'run_orphan_purge') as run,
+        ):
+            post = self.client.post('/api/scanner/purge-orphans', headers={'x-api-key': 'anna-key'})
+            get = self.client.get('/api/scanner/purge-orphans', headers={'x-api-key': 'anna-key'})
+        self.assertEqual((post.status_code, get.status_code), (403, 403))
+        run.assert_not_called()
+
+    def test_the_purge_status_reports_the_last_totals(self):
+        scanner_router.purge_state['last'] = {'purged': 3}
+        body = self.client.get('/api/scanner/purge-orphans', headers={'x-api-key': API_KEY}).json()
+        self.assertEqual(body, {'running': False, 'progress': None, 'last': {'purged': 3}})
 
     def test_a_second_relink_is_refused_while_one_runs(self):
         scanner_router.relink_state['running'] = True
@@ -236,18 +282,30 @@ class RelinkEndpointTest(unittest.TestCase):
     def test_the_status_reports_the_last_totals(self):
         scanner_router.relink_state['last'] = {'relinked': 3}
         body = self.client.get('/api/scanner/relink-orphans', headers={'x-api-key': API_KEY}).json()
-        self.assertEqual(body, {'running': False, 'last': {'relinked': 3}})
+        self.assertEqual(
+            body,
+            {
+                'running': False,
+                'keys': ['metadata', 'file_name'],
+                'dry_run_supported': True,
+                'progress': None,
+                'last': {'relinked': 3},
+            },
+        )
 
 
 class RunOrphanRelinkTest(unittest.TestCase):
     def setUp(self):
-        scanner_router.relink_state.update({'running': True, 'last': None})
-        self.addCleanup(scanner_router.relink_state.update, {'running': False, 'last': None})
+        scanner_router.relink_state.update({'running': True, 'last': None, 'progress': None})
+        self.addCleanup(scanner_router.relink_state.update, {'running': False, 'last': None, 'progress': None})
 
     def test_the_totals_are_recorded_as_an_info_event(self):
-        totals = {
+        totals = track_relink.empty_relink_totals() | {
             'orphans': 4,
             'relinked': 3,
+            'relinked_metadata': 1,
+            'relinked_file_name': 2,
+            'ambiguous_file_name': 1,
             'unmatched': 1,
             'failed': 0,
             'ratings_moved': 2,
@@ -268,7 +326,21 @@ class RunOrphanRelinkTest(unittest.TestCase):
         self.assertEqual(kwargs['level'], 'INFO')
         self.assertEqual(kwargs['context'], totals)
         self.assertIn('3 of 4', kwargs['message'])
-        self.assertEqual(scanner_router.relink_state, {'running': False, 'last': totals})
+        self.assertIn('1 on metadata, 2 on file name', kwargs['message'])
+        self.assertIn('1 of them named like several files', kwargs['message'])
+        self.assertEqual(scanner_router.relink_state, {'running': False, 'last': totals, 'progress': None})
+
+    def test_a_dry_run_is_kept_for_get_but_writes_no_event(self):
+        totals = track_relink.empty_relink_totals(dry_run=True) | {'orphans': 2, 'relinked': 1}
+        with (
+            patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()),
+            patch.object(scanner_router, 'relink_orphaned_tracks', return_value=totals) as relink,
+            patch('services.common.Helpers.EventService.event_service') as events,
+        ):
+            scanner_router.run_orphan_relink(True)
+        self.assertTrue(relink.call_args.kwargs['dry_run'])
+        events.emit.assert_not_called()
+        self.assertEqual(scanner_router.relink_state['last'], totals)
 
     def test_a_running_scan_skips_the_relink(self):
         lock = MagicMock()
@@ -280,6 +352,43 @@ class RunOrphanRelinkTest(unittest.TestCase):
             self.assertIsNone(scanner_router.run_orphan_relink())
         relink.assert_not_called()
         self.assertFalse(scanner_router.relink_state['running'])
+
+
+class RunOrphanPurgeTest(unittest.TestCase):
+    def setUp(self):
+        scanner_router.purge_state.update({'running': True, 'last': None, 'progress': None})
+        self.addCleanup(scanner_router.purge_state.update, {'running': False, 'last': None, 'progress': None})
+
+    def test_the_totals_are_an_event_without_the_kept_list(self):
+        totals = orphan_purge.empty_purge_totals() | {
+            'orphans': 5,
+            'purged': 3,
+            'kept': 2,
+            'kept_listens': 2,
+            'kept_list': [{'id': 1, 'title': 'x', 'listens': 1, 'ratings': 0, 'pinned': 0, 'reviewed_labels': 0}],
+        }
+        with (
+            patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()),
+            patch.object(scanner_router, 'purge_orphaned_tracks', return_value=totals),
+            patch('services.common.Helpers.EventService.event_service') as events,
+        ):
+            self.assertEqual(scanner_router.run_orphan_purge(), totals)
+        kwargs = events.emit.call_args.kwargs
+        self.assertIn('3 of 5', kwargs['message'])
+        self.assertNotIn('kept_list', kwargs['context'])
+        self.assertFalse(scanner_router.purge_state['running'])
+        self.assertEqual(scanner_router.purge_state['last'], totals)
+
+    def test_a_dry_run_writes_no_event(self):
+        totals = orphan_purge.empty_purge_totals(dry_run=True)
+        with (
+            patch.object(scanner_router, 'get_db_connection', return_value=MagicMock()),
+            patch.object(scanner_router, 'purge_orphaned_tracks', return_value=totals) as purge,
+            patch('services.common.Helpers.EventService.event_service') as events,
+        ):
+            scanner_router.run_orphan_purge(True)
+        self.assertTrue(purge.call_args.kwargs['dry_run'])
+        events.emit.assert_not_called()
 
 
 if __name__ == '__main__':

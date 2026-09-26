@@ -251,5 +251,157 @@ class RelinkOrphansTest(unittest.TestCase):
         self.assertEqual((totals['failed'], totals['relinked']), (1, 1))
 
 
+STUB = {'id': 30, 'title': '04-lucy_furr_and_meander_-_damnation', 'duration_secs': None, 'primary_artist_id': None}
+ORPHANS_SQL = 'WHERE NOT EXISTS (SELECT 1 FROM library_media_files'
+MEDIA_SQL = "SUBSTRING_INDEX(file_path, '/', -1) AS file_name"
+
+
+class FileStemTest(unittest.TestCase):
+    def test_the_last_extension_and_the_directory_go(self):
+        self.assertEqual(track_relink.file_stem('/music/a/04-x_-_y.mp3'), '04-x_-_y')
+        self.assertEqual(track_relink.file_stem('04-x.y.flac'), '04-x.y')
+
+    def test_a_name_without_an_extension_or_a_dotfile_is_kept_whole(self):
+        self.assertEqual(track_relink.file_stem('/music/README'), 'README')
+        self.assertEqual(track_relink.file_stem('/music/.hidden'), '.hidden')
+        self.assertEqual(track_relink.file_stem(None), '')
+
+
+class FileNameIndexTest(unittest.TestCase):
+    def test_only_stems_an_orphan_could_match_are_kept(self):
+        cursor = ScriptedCursor(
+            [
+                (
+                    MEDIA_SQL,
+                    None,
+                    [
+                        {'track_id': 7, 'file_name': 'a.mp3'},
+                        {'track_id': 8, 'file_name': 'a.flac'},
+                        {'track_id': 9, 'file_name': 'b.mp3'},
+                    ],
+                )
+            ]
+        )
+        self.assertEqual(track_relink.build_file_name_index(cursor, {'a'}), {'a': {7, 8}})
+
+    def test_no_titles_means_no_query(self):
+        cursor = ScriptedCursor()
+        self.assertEqual(track_relink.build_file_name_index(cursor, set()), {})
+        self.assertEqual(cursor.executed, [])
+
+
+class FindFileNameTargetTest(unittest.TestCase):
+    def test_one_track_with_that_file_name_is_the_target(self):
+        index = {STUB['title']: {NEW}}
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (NEW, False))
+
+    def test_two_files_of_the_same_track_are_still_one_successor(self):
+        # The index holds track ids, so an mp3 beside its flac collapses into one.
+        index = track_relink.build_file_name_index(
+            ScriptedCursor(
+                [
+                    (
+                        MEDIA_SQL,
+                        None,
+                        [
+                            {'track_id': NEW, 'file_name': f"{STUB['title']}.mp3"},
+                            {'track_id': NEW, 'file_name': f"{STUB['title']}.flac"},
+                        ],
+                    )
+                ]
+            ),
+            {STUB['title']},
+        )
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (NEW, False))
+
+    def test_several_tracks_are_ambiguous_and_not_guessed(self):
+        index = {STUB['title']: {NEW, 9}}
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (None, True))
+
+    def test_the_orphan_itself_is_never_its_own_target(self):
+        index = {STUB['title']: {STUB['id']}}
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (None, False))
+        index = {STUB['title']: {STUB['id'], NEW}}
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (NEW, False))
+
+    def test_the_title_is_compared_exactly(self):
+        index = {STUB['title'].upper(): {NEW}}
+        self.assertEqual(track_relink.find_file_name_target(index, STUB), (None, False))
+        self.assertEqual(track_relink.find_file_name_target(index, STUB | {'title': None}), (None, False))
+
+
+class RelinkOrphansByFileNameTest(unittest.TestCase):
+    def _conn(self, orphans, files):
+        cursor = ScriptedCursor([(ORPHANS_SQL, None, orphans), (MEDIA_SQL, None, files)])
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+        return conn, cursor
+
+    def test_a_unique_file_name_relinks_the_stub(self):
+        conn, cursor = self._conn([STUB], [{'track_id': NEW, 'file_name': f"{STUB['title']}.mp3"}])
+        counts = track_relink.empty_counts() | {'tracks_deleted': 1}
+        with patch.object(track_relink, 'relink_track', return_value=counts) as relink:
+            totals = track_relink.relink_orphaned_tracks(conn)
+        relink.assert_called_once_with(cursor, STUB['id'], NEW)
+        self.assertEqual(
+            (totals['relinked'], totals['relinked_file_name'], totals['relinked_metadata'], totals['unmatched']),
+            (1, 1, 0, 0),
+        )
+
+    def test_an_ambiguous_file_name_is_left_and_counted(self):
+        files = [
+            {'track_id': NEW, 'file_name': f"{STUB['title']}.mp3"},
+            {'track_id': 9, 'file_name': f"{STUB['title']}.mp3"},
+        ]
+        conn, _cursor = self._conn([STUB], files)
+        with patch.object(track_relink, 'relink_track') as relink:
+            totals = track_relink.relink_orphaned_tracks(conn)
+        relink.assert_not_called()
+        conn.begin.assert_not_called()
+        self.assertEqual((totals['unmatched'], totals['ambiguous_file_name'], totals['relinked']), (1, 1, 0))
+
+    def test_a_metadata_match_wins_over_the_file_name(self):
+        # The orphan's title is also some other track's file name: the metadata successor is used.
+        conn, cursor = self._conn([ORPHAN], [{'track_id': 9, 'file_name': f"{ORPHAN['title']}.mp3"}])
+        with (
+            patch.object(track_relink, 'find_relink_target', return_value=NEW),
+            patch.object(track_relink, 'relink_track', return_value=track_relink.empty_counts()) as relink,
+        ):
+            totals = track_relink.relink_orphaned_tracks(conn)
+        relink.assert_called_once_with(cursor, OLD, NEW)
+        self.assertEqual((totals['relinked_metadata'], totals['relinked_file_name']), (1, 0))
+
+    def test_a_dry_run_counts_per_key_and_writes_nothing(self):
+        orphans = [ORPHAN, STUB, STUB | {'id': 31, 'title': 'nothing-like-it'}]
+        conn, cursor = self._conn(orphans, [{'track_id': NEW, 'file_name': f"{STUB['title']}.mp3"}])
+        with (
+            patch.object(track_relink, 'find_relink_target', side_effect=[NEW, None, None]),
+            patch.object(track_relink, 'relink_track') as relink,
+        ):
+            totals = track_relink.relink_orphaned_tracks(conn, dry_run=True)
+        relink.assert_not_called()
+        conn.begin.assert_not_called()
+        conn.commit.assert_not_called()
+        self.assertEqual([sql for sql, _p in cursor.executed if not sql.startswith('SELECT')], [])
+        self.assertTrue(totals['dry_run'])
+        self.assertEqual(
+            (
+                totals['orphans'],
+                totals['relinked'],
+                totals['relinked_metadata'],
+                totals['relinked_file_name'],
+                totals['unmatched'],
+            ),
+            (3, 2, 1, 1, 1),
+        )
+
+    def test_progress_is_written_into_the_given_dict(self):
+        conn, _cursor = self._conn([STUB], [])
+        progress = {}
+        returned = track_relink.relink_orphaned_tracks(conn, dry_run=True, totals=progress)
+        self.assertIs(returned, progress)
+        self.assertEqual(progress['unmatched'], 1)
+
+
 if __name__ == '__main__':
     unittest.main()

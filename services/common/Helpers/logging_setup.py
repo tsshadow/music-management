@@ -14,13 +14,19 @@ import threading
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.ntfy_sink import NtfySink
 
-# Namespaces die vanaf INFO worden vastgelegd; al het overige pas vanaf WARNING.
-# 'root' hoort er bij omdat de worker-services (downloader, importer, tagger) via
-# de module-API loggen -- logging.info(...) in plaats van een eigen named logger --
-# en die records dus record.name == 'root' dragen. Zonder 'root' viel elke INFO
-# uit die processen buiten de boot en bleef het logboek leeg. Welke service het
-# was blijft zichtbaar: het source-veld wordt per proces gezet door setup_logging.
-ALLOWED_PREFIXES = ('music-manager', 'downloader', 'importer', 'tagger', 'scanner', 'root')
+# Namespaces captured from INFO upward; everything else only from WARNING.
+# 'root' is here because the worker services (downloader, importer, tagger) log through the
+# module API -- logging.info(...) rather than a named logger -- so their records carry
+# record.name == 'root'; without it every INFO from those processes was dropped. Which
+# service it was stays visible: setup_logging sets the source field per process.
+# 'services.music_manager' is here because modules that name their logger after themselves
+# (logging.getLogger(__name__): song_version_sync, track_form_sync, release_date_sync, the
+# feeds) log as 'services.music_manager.<module>'; their hourly INFO summaries existed only
+# in `docker logs` and were lost at every redeploy (bug report 105).
+ALLOWED_PREFIXES = ('music-manager', 'downloader', 'importer', 'tagger', 'scanner', 'root', 'services.music_manager')
+# Inside an allowed namespace, but chatty per item: kept at the default threshold (WARNING).
+# The artist image fetcher logs several INFO lines per artist it looks up.
+QUIET_PREFIXES = ('services.music_manager.artist_image_fetcher',)
 DEFAULT_THRESHOLD = logging.WARNING
 LOG_FORMAT = '%(asctime)s  %(filename)s:%(lineno)s [%(levelname)s] %(message)s'
 TITLE_MAX_LENGTH = 255
@@ -36,7 +42,15 @@ _state = threading.local()
 _sink_registered = False
 
 
+def _under(logger_name: str, prefix: str) -> bool:
+    """Whether `logger_name` is `prefix` itself or one of its children."""
+    return logger_name == prefix or logger_name.startswith(prefix + '.')
+
+
 def is_captured(logger_name: str, levelno: int) -> bool:
+    """Whether a record reaches the event stream: INFO for the allowed namespaces, else WARNING."""
+    if any(_under(logger_name, prefix) for prefix in QUIET_PREFIXES):
+        return levelno >= DEFAULT_THRESHOLD
     for prefix in ALLOWED_PREFIXES:
         if logger_name == prefix or logger_name.startswith(prefix + '.'):
             return levelno >= logging.INFO

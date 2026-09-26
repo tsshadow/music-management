@@ -2,6 +2,7 @@ import hashlib
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -19,10 +20,16 @@ from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import PodcastHelper
 from services.common.track_form import classify
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.orphan_purge import purge_orphaned_tracks
 from services.music_manager.rbac import require_admin
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
-from services.music_manager.track_relink import relink_orphaned_tracks, relink_track, track_has_media_file
+from services.music_manager.track_relink import (
+    RELINK_KEYS,
+    relink_orphaned_tracks,
+    relink_track,
+    track_has_media_file,
+)
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
@@ -435,18 +442,39 @@ def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Dep
 
 
 #: The last orphan relink, for GET /relink-orphans: None until one has run in this process.
-relink_state: dict = {'running': False, 'last': None}
+#: `progress` is the running totals of the run in flight, filled in place.
+relink_state: dict = {'running': False, 'last': None, 'progress': None}
+
+#: The same for the orphan purge (POST/GET /purge-orphans).
+purge_state: dict = {'running': False, 'last': None, 'progress': None}
 
 
-def run_orphan_relink():
-    """Background body of POST /relink-orphans: relink every orphaned track, then report it.
+def _emit_orphan_event(title: str, message: str, context: dict) -> None:
+    """Record one INFO event for an orphan relink or purge; a failure to record is only logged."""
+    try:
+        from services.common.Helpers.EventService import event_service
 
-    Holds the scanner lock so no scan repoints a file underneath it, and records its totals as an
-    INFO event -- that, and GET /relink-orphans, is where an administrator reads the outcome.
+        event_service.emit(
+            level='INFO',
+            title=title,
+            message=message,
+            source='music-manager',
+            logger=logger.name,
+            context=context,
+        )
+    except Exception as exc:
+        logger.warning('Could not record the %s event: %s', title.lower(), exc)
+
+
+def _run_locked(state: dict, work):
+    """Run `work(conn)` holding the scanner lock, so no scan repoints a file underneath it.
+
+    Returns its result, or None when a scan held the lock or no connection could be had. Clears
+    `state['running']` whatever happens.
     """
     if not scanner_manager._lock.acquire(blocking=False):
-        logger.warning('A scan is running, orphan relink skipped')
-        relink_state['running'] = False
+        logger.warning('A scan is running, orphan repair skipped')
+        state['running'] = False
         return None
     try:
         conn = get_db_connection()
@@ -454,52 +482,124 @@ def run_orphan_relink():
             logger.error('Could not get database connection')
             return None
         try:
-            totals = relink_orphaned_tracks(conn)
+            return work(conn)
         finally:
             conn.close()
     finally:
         scanner_manager._lock.release()
-        relink_state['running'] = False
-    relink_state['last'] = totals
-    try:
-        from services.common.Helpers.EventService import event_service
+        state['running'] = False
 
-        event_service.emit(
-            level='INFO',
-            title='Orphaned tracks relinked',
-            message=(
-                f"{totals['relinked']} of {totals['orphans']} fileless tracks relinked, "
-                f"{totals['unmatched']} without a single successor, {totals['failed']} failed. "
-                f"Ratings moved {totals['ratings_moved']}, merged {totals['ratings_merged']}; "
-                f"listens moved {totals['listens_moved']}, duplicates dropped {totals['listens_dropped']}."
-            ),
-            source='music-manager',
-            logger=logger.name,
-            context=totals,
-        )
-    except Exception as exc:
-        logger.warning('Could not record the orphan relink event: %s', exc)
+
+def run_orphan_relink(dry_run: bool = False):
+    """Background body of POST /relink-orphans: relink every orphaned track, then report it.
+
+    Holds the scanner lock, and records its totals as an INFO event -- that, and GET
+    /relink-orphans, is where an administrator reads the outcome. A dry run is reported on GET
+    only: it changed nothing, so it has no place in the event log.
+    """
+    progress: dict = {}
+    relink_state['progress'] = progress
+    totals = _run_locked(relink_state, lambda conn: relink_orphaned_tracks(conn, dry_run=dry_run, totals=progress))
+    relink_state['progress'] = None
+    if totals is None:
+        return None
+    totals['finished_at'] = time.time()
+    relink_state['last'] = totals
+    if dry_run:
+        return totals
+    _emit_orphan_event(
+        'Orphaned tracks relinked',
+        f"{totals['relinked']} of {totals['orphans']} fileless tracks relinked "
+        f"({totals['relinked_metadata']} on metadata, {totals['relinked_file_name']} on file name), "
+        f"{totals['unmatched']} without a single successor "
+        f"({totals['ambiguous_file_name']} of them named like several files), {totals['failed']} failed. "
+        f"Ratings moved {totals['ratings_moved']}, merged {totals['ratings_merged']}; "
+        f"listens moved {totals['listens_moved']}, duplicates dropped {totals['listens_dropped']}.",
+        totals,
+    )
     return totals
 
 
+def run_orphan_purge(dry_run: bool = False):
+    """Background body of POST /purge-orphans: delete the unreferenced orphans, then report it."""
+    progress: dict = {}
+    purge_state['progress'] = progress
+    totals = _run_locked(purge_state, lambda conn: purge_orphaned_tracks(conn, dry_run=dry_run, totals=progress))
+    purge_state['progress'] = None
+    if totals is None:
+        return None
+    totals['finished_at'] = time.time()
+    purge_state['last'] = totals
+    if dry_run:
+        return totals
+    _emit_orphan_event(
+        'Orphaned tracks purged',
+        f"{totals['purged']} of {totals['orphans']} fileless tracks deleted; {totals['kept']} kept because a "
+        f"user made something that points at them (listens {totals['kept_listens']}, ratings "
+        f"{totals['kept_ratings']}, pins {totals['kept_pinned']}, reviewed ml labels "
+        f"{totals['kept_reviewed_labels']}). {totals['skipped_changed']} changed since the survey and were "
+        f"left, {totals['failed_batches']} batches failed.",
+        {key: value for key, value in totals.items() if key != 'kept_list'},
+    )
+    return totals
+
+
+def _refuse_if_busy() -> None:
+    """409 while a scan, a relink or a purge holds the library."""
+    if relink_state['running'] or purge_state['running'] or scanner_manager._lock.locked():
+        raise HTTPException(status_code=409, detail='A scan, relink or purge is already in progress')
+
+
 @router.post('/relink-orphans')
-def api_relink_orphans(background_tasks: BackgroundTasks, _auth: dict = Depends(require_admin())):
-    """Start the one-off repair for track rows a retag left without a file (bug report 042).
+def api_relink_orphans(
+    background_tasks: BackgroundTasks, dry_run: bool = False, _auth: dict = Depends(require_admin())
+):
+    """Start the repair for track rows a retag left without a file (bug reports 042 and 104).
 
     Admin only: it deletes track rows. Runs in the background; the totals arrive as an INFO event
-    and on GET /relink-orphans. The previous run's totals, if any, come back straight away.
+    and on GET /relink-orphans. The previous run's totals, if any, come back straight away. With
+    `dry_run=1` it counts what each key would relink and writes nothing.
     """
-    if relink_state['running'] or scanner_manager._lock.locked():
-        raise HTTPException(status_code=409, detail='A scan or relink is already in progress')
+    _refuse_if_busy()
     relink_state['running'] = True
-    background_tasks.add_task(run_orphan_relink)
-    return {'message': 'Orphaned track relink started in background', 'last': relink_state['last']}
+    background_tasks.add_task(run_orphan_relink, dry_run)
+    return {'message': 'Orphaned track relink started in background', 'dry_run': dry_run, 'last': relink_state['last']}
 
 
 @router.get('/relink-orphans')
 def api_relink_orphans_status(_auth: dict = Depends(require_admin())):
-    """Whether an orphan relink is running, and the totals of the last one in this process."""
-    return {'running': relink_state['running'], 'last': relink_state['last']}
+    """Whether an orphan relink is running, its progress, and the totals of the last one in this process.
+
+    `keys` names the match keys this build tries, so a caller can tell it from a build without the
+    file-name key even before any run has happened.
+    """
+    return {
+        'running': relink_state['running'],
+        'keys': list(RELINK_KEYS),
+        'dry_run_supported': True,
+        'progress': relink_state['progress'],
+        'last': relink_state['last'],
+    }
+
+
+@router.post('/purge-orphans')
+def api_purge_orphans(background_tasks: BackgroundTasks, dry_run: bool = False, _auth: dict = Depends(require_admin())):
+    """Start deleting fileless track rows nothing a user made refers to (bug report 104).
+
+    Admin only. Meant to run after POST /relink-orphans. Runs in the background; the totals arrive
+    as an INFO event and on GET /purge-orphans, which also lists the kept orphans. With
+    `dry_run=1` it counts and lists, and writes nothing.
+    """
+    _refuse_if_busy()
+    purge_state['running'] = True
+    background_tasks.add_task(run_orphan_purge, dry_run)
+    return {'message': 'Orphaned track purge started in background', 'dry_run': dry_run, 'last': purge_state['last']}
+
+
+@router.get('/purge-orphans')
+def api_purge_orphans_status(_auth: dict = Depends(require_admin())):
+    """Whether an orphan purge is running, its progress, and the totals of the last one in this process."""
+    return {'running': purge_state['running'], 'progress': purge_state['progress'], 'last': purge_state['last']}
 
 
 # A full scan over the CIFS share can run for hours on a first pass or after a forced rescan;

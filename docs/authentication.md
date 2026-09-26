@@ -84,8 +84,12 @@ it is enforced (bug report [074](bug-reports/074-login-case-forks-user-identity.
   authentication, `UserSynchronizer`, the `/muma` target user, Subsonic `createUser` and the
   admin UI all go through it, so LMS never creates a local user that differs only in case, and
   its create paths refuse one. SQLite's `NOCASE` folds ASCII only, which is what login names are
-  here. A unique index on `lower(login_name)` is not there yet: it waits for the repair of the
-  existing fork (issue [#17](https://gitlab.example.com/muma/music-management/-/issues/17)); the fork itself was repaired on 2026-09-25.
+  here. The schema enforces it too: a unique index on `login_name COLLATE NOCASE`
+  (`user_login_name_nocase_unique_idx`, LMS schema version 124), the same collation the lookup
+  uses so SQLite answers it from the index. A database that still holds two case variants keeps
+  starting: the index is skipped with an error naming them, and retried on every start until
+  they are merged (`scripts/prod/repair-username-case.sh`). See
+  `docs/bug-reports/102-lms-login-unique-index.md`.
 - **Server-to-server names are resolved, not trusted for spelling.** The scrobble relay and the
   ListenBrainz import store the authenticated account's own spelling for a user key, and the
   canonical spelling of the name the system key or an admin sent. !938's self-only rule still

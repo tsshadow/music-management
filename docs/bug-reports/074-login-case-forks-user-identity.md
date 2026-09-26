@@ -107,5 +107,6 @@ MuMa's `users.username` (`docs/authentication.md`, "Account names are case-insen
 
 Left open, on purpose: a unique index on `lower(login_name)` in LMS. A versioned LMS
 migration adding it would fail on production for as long as the fork exists, and then
-LMS would not start. It belongs in a migration after the repair has run
-(`docs/open-work.md`).
+LMS would not start. It belongs in a migration after the repair has run.
+The repair ran on 2026-09-25, and the index followed in LMS schema version 124
+(`docs/bug-reports/102-lms-login-unique-index.md`).

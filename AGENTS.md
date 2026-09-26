@@ -154,7 +154,11 @@ upward, everything else — uvicorn's access log above all — only from `WARNIN
 list because the worker services log through the module-level API (`logging.info(...)`) rather than
 a named logger, so their records arrive as `root`; without it every `INFO` from the downloader and
 importer was dropped. The `source` field still identifies the process, since `setup_logging` sets it
-per service — only the `logger` column is uninformative for those rows. Filtering `/api/events` by
+per service — only the `logger` column is uninformative for those rows. `services.music_manager` is
+on the list too, for the modules that name their logger after themselves (`getLogger(__name__)`:
+the song-version sync, the track-form push, the release-date sync, the feeds); their hourly
+summaries used to exist only in `docker logs` (bug report 105). `QUIET_PREFIXES` keeps
+`services.music_manager.artist_image_fetcher` at `WARNING`, because it logs per artist. Filtering `/api/events` by
 source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
 and scanner loops run as threads inside the music-manager process and emit under its source.
 

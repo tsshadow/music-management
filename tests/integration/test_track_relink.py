@@ -9,7 +9,7 @@ from datetime import datetime
 
 import pytest
 
-from services.music_manager import song_version_worker, track_relink
+from services.music_manager import orphan_purge, song_version_worker, track_relink
 from services.music_manager.routers import rating
 from services.music_manager.routers import scanner as scanner_router
 from tests.integration.conftest import run_sql
@@ -270,3 +270,128 @@ def test_a_fileless_track_never_becomes_canonical(db):
     assert run_sql(db, 'SELECT canonical_track_id FROM library_works WHERE id = %s', (work,)) == [
         {'canonical_track_id': new}
     ]
+
+
+# --- bug report 104: the file-name key and the purge -------------------------------------------
+
+
+def _track(db, uid, title, duration=None, artist=None):
+    run_sql(
+        db,
+        'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, created_at) '
+        "VALUES (%s, %s, %s, %s, '2026-05-01')",
+        (uid, title, duration, artist),
+    )
+    return run_sql(db, 'SELECT id, track_uid FROM library_tracks WHERE track_uid = %s', (uid,))[0]
+
+
+def _file(db, path, track_id):
+    run_sql(
+        db,
+        'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, SHA2(%s, 256), %s)',
+        (path, path, track_id),
+    )
+
+
+def _seed_first_scan_stubs(db):
+    """Three May-2026 stubs: one named like exactly one file, one like two tracks' files, one like nothing."""
+    unique = _track(db, 'stub-unique', '04-lucy_furr_and_meander_-_damnation')
+    shared = _track(db, 'stub-shared', '01-intro')
+    lonely = _track(db, 'stub-lonely', 'gone-for-good')
+    damnation = _track(db, 'real-damnation', 'Damnation', 301, None)
+    intro_a = _track(db, 'real-intro-a', 'Intro', 60, None)
+    intro_b = _track(db, 'real-intro-b', 'Intro', 75, None)
+    _file(db, '/music/Labels/X/04-lucy_furr_and_meander_-_damnation.mp3', damnation['id'])
+    _file(db, '/music/Labels/X/01-intro.mp3', intro_a['id'])
+    _file(db, '/music/Labels/Y/01-intro.flac', intro_b['id'])
+    return {'unique': unique, 'shared': shared, 'lonely': lonely, 'damnation': damnation}
+
+
+def test_a_first_scan_stub_is_relinked_by_its_file_name(db):
+    with db.cursor() as cursor:
+        rating.init_db(cursor)
+    seeded = _seed_first_scan_stubs(db)
+    _rate_and_listen(db, seeded['unique'])
+
+    dry = track_relink.relink_orphaned_tracks(db, dry_run=True)
+    assert (dry['relinked_file_name'], dry['ambiguous_file_name'], dry['unmatched']) == (1, 1, 2)
+    assert run_sql(db, 'SELECT COUNT(*) AS n FROM library_tracks')[0]['n'] == 6
+
+    first = track_relink.relink_orphaned_tracks(db)
+    second = track_relink.relink_orphaned_tracks(db)
+
+    assert (first['relinked'], first['relinked_file_name'], first['relinked_metadata']) == (1, 1, 0)
+    assert (first['listens_moved'], first['ratings_moved']) == (1, 1)
+    assert (second['relinked'], second['orphans']) == (0, 2)
+    assert not run_sql(db, 'SELECT id FROM library_tracks WHERE id = %s', (seeded['unique']['id'],))
+    assert run_sql(db, 'SELECT track_id FROM scrobble_listens') == [{'track_id': seeded['damnation']['id']}]
+    # The ambiguous stub is still there: two different tracks carry its name.
+    assert run_sql(db, 'SELECT id FROM library_tracks WHERE id = %s', (seeded['shared']['id'],))
+
+
+def test_the_purge_deletes_unreferenced_orphans_and_keeps_the_rest(db):
+    with db.cursor() as cursor:
+        rating.init_db(cursor)
+    run_sql(db, "INSERT INTO library_artists (name) VALUES ('Angerfist')")
+    artist = run_sql(db, "SELECT id FROM library_artists WHERE name = 'Angerfist'")[0]['id']
+    free = _track(db, 'free', 'free stub')
+    listened = _track(db, 'listened', 'listened stub')
+    pinned = _track(db, 'pinned', 'pinned stub')
+    live = _track(db, 'live', 'Raise Your Fist', 300, artist)
+    _file(db, '/music/raise.mp3', live['id'])
+    run_sql(
+        db,
+        "INSERT INTO library_track_artists (track_id, artist_id, role) VALUES (%s, %s, 'primary')",
+        (free['id'], artist),
+    )
+    run_sql(db, "INSERT INTO library_track_ml_labels (track_id, ml_genre) VALUES ('free', 'Hardcore')")
+    run_sql(
+        db,
+        "INSERT INTO library_track_ml_labels (track_id, ml_genre, ml_review_status) VALUES ('pinned', 'Hardcore', 'human_verified')",
+    )
+    run_sql(
+        db,
+        "INSERT INTO scrobble_listens (username, track_id, listened_at) VALUES ('user', %s, %s)",
+        (listened['id'], LISTENED_AT),
+    )
+    run_sql(
+        db,
+        "INSERT INTO library_works (work_key, title, pinned_track_id, previous_canonical_track_id) "
+        "VALUES ('a|pinned', 'pinned', %s, %s)",
+        (pinned['id'], free['id']),
+    )
+
+    dry = orphan_purge.purge_orphaned_tracks(db, dry_run=True)
+    assert (dry['orphans'], dry['purged'], dry['kept'], dry['kept_listens'], dry['kept_pinned']) == (3, 1, 2, 1, 1)
+    assert run_sql(db, 'SELECT COUNT(*) AS n FROM library_tracks')[0]['n'] == 4
+
+    first = orphan_purge.purge_orphaned_tracks(db)
+    second = orphan_purge.purge_orphaned_tracks(db)
+
+    assert (first['purged'], first['links_deleted'], first['ml_labels_deleted'], first['works_cleared']) == (1, 1, 1, 1)
+    assert (second['purged'], second['kept']) == (0, 2)
+    ids = {row['id'] for row in run_sql(db, 'SELECT id FROM library_tracks')}
+    assert ids == {listened['id'], pinned['id'], live['id']}
+    assert run_sql(db, 'SELECT track_id FROM library_track_ml_labels') == [{'track_id': 'pinned'}]
+    assert run_sql(db, 'SELECT previous_canonical_track_id FROM library_works') == [
+        {'previous_canonical_track_id': None}
+    ]
+    assert run_sql(db, 'SELECT COUNT(*) AS n FROM scrobble_listens')[0]['n'] == 1
+
+
+def test_the_dry_run_endpoints_write_nothing(api, headers, db):
+    with db.cursor() as cursor:
+        rating.init_db(cursor)
+    _seed_first_scan_stubs(db)
+
+    relink = api.post('/api/scanner/relink-orphans?dry_run=1', headers=headers)
+    relink_status = api.get('/api/scanner/relink-orphans', headers=headers).json()
+    purge = api.post('/api/scanner/purge-orphans?dry_run=1', headers=headers)
+    purge_status = api.get('/api/scanner/purge-orphans', headers=headers).json()
+
+    assert (relink.status_code, purge.status_code) == (200, 200)
+    assert relink_status['keys'] == ['metadata', 'file_name']
+    assert relink_status['last']['dry_run'] is True
+    assert relink_status['last']['relinked_file_name'] == 1
+    assert purge_status['last']['purged'] == 3
+    assert run_sql(db, 'SELECT COUNT(*) AS n FROM library_tracks')[0]['n'] == 6

@@ -194,17 +194,37 @@ Removed outright, because every caller already uses the target: `GET|PUT
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
 - **GET `/api/system/logs/{name}?tail=`**: one container's log tail. Admin only; `name` must be a container
   the list above returns (exact name, not an id), otherwise 404.
-- **POST `/api/scanner/relink-orphans`** (admin only, `require_admin`): One-off, idempotent repair for
-  track rows a retag left without a file (bug report 042). Every fileless `library_tracks` row whose
-  normalised title and duration match exactly one track that has a file -- with the same primary
-  artist, or the same set of artists in another order -- has its ratings, listens and ml-analyzer
-  rows moved to that track and is deleted. Runs in the background under the scanner lock. Response:
-  `{"message": "...", "last": <totals of the previous run or null>}`; `409` while a scan or a relink
-  is running, `403` for a non-admin key. The totals (`orphans`, `relinked`, `unmatched`, `failed`,
-  `ratings_moved`, `ratings_merged`, `listens_moved`, `listens_dropped`, `tracks_deleted`) are also
-  written as an `INFO` event titled "Orphaned tracks relinked".
-- **GET `/api/scanner/relink-orphans`** (admin only): `{"running": bool, "last": <totals or null>}` --
-  the state of the relink above, kept in memory for the life of the process.
+- **POST `/api/scanner/relink-orphans?dry_run=`** (admin only, `require_admin`): an idempotent repair
+  for track rows that a retag left without a file (bug reports 042 and 104). Two keys are tried in
+  order. First the metadata key: exactly one track with a file has the same normalised title and
+  duration, and the same primary artist or the same set of artists in another order. Then the
+  file-name key: the orphan's title is exactly the file name (without extension) of the files of
+  exactly one track. A match moves the orphan's ratings, listens and ml-analyzer rows to that track
+  and deletes the orphan. A name that several tracks share is left unmatched. The repair runs in
+  the background under the scanner lock. Response:
+  `{"message": "...", "dry_run": bool, "last": <totals of the previous run or null>}`. It returns
+  `409` while a scan, a relink or a purge is running, and `403` for a non-admin key. The totals
+  are `orphans`, `relinked`, `relinked_metadata`, `relinked_file_name`, `ambiguous_file_name`,
+  `unmatched`, `failed`, `ratings_moved`, `ratings_merged`, `listens_moved`, `listens_dropped`,
+  `tracks_deleted`, `dry_run` and `finished_at` (epoch seconds). They are also written as an
+  `INFO` event titled "Orphaned tracks relinked". With `dry_run=1` the endpoint counts what each
+  key would relink, writes nothing and records no event.
+- **GET `/api/scanner/relink-orphans`** (admin only): returns
+  `{"running": bool, "keys": ["metadata", "file_name"], "dry_run_supported": true, "progress": <running totals or null>, "last": <totals or null>}`.
+  This is the state of the relink above, kept in memory for the life of the process.
+- **POST `/api/scanner/purge-orphans?dry_run=`** (admin only): deletes fileless track rows that
+  nothing a user made points at (bug report 104). That means no listen, no rating on the
+  `track_uid`, no work pin and no ml label that is reviewed or approved for training. Run it after
+  the relink. It works in batches of 1000, each batch one transaction, under the scanner lock. A
+  purged row takes its artist, genre, label and channel links and its unreviewed ml labels with
+  it, and a work that named it as canonical or previous canonical has that cleared and recomputed.
+  Response and status codes are as for the relink. The totals are `orphans`, `purged`, `kept`,
+  `kept_listens`, `kept_ratings`, `kept_pinned`, `kept_reviewed_labels`, `skipped_changed`,
+  `failed_batches`, `links_deleted`, `ml_labels_deleted`, `works_cleared`, `dry_run`,
+  `finished_at`, and `kept_list` (up to 1000 kept rows, each with `id`, `title`, `listens`,
+  `ratings`, `pinned` and `reviewed_labels`). The totals without `kept_list` are also written as
+  an `INFO` event titled "Orphaned tracks purged".
+- **GET `/api/scanner/purge-orphans`** (admin only): `{"running": bool, "progress": ..., "last": ...}`.
 
 ### 🎚 Song versions (`/api/songs`)
 Which of a song's versions plays, and the Versions page in Beheer that corrects it

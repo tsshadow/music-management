@@ -431,6 +431,48 @@ VALUES
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name IN ('form', 'performance_date')").resultValue(), 2);
         }
 
+        // migrateFromV123: a database without case variants gets the case-insensitive unique index
+        // on user.login_name straight away.
+        const auto loginNameIndexCount{ [&] {
+            auto transaction{ session.createReadTransaction() };
+            return session.getDboSession()->query<int>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'user_login_name_nocase_unique_idx'").resultValue();
+        } };
+        EXPECT_EQ(loginNameIndexCount(), 1);
+
+        // A database that still holds the fork of bug 074 must keep starting: the step completes
+        // (the version moves on), the index is skipped and both users are left as they were.
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("DROP INDEX IF EXISTS user_login_name_nocase_unique_idx");
+            session.create<User>("user");
+            session.create<User>("Teun");
+            session.create<User>("other");
+            session.execute("UPDATE version_info SET db_version = 123");
+        }
+        EXPECT_NO_THROW(db.getTLSSession().migrateSchemaIfNeeded());
+        EXPECT_EQ(loginNameIndexCount(), 0);
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 124);
+            EXPECT_EQ(User::getCount(session), 3U);
+        }
+
+        // Every start retries it, so once the fork is merged away the next start adds the index,
+        // and from then on a case variant cannot be written.
+        EXPECT_NO_THROW(db.getTLSSession().createIndexesIfNeeded());
+        EXPECT_EQ(loginNameIndexCount(), 0);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("DELETE FROM user WHERE login_name = 'Teun'");
+        }
+        db.getTLSSession().createIndexesIfNeeded();
+        EXPECT_EQ(loginNameIndexCount(), 1);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'TEUN' WHERE login_name = 'other'"));
+            session.execute("DELETE FROM user");
+        }
+
         // Now perform some dummy finds to ensure all fields are correctly mapped
         {
             auto transaction{ session.createReadTransaction() };

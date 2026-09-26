@@ -110,6 +110,24 @@ namespace lms::db::tests
     using ScopedTrackList = ScopedEntity<db::TrackList>;
     using ScopedUser = ScopedEntity<db::User>;
 
+    // Drops the case-insensitive unique index on user.login_name for its lifetime, so a test can
+    // build the case-variant fork a database still holds before it is repaired (bug 074, 102).
+    // Declare it before the users it lets in: the index is recreated when it goes out of scope.
+    class [[nodiscard]] ScopedNoLoginNameUniqueIndex final
+    {
+    public:
+        explicit ScopedNoLoginNameUniqueIndex(db::Session& session);
+        ~ScopedNoLoginNameUniqueIndex();
+
+    private:
+        ScopedNoLoginNameUniqueIndex(const ScopedNoLoginNameUniqueIndex&) = delete;
+        ScopedNoLoginNameUniqueIndex(ScopedNoLoginNameUniqueIndex&&) = delete;
+        ScopedNoLoginNameUniqueIndex& operator=(const ScopedNoLoginNameUniqueIndex&) = delete;
+        ScopedNoLoginNameUniqueIndex& operator=(ScopedNoLoginNameUniqueIndex&&) = delete;
+
+        db::Session& _session;
+    };
+
     class ScopedFileDeleter final
     {
     public:

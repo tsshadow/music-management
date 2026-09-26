@@ -370,6 +370,17 @@ namespace lms::db
 
             tryExecute("CREATE INDEX IF NOT EXISTS starred_track_user_backend_idx ON starred_track(user_id,backend)");
             tryExecute("CREATE INDEX IF NOT EXISTS starred_track_track_user_backend_idx ON starred_track(track_id,user_id,backend)");
+
+            // Unique case-insensitively, skipped with an error while case variants remain
+            // (see migrateFromV123). Also what gives a fresh database the index.
+            try
+            {
+                Migration::createUserLoginNameUniqueIndexIfPossible(*this);
+            }
+            catch (const std::exception& e)
+            {
+                LMS_LOG(DB, WARNING, "Failed to create the unique index on user.login_name: " << e.what());
+            }
         }
 
         LMS_LOG(DB, INFO, "Indexes created!");

@@ -38,7 +38,7 @@ namespace lms::db
         // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
         // sequence. Upstream migrations above 103 are ported under the next free number here,
         // never merged under theirs -- see services/music-management-server/FORK.md.
-        static constexpr Version LMS_DATABASE_VERSION{ 123 };
+        static constexpr Version LMS_DATABASE_VERSION{ 124 };
     } // namespace
 
     VersionInfo::VersionInfo()
@@ -67,6 +67,35 @@ namespace lms::db
 
 namespace lms::db::Migration
 {
+    bool createUserLoginNameUniqueIndexIfPossible(Session& session)
+    {
+        // One account per login name, whatever its case: User::find() matches
+        // "login_name = ? COLLATE NOCASE", so the index is on the same collation -- that is
+        // what lets SQLite use it for the lookup, which an index on lower(login_name) would
+        // not. NOCASE and lower() both fold ASCII only, which is what login names are here.
+        // docs/bug-reports/102-lms-login-unique-index.md.
+        //
+        // A database that still holds two case variants of one name (the fork of bug 074,
+        // before scripts/prod/repair-username-case.sh has merged it) cannot take the index.
+        // Refusing to start over it would take the whole server down for a condition LMS
+        // already tolerates -- User::find() picks the MuMa-linked variant -- so the index is
+        // skipped with an error naming the duplicates instead. Session::createIndexesIfNeeded()
+        // calls this on every start, so the index appears on the first start after the repair.
+        auto& dboSession{ *session.getDboSession() };
+        if (dboSession.query<int>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'user_login_name_nocase_unique_idx'").resultValue() > 0)
+            return true;
+
+        const std::string duplicates{ dboSession.query<std::string>("SELECT COALESCE(GROUP_CONCAT(names, '; '), '') FROM (SELECT GROUP_CONCAT(login_name, ', ') AS names FROM user WHERE login_name IS NOT NULL GROUP BY login_name COLLATE NOCASE HAVING COUNT(*) > 1)").resultValue() };
+        if (!duplicates.empty())
+        {
+            LMS_LOG(DB, ERROR, "Not creating the unique index on user.login_name: these login names differ only in case: " << duplicates << ". Merge them (scripts/prod/repair-username-case.sh) and restart; the index is created on the next start.");
+            return false;
+        }
+
+        utils::executeCommand(dboSession, "CREATE UNIQUE INDEX IF NOT EXISTS user_login_name_nocase_unique_idx ON user(login_name COLLATE NOCASE)");
+        return true;
+    }
+
     class ScopedNoForeignKeys
     {
     public:
@@ -2042,6 +2071,16 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'performance_date'").resultValue() == 0)
                 utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN performance_date TEXT NOT NULL DEFAULT ''");
         }
+
+        void migrateFromV123(Session& session)
+        {
+            // Login names become unique case-insensitively (bug 074 left a "Teun" beside
+            // "user"). Production was repaired on 2026-09-25 and holds no case variants, but a
+            // database that still does keeps starting: the index is then skipped and logged,
+            // see createUserLoginNameUniqueIndexIfPossible(). The version is bumped either
+            // way; Session::createIndexesIfNeeded() retries the index on every start.
+            createUserLoginNameUniqueIndexIfPossible(session);
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2143,6 +2182,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 120, migrateFromV120 },
             { 121, migrateFromV121 },
             { 122, migrateFromV122 },
+            { 123, migrateFromV123 },
         };
 
         bool migrationPerformed{};

@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass
 
 from services.common.config_store import ConfigStore
@@ -39,6 +40,10 @@ logger = logging.getLogger('music-manager.song-versions')
 
 BATCH_SIZE = int(os.getenv('SONG_VERSION_BATCH', '500'))
 INTERVAL_SECONDS = int(os.getenv('SONG_VERSION_INTERVAL', '3600'))
+# A pass keeps grouping batch after batch (each committed on its own) until the backlog is
+# empty or this many seconds have gone by. One batch per hour could not keep up: a rescan of
+# the label tree adds thousands of tracks, and 42,915 waited on 2026-09-26 (bug report 101).
+TICK_BUDGET_SECONDS = int(os.getenv('SONG_VERSION_TICK_BUDGET', '300'))
 # Works per rescore batch. Each batch is one read of its members and one commit.
 RESCORE_BATCH = int(os.getenv('SONG_VERSION_RESCORE_BATCH', '500'))
 
@@ -623,16 +628,39 @@ def rescore_tick(conn, context: RankingContext) -> dict | None:
     return applied
 
 
+def drain_backlog(conn, context: RankingContext | None = None, *, budget: float = TICK_BUDGET_SECONDS,
+                  clock=time.monotonic) -> dict:
+    """Run group_once batch after batch until nothing is left, a batch assigns nothing, or `budget` is spent.
+
+    Every batch commits on its own (group_once does), so stopping between two loses nothing.
+    A batch that assigns nothing while tracks remain ends the pass too: those tracks cannot be
+    grouped now, and looping on them would spin until the budget ran out.
+    """
+    started = clock()
+    totals = {'assigned': 0, 'recomputed': 0, 'remaining': 0, 'batches': 0}
+    while True:
+        stats = group_once(conn, context)
+        totals['batches'] += 1
+        totals['assigned'] += stats['assigned']
+        totals['recomputed'] += stats['recomputed']
+        totals['remaining'] = stats['remaining']
+        if not stats['assigned'] or not stats['remaining'] or clock() - started >= budget:
+            return totals
+
+
 def grouping_tick() -> None:
-    """One grouping pass, then a rescore if the ranking changed; raises on a database failure."""
+    """One grouping pass (drains the backlog within the budget), then a rescore if the ranking changed."""
     conn = get_db_connection()
     if not conn:
         return
     try:
         context = ranking_context()
-        stats = group_once(conn, context)
-        if stats['recomputed']:
-            logger.info('song-versions: recomputed %d works', stats['recomputed'])
+        stats = drain_backlog(conn, context)
+        if stats['assigned'] or stats['recomputed']:
+            logger.info(
+                'song-versions: grouped %d tracks in %d batches, recomputed %d works, %d left',
+                stats['assigned'], stats['batches'], stats['recomputed'], stats['remaining'],
+            )
         rescore_tick(conn, context)
     finally:
         conn.close()

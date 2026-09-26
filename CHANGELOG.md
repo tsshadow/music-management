@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.78.1] - 2026-09-26
+
+### Fixed
+- **Deleting a news source or a radio channel, or merging a podcast show, could stop half-way.**
+  The music-manager database pool commits every statement on its own, and these three writes ran
+  two or three statements in a row with nothing tying them together. A failure in between left a
+  news source whose bulletin rows were gone while its recordings stayed on disk, a radio channel
+  on air without its history, or a merged-away show still in the queue without any of its
+  spellings. Each now runs in one transaction: all of it lands, or none of it does (bug report 113).
+
+### Security
+- **An artist image URL could still reach the internal network through DNS rebinding.** "Set
+  image from URL" checked the host's addresses and then let `requests` resolve the name again, so
+  a DNS server answering public for the check and `192.0.2.27` or `169.254.169.254` for the
+  fetch got the download past it. The host is now resolved once, every address is checked
+  (including CGNAT, Docker/LAN ranges and IPv6 forms that embed a private IPv4 address), and the
+  connection goes to that checked address with the original name as `Host`, TLS server name and
+  certificate name. Every redirect hop is checked the same way, at most three. The bulk portrait
+  fetcher downloads provider image URLs through the same path, where it had no address check or
+  size cap before. Bug report 114.
+
 ## [0.78.0] - 2026-09-26
 
 ### Added

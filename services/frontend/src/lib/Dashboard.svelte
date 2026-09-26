@@ -418,6 +418,7 @@
           sort: currentSort,
           minRating: currentMinRating,
           minQuality: currentMinQuality,
+          form: currentForm,
           viewMode: $viewMode,
         }),
       });

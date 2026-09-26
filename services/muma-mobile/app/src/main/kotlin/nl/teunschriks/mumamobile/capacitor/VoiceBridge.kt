@@ -49,6 +49,10 @@ fun voiceQueryPayload(target: Target): VoiceQueryPayload = when (target) {
             put("sortMethod", target.sortMethod)
             target.ratingMin?.let { put("ratingMin", it.toString()) }
             target.ratingMax?.let { put("ratingMax", it.toString()) }
+            // Comma-separated, which the server splits like a repeated parameter. The resolver
+            // only ever puts known forms here.
+            if (target.forms.isNotEmpty()) put("form", target.forms.joinToString(","))
+            target.year?.let { put("year", it.toString()) }
         }
     )
 

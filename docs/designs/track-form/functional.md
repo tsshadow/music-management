@@ -81,6 +81,29 @@ The year filter then reads, per the product goal:
 | Year filter on songs | Unchanged: release year |
 | A track MuMa has not classified yet (just downloaded) | Not in a Soort-filtered list until the next hourly pass; in every unfiltered list as before |
 | Curator adds the 2013 date for Defqon.1 | Within an hour the 2013 Defqon.1 live sets carry that performance date |
+| Android Auto, Sets tab, **Soort** | Sets & mixes / Live sets / Podcasts, each a folder like a genre's: play all, shuffle, recently added, by year, then the tracks |
+| Android Auto, Soort > Live sets > By year > 2012 | Live sets played in 2012 (performance year), as on the web |
+| "Speel livesets van Defqon 2019 af" (car, microphone or text) | Defqon.1 live sets played in 2019. "Dj sets" asks for sets & mixes, "podcasts" for podcasts; a bare "set" still means any long track |
+| Preset builder in sets mode | A **Soort** select (All / Sets & mixes / Live sets / Podcasts); the preset keeps it, on the web and in the car |
+| "Save as preset" from the sets view with Soort set | The preset keeps the Soort |
+
+### On the phone: Android Auto, voice and presets
+
+Issue [#47](https://gitlab.example.com/muma/music-management/-/issues/47). The native paths
+now ask the same question the web sets view asks.
+
+- **Android Auto**: the Sets tab gets a **Soort** row next to Podcasts and Festivals. The three forms
+  are a fixed list -- never read from the server -- so the car can only ever send a form LMS knows.
+- **Voice**: "livesets" / "live sets" ask for live sets, "djsets" / "dj sets" for sets & mixes,
+  "podcasts" for podcasts. A bare "set" names no form: people say it of a festival recording as
+  often as of a released mix, so it keeps meaning every long track. "Van Defqon" after a set word
+  is read as the festival when no artist of that name exists.
+- **Presets** store the form (`form` in the preset JSON, sets presets only) and play it everywhere.
+
+**The year next to a form** is the filing year -- a live set's performance year -- because that is
+what "live sets from 2012" means. It is only used together with a form, and only for one year;
+everywhere else (songs, a bare "sets", several years) the year keeps its tag-year meaning, so no
+existing list, preset or spoken request changes its answer.
 
 ## Acceptance Criteria
 
@@ -95,11 +118,10 @@ The year filter then reads, per the product goal:
 
 ## Open Questions / Not Yet Decided
 
-- **Android Auto and voice** still browse by the ten-minute LENGTH switch. The server accepts
-  `form` on `getSongs` from this change on, so they can follow without another server release;
-  wiring them is recorded in issue [#47](https://gitlab.example.com/muma/music-management/-/issues/47).
-- **Saved presets** do not store the form yet; a preset saved from the sets view restores the sets
-  view without it. Same issue.
+- ~~Android Auto, voice and saved presets did not know the form~~ -- wired in issue
+  [#47](https://gitlab.example.com/muma/music-management/-/issues/47), see "On the phone" above.
+- A spoken **podcast name** ("speel de podcast van Q-dance") is not matched against the `PODCAST`
+  tag; only the form is. Not asked for yet: issue [#88](https://gitlab.example.com/muma/music-management/-/issues/88).
 - The year picker lists the years the files carry. A year that exists only as a performance date
   is not in that list (rare: the tagger already writes the edition date into the file's date when
   it knows it).

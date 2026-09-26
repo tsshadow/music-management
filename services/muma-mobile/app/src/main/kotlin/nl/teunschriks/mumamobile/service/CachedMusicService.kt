@@ -625,7 +625,9 @@ class CachedMusicService(private val musicService: MusicService) :
         maxDuration: Int?,
         artistIds: List<String>?,
         workId: Int?,
-        canonicalOnly: Boolean?
+        canonicalOnly: Boolean?,
+        forms: List<String>?,
+        year: Int?
     ): MusicDirectory = musicService.getSongs(
         filters,
         ratingMin,
@@ -638,7 +640,9 @@ class CachedMusicService(private val musicService: MusicService) :
         maxDuration,
         artistIds,
         workId,
-        canonicalOnly
+        canonicalOnly,
+        forms,
+        year
     )
 
     @Throws(Exception::class)

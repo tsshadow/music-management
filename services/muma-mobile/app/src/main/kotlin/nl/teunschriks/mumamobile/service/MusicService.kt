@@ -226,7 +226,14 @@ interface MusicService {
          * One row per song. Null follows the user's setting, which is what every browsing
          * caller wants; pass false where every file has to be listed.
          */
-        canonicalOnly: Boolean? = null
+        canonicalOnly: Boolean? = null,
+        /**
+         * MuMa's classification, from [nl.teunschriks.mumamobile.api.subsonic.models.TrackForm.FORMS].
+         * A value outside that list is dropped before the request, never sent.
+         */
+        forms: List<String>? = null,
+        /** The year a track files under: a live set's performance year, else its date tag. */
+        year: Int? = null
     ): MusicDirectory
 
     @Throws(Exception::class)

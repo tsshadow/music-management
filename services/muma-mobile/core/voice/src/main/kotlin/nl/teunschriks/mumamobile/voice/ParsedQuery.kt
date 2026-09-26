@@ -29,6 +29,9 @@ package nl.teunschriks.mumamobile.voice
  * @property years the spoken years, four digits each
  * @property free what was left over, which the resolver tries as a genre, an artist and a label
  * @property length "short" for songs, "long" for livesets
+ * @property forms the track forms a set word named, from `TrackForm.SET_FORMS`: "livesets" asks for
+ *           `liveset`, "djsets" for `set`, "podcasts" for `podcast`. Empty for a bare "set", which
+ *           is any of them -- in speech a set is as often a festival recording as a released mix.
  * @property sort the order asked for, or null when the utterance said nothing about it
  * @property favorites whether only the highest rated tracks were asked for
  * @property ratingMin the rating floor that was asked for
@@ -48,6 +51,7 @@ data class ParsedQuery(
     val years: List<String> = emptyList(),
     val free: String? = null,
     val length: String = VoiceQuery.LENGTH_SHORT,
+    val forms: List<String> = emptyList(),
     val sort: Sort? = null,
     val favorites: Boolean = false,
     val ratingMin: Int? = null,

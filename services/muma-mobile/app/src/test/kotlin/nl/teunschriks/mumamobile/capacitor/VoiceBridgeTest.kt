@@ -63,6 +63,24 @@ class VoiceBridgeTest {
     }
 
     @Test
+    fun `a form and a filing year travel as getSongs's own form and year`() {
+        val target = Target.Filtered(Filters(), SortMethods.RELEASED, forms = listOf("liveset", "podcast"), year = 2019)
+
+        val payload = voiceQueryPayload(target) as VoiceQueryPayload.Filtered
+
+        payload.params["form"] shouldBeEqualTo "liveset,podcast"
+        payload.params["year"] shouldBeEqualTo "2019"
+    }
+
+    @Test
+    fun `no form asked for is no form or year key at all`() {
+        val payload = voiceQueryPayload(Target.Filtered(Filters(), SortMethods.RELEASED)) as VoiceQueryPayload.Filtered
+
+        ("form" in payload.params) shouldBeEqualTo false
+        ("year" in payload.params) shouldBeEqualTo false
+    }
+
+    @Test
     fun `an item target carries its kind lower-case, its id and its name`() {
         val target = Target.Item(EntityKind.ALBUM, "42", "Thunderdome")
 

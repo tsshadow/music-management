@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.voice
 
 import kotlin.math.abs
 import nl.teunschriks.mumamobile.api.subsonic.models.QualityTier
+import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 
 /**
  * @class VoiceQuery
@@ -136,8 +137,17 @@ object VoiceQuery {
     /** Dropped when it introduces a quality phrase: "hardstyle in hoge kwaliteit". */
     private val QUALITY_PREPOSITIONS = setOf("in", "op", "als")
     private val ARTICLE_WORDS = setOf("het", "de", "the", "een", "a", "an")
-    private val SET_WORDS = setOf("set", "sets", "liveset", "livesets", "djset", "djsets")
+    private val LIVESET_WORDS = setOf("liveset", "livesets")
+    private val DJSET_WORDS = setOf("djset", "djsets")
+    private val PODCAST_WORDS = setOf("podcast", "podcasts")
+
+    /** The set words that name no form on their own; "live" or "dj" in front of them does. */
+    private val BARE_SET_WORDS = setOf("set", "sets")
+    private val SET_WORDS = BARE_SET_WORDS + LIVESET_WORDS + DJSET_WORDS + PODCAST_WORDS
     private val SET_QUALIFIERS = setOf("live", "dj")
+
+    /** Read as "van" right after a set word: "set of headhunterz", "livesets from defqon". */
+    private val SET_OF_WORDS = setOf("of", "from")
     private val SEPARATORS = Regex("[^\\p{L}\\p{N}&]+")
     private val YEAR = Regex("(19|20)\\d{2}")
 
@@ -206,12 +216,14 @@ object VoiceQuery {
             setWordIndices.all { it > titleIndex }
 
         val wantsSets = setWordIndices.isNotEmpty() && !setWordNamesTheTitle
+        val forms = if (wantsSets) formsNamed(tokens, setWordIndices, trace) else emptyList()
         if (wantsSets) {
             // "The latest set of headhunterz" names the artist through "of" the same way "van"
             // does, but only right after the set word that was just dropped -- "art of creation"
-            // never sees this, because nothing there was a set word to begin with.
+            // never sees this, because nothing there was a set word to begin with. "Livesets from
+            // Defqon" is the same shape; before a year "van" is still read as the year's word.
             tokens = tokens.mapIndexed { index, token ->
-                if (token == "of" && index > 0 && tokens[index - 1] in SET_WORDS) "van" else token
+                if (token in SET_OF_WORDS && index > 0 && tokens[index - 1] in SET_WORDS) "van" else token
             }.filterNot { it in SET_WORDS || it in SET_QUALIFIERS }
             trace?.rule("a set word was spoken, so LENGTH becomes \"$LENGTH_LONG\"")
         } else if (setWordNamesTheTitle) {
@@ -337,6 +349,7 @@ object VoiceQuery {
             years = years.toList(),
             free = free.joinToString(" ").ifEmpty { null },
             length = if (wantsSets) LENGTH_LONG else LENGTH_SHORT,
+            forms = forms,
             sort = when {
                 random -> ParsedQuery.Sort.RANDOM
                 added -> ParsedQuery.Sort.ADDED
@@ -355,6 +368,31 @@ object VoiceQuery {
         }
         trace?.note("parsed as $request")
         return request
+    }
+
+    /**
+     * The track forms the set words name, each once, in the order spoken.
+     *
+     * "Livesets" and "live sets" ask for `liveset`, "djsets" and "dj sets" for `set`, "podcasts" for
+     * `podcast`. A bare "set" names none: a speaker says it of a festival recording as readily as
+     * of a released mix, so it keeps asking for everything long, as it always has. Only values of
+     * [TrackForm.FORMS] come out of here, because the server refuses anything else outright.
+     */
+    private fun formsNamed(tokens: List<String>, setWordIndices: List<Int>, trace: QueryTrace?): List<String> {
+        val forms = setWordIndices.mapNotNull { index ->
+            val word = tokens[index]
+            val before = tokens.getOrNull(index - 1)
+            when {
+                word in LIVESET_WORDS -> TrackForm.LIVESET
+                word in DJSET_WORDS -> TrackForm.SET
+                word in PODCAST_WORDS -> TrackForm.PODCAST
+                word in BARE_SET_WORDS && before == "live" -> TrackForm.LIVESET
+                word in BARE_SET_WORDS && before == "dj" -> TrackForm.SET
+                else -> null
+            }
+        }.distinct()
+        forms.forEach { trace?.rule("a set word names the form \"$it\"") }
+        return forms
     }
 
     /** Every value spoken into a slot, each with its own words joined back together. */

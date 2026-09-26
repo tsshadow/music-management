@@ -165,6 +165,55 @@ describe("VoiceView", () => {
     await waitFor(() => expect(get(playlist)).toEqual(THUNDERDOME_TRACKS));
   });
 
+  it("passes a form and filing year through to getSongs and names the form", async () => {
+    globalThis.fetch = lms({
+      "/rest/getSongs?": {
+        "subsonic-response": { status: "ok", songs: { song: HARDSTYLE_SONGS } },
+      },
+    });
+    const speech = fakeSpeech({
+      results: [
+        {
+          explanation: {
+            heard: "speel livesets van defqon 2019 af",
+            festival: "Defqon.1",
+            year: "2019",
+            form: "liveset",
+            order: "released",
+            understood: "Defqon.1, 2019",
+          },
+          resolution: {
+            kind: "play",
+            query: {
+              type: "filtered",
+              method: "getSongs",
+              params: {
+                clusters:
+                  '[{"name":"FESTIVAL","value":"Defqon.1"},{"name":"LENGTH","value":"long"}]',
+                sortMethod: "DateDescAndRelease",
+                form: "liveset",
+                year: "2019",
+              },
+            },
+            trace: [],
+          },
+        },
+      ],
+    });
+    render(VoiceView, { platform: { speech } });
+
+    speech.fireFinal({ text: "speel livesets van defqon 2019 af", alternatives: [] });
+
+    await waitFor(() => expect(get(playlist)).toEqual(HARDSTYLE_SONGS));
+    const url = String(
+      globalThis.fetch.mock.calls.find(([u]) => String(u).includes("/rest/getSongs?"))[0],
+    );
+    expect(url).toContain("form=liveset");
+    expect(url).toContain("year=2019");
+    expect(screen.getByText("Soort")).toBeTruthy();
+    expect(screen.getByText("Livesets")).toBeTruthy();
+  });
+
   it("explains why nothing played and offers a way to try again", async () => {
     const speech = fakeSpeech({ results: [NO_MATCH] });
     render(VoiceView, { platform: { speech } });

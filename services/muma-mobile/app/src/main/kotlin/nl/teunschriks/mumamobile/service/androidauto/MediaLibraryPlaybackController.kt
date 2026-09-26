@@ -456,14 +456,18 @@ class MediaLibraryPlaybackController(
                 sortMethod = filtered.sortMethod,
                 festivalLineup = null,
                 minDuration = null,
-                maxDuration = null
+                maxDuration = null,
+                forms = filtered.forms.takeIf { it.isNotEmpty() },
+                year = filtered.year
             )
         } ?: return null
 
         val tracks = songs.getTracks()
         Timber.i(
-            "tracksFromVoice: filters=%s sort=%s tracks=%d",
+            "tracksFromVoice: filters=%s forms=%s year=%s sort=%s tracks=%d",
             filtered.filters,
+            filtered.forms,
+            filtered.year,
             filtered.sortMethod,
             tracks.size
         )

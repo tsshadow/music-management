@@ -424,7 +424,17 @@ interface SubsonicAPIDefinition {
         /** Every version of one song, for the list behind a track. */
         @Query("workId") workId: Int? = null,
         /** One row per song: the version MuMa named best, plus everything it has not grouped. */
-        @Query("canonicalOnly") canonicalOnly: Boolean? = null
+        @Query("canonicalOnly") canonicalOnly: Boolean? = null,
+        /**
+         * What MuMa classified the track as, one of [nl.teunschriks.mumamobile.api.subsonic.models.TrackForm.FORMS];
+         * repeated for several. The server refuses any other value for the whole request.
+         */
+        @Query("form") forms: List<String>? = null,
+        /**
+         * The year a track files under: the performance date for a live set, else the date tag.
+         * Unlike the `YEAR` cluster an unknown year answers empty rather than failing.
+         */
+        @Query("year") year: Int? = null
     ): Call<GetSongsResponse>
 
     @GET("getSongsByMood.view")

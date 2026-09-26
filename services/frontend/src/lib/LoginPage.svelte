@@ -1,7 +1,7 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import MumaMark from './MumaMark.svelte';
-  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser } from './store.js';
+  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, signedOut } from './store.js';
   import { signIn } from './login.js';
   import { platform } from './platform/index.js';
 
@@ -29,6 +29,10 @@
   }
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  // Inside the Android shell Google's web sign-in cannot run (Google refuses OAuth in a WebView),
+  // so the shell does it natively and this page only shows a button for it -- when the APK was
+  // built with a client ID. A browser tab keeps the Google Identity Services button.
+  let nativeGoogle = $state(false);
   let requestStatus = $state(null); // 'unknown', 'pending', 'approved', 'rejected'
   let googleUser = $state(null);
   let googleRequest = $state(null);
@@ -120,14 +124,12 @@
   }
 
   /**
-   * Handles the response from Google Identity Services.
+   * Handles a Google ID token -- from Google Identity Services in a browser, or from the Android
+   * shell's native sign-in ({@link nativeGoogleSignIn}).
    *
-   * Known gap, not fixed here: unlike {@link verifyLogin}, this path never calls
-   * `platform.system.saveCredentials()`. A Google sign-in performed inside the Capacitor shell
-   * therefore only ever updates the web session -- Kotlin keeps whatever it had before (or
-   * nothing, on a first sign-in), so downloads and Android Auto do not pick up an
-   * account that was only ever confirmed through Google here. A password sign-in on this same
-   * screen is unaffected and does push through.
+   * Inside the shell the account's pair goes back to Kotlin as well, exactly as a password sign-in
+   * does, so downloads and Android Auto see the same session; the api key is the password there,
+   * as it is for the web's own Subsonic calls.
    */
   async function handleGoogleResponse(response) {
     idToken = response.credential;
@@ -158,6 +160,8 @@
         username = data.user.username;
         password = data.api_key;
         save();
+        signedOut.set(false);
+        if (isNative) await saveNativeCredentials(data.user.username, data.api_key);
       } else if (data.status === 'unknown') {
         requestStatus = 'unknown';
         googleUser = data.google;
@@ -198,6 +202,27 @@
     }
   }
 
+  /**
+   * "Sign in with Google" inside the Android shell: the shell shows Google's account chooser and
+   * returns an ID token, which goes through {@link handleGoogleResponse} like the browser's does.
+   * A closed chooser is no error; anything else is shown with the reason the shell gave.
+   */
+  async function nativeGoogleSignIn() {
+    error = '';
+    applyServer();
+    let token;
+    try {
+      token = await platform.system.googleSignIn();
+    } catch (e) {
+      error = e?.code === 'no-credential'
+        ? $t('login.googleNoCredential')
+        : $t('login.googleFailed', { reason: e?.message || e?.code || '?' });
+      return;
+    }
+    if (token) await handleGoogleResponse({ credential: token });
+  }
+
+  /** Leaves the access-request screens and shows the login form again. */
   function retryGoogleLogin() {
     requestStatus = null;
     googleUser = null;
@@ -221,7 +246,9 @@
         server = platform.system.serverUrl().subsonic || $credentials.url;
     }
 
-    if (GOOGLE_CLIENT_ID) {
+    if (isNative) {
+      nativeGoogle = await platform.system.googleSignInAvailable();
+    } else if (GOOGLE_CLIENT_ID) {
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
@@ -326,14 +353,22 @@
         {isLoading ? (setupRequired ? $t('login.settingUp') : $t('login.verifying')) : (setupRequired ? $t('login.createAccount') : $t('login.connect'))}
       </button>
 
-      {#if !setupRequired && GOOGLE_CLIENT_ID}
+      {#if !setupRequired && (nativeGoogle || (!isNative && GOOGLE_CLIENT_ID))}
         <div class="flex items-center gap-4 my-2">
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
           <span class="text-xs text-muma-spotify-text font-bold uppercase">{$t('login.or')}</span>
           <div class="h-[1px] bg-[#2a2a2a] flex-1"></div>
         </div>
 
-        <div id="googleBtn" class="flex justify-center w-full"></div>
+        {#if nativeGoogle}
+          <!-- Native Google sign-in (styleguide: "Sign in with Google" button) -->
+          <button type="button" class="flex items-center justify-center gap-3 w-full bg-white text-[#1f1f1f] border border-[#747775] rounded-full p-3 text-sm font-medium cursor-pointer disabled:opacity-50" onclick={nativeGoogleSignIn} disabled={isLoading}>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            {$t('login.googleSignIn')}
+          </button>
+        {:else}
+          <div id="googleBtn" class="flex justify-center w-full"></div>
+        {/if}
       {/if}
     {/if}
   </div>

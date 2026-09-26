@@ -239,6 +239,17 @@ persist("muma_refresh_token", mumaRefreshToken);
 export const mumaSessionActive = writable(false);
 persist("muma_session_active", mumaSessionActive);
 
+/**
+ * Set by a deliberate logout, cleared by the next successful sign-in. While it is set the Android
+ * shell's boot does not sign itself back in from whatever the phone still holds
+ * (`restoreSession` in nativeSession.js): a native sign-out that failed or never answered used to
+ * leave the password in Kotlin, and the reload after the logout put the user straight back in, so
+ * "Uitloggen" visibly did nothing (bug report 106). A device store on purpose: it has to survive
+ * the very `resetSessionState` the logout runs.
+ */
+export const signedOut = writable(false);
+persist("muma_signed_out", signedOut, { device: true });
+
 export const userPermissions = writable([]);
 export const mumaUser = writable(null);
 

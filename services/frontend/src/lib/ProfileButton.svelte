@@ -2,7 +2,7 @@
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { Settings2, CarFront, CircleHelp } from '@lucide/svelte';
-  import { credentials, isAdmin, userPermissions, mumaUser, activeSettingsTab, flushFrontendSettings, resetSessionState } from './store.js';
+  import { credentials, isAdmin, userPermissions, mumaUser, activeSettingsTab, flushFrontendSettings, resetSessionState, signedOut } from './store.js';
   import { platform } from './platform/index.js';
   import { logAction } from './diagnosticsLog.js';
 
@@ -10,6 +10,13 @@
 
   /** How long a logout waits for pending account-setting writes before it goes ahead anyway. */
   const LOGOUT_FLUSH_TIMEOUT_MS = 2000;
+
+  /**
+   * How long a logout waits for the phone's own sign-out. The bridge call used to crash on a
+   * background thread and never answer, which left the button doing nothing at all (bug report
+   * 106); a bound means a native failure can no longer hold the logout up.
+   */
+  const NATIVE_SIGN_OUT_TIMEOUT_MS = 5000;
 
   let isOpen = $state(false);
   const displayUsername = $derived($credentials.username || 'Gebruiker');
@@ -32,7 +39,8 @@
    * `bootstrapShell()` read the untouched native credentials straight back out on the next boot
    * and signed the shell back in, so logging out visibly did nothing. A browser tab's
    * `signOut()` is a no-op that resolves at once, so this is unconditional rather than branching
-   * on `platform.system.isNative`.
+   * on `platform.system.isNative`. The wait is bounded, and the `signedOut` marker makes the
+   * next boot show the login page even when the phone could not be cleared (bug report 106).
    *
    * @param {Event} [event] - Optional click event.
    */
@@ -45,8 +53,15 @@
     logAction('auth.logout');
 
     try {
-      await platform.system.signOut();
+      await Promise.race([
+        platform.system.signOut(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('native sign-out timed out')), NATIVE_SIGN_OUT_TIMEOUT_MS),
+        ),
+      ]);
     } catch (error) {
+      // Not fatal: `signedOut` below keeps the next boot from signing back in with whatever the
+      // phone still holds, and asks the phone to forget it again then.
       console.warn("The native session could not be cleared before logging out", error);
     }
 
@@ -63,6 +78,9 @@
     userPermissions.set([]);
     mumaUser.set(null);
     resetSessionState();
+    // After the reset, which would otherwise not touch it anyway (a device store): the reload
+    // below must land on the login page, not on a silent sign-in from the phone's copy.
+    signedOut.set(true);
 
     isOpen = false;
     window.location.reload();

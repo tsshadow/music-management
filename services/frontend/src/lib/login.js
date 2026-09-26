@@ -8,6 +8,7 @@ import {
   mumaUser,
   refreshSubsonicToken,
   restUrl,
+  signedOut,
   subsonicToken,
   subsonicTokenQuery,
   userPermissions,
@@ -96,6 +97,8 @@ export async function signIn(username, password) {
 
   if (session) publishManagementSession(session);
   credentials.update((current) => ({ ...current, username: canonical, password }));
+  // A sign-in ends a logout: the shell's boot may sign itself in again from here on.
+  signedOut.set(false);
   logAction("auth.login", { ok: true, signed: usable ? "token" : "password" });
   return { ok: true, username: canonical };
 }

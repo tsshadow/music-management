@@ -170,6 +170,40 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
+     * Whether this APK can do "Sign in with Google" natively: a real Web client ID was compiled
+     * in. A bridge failure reads as "no", so the login page simply does not offer the button.
+     *
+     * @returns {Promise<boolean>}
+     */
+    async googleSignInAvailable() {
+      try {
+        const answer = await plugin.googleSignInAvailable();
+        return answer?.available === true;
+      } catch (error) {
+        console.warn("Could not ask the shell whether Google sign-in is available", error);
+        return false;
+      }
+    },
+
+    /**
+     * Native "Sign in with Google" through Android's Credential Manager. Google refuses its web
+     * sign-in inside a WebView, so the shell obtains the ID token and the page posts it to
+     * `/api/auth/google` as the browser's button would (bug report 106).
+     *
+     * @returns {Promise<string|null>} The ID token, or `null` when the user closed the chooser.
+     * @throws {Error} With `code` `not-configured`, `no-credential` or `failed`.
+     */
+    async googleSignIn() {
+      try {
+        const answer = await plugin.googleSignIn();
+        return answer?.idToken || null;
+      } catch (error) {
+        if (error?.code === "cancelled") return null;
+        throw error;
+      }
+    },
+
+    /**
      * Writes a username/password pair the web login screen just verified back to the phone, so
      * downloads and Android Auto see the same session afterwards.
      *

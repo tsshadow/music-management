@@ -7,6 +7,7 @@ import {
   mumaApiUrl,
   playerState,
   refreshSubsonicToken,
+  signedOut,
   subsonicToken,
 } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
@@ -30,6 +31,8 @@ import { startQueue } from "./queue.js";
  *    there is one definition of "signed in" rather than two. A blank password
  *    is how the native app says "logged out": nothing is attempted, whatever
  *    the web session already had is left alone, and the login page appears.
+ *    After a deliberate logout (`signedOut` in store.js) nothing is attempted
+ *    either, whatever the phone still holds, until someone signs in again.
  * 3. **The queue.** The WebView is reclaimed whenever Android feels like it,
  *    while `PlaybackService` keeps playing. A rebuilt UI therefore starts by
  *    asking the service what it is holding and rebuilding its own queue around
@@ -87,6 +90,19 @@ export async function applyServerUrls(platform) {
  * @returns {Promise<boolean>} Whether there is a usable session afterwards.
  */
 export async function restoreSession(platform) {
+  // A deliberate logout outranks whatever the phone still holds. Normally the native sign-out has
+  // already emptied it; when that failed or never answered, the password is still there and
+  // signing in with it would undo the logout the user just asked for (bug report 106). Ask the
+  // phone to forget it once more and show the login page either way.
+  if (get(signedOut)) {
+    try {
+      await platform.system.signOut();
+    } catch (error) {
+      console.warn("The phone's session could not be cleared after a logout", error);
+    }
+    return false;
+  }
+
   const stored = await platform.system.credentials();
   const web = get(credentials);
 

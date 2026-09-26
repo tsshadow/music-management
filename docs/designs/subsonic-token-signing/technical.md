@@ -154,6 +154,12 @@ answering error 40 until the phone's UI was opened once (bug report
    `t` like LMS).
 8. Back-off after a refetch without a new token, a sign-out (also followed by a new sign-in) during
    the refetch discards the answer, and no token reaches the log (`SubsonicTokenRecovererTest`).
+9. End to end in the test stack, where `docker/compose.test.yml` mounts LMS's database directory
+   into music-manager at `/app/data/stable` as production does: a normal user's key gets a token
+   from music-manager, that token signs a `ping` and a `stream` against LMS, a system key gets 403,
+   and a second call returns the same token
+   (`tests/contracts/test_lms_subsonic_contract.py::test_music_manager_issues_a_token_that_signs_lms_requests`,
+   issue #74).
 
 ## Related Docs
 

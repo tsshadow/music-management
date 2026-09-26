@@ -69,6 +69,9 @@ namespace lms::auth::tests
     // throw on the lookup finding two rows.
     TEST_F(CaseInsensitiveLogin, anExistingForkNoLongerReceivesTheLogin)
     {
+        // The schema refuses a new fork; a database the unique index could not be added to
+        // (migrateFromV123 skips it while a fork exists) is what this covers.
+        db::tests::ScopedNoLoginNameUniqueIndex noUniqueIndex{ session };
         db::tests::ScopedUser canonical{ session, "user" };
         db::tests::ScopedUser fork{ session, "Teun" };
         {

@@ -25,6 +25,19 @@
 
 namespace lms::db::tests
 {
+    ScopedNoLoginNameUniqueIndex::ScopedNoLoginNameUniqueIndex(db::Session& session)
+        : _session{ session }
+    {
+        auto transaction{ _session.createWriteTransaction() };
+        _session.execute("DROP INDEX IF EXISTS user_login_name_nocase_unique_idx");
+    }
+
+    ScopedNoLoginNameUniqueIndex::~ScopedNoLoginNameUniqueIndex()
+    {
+        auto transaction{ _session.createWriteTransaction() };
+        _session.execute("CREATE UNIQUE INDEX IF NOT EXISTS user_login_name_nocase_unique_idx ON user(login_name COLLATE NOCASE)");
+    }
+
     TmpDatabase::TmpDatabase()
         : _tmpFile{ std::tmpnam(nullptr) }
         , _fileDeleter{ _tmpFile }

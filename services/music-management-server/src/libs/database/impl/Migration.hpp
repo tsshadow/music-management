@@ -54,5 +54,8 @@ namespace lms::db
     {
         bool doDbMigration(Session& session); // return true if migration was performed
         void applyCustomExtensions(Session& session);
+        // Creates the case-insensitive unique index on user.login_name, or logs the login names
+        // that differ only in case and skips it. Returns whether the index exists afterwards.
+        bool createUserLoginNameUniqueIndexIfPossible(Session& session);
     } // namespace Migration
 } // namespace lms::db

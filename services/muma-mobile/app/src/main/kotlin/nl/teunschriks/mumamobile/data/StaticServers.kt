@@ -42,7 +42,7 @@ object StaticServers {
      * are not stored anywhere LMS could hash them with a salt. The app only knows the login password
      * (or, after a Google sign-in, the muma API key that stands in for it), so the token form is
      * rejected with "wrong username or password" for every account. Switching needs the app to
-     * obtain the per-user Subsonic token first -- tracked in `docs/open-work.md`. Until then the
+     * obtain the per-user Subsonic token first -- tracked in GitLab issue #21. Until then the
      * password travels only over verified TLS ([ALLOW_SELF_SIGNED_CERTIFICATE] is `false`) and is
      * redacted from every log the app writes ([nl.teunschriks.mumamobile.log.LogRedaction]).
      */

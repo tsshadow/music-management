@@ -286,4 +286,4 @@ Afterwards, two things that are not optional:
 - [research.md](research.md) — the production measurements this design answers
 - [docs/database-design.md](../../database-design.md) — domain model the new tables join
 - [docs/designs/ratings-scrobbling/](../ratings-scrobbling/) — the existing scrobble path
-- [docs/open-work.md](../../open-work.md) — the deferred folder restructure
+- issue [#61](https://gitlab.example.com/muma/music-management/-/issues/61) — the deferred folder restructure

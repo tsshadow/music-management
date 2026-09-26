@@ -115,7 +115,7 @@ match for live sets only (a live set with no performance date matches exactly as
 - **frontend** (web and the phone, which bundles it): Soort chip in the sets view
   (`FilterBar.svelte`, `lib/trackForm.js`), `form` sent to `getSpotifyTracks`.
 - **MuMa Mobile native** (Android Auto, voice): not changed; the server accepts `form` on
-  `getSongs` for a follow-up (open-work).
+  `getSongs` for a follow-up (issue #47).
 
 ## Technical Acceptance Criteria
 

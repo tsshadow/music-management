@@ -88,9 +88,9 @@ The year filter then reads, per the product goal:
 
 - **Android Auto and voice** still browse by the ten-minute LENGTH switch. The server accepts
   `form` on `getSongs` from this change on, so they can follow without another server release;
-  wiring them is recorded in [open-work.md](../../open-work.md).
+  wiring them is recorded in issue [#47](https://gitlab.example.com/muma/music-management/-/issues/47).
 - **Saved presets** do not store the form yet; a preset saved from the sets view restores the sets
-  view without it. Same entry in open-work.
+  view without it. Same issue.
 - The year picker lists the years the files carry. A year that exists only as a performance date
   is not in that list (rare: the tagger already writes the edition date into the file's date when
   it knows it).

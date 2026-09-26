@@ -432,7 +432,7 @@ backend:typecheck:
 # tools/ was "found twice under different module names" (see scripts/typecheck.sh).
 #
 # allow_failure while the backlog is worked down: 299 errors in 82 files when this
-# job was added (99 outside the tests), counted in docs/open-work.md. Orange is the
+# job was added (99 outside the tests), tracked in GitLab issue #41. Orange is the
 # point -- the number is visible on every pipeline instead of nowhere. Drop
 # allow_failure once it reaches zero, and do not add to it in the meantime.
 backend:typecheck-all:

@@ -324,7 +324,7 @@ To maintain high code quality, the system employs an automated test suite:
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
       tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
-      added, see [docs/open-work.md](docs/open-work.md)) reaches zero.
+      added, see issue [#41](https://gitlab.example.com/muma/music-management/-/issues/41)) reaches zero.
     - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
       reformat would rewrite nearly every file and conflict with every open branch.
     - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
@@ -477,11 +477,20 @@ rule 11).
     - `# reported problem`
     - `# Possible reason`
     - `# solution`
-14. **Open work is written down**: anything decided-but-not-done, or done-but-not-verified, gets a
-    line in [docs/open-work.md](docs/open-work.md) pointing at wherever the detail lives. A bug
-    report describes a fix, so it cannot carry a plan; a merge request description disappears from
-    the repository entirely. Delete the line when the work is done — a stale entry there is a bug,
-    same as a stale design doc (rule 3).
+14. **Open work lives in GitLab issues**: anything decided-but-not-done, or done-but-not-verified,
+    becomes an issue in `muma/music-management` the moment it is found (`glab issue create`),
+    not a line in a file. Each issue carries one kind label -- `needs-person` (Teun must run a
+    script, check a device, enter a secret), `decision` (a choice only Teun can make), `verify`
+    (check on production or a device after a release; state the exact check), `code` (buildable
+    work), `deferred` (consciously parked) -- and one area label (`area-backend`, `area-frontend`,
+    `area-mobile`, `area-lms`, `area-infra`, `area-data`). The issue links to the bug report,
+    design doc or script where the detail lives: a bug report describes a fix, so it cannot carry
+    a plan, and a merge request description is not a record. A merge request that finishes one
+    writes `Closes #N` in its description; one that leaves something open files a new issue. The
+    [Development board](https://gitlab.example.com/muma/music-management/-/boards/1) has a
+    column per kind. [docs/open-work.md](docs/open-work.md) is only a pointer now (it held this
+    list until 2026-09-26); do not add lines to it. A stale open issue is a bug, same as a stale
+    design doc (rule 3).
 15. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/muma-mobile`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
 16. **Ask which environment before touching live data**: any question that involves live data — the
     database, running containers, logs, checking whether something "actually works" — is ambiguous between

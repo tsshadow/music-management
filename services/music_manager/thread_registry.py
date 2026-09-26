@@ -123,12 +123,19 @@ def run_forever(
     unless `backoff=False`, in which case a failure is followed by the normal interval
     (for loops whose next attempt must not come sooner, such as the lms.db sync).
 
-    Only `Exception` is caught: KeyboardInterrupt and SystemExit still end the loop, which
-    is also how the tests get out of it. A loop given a `stop` event waits on it instead of
-    sleeping and returns as soon as it is set.
+    Only `Exception` is caught: KeyboardInterrupt and SystemExit still end the loop. The
+    pause between ticks is always `stop.wait(delay)`, and the loop returns as soon as `stop`
+    is set; without a `stop` the loop gets a private event nobody sets, which makes the wait
+    a plain sleep. Never `time.sleep`: that is one function shared by every thread in the
+    process, and tests used to end this loop by patching it with a finite `side_effect`
+    list -- which any other thread sleeping at that moment (the event writer retrying a
+    database write) consumed as well (bug report 099). Tests pass a `stop` event instead
+    and drive an exact number of rounds through it.
     """
     register_heartbeat(name, stale_after if stale_after is not None else default_stale_after(interval))
-    while stop is None or not stop.is_set():
+    if stop is None:
+        stop = threading.Event()
+    while not stop.is_set():
         try:
             requested = tick()
         except Exception:  # pylint: disable=broad-except  # the loop must outlive any one tick
@@ -138,9 +145,7 @@ def run_forever(
         else:
             beat(name)
             delay = interval if requested is None else max(0.0, requested)
-        if stop is None:
-            time.sleep(delay)
-        elif stop.wait(delay):
+        if stop.wait(delay):
             return
 
 

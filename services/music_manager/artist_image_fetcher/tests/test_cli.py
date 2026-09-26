@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from services.music_manager.artist_image_fetcher import cli
+from services.tests.stop_after import StopAfter
 
 
 class CliTestCase(unittest.TestCase):
@@ -115,14 +116,14 @@ class LoopingTest(CliTestCase):
 
     def test_the_daemon_flag_keeps_the_loop_running_between_sleeps(self):
         self.cursor.fetchall.return_value = []
-        with patch('time.sleep', side_effect=[None, KeyboardInterrupt]) as sleep:
-            with (
-                patch('sys.argv', ['artist-image-fetcher', '--daemon', '--sleeptime', '1', 'fetch-missing']),
-                patch('builtins.print'),
-            ):
-                with self.assertRaises(KeyboardInterrupt):
-                    cli.main()
-        self.assertEqual(sleep.call_args.args, (1,))
+        stop = StopAfter(2)
+        with (
+            patch.object(cli, 'shutdown', stop),
+            patch('sys.argv', ['artist-image-fetcher', '--daemon', '--sleeptime', '1', 'fetch-missing']),
+            patch('builtins.print'),
+        ):
+            cli.main()
+        self.assertEqual(stop.delays, [1, 1])
 
 
 class SetupLoggingTest(CliTestCase):

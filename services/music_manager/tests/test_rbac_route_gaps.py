@@ -30,6 +30,7 @@ from services.music_manager.routers import channel_links as channel_links_router
 from services.music_manager.routers import events as events_router
 from services.music_manager.routers import management as management_router
 from services.music_manager.routers import rating as rating_router
+from services.tests.stop_after import StopAfter
 
 SYSTEM_KEY = resolve_system_api_key()
 
@@ -465,18 +466,11 @@ class ServerSyncTest(RouteAuthTestCase):
     def test_the_hourly_loop_holds_the_same_lock(self):
         seen = []
 
-        class Stop(Exception):
-            """Ends the otherwise endless loop after one round."""
-
         def record():
             seen.append(users_router.lms_db_sync_lock.locked())
 
-        with (
-            patch.object(users_router, 'run_lms_db_sync_with_retry', side_effect=record),
-            patch.object(users_router.time, 'sleep', side_effect=Stop),
-            self.assertRaises(Stop),
-        ):
-            users_router.run_lms_db_sync_loop(1)
+        with patch.object(users_router, 'run_lms_db_sync_with_retry', side_effect=record):
+            users_router.run_lms_db_sync_loop(1, stop=StopAfter(1))
         self.assertEqual(seen, [True])
         self.assertIsInstance(users_router.lms_db_sync_lock, type(threading.Lock()))
 

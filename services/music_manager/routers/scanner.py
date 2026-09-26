@@ -512,11 +512,12 @@ def _scanner_tick() -> None:
     scanner_manager.run_full()
 
 
-def run_scanner_loop(sleeptime: int = 3600):
+def run_scanner_loop(sleeptime: int = 3600, stop: threading.Event | None = None):
     """The `scanner` thread: a full scan on start, then one every `sleeptime` seconds, for good.
 
     Runs through thread_registry.run_forever, so a scan that raises is logged and retried
-    instead of ending the loop.
+    instead of ending the loop. `stop` ends the loop when set (tests use it to run an exact
+    number of rounds).
     """
     logger.info('Starting background scanner loop with sleeptime %d', sleeptime)
     run_forever(
@@ -524,4 +525,5 @@ def run_scanner_loop(sleeptime: int = 3600):
         _scanner_tick,
         sleeptime,
         stale_after=max(SCANNER_STALE_AFTER_SECONDS, default_stale_after(sleeptime)),
+        stop=stop,
     )

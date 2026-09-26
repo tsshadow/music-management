@@ -27,7 +27,6 @@ from __future__ import annotations
 import json
 import sys
 import threading
-import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Any
@@ -105,6 +104,12 @@ class EventService:
         self._worker: threading.Thread | None = None
         self._writer: threading.Thread | None = None
         self._worker_lock = threading.Lock()
+        # The writer's pause between retries. Never set: `wait(delay)` is a plain sleep, but
+        # one that belongs to this service. With `time.sleep` the writer shared the one
+        # process-wide function that tests patch with a finite `side_effect` list to end a
+        # loop, and a retry that happened to land inside such a test consumed its items
+        # (bug report 099).
+        self._retry_pause = threading.Event()
 
     def add_sink(self, sink) -> None:
         self._sinks.append(sink)
@@ -215,7 +220,7 @@ class EventService:
                         file=sys.stderr,
                     )
                     return False
-                time.sleep(RETRY_DELAYS[attempt])
+                self._retry_pause.wait(RETRY_DELAYS[attempt])
         return False
 
     def _dispatch(self, event: Event) -> None:

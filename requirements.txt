@@ -62,6 +62,8 @@ patool~=4.0
 
 # --- Misc --------------------------------------------------------------------
 requests~=2.34.2
+urllib3>=2.5,<3  # imported directly by artist_image_fetcher/safe_fetch.py (bug 114), 2.x API
+certifi>=2025.1.31  # CA bundle for the pinned-address TLS check in safe_fetch.py
 python-dotenv~=1.2.2
 markdown~=3.6
 docker~=7.2.0

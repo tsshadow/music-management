@@ -37,8 +37,8 @@ class AuthModelsTest {
         response.status shouldBeEqualTo "ok"
         response.user!!.id shouldBeEqualTo 7
         response.user!!.username shouldBeEqualTo "user"
-        response.api_key shouldBeEqualTo "abc123"
-        response.refresh_token shouldBeEqualTo "def456"
+        response.apiKey shouldBeEqualTo "abc123"
+        response.refreshToken shouldBeEqualTo "def456"
     }
 
     @Test
@@ -49,6 +49,6 @@ class AuthModelsTest {
         )
 
         response.user.shouldBeNull()
-        response.api_key shouldBeEqualTo "abc123"
+        response.apiKey shouldBeEqualTo "abc123"
     }
 }

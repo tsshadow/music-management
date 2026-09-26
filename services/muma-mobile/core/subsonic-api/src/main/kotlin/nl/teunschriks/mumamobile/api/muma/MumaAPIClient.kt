@@ -57,10 +57,10 @@ class MumaAPIClient(
                     if (refreshResponse.isSuccessful) {
                         val authResponse = refreshResponse.body()
                         if (authResponse?.status == "ok") {
-                            val newAccessToken = authResponse.access_token ?: authResponse.api_key
+                            val newAccessToken = authResponse.accessToken ?: authResponse.apiKey
                             if (newAccessToken != null) {
                                 storage.mumaAccessToken = newAccessToken
-                                authResponse.refresh_token?.let { storage.mumaRefreshToken = it }
+                                authResponse.refreshToken?.let { storage.mumaRefreshToken = it }
                                 return@synchronized response.request.newBuilder()
                                     .header("X-API-Key", newAccessToken)
                                     .build()

@@ -28,7 +28,7 @@ import timber.log.Timber
  * This class can be used to retrieve the properties of the Active Server
  * It caches the settings read up from the DB to improve performance.
  */
-class ActiveServerProvider(private val repository: ServerSettingDao) : CoroutineScope by CoroutineScope(Dispatchers.IO) {
+class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     private var cachedServer: ServerSetting? = null
     private var cachedDatabase: MetaDatabase? = null
     private var cachedServerId: Int? = null

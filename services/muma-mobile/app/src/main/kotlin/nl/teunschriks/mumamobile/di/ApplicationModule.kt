@@ -10,7 +10,7 @@ import org.koin.dsl.module
  * This Koin module contains the registration of general classes needed for Ultrasonic
  */
 val applicationModule = module {
-    single { ActiveServerProvider(get()) }
+    single { ActiveServerProvider() }
     single { ImageLoaderProvider() }
     single { CacheCleaner() }
     single { MediaDeviceExporter(get()) }

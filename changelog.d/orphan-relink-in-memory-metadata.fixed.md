@@ -1,0 +1,1 @@
+- **The orphan relink runs in minutes, not hours.** The title-and-artist key queried the whole track table once per orphan, so a dry run over production's 81,879 fileless tracks took hours while holding the scanner lock. A bulk run now reads the candidates once. Bug report 107.

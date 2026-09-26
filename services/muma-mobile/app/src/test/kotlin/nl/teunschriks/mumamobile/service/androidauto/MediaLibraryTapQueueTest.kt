@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.FeedPage
+import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
 import org.amshove.kluent.`should be equal to`
 import org.junit.Test
@@ -30,7 +32,12 @@ class MediaLibraryTapQueueTest {
 
     private val musicService: MusicService = mockk(relaxed = true)
     private val scope = CoroutineScope(Dispatchers.Unconfined)
-    private val dataProvider = MediaLibraryDataProvider(serviceScope = scope, musicServiceProvider = { musicService })
+    private val feeds: FeedRepository = mockk()
+    private val dataProvider = MediaLibraryDataProvider(
+        serviceScope = scope,
+        musicServiceProvider = { musicService },
+        feedRepositoryProvider = { feeds }
+    )
     private val controller = MediaLibraryPlaybackController(scope) { musicService }.apply {
         dataProvider = this@MediaLibraryTapQueueTest.dataProvider
     }
@@ -76,6 +83,47 @@ class MediaLibraryTapQueueTest {
         dataProvider.randomSongsCache = null
 
         controller.queueForTap("${base.MEDIA_SONG_RANDOM_ITEM}|a") `should be equal to` null
+    }
+
+    @Test
+    fun `a track tapped in a feed plays the feed and says where it continues`() {
+        // The queue has to know which feed it is and where the next page starts, or it stops
+        // after the first page (issue #84).
+        every { feeds.firstPage("daily-mix") } returns FeedPage(tracks("a", "b", "c"), nextOffset = 3)
+
+        val queue = controller.queueForTap("${base.MEDIA_FEED_ITEM}|daily-mix|b")!!
+
+        queue.tracks.map { it.id } `should be equal to` listOf("a", "b", "c")
+        queue.startIndex `should be equal to` 1
+        queue.feedSlug `should be equal to` "daily-mix"
+        queue.feedNextOffset `should be equal to` 3
+    }
+
+    @Test
+    fun `play all in a feed folder starts at the top and says where it continues`() {
+        every { feeds.firstPage("release-radar") } returns FeedPage(tracks("a", "b"), nextOffset = 2)
+
+        val queue = controller.queueForFeedPlayAll("${base.MEDIA_FEED_ID}|release-radar")!!
+
+        queue.tracks.map { it.id } `should be equal to` listOf("a", "b")
+        queue.startIndex `should be equal to` 0
+        queue.feedSlug `should be equal to` "release-radar"
+        queue.feedNextOffset `should be equal to` 2
+    }
+
+    @Test
+    fun `play all of anything else, or of an empty feed, is not a feed queue`() {
+        every { feeds.firstPage("daily-mix") } returns FeedPage(emptyList(), nextOffset = null)
+
+        controller.queueForFeedPlayAll("${base.MEDIA_FEED_ID}|daily-mix") `should be equal to` null
+        controller.queueForFeedPlayAll(base.MEDIA_SONG_STARRED_ID) `should be equal to` null
+    }
+
+    @Test
+    fun `a list that is not a feed carries no continuation`() {
+        dataProvider.randomSongsCache = tracks("a", "b")
+
+        controller.queueForTap("${base.MEDIA_SONG_RANDOM_ITEM}|b")!!.feedSlug `should be equal to` null
     }
 
     @Test

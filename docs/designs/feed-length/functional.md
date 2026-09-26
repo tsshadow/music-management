@@ -50,7 +50,8 @@ length. (The artist and label numbers above were measured on production before #
 | The listener presses play on a feed (page or Home card) and listens to the end | Shortly before the last track the queue grows by the next page of the same feed, without a tap. When the feed is exhausted the queue simply ends, as before. |
 | The listener starts something else (an album, a search) | That queue never grows with feed tracks. |
 | The admin changes "Feed length" in Beheer → Config → Feeds | The next time a feed is opened it is rebuilt at the new length; today's stored feeds are not served any more. |
-| Android Auto | The feed folders list the configured length (100) instead of 30. |
+| Android Auto | The feed folders list the configured length (100) instead of 30, never more than 100. |
+| The driver plays a feed in the car ("Alles afspelen" or a tapped track) and listens on | Shortly before the last track the car's queue grows by the next page of the same feed, as on the web (issue #84). |
 
 ## Acceptance Criteria
 
@@ -64,5 +65,6 @@ length. (The artist and label numbers above were measured on production before #
 
 ## Open Questions / Not Yet Decided
 
-- Android Auto's own "play all" plays the (now 100-track) list but does not continue past it; the
-  car has no queue top-up of its own. Deferred to issue #84, not part of this change.
+- ~~Android Auto's own "play all" plays the (now 100-track) list but does not continue past it.~~
+  Resolved by issue #84: the car's feed queue tops itself up too (technical.md, "Continuation in
+  Android Auto").

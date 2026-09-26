@@ -547,11 +547,16 @@ class MediaLibraryBrowser(
      * The tracks are cached on the data provider before the items are built, because a tap in
      * the car comes back as a media id and nothing else -- the playback side has to find the
      * song again without asking who was showing it.
+     *
+     * The list shows at most [DISPLAY_LIMIT] tracks: the stored list can reach 500 once the web
+     * has continued it, and Auto has item limits of its own. What is not listed still plays --
+     * "Alles afspelen" and a tapped track queue the whole first page, and that queue continues
+     * past its end on its own (FeedQueueContinuation, issue #84).
      */
     private fun getFeedItems(
         slug: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = serviceScope.future {
-        val tracks = dataProvider.feeds.tracksFor(slug)
+        val tracks = dataProvider.feeds.tracksFor(slug).take(DISPLAY_LIMIT)
 
         val mediaItems: MutableList<MediaItem> = ArrayList()
         if (tracks.size > 1) {

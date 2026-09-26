@@ -20,6 +20,7 @@ import androidx.media3.common.C
 import androidx.media3.common.C.USAGE_MEDIA
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -390,6 +391,15 @@ class PlaybackService :
             scrobbler?.onItemChanged(track, player.isPlaying)
             updateWidgetTrack(track)
             cacheNextSongs()
+            librarySessionCallback.onQueueMoved(player)
+        }
+
+        // A queue that grew, shrank or was replaced without a track change -- the car's feed
+        // queue is checked here too, since a queue set to start near its end moves nothing.
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
+                librarySessionCallback.onQueueMoved(player)
+            }
         }
 
         // The same item twice in a row can arrive as a discontinuity with no item transition

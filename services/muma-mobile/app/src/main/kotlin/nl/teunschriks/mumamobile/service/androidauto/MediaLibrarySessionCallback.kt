@@ -39,6 +39,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
+import nl.teunschriks.mumamobile.service.FeedPage
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.service.PlaybackService
 import nl.teunschriks.mumamobile.service.PlaybackStateSerializer
@@ -111,6 +112,13 @@ class MediaLibrarySessionCallback :
         MediaLibraryDataProvider(serviceScope = serviceScope, musicServiceProvider = { musicService })
     private var playbackController: MediaLibraryPlaybackController =
         MediaLibraryPlaybackController(serviceScope = serviceScope) { musicService }
+
+    // A queue started from a feed in the car continues past its first page (issue #84). Main
+    // scope, because the append is a player call; the page itself is fetched on IO.
+    private val feedContinuation = FeedQueueContinuation(
+        scope = mainScope,
+        loadPage = { slug, offset -> dataProvider.feeds.pageAfter(slug, offset) }
+    )
 
     // Named rather than a trailing lambda: the browser takes a genre-tint cache after the service
     // provider now, and a trailing lambda would silently bind to that instead.
@@ -381,6 +389,10 @@ class MediaLibrarySessionCallback :
             VoiceTraceLog.record(trace)
         }
 
+        // Every path below replaces the queue. The ones that start a feed arm the continuation
+        // again once they know the feed's first page (queueFromTap, onAddMediaItems).
+        feedContinuation.stop()
+
         // A tap on one track in a browsed list. The car sends the one media id and nothing else,
         // and the default path answers with the one item, so playback used to stop after it.
         // Resolved here rather than in onAddMediaItems because only this callback can say where
@@ -434,6 +446,9 @@ class MediaLibrarySessionCallback :
                 return@launch
             }
             Timber.i("Playing %d tracks from index %d for %s", queue.tracks.size, queue.startIndex, mediaId)
+            queue.feedSlug?.let { slug ->
+                feedContinuation.start(slug, FeedPage(queue.tracks, queue.feedNextOffset))
+            }
             result.set(
                 MediaSession.MediaItemsWithStartPosition(
                     queue.tracks.map { it.toMediaItem() },
@@ -503,6 +518,7 @@ class MediaLibrarySessionCallback :
         // Return early if its a search
         if (mediaItems[0].requestMetadata.searchQuery != null) {
             stopRadioIfRunning(mediaSession)
+            feedContinuation.stop()
             playbackSourceHolder.startQueue()
             commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
             // Assistant names the genre in the search extras when it understood the request as a
@@ -527,6 +543,7 @@ class MediaLibrarySessionCallback :
             .takeIf { it.startsWith("$MEDIA_RADIO_ITEM|") }
             ?.substringAfter('|')
         if (radioSlug != null) {
+            feedContinuation.stop()
             radioPlaybackController.start(mediaSession.player, radioSlug)
             updateAvailableCommands(mediaSession)
             return Futures.immediateFuture(emptyList())
@@ -562,8 +579,29 @@ class MediaLibrarySessionCallback :
             // They also only select a single item at once
             playbackSourceHolder.startQueue()
             commandHandler.clearShuffleForNewCarQueue(mediaSession.player)
-            playbackController.onAddLegacyAutoItems(mediaItems)
+            feedContinuation.stop()
+            // "Alles afspelen" in a feed folder is armed to continue past its first page; every
+            // other id, and a feed with nothing to play, takes the legacy path as it always did.
+            val feed = playbackController.queueForFeedPlayAll(mediaItems.first().mediaId)
+            if (feed?.feedSlug != null) {
+                feedContinuation.start(feed.feedSlug, FeedPage(feed.tracks, feed.feedNextOffset))
+                Futures.immediateFuture(feed.tracks.map { it.toMediaItem() })
+            } else {
+                playbackController.onAddLegacyAutoItems(mediaItems)
+            }
         }
+    }
+
+    /**
+     * The queue moved on the player: a track change or a changed timeline. Called by
+     * [PlaybackService]'s player listener on the main thread. Tops up a queue the car started
+     * from a feed (issue #84); radio and news own the player while they run, so neither is
+     * ever extended.
+     */
+    fun onQueueMoved(player: Player) {
+        if (!feedContinuation.isActive || feedContinuation.isLoading) return
+        if (radioPlaybackController.isActive || newsPlaybackController.isActive) return
+        feedContinuation.onQueueMoved(PlayerFeedQueue(player))
     }
 
     override fun onGetLibraryRoot(

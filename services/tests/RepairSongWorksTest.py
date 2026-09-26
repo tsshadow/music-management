@@ -226,3 +226,120 @@ def test_the_rescore_query_matches_a_download_on_its_whole_path():
     assert 'sc.filename = mf.file_path' in sql
     assert 'yt.path = mf.file_path' in sql
     assert 'work_locked = 0' in sql
+
+
+# --- bug report 098: the key rules changed, the repair is the regroup ---------------------
+
+
+def test_a_new_key_rule_moves_a_track_into_the_plain_titles_work():
+    rows = [
+        _row(1, 'Lost On You', 'dj test:::lost on you', artist='Dj Test', work_id=40),
+        _row(
+            2,
+            'Lost On You - Official Hardcore Visualizer',
+            'dj test:::lost on you official hardcore visualizer',
+            artist='Dj Test',
+            work_id=41,
+        ),
+    ]
+    wrong = repair.misfiled(rows)
+    assert [(row['id'], row['expected_key'], row['reason']) for row in wrong] == [
+        (2, 'dj test:::lost on you', 'stale-key')
+    ]
+
+
+def test_the_dry_run_counts_moves_into_existing_and_new_works():
+    rows = [
+        _row(2, 'Lost On You - Official Video', 'dj test:::lost on you official video', artist='Dj Test', work_id=41),
+        _row(3, 'Never (Official Audio)', 'dj test:::never official audio', artist='Dj Test', work_id=42),
+        _row(4, 'Never (Official Music Video)', 'dj test:::never official music video', artist='Dj Test', work_id=43),
+    ]
+    wrong = repair.misfiled(rows)
+    summary = repair.movement_summary(wrong, {'dj test:::lost on you'})
+    assert summary == {
+        'tracks_moving': 3,
+        'into_existing_work': 1,
+        'into_new_work': 2,
+        'source_works': 3,
+        'target_works': 2,
+        'pinned_kept': 0,
+    }
+
+
+def test_a_pinned_track_stays_in_its_work():
+    row = _row(2, 'Lost On You - Official Video', 'dj test:::lost on you official video', artist='Dj Test', work_id=41)
+    row['pinned_track_id'] = 2
+    wrong = repair.misfiled([row])
+    assert [item['reason'] for item in wrong] == ['pinned-kept']
+    assert repair.movable(wrong) == []
+    assert repair.movement_summary(wrong, set())['pinned_kept'] == 1
+
+
+def test_a_pin_on_another_member_does_not_hold_this_track():
+    row = _row(2, 'Lost On You - Official Video', 'dj test:::lost on you official video', artist='Dj Test', work_id=41)
+    row['pinned_track_id'] = 99
+    assert [item['id'] for item in repair.movable(repair.misfiled([row]))] == [2]
+
+
+def test_the_grouped_query_reads_the_pin():
+    assert 'w.pinned_track_id' in repair._GROUPED
+
+
+def test_existing_work_keys_reads_once_with_literal_sql():
+    cursor = ScriptedCursor(
+        [('SELECT work_key FROM library_works', None, [{'work_key': 'a:::b'}, {'work_key': 'c:::d'}])]
+    )
+    assert repair.existing_work_keys(cursor, ['a:::b', 'x:::y']) == {'a:::b'}
+    assert cursor.executed == [('SELECT work_key FROM library_works', None)]
+    assert repair.existing_work_keys(ScriptedCursor([]), []) == set()
+
+
+def test_a_second_run_after_the_regroup_finds_nothing():
+    rows = [_row(2, 'Lost On You - Official Video', 'dj test:::lost on you', artist='Dj Test', work_id=40)]
+    assert repair.misfiled(rows) == []
+
+
+def _main_with(monkeypatch, cursor, *argv):
+    conn = type('Conn', (), {})()
+    conn.cursor = lambda: cursor
+    conn.commit = lambda: None
+    conn.close = lambda: None
+    monkeypatch.setattr(repair, 'get_db_connection', lambda: conn)
+    monkeypatch.setattr('sys.argv', ['repair_song_works.py', *argv])
+    return repair.main()
+
+
+SERIES = [
+    {'work_id': 90, 'work_key': 'q dance:::next', 'duration_secs': 100 + 10 * index, 'release_date': None}
+    for index in range(13)
+]
+
+
+def test_the_dry_run_writes_nothing_and_reports_the_split(monkeypatch, capsys):
+    cursor = ScriptedCursor(
+        [
+            ('HAVING COUNT(*) >= %s', None, SERIES),
+            (
+                'LEFT JOIN library_artists a',
+                None,
+                [
+                    _row(1, 'NEXT', 'q dance:::next', artist='Q-Dance', work_id=90),
+                    _row(2, 'Never (Official Audio)', 'dj test:::never official audio', artist='Dj Test', work_id=42),
+                ],
+            ),
+        ]
+    )
+    assert _main_with(monkeypatch, cursor, '--dry-run', '--split-false-merges') == 0
+    output = capsys.readouterr().out
+    assert "work 90 [split] 'q dance:::next'" in output
+    assert '"works_to_split": 1' in output
+    # the series' own member is left out of the re-key count: it is about to be locked
+    assert '"tracks_moving": 1' in output
+    assert [sql for sql, _params in cursor.executed if sql.startswith(('UPDATE', 'DELETE', 'INSERT'))] == []
+
+
+def test_the_report_only_reads(monkeypatch, capsys):
+    cursor = ScriptedCursor([('HAVING COUNT(*) >= %s', None, SERIES)])
+    assert _main_with(monkeypatch, cursor, '--report') == 0
+    assert '"suspicious_works": 1' in capsys.readouterr().out
+    assert all(sql.startswith(('SELECT', 'WITH')) for sql, _params in cursor.executed)

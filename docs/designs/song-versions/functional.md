@@ -92,7 +92,7 @@ A manual pin always wins.
 
 ## Open Questions / Not Yet Decided
 
-- Grouping "(Pro Edit)" and "(Official Music Video)" with the other versions of the song is a
-  separate change: this one only teaches the *kind* detector those words, so a pro edit currently
-  still forms a song of its own until that change lands.
+- Grouping "(Pro Edit)" and "(Official Music Video)" with the other versions of the song was a
+  separate change, and it has landed: see [song-grouping-key](../song-grouping-key/functional.md)
+  (bug report 098).
 - Mobile shows no version UI of its own for this; it follows LMS's canonical.

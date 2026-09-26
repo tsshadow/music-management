@@ -121,13 +121,13 @@ class VersionKindTest(unittest.TestCase):
         self.assertEqual(version_kind('Raise Your Fist (Pro Mix)'), 'pro')
         self.assertEqual(version_kind('Raise Your Fist (Pro-Mix)'), 'pro')
 
-    def test_pro_is_a_kind_word_only_and_does_not_change_the_grouping(self):
-        # Another change teaches the grouping key the word; this one must not, or every
-        # pro edit would silently move into its radio edit's work in the same deploy.
-        self.assertEqual(version_free_title('Raise Your Fist (Pro Edit)'), 'raise your fist pro edit')
-        self.assertEqual(
-            version_free_title('Raise Your Fist (Official Music Video)'), 'raise your fist official music video'
-        )
+    def test_pro_and_music_video_group_with_the_song_and_keep_their_kind(self):
+        # Bug report 098 taught the grouping key these words: a pro edit and a music video
+        # now share the song's work, and the kind still tells them apart for the ranking.
+        self.assertEqual(version_free_title('Raise Your Fist (Pro Edit)'), 'raise your fist')
+        self.assertEqual(version_free_title('Raise Your Fist (Official Music Video)'), 'raise your fist')
+        self.assertEqual(version_kind('Raise Your Fist (Pro Edit)'), 'pro')
+        self.assertEqual(version_kind('Raise Your Fist (Official Music Video)'), 'video')
 
     def test_a_name_in_the_bracket_is_still_no_kind(self):
         self.assertEqual(version_kind('Raise Your Fist (Promo Edit By Wildstylez)'), 'none')

@@ -3,7 +3,7 @@
 ## Overview
 
 Three leftovers of the import queue living inside the label tree (`/mnt/music/EPs/__TODO`), all
-listed in `docs/open-work.md` and bug report 030:
+listed in the open-work list (now GitLab issues #50-#52) and bug report 030:
 
 1. **Files still stamped `__TODO` as their record label.** Before 2026-07-28 the tagger wrote the
    import queue's own name into files as their publisher, and a copyright of `__TODO (<year>)`

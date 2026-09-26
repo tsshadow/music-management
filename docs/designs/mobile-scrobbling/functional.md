@@ -60,4 +60,4 @@ play ends and whatever the network is doing. Bug report 071 has the evidence and
   app's side durable and makes relay retries harmless (the start time is fixed), but it does not
   make LMS's relay itself durable. Whether to add an outbox to LMS or to let MuMa pull recent
   LMS-only listens on a schedule (the reconcile already knows how to insert them) is open; see
-  [open-work.md](../../open-work.md).
+  issue [#67](https://gitlab.example.com/muma/music-management/-/issues/67).

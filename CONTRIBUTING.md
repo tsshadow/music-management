@@ -125,3 +125,15 @@ comment as well, where the next person will actually hit it.
 Bugs that reached production get a numbered write-up in `docs/bug-reports/`
 covering the symptom, the cause and what now prevents a recurrence. That
 directory is the most useful documentation in this repository; keep it fed.
+
+## Open work
+
+Anything decided but not done, or done but not verified, becomes a
+[GitLab issue](https://gitlab.example.com/muma/music-management/-/issues)
+right away (`glab issue create`), with one kind label (`needs-person`,
+`decision`, `verify`, `code`, `deferred`) and one area label (`area-backend`,
+`area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a
+link to the bug report or design that holds the detail. A `verify` issue states
+the exact check. A merge request that finishes an issue says `Closes #N` in its
+description. `docs/open-work.md` is only a pointer to the issues now; do not add
+lines to it. AGENTS.md rule 14 is the rule.

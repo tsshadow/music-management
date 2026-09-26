@@ -115,7 +115,7 @@ without a correction are still linked to 29.772 tracks, and 536 with a correctio
 rejected name is never trusted now, so those rules apply the decision -- but only when a file is
 next tagged. The files were marked for retag when the decision was taken and that retag already
 ran without effect, so they change on the daily walk or a deep run, not at deploy. Re-marking
-them is left as an explicit follow-up (docs/open-work.md), not done by the migration: it is a
+them is left as an explicit follow-up (GitLab issue #48), not done by the migration: it is a
 large one-off retag and should be started deliberately.
 
 ### Expected queue growth (measured read-only on production, 2026-09-25)

@@ -405,3 +405,61 @@ class RelinkOrphansByFileNameTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MetadataIndexTest(unittest.TestCase):
+    """Bug report 107: the bulk run reads the candidates once instead of one query per orphan."""
+
+    def _row(self, track_id, title='Hated', duration=200.0, artist=5):
+        return {'id': track_id, 'title': title, 'duration_secs': duration, 'primary_artist_id': artist}
+
+    def _index(self, rows, titles):
+        cursor = ScriptedCursor([('FROM library_tracks t WHERE t.duration_secs IS NOT NULL', None, rows)])
+        return track_relink.build_metadata_index(cursor, titles)
+
+    def test_only_titles_an_orphan_carries_are_indexed(self):
+        index = self._index([self._row(1), self._row(2, title='Other')], {'hated'})
+        self.assertEqual([row['id'] for row in index['hated']], [1])
+        self.assertNotIn('other', index)
+
+    def test_same_title_duration_and_artist_is_the_target_without_a_query(self):
+        orphan = self._row(10)
+        index = self._index([self._row(11)], {'hated'})
+        cursor = ScriptedCursor()
+        self.assertEqual(track_relink.find_relink_target(cursor, orphan, index), 11)
+        self.assertEqual(cursor.executed, [])
+
+    def test_a_different_duration_or_the_orphan_itself_is_no_candidate(self):
+        orphan = self._row(10)
+        index = self._index([self._row(10), self._row(12, duration=203.0)], {'hated'})
+        self.assertIsNone(track_relink.find_relink_target(ScriptedCursor(), orphan, index))
+
+    def test_two_matches_are_not_guessed_at(self):
+        orphan = self._row(10)
+        index = self._index([self._row(11), self._row(12)], {'hated'})
+        self.assertIsNone(track_relink.find_relink_target(ScriptedCursor(), orphan, index))
+
+    def test_reordered_credits_match_through_the_artist_sets(self):
+        orphan = self._row(10, artist=5)
+        index = self._index([self._row(11, artist=6)], {'hated'})
+        cursor = ScriptedCursor(
+            [
+                ('FROM library_track_artists WHERE track_id', (10,), [{'artist_id': 5}, {'artist_id': 6}]),
+                ('FROM library_track_artists WHERE track_id', (11,), [{'artist_id': 6}, {'artist_id': 5}]),
+            ]
+        )
+        self.assertEqual(track_relink.find_relink_target(cursor, orphan, index), 11)
+
+    def test_an_artist_the_orphan_never_credited_is_no_candidate(self):
+        orphan = self._row(10, artist=5)
+        index = self._index([self._row(11, artist=9)], {'hated'})
+        cursor = ScriptedCursor([('FROM library_track_artists WHERE track_id', (10,), [{'artist_id': 5}])])
+        self.assertIsNone(track_relink.find_relink_target(cursor, orphan, index))
+
+    def test_the_bulk_run_passes_the_index(self):
+        cursor = ScriptedCursor([(ORPHANS_SQL, None, [ORPHAN])])
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+        with patch.object(track_relink, 'find_relink_target', return_value=None) as find:
+            track_relink.relink_orphaned_tracks(conn, dry_run=True)
+        self.assertIsInstance(find.call_args.args[2], dict)

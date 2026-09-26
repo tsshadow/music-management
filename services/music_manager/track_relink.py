@@ -209,29 +209,84 @@ def _detach_works(cursor: Any, old_id: int, new_id: int) -> set[int]:
     return {int(work['id']) for work in works if work['pinned_track_id'] != old_id}
 
 
-def find_relink_target(cursor: Any, orphan: dict[str, Any]) -> int | None:
+#: Every track with a file, for the metadata key in a bulk run. Read once: the per-orphan
+#: _CANDIDATES query cannot use an index (ABS on the duration, an OR over the artist), so on
+#: production each one scanned ~400k rows and a dry run over 82k orphans took hours, holding the
+#: scanner lock the whole time (bug report 107).
+_CANDIDATE_TRACKS = """
+    SELECT t.id, t.title, t.duration_secs, t.primary_artist_id
+    FROM library_tracks t
+    WHERE t.duration_secs IS NOT NULL
+      AND EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)
+"""
+
+
+def build_metadata_index(cursor: Any, titles: set[str]) -> dict[str, list[dict[str, Any]]]:
+    """Map each normalised title some orphan carries to the tracks with a file that share it.
+
+    The in-memory form of _CANDIDATES for a bulk run: built once, then `find_relink_target`
+    filters a handful of rows per orphan instead of querying the table.
+    """
+    index: dict[str, list[dict[str, Any]]] = {}
+    if not titles:
+        return index
+    cursor.execute(_CANDIDATE_TRACKS)
+    for row in cursor.fetchall():
+        key = normalize(row.get('title'))
+        if key and key in titles:
+            index.setdefault(key, []).append(row)
+    return index
+
+
+def _indexed_candidates(
+    cursor: Any, index: dict[str, list[dict[str, Any]]], orphan: dict[str, Any], title: str
+) -> list[dict[str, Any]]:
+    """What _CANDIDATES returns for `orphan`, read from `index` (title already compared)."""
+    rows = [
+        row
+        for row in index.get(title, [])
+        if row['id'] != orphan['id']
+        and row.get('duration_secs') is not None
+        and abs(float(row['duration_secs']) - float(orphan['duration_secs'])) < DURATION_TOLERANCE_SECS
+    ]
+    if not rows:
+        return rows
+    if any(row['primary_artist_id'] != orphan['primary_artist_id'] for row in rows):
+        credited = _artist_set(cursor, orphan['id']) | {orphan['primary_artist_id']}
+    else:
+        credited = {orphan['primary_artist_id']}
+    return [row for row in rows if row['primary_artist_id'] in credited]
+
+
+def find_relink_target(
+    cursor: Any, orphan: dict[str, Any], index: dict[str, list[dict[str, Any]]] | None = None
+) -> int | None:
     """The one track with a file that this orphan became, or None when there is not exactly one.
 
     Same normalised title, same duration, and the same primary artist -- or, for a retag that only
     reordered the credits, the same set of artists in another order. Two candidates is a
-    duplicate recording and one is not guessed at.
+    duplicate recording and one is not guessed at. With `index` (a bulk run, see
+    build_metadata_index) the candidates come from memory instead of one query per orphan.
     """
     if orphan.get('duration_secs') is None or orphan.get('primary_artist_id') is None:
         return None
     title = normalize(orphan.get('title'))
     if not title:
         return None
-    cursor.execute(
-        _CANDIDATES,
-        (
-            orphan['id'],
-            orphan['duration_secs'],
-            DURATION_TOLERANCE_SECS,
-            orphan['primary_artist_id'],
-            orphan['id'],
-        ),
-    )
-    candidates = [row for row in cursor.fetchall() if normalize(row['title']) == title]
+    if index is not None:
+        candidates = _indexed_candidates(cursor, index, orphan, title)
+    else:
+        cursor.execute(
+            _CANDIDATES,
+            (
+                orphan['id'],
+                orphan['duration_secs'],
+                DURATION_TOLERANCE_SECS,
+                orphan['primary_artist_id'],
+                orphan['id'],
+            ),
+        )
+        candidates = [row for row in cursor.fetchall() if normalize(row['title']) == title]
     if not candidates:
         return None
     orphan_artists: set[int] | None = None
@@ -349,11 +404,17 @@ def relink_orphaned_tracks(conn: Any, dry_run: bool = False, totals: dict[str, A
         orphans = cursor.fetchall()
         titles = {orphan['title'] for orphan in orphans if orphan.get('title')}
         index = build_file_name_index(cursor, titles)
+        metadata_titles = {
+            normalize(orphan['title'])
+            for orphan in orphans
+            if orphan.get('title') and orphan.get('duration_secs') is not None and orphan.get('primary_artist_id')
+        }
+        metadata_index = build_metadata_index(cursor, {t for t in metadata_titles if t})
     for orphan in orphans:
         totals['orphans'] += 1
         with conn.cursor() as cursor:
             key = 'metadata'
-            target = find_relink_target(cursor, orphan)
+            target = find_relink_target(cursor, orphan, metadata_index)
             if target is None:
                 key = 'file_name'
                 target, ambiguous = find_file_name_target(index, orphan)

@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.79.1 (2026-09-27)
+
+- Settings changed on your phone and in the web player at the same time no longer overwrite each
+  other.
+
 ## Global Version 0.79.0 (2026-09-27)
 
 - Presets remember the Soort (sets & mixes, live sets, podcasts), on the web and in the car.

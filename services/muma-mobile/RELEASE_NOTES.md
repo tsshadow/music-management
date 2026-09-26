@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.8.0 (2026-09-27)
+
+- Settings changed in the app and in the web player at the same time no longer overwrite each
+  other.
+
+- Voice can play a podcast show by name: "speel de podcast van KTRA af" or "play the latest episode of Monstercat".
+
 ## Global Version 7.7.0 (2026-09-27)
 
 - Android Auto and voice can ask for livesets, sets & mixes or podcasts, and a liveset is found under the year it was played.

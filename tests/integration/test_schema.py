@@ -50,6 +50,12 @@ def test_the_channel_link_proposals_are_an_expected_table():
     assert 'channel_link_proposals' in schema_sources.migration_declared_tables()
 
 
+def test_the_importer_conflicts_are_an_expected_table():
+    """Bug report 091: db_init creates it and migrate_v43 declares it."""
+    assert 'importer_conflicts' in schema_sources.code_declared_tables()
+    assert 'importer_conflicts' in schema_sources.migration_declared_tables()
+
+
 def test_the_migrations_are_re_runnable(database):
     """scripts/deploy.sh applies every migrate_*.sql on each deploy, so the
     second run must be a no-op rather than an error."""

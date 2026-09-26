@@ -122,4 +122,15 @@ echo "--- Deploying stack: lms ---"
 #    which exits non-zero, and which the muma:verify job re-runs afterwards.
 "$SCRIPT_DIR/ci/post-deploy-verify.sh"
 
+# 7. Prune the images nothing needs any more, now that the release is verified
+#    (bug report 094: every deploy pulled new images and none were ever removed,
+#    until the root disk was 95% full). Keeps every image a container uses and,
+#    per repository, the PRUNE_KEEP_RELEASES (3) previous ones for an IMAGE_TAG
+#    rollback. Only after step 6: an unverified release may still need the
+#    images it replaced. A failed prune is a warning, not a failed deploy --
+#    the next deploy's disk pre-check is what stops on a full disk.
+if ! "$SCRIPT_DIR/ci/prune-prod-images.sh"; then
+    echo "WARNING: pruning old images on $REMOTE_HOST failed; the deploy itself succeeded. See docs/deployment.md#disk-space-on-the-production-host."
+fi
+
 echo "--- CI Deployment finished successfully ---"

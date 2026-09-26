@@ -37,6 +37,7 @@ REQUIRED_TABLES = [
     'rules_label_genre',
     'rules_catid_label',
     'rules_label_proposals',
+    'importer_conflicts',
     'rules_festival_data',
     # rules_festivals must precede its two children: both carry a foreign key to it.
     'rules_festivals',
@@ -109,6 +110,12 @@ def ensure_tables_exist() -> None:
         # `catid` is nullable because "no catalogue number in the name at all" is one of
         # the two ways a release ends up here.
         'rules_label_proposals': "\n            CREATE TABLE IF NOT EXISTS rules_label_proposals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                folder VARCHAR(255) NOT NULL UNIQUE,\n                catid VARCHAR(255) NULL,\n                proposed_label VARCHAR(255) NULL,\n                source VARCHAR(64) NOT NULL DEFAULT 'none',\n                confidence INT NOT NULL DEFAULT 0,\n                status ENUM('new', 'confirmed', 'rejected', 'stale') NOT NULL DEFAULT 'new',\n                decided_label VARCHAR(255) NULL,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                resolved_fingerprint CHAR(64) NULL,\n                INDEX(status),\n                INDEX(catid)\n            )\n        ",
+        # Folder pairs the importer's renamer or mover left in place because the name it
+        # wanted was taken by a folder holding a different release (bug report 091). One row
+        # per standing pair, keyed by a hash of (step, source, target); the importer warns
+        # once when a row is created and deletes it when the pair is no longer met.
+        # `fingerprint` is what both folders looked like when they were last compared.
+        'importer_conflicts': "\n            CREATE TABLE IF NOT EXISTS importer_conflicts (\n                pair_key CHAR(64) NOT NULL PRIMARY KEY,\n                step ENUM('renamer', 'mover') NOT NULL,\n                source VARCHAR(1024) NOT NULL,\n                target VARCHAR(1024) NOT NULL,\n                fingerprint CHAR(64) NULL,\n                first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX(step)\n            )\n        ",
         'rules_festival_data': '\n            CREATE TABLE IF NOT EXISTS rules_festival_data (\n                festival VARCHAR(255) NOT NULL,\n                year INT NOT NULL,\n                date DATE NOT NULL,\n                PRIMARY KEY (festival, year)\n            )\n        ',
         'rules_festivals': '\n            CREATE TABLE IF NOT EXISTS rules_festivals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                name VARCHAR(255) NOT NULL,\n                normalized_name VARCHAR(191) NOT NULL UNIQUE,\n                active TINYINT(1) NOT NULL DEFAULT 1,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ',
         'rules_festival_aliases': '\n            CREATE TABLE IF NOT EXISTS rules_festival_aliases (\n                festival_id INT NOT NULL,\n                alias VARCHAR(255) NOT NULL,\n                normalized_alias VARCHAR(191) NOT NULL,\n                PRIMARY KEY (festival_id, normalized_alias),\n                INDEX idx_normalized_alias (normalized_alias),\n                FOREIGN KEY (festival_id) REFERENCES rules_festivals(id) ON DELETE CASCADE\n            )\n        ',

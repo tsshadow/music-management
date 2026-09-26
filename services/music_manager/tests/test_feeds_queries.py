@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.queries import (
     candidates_query,
+    canonical_rows_query,
     dominant_genre_query,
     entity_hardness_query,
     genre_hardness_query,
@@ -141,9 +142,44 @@ class CandidatesQueryTest(unittest.TestCase):
 
     def test_the_daily_mix_pools_are_one_or_group(self):
         sql, _ = candidates_query('user', POLICIES['daily-mix'], NOW)
+        normalized = ' '.join(sql.split())
         self.assertIn('OR', sql)
-        self.assertIn('r.rating >= %s', sql)
-        self.assertIn('NOT EXISTS', sql)
+        self.assertIn('r.rating) >= %s', normalized)
+        self.assertIn('NOT (EXISTS', normalized)
+
+    def test_the_pools_ask_about_the_song_not_the_file(self):
+        """A rip of a song heard in its official version is not "unheard", and a song rated
+        in one version is loved in all of them (bug report 096)."""
+        sql, _ = candidates_query('user', POLICIES['daily-mix'], NOW)
+        where = ' '.join(sql.split()).split(' WHERE EXISTS (SELECT 1 FROM library_media_files', 1)[1]
+        self.assertIn('hv.work_id = t.work_id', where)
+        self.assertIn('v.work_id = t.work_id', where)
+
+    def test_every_placeholder_has_exactly_one_parameter(self):
+        """The song-level heard and rating add placeholders ahead of the WHERE clause; a
+        miscount shifts every later parameter one slot along, silently."""
+        for slug in ('release-radar', 'daily-mix', 'daily-mix-artist'):
+            with self.subTest(slug=slug):
+                entity = ('artist', 'Angerfist') if slug == 'daily-mix-artist' else None
+                sql, params = candidates_query('user', POLICIES[slug], NOW, entity_filter=entity)
+                self.assertEqual(sql.count('%s'), len(params))
+
+    def test_the_candidate_names_its_work_and_the_work_s_canonical(self):
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        normalized = ' '.join(sql.split())
+        self.assertIn('t.work_id, w.canonical_track_id', normalized)
+        self.assertIn('LEFT JOIN library_works w ON w.id = t.work_id', normalized)
+
+    def test_the_rating_is_the_canonical_s_else_the_highest_on_any_version(self):
+        """Ratings stay stored per track_uid and display per song: the canonical's own when it
+        has one (a rating given from a list lands there, so it has to show), else the highest
+        in the group; a track without a work keeps its own."""
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        normalized = ' '.join(sql.split())
+        canonical = normalized.index('WHERE c.id = w.canonical_track_id)')
+        highest = normalized.index('(SELECT MAX(rv.rating) FROM library_tracks v')
+        self.assertLess(canonical, highest)
+        self.assertIn('WHERE v.work_id = t.work_id), r.rating) AS rating', normalized)
 
     def test_only_songs_compete(self):
         sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
@@ -167,7 +203,17 @@ class CandidatesQueryTest(unittest.TestCase):
     def test_heard_is_an_exists_against_this_listener_s_history(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn(
-            'EXISTS (SELECT 1 FROM scrobble_listens sl WHERE sl.track_id = t.id AND sl.username = %s) AS heard',
+            '(EXISTS (SELECT 1 FROM scrobble_listens sl WHERE sl.track_id = t.id AND sl.username = %s)',
+            ' '.join(sql.split()),
+        )
+
+    def test_a_listen_of_any_version_counts_as_heard(self):
+        """Bug report 096: Teun heard the official version, and the radar ranked the rip of
+        the same song as unheard, above it."""
+        sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertIn(
+            'OR EXISTS (SELECT 1 FROM library_tracks hv JOIN scrobble_listens hl ON hl.track_id = hv.id'
+            ' WHERE hv.work_id = t.work_id AND hl.username = %s)) AS heard',
             ' '.join(sql.split()),
         )
 
@@ -182,9 +228,33 @@ class CandidatesQueryTest(unittest.TestCase):
         heard_pos = normalized.index('AS heard')
         rating_pos = normalized.index("r.username = %s")
         self.assertLess(heard_pos, rating_pos)
-        self.assertEqual(params[0], 'user')
-        self.assertEqual(params[1], 'user')
-        self.assertEqual(params[2], POLICIES['release-radar'].max_track_seconds)
+        self.assertEqual(params[:5], ['user'] * 5)
+        self.assertEqual(params[5], POLICIES['release-radar'].max_track_seconds)
+
+
+class CanonicalRowsQueryTest(unittest.TestCase):
+    """The canonical a work collapses onto, fetched when it was not a candidate itself."""
+
+    @staticmethod
+    def _select(sql):
+        return ' '.join(sql.split()).split(' WHERE EXISTS (SELECT 1 FROM library_media_files')[0]
+
+    def test_same_row_shape_as_a_candidate(self):
+        canonical_sql, _ = canonical_rows_query('user', [7])
+        candidate_sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
+        self.assertEqual(self._select(canonical_sql), self._select(candidate_sql))
+
+    def test_no_policy_filter_only_a_file_and_the_ids(self):
+        sql, params = canonical_rows_query('user', [7, 9])
+        normalized = ' '.join(sql.split())
+        self.assertIn('t.id IN (%s, %s)', normalized)
+        self.assertNotIn('duration_secs <', normalized)
+        self.assertEqual(params, ['user'] * 5 + [7, 9])
+        self.assertEqual(sql.count('%s'), len(params))
+
+    def test_an_empty_id_list_is_refused(self):
+        with self.assertRaises(ValueError):
+            canonical_rows_query('user', [])
 
 
 class EntityFilterTest(unittest.TestCase):

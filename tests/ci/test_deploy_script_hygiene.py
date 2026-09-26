@@ -235,7 +235,9 @@ case "$1" in
     compose) exit 1 ;;  # no compose plugin: fall through to docker-compose
     exec)
         case "$*" in
-            *mariadb-admin*) exit 0 ;;  # the database answers at once
+            *mariadb-admin*) printf '%s\n' "$*" >> "$FAKE_LOG/db-pings"; exit 0 ;;  # the database answers at once
+            *"mariadbd --version"*) echo "mariadbd  Ver ${FAKE_SERVER_VERSION:-13.0.2}-MariaDB-ubu2604 for debian-linux-gnu"; exit 0 ;;
+            *mariadb_upgrade_info*) printf '%s' "${FAKE_UPGRADE_INFO-13.0.2-MariaDB}"; exit 0 ;;
             *mariadb-dump*)
                 echo dump >> "$FAKE_LOG/events"
                 printf '%s' "${MYSQL_PWD-<unset>}" > "$FAKE_LOG/dump-pwd"
@@ -275,6 +277,7 @@ case "$1" in
         [ "${FAKE_BUILDX:-0}" = 1 ] || exit 1
         [ "$2" = imagetools ] && echo "$6 -> $5" >> "$FAKE_LOG/promotions"
         ;;
+    logs) echo '[Note] [Entrypoint]: Starting mariadb-upgrade' ;;
     push) echo "push $2" >> "$FAKE_LOG/pushes" ;;
     login)
         cat > "$FAKE_LOG/login-stdin"
@@ -305,6 +308,13 @@ done
 exit 0
 """
 
+FAKE_DF = r"""#!/bin/bash
+# `df -Pk PATH`: POSIX output, the free space from FAKE_DF_AVAIL_KB (default 50 GB).
+printf '%s\n' "$*" >> "$FAKE_LOG/df-argv"
+echo 'Filesystem     1024-blocks      Used Available Capacity Mounted on'
+echo "/dev/sda1        103081248  52000000 ${FAKE_DF_AVAIL_KB:-52428800}      50% /"
+"""
+
 # The services docker/docker-compose.yml defines that matter to the deploy order.
 STACK_SERVICES = "db phpmyadmin music-manager importer_worker soundcloud-fetcher genre-processor"
 
@@ -315,7 +325,8 @@ def _fake_bin(tmp_path: Path) -> tuple[Path, Path]:
     log_dir = tmp_path / "log"
     bin_dir.mkdir()
     log_dir.mkdir()
-    for name, body in {"ssh": FAKE_SSH, "docker": FAKE_DOCKER, "docker-compose": FAKE_COMPOSE}.items():
+    fakes = {"ssh": FAKE_SSH, "docker": FAKE_DOCKER, "docker-compose": FAKE_COMPOSE, "df": FAKE_DF}
+    for name, body in fakes.items():
         target = bin_dir / name
         target.write_text(body, encoding="utf-8")
         target.chmod(0o755)
@@ -573,7 +584,7 @@ def test_the_database_is_ready_before_the_first_migration(tmp_path: Path) -> Non
     result, log_dir = _run_deploy(tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     docker_argv = (log_dir / "docker-argv").read_text(encoding="utf-8").splitlines()
-    ping = next(i for i, line in enumerate(docker_argv) if "mariadb-admin ping" in line)
+    ping = next(i for i, line in enumerate(docker_argv) if "mariadb-admin --protocol=tcp -h 127.0.0.1 ping" in line)
     migration = next(i for i, line in enumerate(docker_argv) if line.startswith("exec") and " mariadb -u" in line)
     assert ping < migration
 
@@ -598,11 +609,12 @@ def test_no_container_is_force_recreated_and_db_is_left_alone_by_default(tmp_pat
 def test_deploy_db_and_deploy_oneshots_opt_in(tmp_path: Path) -> None:
     result, log_dir = _run_deploy(tmp_path, DEPLOY_DB="1", DEPLOY_ONESHOTS="1")
     assert result.returncode == 0, result.stdout + result.stderr
-    compose_argv = (log_dir / "compose-argv").read_text(encoding="utf-8")
-    assert "--no-recreate" not in compose_argv
-    service_up = next(line for line in compose_argv.splitlines() if "--remove-orphans" in line)
+    compose_argv = (log_dir / "compose-argv").read_text(encoding="utf-8").splitlines()
+    assert [line for line in compose_argv if line.endswith(" up -d --no-deps db")], "DEPLOY_DB=1 must recreate db"
+    service_up = next(line for line in compose_argv if "--remove-orphans" in line)
     services = service_up.split("--remove-orphans", 1)[1].split()
-    assert {"db", "soundcloud-fetcher", "genre-processor"} <= set(services)
+    assert {"soundcloud-fetcher", "genre-processor"} <= set(services)
+    assert "db" not in services, "db is recreated in its own step, after the dump, never in the final up"
 
 
 @pytest.mark.parametrize(

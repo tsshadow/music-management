@@ -662,6 +662,31 @@
   }
 
   /**
+   * On a native shell, hands a next/previous to the service as an intent and reports whether it
+   * did. Bug report 095.
+   *
+   * The service holds the queue and is the only side that knows which item it is on right now;
+   * this component only learns that from a report that is a bridge hop behind. Working out the
+   * neighbour here and pushing it as a new queue position meant a second tap, landing before the
+   * first move was reported, computed its target from a track the service had already left --
+   * and the two sides then kept correcting each other. Asking the service for "next" makes a
+   * second tap relative to wherever the first one got to (Media3 masks each call), so N taps move
+   * N tracks, shuffle and repeat are the service's own, and the UI follows the reports exactly as
+   * it does for the notification or a head unit.
+   *
+   * Not for a jam follower, whose "next" is a request to the host rather than to this device.
+   *
+   * @param {'next'|'previous'} direction
+   * @returns {boolean} True when the service was asked and the caller has nothing left to do.
+   */
+  function sendTransportIntent(direction) {
+      if (!nativePlayback || $syncMode === 'follower-jam') return false;
+      if (direction === 'next') platform.player.next();
+      else platform.player.previous();
+      return true;
+  }
+
+  /**
    * Plays the next track in the playlist.
    * Handles shuffle and repeat logic.
    */
@@ -669,6 +694,7 @@
       const p = $playlist;
       if (p.length === 0) return;
       logAction('player.next', { trackId: $currentTrack?.id ?? null });
+      if (sendTransportIntent('next')) return;
       const currentTrackId = $currentTrack ? String($currentTrack.id) : null;
       const currentIndex = p.findIndex(t => String(t.id) === currentTrackId);
 
@@ -720,6 +746,11 @@
    * Handles shuffle and repeat logic.
    */
   function playPrev() {
+      // The service applies the same three-second rule itself (Media3's seekToPrevious).
+      if ($playlist.length > 0 && sendTransportIntent('previous')) {
+          logAction('player.previous', { trackId: $currentTrack?.id ?? null });
+          return;
+      }
       // If more than 3 seconds into the track, restart it
       if (platform.player.state().position > 3) {
           platform.player.seek(0);
@@ -827,14 +858,29 @@
           progress: engine.position,
       }));
 
+      // A report from before the newest queue position this side asked for (bug 095).
+      if (nativeQueue?.isStale(engine.trackId)) return;
       const moved = trackAfterCommand($playlist, $currentTrack?.id ?? null, {
           name: engine.trackId != null ? "" : command.name,
           trackId: engine.trackId,
           queueLength: engine.queueLength,
       });
       if (!moved) return;
+      followNativeTrack(moved);
+  }
+
+  /**
+   * Points the UI at a track the service reported playing, without that turning into a request.
+   *
+   * The write to `currentTrack` re-runs the queue-sync effect; `follow` marks that one sync as a
+   * mirror so it can never be sent back as "play this", however late the chain reaches it.
+   *
+   * @param {object} moved - The queue entry the service is on.
+   */
+  function followNativeTrack(moved) {
       hasScrobbledStarted = false;
       hasScrobbledFinished = false;
+      nativeQueue?.follow(moved.id);
       currentTrack.set(moved);
   }
 
@@ -893,13 +939,9 @@
   function handleDurationChange(state = platform.player.state()) {
     // A settled native snapshot can change track without a directional command (shuffle,
     // recovery, or an index that never matched). Identity is authoritative here.
-    if (nativePlayback) {
+    if (nativePlayback && !nativeQueue?.isStale(state.trackId)) {
       const moved = trackAfterCommand($playlist, $currentTrack?.id, { trackId: state.trackId });
-      if (moved) {
-        hasScrobbledStarted = false;
-        hasScrobbledFinished = false;
-        currentTrack.set(moved);
-      }
+      if (moved) followNativeTrack(moved);
     }
     playerState.update(s => ({ ...s, duration: currentLength(state) }));
     // Restoring the last position is a browser-only move: there the element is

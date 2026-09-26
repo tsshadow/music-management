@@ -2,16 +2,24 @@
 # Comprehensive Docker Stack Deployment Script
 # Handles: Webhooks, Remote SSH updates, and Database Migrations.
 #
-# Remote deploy order: prepare (db up + ready) -> verified pre-deploy dump ->
-# migrations -> DEPLOY_PRE_UP_HOOK -> pull + up of what changed. See the comment
-# above step 2 below and docs/deployment.md.
+# Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
+# dump -> db recreate (DEPLOY_DB=1 only) -> migrations -> DEPLOY_PRE_UP_HOOK ->
+# pull + up of what changed. See the comment above step 2 below and
+# docs/deployment.md. Unused images are pruned afterwards by
+# scripts/ci/prune-prod-images.sh, once post-deploy verification has passed.
 #
 # Knobs (environment; all optional):
 #   IMAGE_TAG=<tag>       deploy that tag of every image this repo builds
 #                         instead of :latest -- the rollback lever
 #   DEPLOY_DB=1           also (re)create the `db` container when its
-#                         definition changed; otherwise it is only started
-#                         when missing, never recreated
+#                         definition changed -- after the pre-deploy dump;
+#                         otherwise it is only started when missing, never
+#                         recreated
+#   DEPLOY_MIN_FREE_GB=8  refuse to deploy when the host has less free space
+#                         than this on DEPLOY_DISK_CHECK_PATH (default /): a
+#                         pull into a full disk half-deploys (bug report 094)
+#   DB_UPGRADE_WAIT_SECONDS=600  how long a recreated `db` may take to answer
+#                         over TCP, mariadb-upgrade included
 #   DEPLOY_ONESHOTS=1     also start the one-shot tool containers
 #                         (soundcloud-fetcher, genre-processor)
 #   PREDEPLOY_BACKUP=0    skip the pre-deploy dump (loudly); for emergencies
@@ -123,9 +131,22 @@ MIGRATION_LOCK_WAIT_SECONDS="${MIGRATION_LOCK_WAIT_SECONDS:-120}"
 # The fallback dump is stopped once its file has not grown for this long; the
 # db-backup service has the same watchdog in tools/db_backup.py (BACKUP_STALL_SECONDS).
 PREDEPLOY_DUMP_STALL_SECONDS="${PREDEPLOY_DUMP_STALL_SECONDS:-300}"
-case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS" in
-    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS and PREDEPLOY_DUMP_STALL_SECONDS must be numbers."; exit 1 ;;
+# The disk pre-check (bug report 094). 8 GB is roughly one release's worth of
+# fresh image layers plus a pre-deploy dump with room to spare; production ran
+# into 95% full with 5.5 GB left after images piled up for months.
+DEPLOY_MIN_FREE_GB="${DEPLOY_MIN_FREE_GB:-8}"
+DEPLOY_DISK_CHECK_PATH="${DEPLOY_DISK_CHECK_PATH:-/}"
+# A recreated db on a new major runs mariadb-upgrade (MARIADB_AUTO_UPGRADE) on a
+# temporary server before the real one listens; give that its own, longer wait.
+DB_UPGRADE_WAIT_SECONDS="${DB_UPGRADE_WAIT_SECONDS:-600}"
+case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS$DEPLOY_MIN_FREE_GB$DB_UPGRADE_WAIT_SECONDS" in
+    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS, PREDEPLOY_DUMP_STALL_SECONDS, DEPLOY_MIN_FREE_GB and DB_UPGRADE_WAIT_SECONDS must be numbers."; exit 1 ;;
 esac
+# Interpolated into the remote shell, so held to plain path characters.
+if ! printf '%s' "$DEPLOY_DISK_CHECK_PATH" | grep -Eq '^/[A-Za-z0-9_./-]*$'; then
+    echo "Error: DEPLOY_DISK_CHECK_PATH must be an absolute path of plain characters."
+    exit 1
+fi
 
 # 1. Trigger Portainer Webhook if configured
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
@@ -153,20 +174,26 @@ fi
 # The order below is the point of this block; see
 # docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
 #
-#   a. prepare   ship the compose file, make sure `db` runs (never recreating
-#                it unless DEPLOY_DB=1) and wait until it answers
+#   a. prepare   refuse to start on a nearly full disk, ship the compose file,
+#                make sure `db` runs (never recreating it here) and wait until
+#                it answers
 #   b. backup    a verified pre-deploy dump; no dump, no deploy
-#   c. migrate   every migrate_*.sql, while the *old* containers still run --
+#   c. db        DEPLOY_DB=1 only: pull and, if its definition changed,
+#                recreate `db`, wait for the real server (not the entrypoint's
+#                temporary upgrade server) and check mariadb-upgrade ran.
+#                After (b), so the newest backup predates the new MariaDB
+#   d. migrate   every migrate_*.sql, while the *old* containers still run --
 #                migrations are expand-only (tests/ci/test_migration_ordering.py),
 #                so the old code keeps working on the new schema
-#   d. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
+#   e. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
 #                to :latest here (scripts/ci/promote-release-images.sh), so
-#                Watchtower cannot start new code before (c) has finished
-#   e. up        pull and recreate what changed -- without `db` and without
-#                the one-shot tool containers unless asked for
+#                Watchtower cannot start new code before (d) has finished
+#   f. up        pull and recreate what changed -- never `db` (that was (c)),
+#                and not the one-shot tool containers unless asked for
 #
 # Before this order the stack was recreated first (every container, `db`
 # included, with --force-recreate) and migrated afterwards, with no backup.
+# Until bug report 094, DEPLOY_DB=1 recreated `db` in (a), before the dump.
 if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     echo "--- Starting remote deployment for stack: $STACK_NAME on $REMOTE_HOST ---"
 
@@ -251,16 +278,14 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         echo "--- Deploying image tag: $IMAGE_TAG ---"
     fi
 
-    # Services a routine deploy leaves alone (see the header of this block).
-    SKIP_SERVICES=""
-    if [ "$DEPLOY_DB" != "1" ]; then
-        SKIP_SERVICES="$SKIP_SERVICES db"
-    fi
+    # Services the final `up` leaves alone (see the header of this block). `db`
+    # always: step (c) is the only place it is ever recreated, after the dump.
+    SKIP_SERVICES="db"
     if [ "$DEPLOY_ONESHOTS" != "1" ]; then
         SKIP_SERVICES="$SKIP_SERVICES $ONESHOT_SERVICES"
     fi
 
-    # Shared prelude of the two remote steps that run compose (prepare, up).
+    # Shared prelude of the remote steps that run compose (prepare, db, up).
     #
     # Everything lands in a root-only directory under the remote user's home,
     # not in world-writable /tmp: a file another account can pre-create or
@@ -320,39 +345,65 @@ $1" < /dev/null
         fi
     }
 
-    # a. prepare -------------------------------------------------------------
-    #
-    # `db` is started when it is missing but never recreated on a routine
-    # deploy: --no-recreate leaves a running database alone even when its
-    # definition changed (a new logging block, say). DEPLOY_DB=1 is the
-    # deliberate way to roll such a change out, or to move MariaDB itself.
+    # wait_for_db_cmd SECONDS WHAT: the remote snippet that waits until `db`
+    # answers, and fails with WHAT in the message when it does not in time.
     #
     # Readiness is asked of the server itself: `mariadb-admin ping` exits 0 as
     # soon as mysqld answers, even with "access denied", so it needs no
-    # credential. The migrations below must not start against a server that is
-    # still recovering.
-    echo "--- [1/5] Preparing $STACK_NAME: compose file, database ---"
-    DB_UP_CMD="up -d --no-deps --no-recreate db"
-    if [ "$DEPLOY_DB" = "1" ]; then
-        DB_UP_CMD="up -d --no-deps db"
-    fi
-    remote_compose_step "
-        if \$DOCKER_CMD config --services | grep -qx db; then
-            if [ \"$DEPLOY_DB\" = 1 ]; then
-                echo 'DEPLOY_DB=1: pulling and, if its definition changed, recreating db'
-                \$DOCKER_CMD pull db
-            fi
-            \$DOCKER_CMD $DB_UP_CMD
+    # credential. It asks over TCP, not the socket: the image's entrypoint runs
+    # mariadb-upgrade (MARIADB_AUTO_UPGRADE) on a temporary server started with
+    # --skip-networking on the very same socket, which a socket ping would take
+    # for the real one -- and the migrations would then start against a server
+    # the entrypoint is about to shut down. The temporary server never listens on
+    # TCP, the real one does. (healthcheck.sh --connect makes the same
+    # distinction; this spelling works on every image version.)
+    wait_for_db_cmd() {
+        printf '%s' "
             waited=0
-            until docker exec music-management-db-1 mariadb-admin ping --silent >/dev/null 2>&1; do
-                if [ \"\$waited\" -ge $DB_WAIT_SECONDS ]; then
-                    echo 'Error: the database did not answer within $DB_WAIT_SECONDS s; nothing was migrated or recreated.'
+            until docker exec music-management-db-1 mariadb-admin --protocol=tcp -h 127.0.0.1 ping --silent >/dev/null 2>&1; do
+                if [ \"\$waited\" -ge $1 ]; then
+                    echo 'Error: the database did not answer within $1 s; $2'
                     exit 1
                 fi
                 sleep 2
                 waited=\$((waited + 2))
             done
             echo \"Database is answering (after \${waited}s).\"
+        "
+    }
+
+    # a. prepare -------------------------------------------------------------
+    #
+    # The disk pre-check comes first (bug report 094): images piled up until
+    # the root disk was 95% full, and a pull into a full disk fails halfway
+    # through `up`, with some containers on the new release and some on the old.
+    # Refusing here, before anything is dumped, pulled or migrated, changes
+    # nothing on the host. DEPLOY_MIN_FREE_GB=0 switches it off.
+    #
+    # `db` is started when it is missing but never recreated here, not even
+    # with DEPLOY_DB=1: --no-recreate leaves a running database alone even when
+    # its definition changed (a new logging block, say). Recreating it is step
+    # (c), after the pre-deploy dump.
+    echo "--- [1/6] Preparing $STACK_NAME: disk space, compose file, database ---"
+    remote_compose_step "
+        MIN_KB=\$(( $DEPLOY_MIN_FREE_GB * 1024 * 1024 ))
+        if [ \"\$MIN_KB\" -gt 0 ]; then
+            AVAIL_KB=\$(df -Pk '$DEPLOY_DISK_CHECK_PATH' | awk 'NR == 2 { print \$4 }')
+            case \"\$AVAIL_KB\" in
+                ''|*[!0-9]*)
+                    echo 'Error: could not read the free space on $DEPLOY_DISK_CHECK_PATH; refusing to deploy (DEPLOY_MIN_FREE_GB=0 skips this check).'
+                    exit 1 ;;
+            esac
+            AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
+            if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/deployment.md#disk-space-on-the-production-host).\"
+                exit 1
+            fi
+            echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"
+        fi
+        if \$DOCKER_CMD config --services | grep -qx db; then
+            \$DOCKER_CMD up -d --no-deps --no-recreate db
+            $(wait_for_db_cmd "$DB_WAIT_SECONDS" "nothing was migrated or recreated.")
         else
             echo 'No db service in this compose file; skipping the database wait.'
         fi
@@ -377,7 +428,7 @@ $1" < /dev/null
     # Either way, no verified dump means no deploy: nothing has been migrated
     # or recreated yet at this point, so stopping here changes nothing.
     if [ "$PREDEPLOY_BACKUP" = "1" ]; then
-        echo "--- [2/5] Pre-deploy database backup ---"
+        echo "--- [2/6] Pre-deploy database backup ---"
         Q_BACKUP_COMPOSE_DIR=$(printf '%q' "$BACKUP_COMPOSE_DIR")
         Q_BACKUP_DEST=$(printf '%q' "${HOST_BACKUP_PATH:-/mnt/backups/muma}")
         Q_DB_DB=$(printf '%q' "$DB_DB")
@@ -495,10 +546,66 @@ $1" < /dev/null
         printf '%s\n' "$MIGRATION_PASS" \
             | run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_BACKUP_CMD"
     else
-        echo "--- [2/5] WARNING: PREDEPLOY_BACKUP=0, deploying WITHOUT a pre-deploy backup ---"
+        echo "--- [2/6] WARNING: PREDEPLOY_BACKUP=0, deploying WITHOUT a pre-deploy backup ---"
     fi
 
-    # c. migrate -------------------------------------------------------------
+    # c. db -----------------------------------------------------------------
+    #
+    # DEPLOY_DB=1 is the deliberate way to roll out a change to `db`'s
+    # definition, or to move MariaDB itself -- and it happens here, after the
+    # verified dump of (b), so that if the new server does not come up the
+    # newest backup is minutes old rather than last night's (bug report 094).
+    #
+    # A new major or minor MariaDB needs mariadb-upgrade on the existing data
+    # directory. The compose file sets MARIADB_AUTO_UPGRADE=1, the image's
+    # documented way to have its entrypoint run it (after backing the system
+    # tables up to system_mysql_backup_*.sql.zst in the data directory). The
+    # wait asks over TCP, so it only ends once that is done and the real server
+    # listens; the entrypoint's upgrade log is printed; and the version recorded
+    # in mariadb_upgrade_info must then match the server's, or the deploy stops
+    # before any migration touches a data directory that was not upgraded.
+    if [ "$DEPLOY_DB" = "1" ]; then
+        echo "--- [3/6] DEPLOY_DB=1: pulling and, if its definition changed, recreating db ---"
+        # Not a failure: nothing in either stack needs the published port. But
+        # the workstation's read-only MCP does, and this is the moment it goes.
+        if [ -z "${DB_BIND_ADDRESS:-}" ]; then
+            echo "Note: DB_BIND_ADDRESS is not set in the env file; a recreated db publishes 3306 on 127.0.0.1 only, and the read-only MCP (tools/muma_mcp) stops reaching it (docs/deployment.md#ports-logs-and-memory-limits)."
+        fi
+        remote_compose_step "
+            if ! \$DOCKER_CMD config --services | grep -qx db; then
+                echo 'No db service in this compose file; nothing to recreate.'
+                exit 0
+            fi
+            \$DOCKER_CMD pull db
+            OLD_ID=\$(docker inspect --format '{{.Id}}' music-management-db-1 2>/dev/null || echo '')
+            SINCE=\$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            \$DOCKER_CMD up -d --no-deps db
+            NEW_ID=\$(docker inspect --format '{{.Id}}' music-management-db-1 2>/dev/null || echo '')
+            if ! (
+                $(wait_for_db_cmd "$DB_UPGRADE_WAIT_SECONDS" "restore from the pre-deploy dump of step 2 if the data directory is damaged. Last lines of its log:")
+            ); then
+                docker logs --tail 50 music-management-db-1 2>&1 || true
+                exit 1
+            fi
+            if [ -n \"\$OLD_ID\" ] && [ \"\$OLD_ID\" = \"\$NEW_ID\" ]; then
+                echo 'The db definition and image are unchanged; the container was not recreated.'
+            else
+                echo 'db was recreated. Its entrypoint log since then (mariadb-upgrade runs here):'
+                docker logs --since \"\$SINCE\" music-management-db-1 2>&1 | grep -E 'Entrypoint|mariadb-upgrade|upgrade|ERROR' || echo '  (no entrypoint lines)'
+            fi
+            SERVER_VERSION=\$(docker exec music-management-db-1 mariadbd --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+            UPGRADE_INFO=\$(docker exec music-management-db-1 cat /var/lib/mysql/mariadb_upgrade_info 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+            echo \"MariaDB server \${SERVER_VERSION:-unknown}, data directory upgraded for \${UPGRADE_INFO:-unknown}.\"
+            if [ -z \"\$SERVER_VERSION\" ] || [ \"\${SERVER_VERSION%.*}\" != \"\${UPGRADE_INFO%.*}\" ]; then
+                echo 'Error: the data directory was not upgraded to this server version (is MARIADB_AUTO_UPGRADE set on db?); nothing was migrated. Run mariadb-upgrade in the container, or roll the db image back and restore the pre-deploy dump.'
+                exit 1
+            fi
+        "
+    else
+        echo "--- [3/6] db left as it is (DEPLOY_DB=1 recreates it here, after the dump) ---"
+    fi
+
+    # d. migrate -------------------------------------------------------------
     #
     # Glob is migrate_*.sql, matching the !migrate_*.sql exception in .gitignore
     # exactly: one naming rule decides both what gets committed and what gets
@@ -535,7 +642,7 @@ $1" < /dev/null
     # The migration's exit status is the remote command's status, because docker
     # exec is its last command (bug report 021). `mariadb`, not `mysql`: MariaDB
     # dropped the old client name in 12.
-    echo "--- [3/5] Applying database migrations (old containers still running) ---"
+    echo "--- [4/6] Applying database migrations (old containers still running) ---"
     REMOTE_MIGRATE_CMD="
         IFS= read -r MYSQL_PWD
         export MYSQL_PWD
@@ -551,21 +658,21 @@ $1" < /dev/null
         | python3 "$PROJECT_ROOT/tools/apply_migrations.py" --password-stdin --exec run_remote_sql \
             --lock-wait-timeout "$MIGRATION_LOCK_WAIT_SECONDS" "$PROJECT_ROOT"/migrate_*.sql
 
-    # d. hook ----------------------------------------------------------------
+    # e. hook ----------------------------------------------------------------
     if [ -n "${DEPLOY_PRE_UP_HOOK:-}" ]; then
-        echo "--- [4/5] Pre-up hook: $DEPLOY_PRE_UP_HOOK ---"
+        echo "--- [5/6] Pre-up hook: $DEPLOY_PRE_UP_HOOK ---"
         "$DEPLOY_PRE_UP_HOOK"
     else
-        echo "--- [4/5] No pre-up hook ---"
+        echo "--- [5/6] No pre-up hook ---"
     fi
 
-    # e. up ------------------------------------------------------------------
+    # f. up ------------------------------------------------------------------
     #
     # No --force-recreate: compose recreates exactly the containers whose image
     # or definition changed, and leaves the rest running. --no-deps because
     # `up <service>` would otherwise converge that service's dependencies too,
     # and every service here depends on `db`.
-    echo "--- [5/5] Updating containers ---"
+    echo "--- [6/6] Updating containers ---"
     remote_compose_step "
         SERVICES=''
         if [ -n \"$SERVICE_NAME\" ]; then

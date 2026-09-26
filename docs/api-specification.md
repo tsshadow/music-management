@@ -117,6 +117,11 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
   (deprecated).
+- **GET `/api/import-conflicts`** (any authenticated account): the folder pairs the importer's renamer or
+  mover left in place because the name it wanted is taken by a folder holding a different release
+  (bug report 091). `[{step, source, target, first_seen, last_seen}]`, oldest first; `step` is `renamer`
+  or `mover`, `source`/`target` are full paths. Read-only: a pair disappears on the importer's next cycle
+  once one of the two folders was removed or renamed by hand.
 - **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
   SoundCloud/YouTube channel to its label or artist on strong name equality.
   - **GET `/proposals?status=new|confirmed|rejected|stale&kind=label|artist`** (any authenticated account):

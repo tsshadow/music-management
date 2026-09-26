@@ -26,6 +26,7 @@ pytestmark = pytest.mark.integration
 # deliberate 4xx -- never a 500, which is what invalid SQL produces.
 READ_ENDPOINTS = [
     ('/api/users', 200),
+    ('/api/import-conflicts', 200),
     # The LMS listen reconcile's status is process state; its dry run needs an lms.db and is
     # exercised by ScrobbleReconcileSqlTest below and tests/integration/test_scrobble_reconcile.py.
     ('/api/scrobble/reconcile/lms/status', 200),
@@ -805,12 +806,137 @@ class LibraryReadsTest:
         first = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
         second = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
 
-        assert first == {'considered': 2, 'written': 2}
-        assert second == {'considered': 2, 'written': 0}
+        assert first == {'considered': 2, 'written': 2, 'unclassified_no_file': 0, 'unclassified_no_length': 0}
+        assert second == {'considered': 2, 'written': 0, 'unclassified_no_file': 0, 'unclassified_no_length': 0}
         with db.cursor() as cursor:
             cursor.execute('SELECT id, form, performance_date FROM library_tracks ORDER BY id')
             rows = {row['id']: (row['form'], row['performance_date']) for row in cursor.fetchall()}
         assert rows == {a_track: ('track', None), live: ('liveset', '2012-06-23')}
+
+    def test_the_form_push_converges_when_two_media_rows_name_one_file(self, db):
+        """Bug report 093: a stale media row (hash no longer its path's) on a length-less stub
+        must not overwrite the form the scanner's own row pushes -- run twice, write once."""
+        import sqlite3
+
+        from services.music_manager import track_form_sync
+
+        path = '/mnt/music/EPs/Label/CAT1/01.mp3'
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES ('uid-real', 'Real', 200, 'track')"
+            )
+            real = cursor.lastrowid
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-stub', '01')")
+            stub = cursor.lastrowid
+            # The stale row is inserted last, so it has the higher id: only the hash says who wins.
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
+                (path, hashlib.sha256(path.encode()).hexdigest(), real),
+            )
+            cursor.execute(
+                "INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, 'stale', %s)",
+                (path, stub),
+            )
+        server = sqlite3.connect(':memory:')
+        server.execute(
+            "CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT,"
+            " form TEXT NOT NULL DEFAULT '', performance_date TEXT NOT NULL DEFAULT '')"
+        )
+        server.execute("INSERT INTO track (absolute_file_path) VALUES ('/music/EPs/Label/CAT1/01.mp3')")
+        server.commit()
+
+        first = track_form_sync.push_forms_to_server(db, server, 'test')
+        second = track_form_sync.push_forms_to_server(db, server, 'test')
+
+        assert (first['matched'], first['duplicates_skipped']) == (1, 1)
+        assert (second['matched'], second['duplicates_skipped']) == (0, 1)
+        assert server.execute('SELECT form FROM track').fetchone() == ('track',)
+        server.close()
+
+    def test_the_version_push_marks_one_canonical_row_per_work(self, db, tmp_path):
+        """Bug report 097, against MariaDB and an lms.db file: a canonical track with two files
+        gets one canonical row, a canonical the server lacks falls back to the best version it
+        has, a stale media row is ignored, and a second run writes nothing."""
+        import sqlite3
+
+        from services.music_manager import song_version_sync
+
+        def media(cursor, path, track_id, size, own=True):
+            digest = hashlib.sha256(path.encode()).hexdigest() if own else 'stale-' + path[-20:]
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_size, duration_secs)'
+                ' VALUES (%s, %s, %s, %s, 300)',
+                (path, digest, track_id, size),
+            )
+
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_works (work_key) VALUES ('angerfist|raise your fist')")
+            song = cursor.lastrowid
+            cursor.execute("INSERT INTO library_works (work_key) VALUES ('miss k8|gone')")
+            gone = cursor.lastrowid
+            tracks = {}
+            for uid, work_id, score in (
+                ('uid-official', song, 900),
+                ('uid-rip', song, 100),
+                ('uid-gone-official', gone, 900),
+                ('uid-gone-rip', gone, 100),
+                ('uid-gone-ext', gone, 300),
+            ):
+                cursor.execute(
+                    'INSERT INTO library_tracks (track_uid, title, duration_secs, work_id, version_score)'
+                    ' VALUES (%s, %s, 300, %s, %s)',
+                    (uid, uid, work_id, score),
+                )
+                tracks[uid] = cursor.lastrowid
+            cursor.execute(
+                'UPDATE library_works SET canonical_track_id = %s WHERE id = %s', (tracks['uid-official'], song)
+            )
+            cursor.execute(
+                'UPDATE library_works SET canonical_track_id = %s WHERE id = %s', (tracks['uid-gone-official'], gone)
+            )
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-stub', '01')")
+            stub = cursor.lastrowid
+            media(cursor, '/mnt/music/EPs/MOH/01.flac', tracks['uid-official'], 40_000_000)
+            media(cursor, '/mnt/music/EPs/MOH/01.mp3', tracks['uid-official'], 12_000_000)
+            media(cursor, '/mnt/music/EPs/MOH/01.mp3', stub, 12_000_000, own=False)
+            media(cursor, '/mnt/music/Soundcloud/rip.mp3', tracks['uid-rip'], 7_000_000)
+            media(cursor, '/mnt/music/EPs/K8/gone.flac', tracks['uid-gone-official'], 40_000_000)
+            media(cursor, '/mnt/music/Soundcloud/gone-rip.mp3', tracks['uid-gone-rip'], 7_000_000)
+            media(cursor, '/mnt/music/Youtube/k8/gone-ext.mp3', tracks['uid-gone-ext'], 7_000_000)
+
+        lms_db = tmp_path / 'lms.db'
+        server = sqlite3.connect(lms_db)
+        server.execute(
+            'CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT, work_id INTEGER,'
+            " is_canonical INTEGER NOT NULL DEFAULT 1, version_kind TEXT NOT NULL DEFAULT '',"
+            ' version_score INTEGER NOT NULL DEFAULT 0)'
+        )
+        # Every file but the gone work's canonical: that one is missing from the server.
+        for path in (
+            '/music/EPs/MOH/01.flac',
+            '/music/EPs/MOH/01.mp3',
+            '/music/Soundcloud/rip.mp3',
+            '/music/Soundcloud/gone-rip.mp3',
+            '/music/Youtube/k8/gone-ext.mp3',
+        ):
+            server.execute('INSERT INTO track (absolute_file_path) VALUES (?)', (path,))
+        server.commit()
+
+        first = song_version_sync.sync_song_versions_to_server(db, server, 'test')
+        second = song_version_sync.sync_song_versions_to_server(db, server, 'test')
+
+        rows = dict(server.execute('SELECT absolute_file_path, is_canonical FROM track'))
+        assert rows == {
+            '/music/EPs/MOH/01.flac': 1,
+            '/music/EPs/MOH/01.mp3': 0,
+            '/music/Soundcloud/rip.mp3': 0,
+            '/music/Soundcloud/gone-rip.mp3': 0,
+            '/music/Youtube/k8/gone-ext.mp3': 1,
+        }
+        assert (first['duplicates_skipped'], first['canonical_fallbacks'], first['works']) == (1, 1, 2)
+        assert first['matched'] == 5
+        assert second['matched'] == 0
+        server.close()
 
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404

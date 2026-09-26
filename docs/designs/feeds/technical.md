@@ -59,6 +59,8 @@ ALTER TABLE rules_genres ADD COLUMN IF NOT EXISTS hardness TINYINT UNSIGNED NULL
 - **Rating is never a filter**, only a score adjustment, except in the daily mix's `loved` pool where
   it is an explicit, documented membership rule.
 - **`created_at` is never used as a release date**, in any fallback, anywhere.
+- **A feed holds one entry per song, and it is the canonical** (step 4b). The canonical choice
+  itself is muma's (`song_version_worker.py`); the feed only reads it.
 
 ### Known Limitations
 
@@ -251,8 +253,21 @@ A profile view that does not resolve exactly what the feed resolves stops explai
    track mistagged `2027-01-01` otherwise passes both the precision check and the lower bound, and
    step 7's release-descending order then pins it to the top of every radar for as long as the tag
    survives. Both feeds use the same bounded window. Pools are applied as SQL: `unheard` excludes
-   tracks in this user's listens, `loved` requires `rating >= loved_min_rating`, and the two are
-   OR-ed when both are present.
+   songs in this user's listens, `loved` requires `rating >= loved_min_rating`, and the two are
+   OR-ed when both are present. `heard` and `rating` are **per song, not per file** (bug report
+   096): a listen of any version of the track's work counts as heard, and the rating is the highest
+   this user gave any version (the display roll-up of the song-versions design); a track without a
+   work keeps its own.
+   **4b. One per song.** `_collapse_to_songs` reduces the candidates to one per work *before*
+   anything is bucketed, ranked or capped, so two versions of one song can never take two places.
+   The representative is the work's canonical (`library_works.canonical_track_id`); when the
+   canonical is not a candidate itself -- the rip is inside the window, the official release is not
+   -- it is fetched with `canonical_rows_query` in the same row shape, so it is scored on its own
+   label and provenance and its path is what the client plays. A canonical without a file leaves
+   the lowest-id qualifying version. The song's `release_date` is the newest of the *qualifying*
+   versions' dates, never the fetched canonical's own tag, which never passed the window.
+   Ungrouped tracks pass through. This applies to every policy, since every policy loads through
+   the same function.
 5. **Buckets.** `bucket_of()` assigns each candidate to a share: its own deepest genre if that genre
    has a share, else the dominant genre of its label, else of its primary artist, else `__tail__`.
    The two dominant-genre aggregations are **bounded to the distinct labels and artists the

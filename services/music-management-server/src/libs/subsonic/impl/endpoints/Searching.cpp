@@ -314,6 +314,10 @@ namespace lms::api::subsonic
                 params.setRange(Range{ songOffset, songCount });
                 params.filters.setMediaLibrary(mediaLibrary);
                 params.setSortMethod(TrackSortMethod::Id); // must be consistent with both methods
+                // A search lists songs, not files (bug report 096). Only a keyword search: the
+                // empty query is how a client indexes the whole library, and continues through
+                // the id cursor below, which has to see every file to stay a cursor.
+                params.canonicalOnly = !keywords.empty();
 
                 if (auto minDuration = getParameterAs<int>(context.getParameters(), "minDuration"))
                     params.minDuration = std::chrono::minutes(*minDuration);

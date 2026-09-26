@@ -23,6 +23,7 @@ add_executable(test-database
 	Release.cpp
 	ReleaseArtistLink.cpp
 	ScanSettings.cpp
+	SongVersions.cpp
 	StarredArtist.cpp
 	StarredRelease.cpp
 	StarredTrack.cpp

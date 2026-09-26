@@ -174,7 +174,7 @@
     recentlyAddedState = 'loading';
     /** One of the two lists, tagged with whether it actually arrived. */
     function loadRecent(sort) {
-      return subsonicJson('getSpotifyTracks', { sort, count: 6, offset: 0, ...duration })
+      return subsonicJson('getSpotifyTracks', { sort, count: 6, offset: 0, deduplicate: 'true', ...duration })
         .then(data => ({ tracks: listOf(data, 'tracks.track'), state: 'ready' }))
         .catch(error => {
           console.warn('Could not load recent home tracks', sort, error);

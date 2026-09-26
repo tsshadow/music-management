@@ -152,4 +152,45 @@ namespace lms::feedback::tests
         EXPECT_TRUE(recorder->changedTracks.empty());
         EXPECT_TRUE(recorder->removed.empty());
     }
+
+    // Bug report 096: the lists show one row per song, the canonical, so the canonical's row
+    // carries the song's rating -- its own when it has one, else the highest on any other version.
+    // A favourite given to a rip therefore shows on the official version.
+    TEST_F(FeedbackServiceTest, theCanonicalShowsTheSongRatingAndOtherVersionsTheirOwn)
+    {
+        const auto service{ createService() };
+        db::tests::ScopedTrack official{ session };
+        db::tests::ScopedTrack rip{ session };
+        db::tests::ScopedTrack ungrouped{ session };
+        db::tests::ScopedUser user{ session, "MyUser" };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            official.get().modify()->setWorkId(7);
+            official.get().modify()->setIsCanonical(true);
+            rip.get().modify()->setWorkId(7);
+            rip.get().modify()->setIsCanonical(false);
+        }
+
+        // Only the rip is rated: the song borrows it.
+        service->setRating(user.getId(), rip.getId(), 5);
+        const IFeedbackService::SongRating song{ service->getSongRating(user.getId(), official.getId()) };
+        EXPECT_EQ(song.rating, 5);
+        EXPECT_TRUE(song.favoriteDateTime.isValid());
+
+        // A rating given from a list lands on the canonical and is what shows, even lower.
+        service->setRating(user.getId(), official.getId(), 3);
+        EXPECT_EQ(service->getSongRating(user.getId(), official.getId()).rating, 3);
+        EXPECT_FALSE(service->getSongRating(user.getId(), official.getId()).favoriteDateTime.isValid());
+
+        // The song page lists every version next to its siblings: each shows its own.
+        EXPECT_EQ(service->getSongRating(user.getId(), rip.getId()).rating, 5);
+
+        EXPECT_FALSE(service->getSongRating(user.getId(), ungrouped.getId()).rating);
+        service->setRating(user.getId(), ungrouped.getId(), 2);
+        EXPECT_EQ(service->getSongRating(user.getId(), ungrouped.getId()).rating, 2);
+
+        service->setRating(user.getId(), official.getId(), std::nullopt);
+        service->setRating(user.getId(), rip.getId(), std::nullopt);
+        service->setRating(user.getId(), ungrouped.getId(), std::nullopt);
+    }
 } // namespace lms::feedback::tests

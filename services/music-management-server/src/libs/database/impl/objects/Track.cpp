@@ -93,6 +93,20 @@ namespace lms::db
                 query.where(std::string{ filingYearExpr } + " = ?").bind(std::to_string(*params.year));
         }
 
+        // FindParameters::workId and ::canonicalOnly for createQuery, with the predicate
+        // buildAdvancedQueryBody applies, so the two builders agree about what one song's versions
+        // and one row per song mean: a track muma has not grouped stays, since hiding it would
+        // hide music. A helper for the same baseline reason as whereFormAndYear.
+        template<typename ResultType>
+        void whereWorkAndCanonical(Wt::Dbo::Query<ResultType>& query, const Track::FindParameters& params)
+        {
+            if (params.workId)
+                query.where("t.work_id = ?").bind(*params.workId);
+
+            if (params.canonicalOnly)
+                query.where("(t.is_canonical <> 0 OR t.work_id IS NULL OR t.work_id = 0)");
+        }
+
         // The same two conditions for buildAdvancedQueryBody, which binds through lambdas in the
         // order its placeholders appear.
         template<typename ResultType>
@@ -365,6 +379,7 @@ namespace lms::db
             if (params.filters.codec.has_value())
                 query.where("t.codec = ?").bind(detail::getDbCodec(*params.filters.codec));
 
+            whereWorkAndCanonical(query, params);
             whereFormAndYear(query, params);
 
             TrackSortMethod sortMethod = params.sortMethod;
@@ -507,6 +522,21 @@ namespace lms::db
         session.checkReadTransaction();
 
         return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Track>>("SELECT t from track t").where("t.absolute_file_path = ?").bind(p));
+    }
+
+    Track::pointer Track::findCanonicalVersion(Session& session, const pointer& track)
+    {
+        session.checkReadTransaction();
+
+        if (!track || track->isCanonical())
+            return track;
+
+        const auto workId{ track->getWorkId() };
+        if (!workId)
+            return track;
+
+        const pointer canonical{ utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<Track>>("SELECT t FROM track t").where("t.work_id = ?").bind(*workId).where("t.is_canonical <> 0").orderBy("t.id").limit(1)) };
+        return canonical ? canonical : track;
     }
 
     std::optional<FileInfo> Track::findFileInfo(Session& session, const std::filesystem::path& p)

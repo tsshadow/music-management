@@ -8,6 +8,7 @@ from os.path import isdir, isfile, join
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
+from services.importer.conflict_store import RENAMER, ConflictTracker
 from services.importer.release_compare import is_same_release
 from services.importer.settle import is_settled, is_staging
 
@@ -41,10 +42,13 @@ class Renamer:
 
     def __init__(self):
         self.settings = Settings()
+        #: Standing conflicts, so each one is warned about once rather than every cycle.
+        self.conflicts = ConflictTracker(RENAMER)
 
     def run(self, dry_run=False):
         """Rename every release folder that needs it; `dry_run` only logs what would happen."""
         logging.info('Starting Rename Step')
+        self.conflicts.begin()
         only_folders = [
             f
             for f in listdir(self.settings.import_folder_path)
@@ -85,6 +89,7 @@ class Renamer:
                         logging.warning("Failed to rename folder '%s': %s", folder, e)
                 except Exception as e:
                     logging.warning("Failed to rename folder '%s': %s", folder, e)
+        self.conflicts.end(dry_run=dry_run)
 
     def _resolve_collision(self, src, dst, folder):
         """Handle a rename onto a target that already exists.
@@ -92,20 +97,21 @@ class Renamer:
         Same reasoning as `Mover._move_folder`: a target that is already there means this
         release was imported before, so the source is a duplicate download. The target may
         be a *different* release that merely resolved to the same catalogue number, so the
-        two are compared first and anything unequal is left for a human.
+        two are compared first and anything unequal is left for a human -- warned about
+        once, then counted in the cycle's summary line until someone resolves it.
 
         Even when they compare equal the source is parked rather than deleted:
         `is_same_release` reads track names and lengths, not contents, so "the same
         release" is a strong guess and not a fact.
         """
+        # A pair left in place last cycle, with neither folder touched since, would compare
+        # the same way again: skip the track reads and the WARNING (bug report 091).
+        if self.conflicts.unchanged(src, dst):
+            return
         if is_same_release(src, dst):
+            self.conflicts.same(src, dst)
             logging.warning('Conflict: %s already exists and holds the same files. Parking %s', dst, src)
             if not Quarantine.put(src, Quarantine.DUPLICATE_RELEASE):
                 logging.warning("Could not quarantine '%s'; leaving it in the import folder", folder)
             return
-        logging.warning(
-            'Conflict: %s already exists but its contents differ from %s. Leaving both in place for '
-            'manual intervention',
-            dst,
-            src,
-        )
+        self.conflicts.differs(src, dst)

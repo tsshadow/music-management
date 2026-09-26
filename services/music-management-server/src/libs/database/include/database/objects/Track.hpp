@@ -114,6 +114,7 @@ namespace lms::db
             //: One row per song instead of one per file: only the version muma named
             //: canonical, plus everything it has not grouped. A predicate rather than a
             //: collapse loop, so paging, sorting and counting keep agreeing with each other.
+            //: Honoured by both query builders.
             bool canonicalOnly{};
             //: Only tracks of one of these forms (track, set, liveset, podcast), as muma
             //: classified them (migration 122). A track muma has not classified has an empty
@@ -268,6 +269,11 @@ namespace lms::db
         static pointer findByPath(Session& session, const std::filesystem::path& p);
         static std::optional<FileInfo> findFileInfo(Session& session, const std::filesystem::path& p);
         static pointer find(Session& session, TrackId id);
+        //: The version a list shows for `track`: the canonical of its work, or `track` itself
+        //: when it is the canonical, carries no work, or its work has no canonical this server
+        //: holds. Never null for a non-null `track` -- falling back to the version itself keeps
+        //: the list failing towards showing too much, as the canonicalOnly filter does.
+        static pointer findCanonicalVersion(Session& session, const pointer& track);
         static void find(Session& session, TrackId& lastRetrievedId, std::size_t count, const std::function<void(const Track::pointer&)>& func, MediaLibraryId library = {});
         static void find(Session& session, const IdRange<TrackId>& idRange, const std::function<void(const Track::pointer&)>& func);
         static IdRange<TrackId> findNextIdRange(Session& session, TrackId lastRetrievedId, std::size_t count);

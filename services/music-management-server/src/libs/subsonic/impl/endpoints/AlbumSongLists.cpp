@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <set>
 
 #include "core/Service.hpp"
 #include "core/String.hpp"
@@ -262,10 +263,22 @@ namespace lms::api::subsonic
                     starredNode.addArrayChild("album", createAlbumNode(context, release, id3));
             }
 
+            // One row per song (bug report 096): a favourite version stands for its song and is
+            // shown as the canonical, once, at the place of its most recently rated version. Done
+            // here rather than in the query because this list is not paged, so collapsing after
+            // the fetch is exact; the canonical's rating is rolled up in createSongNode.
+            std::set<TrackId> shown;
             for (const TrackId trackId : feedbackService.findFavoriteTracks(findParameters).results)
             {
-                if (auto track{ Track::find(context.getDbSession(), trackId) })
-                    starredNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
+                const Track::pointer track{ Track::findCanonicalVersion(context.getDbSession(), Track::find(context.getDbSession(), trackId)) };
+                if (!track || !shown.insert(track->getId()).second)
+                    continue;
+                // The song is a favourite when the rating its row shows is: a canonical that was
+                // itself rated lower overrides a favourite version, and must not be listed here
+                // looking unstarred.
+                if (track->getId() != trackId && !feedbackService.getSongRating(context.getUser()->getId(), track->getId()).favoriteDateTime.isValid())
+                    continue;
+                starredNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
             }
 
             return response;
@@ -299,6 +312,8 @@ namespace lms::api::subsonic
         params.setSortMethod(TrackSortMethod::Random);
         params.setRange(Range{ 0, size });
         params.filters.setMediaLibrary(mediaLibraryId);
+        // A shuffle draws songs, not files: two versions of one song are one draw (bug report 096).
+        params.canonicalOnly = true;
 
         Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
             randomSongsNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
@@ -365,6 +380,8 @@ namespace lms::api::subsonic
         params.setMaxRating(static_cast<int>(ratingMax));
         params.ratingUser = context.getUser()->getId();
         params.includeUnrated = true;
+        // A genre list shows songs, not files (bug report 096).
+        params.canonicalOnly = true;
 
         Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
             songsByGenreNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
@@ -405,6 +422,8 @@ namespace lms::api::subsonic
         params.filters.setMediaLibrary(mediaLibrary);
         if (seed.has_value())
             params.randomSeed = seed;
+        // A radio channel plays songs, not files (bug report 096), like getRandomSongs above.
+        params.canonicalOnly = true;
 
         std::vector<ClusterId> clusters;
         if (genre.has_value())

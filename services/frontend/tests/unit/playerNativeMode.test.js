@@ -51,6 +51,8 @@ const playerPlugin = fakePlugin({
   stopRadio: vi.fn(async () => ({})),
   toggleNews: vi.fn(async () => ({})),
   pause: vi.fn(async () => ({})),
+  next: vi.fn(async () => ({})),
+  previous: vi.fn(async () => ({})),
 });
 
 // The output the phone plays through (increment H of phone-ui-polish), answered once on mount
@@ -159,13 +161,17 @@ describe("Player on the native shell", () => {
   // with whatever order the service actually plays next, so pressing the
   // on-screen "next" here must not touch it at all -- it falls back to the
   // plain linear step, same as if shuffle had never been turned on.
+  // Since bug report 095 the button does not pick a track at all: it asks the service for
+  // "next", and the service applies its own shuffle order. The UI moves when the service reports.
   it("does not walk a shuffle trail for the on-screen next button", async () => {
     playerState.update((s) => ({ ...s, shuffle: true }));
+    playerPlugin.next.mockClear();
     renderPlayer();
 
     await fireEvent.click(screen.getByLabelText("Volgende"));
 
-    expect(get(currentTrack)).toEqual(SECOND);
+    expect(playerPlugin.next).toHaveBeenCalledTimes(1);
+    expect(get(currentTrack)).toEqual(FIRST);
   });
 
   // `ended` is the one event a native shell does fire -- the service reports it

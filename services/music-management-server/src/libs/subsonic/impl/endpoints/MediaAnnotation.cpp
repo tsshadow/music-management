@@ -32,6 +32,7 @@
 #include "database/objects/ArtistId.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/ReleaseId.hpp"
+#include "database/objects/Track.hpp"
 #include "database/objects/TrackId.hpp"
 #include "database/objects/User.hpp"
 #include "services/feedback/IFeedbackService.hpp"
@@ -122,6 +123,36 @@ namespace lms::api::subsonic
         // there is no separate favorite flag behind them any more: starring sets the
         // highest rating and unstarring clears the rating. Ratings, unlike stars, are
         // forwarded to music-management and end up in the file tags.
+        // Sets a track's rating, where clearing the rating of a song's canonical clears the song.
+        //
+        // Lists show one row per song, the canonical, carrying the song's rating: the canonical's
+        // own, else the highest any other version was given (bug report 096). A new rating is
+        // written to the canonical and shows at once. Clearing it would not: the row would fall
+        // back to a version's rating, and a favourite unstarred from the favourites list would
+        // stay there. So a clear on a canonical clears every version this user rated.
+        void setTrackRating(RequestContext& context, feedback::IFeedbackService& feedbackService, UserId userId, TrackId trackId, std::optional<Rating> rating)
+        {
+            std::vector<TrackId> targets{ trackId };
+            if (!rating)
+            {
+                auto transaction{ context.getDbSession().createReadTransaction() };
+                const Track::pointer track{ Track::find(context.getDbSession(), trackId) };
+                if (track && track->isCanonical() && track->getWorkId())
+                {
+                    Track::FindParameters versions;
+                    versions.workId = track->getWorkId();
+                    for (const TrackId versionId : Track::findIds(context.getDbSession(), versions).results)
+                    {
+                        if (versionId != trackId)
+                            targets.push_back(versionId);
+                    }
+                }
+            }
+
+            for (const TrackId target : targets)
+                feedbackService.setRating(userId, target, rating);
+        }
+
         void applyStarRating(RequestContext& context, const StarParameters& params, std::optional<Rating> rating)
         {
             auto& feedbackService{ *core::Service<feedback::IFeedbackService>::get() };
@@ -140,7 +171,7 @@ namespace lms::api::subsonic
                 feedbackService.setRating(userId, id, rating);
 
             for (const TrackId id : params.trackIds)
-                feedbackService.setRating(userId, id, rating);
+                setTrackRating(context, feedbackService, userId, id, rating);
         }
     } // namespace
 
@@ -172,7 +203,7 @@ namespace lms::api::subsonic
         else if (const ReleaseId* releaseId{ std::get_if<ReleaseId>(&params.id) })
             core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), *releaseId, params.rating);
         else if (const TrackId* trackId{ std::get_if<TrackId>(&params.id) })
-            core::Service<feedback::IFeedbackService>::get()->setRating(context.getUser()->getId(), *trackId, params.rating);
+            setTrackRating(context, *core::Service<feedback::IFeedbackService>::get(), context.getUser()->getId(), *trackId, params.rating);
 
         return Response::createOkResponse(context.getServerProtocolVersion());
     }

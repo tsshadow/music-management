@@ -64,6 +64,10 @@ namespace lms::db
         static pointer find(Session& session, RatedTrackId id);
         static pointer find(Session& session, TrackId trackId, UserId userId);
         static void find(Session& session, const FindParameters& findParams, std::function<void(const pointer&)> func);
+        //: The rating a song shows: the highest this user gave any version of work `workId`
+        //: (the most recent of those on a tie), or null when no version is rated. Ratings stay
+        //: stored per file -- this is the display roll-up of the song-versions design.
+        static pointer findHighestInWork(Session& session, int workId, UserId userId);
 
         // Accessors
         ObjectPtr<Track> getTrack() const { return _track; }

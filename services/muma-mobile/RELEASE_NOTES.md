@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## Global Version 7.5.1 (2026-09-26)
+
+- **Tapping "next" twice quickly no longer makes the player flicker between two tracks.**
+
+- **Songs no longer appear twice in the Release Radar, the daily mixes, favourites, search and the
+  home shelves, and the feeds play the official version instead of a rip.**
+
+- **Songs no longer appear twice, or disappear, when only the preferred version is shown.**
 ## Global Version 7.5.0 (2026-09-25)
 
 - **The sets view has a Soort filter: sets & mixes, live sets or podcasts.** It comes with the web

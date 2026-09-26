@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.77.0 (2026-09-26)
+
+- LMS now blocks, in its database, a second account whose name differs from an existing one only
+  in upper/lower case.
+
+- **The hourly song-version sync, track-form push, release-date sync and feed rebuild summaries now reach the event log.** They log under `services.music_manager.*`, a namespace the event stream only accepted from WARNING, so their INFO lines existed only in `docker logs` and were lost at every deploy. The artist image fetcher, which logs per artist, stays at WARNING. Bug report 105.
+
+- `POST /api/scanner/purge-orphans` (admin only, `?dry_run=1` supported) deletes fileless track
+  rows that nothing a user made points at: no listen, no rating, no work pin and no reviewed ml
+  label. It works in batches of 1000 and takes the rows' link rows with them. Orphans that do have
+  references are kept and listed on `GET /purge-orphans` for a person to decide. The operator
+  script `scripts/prod/person/relink-orphans-by-filename.sh` backs everything up first, then runs
+  the relink and then the purge (bug report 104).
+
+- The orphan relink (`POST /api/scanner/relink-orphans`) now also matches on the file name. About
+  50,000 fileless track rows from the first scan in May 2026 have the raw file name as their title
+  and no artist or duration, so the metadata match could never find their successor. An orphan
+  whose title is the file name (without extension) of exactly one track's file is now relinked to
+  that track, and its listens and ratings move with it. A name that several tracks share is left
+  alone. The totals, the event and `GET /relink-orphans` report how many rows each key relinked,
+  and `?dry_run=1` counts without writing (bug report 104, issue #71).
 ## Global Version 0.76.2 (2026-09-26)
 
 - **New and moved tracks reach their song within the hour, not days later.** The song-versions worker grouped at most 500 tracks per hourly pass, and on 2026-09-26 42,915 were waiting after a label-tree rescan and the regroup, so they were missing from everything that shows one version per song. A pass now keeps grouping in batches of 500 until nothing is left, for up to five minutes (`SONG_VERSION_TICK_BUDGET`). Bug report 101.

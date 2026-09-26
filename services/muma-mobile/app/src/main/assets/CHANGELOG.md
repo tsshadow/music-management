@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.2] - 2026-09-26
+
+### Changed
+- **Android Auto's feed folders list 100 tracks instead of 30**, following the server's new default
+  feed length. A feed longer than 100 (the server allows up to 200) is resolved in chunks of 100,
+  the most the streaming server accepts per `getSongsByPath` call; before, such a feed would have
+  come back empty.
+
 ## [7.6.1] - 2026-09-26
 
 ### Fixed

@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.78.0 (2026-09-26)
+
+- Release Radar and the daily mixes now hold 100 tracks instead of 30 (adjustable in Beheer), and a
+  feed can be continued with "Meer laden"; playing a feed keeps going past its first 100 tracks.
+
 ## Global Version 0.77.2 (2026-09-26)
 
 - The daily artist and label mixes now only pick an artist or label with enough songs to fill them,

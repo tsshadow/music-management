@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { authParams, currentTrack, playerState } from './store.js';
-  import { loadFeedDetail, RELEASE_RADAR } from './feeds.js';
+  import { loadFeedDetail, loadFeedPage, RELEASE_RADAR } from './feeds.js';
   import TrackList from './TrackList.svelte';
   import { startQueue } from './queue.js';
 
@@ -9,7 +9,9 @@
    * One personalized feed, whole: everything MuMa picked, in its order, with a play button.
    *
    * The home rows show the head of the same list. This is where the rest of it lives, and where
-   * "start the daily mix" is one click rather than a scroll.
+   * "start the daily mix" is one click rather than a scroll. At the end of the list "Meer laden"
+   * appends the next page of the same day's feed (docs/designs/feed-length/), and a queue started
+   * here carries that continuation so the player tops it up on its own.
    */
   const { slug = RELEASE_RADAR, onnavigate } = $props();
 
@@ -19,6 +21,9 @@
   // Falling back to the old fixed radar/mix copy keeps release-radar and daily-mix readable even
   // when the request failed and MuMa never got to say anything.
   let detail = $state(null);
+  // Where the feed continues (`next_offset`), null once MuMa says there is nothing more.
+  let nextOffset = $state(null);
+  let loadingMore = $state(false);
 
   const isRadar = $derived(slug === RELEASE_RADAR);
   const title = $derived(detail?.title ?? (isRadar ? $t('nav.releaseRadar') : $t('nav.dailyMix')));
@@ -44,6 +49,7 @@
     isLoading = true;
     tracks = [];
     detail = null;
+    nextOffset = null;
     loadFeedDetail(which, auth)
       .then((result) => {
         // The feed may have changed while this was in flight -- a click on the other one in the
@@ -51,6 +57,7 @@
         if (which === slug) {
           tracks = result.tracks;
           detail = result;
+          nextOffset = result.nextOffset ?? null;
         }
       })
       .finally(() => {
@@ -58,10 +65,31 @@
       });
   });
 
-  /** Queues the whole feed, in MuMa's order, and starts it. */
+  /**
+   * "Meer laden": appends the feed's next page, leaving out any song the list already shows. A
+   * failed request keeps the button so a second tap can try again; a page that says there is
+   * no more removes it.
+   */
+  async function loadMore() {
+    const auth = $authParams;
+    const which = slug;
+    if (loadingMore || !nextOffset || !auth) return;
+    loadingMore = true;
+    try {
+      const page = await loadFeedPage(which, auth, nextOffset);
+      if (which !== slug || page.failed) return;
+      const have = new Set(tracks.map((track) => String(track.id)));
+      tracks = [...tracks, ...page.tracks.filter((track) => !have.has(String(track.id)))];
+      nextOffset = page.nextOffset;
+    } finally {
+      loadingMore = false;
+    }
+  }
+
+  /** Queues the whole feed, in MuMa's order, and starts it; the queue continues the feed. */
   function playAll() {
     if (tracks.length === 0) return;
-    startQueue(tracks, { name: title });
+    startQueue(tracks, { name: title, continuation: { slug, nextOffset } });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }
@@ -117,6 +145,19 @@
       </div>
     {:else}
       <TrackList {tracks} onnavigate={onnavigate} />
+      {#if nextOffset}
+        <!-- The existing "load more" pattern (docs/styleguide.md, Components): the outlined pill
+             under a track list, the same one the song and artist lists use. -->
+        <div class="flex justify-center py-6">
+          <button
+            class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04] disabled:cursor-default"
+            onclick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? $t('common.loading') : $t('common.loadMore')}
+          </button>
+        </div>
+      {/if}
     {/if}
   </div>
 </div>

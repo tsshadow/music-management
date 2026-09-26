@@ -23,7 +23,9 @@ import {
   listFeeds,
   loadFeed,
   loadFeedDetail,
+  loadFeedPage,
   resetFeedsCache,
+  SONGS_BY_PATH_LIMIT,
 } from "../../src/lib/feeds.js";
 
 vi.mock("../../src/lib/mumaApi.js", () => ({
@@ -335,5 +337,71 @@ describe("loadFeedDetail", () => {
 
     expect(detail.tracks).toEqual([]);
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("feed pages (docs/designs/feed-length/)", () => {
+  beforeEach(() => {
+    globalThis.__fetchMumaJson = vi.fn();
+    globalThis.fetch = vi.fn();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("asks for a page with an offset, and for the head without one", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf());
+
+    await fetchFeed(DAILY_MIX, undefined, 100);
+    await fetchFeed(DAILY_MIX, 10);
+    await fetchFeed(DAILY_MIX);
+
+    const urls = globalThis.__fetchMumaJson.mock.calls.map(([url]) => url);
+    expect(urls).toEqual([
+      "http://muma/api/feeds/daily-mix?offset=100",
+      "http://muma/api/feeds/daily-mix?limit=10",
+      "http://muma/api/feeds/daily-mix",
+    ]);
+  });
+
+  it("carries where the feed continues, and null when it does not", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValueOnce({ ...feedOf("a.mp3"), next_offset: 100 });
+    globalThis.__fetchMumaJson.mockResolvedValueOnce({ ...feedOf("a.mp3"), next_offset: null });
+    globalThis.fetch.mockResolvedValue(songsResponse("1"));
+
+    expect((await loadFeedDetail(DAILY_MIX, AUTH)).nextOffset).toBe(100);
+    expect((await loadFeedDetail(DAILY_MIX, AUTH)).nextOffset).toBeNull();
+  });
+
+  it("loads the next page as songs, with the offset after it", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({ ...feedOf("b.mp3", "c.mp3"), next_offset: 200 });
+    globalThis.fetch.mockResolvedValue(songsResponse("2", "3"));
+
+    const page = await loadFeedPage(DAILY_MIX, AUTH, 100);
+
+    expect(page).toEqual({ tracks: [{ id: "2" }, { id: "3" }], nextOffset: 200, failed: false });
+    expect(globalThis.__fetchMumaJson.mock.calls[0][0]).toContain("offset=100");
+  });
+
+  it("says a page failed rather than that the feed ended", async () => {
+    globalThis.__fetchMumaJson.mockRejectedValue(new Error("down"));
+
+    const page = await loadFeedPage(DAILY_MIX, AUTH, 100);
+
+    expect(page).toEqual({ tracks: [], nextOffset: 100, failed: true });
+  });
+
+  it("resolves a feed longer than LMS accepts in one call in chunks, in order", async () => {
+    const paths = Array.from({ length: 150 }, (_, i) => `t${i}.mp3`);
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf(...paths));
+    globalThis.fetch
+      .mockResolvedValueOnce(songsResponse(...paths.slice(0, 100)))
+      .mockResolvedValueOnce(songsResponse(...paths.slice(100)));
+
+    const detail = await loadFeedDetail(DAILY_MIX, AUTH);
+
+    expect(SONGS_BY_PATH_LIMIT).toBe(100);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    const sent = globalThis.fetch.mock.calls.map(([, options]) => options.body.getAll("path"));
+    expect(sent.map((chunk) => chunk.length)).toEqual([100, 50]);
+    expect(detail.tracks.map((t) => t.id)).toEqual(paths);
   });
 });

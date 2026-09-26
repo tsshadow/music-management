@@ -492,6 +492,15 @@ def _config_fields() -> list[ConfigField]:
             'where the three spectrum daily mixes split. Empty or unparsable falls back to 50,75.',
         ),
         ConfigField(
+            key='feeds_size',
+            type='integer',
+            default=100,
+            env='FEEDS_SIZE',
+            group='Feeds',
+            description='How many tracks every feed (Release Radar and the daily mixes) holds before "Meer '
+            'laden". 10-200; anything else falls back to 100. A change rebuilds today\'s feeds on their next read.',
+        ),
+        ConfigField(
             key='lms_listen_backfill_enabled',
             type='boolean',
             default=True,

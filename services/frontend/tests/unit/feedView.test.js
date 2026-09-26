@@ -11,7 +11,13 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
 import FeedView from "../../src/lib/FeedView.svelte";
-import { credentials, currentTrack, playerState, playlist } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  feedContinuation,
+  playerState,
+  playlist,
+} from "../../src/lib/store.js";
 
 const SONGS = [
   { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", suffix: "flac" },
@@ -33,7 +39,11 @@ function detailOf(tracks, extra = {}) {
 
 vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
   const actual = await importOriginal();
-  return { ...actual, loadFeedDetail: (...args) => globalThis.__loadFeedDetail(...args) };
+  return {
+    ...actual,
+    loadFeedDetail: (...args) => globalThis.__loadFeedDetail(...args),
+    loadFeedPage: (...args) => globalThis.__loadFeedPage(...args),
+  };
 });
 
 describe("FeedView", () => {
@@ -43,6 +53,12 @@ describe("FeedView", () => {
     currentTrack.set(null);
     playerState.set({ playing: false });
     globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS));
+    globalThis.__loadFeedPage = vi.fn(async () => ({
+      tracks: [],
+      nextOffset: null,
+      failed: false,
+    }));
+    feedContinuation.set(null);
     globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
   });
 
@@ -135,5 +151,55 @@ describe("FeedView", () => {
 
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
     expect(screen.queryByText(/band/)).toBeNull();
+  });
+
+  it('offers no "Meer laden" when the feed has nothing more', async () => {
+    render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    expect(screen.queryByText("Meer laden")).toBeNull();
+  });
+
+  it("appends the next page without repeating a song, until there is no more", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS, { nextOffset: 100 }));
+    globalThis.__loadFeedPage = vi.fn(async () => ({
+      tracks: [SONGS[1], { id: "song-3", title: "Third", artist: "Other", suffix: "mp3" }],
+      nextOffset: null,
+      failed: false,
+    }));
+
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Meer laden")).toBeTruthy());
+
+    await fireEvent.click(screen.getByText("Meer laden"));
+
+    await waitFor(() => expect(screen.getByText("Third")).toBeTruthy());
+    expect(globalThis.__loadFeedPage.mock.calls[0][0]).toBe("daily-mix");
+    expect(globalThis.__loadFeedPage.mock.calls[0][2]).toBe(100);
+    expect(screen.getAllByText("Second")).toHaveLength(1);
+    expect(screen.getByText(/3 nummers/)).toBeTruthy();
+    expect(screen.queryByText("Meer laden")).toBeNull();
+  });
+
+  it("keeps the button after a failed page, so a second tap can try again", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS, { nextOffset: 100 }));
+    globalThis.__loadFeedPage = vi.fn(async () => ({ tracks: [], nextOffset: 100, failed: true }));
+
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Meer laden")).toBeTruthy());
+    await fireEvent.click(screen.getByText("Meer laden"));
+
+    await waitFor(() => expect(globalThis.__loadFeedPage).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText("Meer laden")).toBeTruthy());
+  });
+
+  it("starts a queue that knows where the feed continues", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS, { nextOffset: 100 }));
+
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    await fireEvent.click(screen.getByTitle("Alles afspelen"));
+
+    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 100 });
   });
 });

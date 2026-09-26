@@ -308,6 +308,24 @@ need `rules.manage`.
   a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
   `release_year` (docs/designs/track-form/).
 
+### 📡 Personalized feeds (`/api/feeds`)
+Release Radar and the daily mixes; the full contract is `docs/designs/feeds/technical.md`, the length
+and continuation `docs/designs/feed-length/technical.md`. A user key always reads its own feeds; the
+system key must pass `?username=`.
+- **GET `/api/feeds`**: every feed slug with `{slug, size, window_days, title, subtitle}`. `size` is
+  the configured length (`feeds_size`, Beheer -> Config -> Feeds, 10-200, default 100).
+- **GET `/api/feeds/{slug}`**: one page of the day's feed, answered from the stored snapshot
+  (`X-MuMa-Feed-Source: snapshot|stale|live|extended`). `offset` (>= 0, default 0) and `limit`
+  (1-100): without `offset`, `limit` takes the head and no `limit` returns the whole stored list;
+  with `offset`, `limit` defaults to the configured length. A window past the stored list continues
+  the feed -- the same ranker built with more places, songs already stored (by `work_id`, else track
+  id) left out -- and stores the continuation, so a page asked twice on one day is the same page;
+  at most 500 tracks per feed per day. The body carries `offset` and `next_offset` (where the next
+  page starts, `null` when the feed has nothing more); each track carries `work_id`. `404` unknown
+  slug, `422` a bad `offset`/`limit`, `400` the system key without `username`.
+- **GET `/api/feeds/profile`**, **PUT `/api/feeds/profile/exclusions`**: the taste profile a feed is
+  built from, and the artists/labels/genres excluded from it.
+
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path
 join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical.md`.

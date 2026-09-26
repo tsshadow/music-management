@@ -18,7 +18,12 @@ spec.loader.exec_module(dryrun)
 def test_window_override_reaches_the_policy():
     policy = dryrun.policy_for('release-radar', window=30, size=None, max_seconds=None)
     assert policy.release_window_days == 30
-    assert policy.size == 30
+    assert policy.size == dryrun.POLICIES['release-radar'].size
+
+
+def test_a_size_override_moves_the_artist_mix_cap_with_it():
+    policy = dryrun.policy_for('daily-mix-artist', window=None, size=150, max_seconds=None)
+    assert (policy.size, policy.max_per_artist) == (150, 150)
 
 
 def test_an_unknown_slug_is_refused():

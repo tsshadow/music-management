@@ -1,7 +1,7 @@
 <script>
   import { t } from './i18n/index.js';
   import { authParams, currentTrack, playerState } from './store.js';
-  import { loadFeed } from './feeds.js';
+  import { loadFeedDetail } from './feeds.js';
   import { startQueue } from './queue.js';
 
   /**
@@ -17,15 +17,18 @@
     onopen?.(slug);
   }
 
-  /** Queues the whole mix, in MuMa's order, and starts it -- without navigating away. */
+  /**
+   * Queues the whole mix, in MuMa's order, and starts it -- without navigating away. The queue
+   * carries the mix's continuation, so it tops itself up before it runs out (`feedQueue.js`).
+   */
   async function playNow(event) {
     event.stopPropagation();
     if (starting || !$authParams) return;
     starting = true;
     try {
-      const tracks = await loadFeed(slug, $authParams);
+      const { tracks, nextOffset } = await loadFeedDetail(slug, $authParams);
       if (tracks.length === 0) return;
-      startQueue(tracks, { name: title });
+      startQueue(tracks, { name: title, continuation: { slug, nextOffset } });
       currentTrack.set(tracks[0]);
       playerState.update((s) => ({ ...s, playing: true }));
     } finally {

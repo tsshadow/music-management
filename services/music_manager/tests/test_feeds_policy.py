@@ -2,7 +2,39 @@ import dataclasses
 import unittest
 
 from services.music_manager.feeds.hardness import DEFAULT_BAND_EDGES
-from services.music_manager.feeds.policy import POLICIES, parse_hardness_edges, parse_starting_genres
+from services.music_manager.feeds.policy import (
+    DEFAULT_FEED_SIZE,
+    MAX_FEED_SIZE,
+    MIN_FEED_SIZE,
+    POLICIES,
+    parse_feed_size,
+    parse_hardness_edges,
+    parse_starting_genres,
+    resize,
+)
+
+
+class FeedSizeTest(unittest.TestCase):
+    """`feeds_size`: a usable number is taken as is, anything else is the default."""
+
+    def test_the_default_is_a_hundred(self):
+        self.assertEqual(DEFAULT_FEED_SIZE, 100)
+
+    def test_a_value_in_range_is_taken(self):
+        for raw, expected in (
+            (150, 150),
+            ('40', 40),
+            (' 60 ', 60),
+            (MIN_FEED_SIZE, MIN_FEED_SIZE),
+            (MAX_FEED_SIZE, MAX_FEED_SIZE),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_feed_size(raw), expected)
+
+    def test_garbage_and_out_of_range_fall_back(self):
+        for raw in (None, '', 'veel', '12.5', True, 0, -5, MIN_FEED_SIZE - 1, MAX_FEED_SIZE + 1):
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_feed_size(raw), DEFAULT_FEED_SIZE)
 
 
 class PolicyTest(unittest.TestCase):
@@ -23,7 +55,7 @@ class PolicyTest(unittest.TestCase):
     def test_both_feeds_are_songs_only(self):
         for policy in POLICIES.values():
             self.assertEqual(policy.max_track_seconds, 600)
-            self.assertEqual(policy.size, 30)
+            self.assertEqual(policy.size, DEFAULT_FEED_SIZE)
             if policy.slug != 'daily-mix-artist':
                 self.assertEqual(policy.max_per_artist, 3)
 
@@ -33,6 +65,23 @@ class PolicyTest(unittest.TestCase):
         policy = POLICIES['daily-mix-artist']
         self.assertEqual(policy.max_per_artist, policy.size)
         self.assertEqual(POLICIES['daily-mix-label'].max_per_artist, 3)
+
+    def test_resizing_the_artist_mix_moves_its_cap_with_it(self):
+        """`feeds_size` 150 must not leave the artist mix capped at the code default."""
+        for size in (40, 150):
+            with self.subTest(size=size):
+                resized = resize(POLICIES['daily-mix-artist'], size)
+                self.assertEqual((resized.size, resized.max_per_artist), (size, size))
+
+    def test_resizing_a_capped_policy_keeps_its_cap(self):
+        for slug in ('release-radar', 'daily-mix', 'daily-mix-label', 'daily-mix-mid'):
+            with self.subTest(slug=slug):
+                resized = resize(POLICIES[slug], 150)
+                self.assertEqual((resized.size, resized.max_per_artist), (150, 3))
+
+    def test_resizing_to_the_same_size_is_the_same_policy(self):
+        policy = POLICIES['release-radar']
+        self.assertIs(resize(policy, policy.size), policy)
 
     def test_a_policy_cannot_be_mutated_at_runtime(self):
         with self.assertRaises(dataclasses.FrozenInstanceError):

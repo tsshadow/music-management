@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.6.2 (2026-09-26)
+
+- Release Radar and the daily mixes in the car now hold 100 tracks instead of 30.
+
 ## Global Version 7.6.1 (2026-09-26)
 
 - **Android Auto picks up a replaced login token by itself.** Before, it kept failing with "wrong

@@ -25,6 +25,7 @@ from services.music_manager.feeds.policy import (
     FeedPolicy,
     parse_hardness_edges,
     parse_starting_genres,
+    resize,
 )
 
 FUNNEL_STAGES = ('candidates', 'bucketed', 'allocated', 'capped', 'emitted')
@@ -42,11 +43,12 @@ def policy_for(slug: str, window: int | None, size: int | None, max_seconds: int
     overrides = {}
     if window is not None:
         overrides['release_window_days'] = window
-    if size is not None:
-        overrides['size'] = size
     if max_seconds is not None:
         overrides['max_track_seconds'] = max_seconds
-    return dataclasses.replace(policy, **overrides) if overrides else policy
+    if overrides:
+        policy = dataclasses.replace(policy, **overrides)
+    # Through `resize`, as the router does: the artist mix's cap follows its size.
+    return resize(policy, size) if size is not None else policy
 
 
 def print_report(shares: dict, funnel: dict, tracks: list[dict]) -> None:

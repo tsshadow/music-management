@@ -1448,6 +1448,41 @@ class FeedsPipelineTest:
         assert body['tracks'] == []
         assert body['title'] == 'Artiestmix'
 
+    def test_a_continuation_is_stored_back_into_the_snapshot(self, api, headers, db, monkeypatch):
+        """docs/designs/feed-length/: a page past the stored list runs a second, bigger
+        build and writes the row back through the same INSERT ... ON DUPLICATE KEY
+        UPDATE; once nothing new comes it is marked exhausted, and the next read of
+        the head -- served from the row -- no longer offers a next page.
+
+        Twelve unheard tracks by one artist at a length of 10: the quota hands out all
+        ten places, the per-artist cap keeps three, so the head is short without having
+        run out -- the one shape a continuation is attempted for."""
+        from services.music_manager.routers import feeds as feeds_router
+
+        real_get = feeds_router.settings.get
+        monkeypatch.setattr(
+            feeds_router.settings, 'get', lambda key, *rest: 10 if key == 'feeds_size' else real_get(key, *rest)
+        )
+        heard_id = self._track(db, 'Old Favourite', release_date=date.today().isoformat())
+        self._listen(db, heard_id)
+        for index in range(12):
+            self._track(db, f'Unheard {index}', release_date=date.today().isoformat())
+
+        head = api.get('/api/feeds/daily-mix?username=root', headers=headers).json()
+        assert head['state'] == 'ok', head
+        assert (len(head['tracks']), head['next_offset']) == (3, 3), head['funnel']
+        assert 'work_id' in head['tracks'][0]
+
+        response = api.get('/api/feeds/daily-mix?username=root&offset=3', headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.headers['X-MuMa-Feed-Source'] == 'extended'
+        past = response.json()
+        assert (past['tracks'], past['next_offset']) == ([], None)
+
+        again = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        assert again.headers['X-MuMa-Feed-Source'] == 'snapshot'
+        assert (len(again.json()['tracks']), again.json()['next_offset']) == (3, None)
+
 
 class FeedsProfileAndExclusionsTest:
     """`GET /api/feeds/profile` and `PUT /api/feeds/profile/exclusions`

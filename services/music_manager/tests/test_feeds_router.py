@@ -361,6 +361,7 @@ class FeedsRouterTest(_FeedsAuthTestCase):
                 'library_path',
                 'bucket',
                 'reason',
+                'work_id',
             },
         )
         self.assertEqual(track['bucket'], 'uptempo')
@@ -548,17 +549,123 @@ class FeedsSnapshotRouterTest(unittest.TestCase):
             response = client.get('/api/feeds/daily-mix-mid?username=user&limit=10', headers={'X-API-Key': 'k'})
         self.assertEqual([track['id'] for track in response.json()['tracks']], list(range(10)))
 
-    def test_a_larger_limit_is_built_live_and_not_stored(self):
-        bigger = Feed(slug='daily-mix-mid', state='ok', scope='user', tracks=[], funnel={}, title='Middenin')
+    def test_the_head_says_where_the_next_page_starts(self):
+        stored = self._stored([{'id': n} for n in range(100)])
+        with patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')):
+            whole = client.get('/api/feeds/daily-mix-mid?username=user', headers={'X-API-Key': 'k'}).json()
+            head = client.get('/api/feeds/daily-mix-mid?username=user&limit=10', headers={'X-API-Key': 'k'}).json()
+        self.assertEqual((len(whole['tracks']), whole['offset'], whole['next_offset']), (100, 0, 100))
+        self.assertEqual(head['next_offset'], 10)
+
+    def test_an_exhausted_feed_has_no_next_page_and_does_not_leak_the_flag(self):
+        stored = {**self._stored([{'id': n} for n in range(40)]), 'exhausted': True}
         with (
-            patch('services.music_manager.routers.feeds.serve_snapshot') as serve,
-            patch('services.music_manager.routers.feeds.build_feed', return_value=bigger) as build,
+            patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')),
+            patch('services.music_manager.routers.feeds.extend_snapshot') as extend,
         ):
-            response = client.get('/api/feeds/daily-mix-mid?username=user&limit=60', headers={'X-API-Key': 'k'})
+            body = client.get('/api/feeds/daily-mix-mid?username=user&offset=40', headers={'X-API-Key': 'k'}).json()
+        self.assertEqual((body['tracks'], body['next_offset']), ([], None))
+        self.assertNotIn('exhausted', body)
+        extend.assert_not_called()
+
+    def _continue(self, stored, built_tracks, query):
+        """One request past the stored list, with the continuation run for real
+        against `stored` and a build that returns `built_tracks`."""
+        grown = {}
+
+        def extend(conn, username, slug, now, key, grow):
+            grown['payload'] = grow(stored)
+            return grown['payload']
+
+        feed = Feed(slug='daily-mix-mid', state='ok', scope='user', tracks=built_tracks, funnel={}, title='Middenin')
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', return_value=(stored, 'snapshot')),
+            patch('services.music_manager.routers.feeds.extend_snapshot', side_effect=extend),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=feed) as build,
+        ):
+            response = client.get(f'/api/feeds/daily-mix-mid?username=user&{query}', headers={'X-API-Key': 'k'})
+        return response, build, grown.get('payload')
+
+    def test_the_next_page_continues_the_feed_without_repeating_a_song(self):
+        stored = self._stored([{'id': n, 'work_id': 1000 + n} for n in range(100)])
+        # The bigger build re-ranks: the stored songs come back, one under another
+        # version's id (work 1005), and 99 songs are new.
+        built = (
+            [{'id': 500, 'work_id': 1005}]
+            + [{'id': n, 'work_id': 1000 + n} for n in range(100)]
+            + [{'id': n, 'work_id': 1000 + n} for n in range(100, 199)]
+        )
+        response, build, grown = self._continue(stored, built, 'offset=100&limit=100')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'live')
-        serve.assert_not_called()
-        self.assertEqual(build.call_args.args[2].size, 60)
+        self.assertEqual(response.headers['X-MuMa-Feed-Source'], 'extended')
+        body = response.json()
+        self.assertEqual([track['id'] for track in body['tracks']], list(range(100, 199)))
+        self.assertEqual((body['offset'], body['next_offset']), (100, 200))
+        # The same ranker at more places: the stored 100 plus a page.
+        self.assertEqual(build.call_args.args[2].size, 200)
+        self.assertEqual([track['id'] for track in grown['tracks'][:100]], list(range(100)))
+        self.assertFalse(grown['exhausted'])
+
+    def test_a_continuation_that_finds_nothing_new_marks_the_feed_exhausted(self):
+        stored = self._stored([{'id': n, 'work_id': None} for n in range(30)])
+        response, _build, grown = self._continue(stored, [{'id': n} for n in range(30)], 'offset=30')
+        body = response.json()
+        self.assertEqual((body['tracks'], body['next_offset']), ([], None))
+        self.assertTrue(grown['exhausted'])
+
+    def test_a_short_continuation_is_the_last_one(self):
+        """A build shorter than it was asked for has used every candidate."""
+        stored = self._stored([{'id': n} for n in range(100)])
+        built = [{'id': n} for n in range(120)]
+        response, _build, grown = self._continue(stored, built, 'offset=100')
+        body = response.json()
+        self.assertEqual([track['id'] for track in body['tracks']], list(range(100, 120)))
+        self.assertTrue(grown['exhausted'])
+        self.assertIsNone(body['next_offset'])
+
+    def _head_of_a_build(self, count, allocated):
+        feed = Feed(
+            slug='daily-mix',
+            state='ok',
+            scope='user',
+            tracks=[{'id': n} for n in range(count)],
+            funnel={'allocated': allocated},
+            title='Klassiek',
+        )
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=_serve_live),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=feed),
+        ):
+            return client.get('/api/feeds/daily-mix?username=user', headers={'X-API-Key': 'k'}).json()
+
+    def test_a_feed_that_ran_out_of_candidates_offers_no_next_page(self):
+        """40 of 100 because only 40 qualified: a continuation build would only find the same 40."""
+        body = self._head_of_a_build(40, allocated=40)
+        self.assertEqual((len(body['tracks']), body['next_offset']), (40, None))
+
+    def test_a_feed_short_only_because_of_the_artist_cap_stays_continuable(self):
+        body = self._head_of_a_build(97, allocated=100)
+        self.assertEqual(body['next_offset'], 97)
+
+    def test_the_configured_length_is_what_a_miss_builds(self):
+        feed = Feed(slug='daily-mix', state='ok', scope='user', tracks=[], funnel={}, title='Klassiek')
+
+        def serve(conn, username, slug, now, key, build):
+            return build(), 'live'
+
+        with (
+            patch.object(feeds_router.settings, 'get', side_effect=lambda key, *a: 40 if key == 'feeds_size' else None),
+            patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=serve),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=feed) as build,
+        ):
+            client.get('/api/feeds/daily-mix?username=user', headers={'X-API-Key': 'k'})
+        self.assertEqual(build.call_args.args[2].size, 40)
+
+    def test_a_page_larger_than_a_hundred_is_refused(self):
+        response = client.get('/api/feeds/daily-mix?username=user&limit=101', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 422)
+        response = client.get('/api/feeds/daily-mix?username=user&offset=-1', headers={'X-API-Key': 'k'})
+        self.assertEqual(response.status_code, 422)
 
     def test_the_listing_is_served_from_its_own_snapshot_row(self):
         stored = {
@@ -652,6 +759,18 @@ class ParamsKeyTest(unittest.TestCase):
         patcher = patch.object(feeds_router.settings, 'get', return_value=None)
         patcher.start()
         self.addCleanup(patcher.stop)
+
+    def test_a_feed_length_change_changes_every_key(self):
+        """An admin who changes `feeds_size` sees the new length on the next read."""
+        database = _KeyDatabase()
+        for slug in feeds_router.SNAPSHOT_SLUGS:
+            with self.subTest(slug=slug):
+                before = feeds_router.params_key(database, 'user', slug)
+                with patch.object(
+                    feeds_router.settings, 'get', side_effect=lambda key, *a: 150 if key == 'feeds_size' else None
+                ):
+                    after = feeds_router.params_key(database, 'user', slug)
+                self.assertNotEqual(before, after)
 
     def test_a_hardness_edit_changes_the_key_of_the_spectrum_mixes_and_the_listing(self):
         before, after = _KeyDatabase(hardness=(10, 111)), _KeyDatabase(hardness=(10, 222))

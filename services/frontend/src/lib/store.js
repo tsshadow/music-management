@@ -299,6 +299,15 @@ persist("lms_playlist", playlist);
  */
 export const queueSource = writable(null);
 
+/**
+ * The feed the current queue continues from -- `{slug, nextOffset} | null`, set
+ * by `queue.js`'s `startQueue()` for a queue started from a feed and advanced by
+ * `feedQueue.js` as it tops the queue up. Any other start clears it, so an album
+ * never grows with feed tracks. Not persisted, for the same reason as
+ * `queueSource`. See `docs/designs/feed-length/technical.md`.
+ */
+export const feedContinuation = writable(null);
+
 export const playerState = writable({
   playing: false,
   volume: 50,
@@ -1173,6 +1182,7 @@ export function resetSessionState() {
     }
     // Not persisted, but still the previous person's until the page reloads.
     queueSource.set(null);
+    feedContinuation.set(null);
     currentPlaylist.set(null);
     isPlaying.set(false);
     radioChannel.set(null);

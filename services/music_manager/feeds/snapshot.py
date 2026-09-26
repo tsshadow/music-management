@@ -215,6 +215,42 @@ def serve(
         lock.release()
 
 
+def extend(
+    conn, username: str, slug: str, now: datetime, params_key: str, grow: Callable[[dict], dict | None]
+) -> dict | None:
+    """Grow today's stored payload for `(username, slug)` in place; the continuation of a feed.
+
+    docs/designs/feed-length/technical.md, "Continuation". Runs under the same per-key lock as a
+    build, waiting for it rather than skipping, so two "Meer laden" taps -- or a tap racing the
+    refresh thread -- never append twice or append to a row that is being replaced. The row is
+    read again under the lock and handed to `grow`, which returns the payload to store, or None
+    when there is nothing to do (another request already extended it far enough).
+
+    The row keeps its own `generated_at` and `params_key`: extending a radar must not also
+    extend its hourly freshness, and a row that went stale in the meantime is not extended at
+    all -- None is returned and the caller serves what it already had. Returns the payload
+    now stored, or None when nothing was written.
+    """
+    feed_date = clock.feed_date(now)
+    with _lock_for(username, slug):
+        row = read(conn, username, slug, feed_date)
+        if row is None or not _row_is_fresh(row, slug, params_key, now):
+            return None
+        started = time.monotonic()
+        grown = grow(row['payload'])
+        if grown is None:
+            return None
+        write(conn, username, slug, feed_date, row['generated_at'], row['params_key'], grown)
+        logger.info(
+            'feeds.extend slug=%s user=%s tracks=%d total_ms=%d',
+            slug,
+            username,
+            len(grown.get('tracks') or []),
+            int((time.monotonic() - started) * 1000),
+        )
+        return grown
+
+
 def active_listeners(conn, now: datetime) -> list[str]:
     """The users who listened to anything within ACTIVE_LISTENER_DAYS of `now`."""
     cutoff = now - timedelta(days=ACTIVE_LISTENER_DAYS)

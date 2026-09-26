@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.76.2] - 2026-09-26
+
+### Fixed
+- **New and moved tracks reach their song within the hour, not days later.** The song-versions worker grouped at most 500 tracks per hourly pass, and on 2026-09-26 42,915 were waiting after a label-tree rescan and the regroup, so they were missing from everything that shows one version per song. A pass now keeps grouping in batches of 500 until nothing is left, for up to five minutes (`SONG_VERSION_TICK_BUDGET`). Bug report 101.
 ## [0.76.1] - 2026-09-26
 
 ### Fixed

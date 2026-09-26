@@ -55,9 +55,14 @@ lies outside the former), else `has_label and not from_download_archive`.
   batches of `SONG_VERSION_RESCORE_BATCH` (500) by ascending id, reads every member with the same
   columns as `_UNGROUPED`, updates `version_kind`/`version_score` only where they differ
   (`executemany`), decides the canonical in Python (pin if still a member, else `best_track`), writes
-  changed canonicals (flagging when an existing one was replaced), and stamps the batch. Commits per
+  changed canonicals (flagging only when one playable version replaced another -- a canonical that
+  appears from or falls back to NULL is not flagged, bug report 100), and stamps the batch. Commits per
   batch; never writes `work_id`. Idempotent and resumable: a stamped work is not selected again.
-- `rescore_tick` runs after `group_once` in each hourly tick: if anything is pending it first runs a
+- `drain_backlog` runs `group_once` (`SONG_VERSION_BATCH`, 500 tracks) batch after batch in each
+  hourly tick until no ungrouped track is left, a batch assigns nothing, or
+  `SONG_VERSION_TICK_BUDGET` seconds (300) have passed; each batch commits on its own. One batch per
+  hour could not keep up with a label-tree rescan (bug report 101).
+- `rescore_tick` runs after `drain_backlog` in each hourly tick: if anything is pending it first runs a
   dry run and logs `ranking <sig> will rescore N works and change M canonicals`, then applies and
   logs the result (logger `music-manager.song-versions`, so both reach `/api/events`).
 - `python -m services.music_manager.song_version_worker --rescore-dry-run` prints the same count

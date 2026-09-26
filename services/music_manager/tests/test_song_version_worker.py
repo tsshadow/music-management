@@ -564,3 +564,53 @@ class RescoreTickTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DrainBacklogTest(unittest.TestCase):
+    """Bug report 101: one 500-track batch an hour never caught up with a label-tree rescan."""
+
+    def _drain(self, batches, budget=300, ticks=None):
+        clock = iter(ticks or [0.0] * (len(batches) + 1))
+        with patch.object(worker, 'group_once', side_effect=batches) as group_once:
+            stats = worker.drain_backlog(MagicMock(), None, budget=budget, clock=lambda: next(clock))
+        return stats, group_once.call_count
+
+    def test_it_keeps_going_until_the_backlog_is_empty(self):
+        batches = [
+            {'assigned': 500, 'recomputed': 40, 'remaining': 700},
+            {'assigned': 500, 'recomputed': 30, 'remaining': 200},
+            {'assigned': 200, 'recomputed': 10, 'remaining': 0},
+        ]
+        stats, calls = self._drain(batches)
+        self.assertEqual(calls, 3)
+        self.assertEqual(stats, {'assigned': 1200, 'recomputed': 80, 'remaining': 0, 'batches': 3})
+
+    def test_it_stops_when_the_budget_is_spent(self):
+        batches = [{'assigned': 500, 'recomputed': 1, 'remaining': 10_000}] * 5
+        stats, calls = self._drain(batches, budget=300, ticks=[0.0, 100.0, 250.0, 301.0])
+        self.assertEqual(calls, 3)
+        self.assertEqual(stats['remaining'], 10_000)
+
+    def test_a_batch_that_assigns_nothing_ends_the_pass(self):
+        # Tracks that cannot be grouped now must not make the pass spin until the budget ends.
+        batches = [{'assigned': 0, 'recomputed': 0, 'remaining': 4}]
+        stats, calls = self._drain(batches)
+        self.assertEqual(calls, 1)
+        self.assertEqual(stats['remaining'], 4)
+
+    def test_the_tick_drains_instead_of_running_one_batch(self):
+        conn = MagicMock()
+        with (
+            patch.object(worker, 'get_db_connection', return_value=conn),
+            patch.object(worker, 'ranking_context', return_value=CONTEXT),
+            patch.object(
+                worker, 'drain_backlog', return_value={'assigned': 3, 'recomputed': 1, 'remaining': 0, 'batches': 1}
+            ) as drain,
+            patch.object(worker, 'rescore_tick') as rescore,
+            patch.object(worker, 'group_once') as group_once,
+        ):
+            worker.grouping_tick()
+        drain.assert_called_once_with(conn, CONTEXT)
+        group_once.assert_not_called()
+        rescore.assert_called_once_with(conn, CONTEXT)
+        conn.close.assert_called_once()

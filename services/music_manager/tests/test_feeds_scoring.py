@@ -3,7 +3,14 @@ from datetime import date
 
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TasteProfile
-from services.music_manager.feeds.scoring import daily_sample_key, pick_daily_entity, score, taste_score
+from services.music_manager.feeds.scoring import (
+    _daily_entity_index,
+    daily_sample_key,
+    pick_daily_entity,
+    pick_playable_entity,
+    score,
+    taste_score,
+)
 
 PROFILE = TasteProfile(artists={'angerfist': 1.0}, labels={'peacock records': 0.4}, genres={'uptempo': 0.6})
 RADAR = POLICIES['release-radar']
@@ -122,3 +129,62 @@ class PickDailyEntityTest(unittest.TestCase):
         for offset in range(20):
             chosen = pick_daily_entity('user', date(2026, 9, 5 + offset), self.NAMES)
             self.assertIn(chosen, self.NAMES)
+
+
+class PickPlayableEntityTest(unittest.TestCase):
+    """Bug report 110: the rotation only lands on a name with enough to play."""
+
+    NAMES = [f'artist-{i}' for i in range(10)]
+    WINDOWS = (90, 365, None)
+    DAY = date(2026, 9, 26)
+
+    def _start(self):
+        return _daily_entity_index('user', self.DAY, len(self.NAMES))
+
+    def _pick(self, counts, minimum=15):
+        return pick_playable_entity('user', self.DAY, self.NAMES, counts, self.WINDOWS, minimum)
+
+    def test_the_drawn_name_wins_when_it_can_fill_the_mix(self):
+        drawn = self.NAMES[self._start()]
+        counts = dict.fromkeys(self.NAMES, (20, 20, 20))
+        self.assertEqual(self._pick(counts), (drawn, 90))
+        self.assertEqual(drawn, pick_daily_entity('user', self.DAY, self.NAMES))
+
+    def test_a_name_with_nothing_playable_is_skipped_for_the_next_ranked(self):
+        start = self._start()
+        following = self.NAMES[(start + 1) % len(self.NAMES)]
+        counts = dict.fromkeys(self.NAMES, (20, 20, 20))
+        del counts[self.NAMES[start]]
+        self.assertEqual(self._pick(counts), (following, 90))
+
+    def test_a_name_below_the_minimum_is_skipped(self):
+        start = self._start()
+        following = self.NAMES[(start + 1) % len(self.NAMES)]
+        counts = dict.fromkeys(self.NAMES, (20, 20, 20))
+        counts[self.NAMES[start]] = (14, 14, 14)
+        self.assertEqual(self._pick(counts), (following, 90))
+
+    def test_the_walk_wraps_around_the_end_of_the_ranking(self):
+        start = self._start()
+        before = self.NAMES[(start - 1) % len(self.NAMES)]
+        self.assertEqual(self._pick({before: (0, 0, 15)}), (before, None))
+
+    def test_the_drawn_name_at_a_wider_window_beats_the_next_name_at_ninety_days(self):
+        start = self._start()
+        counts = dict.fromkeys(self.NAMES, (20, 20, 20))
+        counts[self.NAMES[start]] = (2, 15, 30)
+        self.assertEqual(self._pick(counts), (self.NAMES[start], 365))
+
+    def test_counts_are_matched_case_insensitively(self):
+        mixed = ['Angerfist']
+        self.assertEqual(
+            pick_playable_entity('user', self.DAY, mixed, {'angerfist': (15, 15, 15)}, self.WINDOWS, 15),
+            ('Angerfist', 90),
+        )
+
+    def test_nothing_qualifies_is_none(self):
+        self.assertIsNone(self._pick(dict.fromkeys(self.NAMES, (14, 14, 14))))
+        self.assertIsNone(self._pick({}))
+
+    def test_no_names_is_none(self):
+        self.assertIsNone(pick_playable_entity('user', self.DAY, [], {}, self.WINDOWS, 15))

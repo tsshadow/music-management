@@ -60,6 +60,46 @@ def pick_daily_entity(username: str, feed_date: date, ranked_names: list[str]) -
     """
     if not ranked_names:
         return None
+    return ranked_names[_daily_entity_index(username, feed_date, len(ranked_names))]
+
+
+def _daily_entity_index(username: str, feed_date: date, count: int) -> int:
+    """The day-stable index `pick_daily_entity` lands on, out of `count` names."""
     digest = hashlib.md5(f'{username}|{feed_date.isoformat()}|entity'.encode()).hexdigest()
-    index = int(digest[:8], 16) % len(ranked_names)
-    return ranked_names[index]
+    return int(digest[:8], 16) % count
+
+
+def pick_playable_entity(
+    username: str,
+    feed_date: date,
+    ranked_names: list[str],
+    song_counts: dict[str, tuple[int, ...]],
+    windows: tuple[int | None, ...],
+    minimum: int,
+) -> tuple[str, int | None] | None:
+    """Today's rotating-mix name and the release window it is built at, or None.
+
+    Bug report 110: `pick_daily_entity` alone chose a name without asking whether
+    it had anything to play, and the artist mix went out with 0 or 2 tracks. This
+    starts at the same day-stable index and walks the ranking from there, wrapping
+    around, taking the first name that reaches `minimum` songs at *some* window --
+    the narrowest one that does, tried in `windows` order. The drawn name at a
+    widened window is preferred over the next name at the policy's own window: the
+    rotation is what the mix is for, and a mix of the artist drawn today, drawn
+    from further back, is still that artist's mix.
+
+    `song_counts` maps a lower-cased name to one song count per entry of
+    `windows` (`rotation_counts_query`'s columns); a name missing from it has
+    nothing playable at all. None means no name in the top ten qualifies.
+    """
+    if not ranked_names:
+        return None
+    start = _daily_entity_index(username, feed_date, len(ranked_names))
+    for offset in range(len(ranked_names)):
+        name = ranked_names[(start + offset) % len(ranked_names)]
+        counts = song_counts.get(name.lower(), ())
+        # Not strict: a name missing from the counts has an empty tuple, i.e. nothing.
+        for window, count in zip(windows, counts, strict=False):
+            if count >= minimum:
+                return name, window
+    return None

@@ -331,7 +331,13 @@ hardness at all.
 
 `daily-mix-artist` and `daily-mix-label` are the two free slots: the same daily-mix pool, restricted
 to one artist or one label chosen from the listener's own top 10 by a hash of their username and
-today's date, so it visibly rotates day to day without needing a job to pick it.
+today's date, so it visibly rotates day to day without needing a job to pick it. Only a name with at
+least 15 playable songs (a file on disk, unheard or loved, one per song) is ever drawn: when the
+drawn name has fewer in the last 90 days its window widens to a year, then to all time, the same
+ladder a band uses; when it has fewer even then, the next name in the top 10 is taken; and when no
+name in the top 10 qualifies at all, the mix is shown as empty that day rather than with two or
+three tracks (bug report 110). The artist mix is not capped at three tracks per artist — every track
+in it is by that artist.
 
 `daily-mix` — the slug the car and the phone already call — keeps working exactly as it always has:
 the same, unrestricted policy, filtered on nothing about hardness. It is **not** one of the three

@@ -425,6 +425,35 @@ _ranked_names(profile.artists | profile.labels)`'s top 10, indexed by `scoring.p
 track. A profile with no artist (or label) affinities at all has nothing to rotate through and the
 feed reports `not_enough_data`.
 
+**Only a name with enough to play is drawn** (bug report 110). The hash alone once drew an artist
+whose tracks inside the 90-day window were all heard and none loved — 0 candidates — and the day
+before an artist with 2. The window, the unheard-or-loved pool and the per-artist cap of 3 together
+meant almost no artist in anyone's top ten could fill an artist mix at all: measured on production
+on 2026-09-26, none of Teun's top ten artists reached 15 songs at 90 days, three did at 365 days,
+nine with no window. So `build._describe` now asks before it draws:
+
+- `queries.rotation_counts_query(username, policy, now, dimension, names, windows)` — one grouped
+  statement over the whole top ten, bounded to those names, applying `candidates_query`'s own
+  filters (a media file, the duration bounds, the pool) and counting
+  `COUNT(DISTINCT COALESCE(work_id, -id))` — the key `build.song_key` collapses on — once per window
+  of `ROTATION_RELAXATION_WINDOWS` (90, 365, no window; the band ladder). Never a candidate query
+  per name tried. Both queries build the window from one helper, `_release_window_conditions`.
+- `scoring.pick_playable_entity` starts at the same day-stable index `pick_daily_entity` uses and
+  walks the ranking from there, wrapping around, taking the first name that reaches
+  `MIN_ROTATION_CANDIDATES` (15, the same floor as `MIN_BAND_CANDIDATES`: half of the 30 places) at
+  the narrowest window that does. The drawn name at a wider window is preferred over the next name
+  at 90 days — the rotation is what the mix is for.
+- The build then runs one candidate query at that window and reports it as `relaxed_to` exactly as
+  a band does (`365`, `'none'`, or `null` when 90 days sufficed).
+- **No name qualifies:** the feed reports `no_matches` with `tracks: []`, the default title
+  (`Artiestmix` / `Labelmix`) and no subtitle — never an `ok` mix of a handful of tracks. The client
+  already renders a non-`ok` feed as empty; the snapshot keeps it for `NON_OK_TTL_SECONDS` only.
+
+`daily-mix-artist` carries `max_per_artist = size` (30): every candidate shares the one primary
+artist the mix is restricted to, and a cap of 3 cut every artist mix to three tracks. The label mix
+keeps the cap of 3 — its count is of songs, not of artists, so a label whose songs are mostly one
+artist's can still come out shorter than 15 after the cap.
+
 ### Titles and subtitles
 
 `build._describe(conn, username, policy, now, profile, hardness_edges, hardness_edges_source)` is
@@ -453,7 +482,9 @@ resolvable username gets instead).
 
 `hardness_band`, `hardness_edges_source`, `hardness_source_counts`, `hardness_percentiles`,
 `relaxed_to` and `filled_from_unknown` are `null` for every policy except the three spectrum mixes —
-a rotating or classic feed simply never sets them (`Feed`'s own defaults). `filled_from_unknown` is
+a classic feed simply never sets them (`Feed`'s own defaults). The one exception is `relaxed_to`,
+which the two rotating mixes also set when today's name was only playable at a widened window (see
+"Rotation" above); an additive value on a field that already existed, read by no client. `filled_from_unknown` is
 `0`, not `null`, whenever a spectrum mix's own band filled `policy.size` without needing the
 backfill in "Band edges and filtering" above. `hardness_percentiles` is `null` for a spectrum mix
 too when nothing in the listener's history resolved a hardness at all — it never decides

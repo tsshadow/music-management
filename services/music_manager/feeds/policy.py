@@ -37,8 +37,9 @@ class FeedPolicy:
     hardness_band: str | None = None
     # 'artist' | 'label' | None. Set only on the two rotating daily mixes: candidates
     # are restricted to one artist or one label, chosen by a stable hash of
-    # (username, date) over the listener's own top ten -- see
-    # scoring.pick_daily_entity and build._ranked_names.
+    # (username, date) over the listener's own top ten, skipping any name with fewer
+    # than build.MIN_ROTATION_CANDIDATES playable songs -- see
+    # scoring.pick_playable_entity and build._ranked_names.
     rotate: str | None = None
 
 
@@ -119,6 +120,11 @@ POLICIES: dict[str, FeedPolicy] = {
     'daily-mix-soft': replace(_DAILY_MIX_BASE, slug='daily-mix-soft', hardness_band='soft'),
     'daily-mix-mid': replace(_DAILY_MIX_BASE, slug='daily-mix-mid', hardness_band='mid'),
     'daily-mix-hard': replace(_DAILY_MIX_BASE, slug='daily-mix-hard', hardness_band='hard'),
-    'daily-mix-artist': replace(_DAILY_MIX_BASE, slug='daily-mix-artist', rotate='artist'),
+    # Every candidate of an artist mix has the same primary artist, so the usual cap of
+    # three per artist would cut the whole mix to three tracks (bug report 110): the cap
+    # is lifted to the mix's own size. The label mix keeps it -- many artists share a label.
+    'daily-mix-artist': replace(
+        _DAILY_MIX_BASE, slug='daily-mix-artist', rotate='artist', max_per_artist=_DAILY_MIX_BASE.size
+    ),
     'daily-mix-label': replace(_DAILY_MIX_BASE, slug='daily-mix-label', rotate='label'),
 }

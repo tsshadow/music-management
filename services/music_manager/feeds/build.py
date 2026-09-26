@@ -33,9 +33,10 @@ from services.music_manager.feeds.queries import (
     genre_hardness_query,
     hierarchy_query,
     listens_query,
+    rotation_counts_query,
 )
 from services.music_manager.feeds.quota import allocate, redistribute
-from services.music_manager.feeds.scoring import daily_sample_key, pick_daily_entity, score
+from services.music_manager.feeds.scoring import daily_sample_key, pick_playable_entity, score
 
 EMPTY_FUNNEL = {'candidates': 0, 'bucketed': 0, 'allocated': 0, 'capped': 0, 'emitted': 0}
 
@@ -62,6 +63,17 @@ CLASSIC_TITLE = 'Klassiek'
 #: reinterpreted.
 BAND_RELAXATION_WINDOWS = (90, 365, None)
 MIN_BAND_CANDIDATES = 15
+
+#: The fewest songs a rotating mix (`daily-mix-artist`, `daily-mix-label`) may be
+#: built from, and the release windows it may widen through to reach them (bug
+#: report 110). The same floor and the same ladder as a hardness band, on purpose:
+#: both answer "how thin may one day's slice of a daily mix be before it is not
+#: worth serving", and half of the 30 places is the answer the band already
+#: settled on. A name below the floor at every window is skipped for the next one
+#: in the listener's top ten; when none qualifies the mix reports `no_matches`
+#: rather than going out with a handful of tracks.
+MIN_ROTATION_CANDIDATES = MIN_BAND_CANDIDATES
+ROTATION_RELAXATION_WINDOWS = BAND_RELAXATION_WINDOWS
 
 
 @dataclass
@@ -97,7 +109,8 @@ class Feed:
     # hardness.hardness_percentiles). None when there is nothing to report.
     hardness_percentiles: dict[str, float] | None = None
     # Only set when a hardness band came up short and release_window_days was
-    # widened to reach MIN_BAND_CANDIDATES: the number of days it was widened to,
+    # widened to reach MIN_BAND_CANDIDATES (or a rotating mix's name to reach
+    # MIN_ROTATION_CANDIDATES): the number of days it was widened to,
     # the literal string 'none' when it was widened all the way to no window at
     # all, or None (the default) when no relaxation was needed. A bare `None` would
     # be ambiguous between those last two -- release_window_days=None already means
@@ -400,6 +413,28 @@ def _ranked_names(affinities: dict[str, float], limit: int = 10) -> list[str]:
     return [name for name, _ in ranked[:limit]]
 
 
+def _rotation_song_counts(
+    conn, username: str, policy: FeedPolicy, now: datetime, names: list[str]
+) -> dict[str, tuple[int, ...]]:
+    """`name.lower() -> songs per window` for a rotating mix's candidate names.
+
+    One grouped query over the whole top ten (`rotation_counts_query`), never a
+    candidate query per name: choosing today's artist must not cost ten builds. A
+    name with nothing playable is simply absent from the result.
+    """
+    if not names or policy.rotate is None:
+        return {}
+    sql, params = rotation_counts_query(username, policy, now, policy.rotate, names, ROTATION_RELAXATION_WINDOWS)
+    counts: dict[str, tuple[int, ...]] = {}
+    for row in _rows(conn, sql, params):
+        if not row.get('name'):
+            continue
+        counts[row['name'].lower()] = tuple(
+            int(row.get(f'songs_{index}') or 0) for index in range(len(ROTATION_RELAXATION_WINDOWS))
+        )
+    return counts
+
+
 def _band_subtitle(lo: float, hi: float, band: str) -> str:
     if band == 'soft':
         return f'≤ {round(lo)} hardheid'
@@ -442,10 +477,19 @@ def _describe(
         'hardness_edges_source': None,
         'hardness_source_counts': None,
         'hardness_percentiles': None,
+        'rotation_window': None,
+        'rotation_exhausted': False,
     }
     if policy.rotate:
         names = _ranked_names(profile.artists if policy.rotate == 'artist' else profile.labels)
-        chosen = pick_daily_entity(username, clock.feed_date(now), names)
+        # Only a name with enough to play is ever drawn (bug report 110): the count
+        # runs here, not in build_feed, so the title the listing shows is the name
+        # the build is restricted to.
+        song_counts = _rotation_song_counts(conn, username, policy, now, names)
+        pick = pick_playable_entity(
+            username, clock.feed_date(now), names, song_counts, ROTATION_RELAXATION_WINDOWS, MIN_ROTATION_CANDIDATES
+        )
+        chosen, window = pick if pick else (None, None)
         noun = 'artiest' if policy.rotate == 'artist' else 'label'
         default_title = 'Artiestmix' if policy.rotate == 'artist' else 'Labelmix'
         return {
@@ -453,6 +497,8 @@ def _describe(
             'title': chosen or default_title,
             'subtitle': f'Een {noun} uit jouw top 10, elke dag een andere' if chosen else None,
             'entity_filter': (policy.rotate, chosen) if chosen else None,
+            'rotation_window': window,
+            'rotation_exhausted': bool(names) and pick is None,
         }
     if policy.hardness_band:
         title = DUTCH_BAND_TITLE.get(policy.hardness_band, policy.slug)
@@ -506,14 +552,24 @@ def _load_band_candidates(
 ) -> tuple[list[dict], int | str | None]:
     """Step 4, plus the hardness-band relaxation ladder.
 
-    For a plain policy (release-radar, the classic daily-mix, the two rotating
-    mixes) this is one query at `policy.release_window_days`, exactly as before
-    this feature existed. For a `hardness_band` policy, `release_window_days` is
+    For a plain policy (release-radar, the classic daily-mix) this is one query at
+    `policy.release_window_days`, exactly as before this feature existed. A
+    rotating mix is one query too, at the window `_describe` already settled on
+    while choosing today's name (`info['rotation_window']`), reported as
+    `relaxed_to` the same way a band's is. For a `hardness_band` policy, `release_window_days` is
     tried at 90, then 365, then not at all, stopping as soon as `MIN_BAND_CANDIDATES`
     is reached or the ladder runs out -- returning whichever window it stopped at,
     reported back as `relaxed_to` ('none' for "no window at all", never a bare
     `None`, which already means "no relaxation was needed" on that same field).
     """
+    if policy.rotate and info['entity_filter'] is not None:
+        window = info['rotation_window']
+        rotated = policy if window == policy.release_window_days else replace(policy, release_window_days=window)
+        rotated_candidates = _load_candidates(conn, username, rotated, now, entity_filter=info['entity_filter'])
+        if window == policy.release_window_days:
+            return rotated_candidates, None
+        return rotated_candidates, 'none' if window is None else window
+
     if not policy.hardness_band:
         plain_candidates = _load_candidates(conn, username, policy, now, entity_filter=info['entity_filter'])
         return plain_candidates, None
@@ -769,10 +825,12 @@ def build_feed(
     info = _describe(conn, username, policy, now, resolution, hardness_edges, hardness_edges_source)
     if policy.rotate and info['entity_filter'] is None:
         # A profile with no artist (or label) affinities at all -- nothing to
-        # rotate through today.
+        # rotate through today -- or a top ten in which no name reaches
+        # MIN_ROTATION_CANDIDATES songs at any window (bug report 110): the mix is
+        # reported empty rather than served with a handful of tracks.
         return Feed(
             slug=policy.slug,
-            state='not_enough_data',
+            state='no_matches' if info['rotation_exhausted'] else 'not_enough_data',
             scope=profile.scope,
             tracks=[],
             funnel=dict(EMPTY_FUNNEL),

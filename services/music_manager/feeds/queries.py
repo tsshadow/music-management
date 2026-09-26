@@ -207,18 +207,9 @@ def candidates_query(
     params.append(policy.max_track_seconds)
 
     if policy.release_window_days is not None:
-        # The window is closed at both ends. `release_date` is read out of a file
-        # tag, so a mistagged 2027 release passes the day-precision check and the
-        # lower bound, and then sorts to the top of every radar forever, because
-        # step 7 orders by release date descending. A feed that counts a
-        # mistagged future release as "released this week" is the measurement
-        # this whole V1 exists to take, taken wrong.
-        cutoff = (now.date() - timedelta(days=policy.release_window_days)).isoformat()
-        where.append(f'LENGTH({_RELEASE_DATE}) = 10')
-        where.append(f'{_RELEASE_DATE} >= %s')
-        params.append(cutoff)
-        where.append(f'{_RELEASE_DATE} <= %s')
-        params.append(now.date().isoformat())
+        window_where, window_params = _release_window_conditions(policy.release_window_days, now)
+        where.extend(window_where)
+        params.extend(window_params)
 
     pool_clause = _pool_clause(username, policy, params)
     if pool_clause:
@@ -240,6 +231,114 @@ def candidates_query(
             raise ValueError(f'unknown entity_filter dimension: {dimension!r}')
 
     return _candidate_select(' AND '.join(where)), params
+
+
+def _release_window_conditions(window_days: int, now: datetime) -> tuple[list[str], list]:
+    """The three conditions of a release window of `window_days`, and their two params.
+
+    The window is closed at both ends. `release_date` is read out of a file tag, so
+    a mistagged 2027 release passes the day-precision check and the lower bound,
+    and then sorts to the top of every radar forever, because step 7 orders by
+    release date descending. A feed that counts a mistagged future release as
+    "released this week" is the measurement this whole V1 exists to take, taken
+    wrong. Shared by `candidates_query` and `rotation_counts_query`, so the count
+    that picks a rotating mix's artist and the candidates it then gets can never
+    disagree about what "inside the window" means.
+    """
+    cutoff = (now.date() - timedelta(days=window_days)).isoformat()
+    conditions = [
+        f'LENGTH({_RELEASE_DATE}) = 10',
+        f'{_RELEASE_DATE} >= %s',
+        f'{_RELEASE_DATE} <= %s',
+    ]
+    return conditions, [cutoff, now.date().isoformat()]
+
+
+#: The column a rotating mix's candidates are counted per. The artist is the track's
+#: primary artist, exactly what `candidates_query`'s `a.name = %s` filters on; the
+#: label comes from its own join, so a track on two labels counts for both, exactly
+#: as the `EXISTS` in `candidates_query` would admit it into either label's mix.
+_ROTATION_DIMENSIONS = {
+    'artist': ('a.name', ''),
+    'label': (
+        'el.name',
+        'JOIN library_track_labels etl ON etl.track_id = t.id JOIN library_labels el ON el.id = etl.label_id',
+    ),
+}
+
+
+def rotation_counts_query(
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    dimension: str,
+    names: list[str],
+    windows: tuple[int | None, ...],
+) -> tuple[str, list]:
+    """How many songs each of `names` would give `policy`'s rotating mix, per window.
+
+    One grouped statement for the whole top ten, so choosing today's artist (or
+    label) costs one query bounded to those names, not one candidate query per
+    name tried (bug report 110). It applies `candidates_query`'s own filters --
+    a media file, the duration bounds, the unheard-or-loved pool -- and counts
+    `COUNT(DISTINCT work, else track)`, the same key `build.song_key` collapses
+    on, so a name's count is the number of places its mix could actually fill.
+    One column per entry of `windows` (`songs_0`, `songs_1`, ...): the songs whose
+    release date lies inside that window, or every song for a `None` window.
+
+    Only `%s` placeholders are formatted in; `dimension` picks one of two fixed
+    fragments and every name travels as a parameter. An empty `names` is refused
+    rather than rendered as `IN ()`.
+    """
+    try:
+        name_column, join = _ROTATION_DIMENSIONS[dimension]
+    except KeyError:
+        raise ValueError(f'unknown rotation dimension: {dimension!r}') from None
+    if not names:
+        raise ValueError('rotation_counts_query needs at least one name; skip the query instead')
+    if not windows:
+        raise ValueError('rotation_counts_query needs at least one window')
+
+    song = 'COALESCE(t.work_id, -t.id)'
+    columns = []
+    # Params in text order: the window columns in the SELECT list, the rating
+    # join's username, then every WHERE param.
+    params: list = []
+    for index, window in enumerate(windows):
+        if window is None:
+            columns.append(f'COUNT(DISTINCT {song}) AS songs_{index}')
+            continue
+        conditions, window_params = _release_window_conditions(window, now)
+        columns.append(f"COUNT(DISTINCT CASE WHEN {' AND '.join(conditions)} THEN {song} END) AS songs_{index}")
+        params.extend(window_params)
+    params.append(username)
+
+    where = [
+        'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
+        't.duration_secs > 0',
+        't.duration_secs < %s',
+    ]
+    params.append(policy.max_track_seconds)
+    pool_clause = _pool_clause(username, policy, params)
+    if pool_clause:
+        where.append(pool_clause)
+    placeholders = ', '.join(['%s'] * len(names))
+    where.append(f'{name_column} IN ({placeholders})')
+    params.extend(names)
+
+    sql = f"""
+        SELECT {name_column} AS name, {', '.join(columns)}
+        FROM library_tracks t
+        LEFT JOIN library_works w ON w.id = t.work_id
+        LEFT JOIN library_artists a ON a.id = t.primary_artist_id
+        {join}
+        {_AUDIO_FEATURES_SUBQUERY}
+        LEFT JOIN rating_tracks r
+            ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
+        WHERE {' AND '.join(where)}
+        GROUP BY {name_column}
+    """
+    return sql, params
 
 
 def _select_params(username: str) -> list:

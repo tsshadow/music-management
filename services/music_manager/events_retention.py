@@ -28,6 +28,7 @@ disk use while it runs; reclaiming space is an operator step, see docs/deploymen
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -241,6 +242,9 @@ def retention_tick() -> float | None:
     return None if result.complete else RETRY_SOONER_SECONDS
 
 
-def run_events_retention() -> None:
-    """The `events-retention` thread: purge on start, then once a day (hourly while a backlog lasts), for good."""
-    run_forever('events-retention', retention_tick, INTERVAL_SECONDS)
+def run_events_retention(stop: threading.Event | None = None) -> None:
+    """The `events-retention` thread: purge on start, then once a day (hourly while a backlog lasts), for good.
+
+    `stop` ends the loop when set (tests use it to run an exact number of rounds).
+    """
+    run_forever('events-retention', retention_tick, INTERVAL_SECONDS, stop=stop)

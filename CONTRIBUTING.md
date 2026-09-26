@@ -67,6 +67,15 @@ change (`reset_database_helpers()` for the `Cache` helpers). To stub something j
 test, use `patch.dict(sys.modules, {...})`, never a bare assignment --
 `tests/ci/test_mock_base_isolation.py` fails when a stub outlives collection (bug report 085).
 
+**A loop test ends the loop with a stop event, never with a patched `time.sleep`.**
+`time.sleep` is one function for the whole process: a finite `side_effect` list on it is also
+consumed by any other thread that sleeps during the test, and the test dies on `StopIteration`.
+`thread_registry.run_forever` and the loops built on it take a `stop` event and never call
+`time.sleep`; hand them `services.tests.stop_after.StopAfter(n)`, which ends the loop after
+exactly `n` rounds without waiting and records the delays it was asked to wait. The process-wide
+event service writes to memory in every test (`services/tests/in_memory_events_plugin.py`), so a
+log line never leaves a writer thread retrying against a database (bug report 099).
+
 **Mocked tests are not enough for SQL.** Everything under `services/` mocks the
 database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in

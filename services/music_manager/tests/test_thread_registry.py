@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from services.music_manager import thread_registry
+from services.tests.stop_after import StopAfter
 
 
 class _Stop(BaseException):
@@ -17,12 +18,10 @@ class RunForeverTest(unittest.TestCase):
         self.addCleanup(thread_registry.reset)
 
     def _run(self, tick, interval, sleeps, **kwargs):
-        """Run the loop until the `sleeps`-th sleep; returns the delays it slept."""
-        side_effect = [None] * (sleeps - 1) + [_Stop()]
-        with patch.object(thread_registry.time, 'sleep', side_effect=side_effect) as sleep:
-            with self.assertRaises(_Stop):
-                thread_registry.run_forever('probe', tick, interval, **kwargs)
-        return [c.args[0] for c in sleep.call_args_list]
+        """Run the loop until its `sleeps`-th pause; returns the delays it asked to wait."""
+        stop = StopAfter(sleeps)
+        thread_registry.run_forever('probe', tick, interval, stop=stop, **kwargs)
+        return stop.delays
 
     def test_a_tick_that_raises_keeps_the_loop_running_and_logs_it(self):
         calls = []
@@ -72,8 +71,29 @@ class RunForeverTest(unittest.TestCase):
         def tick():
             raise KeyboardInterrupt
 
-        with patch.object(thread_registry.time, 'sleep'), self.assertRaises(KeyboardInterrupt):
-            thread_registry.run_forever('probe', tick, 1)
+        with self.assertRaises(KeyboardInterrupt):
+            thread_registry.run_forever('probe', tick, 1, stop=StopAfter(1))
+
+    def test_the_pause_never_goes_through_time_sleep(self):
+        """Bug report 099: a finite side_effect on the shared `time.sleep` ran dry mid-test.
+
+        Without a `stop` event the loop still pauses on an event of its own, so patching
+        `time.sleep` elsewhere in the process can no longer reach it.
+        """
+        calls = []
+
+        def tick():
+            calls.append(1)
+            if len(calls) == 2:
+                raise _Stop
+
+        with (
+            patch('time.sleep', side_effect=AssertionError('run_forever used time.sleep')) as sleep,
+            self.assertRaises(_Stop),
+        ):
+            thread_registry.run_forever('probe', tick, 0.01)
+        sleep.assert_not_called()
+        self.assertEqual(len(calls), 2)
 
     def test_only_a_completed_tick_moves_the_heartbeat(self):
         outcomes = iter([None, RuntimeError('down')])

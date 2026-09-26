@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import threading
 
 import pymysql.cursors
 
@@ -13,8 +14,14 @@ from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetch
 
 load_dotenv()
 
+# The pause between daemon rounds. Nothing sets it in production, so `wait` is a plain
+# sleep; a test sets it to end the loop after an exact number of rounds instead of
+# patching the process-wide `time.sleep` (bug report 099).
+shutdown = threading.Event()
+
 
 def main():
+    """Run one artist-image command, or keep repeating it with --daemon."""
     setup_logging('music-manager')
     parser = argparse.ArgumentParser(description='Artist Image Fetcher CLI')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -88,9 +95,8 @@ def main():
         if not args.repeat:
             break
         print(f'Sleeping for {args.sleeptime} seconds...')
-        import time
-
-        time.sleep(args.sleeptime)
+        if shutdown.wait(args.sleeptime):
+            break
 
 
 if __name__ == '__main__':

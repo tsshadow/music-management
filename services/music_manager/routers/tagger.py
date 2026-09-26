@@ -227,11 +227,12 @@ def _tagger_tick() -> None:
     tagger_manager.run_full()
 
 
-def run_tagger_loop(sleeptime: int = 300):
+def run_tagger_loop(sleeptime: int = 300, stop: threading.Event | None = None):
     """The `tagger` thread: a round on start, then one every `sleeptime` seconds, for good.
 
     Runs through thread_registry.run_forever, so a round that raises (MariaDB restarting, a
-    share that drops mid-walk) is logged and retried instead of ending the loop.
+    share that drops mid-walk) is logged and retried instead of ending the loop. `stop` ends
+    the loop when set (tests use it to run an exact number of rounds).
     """
     logger.info('Starting background tagger loop with sleeptime %d', sleeptime)
     run_forever(
@@ -239,4 +240,5 @@ def run_tagger_loop(sleeptime: int = 300):
         _tagger_tick,
         sleeptime,
         stale_after=max(TAGGER_STALE_AFTER_SECONDS, default_stale_after(sleeptime)),
+        stop=stop,
     )

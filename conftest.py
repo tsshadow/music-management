@@ -17,7 +17,11 @@ collect_ignore = ['tools/test_fetcher_trace.py']
 
 # `@pytest.mark.mock_base(...)`: the opt-in, per-module stubs of services/tests/mock_base.py
 # (bug report 085). Registered here, at the root, so tools/ and tests/ can use it too.
-pytest_plugins = ['services.tests.mock_base_plugin']
+#
+# `services.tests.in_memory_events_plugin`: the process-wide event service writes to an
+# in-memory list instead of the database, so a log line in one test never leaves the event
+# writer retrying against a database while later tests run (bug report 099).
+pytest_plugins = ['services.tests.mock_base_plugin', 'services.tests.in_memory_events_plugin']
 
 # Deliberately no API_KEY default here. tests/contracts/ drives a *containerised*
 # music-manager over HTTP and reads os.getenv('API_KEY', 'test-api-key') to match the

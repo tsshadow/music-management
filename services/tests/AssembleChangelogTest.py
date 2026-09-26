@@ -238,3 +238,13 @@ def test_a_refused_release_notes_file_is_left_exactly_as_it_was(tmp_path):
     # can simply be re-run once the file is fixed.
     assert '0.45.0' not in (tmp_path / 'CHANGELOG.md').read_text()
     assert (tmp_path / 'changelog.d' / '619.fixed.md').exists()
+
+
+def test_a_blank_line_separates_the_new_section_from_the_previous_release(tmp_path):
+    """0.76.0 and 0.77.1 shipped muma-mobile's changelog with `## [7.5.x]` glued to the last bullet."""
+    _repo(tmp_path, {'619.fixed.md': '- **Een fix.** Met uitleg.'})
+    assemble_changelog.assemble('root', '0.45.0', '2026-09-05', apply_changes=True, root=str(tmp_path))
+    lines = (tmp_path / 'CHANGELOG.md').read_text().splitlines()
+    assert lines[lines.index('## [0.44.4] - 2026-09-04') - 1] == ''
+    notes = (tmp_path / 'RELEASE_NOTES.md').read_text().splitlines()
+    assert notes[notes.index('## Global Version 0.44.4 (2026-09-04)') - 1] == ''

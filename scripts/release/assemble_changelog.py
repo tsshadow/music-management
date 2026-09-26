@@ -120,7 +120,10 @@ def insert_after(text, anchor, block, path):
     if anchor not in text:
         raise ValueError(f'{path}: no "{anchor}" heading to insert below')
     head, _marker, tail = text.partition(anchor)
-    return f'{head}{anchor}\n\n{block.rstrip(chr(10))}\n{tail.lstrip(chr(10))}'
+    rest = tail.lstrip(chr(10))
+    # One blank line before whatever follows too: without it the next heading (the previous
+    # release) was glued to the last bullet of the new block in muma-mobile's CHANGELOG.md.
+    return f'{head}{anchor}\n\n{block.rstrip(chr(10))}\n' + (f'\n{rest}' if rest else '')
 
 
 def assemble(scope, version, date, apply_changes, root='.'):

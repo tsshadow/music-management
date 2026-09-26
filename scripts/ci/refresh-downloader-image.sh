@@ -82,8 +82,10 @@ trap cleanup_on_exit EXIT
 
 docker_hub_login
 
-# shellcheck disable=SC1090,SC1091
-set -a; source "$ROOT_ENV_FILE"; set +a
+set -a
+# shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
+source "$ROOT_ENV_FILE"
+set +a
 DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
 IMAGE_BASE="${IMAGE_BASE:-muma-base}"
 IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"

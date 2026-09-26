@@ -35,7 +35,7 @@ MODULE_MAP=(
 )
 
 # Get changed files (including untracked and changes compared to upstream/main)
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "origin/main")
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "origin/main")
 CHANGED_FILES=$( (git status --porcelain | sed 's/^...//'; git diff --name-only $UPSTREAM...HEAD 2>/dev/null || git diff --name-only HEAD~1 2>/dev/null) | sort -u)
 
 if [ -z "$CHANGED_FILES" ]; then

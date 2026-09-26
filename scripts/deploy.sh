@@ -643,6 +643,7 @@ $1" < /dev/null
     # exec is its last command (bug report 021). `mariadb`, not `mysql`: MariaDB
     # dropped the old client name in 12.
     echo "--- [4/6] Applying database migrations (old containers still running) ---"
+    # shellcheck disable=SC2089 # the quotes are for the remote shell that runs this string
     REMOTE_MIGRATE_CMD="
         IFS= read -r MYSQL_PWD
         export MYSQL_PWD
@@ -653,6 +654,7 @@ $1" < /dev/null
         run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
     }
     export -f run_ssh run_remote_sql
+    # shellcheck disable=SC2090 # see SC2089 above: quoting is for the remote shell
     export REMOTE_HOST REMOTE_USER REMOTE_PASS REMOTE_MIGRATE_CMD
     printf '%s\n' "$MIGRATION_PASS" \
         | python3 "$PROJECT_ROOT/tools/apply_migrations.py" --password-stdin --exec run_remote_sql \

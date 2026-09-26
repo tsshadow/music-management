@@ -20,7 +20,7 @@
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 BASELINE="security/accepted-sast-findings.txt"
 CONFIG="${SAST_CONFIG:-p/default}"

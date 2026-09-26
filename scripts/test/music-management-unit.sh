@@ -29,6 +29,7 @@ if [ -f .env ]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && "$clean_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
             export "$clean_line"
         fi
     done < .env

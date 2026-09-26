@@ -3,7 +3,7 @@
 # set_user_password.sh - CLI tool to set/change a user's password
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 # Load environment variables
 if [ -f .env ]; then
@@ -11,6 +11,7 @@ if [ -f .env ]; then
         clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
             if [[ "$clean_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
                 export "$clean_line"
             fi
         fi

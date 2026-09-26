@@ -4,7 +4,7 @@
 
 # Get the project root directory
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 # Load environment variables from .env if it exists
 if [ -f .env ]; then
@@ -15,6 +15,7 @@ if [ -f .env ]; then
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
             # Use 'export' only if it's a valid assignment
             if [[ "$clean_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
                 export "$clean_line"
             fi
         fi
@@ -59,7 +60,7 @@ case "$1" in
         ;;
     frontend)
         echo "Starting frontend dev server (Vite)..."
-        cd services/frontend
+        cd services/frontend || exit 1
         [ -d node_modules ] || npm install
         npm run dev
         ;;

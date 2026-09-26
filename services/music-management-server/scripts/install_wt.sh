@@ -25,7 +25,7 @@ cd build
 # Configure, build, and install Wt
 # We install to /usr/local
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
-make -j$(nproc)
+make -j"$(nproc)"
 sudo make install
 
 # Update linker cache

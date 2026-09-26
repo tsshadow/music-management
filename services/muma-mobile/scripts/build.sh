@@ -6,7 +6,6 @@ APP_NAME="muma-mobile"
 MODULE="app"
 
 cd "$(dirname "$0")/.."
-ROOT_DIR=$(pwd)
 
 # Try to find JAVA_HOME and ANDROID_HOME if not set
 if [ -z "$JAVA_HOME" ] || [ -z "$ANDROID_HOME" ]; then

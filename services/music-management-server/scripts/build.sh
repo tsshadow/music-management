@@ -56,6 +56,7 @@ if [ -f .env ]; then
         if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
             varname="${clean_line%%=*}"
             if [ -z "${!varname}" ]; then
+                # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
                 export "$clean_line"
             fi
         fi

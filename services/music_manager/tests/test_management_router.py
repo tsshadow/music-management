@@ -982,6 +982,66 @@ class DecidePodcastMergeAtomicityTest(ManagementTestCase):
         assert_rolled_back(self, log)
 
 
+class ConfirmLabelProposalAtomicityTest(ManagementTestCase):
+    """The CAT-ID rule and the proposal's verdict land together (bug report 115)."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch.object(
+            management_router, 'Settings', return_value=MagicMock(import_folder_path='/import', eps_folder_path='/eps')
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.cursor.fetchone.return_value = {'id': 1, 'folder': 'BKRP104', 'catid': 'BKRP', 'proposed_label': 'X'}
+
+    def confirm(self):
+        return self.client.post('/api/label-proposals/1/confirm', json={'label': 'Brutal Kuts'}, headers=self.headers)
+
+    def test_the_rule_and_the_verdict_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.confirm().json()['status'], 'confirmed')
+        assert_atomic(self, log, 'INSERT INTO rules_catid_label', "SET status = 'confirmed'")
+
+    def test_a_failing_verdict_rolls_the_rule_back(self):
+        """Without it the importer acted on a rule whose proposal still read as open."""
+        log = transaction_log(self.conn, self.cursor, fail_on="SET status = 'confirmed'")
+        with self.assertRaises(RuntimeError):
+            self.confirm()
+        assert_rolled_back(self, log)
+
+    def test_the_folder_move_happens_before_the_transaction_opens(self):
+        """A move on disk cannot be rolled back, so it must not sit inside one."""
+        self.cursor.fetchone.return_value = {'id': 2, 'folder': 'REL', 'catid': None, 'proposed_label': None}
+        log = transaction_log(self.conn, self.cursor)
+        with (
+            patch.object(management_router, 'folder_exists', return_value=True),
+            patch.object(management_router, 'move_release_folder', side_effect=lambda *_a: log.append('MOVE') or MOVED),
+        ):
+            self.assertEqual(self.confirm().json()['status'], 'confirmed')
+        self.assertLess(log.index('MOVE'), log.index('BEGIN'))
+        assert_atomic(self, log, "SET status = 'confirmed'")
+
+
+class RenamePodcastAtomicityTest(ManagementTestCase):
+    """A rename and the old name kept as a spelling land together (bug report 115)."""
+
+    def rename(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'KELTEK Presents | Pure Hardstyle |'}, None]
+        return self.client.post('/api/rules/podcasts/1/rename', headers=self.headers, json={'name': 'Pure Hardstyle'})
+
+    def test_the_rename_and_the_kept_spelling_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.rename().json()['status'], 'ok')
+        assert_atomic(self, log, 'UPDATE rules_podcasts', 'INSERT IGNORE INTO rules_podcast_aliases')
+
+    def test_a_failing_alias_insert_rolls_the_rename_back(self):
+        """Without it the old spelling was gone for good: a retry keeps the name the row carries."""
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT IGNORE INTO rules_podcast_aliases')
+        with self.assertRaises(RuntimeError):
+            self.rename()
+        assert_rolled_back(self, log)
+
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from services.common.config_store import ConfigStore
 from services.common.import_queue import ImportQueue
-from services.music_manager.database import get_db_connection
+from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.song_versions import (
     SPLIT_PREFIX,
     derived_bitrate,
@@ -374,8 +374,15 @@ def split_false_merges(cursor, work_ids) -> dict[int, list[int]]:
 
 
 def group_once(conn, context: RankingContext | None = None) -> dict:
-    """One pass. Idempotent: a second call over unchanged data writes nothing new."""
-    with conn.cursor() as cursor:
+    """One pass. Idempotent: a second call over unchanged data writes nothing new.
+
+    The batch is one transaction (bug report 115). The pool runs autocommit, so the
+    trailing commit this used to end on committed nothing: a failure after the tracks got
+    their work but before the canonicals were recomputed left those works without a
+    canonical, or pointing at a track that had just been split away -- and no later pass
+    looks at a grouped track again, so nothing repaired it.
+    """
+    with transaction(conn), conn.cursor() as cursor:
         touched, assigned = assign_works(cursor, context=context)
 
         # Works whose pin moved need recomputing even when no track was assigned.
@@ -393,7 +400,6 @@ def group_once(conn, context: RankingContext | None = None) -> dict:
 
         cursor.execute('SELECT COUNT(*) AS n FROM library_tracks WHERE work_id IS NULL AND work_locked = 0')
         remaining = cursor.fetchone()['n']
-    conn.commit()
     return {'assigned': assigned, 'remaining': remaining, 'recomputed': recomputed}
 
 
@@ -572,6 +578,11 @@ def rescore_once(
     Commits per batch, so a long run holds no lock for long and a restart loses at most one
     batch. With `dry_run` it walks the same works and counts what would change, writing
     nothing -- which is how the worker measures a new ranking before applying it.
+
+    Unlike group_once, a batch here needs no transaction (bug report 115). The pool runs
+    autocommit, so a batch that fails halfway does keep its first UPDATEs -- but every value
+    written is recomputed from what the batch reads, and the signature stamp comes last, so
+    the works stay selected and the next tick rewrites the same values and stamps them.
     """
     context = context or ranking_context()
     totals = {'works': 0, 'tracks_rescored': 0, 'canonicals_changed': 0}

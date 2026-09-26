@@ -13,6 +13,7 @@ import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordHexIntercepto
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordMD5Interceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.ProxyPasswordInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.RangeHeaderInterceptor
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenRecoveryInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.VersionInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
 import okhttp3.Credentials
@@ -93,6 +94,8 @@ class SubsonicAPIClient(
         }
         .addInterceptor(versionInterceptor)
         .addInterceptor(proxyPasswordInterceptor)
+        // Behind the signing, so it sees the finished t/s and can re-sign a refused request.
+        .apply { config.tokenRecovery?.let { addInterceptor(TokenRecoveryInterceptor(it)) } }
         .addInterceptor(RangeHeaderInterceptor())
         .apply { if (config.debug) addLogging() }
         .build()

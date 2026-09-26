@@ -251,11 +251,15 @@ class ActiveServerProvider(private val repository: ServerSettingDao) : Coroutine
      * clear its queue themselves -- that is not this class's job. Downloaded files are untouched.
      */
     fun signOut() {
-        Settings.staticPassword = ""
-        Settings.mumaApiKey = ""
-        Settings.mumaUserId = -1
-        SecureSettings.clear()
-        invalidateCache()
+        // Under the sign-out epoch, so a Subsonic token fetch still in flight cannot store its
+        // answer after this (bug reports 106 and 111).
+        SignOutEpoch.signOut {
+            Settings.staticPassword = ""
+            Settings.mumaApiKey = ""
+            Settings.mumaUserId = -1
+            SecureSettings.clear()
+            invalidateCache()
+        }
         resetMusicService()
     }
 

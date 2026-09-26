@@ -16,6 +16,7 @@ import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.service.OfflineMusicService
 import nl.teunschriks.mumamobile.service.RESTMusicService
+import nl.teunschriks.mumamobile.service.SubsonicTokenRefresher
 import nl.teunschriks.mumamobile.util.Constants
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.qualifier.named
@@ -69,7 +70,9 @@ val musicServiceModule = module {
             forcePlainTextPassword = signing.passwordInUrl,
             debug = BuildConfig.DEBUG,
             isRealProtocolVersion = server.minimumApiVersion != null,
-            tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings
+            tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings,
+            // A refused token is refetched and the request retried once (issue #73).
+            tokenRecovery = if (server.id == ActiveServerProvider.OFFLINE_DB_ID) null else SubsonicTokenRefresher.recovery
         )
     }
 

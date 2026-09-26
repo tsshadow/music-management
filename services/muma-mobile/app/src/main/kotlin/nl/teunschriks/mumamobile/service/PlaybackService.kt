@@ -37,6 +37,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenRecoveryInterceptor
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
@@ -303,9 +304,12 @@ class PlaybackService :
     private fun getJukeboxPlayer(): Player = JukeboxMediaPlayer()
 
     private fun getLocalPlayer(): Player {
-        // Create a new plain OkHttpClient
-        val builder = OkHttpClient.Builder()
-        val client = builder.build()
+        // A plain OkHttpClient: the stream URL arrives signed from the resolver. The one addition
+        // retries a stream LMS refuses with a replaced Subsonic token (issue #73) -- Android Auto
+        // can play without the UI ever opening, which is when the app used to notice.
+        val client = OkHttpClient.Builder()
+            .addInterceptor(TokenRecoveryInterceptor(SubsonicTokenRefresher.recovery))
+            .build()
 
         // Create the wrapped data sources:
         // CachedDataSource is the first. If it cannot find a file,

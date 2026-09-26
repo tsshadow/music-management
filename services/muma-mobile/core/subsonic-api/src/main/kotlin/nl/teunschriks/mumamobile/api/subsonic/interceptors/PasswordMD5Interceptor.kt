@@ -34,14 +34,22 @@ class PasswordMD5Interceptor(private val password: String) : Interceptor {
         return saltBytes.toHexBytes()
     }
 
-    private fun getPasswordMD5Hash(salt: String): String {
-        try {
-            val md5Digest = MessageDigest.getInstance("MD5")
-            return md5Digest.digest(
-                "$password$salt".toByteArray()
-            ).toHexBytes().lowercase(Locale.getDefault())
-        } catch (e: NoSuchAlgorithmException) {
-            throw IllegalStateException(e)
+    private fun getPasswordMD5Hash(salt: String): String = md5Signature(password, salt)
+
+    companion object {
+        /**
+         * `md5(secret + salt)` as lowercase hex: the Subsonic `t` parameter. MD5 is what the
+         * Subsonic protocol prescribes; [TokenRecoveryInterceptor] reuses it to re-sign a request.
+         */
+        fun md5Signature(secret: String, salt: String): String {
+            try {
+                val md5Digest = MessageDigest.getInstance("MD5")
+                return md5Digest.digest(
+                    "$secret$salt".toByteArray()
+                ).toHexBytes().lowercase(Locale.ROOT)
+            } catch (e: NoSuchAlgorithmException) {
+                throw IllegalStateException(e)
+            }
         }
     }
 }

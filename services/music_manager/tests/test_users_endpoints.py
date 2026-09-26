@@ -27,6 +27,7 @@ services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 API_KEY = users_router.API_KEY
 
@@ -645,6 +646,25 @@ class SyncSingleServerDbTest(unittest.TestCase):
     def test_an_unreadable_database_does_not_raise(self):
         with patch('builtins.print'):
             self.assertEqual(users_router.sync_single_server_db(MagicMock(), '/does/not/exist.db', 'lms'), 0)
+
+
+class RevokeSessionsAtomicityTest(UsersEndpointTestCase):
+    """The api_key, the refresh tokens and the audit row land together (bug report 115)."""
+
+    def revoke(self):
+        return self.client.post('/api/users/4/sessions/revoke', headers=self.headers)
+
+    def test_the_revocation_and_its_audit_row_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.revoke().json(), {'status': 'ok'})
+        assert_atomic(self, log, 'api_key = NULL', 'UPDATE user_refresh_tokens', 'INSERT INTO audit_events')
+
+    def test_a_failing_audit_row_rolls_the_revocation_back(self):
+        """Without it the refresh tokens could stay valid, or the audit log missed a revocation."""
+        log = transaction_log(self.conn, self.cursor, fail_on='INSERT INTO audit_events')
+        with self.assertRaises(RuntimeError):
+            self.revoke()
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

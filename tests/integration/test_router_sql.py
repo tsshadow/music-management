@@ -1687,6 +1687,126 @@ class ParentChildDeleteSqlTest:
         assert self._count(db, 'SELECT COUNT(*) AS n FROM rules_podcast_aliases WHERE podcast_id = %s', (target,)) == 0
 
 
+class MultiStatementWriteSqlTest:
+    """The multi-statement writes of bug report 115 against the real server.
+
+    Each test makes the last statement of a write raise inside pymysql and checks that the
+    earlier ones did not land either.
+    """
+
+    @staticmethod
+    def _one(db, sql, params=()):
+        with db.cursor() as cursor:
+            cursor.execute(sql, params)
+            return cursor.fetchone()
+
+    def test_a_failing_label_verdict_leaves_no_rule_behind(self, api, headers, db, monkeypatch):
+        run_sql(db, "INSERT INTO rules_label_proposals (folder, catid) VALUES ('BKRP104 - Darwin', 'BKRP')")
+        proposal_id = self._one(db, 'SELECT id FROM rules_label_proposals')['id']
+        url = f'/api/label-proposals/{proposal_id}/confirm'
+        with monkeypatch.context() as patcher:
+            fail_on_statement(patcher, "UPDATE rules_label_proposals SET status = 'confirmed'")
+            with pytest.raises(RuntimeError):
+                api.post(url, headers=headers, json={'label': 'Brutal Kuts'})
+        assert self._one(db, 'SELECT COUNT(*) AS n FROM rules_catid_label')['n'] == 0
+        assert self._one(db, 'SELECT status FROM rules_label_proposals')['status'] == 'new'
+
+        # And the retry lands both.
+        confirmed = api.post(url, headers=headers, json={'label': 'Brutal Kuts'})
+        assert confirmed.status_code == 200, confirmed.text
+        assert (
+            self._one(db, 'SELECT label FROM rules_catid_label WHERE catid = %s', ('BKRP',))['label'] == 'Brutal Kuts'
+        )
+        assert self._one(db, 'SELECT status FROM rules_label_proposals')['status'] == 'confirmed'
+
+    def test_a_failing_alias_insert_keeps_the_old_show_name(self, api, headers, db, monkeypatch):
+        run_sql(
+            db,
+            "INSERT INTO rules_podcasts (name, normalized_name) VALUES ('KELTEK Presents Pure Hardstyle', 'keltek presents pure hardstyle')",
+        )
+        podcast_id = self._one(db, 'SELECT id FROM rules_podcasts')['id']
+        fail_on_statement(monkeypatch, 'INSERT IGNORE INTO rules_podcast_aliases')
+        with pytest.raises(RuntimeError):
+            api.post(f'/api/rules/podcasts/{podcast_id}/rename', headers=headers, json={'name': 'Pure Hardstyle'})
+        assert self._one(db, 'SELECT name FROM rules_podcasts')['name'] == 'KELTEK Presents Pure Hardstyle'
+
+    @staticmethod
+    def _artist_with_two_images(db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_artist_images (artist_id, source, cached_path, is_primary)"
+                " VALUES (%s, 'spotify', '/mnt/old.jpg', 1)",
+                (artist_id,),
+            )
+            old = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_artist_images (artist_id, source, cached_path, is_primary)"
+                " VALUES (%s, 'lastfm', '/mnt/new.jpg', 0)",
+                (artist_id,),
+            )
+            new = cursor.lastrowid
+            cursor.execute(
+                "UPDATE library_artists SET primary_image_id = %s, image_status = 'active' WHERE id = %s",
+                (old, artist_id),
+            )
+        return artist_id, old, new
+
+    def _primary_flags(self, db, artist_id):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'SELECT id FROM library_artist_images WHERE artist_id = %s AND is_primary = 1 ORDER BY id', (artist_id,)
+            )
+            return [row['id'] for row in cursor.fetchall()]
+
+    def test_a_failing_pointer_update_keeps_the_old_primary_image(self, api, headers, db, monkeypatch):
+        artist_id, old, new = self._artist_with_two_images(db)
+        fail_on_statement(monkeypatch, 'UPDATE library_artists SET primary_image_id')
+        with pytest.raises(RuntimeError):
+            api.post(f'/api/artists/{artist_id}/image/select/{new}', headers=headers)
+        assert self._primary_flags(db, artist_id) == [old]
+        pointer = self._one(db, 'SELECT primary_image_id FROM library_artists WHERE id = %s', (artist_id,))
+        assert pointer['primary_image_id'] == old
+
+    def test_a_failing_pointer_clear_keeps_the_primary_flag(self, api, headers, db, monkeypatch):
+        artist_id, old, _new = self._artist_with_two_images(db)
+        fail_on_statement(monkeypatch, 'UPDATE library_artists SET primary_image_id')
+        with pytest.raises(RuntimeError):
+            api.post(f'/api/artists/{artist_id}/image/clear', headers=headers)
+        assert self._primary_flags(db, artist_id) == [old]
+
+    def test_the_fetcher_rolls_its_primary_flags_back_on_its_own_connection(self, db, monkeypatch):
+        """The CLI's connection is not the pool's: a plain pymysql connection, autocommit off."""
+        from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
+        from tests.integration.conftest import _connect
+
+        artist_id, old, new = self._artist_with_two_images(db)
+        connection = _connect()
+        connection.autocommit(False)
+        try:
+            fetcher = ArtistImageFetcher.__new__(ArtistImageFetcher)
+            fetcher.db_conn = connection
+            fail_on_statement(monkeypatch, 'UPDATE library_artists SET primary_image_id')
+            with pytest.raises(RuntimeError):
+                fetcher._set_primary_image(artist_id, new)
+            # What the next artist's commit used to publish: the half-done flags.
+            connection.commit()
+        finally:
+            connection.close()
+        assert self._primary_flags(db, artist_id) == [old]
+
+    def test_a_failing_audit_row_keeps_the_sessions(self, api, headers, db, monkeypatch):
+        user_id = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'}).json()['id']
+        run_sql(db, "UPDATE users SET api_key = 'still-valid' WHERE id = %s", (user_id,))
+        run_sql(db, "INSERT INTO user_refresh_tokens (user_id, token) VALUES (%s, 'refresh-1')", (user_id,))
+        fail_on_statement(monkeypatch, 'INSERT INTO audit_events')
+        with pytest.raises(RuntimeError):
+            api.post(f'/api/users/{user_id}/sessions/revoke', headers=headers)
+        assert self._one(db, 'SELECT api_key FROM users WHERE id = %s', (user_id,))['api_key'] == 'still-valid'
+        assert self._one(db, 'SELECT revoked_at FROM user_refresh_tokens')['revoked_at'] is None
+
+
 class ScrobbleReconcileSqlTest:
     """GET /api/scrobble/reconcile/lms runs every muma-side query against the real schema.
 

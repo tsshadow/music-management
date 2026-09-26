@@ -7,6 +7,7 @@ import pymysql.cursors
 from dotenv import load_dotenv
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
+from services.music_manager.database import transaction
 
 from .matcher import ArtistMatcher
 from .normalizer import ArtistNameNormalizer
@@ -357,14 +358,20 @@ class ArtistImageFetcher:
         return image_id
 
     def _set_primary_image(self, artist_id, image_id):
-        with self.db_conn.cursor() as cursor:
+        """Flag `image_id` as the artist's primary image and point the artist at it, atomically.
+
+        One transaction (bug report 115). On the pooled connection each UPDATE used to
+        commit on its own, and on the CLI's plain connection a failure left the first
+        UPDATEs pending until the next artist's commit published them -- either way the
+        manager could flag one image while the artist pointed at another.
+        """
+        with transaction(self.db_conn), self.db_conn.cursor() as cursor:
             cursor.execute('UPDATE library_artist_images SET is_primary = 0 WHERE artist_id = %s', (artist_id,))
             cursor.execute('UPDATE library_artist_images SET is_primary = 1 WHERE id = %s', (image_id,))
             cursor.execute(
                 "\n                UPDATE library_artists\n                SET primary_image_id = %s, image_updated_at = NOW(), image_status = 'active'\n                WHERE id = %s\n            ",
                 (image_id, artist_id),
             )
-        self.db_conn.commit()
 
     def _update_artist_image_status(self, artist_id, status):
         with self.db_conn.cursor() as cursor:

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from services.music_manager.artist_image_fetcher import fetcher as fetcher_module
 from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
 from services.music_manager.artist_image_fetcher.providers.base import ProviderRateLimited, ProviderUnavailable
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 
 def make_cursor(conn):
@@ -518,6 +519,22 @@ class ManifestTest(FetcherTestCase):
         self.fetcher.downloader.download.return_value = b'binary'
         self.assertTrue(self.fetcher.fetch_for_artist(1, 'Angerfist'))
         self.assertFalse(os.path.exists(os.path.join(self.tmp.name, 'manifest.json')))
+
+
+class SetPrimaryImageAtomicityTest(FetcherTestCase):
+    """The fetcher's primary flags and the artist's pointer land together (bug report 115)."""
+
+    def test_the_three_updates_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.fetcher._set_primary_image(1, 9)
+        assert_atomic(self, log, 'is_primary = 0', 'is_primary = 1', 'SET primary_image_id = %s')
+
+    def test_a_failing_pointer_update_rolls_the_flags_back(self):
+        """On the CLI's plain connection the flags otherwise waited for the next artist's commit."""
+        log = transaction_log(self.conn, self.cursor, fail_on='SET primary_image_id = %s')
+        with self.assertRaises(RuntimeError):
+            self.fetcher._set_primary_image(1, 9)
+        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

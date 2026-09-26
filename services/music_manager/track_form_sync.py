@@ -33,7 +33,13 @@ import time
 
 from services.common.track_form import classify
 from services.music_manager.library_paths import candidate_paths
-from services.music_manager.song_version_sync import BUSY_TIMEOUT_STATEMENT, CHUNK, WRITE_BATCH, _write_batch
+from services.music_manager.song_version_sync import (
+    BUSY_TIMEOUT_STATEMENT,
+    CHUNK,
+    WRITE_BATCH,
+    _write_batch,
+    first_per_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -146,22 +152,6 @@ def _server_has_columns(server_cursor) -> bool:
     return {'form', 'performance_date'} <= columns
 
 
-def _first_per_path(rows, previous_path: str | None, stats: dict) -> tuple[list, str | None]:
-    """The first row of every path, given rows sorted by path; the rest are counted and dropped.
-
-    `previous_path` carries the last path of the previous chunk, so a path whose rows straddle a
-    chunk boundary is still pushed once. Returns the kept rows and the new last path.
-    """
-    kept = []
-    for row in rows:
-        if row['file_path'] == previous_path:
-            stats['duplicates_skipped'] = stats.get('duplicates_skipped', 0) + 1
-            continue
-        previous_path = row['file_path']
-        kept.append(row)
-    return kept, previous_path
-
-
 def _rows_to_write(server_cursor, rows) -> list[tuple]:
     """Which rows the server disagrees with, as `((form, performance_date), path)` pairs."""
     pending = []
@@ -196,7 +186,7 @@ def push_forms_to_server(muma_conn, server_conn, source: str = 'unknown') -> dic
                 if not rows:
                     break
                 stats['considered'] += len(rows)
-                rows, previous_path = _first_per_path(rows, previous_path, stats)
+                rows, previous_path = first_per_path(rows, previous_path, stats)
                 pending = _rows_to_write(server_cursor, rows)
                 for start in range(0, len(pending), WRITE_BATCH):
                     stats['matched'] += _write_batch(

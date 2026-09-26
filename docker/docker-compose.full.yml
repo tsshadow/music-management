@@ -18,7 +18,7 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-    image: mariadb:13.0
+    image: mariadb:13.0.2@sha256:d4fdec0510ad498e4f3127da30a99df3745bd6d5e611ae6ac5f76403d9284a8d
     container_name: music-management-db-1
     restart: unless-stopped
     # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
@@ -33,6 +33,7 @@ services:
       - --collation-server=utf8mb4_general_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MARIADB_AUTO_UPGRADE: "1"
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
       MYSQL_DATABASE: ${DB_DB}

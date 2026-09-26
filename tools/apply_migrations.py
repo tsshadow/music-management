@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply the repository's migrate_*.sql files the way a deploy does, with a ledger and a lock timeout.
 
-scripts/deploy.sh calls this for step [3/5]. It used to loop over every file in bash and
+scripts/deploy.sh calls this for step [4/6]. It used to loop over every file in bash and
 pipe each one into the `mariadb` client; two things went wrong with that on 2026-09-25
 (docs/bug-reports/068-deploy-hangs-on-no-op-alter-metadata-lock.md):
 

@@ -51,10 +51,19 @@ Order, first hit wins:
 2. duration < 600 s → `track`
 3. top folder `Livesets` or `Telegram` → `liveset`; `Podcasts` → `podcast`
 4. approved podcast show in title + path → `podcast`
-5. festival in title, or in path with a year → `liveset`
+5. festival in title, or in path with a year → `liveset` -- except under top folder `EPs`
+   (`LABEL_FOLDERS`), where it also needs a live marker in title or path (`_LIVE_MARKER`: the
+   whole word `live`, `liveset(s)`, `dvd` or `dvda`, after `_ - . ( ) [ ]` are read as spaces);
+   without one → `set` (bug report 109)
 6. otherwise → `set`
 
 Podcast before festival: "Defqon.1 Podcast #12" names a festival with no year and is an episode.
+
+The label-tree exception exists because a label release names a festival for reasons other than
+having been recorded there -- a track title ("Decibel Dictature"), or the label's mix album for an
+edition. Neither length nor performance date tells those from the DVD rips and live registrations
+among the label releases (measured on production, bug report 109); the word "live" or "DVD" does.
+The folder name is the literal `EPs` like the other folder rules, not `eps_folder_path`.
 
 Performance date: only for `liveset`; the first festival match (same order as the tagger rule) that
 has a year and an edition date for it.
@@ -120,7 +129,9 @@ match for live sets only (a live set with no performance date matches exactly as
 ## Technical Acceptance Criteria
 
 1. `derive_form` / `derive_performance_date` unit tests cover every rule row, the precedence
-   (podcast before festival, length before folder), and a missing duration.
+   (podcast before festival, length before folder), a missing duration, and the label-tree
+   exception (festival alone → `set`, festival plus live marker → `liveset`, outside `EPs`
+   unchanged).
 2. `classify_library` writes only differing rows, clears a performance date that no longer applies,
    and leaves a window's rows unchanged when nothing changed.
 3. The push skips a server without the columns and writes only rows the server disagrees with;

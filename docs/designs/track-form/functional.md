@@ -22,7 +22,7 @@ the same interface.
 |---|---|---|
 | `track` | A single song | Shorter than ten minutes, wherever it sits |
 | `set` | A released DJ set or mix (Warm Up Mixes, a long SoundCloud upload, a label's mix album) | Ten minutes or longer and none of the below applies |
-| `liveset` | A recording of a performance at an event | Ten minutes or longer, and in `Livesets/` or `Telegram/`, or naming a known festival in its title (or in its path together with a year) |
+| `liveset` | A recording of a performance at an event | Ten minutes or longer, and in `Livesets/` or `Telegram/`, or naming a known festival in its title (or in its path together with a year); under `EPs/` the festival counts only when the title or folder also says "live" or "DVD" |
 | `podcast` | An episode of a radio show or podcast series | Ten minutes or longer, and in `Podcasts/` or naming an approved show |
 
 Decided against a separate `mix` form. The product goal treats released sets and mixes identically
@@ -36,6 +36,15 @@ The rules are the ones the tagger already applies: the same ten-minute threshold
 and podcast lists (`rules_festivals`, `rules_podcasts`), matched the same way. A curator adding a
 festival alias, an edition date or approving a show changes the form and performance date of the
 matching files within the hour, without touching a single file.
+
+**The label tree is the exception** (bug report 109). Under `EPs/<label>/` titles name festivals
+all the time without being recordings of one: "Radium - Decibel Dictature" is a track, and
+"Defqon.1 2015 Mix 1 (Mixed by Ran-D)" is the label's mix album for that edition -- a `set`, as the
+table says. What the real recordings among the label releases have in common is that they say so:
+"Live at Reverze 2009", "The Live Registration", a DVD rip, a `..._Live-STREAM` rip. So under
+`EPs/` a festival name makes a live set only together with the word "live" (or "liveset") or
+"DVD" in the title or the folder; otherwise the file is a `set`. On production this moved about
+310 files from live set to set and kept 32 as live sets.
 
 A track whose length is unknown gets no form. It still shows up in every list that does not filter
 on form.

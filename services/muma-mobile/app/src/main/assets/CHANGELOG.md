@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.0] - 2026-09-26
+
+### Added
+- **"Sign in with Google" is back in the app.** It disappeared with the old Kotlin screens, and the
+  web login that replaced them cannot use Google's web sign-in inside the app (Google blocks it in
+  an embedded browser; the app's bundle never contained the button). The login page now shows a
+  native "Inloggen met Google" button when the APK was built with the Google client ID; it opens
+  Android's own account chooser (Credential Manager) and signs in through the same
+  `/api/auth/google` as the website, access requests included. Downloads and Android Auto share the
+  session afterwards. Needs the Android OAuth client for `nl.teunschriks.mumamobile` with the
+  release certificate SHA-1 in Google Cloud Console (bug report 011). Bug report 106.
+
+### Fixed
+- **"Uitloggen" signs you out again.** The app's sign-out cleared the playback queue on the wrong
+  thread: Media3 threw, the call never finished, and neither the stored password nor the web
+  session was cleared -- so the button did nothing, or the app restarted still signed in. The
+  sign-out now runs on the main thread, clears the credentials (password, MuMa key and tokens, the
+  Subsonic token) before the queue, and a queue that cannot be cleared no longer keeps them. The
+  web side waits at most five seconds for the phone and marks the device as signed out, so the next
+  start shows the login page even if the phone could not be cleared; the next sign-in lifts the
+  mark. Bug report 106.
+
+### Security
+- **The app stopped sending its password as `p=enc:<hex>` in every Subsonic URL.**
+  `StaticServers.FORCE_PLAIN_TEXT_PASSWORD` was `true`, so every stream, cover and API request
+  carried the password in a reversible encoding (bug report 054, item 2). The app now fetches the
+  user's own Subsonic token from `GET /api/auth/subsonic-token` after every sign-in and on every
+  start, keeps it in the encrypted settings next to the MuMa tokens, and signs each request with
+  `t=md5(token + salt)&s=salt`, a fresh salt each time; the flag is `false`. Until the first fetch
+  succeeds -- an upgraded install, or Android Auto running before the app was opened -- the old
+  form remains the fallback, so playback never stops over it. The crash report saved to Downloads
+  is now redacted like the uploaded one, and diagnostics also mask credential fields in JSON.
+  Bug report 103, closes GitLab issue #21.
+
 ## [7.5.2] - 2026-09-26
 
 ### Changed

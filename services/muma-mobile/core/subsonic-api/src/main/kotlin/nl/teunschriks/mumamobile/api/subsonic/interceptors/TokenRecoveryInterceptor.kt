@@ -1,6 +1,5 @@
 package nl.teunschriks.mumamobile.api.subsonic.interceptors
 
-import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Locale
 import okhttp3.HttpUrl
@@ -96,10 +95,7 @@ class TokenRecoveryInterceptor(private val recovery: SubsonicTokenRecovery) : In
         private val XML_ERROR_40 = Regex("<error\\b[^>]*\\bcode=\"40\"")
 
         /** `md5(secret + salt)` as lowercase hex: the Subsonic `t` parameter. */
-        fun tokenHash(secret: String, salt: String): String = MessageDigest.getInstance("MD5")
-            .digest("$secret$salt".toByteArray())
-            .toHexBytes()
-            .lowercase(Locale.ROOT)
+        fun tokenHash(secret: String, salt: String): String = PasswordMD5Interceptor.md5Signature(secret, salt)
 
         /**
          * Whether [response] says the credentials were refused: HTTP 401, or Subsonic error 40 in

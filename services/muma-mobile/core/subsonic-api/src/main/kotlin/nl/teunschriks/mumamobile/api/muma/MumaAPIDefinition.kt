@@ -283,11 +283,16 @@ interface MumaAPIDefinition {
      * The username is never sent. A user key resolves its own account server-side and a
      * `username` parameter from a user key is ignored rather than honoured, so asking for
      * someone else's feed is not a thing this client can do by accident.
+     *
+     * Without [offset] the answer is the day's whole stored list; with it, the page that starts
+     * there, continued server-side when it reaches past what is stored. [MumaFeed.nextOffset]
+     * says where the page after it starts (docs/designs/feed-length/technical.md).
      */
     @GET("api/feeds/{slug}")
     fun getFeed(
         @Path("slug") slug: String,
-        @Query("limit") limit: Int? = null
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null
     ): Call<MumaFeed>
 }
 
@@ -302,7 +307,10 @@ interface MumaAPIDefinition {
 data class MumaFeed(
     @SerializedName("slug") val slug: String = "",
     @SerializedName("state") val state: String = "",
-    @SerializedName("tracks") val tracks: List<MumaFeedTrack> = emptyList()
+    @SerializedName("tracks") val tracks: List<MumaFeedTrack> = emptyList(),
+    // Where the next page of this feed starts, or null when the feed has nothing more to give.
+    // Absent on a server older than the feed-length change, which reads as "no more".
+    @SerializedName("next_offset") val nextOffset: Int? = null
 )
 
 data class MumaFeedTrack(

@@ -52,7 +52,7 @@ class FeedRepositoryTest {
     private fun answering(feed: MumaFeed?) {
         val call: Call<MumaFeed> = mockk()
         every { call.execute() } returns Response.success(feed)
-        every { api.getFeed(any(), any()) } returns call
+        every { api.getFeed(any(), any(), any()) } returns call
     }
 
     private fun resolving(vararg tracks: Track) {
@@ -132,7 +132,7 @@ class FeedRepositoryTest {
         server = 2
         repository.tracksFor("release-radar")
 
-        verify(exactly = 2) { api.getFeed(any(), any()) }
+        verify(exactly = 2) { api.getFeed(any(), any(), any()) }
     }
 
     @Test
@@ -152,7 +152,7 @@ class FeedRepositoryTest {
         repository.tracksFor("release-radar")
         repository.tracksFor("release-radar")
 
-        verify(exactly = 1) { api.getFeed(any(), any()) }
+        verify(exactly = 1) { api.getFeed(any(), any(), any()) }
     }
 
     @Test
@@ -166,12 +166,12 @@ class FeedRepositoryTest {
         day = "2026-09-11"
         repository.tracksFor("release-radar")
 
-        verify(exactly = 2) { api.getFeed(any(), any()) }
+        verify(exactly = 2) { api.getFeed(any(), any(), any()) }
     }
 
     @Test
     fun `a failed fetch is not remembered as an empty feed`() {
-        every { api.getFeed(any(), any()) } throws RuntimeException("no network")
+        every { api.getFeed(any(), any(), any()) } throws RuntimeException("no network")
 
         repository.tracksFor("release-radar").`should be empty`()
 
@@ -199,7 +199,53 @@ class FeedRepositoryTest {
         repository.tracksFor("release-radar")
         repository.tracksFor("daily-mix")
 
-        verify(exactly = 2) { api.getFeed(any(), any()) }
+        verify(exactly = 2) { api.getFeed(any(), any(), any()) }
+    }
+
+    @Test
+    fun `the first page says where the next one starts`() {
+        answering(feedOf("a.mp3", "b.mp3").copy(nextOffset = 2))
+        resolving(Track(id = "1"), Track(id = "2"))
+
+        val page = repository.firstPage("daily-mix")
+
+        page.tracks.map { it.id } `should be equal to` listOf("1", "2")
+        page.nextOffset `should be equal to` 2
+        // The first page is what the car always asked for: no offset, no limit.
+        verify { api.getFeed("daily-mix", null, null) }
+    }
+
+    @Test
+    fun `a later page is asked for by offset and never cached`() {
+        // The server stores every continuation, so the same page twice is the same tracks -- and
+        // a Release Radar rebuilt within the hour must answer its new list, not this client's
+        // memory of the old one.
+        answering(feedOf("c.mp3").copy(nextOffset = null))
+        resolving(Track(id = "3"))
+
+        val page = repository.pageAfter("release-radar", 100)!!
+        repository.pageAfter("release-radar", 100)
+
+        page.tracks.map { it.id } `should be equal to` listOf("3")
+        page.nextOffset `should be equal to` null
+        verify(exactly = 2) { api.getFeed("release-radar", null, 100) }
+    }
+
+    @Test
+    fun `a later page that cannot be fetched is null, not an empty end`() {
+        // Null tells the queue to try again at the next track; an empty page with no next offset
+        // would end the feed for good because the network blinked.
+        every { api.getFeed(any(), any(), any()) } throws RuntimeException("no network")
+
+        repository.pageAfter("release-radar", 100) `should be equal to` null
+    }
+
+    @Test
+    fun `a later page of which only some tracks resolved is still handed over`() {
+        answering(feedOf("c.mp3", "d.mp3").copy(nextOffset = 102))
+        resolving(Track(id = "3"))
+
+        repository.pageAfter("release-radar", 100)!!.tracks.size `should be equal to` 1
     }
 
     private fun answeringFeedList(feeds: List<MumaFeedInfo>?) {

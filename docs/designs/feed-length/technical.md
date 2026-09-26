@@ -108,7 +108,50 @@ One MR (AGENTS rule 7):
   the native queue follows the `playlist` store as for "add to queue").
 - **MuMa Mobile native (Android Auto)**: `FeedRepository` gets the configured length without
   asking (it never sent `limit`), and resolves paths in chunks of 100 so a length above 100 works.
-  No continuation in the car (issue #84).
+  A feed queue started in the car continues too, since issue #84 — see the next section.
+
+## Continuation in Android Auto
+
+Issue #84, bug report 112. The car does not run the web bundle, so `feedQueue.js` never sees its
+queue; the native side applies the same rule to the media3 player.
+
+- **Paging.** `MumaFeed.nextOffset` (`next_offset`) and an `offset` parameter on `getFeed`.
+  `FeedRepository.firstPage(slug)` is what `tracksFor` always fetched — no `offset`, no `limit`, so
+  the day's whole stored list, cached per server and day — plus its `nextOffset`.
+  `pageAfter(slug, offset)` asks for the page at a handed-out offset (default `limit`, the
+  configured length), is never cached (the server stores continuations, and a rebuilt radar must
+  answer its new list), and answers null on failure so the caller retries instead of concluding
+  the feed ended.
+- **Arming.** `FeedQueueContinuation` (in `service/androidauto`) belongs to one queue. It is armed
+  by the two car paths that start a feed queue — "Alles afspelen" (`MEDIA_FEED_ID`, handled by
+  `playAllFromFeed` in `onAddMediaItems`) and a tapped feed track (`queueFromTap`, which gets the
+  slug and `nextOffset` from `CarQueue`) — and stopped by every other queue replacement:
+  `onSetMediaItems` (except a voice "play next", which inserts), a voice search, radio, the legacy
+  `onAddMediaItems` path. A first page with `next_offset: null` arms nothing. The state is in
+  memory: a feed queue restored after the service was killed plays but does not continue.
+- **Trigger.** `PlaybackService`'s player listener calls `onQueueMoved` on every
+  `onMediaItemTransition` and every `TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED`. When the current
+  item is one of the feed's and fewer than `EXTEND_WHEN_LEFT` (3, the web's value) items follow it
+  in play order (the timeline's next-window walk, shuffle included, repeat ignored), the next page
+  is fetched on `Dispatchers.IO`. Radio and news own the player while they run and are never
+  extended; a bulletin that interrupts a feed queue simply pauses the top-up, because its item is
+  not one of the feed's.
+- **Append.** Back on the main thread, only tracks whose id is neither in the feed so far nor in
+  the queue now are appended (`Player.addMediaItems`, media id = track id). A page of nothing but
+  repeats — a radar rebuilt within the hour, a day rolled over at midnight — is followed by the next
+  one straight away, at most `MAX_PAGES_PER_TOP_UP` (3) per top-up. `next_offset: null` ends the
+  continuation.
+- **One request at a time.** A top-up in flight blocks another; a failed page keeps the offset
+  and the next track change tries again; a page that arrives after the queue was replaced is
+  dropped (a generation counter bumped by every `start`/`stop`).
+- **Command grants.** The append calls the player the session was built with, not a
+  `MediaController`, so the controller grant rule (media3's default `onConnect` returning an empty
+  command set) does not apply; the player's own `COMMAND_CHANGE_MEDIA_ITEMS` is checked, so a
+  backend that cannot change its items is logged rather than silently ignored.
+- **Browse stays bounded.** The feed folder lists at most `DISPLAY_LIMIT` (100) tracks: the stored
+  list reaches up to 500 once the web has continued it, and Auto has item limits of its own. "Alles
+  afspelen" and a tapped track still queue the whole first page; continuation is for the playing
+  queue, not the list.
 
 ## Technical Acceptance Criteria
 
@@ -120,6 +163,10 @@ One MR (AGENTS rule 7):
 5. Frontend: "Meer laden" appends only unseen ids and disappears at `next_offset: null`; a queue
    started with a continuation is extended near its end, one started without is not.
 6. Android: a feed longer than 100 paths is resolved in chunks of 100, order kept.
+7. Android Auto: a feed queue within three tracks of its end fetches `next_offset` once (not again
+   while that request is in flight), appends only ids the feed and queue do not hold, stops at
+   `next_offset: null`, keeps the offset after a failed page, and never extends a queue that was
+   replaced or is not the feed's.
 
 ## Related Docs
 

@@ -535,11 +535,13 @@ class UserLifecycleTest:
     def test_two_concurrent_partial_writes_both_survive(self, api, headers, db):
         """The lost update of issue #39, provoked on purpose.
 
-        A third connection holds the row lock while two PATCHes of different keys start, so both
-        are guaranteed to be in flight at once. Were the endpoint to read the blob without FOR
-        UPDATE, both would read the same `{"base":0}` straight away (a consistent read does not
-        wait for the lock), queue behind the lock only for their UPDATE, and the second UPDATE
-        would write back a blob without the first one's key.
+        A third connection holds the row lock -- and changes the row -- while two PATCHes of
+        different keys start, so both are guaranteed to be in flight at once and to find the row
+        changed under them. Were the endpoint to read the blob without FOR UPDATE, both would read
+        the same `{"base":0}` straight away (a consistent read does not wait for the lock), and the
+        later UPDATE would write back a blob without the other's key. Were it to open a read view
+        before taking the row lock (any plain SELECT first -- the first version checked the user
+        that way), MariaDB's snapshot isolation would refuse the locked read with error 1020.
         """
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
         api.post('/api/users/1/settings/frontend', headers=headers, json={'settings': '{"base":0}'})
@@ -550,6 +552,10 @@ class UserLifecycleTest:
             with holder.cursor() as cursor:
                 cursor.execute(
                     "SELECT settings_json FROM user_app_settings WHERE user_id = 1 AND app_id = 'frontend' FOR UPDATE"
+                )
+                cursor.execute(
+                    "UPDATE user_app_settings SET settings_json = '{\"base\":0,\"tablet\":1}' "
+                    "WHERE user_id = 1 AND app_id = 'frontend'"
                 )
             results = {}
 
@@ -568,7 +574,7 @@ class UserLifecycleTest:
 
         assert {key: r.status_code for key, r in results.items()} == {'phone': 200, 'web': 200}
         stored = api.get('/api/users/1/settings/frontend', headers=headers).json()['settings']
-        assert json.loads(stored) == {'base': 0, 'phone': 'phone', 'web': 'web'}
+        assert json.loads(stored) == {'base': 0, 'tablet': 1, 'phone': 'phone', 'web': 'web'}
 
     def test_many_concurrent_first_writes_all_survive(self, api, headers, db):
         """No blob yet: concurrent first writes race on the INSERT, and the losers retry."""

@@ -1397,9 +1397,11 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
 
 #: MariaDB error codes after which the whole read-merge-write is simply tried again: a deadlock
 #: (two first writes of a missing row both hold its gap lock) and the duplicate key the loser of
-#: two concurrent first writes gets for its INSERT. A lock wait timeout is not retried: it already
-#: waited innodb_lock_wait_timeout, and something holding the row that long is stuck.
-_SETTINGS_RETRY_ERRORS = frozenset({1213, 1062})
+#: two concurrent first writes gets for its INSERT; and 1020, "record has changed since last read",
+#: which snapshot isolation raises should any read view predate the row lock (none should, see
+#: `_patch_settings_once`). A lock wait timeout is not retried: it already waited
+#: innodb_lock_wait_timeout, and something holding the row that long is stuck.
+_SETTINGS_RETRY_ERRORS = frozenset({1213, 1062, 1020})
 _SETTINGS_ATTEMPTS = 3
 
 
@@ -1429,7 +1431,12 @@ def merge_settings_blob(stored: str | None, changes: dict[str, Any], remove: lis
 def _patch_settings_once(conn: Any, user_id: int, app_id: str, req: AppSettingsPatch) -> dict[str, Any]:
     """One attempt at the locked read-merge-write of `user_id`'s `app_id` blob, in one transaction."""
     with transaction(conn), conn.cursor() as cursor:
-        cursor.execute('SELECT id FROM users WHERE id = %s', (user_id,))
+        # A locking read, not a plain one. A plain SELECT opens the transaction's read view here,
+        # before the FOR UPDATE below has waited for another writer; MariaDB's snapshot isolation
+        # (innodb_snapshot_isolation, on by default since 11.6) then refuses our UPDATE of a row
+        # that writer changed after that view with error 1020. The share lock also keeps the user
+        # from being deleted under the INSERT.
+        cursor.execute('SELECT id FROM users WHERE id = %s LOCK IN SHARE MODE', (user_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail='User not found')
         # FOR UPDATE: a second writer of this row waits here until this one commits, and then

@@ -621,6 +621,38 @@ class PatchAppSettingsTest(UsersEndpointTestCase):
         self.assertEqual(json.loads(response.json()['settings']), {'other': True, 'mine': 1})
         self.assertEqual(self.conn.rollback.call_count, 1)
 
+    def test_no_plain_read_comes_before_the_row_lock(self):
+        # A plain SELECT opens the read view before the FOR UPDATE has waited for another writer,
+        # and snapshot isolation then refuses the UPDATE with 1020 -- what CI caught on MariaDB 13.
+        self.cursor.fetchone.side_effect = [{'id': 4}, {'settings_json': '{}'}, {'updated_at': 'x'}]
+        self.patch({'set': {'a': 1}})
+
+        statements = self.statements()
+        lock = next(i for i, s in enumerate(statements) if s.startswith('SELECT settings_json'))
+        for statement in statements[:lock]:
+            self.assertRegex(statement, r'(LOCK IN SHARE MODE|FOR UPDATE)\s*$')
+
+    def test_a_record_changed_since_last_read_is_retried(self):
+        self.cursor.fetchone.side_effect = [
+            {'id': 4},
+            {'settings_json': '{}'},
+            {'id': 4},
+            {'settings_json': '{}'},
+            {'updated_at': 'x'},
+        ]
+        failures = []
+
+        def execute(statement, _params=None):
+            if statement.startswith('UPDATE user_app_settings') and not failures:
+                failures.append(statement)
+                raise users_router.pymysql.err.OperationalError(1020, 'Record has changed since last read')
+
+        self.cursor.execute.side_effect = execute
+        response = self.patch({'set': {'a': 1}})
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.conn.begin.call_count, 2)
+
     def test_a_write_that_keeps_colliding_gives_up_after_three_attempts(self):
         self.cursor.fetchone.side_effect = lambda: {'id': 4, 'settings_json': '{}'}
 

@@ -34,14 +34,20 @@ Semantics of the PATCH:
   an entry (the web caps that map at 50 entries) without sending explicit `null`s.
 - **Removal is explicit** (`remove`), so `null` stays an ordinary value.
 - A stored blob that is missing, not valid JSON or not a JSON object counts as `{}`.
-- **Atomicity.** One transaction (`database.transaction`): `SELECT id FROM users` (404), then
-  `SELECT settings_json ... FOR UPDATE`, merge, `UPDATE` (or `INSERT` when there is no row), then
-  read `updated_at` back. A second writer of the same row blocks on the `FOR UPDATE` until the first
-  commits and then reads the blob with the first writer's keys in it.
+- **Atomicity.** One transaction (`database.transaction`): `SELECT id FROM users ... LOCK IN
+  SHARE MODE` (404), then `SELECT settings_json ... FOR UPDATE`, merge, `UPDATE` (or `INSERT` when
+  there is no row), then read `updated_at` back. A second writer of the same row blocks on the
+  `FOR UPDATE` until the first commits and then reads the blob with the first writer's keys in it.
+- **No plain read before the row lock.** MariaDB 11.6+ runs with `innodb_snapshot_isolation=ON`:
+  a transaction whose read view is older than a row version it then locks is refused with error
+  1020 ("record has changed since last read"). A plain `SELECT` opens that read view, so the first
+  version -- a plain user check before the `FOR UPDATE` -- failed exactly the concurrent case under
+  the CI integration suite. The user check is therefore a locking read too (which also keeps the
+  user from being deleted under the INSERT), and 1020 is on the retry list as a backstop.
 - **First writes.** Two PATCHes against a row that does not exist yet both take its gap lock and
-  collide on the INSERT: MariaDB answers one with a deadlock (1213) or a duplicate key (1062). Both
-  are retried from the top, up to three attempts; by the second the row exists and the row lock
-  serialises them. A lock wait timeout (1205) is not retried -- it has already waited
+  collide on the INSERT: MariaDB answers one with a deadlock (1213) or a duplicate key (1062). These
+  and 1020 are retried from the top, up to three attempts; by the second the row exists and the row
+  lock serialises them. A lock wait timeout (1205) is not retried -- it has already waited
   `innodb_lock_wait_timeout`.
 - **No version/ETag check.** An optional per-blob `If-Match`/`updated_at` precondition was
   considered and left out: with per-key writes it would reject a write for a *different* key that

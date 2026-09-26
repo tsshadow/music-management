@@ -33,7 +33,7 @@ A per-key write, additive to the existing contract (design:
   sets and removes top-level keys and leaves every other key as stored. The read-merge-write runs
   in one transaction with `SELECT ... FOR UPDATE`, so a second writer waits and then merges into a
   blob that already holds the first writer's keys. Concurrent first writes of a missing row (gap
-  lock deadlock or duplicate key) are retried up to three times. Answers the merged blob and its
+  lock deadlock or duplicate key) are retried up to three times. The user check before the lock is a locking read (`LOCK IN SHARE MODE`): a plain read there opened a read view that MariaDB 11.6+ snapshot isolation then refused the locked read against with error 1020 -- the first push of this fix failed its own concurrency test in CI that way. Answers the merged blob and its
   `updated_at`. `POST` and `GET` are unchanged, so older app versions keep working.
 - **Web player**: the write queue sends `PATCH {"set": <pending keys>}` and no longer reads first;
   on 405 (a server without the PATCH) it falls back to the old read-merge-POST.

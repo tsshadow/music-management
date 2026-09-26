@@ -4,7 +4,7 @@
 # Usage: ./scripts/test/android-unit.sh [gradle-args...]
 #
 #   ./scripts/test/android-unit.sh
-#   ./scripts/test/android-unit.sh --tests "nl.teunschriks.mumamobile.wizard.WizardPlanTest"
+#   ./scripts/test/android-unit.sh --tests "nl.teunschriks.mumamobile.util.LogRedactionTest"
 #
 # This used to call ./gradlew on the host, which needs an Android SDK and a
 # local.properties pointing at it. Neither is present on a fresh checkout or in
@@ -39,4 +39,4 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy \
     -e SIGNING_KEY_PASSWORD=dummy \
     "$ANDROID_CI_IMAGE" \
-    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :core:voice:test :app:testDebugUnitTest "$@"' _ "$@"
+    /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew :core:voice:test :core:subsonic-api:test :app:testDebugUnitTest "$@"' _ "$@"

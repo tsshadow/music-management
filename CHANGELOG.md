@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.77.2] - 2026-09-26
+
+### Fixed
+- **The daily artist mix picked artists it could not fill: 0 tracks for "unproven", 2 for
+  "valhalla".** The draw never asked whether the artist had anything to play, and the 90-day window
+  plus the unheard-or-loved pool left none of Teun's top ten artists with even 15 songs. On top of
+  that the artist mix was capped at 3 tracks per artist, when every track in it has the same artist.
+  Now one grouped query counts the playable songs of the whole top ten, and only an artist (or label)
+  with at least 15 is drawn. The window widens to a year, then to all time, before the next name in
+  the top ten gets a turn. If no name qualifies, the mix is empty for the day instead of holding a
+  few tracks. The artist mix is no longer capped per artist (bug report 110).
+
+- A long track or a label's festival mix album under `EPs/` is no longer filed under "Live sets"
+  just because its title names a festival ("Radium - Decibel Dictature" matched Decibel Outdoor;
+  "Defqon.1 2015 Mix 1" is the label's mix album, not a recording). In the label tree a festival
+  now makes a live set only together with "live" or "DVD" in the title or folder, so the "Live at
+  Reverze" DVD rips and live-registration releases stay live sets. The hourly form pass moves about
+  310 files from live set to set after deploy (issue #76, bug report 109).
+
 ## [0.77.1] - 2026-09-26
 
 ### Fixed

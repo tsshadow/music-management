@@ -9,14 +9,17 @@ holds the id) stayed on a row no file maps to any more. Nothing ever deleted suc
 song-version worker could even pick it as a work's canonical, which hid the real file in LMS.
 
 `relink_track` moves that history to the new row and deletes the old one. `relink_orphaned_tracks`
-applies the same move to rows orphaned before this existed.
+applies the same move to rows orphaned before this existed, matching an orphan to its successor on
+its metadata or, for the first scan's file-name titles, on the name of its file (bug report 104).
+What neither key can match is `orphan_purge.py`'s business.
 
 Deliberately not relinked: `radio_timeline.track_id` holds LMS ids, and `feeds_snapshot` is a
 per-day cache the next build replaces. The junction tables (`library_track_artists`, `_genres`,
 `_labels`, `_channels`) cascade with the old row; the new row's are written by the scanner from
 the file itself.
 
-Bug report: docs/bug-reports/042-retag-orphans-ratings-and-listens.md
+Bug reports: docs/bug-reports/042-retag-orphans-ratings-and-listens.md,
+docs/bug-reports/104-orphan-relink-by-filename.md
 """
 
 from __future__ import annotations
@@ -250,23 +253,118 @@ def _artist_set(cursor: Any, track_id: int) -> set[int]:
     return {int(row['artist_id']) for row in cursor.fetchall()}
 
 
-def relink_orphaned_tracks(conn: Any) -> dict[str, int]:
+#: Every media file with a track, for the file-name key. Read once per run: ~345k rows on
+#: production, where a per-orphan `LIKE '%/<title>.%'` would scan the table 50,000 times. Only
+#: the file name crosses the wire -- the directories would triple what the process holds.
+_MEDIA_FILES = (
+    "SELECT track_id, SUBSTRING_INDEX(file_path, '/', -1) AS file_name "
+    'FROM library_media_files WHERE track_id IS NOT NULL'
+)
+
+#: The keys an orphan can be matched on, in the order they are tried. GET /relink-orphans
+#: advertises them, which is how an operator script tells the new code from the old.
+RELINK_KEYS = ('metadata', 'file_name')
+
+
+def file_stem(path: str | None) -> str:
+    """A path's file name without its directory and without its last extension.
+
+    `/music/Labels/X/04-lucy_furr_and_meander_-_damnation.mp3` -> `04-lucy_furr_and_meander_-_damnation`.
+    Splits on `/` only: every path in `library_media_files` is a POSIX path on the container.
+    """
+    name = (path or '').rsplit('/', 1)[-1]
+    stem, dot, _ext = name.rpartition('.')
+    return stem if dot and stem else name
+
+
+def build_file_name_index(cursor: Any, titles: set[str]) -> dict[str, set[int]]:
+    """Map each file stem that equals one of `titles` to the tracks whose files carry it.
+
+    Built once per run. Only stems some orphan could match are kept, so the index holds a few
+    tens of thousands of entries rather than every file in the library.
+    """
+    index: dict[str, set[int]] = {}
+    if not titles:
+        return index
+    cursor.execute(_MEDIA_FILES)
+    for row in cursor.fetchall():
+        stem = file_stem(row['file_name'])
+        if stem in titles:
+            index.setdefault(stem, set()).add(int(row['track_id']))
+    return index
+
+
+def find_file_name_target(index: dict[str, set[int]], orphan: dict[str, Any]) -> tuple[int | None, bool]:
+    """The track of the one file whose name is this orphan's title; and whether it was ambiguous.
+
+    The first scan in May 2026 stored the raw file name without extension as the title of ~50,000
+    tracks, with no artist and no duration, so the metadata key can never match them. That title
+    identifies the file: when exactly one track's files carry it, that track is the orphan's
+    successor. Several tracks is a name shared by different recordings (`01-intro`), and is not
+    guessed at. Two files of the same track (an mp3 beside its flac) are still one successor.
+    Compared exactly, case included: the title was copied from the file name, not typed.
+    """
+    title = orphan.get('title')
+    if not title:
+        return None, False
+    tracks = index.get(title, set()) - {orphan['id']}
+    if len(tracks) == 1:
+        return next(iter(tracks)), False
+    return None, len(tracks) > 1
+
+
+def empty_relink_totals(dry_run: bool = False) -> dict[str, Any]:
+    """The totals one orphan relink run reports, all at zero."""
+    return empty_counts() | {
+        'orphans': 0,
+        'relinked': 0,
+        'relinked_metadata': 0,
+        'relinked_file_name': 0,
+        'ambiguous_file_name': 0,
+        'unmatched': 0,
+        'failed': 0,
+        'dry_run': dry_run,
+    }
+
+
+def relink_orphaned_tracks(conn: Any, dry_run: bool = False, totals: dict[str, Any] | None = None) -> dict[str, Any]:
     """Relink every fileless track that has exactly one successor; report what happened.
+
+    Two keys, tried in order: the metadata key (`find_relink_target`: normalised title, duration,
+    artist), then the file-name key (`find_file_name_target`: the title is the name of exactly one
+    track's file). `relinked_metadata` and `relinked_file_name` say which key found how many.
 
     Takes the connection rather than a cursor because each orphan is its own transaction: one
     that fails is rolled back and counted, and the rest still go through. Idempotent -- a relinked
-    orphan is deleted, so a second run finds only the ones it could not match.
+    orphan is deleted, so a second run finds only the ones it could not match. With `dry_run` it
+    walks the same orphans and counts what each key would relink, writing nothing (the moved
+    ratings and listens then stay at zero: only a real relink counts those). `totals`, when given,
+    is filled in place, so a caller can show progress while the run is still going.
     """
-    totals = empty_counts() | {'orphans': 0, 'relinked': 0, 'unmatched': 0, 'failed': 0}
+    if totals is None:
+        totals = {}
+    totals.update(empty_relink_totals(dry_run))
     with conn.cursor() as cursor:
         cursor.execute(_ORPHANS)
         orphans = cursor.fetchall()
+        titles = {orphan['title'] for orphan in orphans if orphan.get('title')}
+        index = build_file_name_index(cursor, titles)
     for orphan in orphans:
         totals['orphans'] += 1
         with conn.cursor() as cursor:
+            key = 'metadata'
             target = find_relink_target(cursor, orphan)
             if target is None:
+                key = 'file_name'
+                target, ambiguous = find_file_name_target(index, orphan)
+                if ambiguous:
+                    totals['ambiguous_file_name'] += 1
+            if target is None:
                 totals['unmatched'] += 1
+                continue
+            if dry_run:
+                totals['relinked'] += 1
+                totals[f'relinked_{key}'] += 1
                 continue
             conn.begin()
             try:
@@ -281,6 +379,7 @@ def relink_orphaned_tracks(conn: Any) -> dict[str, int]:
             totals['unmatched'] += 1
             continue
         totals['relinked'] += 1
-        for key, value in counts.items():
-            totals[key] += value
+        totals[f'relinked_{key}'] += 1
+        for name, value in counts.items():
+            totals[name] += value
     return totals

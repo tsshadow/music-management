@@ -52,9 +52,21 @@ track row. When `process_file` repoints a media file from track A to track B:
 - The song-version worker only ever picks a track that has a media file as canonical.
 
 Rows orphaned before this rule existed are repaired by `POST /api/scanner/relink-orphans`
-(`track_relink.relink_orphaned_tracks`): an orphan is relinked only when exactly one track with a
+(`track_relink.relink_orphaned_tracks`). An orphan is relinked only when exactly one track with a
 file has the same normalised title and duration (within 0.5 s) and either the same primary artist
-or the same set of artists. It is never run automatically.
+or the same set of artists (the metadata key). Failing that, the file-name key applies: the
+orphan's title is exactly the basename-without-extension of the files of one single track. The
+first scan in May 2026 stored the raw file name as title with no artist or duration, and that name
+is the one thing that still identifies those rows (bug report 104). The stem index is built once
+per run from `library_media_files`. A stem that several tracks share is ambiguous and never
+guessed at. `?dry_run=1` counts per key without writing.
+
+What neither key matches is handled by `POST /api/scanner/purge-orphans`
+(`orphan_purge.purge_orphaned_tracks`). It deletes an orphan only when no listen, no rating, no
+work pin and no reviewed ml label points at it, in batches of 1000 with every guard re-checked
+under `FOR UPDATE`. Referenced orphans are listed for a person. Neither endpoint ever runs
+automatically. The scanner itself needs no file-name lookup: it never deletes a media row, and
+the relink rule above already covers a same-path retag.
 
 ### Downloader Domain (for Redownload)
 - **`downloads_soundcloud_archive`**: Checked by filename to find original SoundCloud URLs.
@@ -67,8 +79,10 @@ or the same set of artists. It is never run automatically.
 | `GET /api/scanner/health` | N/A | `{"status": "OK", "busy": bool}` | |
 | `POST /api/scanner/scan/all` | Query: `force: bool` | `{"message": "Full library scan started..."}` | `409 Conflict`: If another scan is already running. |
 | `POST /api/scanner/scan/file` | Query: `path: str`, `force: bool` | `{"message": "Scan for ... completed"}` | |
-| `POST /api/scanner/relink-orphans` | Admin key | `{"message": "...", "last": {...}\|null}` | `403`: not an admin.<br>`409`: a scan or relink is running. |
-| `GET /api/scanner/relink-orphans` | Admin key | `{"running": bool, "last": {...}\|null}` | `403`: not an admin. |
+| `POST /api/scanner/relink-orphans` | Admin key; query `dry_run: bool` | `{"message": "...", "dry_run": bool, "last": {...}\|null}` | `403`: not an admin.<br>`409`: a scan, relink or purge is running. |
+| `GET /api/scanner/relink-orphans` | Admin key | `{"running": bool, "keys": [...], "dry_run_supported": true, "progress": {...}\|null, "last": {...}\|null}` | `403`: not an admin. |
+| `POST /api/scanner/purge-orphans` | Admin key; query `dry_run: bool` | `{"message": "...", "dry_run": bool, "last": {...}\|null}` | `403`: not an admin.<br>`409`: a scan, relink or purge is running. |
+| `GET /api/scanner/purge-orphans` | Admin key | `{"running": bool, "progress": {...}\|null, "last": {...}\|null}` (`last.kept_list` names the kept orphans) | `403`: not an admin. |
 | `POST /api/library/tracks/{id}/redownload` | Path: `track_id: int` | `{"status": "ok", "message": "Redownload started..."}` | `404 Not Found`: Track ID not in media files.<br>`400 Bad Request`: Source URL not found in archives. |
 | `POST /api/library/tracks/rerun-parse-path` | Query: `path: str` | `{"status": "ok", "message": "..."}` | Proxies to `scanner_manager.scan_single`. |
 

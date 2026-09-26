@@ -135,6 +135,16 @@ match for live sets only (a live set with no performance date matches exactly as
   - Voice (`core/voice`): `ParsedQuery.forms`, `Target.Filtered.forms`/`year`, explanation field
     `FORM`; `VoiceBridge` adds `form` (comma-separated) and `year` to the web's `getSongs` params.
     An artist slot that places no artist is tried as a festival on the sets side.
+  - Podcast show by name (issue #88): `LibraryVocabulary.podcasts()` returns `PodcastShow(name,
+    aliases)`, asked only when the spoken forms include `podcast` ("podcast", "aflevering",
+    "episode" all name it). `MusicServiceVocabulary` reads the names from `getTags(PODCAST)` -- the
+    only values ever sent -- sorted by episode count, and lends each the aliases of the curated show
+    of the same name from `GET /api/rules/podcasts?state=white` (optional: unreachable means names
+    only). `QueryResolver.podcastNamed` tries the artist slot, then the free term (skipped when it is
+    exactly a genre): name + " podcast", then name, then alias, exact; then `VoiceQuery.match`'s
+    partial fallback over names and aliases for four letters or more. Ties go to list order. A hit
+    adds `PODCAST=<show>`, drops `podcast` from `forms` (unclassified new episodes would be hidden)
+    and consumes the slot it came from; the explanation gets field `PODCAST` (and no `SETS` row).
   - Presets: `form` key in the preset JSON (`TileInfo.form`, `presets.js`), written only for a sets
     preset and only when it is one of `SET_FORMS`; the preset builder has a Soort select in sets mode
     and "save as preset" carries the filter bar's Soort.
@@ -164,6 +174,10 @@ match for live sets only (a live set with no performance date matches exactly as
    (Soort row in Sets only, static list, `form`/`year` reach `getSongs`, a mangled id sends no form),
    `VoiceFormTest` + `MediaLibraryVoiceSearchTest` (spoken forms to request params, unknown forms
    dropped) and `VoiceBridgeTest`; web `presets.test.js`, `presetBuilder.test.js`, `voiceView.test.js`.
+8. Issue #88: `VoicePodcastTest` (NL/EN phrases, alias and partial match, word put back, no match
+   keeps the form, genre stays a genre, only listed names sent, tie by list order, no lookup
+   outside a podcast request) and `MusicServiceVocabularyTest` (tag values, aliases joined by name,
+   alias outage).
 
 ## Related Docs
 

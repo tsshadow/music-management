@@ -84,6 +84,7 @@ The year filter then reads, per the product goal:
 | Android Auto, Sets tab, **Soort** | Sets & mixes / Live sets / Podcasts, each a folder like a genre's: play all, shuffle, recently added, by year, then the tracks |
 | Android Auto, Soort > Live sets > By year > 2012 | Live sets played in 2012 (performance year), as on the web |
 | "Speel livesets van Defqon 2019 af" (car, microphone or text) | Defqon.1 live sets played in 2019. "Dj sets" asks for sets & mixes, "podcasts" for podcasts; a bare "set" still means any long track |
+| "Speel de podcast van KTRA af" / "speel de laatste aflevering van Monstercat af" | The episodes of that show (Keeping The Rave Alive, Monstercat Podcast), newest first; a name that is no show plays all podcasts |
 | Preset builder in sets mode | A **Soort** select (All / Sets & mixes / Live sets / Podcasts); the preset keeps it, on the web and in the car |
 | "Save as preset" from the sets view with Soort set | The preset keeps the Soort |
 
@@ -98,6 +99,17 @@ now ask the same question the web sets view asks.
   "podcasts" for podcasts. A bare "set" names no form: people say it of a festival recording as
   often as of a released mix, so it keeps meaning every long track. "Van Defqon" after a set word
   is read as the festival when no artist of that name exists.
+- **A podcast show by name** (issue [#88](https://gitlab.example.com/muma/music-management/-/issues/88)):
+  "speel de podcast van KTRA af", "play the Monstercat podcast", "speel de laatste aflevering van
+  Monstercat af" play that show's episodes, newest first. "Aflevering" / "episode" ask for the
+  podcast form just as "podcast" does. The name is matched against the shows the library has
+  episodes tagged under (`PODCAST`) and, through the podcast curation, their aliases ("KTRA" for
+  Keeping The Rave Alive); a longer name that contains the spoken one is also found ("Darkside" for
+  Twisted's Darkside Podcast), and a tie goes to the show with the most episodes. A named show
+  replaces the podcast form rather than adding to it, so an episode downloaded in the last hour --
+  not yet classified -- still plays. A name that matches no show changes nothing: the request plays
+  podcasts, as before. A genre named without a keyword stays a genre ("speel hardstyle podcasts af"
+  is the podcasts within Hardstyle), and only a show name the library lists is ever sent.
 - **Presets** store the form (`form` in the preset JSON, sets presets only) and play it everywhere.
 
 **The year next to a form** is the filing year -- a live set's performance year -- because that is
@@ -120,8 +132,10 @@ existing list, preset or spoken request changes its answer.
 
 - ~~Android Auto, voice and saved presets did not know the form~~ -- wired in issue
   [#47](https://gitlab.example.com/muma/music-management/-/issues/47), see "On the phone" above.
-- A spoken **podcast name** ("speel de podcast van Q-dance") is not matched against the `PODCAST`
-  tag; only the form is. Not asked for yet: issue [#88](https://gitlab.example.com/muma/music-management/-/issues/88).
+- ~~A spoken **podcast name** was not matched against the `PODCAST` tag~~ -- done in issue
+  [#88](https://gitlab.example.com/muma/music-management/-/issues/88), see "On the phone" above.
+- A show named without any podcast word ("speel KTRA af") is not tried as a show: that would cost
+  every ordinary request an extra lookup, and a bare name keeps finding the track of that name.
 - The year picker lists the years the files carry. A year that exists only as a performance date
   is not in that list (rare: the tagger already writes the edition date into the file's date when
   it knows it).

@@ -22,6 +22,14 @@ enum class EntityKind { GENRE, LABEL, ARTIST, ALBUM, PLAYLIST, FESTIVAL }
 data class NamedRef(val id: String, val name: String)
 
 /**
+ * A podcast show as the resolver matches it.
+ *
+ * @property name the `PODCAST` tag value as the library spells it -- the only thing ever sent
+ * @property aliases the other names the show is known by, used for matching only
+ */
+data class PodcastShow(val name: String, val aliases: List<String> = emptyList())
+
+/**
  * One reading of the term nobody qualified, with the score that ranked it.
  *
  * @property name the name as the library spells it, which is what the filter has to carry

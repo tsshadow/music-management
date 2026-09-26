@@ -11,6 +11,18 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.77.1 (2026-09-26)
+
+- **Uitloggen in de app blijft uitgelogd.** Na uitloggen logt de app bij de volgende start niet meer
+  vanzelf opnieuw in, en in de app kun je weer met Google inloggen. In de browser verandert niets.
+
+- **The orphan relink runs in minutes, not hours.** The title-and-artist key queried the whole track table once per orphan, so a dry run over production's 81,879 fileless tracks took hours while holding the scanner lock. A bulk run now reads the candidates once. Bug report 107.
+
+- **Je wachtwoord staat niet meer in elk webadres naar de muziekserver.** De webspeler bewees wie
+  je bent door je wachtwoord in de URL van elk nummer, elke hoes en elke lijst te zetten, en
+  daarmee in elk logbestand onderweg. Nu krijgt elke gebruiker automatisch een eigen
+  Subsonic-token en ondertekent de speler daarmee; het wachtwoord gaat alleen nog mee bij het
+  inloggen zelf.
 ## Global Version 0.77.0 (2026-09-26)
 
 - LMS now blocks, in its database, a second account whose name differs from an existing one only

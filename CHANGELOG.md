@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.77.1] - 2026-09-26
+
+### Fixed
+- **Web: logging out marks the device as signed out.** The web UI's logout now waits at most five
+  seconds for the Android shell's own sign-out and records a device-level `muma_signed_out` mark,
+  so the shell's next boot shows the login page instead of signing back in from credentials the
+  phone still holds; any successful sign-in lifts it. Inside the shell the login page offers a
+  native "Sign in with Google" button (the Google Identity Services button stays browser-only), and
+  a Google sign-in there hands the session to the phone like a password sign-in does. Browser
+  behaviour is unchanged. Bug report 106.
+
+- **The orphan relink runs in minutes, not hours.** The title-and-artist key queried the whole track table once per orphan, so a dry run over production's 81,879 fileless tracks took hours while holding the scanner lock. A bulk run now reads the candidates once. Bug report 107.
+
+### Security
+- **The password is no longer in every Subsonic URL.** The web player signed each stream, cover
+  and API request as `u=<name>&p=<password>` -- the password in plain text, so in every access log,
+  proxy log and browser history entry it passed. LMS accepts the salted `t=md5(token + salt)&s=salt`
+  form, but only against the user's own *Subsonic token*, which a client had no way to get:
+  `/muma/api/admin/subsonic-token` needs an administrator. New `GET /api/auth/subsonic-token`
+  returns the caller's own token (the account the key resolves to, nothing in the request can name
+  another), issuing one into LMS's `lms.db` when there is none and leaving an administrator-issued
+  token as it is; the key check counts towards the login rate limit and the token is never logged.
+  The web player now signs in through MuMa first (password in the POST body), fetches its token and
+  signs every URL with it; the password is only the fallback while no token is known. LMS's `/muma`
+  bridge accepts `u`/`t`/`s` too, checked like `/rest`, for the artist-image URLs. Bug report 103,
+  closes GitLab issue #21.
 ## [0.77.0] - 2026-09-26
 
 ### Added

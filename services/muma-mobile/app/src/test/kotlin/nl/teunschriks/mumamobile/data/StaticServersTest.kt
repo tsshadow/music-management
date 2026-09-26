@@ -9,7 +9,6 @@ package nl.teunschriks.mumamobile.data
 
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
-import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldStartWith
 import org.junit.Test
 
@@ -30,13 +29,13 @@ class StaticServersTest {
     }
 
     /**
-     * LMS verifies a `t`/`s` token against the per-user Subsonic API token, not the login password
-     * the app holds, so the salted form would lock every account out. Flip this together with the
-     * work in GitLab issue #21, not on its own.
+     * The server entry no longer asks for the password in the URL (bug report 103): requests are
+     * signed with the Subsonic token, and [SubsonicSigning] alone decides when the password is the
+     * fallback.
      */
     @Test
-    fun `the password mode is the hex form LMS accepts for a login password`() {
-        server.forcePlainTextPassword.shouldBeTrue()
+    fun `the server entry does not put the password in the URL`() {
+        server.forcePlainTextPassword.shouldBeFalse()
         server.forcePlainTextPassword shouldBeEqualTo StaticServers.FORCE_PLAIN_TEXT_PASSWORD
     }
 }

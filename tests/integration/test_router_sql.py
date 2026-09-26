@@ -38,6 +38,8 @@ READ_ENDPOINTS = [
     ('/api/users/1/settings/ultrasonic', 200),
     ('/api/auth/setup-status', 200),
     ('/api/auth/verify', 200),
+    # The system key is nobody, so it has no Subsonic token of its own (bug report 103).
+    ('/api/auth/subsonic-token', 403),
     ('/api/library/tracks', 200),
     ('/api/library/advanced', 200),
     # Paging is validated before any SQL runs: page 0 was a negative OFFSET (a 500).
@@ -1561,6 +1563,46 @@ class ScrobbleReconcileSqlTest:
             time.tzset()
         assert result['found']['lms_unmapped'] == 1
         assert result['written'] == {'lms_only_inserted': 0, 'collisions': 0}
+
+
+class SubsonicTokenSqlTest:
+    """GET /api/auth/subsonic-token with a real user key: MariaDB resolves the account, an lms.db
+    file with LMS's `user` and `auth_token` columns receives the token (bug report 103)."""
+
+    def test_a_user_key_gets_a_token_written_into_lms_db(self, api, db, tmp_path, monkeypatch):
+        import sqlite3
+
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO users (username, api_key, enabled) VALUES ('listener', 'listener-key', TRUE)")
+            cursor.execute("SELECT id FROM users WHERE username = 'listener'")
+            muma_id = cursor.fetchone()['id']
+        db.commit()
+
+        path = tmp_path / 'lms.db'
+        lms = sqlite3.connect(path)
+        lms.execute('CREATE TABLE user (id INTEGER PRIMARY KEY, login_name TEXT, muma_id INTEGER)')
+        lms.execute('CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT)')
+        lms.execute('CREATE TABLE listen (id INTEGER PRIMARY KEY, user_id INTEGER, track_id INTEGER)')
+        lms.execute(
+            'CREATE TABLE auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, '
+            "domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, "
+            'use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)'
+        )
+        lms.execute('INSERT INTO user (login_name, muma_id) VALUES (?, ?)', ('listener', muma_id))
+        lms.commit()
+        lms.close()
+        monkeypatch.setenv('MUMA_SERVER_DB_PATH', str(path))
+        monkeypatch.setenv('MUMA_SERVER_DB_ROOT', str(tmp_path / 'none'))
+
+        response = api.get('/api/auth/subsonic-token', headers={'x-api-key': 'listener-key'})
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['username'] == 'listener'
+        lms = sqlite3.connect(path)
+        stored = lms.execute("SELECT value FROM auth_token WHERE domain = 'subsonic'").fetchall()
+        lms.close()
+        assert stored == [(body['token'],)]
 
 
 class TransactionTest:

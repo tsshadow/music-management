@@ -289,6 +289,46 @@ def verify_token(x_api_key: str = Header(None)):
     raise HTTPException(status_code=403, detail=INVALID_API_KEY)
 
 
+@auth_router.get('/auth/subsonic-token')
+def get_own_subsonic_token(request: Request, x_api_key: str | None = Header(None)):
+    """The caller's own Subsonic API token, issued on first request (bug report 103).
+
+    Clients sign every `/rest` call with `t=md5(token + salt)&s=salt` instead of putting the
+    login password in the URL as `p=`. Only a user key opens this: a system key belongs to a
+    service, not a person, and there is no "own" token for it (403). The account is the one the
+    key resolves to; nothing in the request can name another. The key check runs inside the
+    login rate limiter, so a wrong key costs the caller the same budget a wrong password does --
+    this answers with a credential and must not become a second guessing oracle for keys.
+
+    404 when no server database knows the account yet (the user sync has not reached it), 503
+    when music-manager sees no server database at all or cannot read it. The token itself is
+    never logged. See `services/music_manager/subsonic_token.py` and
+    docs/designs/subsonic-token-signing/technical.md.
+    """
+    from services.music_manager import subsonic_token
+
+    with auth_attempt(request):
+        caller = verify_api_key(x_api_key)
+        if caller.get('type') != 'user':
+            raise HTTPException(status_code=403, detail='A Subsonic token belongs to a user; a system key has none')
+    user = caller.get('user') or {}
+    username = user.get('username') or ''
+    try:
+        result = subsonic_token.own_subsonic_token(lms_db_targets(), user.get('id'), username)
+    except subsonic_token.NoServerDatabase as exc:
+        logging.warning('Subsonic token requested by %s, but no music server database is mounted', username)
+        raise HTTPException(status_code=503, detail='No music server database available') from exc
+    except subsonic_token.NotOnServer as exc:
+        logging.warning('Subsonic token requested by %s, who is not on any music server yet', username)
+        raise HTTPException(status_code=404, detail='This account is not on the music server yet') from exc
+    except sqlite3.Error as exc:
+        logging.warning('Subsonic token requested by %s, but the music server database failed: %s', username, exc)
+        raise HTTPException(
+            status_code=503, detail='Music server database unavailable', headers={'Retry-After': '5'}
+        ) from exc
+    return {'status': 'ok', 'username': result.username, 'token': result.token}
+
+
 def _auth_database_unavailable() -> HTTPException:
     """The 503 every key check answers with when the users table cannot be read."""
     return HTTPException(status_code=503, detail='Authentication database unavailable', headers={'Retry-After': '5'})

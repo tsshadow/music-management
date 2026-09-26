@@ -34,19 +34,16 @@ object StaticServers {
 
     /**
      * Whether requests authenticate with `p=enc:<hex password>` instead of the salted Subsonic
-     * token (`t=md5(password + salt)&s=salt`).
+     * token (`t=md5(token + salt)&s=salt`).
      *
-     * Still `true`, deliberately. LMS checks a `t`/`s` pair against the user's *Subsonic API token*
-     * (`db::AuthToken` in the `subsonic` domain, see `SubsonicResource::authenticateUser`), never
-     * against the login password: passwords are verified by the music-manager password service and
-     * are not stored anywhere LMS could hash them with a salt. The app only knows the login password
-     * (or, after a Google sign-in, the muma API key that stands in for it), so the token form is
-     * rejected with "wrong username or password" for every account. Switching needs the app to
-     * obtain the per-user Subsonic token first -- tracked in GitLab issue #21. Until then the
-     * password travels only over verified TLS ([ALLOW_SELF_SIGNED_CERTIFICATE] is `false`) and is
-     * redacted from every log the app writes ([nl.teunschriks.mumamobile.log.LogRedaction]).
+     * `false` since bug report 103. LMS checks a `t`/`s` pair against the user's *Subsonic API
+     * token*, never against the login password, so the app fetches that token from MuMa
+     * (`GET /api/auth/subsonic-token`) and signs every request with it; the password no longer
+     * travels in any URL. [SubsonicSigning] decides per client: the token when one is stored for the
+     * signed-in user, and only until then the password as the fallback -- which is where this flag's
+     * old behaviour survives, deliberately limited to the time before the first successful fetch.
      */
-    const val FORCE_PLAIN_TEXT_PASSWORD = true
+    const val FORCE_PLAIN_TEXT_PASSWORD = false
 
     val STATIC_SERVERS = listOf(
         ServerSetting(

@@ -495,3 +495,57 @@ def test_create_playlist_accepts_the_song_ids_in_a_post_body(admin_credentials, 
         assert created[0]["songCount"] == QUEUE_LENGTH
     finally:
         _subsonic_get("deletePlaylist.view", username, password, id=created[0]["id"])
+
+
+def _token_params(username, token, salt):
+    """The Subsonic salted-token credentials: `t = md5(token + salt)`, as LMS checks them."""
+    import hashlib
+
+    return {"u": username, "t": hashlib.md5(f"{token}{salt}".encode()).hexdigest(), "s": salt}
+
+
+def test_a_subsonic_token_signs_rest_and_the_muma_bridge(admin_credentials):
+    """Bug report 103: clients sign with `u`/`t`/`s` against the user's Subsonic token, never `p`.
+
+    The token is issued here through the admin route, because the test stack's music-manager does
+    not share LMS's lms.db (GET /api/auth/subsonic-token answers 503 in this stack; its own tests
+    run against real SQLite files). What this pins is LMS's side of the contract: /rest accepts the
+    triple, and so does the /muma bridge -- which the web player's artist-image URLs go through --
+    with the identity taken from the token's user, so an admin's token opens an admin route.
+    """
+    username, password = admin_credentials
+    token = "ci-contract-subsonic-token-0123456789"
+
+    def issue():
+        resp = requests.put(
+            f"{LMS_URL}/muma/api/admin/subsonic-token",
+            params={"u": username, "p": password, "username": username},
+            json={"token": token},
+            timeout=10,
+        )
+        return resp if resp.status_code != 403 else None
+
+    resp = wait_until(issue, timeout=30, interval=1, description="admin flag synced into LMS for token issue")
+    assert resp.status_code == 200, resp.text
+
+    ping = requests.get(
+        f"{LMS_URL}/rest/ping.view",
+        params={**_token_params(username, token, "a1b2c3"), "v": SUBSONIC_VERSION, "c": SUBSONIC_CLIENT, "f": "json"},
+        timeout=10,
+    )
+    assert ping.json()["subsonic-response"]["status"] == "ok", ping.text
+
+    bridge = requests.get(
+        f"{LMS_URL}/muma/api/admin/subsonic-token",
+        params={**_token_params(username, token, "d4e5f6"), "username": username},
+        timeout=10,
+    )
+    assert bridge.status_code == 200, bridge.text
+    assert bridge.json()["token"] == token
+
+    forged = requests.get(
+        f"{LMS_URL}/muma/api/admin/subsonic-token",
+        params={"u": username, "t": "0" * 32, "s": "d4e5f6", "username": username},
+        timeout=10,
+    )
+    assert forged.status_code == 401, forged.text

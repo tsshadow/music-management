@@ -70,6 +70,13 @@ interface MumaAPIDefinition {
     @GET("api/auth/verify")
     fun verify(): Call<MumaAuthResponse>
 
+    /**
+     * The signed-in user's own Subsonic API token, issued on first request. Every `/rest` call is
+     * signed with it as `t=md5(token + salt)&s=salt` instead of carrying the password (bug report 103).
+     */
+    @GET("api/auth/subsonic-token")
+    fun getSubsonicToken(): Call<MumaSubsonicTokenResponse>
+
     @GET("api/user-requests")
     fun getUserRequests(
         @Query("status") status: String
@@ -370,6 +377,18 @@ data class GoogleAuthRequest(
 data class RefreshRequest(
     @SerializedName("refresh_token") val refreshToken: String
 )
+
+/**
+ * `GET /api/auth/subsonic-token`: the LMS login name to sign `u=` with, and the Subsonic API token.
+ * Never logged: [toString] leaves the token out.
+ */
+data class MumaSubsonicTokenResponse(
+    val status: String? = null,
+    val username: String? = null,
+    val token: String? = null
+) {
+    override fun toString(): String = "MumaSubsonicTokenResponse(status=$status, username=$username, token=<redacted>)"
+}
 
 data class MumaAuthResponse(
     val status: String,

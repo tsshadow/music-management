@@ -6,7 +6,10 @@ import {
   mumaRefreshToken,
   mumaSessionActive,
   mumaUser,
+  refreshSubsonicToken,
   restUrl,
+  subsonicToken,
+  subsonicTokenQuery,
   userPermissions,
 } from "./store.js";
 import { logAction } from "./diagnosticsLog.js";
@@ -14,9 +17,13 @@ import { logAction } from "./diagnosticsLog.js";
 /**
  * Signing in, once, for everyone who does it.
  *
- * There is exactly one way into this app with a username and a password: ping
- * `/rest/ping` with them, and if LMS accepts them, ask the muma API for the
- * permissions and the RBAC role that go with the same pair. `LoginPage.svelte`
+ * There is exactly one way into this app with a username and a password: ask
+ * the muma API for the session, the permissions and the RBAC role that go with
+ * the pair (the password travels in a POST body), fetch the account's Subsonic
+ * token with the key that returns, and ping `/rest/ping` signed with that token
+ * -- so the password never appears in a URL (bug report 103). Only when there
+ * is no management session or no token is the ping signed with the password,
+ * as it always used to be. `LoginPage.svelte`
  * does that when someone types them; the Android shell does it on boot with the
  * pair the phone already had. Making the shell its own path would have meant a
  * second place where "signed in" is decided, and the two would have drifted the
@@ -54,34 +61,63 @@ export function subsonicAuthQuery(username, password) {
  *   and said no, with its own message in `message`.
  */
 export async function signIn(username, password) {
-  let body;
-  try {
-    const response = await fetch(restUrl(`/rest/ping?${subsonicAuthQuery(username, password)}`));
-    body = await response.json();
-  } catch (error) {
-    logAction("auth.login", { ok: false, reason: "offline" });
-    return { ok: false, reason: "offline", message: error?.message ?? "" };
-  }
-
-  const answer = body?.["subsonic-response"];
-  if (answer?.status !== "ok") {
-    logAction("auth.login", { ok: false, reason: "rejected" });
-    return { ok: false, reason: "rejected", message: answer?.error?.message ?? "" };
-  }
-
-  // Deliberately before the credentials are stored: the management session is
-  // a bonus, not a condition. A server without the muma API still gives a
-  // working player, which is what the original inline version did too.
-  const started = await startManagementSession(username, password);
+  // The management session first: it takes the password in a POST body, and its key is what
+  // fetches the Subsonic token. It is a bonus, not a condition -- a server without the muma API
+  // still gives a working player, signed with the password as it always was. It is published
+  // only once the ping has passed, together with the credentials: the app treats a stored key as
+  // "signed in", and a key published early let the UI run Subsonic calls with no credentials yet.
+  const session = await requestManagementSession(username, password);
   // Account names are case-insensitive, and the account's own spelling is the
   // one every later call signs in with -- not the one typed. "Teun" typed for
   // the account "user" used to be stored as typed and sent as Subsonic `u=` on
   // every request, and LMS, comparing names byte for byte, created a second
   // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
-  const canonical = canonicalUsername(username, started ? get(mumaUser) : null);
+  let canonical = canonicalUsername(username, session?.user ?? null);
+  const token = session ? await refreshSubsonicToken(undefined, session.api_key) : null;
+  // LMS's own spelling of the login name is what the token opens; adopt it when it is only a case
+  // variant of the name we have.
+  if (token && token.username.toLowerCase() === canonical.toLowerCase()) canonical = token.username;
+  else if (token) subsonicToken.set({ username: "", token: "" });
+  const usable = Boolean(token) && token.username === canonical;
+
+  let answer = await ping(
+    usable ? subsonicTokenQuery(canonical, token.token) : subsonicAuthQuery(username, password),
+  );
+  if (answer.reason === "rejected" && usable) {
+    // A token this server does not accept (issued into another server's database): the
+    // password still decides, and the token is dropped so it signs nothing.
+    subsonicToken.set({ username: "", token: "" });
+    answer = await ping(subsonicAuthQuery(username, password));
+  }
+  if (!answer.ok) {
+    logAction("auth.login", { ok: false, reason: answer.reason });
+    return { ok: false, reason: answer.reason, message: answer.message };
+  }
+
+  if (session) publishManagementSession(session);
   credentials.update((current) => ({ ...current, username: canonical, password }));
-  logAction("auth.login", { ok: true });
+  logAction("auth.login", { ok: true, signed: usable ? "token" : "password" });
   return { ok: true, username: canonical };
+}
+
+/**
+ * One `/rest/ping` with the given query.
+ *
+ * @param {string} query - An `authParams`-shaped query string.
+ * @returns {Promise<{ok: boolean, reason?: 'offline'|'rejected', message?: string}>}
+ */
+async function ping(query) {
+  let body;
+  try {
+    const response = await fetch(restUrl(`/rest/ping?${query}`));
+    body = await response.json();
+  } catch (error) {
+    return { ok: false, reason: "offline", message: error?.message ?? "" };
+  }
+  const answer = body?.["subsonic-response"];
+  if (answer?.status !== "ok")
+    return { ok: false, reason: "rejected", message: answer?.error?.message ?? "" };
+  return { ok: true };
 }
 
 /**
@@ -117,26 +153,51 @@ export function canonicalUsername(typed, account) {
  * @returns {Promise<boolean>} Whether a management session was started.
  */
 export async function startManagementSession(username, password) {
+  const session = await requestManagementSession(username, password);
+  if (!session) return false;
+  publishManagementSession(session);
+  return true;
+}
+
+/**
+ * MuMa's login answer for the pair, or null when there is no session to be had
+ * (refused, unreachable, or an answer without a key and a `user`). Stores
+ * nothing; see `publishManagementSession`.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<object|null>}
+ */
+async function requestManagementSession(username, password) {
   try {
     const response = await fetch(`${get(mumaApiUrl)}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const data = await response.json();
     if (!data?.api_key || !data.user || typeof data.user !== "object") {
       console.warn("Management API login answered without a user key");
-      return false;
+      return null;
     }
-    mumaApiKey.set(data.api_key);
-    mumaRefreshToken.set(data.refresh_token ?? "");
-    userPermissions.set(Array.isArray(data.user.permissions) ? data.user.permissions : []);
-    mumaUser.set(data.user);
-    mumaSessionActive.set(true);
-    return true;
+    return data;
   } catch (error) {
     console.warn("Management API login failed during Subsonic login", error);
-    return false;
+    return null;
   }
+}
+
+/**
+ * Stores a management session: the user's own key, refresh token, permissions
+ * and account.
+ *
+ * @param {object} data - A `requestManagementSession` answer.
+ */
+function publishManagementSession(data) {
+  mumaApiKey.set(data.api_key);
+  mumaRefreshToken.set(data.refresh_token ?? "");
+  userPermissions.set(Array.isArray(data.user.permissions) ? data.user.permissions : []);
+  mumaUser.set(data.user);
+  mumaSessionActive.set(true);
 }

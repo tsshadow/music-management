@@ -19,6 +19,7 @@ import nl.teunschriks.mumamobile.api.subsonic.throwOnFailure
 import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.shouldUseId3Tags
+import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.domain.Album
 import nl.teunschriks.mumamobile.domain.Artist
@@ -53,6 +54,7 @@ import nl.teunschriks.mumamobile.domain.toIndexList
 import nl.teunschriks.mumamobile.domain.toMusicDirectoryDomainEntity
 import nl.teunschriks.mumamobile.domain.toTrackEntity
 import nl.teunschriks.mumamobile.util.FileUtil
+import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import okhttp3.Protocol
 import okhttp3.Response
@@ -877,6 +879,47 @@ open class RESTMusicService(
     @Throws(Exception::class)
     override fun mumaLogin() {
         ensureMumaLogin(force = true)
+    }
+
+    /**
+     * Asks MuMa for the signed-in user's Subsonic API token and stores it in [SecureSettings]; see
+     * [MusicService.refreshSubsonicToken] and [SubsonicSigning]. A server without the endpoint
+     * (404), an account LMS does not know yet (404) or an outage leaves the stored state alone, so
+     * the client keeps signing with whatever it had. The token is never logged.
+     */
+    @Throws(Exception::class)
+    override fun refreshSubsonicToken(): Boolean {
+        val activeServer = activeServerProvider.getActiveServer()
+        if (activeServer.userName.isEmpty() || activeServer.password.isEmpty()) return false
+        ensureMumaLogin()
+        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSubsonicToken().execute() }
+        if (!response.isSuccessful) {
+            Timber.w("Subsonic token not available (HTTP %d); requests keep their current signing", response.code())
+            response.errorBody()?.close()
+            return false
+        }
+        val body = response.body()
+        val adoption = SubsonicSigning.adopt(
+            storedUserName = activeServerProvider.getActiveServer().userName,
+            storedToken = SecureSettings.subsonicToken,
+            storedTokenUser = SecureSettings.subsonicTokenUser,
+            answerUserName = body?.username,
+            answerToken = body?.token
+        )
+        return when (adoption) {
+            is SubsonicSigning.Adoption.Store -> {
+                adoption.canonicalUserName?.let { activeServerProvider.adoptCanonicalUserName(it) }
+                SecureSettings.subsonicToken = adoption.token
+                SecureSettings.subsonicTokenUser = adoption.tokenUser
+                Timber.i("Subsonic token stored; requests are signed with it from now on")
+                true
+            }
+            SubsonicSigning.Adoption.Unchanged -> false
+            SubsonicSigning.Adoption.Ignore -> {
+                Timber.w("Subsonic token answer was not for this account; ignored")
+                false
+            }
+        }
     }
 
     /**

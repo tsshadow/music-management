@@ -18,6 +18,15 @@ The `music-manager` service provides a REST API (FastAPI) for managing the music
   same bcrypt cost; `403 Account disabled` only follows a correct password.
 - **GET `/api/auth/verify`**: Verify the validity of an `X-API-Key`. 401 without a key, 403 for an
   unknown key or a disabled account, 503 (`Retry-After: 5`) when the users table cannot be read.
+- **GET `/api/auth/subsonic-token`**: the caller's own Subsonic API token, issued into LMS's
+  `lms.db` on first request, as `{status: "ok", username, token}` -- `username` is LMS's login name
+  for the account, which is what `u=` must carry. Clients sign every `/rest` call with
+  `t=md5(token + salt)&s=salt` instead of `p=` (bug report 103). Only a user key: no key or an
+  unknown key 401, a disabled account 403, a system key 403 (a service has no token of its own). No
+  parameter can name another account. 404 when no server database knows the account yet, 503 when
+  music-manager sees no server database or cannot read it (`Retry-After: 5`). The key check counts
+  towards the login rate limit (429 with `Retry-After`). An administrator-issued token is returned
+  as it is; see [docs/designs/subsonic-token-signing/technical.md](designs/subsonic-token-signing/technical.md).
 - **POST `/api/auth/setup`**: create the first account, as admin, while no account exists. `409 Setup
   already completed` once one does (was 400); concurrent calls create exactly one admin.
 

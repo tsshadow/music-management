@@ -343,6 +343,7 @@ dependencies {
     testImplementation libs.mockito
     testImplementation libs.mockitoKotlin
     testImplementation libs.mockk
+    testImplementation libs.mockWebServer
     testImplementation libs.archunit
     testImplementation libs.robolectric
     testImplementation libs.kotlinxCoroutinesTest

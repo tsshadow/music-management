@@ -32,7 +32,7 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-    image: mariadb:13.0
+    image: mariadb:13.0.2@sha256:d4fdec0510ad498e4f3127da30a99df3745bd6d5e611ae6ac5f76403d9284a8d
     # Same pin as the production compose files: without it CI runs on MariaDB
     # 12's utf8mb4_uca1400_ai_ci default while production runs
     # utf8mb4_general_ci, so a collation mismatch would pass here and fail there.

@@ -60,9 +60,7 @@ b75c3d49465f1c12 x1  # detected-private-key services/muma-mobile/core/subsonic-a
 # weakness is that a password in argv is visible to a local process listing,
 # which is acceptable on a workstation deploy script.
 72281ba608b06570 x1  # detected-ssh-password publish.sh
-dd45bf5b5d0df701 x1  # detected-ssh-password scripts/deploy.sh
 3b0566b82aa1e739 x2  # detected-ssh-password services/muma-mobile/scripts/deploy.sh
-80650e10e4eea55c x1  # detected-ssh-password services/music-management-server/scripts/deploy-stack.sh
 
 # --- dynamic-proxy-host --- [r:2da0bb74]
 # The proxy target is the configured LMS or Subsonic server, read from this
@@ -117,7 +115,7 @@ ea93ae5dbf2c5be0 x1  # formatted-sql-query services/common/Helpers/BrokenSongHel
 9414c963005c8297 x2  # formatted-sql-query services/common/Helpers/FilterTableHelper.py
 e41671e2d0d08a90 x2  # formatted-sql-query services/common/Helpers/GenreRulesHelper.py
 b57c39e3b894fc6b x2  # formatted-sql-query services/common/Helpers/LookupTableHelper.py
-c8a182c2965f1841 x4  # formatted-sql-query services/common/Helpers/ProcessedFilesHelper.py
+c8a182c2965f1841 x3  # formatted-sql-query services/common/Helpers/ProcessedFilesHelper.py
 c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.py
 119034db0c50c5e2 x2  # formatted-sql-query services/music_manager/routers/artist_images.py
 9cb6d4f29d12bbc2 x2  # formatted-sql-query tools/check_db_structure.py
@@ -164,11 +162,17 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 221c5f48e170d375 x1  # missing-user services/ml-analyzer/Dockerfile
 9e1b201c43dca7f7 x1  # missing-user services/music_manager/artist_image_fetcher/Dockerfile
 
-# --- python-logger-credential-disclosure --- [r:40e4dc8a]
-# Both sites are logger.error(..., e) in the except branch of a Spotify
-# token fetch. What is logged is the exception, not the token that the try
-# branch assigns; semgrep flags the token being in scope.
-6892487afb32b135 x1  # python-logger-credential-disclosure services/music_manager/artist_image_fetcher/providers/spotify.py
+# --- python-logger-credential-disclosure --- [r:4d3a4f40]
+# Two sites are logger.error(..., e) in the except branch of a Spotify token
+# fetch. What is logged is the exception, not the token that the try branch
+# assigns; semgrep flags the token being in scope. The rest are the Subsonic
+# token endpoint (routers/users.py, subsonic_token.py, bug report 103): the
+# rule matches the word "token" in the message; the arguments are the
+# username, a database path/source and a sqlite3 error, never the token
+# itself (test_subsonic_token.py asserts the issued token is absent from the
+# log).
+cb009c3b658bbb4c x3  # python-logger-credential-disclosure services/music_manager/routers/users.py
+35b912830bfd7f1e x3  # python-logger-credential-disclosure services/music_manager/subsonic_token.py
 4a61046f34382324 x1  # python-logger-credential-disclosure services/tagger/Song/rules/ExternalArtistLookup.py
 
 # --- renovate-missing-minimum-release-age --- [r:8afaff96]
@@ -270,6 +274,6 @@ e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/int
 # untested. The finding semgrep prints names firefox: it reports the surplus
 # occurrence, not the one that was added.
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
-0eae9038f27ed843 x12  # writable-filesystem-service docker/docker-compose.full.yml
+0eae9038f27ed843 x11  # writable-filesystem-service docker/docker-compose.full.yml
 acedf220b679b6b2 x2  # writable-filesystem-service docker/docker-compose.tools.yml
 25d2c6c464a0aee4 x10  # writable-filesystem-service docker/docker-compose.yml

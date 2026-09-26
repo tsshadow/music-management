@@ -209,7 +209,7 @@
       "pinDigests": true
     },
     {
-      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- docs/deployment.md, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump; like every docker update here it never merges on its own.",
+      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- docs/deployment.md, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump, and held for a week rather than three days: a data-directory upgrade is the one update here that is hard to take back. Like every docker update here it never merges on its own.",
       "matchManagers": [
         "docker-compose"
       ],
@@ -220,6 +220,7 @@
         "minor",
         "major"
       ],
+      "minimumReleaseAge": "7 days",
       "labels": [
         "dependencies",
         "docker",

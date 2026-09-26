@@ -67,4 +67,5 @@ displayed it; nothing reads it any more.
   routers, every refusal case fails).
 - Not changed, noted for follow-up: `POST /api/scrobble/import/listenbrainz` (proxy in
   management.py) still accepts any account. The DNS-rebinding window between the address check and
-  the fetch in the image URL route is not closed.
+  the fetch in the image URL route was closed later, see
+  [bug report 114](114-artist-image-dns-rebinding.md).

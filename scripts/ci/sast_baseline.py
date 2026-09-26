@@ -178,6 +178,14 @@ REASONS = {
         'that -- a later rule that omits the key does not unset it -- so the '
         'remaining hits are the rule being stricter than the tool.'
     ),
+    'http-not-https-connection': (
+        'safe_fetch.py opens an HTTPConnectionPool for http:// artist image URLs. '
+        'Plain HTTP is a supported input (a pasted URL or a provider answer may be '
+        'http, and a public http URL commonly redirects to https); the pool only '
+        'carries an image download from a checked public address, sends no '
+        'credentials, and https URLs go through HTTPSConnectionPool with full '
+        'certificate verification. Audited 2026-09-26 (bug report 114).'
+    ),
     'request-with-http': (
         'Plain HTTP to a service on this LAN that speaks no TLS, reachable only '
         'inside the tailnet. LmsScanTrigger used to be listed here too. It now '

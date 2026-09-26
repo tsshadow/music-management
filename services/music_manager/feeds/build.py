@@ -26,6 +26,7 @@ from services.music_manager.feeds.policy import FeedPolicy
 from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares, listen_weight
 from services.music_manager.feeds.queries import (
     candidates_query,
+    canonical_rows_query,
     dominant_genre_query,
     entity_hardness_query,
     exclusions_query,
@@ -179,19 +180,86 @@ def _load_listens(conn, username: str | None, window_days: int, now: datetime) -
 def _load_candidates(
     conn, username: str, policy: FeedPolicy, now: datetime, entity_filter: tuple[str, str] | None = None
 ) -> list[dict]:
+    """Step 4: the candidate rows, collapsed to one per song (see `_collapse_to_songs`)."""
     sql, params = candidates_query(username, policy, now, entity_filter=entity_filter)
-    candidates = []
-    for row in _rows(conn, sql, params):
-        label = row.get('label')
-        candidates.append(
-            {
-                **row,
-                'genres': _split(row.get('genres')),
-                'labels': [label] if label else [],
-                'heard': bool(row.get('heard')),
-            }
-        )
-    return candidates
+    candidates = [_candidate_row(row) for row in _rows(conn, sql, params)]
+    return _collapse_to_songs(conn, username, candidates)
+
+
+def _candidate_row(row: dict) -> dict:
+    """A raw candidate row, with its comma-joined and 0/1 columns turned into Python values."""
+    label = row.get('label')
+    return {
+        **row,
+        'genres': _split(row.get('genres')),
+        'labels': [label] if label else [],
+        'heard': bool(row.get('heard')),
+    }
+
+
+def song_key(candidate: dict) -> tuple:
+    """The song a candidate belongs to: its work, or the track itself when muma has not grouped it.
+
+    A track without a work gets a key of its own, the same fallback LMS and the web use, so an
+    ungrouped track is shown rather than folded into somebody else's song.
+    """
+    work_id = candidate.get('work_id')
+    if work_id:
+        return ('work', work_id)
+    return ('track', candidate['id'])
+
+
+def _collapse_to_songs(conn, username: str, candidates: list[dict]) -> list[dict]:
+    """One candidate per song, standing in for the canonical version (bug report 096).
+
+    Runs before anything is bucketed, ranked or capped, so two versions of one song can
+    never take two places, and the version that is ranked is the one that will play:
+
+    - the representative is the work's canonical. When the canonical is not a candidate
+      itself (outside the window its rip is inside, say) it is fetched in the same row
+      shape, so it is scored on its own label and provenance; when it has no file, the
+      version that qualified stands in -- lowest id, so the pick is stable.
+    - `heard` and `rating` already come out of the query per song, so every version
+      carries the same values and the representative's are the song's.
+    - `release_date` is the newest date among the versions that qualified: a song whose
+      official release came out this week is new even when the canonical's own tag is
+      older. Only qualifying versions count, because the window is what keeps a
+      mistagged future date out, and a canonical fetched past the window never saw it.
+
+    Ungrouped tracks pass through untouched, in their original order.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    for candidate in candidates:
+        groups.setdefault(song_key(candidate), []).append(candidate)
+
+    by_id = {candidate['id']: candidate for candidate in candidates}
+    missing = sorted(
+        {
+            members[0]['canonical_track_id']
+            for key, members in groups.items()
+            if key[0] == 'work'
+            and members[0].get('canonical_track_id')
+            and members[0]['canonical_track_id'] not in by_id
+        }
+    )
+    canonicals: dict[int, dict] = {}
+    if missing:
+        sql, params = canonical_rows_query(username, missing)
+        wanted = set(missing)
+        canonicals = {row['id']: _candidate_row(row) for row in _rows(conn, sql, params) if row['id'] in wanted}
+
+    collapsed = []
+    for key, members in groups.items():
+        if key[0] == 'track':
+            collapsed.extend(members)
+            continue
+        canonical_id = members[0].get('canonical_track_id')
+        canonical = (by_id.get(canonical_id) or canonicals.get(canonical_id)) if canonical_id else None
+        representative = canonical or min(members, key=lambda m: m['id'])
+        dates = [m['release_date'] for m in members if m.get('release_date')]
+        release_date = max(dates) if dates else representative.get('release_date')
+        collapsed.append({**representative, 'release_date': release_date})
+    return collapsed
 
 
 def _distinct(candidates: list[dict], field: str) -> list[str]:
@@ -501,11 +569,14 @@ def _backfill_from_unknown(
     widest_policy = replace(policy, release_window_days=None)
     widest_candidates = _load_candidates(conn, username, widest_policy, now, entity_filter=info['entity_filter'])
     _annotate_hardness(conn, widest_candidates, id_field='id')
-    already_emitted = {track['id'] for track in emitted}
+    # Keyed on the song, not the track id: this load is collapsed on its own, and when a
+    # work's canonical has no file the version standing in for it can differ between the
+    # two loads -- two ids, one song.
+    already_emitted = {song_key(track) for track in emitted}
     unknown_candidates = [
         candidate
         for candidate in widest_candidates
-        if candidate.get('hardness') is None and candidate['id'] not in already_emitted
+        if candidate.get('hardness') is None and song_key(candidate) not in already_emitted
     ]
     if not unknown_candidates:
         return emitted, 0

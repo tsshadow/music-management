@@ -196,11 +196,14 @@ namespace lms::api::subsonic
         trackResponse.setAttribute("type", "music");
         trackResponse.setAttribute("created", core::stringUtils::toISO8601String(track->getAddedTime()));
         trackResponse.setAttribute("contentType", core::getMimeType(track->getAbsoluteFilePath().extension()));
-        if (const auto rating{ core::Service<feedback::IFeedbackService>::get()->getRating(context.getUser()->getId(), track->getId()) })
-            trackResponse.setAttribute("userRating", *rating);
+        // The song's rating when this row is the canonical: lists show one row per song, so
+        // the row has to carry what was given to any of its versions (bug report 096).
+        const feedback::IFeedbackService::SongRating songRating{ core::Service<feedback::IFeedbackService>::get()->getSongRating(context.getUser()->getId(), track->getId()) };
+        if (songRating.rating)
+            trackResponse.setAttribute("userRating", *songRating.rating);
 
-        if (const Wt::WDateTime dateTime{ core::Service<feedback::IFeedbackService>::get()->getFavoriteDateTime(context.getUser()->getId(), track->getId()) }; dateTime.isValid())
-            trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(dateTime));
+        if (songRating.favoriteDateTime.isValid())
+            trackResponse.setAttribute("starred", core::stringUtils::toISO8601String(songRating.favoriteDateTime));
 
         // Report genres for this track
         std::vector<db::Cluster::pointer> genres;

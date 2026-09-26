@@ -226,6 +226,34 @@ namespace lms::feedback
         return getRating<db::Track, db::TrackId, db::RatedTrack>(userId, trackId);
     }
 
+    IFeedbackService::SongRating FeedbackService::getSongRating(db::UserId userId, db::TrackId trackId)
+    {
+        Session& session{ _db.getTLSSession() };
+        auto transaction{ session.createReadTransaction() };
+
+        // The canonical's own rating first: a rating given from a list is written to the row
+        // the list shows, the canonical, so under a plain maximum lowering a song's rating could
+        // never take effect. Only when the canonical carries none does the song borrow the
+        // highest of its other versions. A non-canonical version speaks only for itself -- it is
+        // shown on the song page alone, next to its siblings.
+        RatedTrack::pointer rated{ RatedTrack::find(session, trackId, userId) };
+        const Track::pointer track{ Track::find(session, trackId) };
+        if (!rated && track && track->isCanonical())
+        {
+            if (const auto workId{ track->getWorkId() })
+                rated = RatedTrack::findHighestInWork(session, *workId, userId);
+        }
+
+        SongRating result;
+        if (rated)
+        {
+            result.rating = rated->getRating();
+            if (rated->getRating() >= favoriteRating)
+                result.favoriteDateTime = rated->getLastUpdated();
+        }
+        return result;
+    }
+
     void FeedbackService::notifyPlaylistChanged(db::TrackListId playlistId)
     {
         for (auto& [backendType, backend] : _backends)

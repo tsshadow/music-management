@@ -13,6 +13,7 @@ import unittest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
+from services.music_manager.feeds import build
 from services.music_manager.feeds.build import build_feed, describe_feed, resolve_profile
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TAIL
@@ -44,6 +45,7 @@ _SERVER_LISTENS_FRAGMENT = 'WHERE s.listened_at >= %s'
 # library_tracks t`, so the candidates fragment has to name something only
 # the candidate query selects.
 _CANDIDATES_FRAGMENT = 'library_media_files mf'
+_CANONICAL_ROWS_FRAGMENT = 'AND t.id IN ('
 _HIERARCHY_FRAGMENT = 'FROM rules_subgenre_hierarchy'
 _EXCLUSIONS_FRAGMENT = 'FROM feeds_profile_exclusions'
 _LABEL_DOMINANT_FRAGMENT = 'GROUP BY l.name, rg.name'
@@ -67,9 +69,13 @@ def scripted(
     genre_hardness=(),
     label_hardness=(),
     artist_hardness=(),
+    canonicals=(),
 ):
     """A connection whose cursor answers build_feed's queries from fixed rows."""
     rules = (
+        # canonical_rows_query shares candidates_query's SELECT, so it has to be matched
+        # first, on the one thing only it has.
+        (_CANONICAL_ROWS_FRAGMENT, None, list(canonicals)),
         (_USER_LISTENS_FRAGMENT, None, list(listens)),
         (_SERVER_LISTENS_FRAGMENT, None, list(server_listens)),
         (_CANDIDATES_FRAGMENT, None, list(candidates)),
@@ -595,3 +601,75 @@ class RotatingMixBuildTest(unittest.TestCase):
         conn = scripted(listens=MANY_LISTENS, candidates=MIXED_CANDIDATES)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-artist'], NOW)
         self.assertEqual(feed.state, 'not_enough_data')
+
+
+def _version(id_, work_id, canonical_id, **overrides):
+    """A candidate that is one version of a work, as candidates_query returns it."""
+    file_path = overrides.pop('file_path', None)
+    row = _candidate(id_, overrides.pop('artist', 'Deadly Guns'), overrides.pop('genre', 'Uptempo'), **overrides)
+    row.update(work_id=work_id, canonical_track_id=canonical_id)
+    if file_path:
+        row['file_path'] = file_path
+    return row
+
+
+class CollapseToSongsTest(unittest.TestCase):
+    """Bug report 096: one entry per song in every feed, and it is the canonical."""
+
+    def test_two_versions_of_one_song_take_one_place(self):
+        # KOPPEN ROLLEN on Teun's radar, 2026-09-26: a YouTube and a SoundCloud rip of one work.
+        youtube = _version(9655173, 394638, 9655173, label='Neophyte Records')
+        soundcloud = _version(9652563, 394638, 9655173, is_soundcloud=True)
+        conn = scripted(listens=MANY_LISTENS, candidates=[soundcloud, youtube])
+        feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        self.assertEqual([track['id'] for track in feed.tracks], [9655173])
+        self.assertEqual(feed.funnel['candidates'], 1)
+
+    def test_the_canonical_is_emitted_even_when_only_a_rip_qualified(self):
+        """ERABREAK - Elevate: the rip was in the window, the official version was not a
+        candidate; the feed must still play the official version."""
+        rip = _version(20, 5, 10, is_soundcloud=True, file_path='/music/rip.mp3')
+        official = _version(10, 5, 10, label='Scantraxx', release_date='2025-01-01', file_path='/music/official.flac')
+        conn = scripted(listens=MANY_LISTENS, candidates=[rip], canonicals=[official])
+        feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        self.assertEqual(len(feed.tracks), 1)
+        track = feed.tracks[0]
+        self.assertEqual(track['file_path'], '/music/official.flac')
+        self.assertTrue(track['has_label'])
+        # The date is the qualifying version's, not the canonical's own older tag.
+        self.assertEqual(track['release_date'], '2026-09-01')
+        _, params = conn.cursor.return_value.statements_matching(_CANONICAL_ROWS_FRAGMENT)[0]
+        self.assertEqual(params[-1], 10)
+
+    def test_the_song_gets_the_newest_date_of_its_versions(self):
+        older = _version(1, 5, 1, release_date='2026-08-01')
+        newer = _version(2, 5, 1, release_date='2026-09-03')
+        collapsed = build._collapse_to_songs(scripted(), 'user', [older, newer])
+        self.assertEqual(len(collapsed), 1)
+        self.assertEqual(collapsed[0]['id'], 1)
+        self.assertEqual(collapsed[0]['release_date'], '2026-09-03')
+
+    def test_a_canonical_without_a_file_leaves_the_qualifying_version(self):
+        rip_b = _version(31, 5, 99)
+        rip_a = _version(30, 5, 99)
+        collapsed = build._collapse_to_songs(scripted(canonicals=[]), 'user', [rip_b, rip_a])
+        self.assertEqual([row['id'] for row in collapsed], [30])
+
+    def test_ungrouped_tracks_pass_through_untouched(self):
+        loose = [_candidate(1, 'A', 'Uptempo'), _candidate(2, 'A', 'Uptempo')]
+        conn = scripted()
+        collapsed = build._collapse_to_songs(conn, 'user', loose)
+        self.assertEqual([row['id'] for row in collapsed], [1, 2])
+        # Nothing to look up: no second query.
+        self.assertEqual(conn.cursor.return_value.statements_matching(_CANONICAL_ROWS_FRAGMENT), [])
+
+    def test_heard_is_the_song_s_so_a_rip_of_a_heard_song_ranks_as_heard(self):
+        """The query answers `heard` per song, so both versions carry True; the collapsed
+        entry must keep it, and rank below an equal unheard song."""
+        heard_rip = _version(40, 7, 41, heard=True, release_date='2026-09-04')
+        heard_official = _version(41, 7, 41, heard=True, release_date='2026-09-04')
+        unheard = _candidate(50, 'Other Artist', 'Uptempo', release_date='2026-09-02')
+        conn = scripted(listens=MANY_LISTENS, candidates=[heard_rip, heard_official, unheard])
+        feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
+        self.assertEqual([track['id'] for track in feed.tracks], [50, 41])
+        self.assertTrue(feed.tracks[1]['heard'])

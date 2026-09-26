@@ -79,6 +79,9 @@ describe("phone home modes", () => {
     const recent = queries.filter((url) => url.pathname.endsWith("getSpotifyTracks"));
     expect(recent.map((url) => url.searchParams.get("sort"))).toEqual(["recent", "added"]);
     expect(recent.every((url) => url.searchParams.get("minDuration") === "10")).toBe(true);
+    // One entry per song (bug report 096): two versions of one new release must not
+    // take two of the six places.
+    expect(recent.every((url) => url.searchParams.get("deduplicate") === "true")).toBe(true);
   });
   it("keeps addition order when opening the full list", async () => {
     homeModeRecentlyAdded.set("BUTTON");

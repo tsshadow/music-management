@@ -318,6 +318,9 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS track_date_idx ON track(date)");
             // The form filter of getSpotifyTracks and getSongs (migration 122).
             tryExecute("CREATE INDEX IF NOT EXISTS track_form_idx ON track(form)");
+            // One song's versions (migration 118): the canonical a favourite collapses onto and the
+            // rating a song shows are both looked up by work, once per listed track.
+            tryExecute("CREATE INDEX IF NOT EXISTS track_work_id_idx ON track(work_id)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_directory_release_idx ON track(directory_id, release_id)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_file_added_idx ON track(file_added)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_file_last_write_idx ON track(file_last_write)");

@@ -73,6 +73,7 @@ namespace lms::feedback
 
         void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) override;
         std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) override;
+        SongRating getSongRating(db::UserId userId, db::TrackId trackId) override;
 
         void notifyPlaylistChanged(db::TrackListId playlistId) override;
 

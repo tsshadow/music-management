@@ -60,6 +60,33 @@ _AUDIO_FEATURES_SUBQUERY = """
 #: both as a gap.
 _RELEASE_DATE = "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END"
 
+#: Whether this listener has played the *song*, not just this file: a listen of any version of
+#: the track's work counts (docs/bug-reports/096). Two EXISTS rather than one with an OR, so the
+#: first stays an index lookup on the track and the second one on idx_tracks_work_id; for a
+#: track without a work the second compares against NULL and is simply false. Two `%s`, both the
+#: username.
+_SONG_HEARD = (
+    '(EXISTS (SELECT 1 FROM scrobble_listens sl WHERE sl.track_id = t.id AND sl.username = %s)'
+    ' OR EXISTS (SELECT 1 FROM library_tracks hv JOIN scrobble_listens hl ON hl.track_id = hv.id'
+    ' WHERE hv.work_id = t.work_id AND hl.username = %s))'
+)
+
+#: The song's rating for this listener, the display roll-up of the song-versions design (ratings
+#: stay stored per track_uid, they are only *shown* per song): the canonical's own rating when it
+#: has one, else the highest on any other version, else -- for a track without a work -- the
+#: track's own through the `r` join. The canonical's own rating wins over a higher one elsewhere
+#: because a rating given from a list is written to the canonical; under a plain maximum, lowering
+#: a song's rating from a list could never take effect. Two `%s`, both the username, textually
+#: before the `r` join's.
+_SONG_RATING = (
+    'COALESCE((SELECT rc.rating FROM library_tracks c'
+    " JOIN rating_tracks rc ON rc.entity_type = 'track' AND rc.entity_id = c.track_uid AND rc.username = %s"
+    ' WHERE c.id = w.canonical_track_id),'
+    ' (SELECT MAX(rv.rating) FROM library_tracks v'
+    " JOIN rating_tracks rv ON rv.entity_type = 'track' AND rv.entity_id = v.track_uid AND rv.username = %s"
+    ' WHERE v.work_id = t.work_id), r.rating)'
+)
+
 
 def listens_query(username: str | None, window_days: int, now: datetime) -> tuple[str, list]:
     """A user's (or everyone's) listening history for the profile.
@@ -126,12 +153,14 @@ def _pool_clause(username: str, policy: FeedPolicy, params: list) -> str | None:
     if not pools or 'any' in pools:
         return None
     clauses = []
+    # Both pools ask about the song, not the file: a rip of a song heard in its official
+    # version is not "unheard", and a song loved in one version is loved in all of them.
     if 'unheard' in pools:
-        clauses.append('NOT EXISTS (SELECT 1 FROM scrobble_listens sl WHERE sl.track_id = t.id AND sl.username = %s)')
-        params.append(username)
+        clauses.append(f'NOT {_SONG_HEARD}')
+        params.extend([username, username])
     if 'loved' in pools:
-        clauses.append('r.rating >= %s')
-        params.append(policy.loved_min_rating)
+        clauses.append(f'{_SONG_RATING} >= %s')
+        params.extend([username, username, policy.loved_min_rating])
     if not clauses:
         return None
     return '(' + ' OR '.join(clauses) + ')'
@@ -146,8 +175,9 @@ def candidates_query(
     a feed: `track_uid` (what a rating and a listen are keyed on), `has_label`,
     `is_soundcloud` (the label bonus and the SoundCloud penalty), `rating` (a
     score adjustment, and the `loved` pool's membership rule), `heard` (whether
-    this listener has ever played the track, the only signal
-    `policy.heard_rank_penalty` has to rank on), and the agreed release date out
+    this listener has ever played the song, the only signal
+    `policy.heard_rank_penalty` has to rank on), `work_id` and
+    `canonical_track_id` (what the song collapse groups on), and the agreed release date out
     of the grouped audio-features subquery. Rating is never a WHERE-clause
     filter on its own -- only `_pool_clause` turns it into one, and only for
     `loved`.
@@ -164,10 +194,10 @@ def candidates_query(
     stays the same, only the candidate set narrows to one artist or one label.
     """
     # Positional order follows the %s tokens left to right in the SQL text, not
-    # the order they are appended here: `heard`'s EXISTS lives in the SELECT
-    # list, textually ahead of the rating join, which is itself ahead of every
-    # WHERE param.
-    params: list = [username, username]
+    # the order they are appended here: the song-level `heard` and `rating` live
+    # in the SELECT list, textually ahead of the rating join, which is itself
+    # ahead of every WHERE param.
+    params: list = _select_params(username)
 
     where = [
         'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
@@ -209,11 +239,32 @@ def candidates_query(
         else:
             raise ValueError(f'unknown entity_filter dimension: {dimension!r}')
 
-    sql = f"""
+    return _candidate_select(' AND '.join(where)), params
+
+
+def _select_params(username: str) -> list:
+    """The parameters of `_candidate_select`'s own placeholders, in text order:
+    `_SONG_HEARD` (two), `_SONG_RATING` (two), the `r` join (one)."""
+    return [username] * 5
+
+
+def _candidate_select(where_sql: str) -> str:
+    """The candidate row shape, shared by `candidates_query` and `canonical_rows_query`.
+
+    One SELECT for both, because the canonical a work is collapsed onto has to be
+    scored on exactly the fields a candidate is: a second, hand-copied column list
+    would drift, and a canonical scored without its label would lose the label
+    bonus that is half the reason it is the canonical.
+
+    `work_id` and `canonical_track_id` are what `build._collapse_to_songs` groups
+    on; `heard` and `rating` are already song-level (see `_SONG_HEARD`,
+    `_SONG_RATING`), so every version of one work carries the same two values.
+    """
+    return f"""
         SELECT
             t.id, t.title, t.track_uid, a.name AS artist, t.duration_secs,
-            EXISTS (SELECT 1 FROM scrobble_listens sl
-                    WHERE sl.track_id = t.id AND sl.username = %s) AS heard,
+            t.work_id, w.canonical_track_id,
+            {_SONG_HEARD} AS heard,
             (SELECT l.name FROM library_labels l
              JOIN library_track_labels tl ON l.id = tl.label_id
              WHERE tl.track_id = t.id ORDER BY l.name LIMIT 1) AS label,
@@ -230,15 +281,34 @@ def candidates_query(
             EXISTS (SELECT 1 FROM library_track_channels ltc
                     JOIN channels c ON c.id = ltc.channel_id
                     WHERE ltc.track_id = t.id AND c.platform = 'soundcloud') AS is_soundcloud,
-            r.rating
+            {_SONG_RATING} AS rating
         FROM library_tracks t
+        LEFT JOIN library_works w ON w.id = t.work_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
         {_AUDIO_FEATURES_SUBQUERY}
         LEFT JOIN rating_tracks r
             ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
-        WHERE {' AND '.join(where)}
+        WHERE {where_sql}
     """
-    return sql, params
+
+
+def canonical_rows_query(username: str, track_ids: list[int]) -> tuple[str, list]:
+    """The canonical versions a feed collapses onto, in the candidate row shape.
+
+    A work's canonical is often not a candidate itself -- the official release can
+    fall outside a window its SoundCloud rip is inside, or sit on a different
+    duration side of a filter -- and the feed still has to play it (bug report 096:
+    the radar served a 140 kbps rip of a song whose official version was in the
+    library). None of the policy's filters apply here: the work already qualified
+    through the version that was a candidate. The one condition kept is that a file
+    exists, because a canonical without one cannot be played and the version that
+    qualified is then the better answer.
+    """
+    if not track_ids:
+        raise ValueError('canonical_rows_query needs at least one track id; skip the query instead')
+    placeholders = ', '.join(['%s'] * len(track_ids))
+    where = f'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id) AND t.id IN ({placeholders})'
+    return _candidate_select(where), _select_params(username) + list(track_ids)
 
 
 _DOMINANT_GENRE_QUERIES = {

@@ -138,6 +138,18 @@ namespace lms::feedback
         virtual void setRating(db::UserId userId, db::TrackId trackId, std::optional<db::Rating> rating) = 0;
         virtual std::optional<db::Rating> getRating(db::UserId userId, db::TrackId trackId) = 0;
 
+        //: What a list shows for a track: for the canonical of a work, the song's rating -- its
+        //: own when it has one, else the highest this user gave any other version -- and the
+        //: matching favourite moment; for every other track, its own rating. The song-versions
+        //: design's display roll-up: ratings stay stored per file, a list that shows one row per
+        //: song shows the song's.
+        struct SongRating
+        {
+            std::optional<db::Rating> rating;
+            Wt::WDateTime favoriteDateTime; // invalid unless the (rolled-up) rating is a favourite
+        };
+        virtual SongRating getSongRating(db::UserId userId, db::TrackId trackId) = 0;
+
         virtual void notifyPlaylistChanged(db::TrackListId playlistId) = 0;
     };
 

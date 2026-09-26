@@ -62,6 +62,12 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->find<RatedTrack>().where("track_id = ?").bind(trackId).where("user_id = ?").bind(userId));
     }
 
+    RatedTrack::pointer RatedTrack::findHighestInWork(Session& session, int workId, UserId userId)
+    {
+        session.checkReadTransaction();
+        return utils::fetchQuerySingleResult(session.getDboSession()->query<Wt::Dbo::ptr<RatedTrack>>("SELECT r_t FROM rated_track r_t JOIN track t ON t.id = r_t.track_id").where("t.work_id = ?").bind(workId).where("r_t.user_id = ?").bind(userId).orderBy("r_t.rating DESC, r_t.last_updated DESC").limit(1));
+    }
+
     void RatedTrack::find(Session& session, const FindParameters& params, std::function<void(const pointer&)> func)
     {
         session.checkReadTransaction();

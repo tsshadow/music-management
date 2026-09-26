@@ -952,6 +952,36 @@ class DecideGenreAtomicityTest(ManagementTestCase):
         invalidate.assert_not_called()
 
 
+class DecidePodcastMergeAtomicityTest(ManagementTestCase):
+    """A podcast merge keeps the name, moves the spellings and drops the row in one transaction."""
+
+    def merge(self):
+        self.cursor.fetchone.side_effect = [{'id': 1, 'name': 'DJ ISAAC - HARDSTYLE SESSIONS'}, {'id': 9}]
+        return self.client.post(
+            '/api/rules/podcasts/1/decide',
+            headers=self.headers,
+            json={'state': management_router.WHITE, 'merge_into_podcast_id': 9},
+        )
+
+    def test_the_alias_writes_and_the_row_delete_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.assertEqual(self.merge().json(), {'status': 'ok', 'merged_into': 9})
+        assert_atomic(
+            self,
+            log,
+            'INSERT IGNORE INTO rules_podcast_aliases',
+            'UPDATE rules_podcast_aliases',
+            'DELETE FROM rules_podcasts',
+        )
+
+    def test_a_failing_row_delete_rolls_the_moved_spellings_back(self):
+        """Without it the show stayed in the queue with its spellings already handed away."""
+        log = transaction_log(self.conn, self.cursor, fail_on='DELETE FROM rules_podcasts')
+        with self.assertRaises(RuntimeError):
+            self.merge()
+        assert_rolled_back(self, log)
+
+
 if __name__ == '__main__':
     unittest.main()
 

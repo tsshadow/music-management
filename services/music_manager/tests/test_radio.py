@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
 from services.music_manager.routers import radio as radio_router
+from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
 
 
 class RadioChannelsTest(unittest.TestCase):
@@ -532,6 +533,36 @@ class ChannelAdminTest(unittest.TestCase):
         statements = [c[0][0] for c in cursor.execute.call_args_list]
         self.assertTrue(any('DELETE FROM radio_timeline' in s for s in statements))
         self.assertTrue(any('DELETE FROM radio_channels' in s for s in statements))
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_delete_drops_the_timeline_and_the_channel_in_one_transaction(self, mock_get_db):
+        conn, cursor = self._conn([{'id': 7}])
+        mock_get_db.return_value = conn
+        log = transaction_log(conn, cursor)
+        response = self.client.delete('/api/radio/channels/qdance', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        assert_atomic(self, log, 'DELETE FROM radio_timeline', 'DELETE FROM radio_channels')
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_a_failing_channel_delete_rolls_the_timeline_delete_back(self, mock_get_db):
+        """Without the transaction the channel stayed on air with its history already gone."""
+        conn, cursor = self._conn([{'id': 7}])
+        mock_get_db.return_value = conn
+        log = transaction_log(conn, cursor, fail_on='DELETE FROM radio_channels')
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.delete('/api/radio/channels/qdance', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_deleting_an_unknown_channel_rolls_back_without_deleting(self, mock_get_db):
+        conn, cursor = self._conn([None])
+        mock_get_db.return_value = conn
+        log = transaction_log(conn, cursor)
+        response = self.client.delete('/api/radio/channels/nope', headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 404)
+        assert_rolled_back(self, log)
+        self.assertFalse(any('DELETE' in entry for entry in log))
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_preview_reports_matches_and_a_sample(self, mock_fetch):

@@ -139,7 +139,20 @@ object VoiceQuery {
     private val ARTICLE_WORDS = setOf("het", "de", "the", "een", "a", "an")
     private val LIVESET_WORDS = setOf("liveset", "livesets")
     private val DJSET_WORDS = setOf("djset", "djsets")
-    private val PODCAST_WORDS = setOf("podcast", "podcasts")
+
+    /**
+     * The podcast form, and the words for one instalment of a show: only a podcast has episodes,
+     * so "speel de laatste aflevering van KTRA af" asks for the podcast form as plainly as
+     * "speel de podcast KTRA af" does.
+     */
+    private val PODCAST_WORDS = setOf(
+        "podcast",
+        "podcasts",
+        "aflevering",
+        "afleveringen",
+        "episode",
+        "episodes"
+    )
 
     /** The set words that name no form on their own; "live" or "dj" in front of them does. */
     private val BARE_SET_WORDS = setOf("set", "sets")
@@ -373,8 +386,8 @@ object VoiceQuery {
     /**
      * The track forms the set words name, each once, in the order spoken.
      *
-     * "Livesets" and "live sets" ask for `liveset`, "djsets" and "dj sets" for `set`, "podcasts" for
-     * `podcast`. A bare "set" names none: a speaker says it of a festival recording as readily as
+     * "Livesets" and "live sets" ask for `liveset`, "djsets" and "dj sets" for `set`, "podcasts" and
+     * "aflevering" / "episode" for `podcast`. A bare "set" names none: a speaker says it of a festival recording as readily as
      * of a released mix, so it keeps asking for everything long, as it always has. Only values of
      * [TrackForm.FORMS] come out of here, because the server refuses anything else outright.
      */

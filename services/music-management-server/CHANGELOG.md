@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- **The `/muma` bridge accepts a Subsonic token triple (`u`/`t`/`s`).** Its routes took a key or a
+  `u`/`p` pair, so the web player's artist-image URLs (`/muma/api/artists/<name>/image?...`, an
+  `<img>` cannot send a header) had to carry the login password. `MumaResource` now checks
+  `md5(token + s) == t` against the user's Subsonic tokens exactly as `/rest` does, locally and in
+  constant time, with the identity taken from the token's user, never from `u`
+  (`AuthMethod::SubsonicToken`, a user caller like `Password`). Bug report 103.
 - **`updateUser` could crash the server for everyone.** `feedbackBackend` and `scrobblingBackend`
   were `static_cast` from any integer; the next rating or listen then ran
   `_backends[*backend]->...`, where `unordered_map::operator[]` inserted a null backend for the

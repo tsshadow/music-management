@@ -34,6 +34,7 @@ import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
+import nl.teunschriks.mumamobile.service.SubsonicTokenRefresher
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
@@ -342,6 +343,9 @@ class MumaSystemPlugin :
         Settings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
         Settings.mumaUserId.takeIf { it > 0 }?.let { result.put("mumaUserId", it) }
         call.resolve(result)
+        // Every shell start re-reads the Subsonic token, so an upgrade from a build that signed with
+        // the password, or a token an administrator replaced, is picked up (bug report 103).
+        if (server.password.isNotBlank()) SubsonicTokenRefresher.refreshInBackground()
     }
 
     /**
@@ -376,6 +380,9 @@ class MumaSystemPlugin :
         val password = call.getString("password") ?: ""
         activeServerProvider.saveCredentials(username, password)
         call.resolve()
+        // A new sign-in: fetch this account's Subsonic token so the native client stops signing
+        // with the password as soon as it arrives (bug report 103).
+        if (password.isNotBlank()) SubsonicTokenRefresher.refreshInBackground()
     }
 
     /** Step 3 of the back protocol. See the class comment. */

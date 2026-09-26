@@ -71,6 +71,10 @@ namespace lms::api::muma
     /// Checks a Subsonic username/password pair. The password arrives already decoded.
     using PasswordChecker = std::function<PasswordCheck(std::string_view user, std::string_view password)>;
 
+    /// Checks a Subsonic `u`/`t`/`s` triple: whether `token` is `md5(t + salt)` for one of the user's
+    /// Subsonic API tokens, exactly as `SubsonicResource::authenticateUser` checks it on `/rest`.
+    using TokenChecker = std::function<PasswordCheck(std::string_view user, std::string_view token, std::string_view salt)>;
+
     /// How the caller proved who they are.
     enum class AuthMethod : std::uint8_t
     {
@@ -80,6 +84,7 @@ namespace lms::api::muma
         MumaSystemKey, // a key MuMa verified as its system key
         MumaUserKey,   // a key MuMa verified as belonging to one of its users
         Password,      // Subsonic u/p, checked by the password service
+        SubsonicToken, // Subsonic u/t/s, checked against the user's Subsonic API tokens
     };
 
     /// Everything a request offers as credentials. Absent parameters are empty.
@@ -89,6 +94,8 @@ namespace lms::api::muma
         std::string_view paramKey;
         std::optional<std::string_view> user;
         std::optional<std::string_view> password;
+        std::optional<std::string_view> token; // Subsonic `t`: md5(Subsonic API token + salt)
+        std::optional<std::string_view> salt;  // Subsonic `s`
         bool isPublicPath{};
     };
 
@@ -114,7 +121,7 @@ namespace lms::api::muma
         /// configured system key is never placed here.
         std::string forwardKey;
 
-        /// Set for `Password`: the LMS user the password service granted.
+        /// Set for `Password` and `SubsonicToken`: the LMS user the credential belongs to.
         std::optional<long long> lmsUserId;
         /// Set for `MumaUserKey`: MuMa's user id, username and admin role from the verify answer.
         std::optional<long long> mumaUserId;
@@ -144,10 +151,12 @@ namespace lms::api::muma
     /// Decides whether a request is authenticated, and as whom.
     ///
     /// A key (header first, then the `apiKey` parameter) counts only if it is this server's own
-    /// `api-key` or MuMa confirms it. When it does not, a u/p pair is still tried, since each is
-    /// verified on its own; when neither holds, the answer is Unauthorized -- or BackendUnavailable
-    /// if what failed was the asking rather than the credential.
-    AuthDecision authenticate(const RequestCredentials& credentials, std::string_view lmsApiKey, const KeyVerifier& verifyWithMuma, const PasswordChecker& checkPassword);
+    /// `api-key` or MuMa confirms it. When it does not, a u/t/s triple (checked by `checkToken`,
+    /// no round trip to MuMa) or a u/p pair is still tried, since each is verified on its own;
+    /// when none holds, the answer is Unauthorized -- or BackendUnavailable if what failed was the
+    /// asking rather than the credential. The token form exists so a web page can sign an `<img>`
+    /// URL without putting the login password in it (bug report 103).
+    AuthDecision authenticate(const RequestCredentials& credentials, std::string_view lmsApiKey, const KeyVerifier& verifyWithMuma, const PasswordChecker& checkPassword, const TokenChecker& checkToken = {});
 
     /// Whether `pathInfo` is one of MuMa's credential-less auth entry points (setup, Google, the
     /// access request, and the username/password login). These reach MuMa through the generic

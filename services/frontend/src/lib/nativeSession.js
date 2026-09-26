@@ -1,6 +1,14 @@
 import { get } from "svelte/store";
 import { platform as defaultPlatform } from "./platform/index.js";
-import { credentials, currentTrack, mumaApiKey, mumaApiUrl, playerState } from "./store.js";
+import {
+  credentials,
+  currentTrack,
+  mumaApiKey,
+  mumaApiUrl,
+  playerState,
+  refreshSubsonicToken,
+  subsonicToken,
+} from "./store.js";
 import { subsonicJson } from "./subsonic.js";
 import { signIn } from "./login.js";
 import { startQueue } from "./queue.js";
@@ -89,6 +97,8 @@ export async function restoreSession(platform) {
 
   if (web.username === stored.username && web.password === stored.password) {
     if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
+    // A session from a build that signed with the password has no token yet (bug report 103).
+    if (get(subsonicToken).username !== web.username) await refreshSubsonicToken();
     return true;
   }
 

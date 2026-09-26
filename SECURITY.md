@@ -143,15 +143,20 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   the Subsonic client uses the system trust store. `network_security_config.xml`
   refuses cleartext except to `localhost` (the Capacitor WebView's own origin)
   and trusts user-installed CAs only in debuggable builds.
-* **The Subsonic password is still sent as `p=enc:<hex>`.** LMS accepts the
-  salted `t`/`s` form only for the per-user Subsonic token, not for the login
-  password the app holds, so switching would lock every account out. Open work
-  records the way out; until then the password is protected by TLS and by log
-  redaction, not by the encoding, which is reversible.
+* **Subsonic requests are signed with the Subsonic token, not the password.**
+  LMS checks the salted `t`/`s` form against the per-user Subsonic API token,
+  so the app (native client and web shell alike) fetches its own token from
+  `GET /api/auth/subsonic-token` and signs every `/rest` URL with
+  `t=md5(token + salt)&s=salt`. The password travels only in the MuMa login's
+  POST body. Until the first successful fetch -- an upgraded install, or a
+  server without the endpoint -- the old `p=` form is the fallback, over
+  verified TLS and redacted from every log (bug report 103). The browser web
+  player signs the same way.
 * **Logs are redacted before they leave the phone.** `LogRedaction` masks the
-  `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers and
-  credential-named settings in every ring-buffer line, which is what diagnostics
-  reports upload. The debug build's OkHttp logging redacts the same names.
+  `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers,
+  credential-named settings and credential-named JSON members in every
+  ring-buffer line, which is what diagnostics reports upload; the copy saved to
+  Downloads is redacted the same way. The debug build's OkHttp logging redacts the same names.
 * **Exported content providers serve only their own files.** The album-art
   provider must stay exported for Android Auto, the media notification and the
   widget, so it refuses any key that could resolve outside the art cache.

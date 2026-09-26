@@ -3,6 +3,7 @@ package nl.teunschriks.mumamobile.diagnostics
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldContain
+import org.amshove.kluent.shouldNotContain
 import org.junit.Test
 
 class CrashReportManagerTest {
@@ -123,5 +124,21 @@ class CrashReportManagerTest {
         )
 
         report.ringBufferText shouldBeEqualTo "only this session"
+    }
+
+    /** The copy saved to Downloads used to be written unredacted (bug report 103). */
+    @Test
+    fun `the exported report text has its credentials masked`() {
+        val report = CrashReportManager.PendingCrashReport(
+            stacktraceText = "IOException: GET https://x/rest/stream.view?u=user&t=abc123&s=salt9 failed",
+            ringBufferText = "web: auth.token {\"token\":\"s3cr3t\"}"
+        )
+
+        val text = report.toRedactedReportText()
+
+        text shouldNotContain "abc123"
+        text shouldNotContain "salt9"
+        text shouldNotContain "s3cr3t"
+        text shouldContain "--- Ring buffer log ---"
     }
 }

@@ -63,6 +63,14 @@ object CrashReportManager {
             }
             append(ringBufferText)
         }
+
+        /**
+         * [toReportText] with every credential [LogRedaction] recognises masked. The copy written
+         * to the public Downloads folder goes through this, the same as the upload: the web UI's
+         * action trail joins the ring buffer unredacted, and a crash text can quote a request URL
+         * (bug report 103).
+         */
+        fun toRedactedReportText(): String = LogRedaction.redact(toReportText())
     }
 
     /** What the previous process left behind, before this session overwrites any of it. */
@@ -207,7 +215,7 @@ object CrashReportManager {
             }
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
             resolver.openOutputStream(uri)?.use { out ->
-                out.write((buildMetadataHeader() + report.toReportText()).toByteArray())
+                out.write((buildMetadataHeader() + report.toRedactedReportText()).toByteArray())
             }
             true
         } catch (all: Throwable) {

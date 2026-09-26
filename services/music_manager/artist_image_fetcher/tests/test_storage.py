@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -129,69 +129,71 @@ class ImageDownloaderTest(unittest.TestCase):
         patcher = patch.object(storage.time, 'sleep')
         self.sleep = patcher.start()
         self.addCleanup(patcher.stop)
+        fetch_patcher = patch.object(storage.safe_fetch, 'fetch')
+        self.fetch = fetch_patcher.start()
+        self.addCleanup(fetch_patcher.stop)
 
     # Three attempts back to back all land inside the same CDN hiccup.
     def test_the_attempts_are_spaced_out_with_a_growing_pause(self):
         downloader = storage.ImageDownloader(retries=3, backoff=0.5)
-        with patch.object(storage, 'requests') as http:
-            http.get.side_effect = RuntimeError('boom')
-            with self.assertRaises(RuntimeError):
-                downloader.download('https://img.test/a.jpg')
+        self.fetch.side_effect = RuntimeError('boom')
+        with self.assertRaises(RuntimeError):
+            downloader.download('https://img.test/a.jpg')
         self.assertEqual([c.args[0] for c in self.sleep.call_args_list], [0.5, 1.0])
 
     def test_a_first_attempt_that_succeeds_does_not_wait(self):
-        with patch.object(storage, 'requests') as http:
-            http.get.return_value = MagicMock(content=b'binary')
-            storage.ImageDownloader().download('https://img.test/a.jpg')
+        self.fetch.return_value = b'binary'
+        storage.ImageDownloader().download('https://img.test/a.jpg')
         self.sleep.assert_not_called()
 
     def test_the_body_of_a_successful_response_is_returned(self):
-        downloader = storage.ImageDownloader()
-        with patch.object(storage, 'requests') as http:
-            http.get.return_value = MagicMock(content=b'binary')
-            self.assertEqual(downloader.download('https://img.test/a.jpg'), b'binary')
-        self.assertEqual(http.get.call_count, 1)
+        self.fetch.return_value = b'binary'
+        self.assertEqual(storage.ImageDownloader().download('https://img.test/a.jpg'), b'binary')
+        self.assertEqual(self.fetch.call_count, 1)
 
     def test_a_failing_download_is_retried_up_to_the_configured_limit(self):
-        downloader = storage.ImageDownloader(retries=3)
-        with patch.object(storage, 'requests') as http:
-            http.get.side_effect = RuntimeError('boom')
-            with self.assertRaises(RuntimeError):
-                downloader.download('https://img.test/a.jpg')
-        self.assertEqual(http.get.call_count, 3)
+        self.fetch.side_effect = RuntimeError('boom')
+        with self.assertRaises(RuntimeError):
+            storage.ImageDownloader(retries=3).download('https://img.test/a.jpg')
+        self.assertEqual(self.fetch.call_count, 3)
 
     def test_a_retry_that_finally_succeeds_returns_the_body(self):
-        downloader = storage.ImageDownloader(retries=3)
-        with patch.object(storage, 'requests') as http:
-            http.get.side_effect = [RuntimeError('boom'), MagicMock(content=b'ok')]
-            self.assertEqual(downloader.download('https://img.test/a.jpg'), b'ok')
-        self.assertEqual(http.get.call_count, 2)
+        self.fetch.side_effect = [RuntimeError('boom'), b'ok']
+        self.assertEqual(storage.ImageDownloader(retries=3).download('https://img.test/a.jpg'), b'ok')
+        self.assertEqual(self.fetch.call_count, 2)
 
     def test_an_error_status_counts_as_a_failure(self):
-        downloader = storage.ImageDownloader(retries=1)
-        response = MagicMock()
-        response.raise_for_status.side_effect = RuntimeError('404')
-        with patch.object(storage, 'requests') as http:
-            http.get.return_value = response
-            with self.assertRaises(RuntimeError):
-                downloader.download('https://img.test/a.jpg')
+        self.fetch.side_effect = storage.safe_fetch.FetchFailed(404, 'https://img.test/a.jpg')
+        with self.assertRaises(storage.safe_fetch.FetchFailed):
+            storage.ImageDownloader(retries=1).download('https://img.test/a.jpg')
+
+    # A provider answer naming an internal address is refused once, not three times.
+    def test_a_non_public_url_is_refused_without_a_retry(self):
+        self.fetch.side_effect = storage.safe_fetch.UnsafeUrl('URL points at a non-public address')
+        with self.assertRaises(storage.safe_fetch.UnsafeUrl):
+            storage.ImageDownloader(retries=3).download('http://internal.example/a.jpg')
+        self.assertEqual(self.fetch.call_count, 1)
+        self.sleep.assert_not_called()
+
+    def test_an_oversized_image_is_refused_without_a_retry(self):
+        self.fetch.side_effect = storage.safe_fetch.ResponseTooLarge('too big')
+        with self.assertRaises(storage.safe_fetch.ResponseTooLarge):
+            storage.ImageDownloader(retries=3).download('https://img.test/a.jpg')
+        self.assertEqual(self.fetch.call_count, 1)
 
     # Each attempt is one artist's; a WARNING per retry was a push on the phone.
     def test_a_failed_attempt_is_logged_at_info_only(self):
-        downloader = storage.ImageDownloader(retries=2)
-        with patch.object(storage, 'requests') as http:
-            http.get.side_effect = RuntimeError('boom')
-            with self.assertLogs(storage.__name__, level='INFO') as logs:
-                with self.assertRaises(RuntimeError):
-                    downloader.download('https://img.test/a.jpg')
+        self.fetch.side_effect = RuntimeError('boom')
+        with self.assertLogs(storage.__name__, level='INFO') as logs:
+            with self.assertRaises(RuntimeError):
+                storage.ImageDownloader(retries=2).download('https://img.test/a.jpg')
         self.assertEqual([r.levelname for r in logs.records], ['INFO', 'INFO'])
 
-    def test_the_configured_timeout_is_passed_on(self):
-        downloader = storage.ImageDownloader(timeout=42)
-        with patch.object(storage, 'requests') as http:
-            http.get.return_value = MagicMock(content=b'x')
-            downloader.download('https://img.test/a.jpg')
-        self.assertEqual(http.get.call_args.kwargs['timeout'], 42)
+    def test_the_configured_timeout_and_size_cap_are_passed_on(self):
+        self.fetch.return_value = b'x'
+        storage.ImageDownloader(timeout=42).download('https://img.test/a.jpg')
+        self.assertEqual(self.fetch.call_args.kwargs['timeout'], 42)
+        self.assertEqual(self.fetch.call_args.kwargs['max_bytes'], 10 * 1024 * 1024)
 
 
 if __name__ == '__main__':

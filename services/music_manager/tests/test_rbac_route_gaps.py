@@ -7,6 +7,7 @@ pass does, and the system key keeps working for LMS, CI and scripts/.
 
 import threading
 import unittest
+from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,7 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 
 import bcrypt
+import urllib3
 
 import services.music_manager.routers.users as users_router
 from services.music_manager.api_key import resolve_system_api_key
@@ -24,6 +26,7 @@ users_router.run_lms_db_sync = lambda: None
 from fastapi.testclient import TestClient
 
 from services.music_manager import rbac
+from services.music_manager.artist_image_fetcher import safe_fetch
 from services.music_manager.main import app
 from services.music_manager.routers import artist_images as artist_images_router
 from services.music_manager.routers import channel_links as channel_links_router
@@ -249,11 +252,17 @@ def resolving_to(*addresses):
     return MagicMock(return_value=[(2, 1, 6, '', (address, 0)) for address in addresses])
 
 
+def ensure_public_url(url):
+    """The address check the image URL route applies to every hop, without the fetch."""
+    _scheme, host, port, _target = safe_fetch.split_url(url)
+    safe_fetch.resolve_public(host, port)
+
+
 class EnsurePublicUrlTest(unittest.TestCase):
     def test_non_http_schemes_are_refused(self):
         for url in ('file:///etc/passwd', 'ftp://example.com/a.jpg', 'gopher://example.com', 'http://'):
             with self.assertRaises(artist_images_router.UnsafeImageUrl, msg=url):
-                artist_images_router.ensure_public_url(url)
+                ensure_public_url(url)
 
     def test_private_loopback_and_link_local_addresses_are_refused(self):
         for address in (
@@ -271,52 +280,64 @@ class EnsurePublicUrlTest(unittest.TestCase):
             '224.0.0.1',
         ):
             with (
-                patch.object(artist_images_router.socket, 'getaddrinfo', resolving_to(address)),
+                patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to(address)),
                 self.assertRaises(artist_images_router.UnsafeImageUrl, msg=address),
             ):
-                artist_images_router.ensure_public_url('http://images.example/a.jpg')
+                ensure_public_url('http://images.example/a.jpg')
 
     def test_one_private_address_among_public_ones_is_enough_to_refuse(self):
         with (
-            patch.object(artist_images_router.socket, 'getaddrinfo', resolving_to('93.184.216.34', '10.0.0.1')),
+            patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to('93.184.216.34', '10.0.0.1')),
             self.assertRaises(artist_images_router.UnsafeImageUrl),
         ):
-            artist_images_router.ensure_public_url('https://images.example/a.jpg')
+            ensure_public_url('https://images.example/a.jpg')
 
     def test_an_unresolvable_host_is_refused(self):
         with (
-            patch.object(artist_images_router.socket, 'getaddrinfo', side_effect=OSError('no such host')),
+            patch.object(safe_fetch.socket, 'getaddrinfo', side_effect=OSError('no such host')),
             self.assertRaises(artist_images_router.UnsafeImageUrl),
         ):
-            artist_images_router.ensure_public_url('https://nowhere.example/a.jpg')
+            ensure_public_url('https://nowhere.example/a.jpg')
 
     def test_a_public_address_passes(self):
-        with patch.object(artist_images_router.socket, 'getaddrinfo', resolving_to('93.184.216.34')):
-            artist_images_router.ensure_public_url('https://images.example/a.jpg')
+        with patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to('93.184.216.34')):
+            ensure_public_url('https://images.example/a.jpg')
 
 
-def fake_response(status=200, headers=None, chunks=(b'img',), redirect=False):
-    """A streamed requests response usable as a context manager."""
-    response = MagicMock()
-    response.__enter__.return_value = response
-    response.__exit__.return_value = False
-    response.status_code = status
-    response.is_redirect = redirect
-    response.headers = headers or {}
-    response.iter_content.return_value = list(chunks)
-    return response
+def fake_response(status=200, headers=None, body=b'img'):
+    """A streamed urllib3 response, as the pinned connection pool returns it."""
+    return urllib3.HTTPResponse(body=BytesIO(body), headers=headers or {}, status=status, preload_content=False)
+
+
+def pinned_pool(*responses):
+    """A safe_fetch._pool stand-in whose pools answer with `responses` in turn."""
+    replies = list(responses)
+    pools = []
+
+    def make(scheme, host, address, port, timeout):
+        pool = MagicMock()
+        pool.args = (scheme, host, address, port, timeout)
+        pool.urlopen.return_value = replies.pop(0)
+        pools.append(pool)
+        return pool
+
+    return MagicMock(side_effect=make), pools
 
 
 class DownloadPublicImageTest(unittest.TestCase):
+    """The route's download goes through safe_fetch; the deep cases live in test_safe_fetch."""
+
     def setUp(self):
-        patcher = patch.object(artist_images_router.socket, 'getaddrinfo', resolving_to('93.184.216.34'))
+        patcher = patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to('93.184.216.34'))
         self.getaddrinfo = patcher.start()
         self.addCleanup(patcher.stop)
 
-    def test_the_body_is_returned(self):
-        with patch.object(artist_images_router.requests, 'get', return_value=fake_response()) as get:
+    def test_the_body_is_returned_through_the_checked_address(self):
+        factory, pools = pinned_pool(fake_response())
+        with patch.object(safe_fetch, '_pool', factory):
             self.assertEqual(artist_images_router.download_public_image('https://images.example/a.jpg'), b'img')
-        self.assertFalse(get.call_args.kwargs['allow_redirects'])
+        self.assertEqual(pools[0].args[2], '93.184.216.34')
+        self.assertFalse(pools[0].urlopen.call_args.kwargs['redirect'])
 
     def test_a_redirect_to_a_private_address_is_refused(self):
         def resolve(host, *_args, **_kwargs):
@@ -324,29 +345,21 @@ class DownloadPublicImageTest(unittest.TestCase):
             return [(2, 1, 6, '', (address, 0))]
 
         self.getaddrinfo.side_effect = resolve
-        redirect = fake_response(status=302, headers={'Location': 'http://internal.example/admin'}, redirect=True)
-        with (
-            patch.object(artist_images_router.requests, 'get', return_value=redirect) as get,
-            self.assertRaises(artist_images_router.UnsafeImageUrl),
-        ):
+        factory, pools = pinned_pool(fake_response(status=302, headers={'Location': 'http://internal.example/admin'}))
+        with patch.object(safe_fetch, '_pool', factory), self.assertRaises(artist_images_router.UnsafeImageUrl):
             artist_images_router.download_public_image('https://images.example/a.jpg')
-        self.assertEqual(get.call_count, 1)
+        self.assertEqual(len(pools), 1)
 
     def test_a_declared_oversized_body_is_refused(self):
         big = fake_response(headers={'Content-Length': str(artist_images_router.MAX_IMAGE_BYTES + 1)})
-        with (
-            patch.object(artist_images_router.requests, 'get', return_value=big),
-            self.assertRaises(artist_images_router.ImageTooLarge),
-        ):
+        factory, _pools = pinned_pool(big)
+        with patch.object(safe_fetch, '_pool', factory), self.assertRaises(artist_images_router.ImageTooLarge):
             artist_images_router.download_public_image('https://images.example/a.jpg')
 
     def test_an_undeclared_oversized_body_is_cut_off(self):
-        chunk = b'x' * (1024 * 1024)
-        endless = fake_response(chunks=[chunk] * 11)
-        with (
-            patch.object(artist_images_router.requests, 'get', return_value=endless),
-            self.assertRaises(artist_images_router.ImageTooLarge),
-        ):
+        endless = fake_response(body=b'x' * (artist_images_router.MAX_IMAGE_BYTES + 1))
+        factory, _pools = pinned_pool(endless)
+        with patch.object(safe_fetch, '_pool', factory), self.assertRaises(artist_images_router.ImageTooLarge):
             artist_images_router.download_public_image('https://images.example/a.jpg')
 
 
@@ -354,8 +367,8 @@ class ImageUrlRouteTest(unittest.TestCase):
     def test_a_url_resolving_to_a_private_address_is_refused_without_a_request(self):
         client = TestClient(app)
         with (
-            patch.object(artist_images_router.socket, 'getaddrinfo', resolving_to('192.0.2.27')),
-            patch.object(artist_images_router.requests, 'get') as get,
+            patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to('192.0.2.27')),
+            patch.object(safe_fetch, '_pool') as pool,
         ):
             response = client.post(
                 '/api/artists/1/image/url',
@@ -363,7 +376,29 @@ class ImageUrlRouteTest(unittest.TestCase):
                 headers={'x-api-key': SYSTEM_KEY},
             )
         self.assertEqual(response.status_code, 400)
-        get.assert_not_called()
+        pool.assert_not_called()
+
+    def test_a_rebinding_answer_never_reaches_the_connection(self):
+        """Public for the one lookup, internal for a second: the second is never asked."""
+        client = TestClient(app)
+        factory, pools = pinned_pool(fake_response(body=b'binary'))
+        with (
+            patch.object(
+                safe_fetch.socket,
+                'getaddrinfo',
+                side_effect=[[(2, 1, 6, '', ('93.184.216.34', 0))], [(2, 1, 6, '', ('127.0.0.1', 0))]],
+            ) as getaddrinfo,
+            patch.object(safe_fetch, '_pool', factory),
+            patch.object(artist_images_router, '_store_manual_image', return_value={'status': 'ok'}),
+        ):
+            response = client.post(
+                '/api/artists/1/image/url',
+                json={'url': 'https://rebind.example/a.jpg'},
+                headers={'x-api-key': SYSTEM_KEY},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(getaddrinfo.call_count, 1)
+        self.assertEqual(pools[0].args[2], '93.184.216.34')
 
 
 class UsersListTest(RouteAuthTestCase):

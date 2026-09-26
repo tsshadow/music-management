@@ -6,8 +6,9 @@ import shutil
 import time
 from io import BytesIO
 
-import requests
 from PIL import Image
+
+from . import safe_fetch
 
 #: The sizes `_generate_thumbnails` writes, per image and as the stable `thumb_<size>.jpg`.
 THUMBNAIL_SIZES = (64, 160, 300, 640)
@@ -127,23 +128,30 @@ class ImageStorage:
 
 
 class ImageDownloader:
-    """Downloads image bytes, retrying a failed attempt after a short, growing pause."""
+    """Downloads image bytes, retrying a failed attempt after a short, growing pause.
 
-    def __init__(self, timeout=10, retries=3, backoff=1.0):
+    The URL comes from a provider's API answer, so it is fetched through safe_fetch: an
+    address that is not public is refused (and not retried), and a response is capped at
+    ten megabytes, the same limits as the manual "image from URL" route.
+    """
+
+    def __init__(self, timeout=10, retries=3, backoff=1.0, max_bytes=safe_fetch.DEFAULT_MAX_BYTES):
         self.timeout = timeout
         self.retries = retries
         # Seconds before the second attempt; doubled for each one after. Three attempts
         # back to back all land inside the same CDN hiccup.
         self.backoff = backoff
+        self.max_bytes = max_bytes
         self.logger = logging.getLogger(__name__)
 
     def download(self, url):
         """Return the body at `url`; raise the last error once every attempt failed."""
         for i in range(self.retries):
             try:
-                response = requests.get(url, timeout=self.timeout)
-                response.raise_for_status()
-                return response.content
+                return safe_fetch.fetch(url, timeout=self.timeout, max_bytes=self.max_bytes)
+            except (safe_fetch.UnsafeUrl, safe_fetch.ResponseTooLarge):
+                # Asking again gets the same answer.
+                raise
             except Exception as e:
                 # INFO: one attempt for one artist. The final failure is raised to the
                 # fetcher, which counts it into the run summary.

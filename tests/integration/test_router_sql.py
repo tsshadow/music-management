@@ -806,12 +806,52 @@ class LibraryReadsTest:
         first = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
         second = track_form_sync.classify_library(db, '/mnt/music', festivals, podcasts)
 
-        assert first == {'considered': 2, 'written': 2}
-        assert second == {'considered': 2, 'written': 0}
+        assert first == {'considered': 2, 'written': 2, 'unclassified_no_file': 0, 'unclassified_no_length': 0}
+        assert second == {'considered': 2, 'written': 0, 'unclassified_no_file': 0, 'unclassified_no_length': 0}
         with db.cursor() as cursor:
             cursor.execute('SELECT id, form, performance_date FROM library_tracks ORDER BY id')
             rows = {row['id']: (row['form'], row['performance_date']) for row in cursor.fetchall()}
         assert rows == {a_track: ('track', None), live: ('liveset', '2012-06-23')}
+
+    def test_the_form_push_converges_when_two_media_rows_name_one_file(self, db):
+        """Bug report 093: a stale media row (hash no longer its path's) on a length-less stub
+        must not overwrite the form the scanner's own row pushes -- run twice, write once."""
+        import sqlite3
+
+        from services.music_manager import track_form_sync
+
+        path = '/mnt/music/EPs/Label/CAT1/01.mp3'
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES ('uid-real', 'Real', 200, 'track')"
+            )
+            real = cursor.lastrowid
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-stub', '01')")
+            stub = cursor.lastrowid
+            # The stale row is inserted last, so it has the higher id: only the hash says who wins.
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
+                (path, hashlib.sha256(path.encode()).hexdigest(), real),
+            )
+            cursor.execute(
+                "INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, 'stale', %s)",
+                (path, stub),
+            )
+        server = sqlite3.connect(':memory:')
+        server.execute(
+            "CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT,"
+            " form TEXT NOT NULL DEFAULT '', performance_date TEXT NOT NULL DEFAULT '')"
+        )
+        server.execute("INSERT INTO track (absolute_file_path) VALUES ('/music/EPs/Label/CAT1/01.mp3')")
+        server.commit()
+
+        first = track_form_sync.push_forms_to_server(db, server, 'test')
+        second = track_form_sync.push_forms_to_server(db, server, 'test')
+
+        assert (first['matched'], first['duplicates_skipped']) == (1, 1)
+        assert (second['matched'], second['duplicates_skipped']) == (0, 1)
+        assert server.execute('SELECT form FROM track').fetchone() == ('track',)
+        server.close()
 
     def test_rerunning_a_parse_for_an_unknown_track_is_a_not_found(self, api, headers, db):
         assert api.post('/api/library/tracks/999/rerun-parse', headers=headers).status_code == 404

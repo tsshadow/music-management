@@ -318,8 +318,25 @@ class ProcessFileTest(unittest.TestCase):
         return [call.args[0] for call in self.cursor.execute.call_args_list]
 
     def test_an_unchanged_file_is_skipped(self):
-        self.cursor.fetchone.return_value = {'id': 1, 'file_mtime': 100.0, 'file_size': 1024}
+        self.cursor.fetchone.return_value = {'id': 1, 'file_mtime': 100.0, 'file_size': 1024, 'duration_secs': 300.0}
         self.assertFalse(self.manager.process_file(self.conn, '/music/a.mp3'))
+
+    def test_an_unchanged_file_without_a_length_is_read_again(self):
+        # Bug report 093: a row stored without a length never got one, so its track stayed
+        # unclassified. An unchanged mtime and size must not keep such a row on the fast path.
+        self.cursor.fetchone.side_effect = [
+            {'id': 1, 'file_mtime': 100.0, 'file_size': 1024, 'duration_secs': None, 'track_id': 5},
+            {'id': 3},
+            {'id': 4},
+            {'id': 5},
+        ]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=self.song()),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.assertTrue(self.manager.process_file(self.conn, '/music/a.mp3'))
+        media_write = next(c for c in self.cursor.execute.call_args_list if 'INTO library_media_files' in c.args[0])
+        self.assertIn(300, media_write.args[1])
 
     def test_force_reprocesses_an_unchanged_file(self):
         self.cursor.fetchone.side_effect = [

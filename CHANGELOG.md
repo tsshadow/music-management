@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-09-26
+
+### Added
+- **Setting `prefer_lossless` (Beheer → Configuratie, "Song versions").** On by default: FLAC plays
+  before MP3. Off: MP3 320 first, for when storage or bandwidth matters more. Changing it re-ranks
+  every song within the hour, and the file LMS shows follows the same order.
+- **Beheer → Curatie → Versies.** Every song with more than one version, searchable and sortable by
+  number of versions or by recent change, with each version's source, format, bitrate, kind, path,
+  rating and plays and which one plays. Pick another version as best, reset to automatic, or accept
+  a choice the re-ranking changed; songs whose choice changed are flagged.
+
+### Changed
+- **Which version of a song plays is now decided by format first, then by the kind of edit.**
+  The old order put "official release" first, and a release still waiting in `EPs/__TODO` has no
+  label yet, so it counted as unofficial and lost to a SoundCloud or YouTube rip (549 songs on
+  production, e.g. Hysta & RDØ – TOGETHER; 1,428 picked a worse format than a sibling). The new
+  order: lossless over MP3 (or MP3 320 first when `prefer_lossless` is off), then pro edit > radio
+  edit > edit > original > no marker > extended > instrumental > music video, then bitrate, then
+  official release (anything under the label tree, including the import queue, counts), then the
+  oldest. A pin still wins. Every song is re-ranked once after the deploy; the log says how many
+  choices changed before it changes them (about 2,700 of 32,000 multi-version songs by a SQL
+  estimate). Pinning a version now needs the `rules.manage` permission.
+
+### Fixed
+- **Three backend loop tests no longer fail at random and block releases.** The tests ended a
+  loop by patching `time.sleep` with a finite `side_effect` list. The event writer thread paused
+  between database retries with that same process-wide function, so a retry that landed inside
+  the test used up its items and it died on `StopIteration`. The writer now pauses on an event of
+  its own. `run_forever` and the tagger, scanner, events-retention, lms-db-sync and artist-image
+  loops take a `stop` event, and the tests end them through it after an exact number of rounds.
+  In unit tests the process-wide event service writes to memory, never to a database. Bug report
+  099.
+
+- **Versions of one song now meet, and a misparsed upload series no longer hides behind one
+  song.** The grouping key strips "(Official Audio)", "(Official Music Video)", "(Pro Mix)",
+  "(Pro Edit)" and "Visualizer" markers, a trailing " - Official ..." dash suffix ("Lost On You -
+  Official Hardcore Visualizer") and a bare "official video" tail, and reads genre words only inside
+  an official upload marker, so "(Official Hardcore Visualizer)" goes and "(Hardcore Mix)" stays
+  its own song. Any unknown word still keeps a suffix, so remixes, VIPs, bootlegs and named edits
+  stay apart. A collaboration ("CHEEVA & D-sire") groups on its first artist when the title matches
+  exactly, and an artist field holding only a kind phrase ("Official Preview") counts as no artist.
+  A work with more than 12 different lengths -- production's `q dance:::next` held 88 different
+  songs -- is split automatically, each track locked in a work of its own; smaller suspicious works
+  are listed by `scripts/repair_song_works.py --report` for review in the Versies page. The repair
+  script now counts in its dry run how many tracks move and where, and leaves a work's pinned
+  version where it is. Existing tracks move only when `scripts/prod/person/regroup-song-works.sh`
+  is run. Bug report 098.
 ## [0.75.2] - 2026-09-26
 
 ### Fixed

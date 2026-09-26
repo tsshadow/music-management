@@ -45,6 +45,19 @@ class IsCapturedTest(unittest.TestCase):
     def test_third_party_captured_from_warning(self):
         self.assertTrue(is_captured('uvicorn.access', logging.ERROR))
 
+    def test_module_named_loggers_are_captured_from_info(self):
+        # Bug report 105: getLogger(__name__) gives 'services.music_manager.<module>', and the
+        # hourly song-version sync / track-form push summaries never reached the event log.
+        self.assertTrue(is_captured('services.music_manager.song_version_sync', logging.INFO))
+        self.assertTrue(is_captured('services.music_manager.feeds.snapshot', logging.INFO))
+        self.assertFalse(is_captured('services.music_manager_extra', logging.INFO))
+
+    def test_the_artist_image_fetcher_stays_at_warning(self):
+        # It logs several INFO lines per artist; the event log would drown in them.
+        name = 'services.music_manager.artist_image_fetcher.fetcher'
+        self.assertFalse(is_captured(name, logging.INFO))
+        self.assertTrue(is_captured(name, logging.WARNING))
+
 
 class LevelNameTest(unittest.TestCase):
     def test_maps_python_levels_to_event_levels(self):

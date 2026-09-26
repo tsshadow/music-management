@@ -10,13 +10,49 @@ from dataclasses import dataclass, replace
 
 from services.music_manager.feeds.hardness import DEFAULT_BAND_EDGES
 
+#: How many tracks a feed holds when the `feeds_size` setting says nothing usable.
+#: 100 since docs/designs/feed-length/: 30 was under two hours, and a live build of
+#: 100 costs the same as one of 30 (the profile and candidate queries dominate).
+DEFAULT_FEED_SIZE = 100
+
+#: The range `feeds_size` accepts. The floor keeps a typo from emptying every feed;
+#: the ceiling keeps a nightly refresh and a response bounded (LMS resolves at most
+#: 100 paths per getSongsByPath call, so the clients resolve in chunks of 100).
+MIN_FEED_SIZE = 10
+MAX_FEED_SIZE = 200
+
+#: The runtime setting (services/common/config_store.py, group `Feeds`) holding the
+#: number of tracks every feed is built with -- the first page of a feed.
+FEED_SIZE_SETTING = 'feeds_size'
+
+
+def parse_feed_size(raw) -> int:
+    """The configured feed length, or `DEFAULT_FEED_SIZE` for anything unusable.
+
+    Unusable is None, empty, not a whole number, or outside
+    `MIN_FEED_SIZE`..`MAX_FEED_SIZE` -- garbage falls back rather than raising,
+    the same contract as `parse_hardness_edges`, because a feed that fails to build
+    over a mistyped setting is worse than one at the default length.
+    """
+    if raw is None or isinstance(raw, bool):
+        return DEFAULT_FEED_SIZE
+    try:
+        size = int(str(raw).strip())
+    except ValueError:
+        return DEFAULT_FEED_SIZE
+    if MIN_FEED_SIZE <= size <= MAX_FEED_SIZE:
+        return size
+    return DEFAULT_FEED_SIZE
+
 
 @dataclass(frozen=True)
 class FeedPolicy:
     """The knobs of one feed: its size, time windows and scoring weights."""
 
     slug: str
-    size: int = 30
+    # The code default; the router replaces it per request with the `feeds_size`
+    # setting (`parse_feed_size`), so a tuned length never needs a release.
+    size: int = DEFAULT_FEED_SIZE
     profile_window_days: int = 90
     # None means "no release-date requirement at all".
     release_window_days: int | None = 7
@@ -41,6 +77,22 @@ class FeedPolicy:
     # than build.MIN_ROTATION_CANDIDATES playable songs -- see
     # scoring.pick_playable_entity and build._ranked_names.
     rotate: str | None = None
+
+
+def resize(policy: FeedPolicy, size: int) -> FeedPolicy:
+    """`policy` with `size` places -- the one way anything changes a feed's length.
+
+    A policy whose per-artist cap equals its size is uncapped by construction (the
+    artist mix: every candidate shares one artist, bug report 110), so its cap moves
+    with the size; a length of 150 must not leave it capped at the code default.
+    Every other cap is a fixed number of tracks per artist and stays as it is. The
+    `feeds_size` setting and a continuation's bigger build both go through here.
+    """
+    if policy.size == size:
+        return policy
+    if policy.max_per_artist >= policy.size:
+        return replace(policy, size=size, max_per_artist=size)
+    return replace(policy, size=size)
 
 
 #: The runtime setting (services/common/config_store.py, group `Feeds`) holding

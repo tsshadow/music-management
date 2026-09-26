@@ -8,7 +8,6 @@ Contract", for the binding shape of every response below.
 """
 
 import hashlib
-from dataclasses import replace
 from datetime import datetime
 from typing import Literal
 
@@ -25,11 +24,14 @@ from services.music_manager.feeds.build import (
     resolve_profile,
 )
 from services.music_manager.feeds.policy import (
+    FEED_SIZE_SETTING,
     HARDNESS_EDGES_SETTING,
     POLICIES,
     STARTING_GENRES_SETTING,
+    parse_feed_size,
     parse_hardness_edges,
     parse_starting_genres,
+    resize,
 )
 from services.music_manager.feeds.queries import exclusions_query, genre_hardness_digest_query
 from services.music_manager.feeds.snapshot import (
@@ -37,6 +39,9 @@ from services.music_manager.feeds.snapshot import (
 )
 from services.music_manager.feeds.snapshot import (
     delete_user as delete_user_snapshots,
+)
+from services.music_manager.feeds.snapshot import (
+    extend as extend_snapshot,
 )
 from services.music_manager.feeds.snapshot import (
     serve as serve_snapshot,
@@ -126,6 +131,22 @@ def _hardness_edges() -> tuple[tuple[float, float], str]:
     return parse_hardness_edges(settings.get(HARDNESS_EDGES_SETTING))
 
 
+def _feed_size() -> int:
+    """The configured feed length (`feeds_size`), or the default for anything unusable."""
+    return parse_feed_size(settings.get(FEED_SIZE_SETTING))
+
+
+def _sized(policy):
+    """`policy` at the configured length -- every build goes through this, so the
+    setting and not `FeedPolicy.size` decides how long a feed is."""
+    return resize(policy, _feed_size())
+
+
+#: The longest a feed's stored list grows to through continuations in one day:
+#: five pages at the default length, at most four extra builds per feed per day.
+MAX_FEED_LENGTH = 500
+
+
 #: The snapshot slugs whose body depends on the curated per-genre hardness: the three
 #: spectrum mixes, and the listing, whose subtitles describe them.
 _HARDNESS_SLUGS = frozenset({LIST_SLUG, *(slug for slug, policy in POLICIES.items() if policy.hardness_band)})
@@ -156,7 +177,7 @@ def params_key(conn, username: str, slug: str) -> str:
     edges, edges_source = _hardness_edges()
     exclusions = sorted((row['entity_type'], row['entity_name']) for row in _exclusion_rows(conn, username))
     hardness = _genre_hardness_digest(conn) if slug in _HARDNESS_SLUGS else None
-    material = repr((sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness))
+    material = repr((sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness, _feed_size()))
     return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
 
 
@@ -168,6 +189,9 @@ def _track_view(track: dict) -> dict:
     view['library_path'] = relative_path(track.get('file_path'))
     view['bucket'] = track.get('bucket')
     view['reason'] = track.get('reason')
+    # The song this track stands for (None for an ungrouped track): what a continuation
+    # compares against, so "Meer laden" never repeats a song under another version's id.
+    view['work_id'] = track.get('work_id')
     return view
 
 
@@ -226,6 +250,7 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
     """
     starting_genres = _starting_genres()
     edges, edges_source = _hardness_edges()
+    size = _feed_size()
     resolution = None
     if conn and username:
         resolution = resolve_profile(conn, username, PROFILE_WINDOW_DAYS, now, starting_genres)
@@ -248,7 +273,7 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
         feeds.append(
             {
                 'slug': policy.slug,
-                'size': policy.size,
+                'size': size,
                 'window_days': policy.release_window_days,
                 'title': info['title'],
                 'subtitle': info['subtitle'],
@@ -284,7 +309,18 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         'hardness_percentiles': feed.hardness_percentiles,
         'relaxed_to': feed.relaxed_to,
         'filled_from_unknown': feed.filled_from_unknown,
+        # Stored, never sent (`get_feed` strips it): whether a bigger build could find more.
+        'exhausted': _ran_out(feed.tracks, feed.funnel, policy.size),
     }
+
+
+def _ran_out(tracks: list, funnel: dict, size: int) -> bool:
+    """Whether a build used every candidate it had: it came out short of `size` and the
+    quota could not even hand out `size` places. Short only because the per-artist cap
+    removed a few is not running out -- a bigger build may still find more -- so that
+    feed stays continuable. Saves the continuation build (up to ~20 s) that would only
+    find out the same thing."""
+    return len(tracks) < size and int(funnel.get('allocated') or 0) < size
 
 
 def snapshot_body(conn, username: str, slug: str) -> dict:
@@ -294,7 +330,7 @@ def snapshot_body(conn, username: str, slug: str) -> dict:
     now = datetime.now()
     if slug == LIST_SLUG:
         return list_body(conn, username, now)
-    return feed_body(conn, username, POLICIES[slug], now)
+    return feed_body(conn, username, _sized(POLICIES[slug]), now)
 
 
 #: Every key the refresh thread keeps warm per listener.
@@ -398,24 +434,72 @@ def update_exclusion(payload: ExclusionUpdate, username: str | None = None, auth
     return {'status': 'ok'}
 
 
+def _can_grow(body: dict) -> bool:
+    """Whether a stored feed may still be continued: built `ok`, not yet found
+    exhausted, and short of `MAX_FEED_LENGTH`."""
+    return body.get('state') == 'ok' and not body.get('exhausted') and len(body.get('tracks') or []) < MAX_FEED_LENGTH
+
+
+def continuation(conn, username: str, policy, now: datetime, stored: dict, wanted: int) -> dict | None:
+    """`stored` grown to at least `wanted` tracks where the feed allows, or None for no change.
+
+    docs/designs/feed-length/technical.md, "Continuation". The feed is built again with
+    more places -- the same ranker, profile, exclusions, quota and per-song collapse -- and
+    every track whose song is already stored is dropped; what is left is appended in the
+    build's order. A superset build rather than "the rest of the first build" because the
+    quota is allocated over the number of places: a 200-place feed is not a 100-place feed
+    with 100 appended, and filtering by song keeps the first page exactly as it was.
+
+    A build that ran out of candidates (`_ran_out`), or found nothing new, marks the result
+    `exhausted`, and nothing will try again today.
+    """
+    tracks = list(stored.get('tracks') or [])
+    if not _can_grow(stored) or len(tracks) >= wanted:
+        return None
+    target = min(MAX_FEED_LENGTH, len(tracks) + max(policy.size, wanted - len(tracks)))
+    built = feed_body(conn, username, resize(policy, target), now)
+    # Both the song and the track id: a row stored before `work_id` was part of a track has
+    # only the id to go on.
+    seen_ids = {track.get('id') for track in tracks}
+    seen_works = {track['work_id'] for track in tracks if track.get('work_id')}
+    fresh = []
+    for track in built.get('tracks') or []:
+        work_id = track.get('work_id')
+        if track.get('id') in seen_ids or (work_id and work_id in seen_works):
+            continue
+        seen_ids.add(track.get('id'))
+        if work_id:
+            seen_works.add(work_id)
+        fresh.append(track)
+    exhausted = not fresh or bool(built.get('exhausted'))
+    return {**stored, 'tracks': tracks + fresh, 'exhausted': exhausted}
+
+
 @router.get('/{slug}')
 def get_feed(
     slug: str,
     response: Response,
+    offset: int = Query(0, ge=0),
     limit: int | None = Query(None, ge=1, le=100),
     username: str | None = None,
     auth: dict = Depends(verify_api_key),
 ):
-    """One feed, from the day's snapshot when it is fresh, built live when it is not.
+    """One page of a feed, from the day's snapshot when it is fresh, built live when it is not.
 
-    `limit` smaller than the policy's size is the head of the snapshot -- the Home
-    row is literally the top of the page it links to. A `limit` *larger* than the
-    policy's size is a different feed (the quota is allocated over more places), so
-    that one is built live and not stored; nothing in the apps asks for it.
+    Without `offset` this is what it always was: `limit` takes the head of the stored list
+    -- the Home row is literally the top of the page it links to -- and no `limit` returns
+    the whole stored list, the configured length (`feeds_size`) until it is continued.
+
+    `offset` is "Meer laden": the window `[offset, offset + limit)` of the same day's list,
+    `limit` defaulting to the configured length. A window past the stored list continues
+    it (`continuation`), stored under the snapshot's lock, so the same page asked twice on
+    one day holds the same tracks and no song repeats. `next_offset` is where the next page
+    starts, or null when the feed has nothing more to give.
     """
     policy = POLICIES.get(slug)
     if policy is None:
         raise HTTPException(status_code=404, detail='Unknown feed')
+    policy = _sized(policy)
     resolved = _resolve_username(auth, username)
     conn = get_db_connection()
     if not conn:
@@ -423,21 +507,32 @@ def get_feed(
 
     now = datetime.now()
     try:
-        if limit is not None and limit > policy.size:
-            body, source = feed_body(conn, resolved, replace(policy, size=limit), now), 'live'
-        else:
-            body, source = serve_snapshot(
+        key = params_key(conn, resolved, slug)
+        body, source = serve_snapshot(conn, resolved, slug, now, key, lambda: feed_body(conn, resolved, policy, now))
+        stored = len(body.get('tracks') or [])
+        # No `limit`: the whole stored list for the head, one configured length for a later page.
+        default_page = stored if offset == 0 else policy.size
+        page = limit if limit is not None else default_page
+        end = offset + page
+        if end > stored and _can_grow(body):
+            grown = extend_snapshot(
                 conn,
                 resolved,
                 slug,
                 now,
-                params_key(conn, resolved, slug),
-                lambda: feed_body(conn, resolved, policy, now),
+                key,
+                lambda current: continuation(conn, resolved, policy, now, current, end),
             )
+            if grown is not None:
+                body, source = grown, 'extended'
     finally:
         conn.close()
 
-    if limit is not None and len(body.get('tracks') or []) > limit:
-        body = {**body, 'tracks': body['tracks'][:limit]}
+    tracks = body.get('tracks') or []
+    more = end < len(tracks) or _can_grow(body)
+    body = {key_: value for key_, value in body.items() if key_ != 'exhausted'}
+    body['tracks'] = tracks[offset:end]
+    body['offset'] = offset
+    body['next_offset'] = end if more else None
     response.headers['X-MuMa-Feed-Source'] = source
     return body

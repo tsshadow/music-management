@@ -92,18 +92,27 @@ export function resetFeedsCache() {
 }
 
 /**
- * One feed, whole: MuMa's answer for `GET /api/feeds/{slug}`, tracks and all.
+ * One page of a feed: MuMa's answer for `GET /api/feeds/{slug}`, tracks and all.
  *
  * Never throws -- an unreachable server or an unknown slug comes back as the same shape a caller
  * can render without a special case, `state: "error"` reading no differently to a caller than
  * `not_enough_data` or `no_matches` would.
  *
+ * Without `offset` this is the head of the day's feed (the configured length, 100 by default);
+ * with one it is the continuation "Meer laden" asks for, and `next_offset` in the answer says
+ * where the page after it starts -- null when the feed has nothing more
+ * (docs/designs/feed-length/technical.md).
+ *
  * @param {string} slug
  * @param {number} [limit]
+ * @param {number} [offset]
  * @returns {Promise<Object>}
  */
-export async function fetchFeed(slug, limit) {
-  const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+export async function fetchFeed(slug, limit, offset) {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString() ? `?${params}` : "";
   try {
     const feed = await fetchMumaJson(`${apiBase()}/api/feeds/${encodeURIComponent(slug)}${query}`, {
       headers: getHeaders(),
@@ -129,21 +138,23 @@ export async function fetchFeed(slug, limit) {
  * @returns {Promise<string[]>}
  */
 export async function feedPaths(slug, limit) {
-  const feed = await fetchFeed(slug, limit);
-  const tracks = Array.isArray(feed?.tracks) ? feed.tracks : [];
-  return tracks
-    .map((track) => track.library_path)
-    .filter((path) => typeof path === "string" && path.length > 0);
+  return pathsOf(await fetchFeed(slug, limit));
 }
 
 /**
- * Turn paths into songs.
+ * The most paths LMS resolves in one `getSongsByPath` call (`SongsByPath.cpp`, `maxPathCount`).
+ * A feed longer than this -- `feeds_size` goes up to 200 -- is resolved in chunks, in order.
+ */
+export const SONGS_BY_PATH_LIMIT = 100;
+
+/**
+ * Turn one chunk of paths into songs.
  *
- * A POST rather than a GET, and not for style: thirty paths run to several kilobytes, which is
- * around where a request line starts meeting proxy buffer limits. The credentials stay in the
+ * A POST rather than a GET, and not for style: a hundred paths run to several kilobytes, which is
+ * well past where a request line starts meeting proxy buffer limits. The credentials stay in the
  * query string; LMS reads its parameters out of both.
  */
-async function resolveSongs(paths, authParams) {
+async function resolveChunk(paths, authParams) {
   const body = new URLSearchParams();
   paths.forEach((path) => body.append("path", path));
 
@@ -161,6 +172,30 @@ async function resolveSongs(paths, authParams) {
     console.error("Failed to resolve a feed to songs:", err);
     return [];
   }
+}
+
+/**
+ * Turn paths into songs, `SONGS_BY_PATH_LIMIT` at a time and in the order asked.
+ *
+ * Sequential rather than parallel: the chunks go through the same serial `/muma` gate anyway,
+ * and the order of the answer is the order of the feed.
+ */
+async function resolveSongs(paths, authParams) {
+  const songs = [];
+  for (let start = 0; start < paths.length; start += SONGS_BY_PATH_LIMIT) {
+    songs.push(
+      ...(await resolveChunk(paths.slice(start, start + SONGS_BY_PATH_LIMIT), authParams)),
+    );
+  }
+  return songs;
+}
+
+/** The library-relative paths of a feed answer, in its order, blanks left out. */
+function pathsOf(feed) {
+  const tracks = Array.isArray(feed?.tracks) ? feed.tracks : [];
+  return tracks
+    .map((track) => track.library_path)
+    .filter((path) => typeof path === "string" && path.length > 0);
 }
 
 /**
@@ -189,20 +224,18 @@ export async function loadFeed(slug, authParams, limit) {
  *
  * A single `GET /api/feeds/{slug}` carries both -- the tracks and the title/subtitle/hardness
  * numbers -- so this resolves the songs from the same answer rather than asking MuMa twice.
+ * `nextOffset` is where "Meer laden" continues (`loadFeedPage`), null when there is no more.
  *
  * @param {string} slug
  * @param {string} authParams
  * @param {number} [limit]
  * @returns {Promise<{state: string, title: string|null, subtitle: string|null,
  *   hardnessBand: [number, number]|null, relaxedTo: (number|string|null),
- *   filledFromUnknown: number|null, tracks: Object[]}>}
+ *   filledFromUnknown: number|null, nextOffset: number|null, tracks: Object[]}>}
  */
 export async function loadFeedDetail(slug, authParams, limit) {
   const feed = await fetchFeed(slug, limit);
-  const tracks = Array.isArray(feed?.tracks) ? feed.tracks : [];
-  const paths = tracks
-    .map((track) => track.library_path)
-    .filter((path) => typeof path === "string" && path.length > 0);
+  const paths = pathsOf(feed);
   const songs = authParams && paths.length > 0 ? await resolveSongs(paths, authParams) : [];
 
   return {
@@ -212,6 +245,33 @@ export async function loadFeedDetail(slug, authParams, limit) {
     hardnessBand: feed.hardness_band ?? null,
     relaxedTo: feed.relaxed_to ?? null,
     filledFromUnknown: feed.filled_from_unknown ?? null,
+    nextOffset: nextOffsetOf(feed),
     tracks: songs,
   };
+}
+
+/** `next_offset` when MuMa sent a usable one, else null. */
+function nextOffsetOf(feed) {
+  const next = feed?.next_offset;
+  return Number.isInteger(next) && next > 0 ? next : null;
+}
+
+/**
+ * The next page of a feed as LMS songs: what "Meer laden" and a feed queue running out ask for.
+ *
+ * `failed` separates "MuMa could not be reached" from "the feed is exhausted": a caller keeps
+ * its continuation after a failure, so the next tap or the next track tries again, and drops it
+ * only when the server says there is nothing more.
+ *
+ * @param {string} slug
+ * @param {string} authParams
+ * @param {number} offset - The `nextOffset` the previous page carried.
+ * @returns {Promise<{tracks: Object[], nextOffset: number|null, failed: boolean}>}
+ */
+export async function loadFeedPage(slug, authParams, offset) {
+  const feed = await fetchFeed(slug, undefined, offset);
+  if (feed.state === "error") return { tracks: [], nextOffset: offset, failed: true };
+  const paths = pathsOf(feed);
+  const tracks = authParams && paths.length > 0 ? await resolveSongs(paths, authParams) : [];
+  return { tracks, nextOffset: nextOffsetOf(feed), failed: false };
 }

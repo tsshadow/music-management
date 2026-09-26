@@ -1,5 +1,5 @@
 import { get } from "svelte/store";
-import { activeView, playlist, queueSource } from "./store.js";
+import { activeView, feedContinuation, playlist, queueSource } from "./store.js";
 import { t } from "./i18n/index.js";
 import { subsonicPost } from "./subsonic.js";
 import { subsonicError } from "./utils.js";
@@ -24,9 +24,16 @@ import { subsonicError } from "./utils.js";
  *   `placeTitle`/`viewLabel` for the view itself.
  * @param {string|null} [options.view] - The navigation string the queue started from.
  *   Defaults to the current view; pass `null` explicitly for a restore, not a start.
+ * @param {{slug: string, nextOffset: number|null}|null} [options.continuation] - For a queue
+ *   started from a feed: where the feed continues, so `feedQueue.js` can top the queue up
+ *   before it runs out. Every other start leaves it null, which stops any previous top-up.
  */
-export function startQueue(tracks, { name = null, view = get(activeView) } = {}) {
+export function startQueue(
+  tracks,
+  { name = null, view = get(activeView), continuation = null } = {},
+) {
   queueSource.set(view ? { view, name } : null);
+  feedContinuation.set(continuation?.slug && continuation.nextOffset ? continuation : null);
   playlist.set(tracks);
 }
 

@@ -519,7 +519,7 @@ class HardnessBandBuildTest(unittest.TestCase):
         self.assertEqual(feed.filled_from_unknown, 1)
 
     def test_a_full_band_never_reaches_for_unknown_hardness_filler(self):
-        plenty = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(30)]
+        plenty = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(POLICIES['daily-mix-mid'].size)]
         unknowns = [_candidate(f'unk{i}', None, 'Uptempo', bpm=None) for i in range(5)]
         conn = scripted(listens=MANY_LISTENS, candidates=plenty + unknowns)
         feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)

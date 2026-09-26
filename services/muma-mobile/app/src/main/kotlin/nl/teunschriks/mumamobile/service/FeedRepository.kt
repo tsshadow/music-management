@@ -119,6 +119,12 @@ class FeedRepository(
          * in, before the classic [DAILY_MIX] appended last.
          */
         val DAILY_MIXES = listOf(DAILY_MIX_SOFT, DAILY_MIX_MID, DAILY_MIX_HARD, DAILY_MIX_ARTIST, DAILY_MIX_LABEL)
+
+        /**
+         * The most paths one `getSongsByPath` call accepts (the server's `maxPathCount` in
+         * SongsByPath.cpp); a longer feed is resolved in chunks of this size, order kept.
+         */
+        const val SONGS_BY_PATH_LIMIT = 100
     }
 
     /** What one attempt produced, and whether it is the whole feed or only what survived. */
@@ -150,7 +156,12 @@ class FeedRepository(
             // getSongsByPath answers in the order it was asked, leaving out what it does not
             // have. So this is already MuMa's ranking, minus whatever the server is missing --
             // no re-sort here, and none of the paths are matched up again afterwards.
-            val songs = musicServiceProvider().getSongsByPath(paths).getTracks()
+            // In chunks: the streaming server resolves at most SONGS_BY_PATH_LIMIT paths per
+            // call, and a feed is as long as the server's `feeds_size` says (100 by default, up
+            // to 200) -- docs/designs/feed-length/technical.md.
+            val songs = paths.chunked(SONGS_BY_PATH_LIMIT).flatMap { chunk ->
+                musicServiceProvider().getSongsByPath(chunk).getTracks()
+            }
             val complete = songs.size == paths.size
             if (!complete) {
                 Timber.i("Feed %s: only %s of %s tracks resolved, not caching", slug, songs.size, paths.size)

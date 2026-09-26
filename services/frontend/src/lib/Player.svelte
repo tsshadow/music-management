@@ -2,6 +2,7 @@
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
+  import { extendFeedQueue } from './feedQueue.js';
   import Equalizer from './Equalizer.svelte';
   import NowPlaying from './NowPlaying.svelte';
   import { fetchLyricsLines } from './lyrics.js';
@@ -1438,6 +1439,16 @@
     if (!track) return;
     tapStar(track, rating);
   }
+
+  // A queue started from a feed tops itself up before it runs out
+  // (docs/designs/feed-length/). Reads both stores so it re-runs on every track
+  // change and every queue edit; `extendFeedQueue` itself decides whether that
+  // costs a request.
+  $effect(() => {
+    void $currentTrack;
+    void $playlist;
+    extendFeedQueue();
+  });
 
   /** Whether the last run of the queue-sync effect below found radio or a bulletin on. */
   let wasRadioOrNews = false;

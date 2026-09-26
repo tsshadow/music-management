@@ -266,6 +266,68 @@ class ServeTest(unittest.TestCase):
         self.assertFalse(snapshot._lock_for('user', 'daily-mix-mid').locked())
 
 
+class ExtendTest(unittest.TestCase):
+    """`extend`: a continuation grows today's row in place (docs/designs/feed-length/)."""
+
+    def setUp(self):
+        snapshot._locks.clear()
+        self.table = _Table()
+        self.conn = self.table.connection()
+
+    def _grow(self, payload):
+        return {**payload, 'tracks': payload['tracks'] + [{'id': 'more'}]}
+
+    def test_the_grown_payload_is_stored_under_the_row_s_own_timestamp(self):
+        """Extending a radar must not also extend its hourly freshness."""
+        snapshot.serve(self.conn, 'user', 'release-radar', NOW, KEY, lambda: _payload('first'))
+        later = NOW + timedelta(minutes=30)
+        grown = snapshot.extend(self.conn, 'user', 'release-radar', later, KEY, self._grow)
+        self.assertEqual(grown['tracks'], [{'id': 'first'}, {'id': 'more'}])
+        row = self.table.rows[('user', 'release-radar', NOW.date())]
+        self.assertEqual(json.loads(row['payload']), grown)
+        self.assertEqual(row['generated_at'], NOW)
+        self.assertEqual(row['params_key'], KEY)
+
+    def test_a_second_read_serves_the_grown_list(self):
+        snapshot.serve(self.conn, 'user', 'daily-mix', NOW, KEY, lambda: _payload('first'))
+        snapshot.extend(self.conn, 'user', 'daily-mix', NOW, KEY, self._grow)
+        payload, source = snapshot.serve(self.conn, 'user', 'daily-mix', NOW, KEY, lambda: self.fail('fresh'))
+        self.assertEqual(source, 'snapshot')
+        self.assertEqual(len(payload['tracks']), 2)
+
+    def test_nothing_to_grow_writes_nothing(self):
+        snapshot.serve(self.conn, 'user', 'daily-mix', NOW, KEY, lambda: _payload('first'))
+        commits = self.table.commits
+        self.assertIsNone(snapshot.extend(self.conn, 'user', 'daily-mix', NOW, KEY, lambda _payload: None))
+        self.assertEqual(self.table.commits, commits)
+
+    def test_a_missing_or_stale_row_is_not_extended(self):
+        self.assertIsNone(snapshot.extend(self.conn, 'user', 'daily-mix', NOW, KEY, lambda _p: self.fail('no row')))
+        snapshot.serve(self.conn, 'user', 'daily-mix', NOW, KEY, lambda: _payload('first'))
+        self.assertIsNone(
+            snapshot.extend(self.conn, 'user', 'daily-mix', NOW, 'settings-b', lambda _p: self.fail('stale'))
+        )
+
+    def test_it_waits_for_a_build_holding_the_key(self):
+        """Never skips: a tap racing the refresh thread must extend the row that thread wrote."""
+        snapshot.serve(self.conn, 'user', 'daily-mix', NOW, KEY, lambda: _payload('first'))
+        lock = snapshot._lock_for('user', 'daily-mix')
+        lock.acquire()
+        result = {}
+
+        def extender():
+            result['value'] = snapshot.extend(self.conn, 'user', 'daily-mix', NOW, KEY, self._grow)
+
+        thread = threading.Thread(target=extender)
+        thread.start()
+        thread.join(timeout=0.2)
+        self.assertTrue(thread.is_alive(), 'the extension should be waiting on the lock')
+        snapshot.write(self.conn, 'user', 'daily-mix', NOW.date(), NOW, KEY, _payload('rebuilt'))
+        lock.release()
+        thread.join(timeout=2)
+        self.assertEqual(result['value']['tracks'], [{'id': 'rebuilt'}, {'id': 'more'}])
+
+
 class RefreshTest(unittest.TestCase):
     def setUp(self):
         snapshot._locks.clear()

@@ -72,6 +72,23 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun `a feed longer than one getSongsByPath call is resolved in chunks, in order`() {
+        // The server accepts at most 100 paths per call; the feed length is a server setting
+        // that goes up to 200 (docs/designs/feed-length/technical.md).
+        val paths = (0 until 150).map { "t$it.mp3" }
+        answering(feedOf(*paths.toTypedArray()))
+        val first = MusicDirectory().apply { addAll(paths.take(100).map { Track(id = it) }) }
+        val second = MusicDirectory().apply { addAll(paths.drop(100).map { Track(id = it) }) }
+        every { musicService.getSongsByPath(paths.take(100)) } returns first
+        every { musicService.getSongsByPath(paths.drop(100)) } returns second
+
+        repository.tracksFor("daily-mix").map { it.id } `should be equal to` paths
+
+        verify(exactly = 1) { musicService.getSongsByPath(paths.take(100)) }
+        verify(exactly = 1) { musicService.getSongsByPath(paths.drop(100)) }
+    }
+
+    @Test
     fun `the server's order is kept, never re-sorted`() {
         // The server answers in the order it was asked, so whatever comes back is already the
         // ranking. Sorting here by anything at all would replace the feed with a different one.

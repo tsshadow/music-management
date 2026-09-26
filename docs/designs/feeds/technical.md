@@ -112,7 +112,7 @@ is what makes the whole ranker unit-testable without a database.
 @dataclass(frozen=True)
 class FeedPolicy:
     slug: str
-    size: int = 30
+    size: int = 100  # the code default; the router applies `feeds_size` (docs/designs/feed-length/)
     profile_window_days: int = 90
     release_window_days: int | None = 7   # None means "no release-date requirement"
     max_track_seconds: int = 600
@@ -440,7 +440,8 @@ nine with no window. So `build._describe` now asks before it draws:
   per name tried. Both queries build the window from one helper, `_release_window_conditions`.
 - `scoring.pick_playable_entity` starts at the same day-stable index `pick_daily_entity` uses and
   walks the ranking from there, wrapping around, taking the first name that reaches
-  `MIN_ROTATION_CANDIDATES` (15, the same floor as `MIN_BAND_CANDIDATES`: half of the 30 places) at
+  `MIN_ROTATION_CANDIDATES` (15, the same floor as `MIN_BAND_CANDIDATES`: half of the original 30
+  places, kept as a fixed floor when the length went to 100 -- see docs/designs/feed-length/) at
   the narrowest window that does. The drawn name at a wider window is preferred over the next name
   at 90 days — the rotation is what the mix is for.
 - The build then runs one candidate query at that window and reports it as `relaxed_to` exactly as
@@ -449,7 +450,8 @@ nine with no window. So `build._describe` now asks before it draws:
   (`Artiestmix` / `Labelmix`) and no subtitle — never an `ok` mix of a handful of tracks. The client
   already renders a non-`ok` feed as empty; the snapshot keeps it for `NON_OK_TTL_SECONDS` only.
 
-`daily-mix-artist` carries `max_per_artist = size` (30): every candidate shares the one primary
+`daily-mix-artist` carries `max_per_artist = size` (the feed length; `policy.resize` moves the cap
+with the `feeds_size` setting): every candidate shares the one primary
 artist the mix is restricted to, and a cap of 3 cut every artist mix to three tracks. The label mix
 keeps the cap of 3 — its count is of songs, not of artists, so a label whose songs are mostly one
 artist's can still come out shorter than 15 after the cap.

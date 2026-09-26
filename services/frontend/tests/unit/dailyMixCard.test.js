@@ -11,6 +11,7 @@ import {
   authParams,
   credentials,
   currentTrack,
+  feedContinuation,
   playerState,
   playlist,
 } from "../../src/lib/store.js";
@@ -19,7 +20,7 @@ const SONGS = [{ id: "song-1", title: "Legacy" }];
 
 vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
   const actual = await importOriginal();
-  return { ...actual, loadFeed: (...args) => globalThis.__loadFeed(...args) };
+  return { ...actual, loadFeedDetail: (...args) => globalThis.__loadFeed(...args) };
 });
 
 describe("DailyMixCard", () => {
@@ -28,7 +29,7 @@ describe("DailyMixCard", () => {
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });
-    globalThis.__loadFeed = vi.fn(async () => SONGS);
+    globalThis.__loadFeed = vi.fn(async () => ({ state: "ok", tracks: SONGS, nextOffset: 100 }));
   });
 
   it("shows the title and subtitle it was given", () => {
@@ -79,5 +80,7 @@ describe("DailyMixCard", () => {
     expect(onopen).not.toHaveBeenCalled();
     expect(globalThis.__loadFeed.mock.calls[0][0]).toBe("daily-mix-soft");
     expect(globalThis.__loadFeed.mock.calls[0][1]).toBe(get(authParams));
+    // The queue remembers where the mix continues, so it can top itself up.
+    expect(get(feedContinuation)).toEqual({ slug: "daily-mix-soft", nextOffset: 100 });
   });
 });

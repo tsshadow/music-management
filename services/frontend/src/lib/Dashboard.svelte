@@ -28,6 +28,7 @@
   import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
   import { fetchFirstTrackPage, fetchListPage, listKey, prefetchTrackList, trackListCache, trackListKey } from './trackListCache.js';
   import SectionState from './loading/SectionState.svelte';
+  import LabelChannels from './LabelChannels.svelte';
   import SkeletonRows from './loading/SkeletonRows.svelte';
   import SkeletonTiles from './loading/SkeletonTiles.svelte';
   import Throbber from './loading/Throbber.svelte';
@@ -35,6 +36,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
+  import { activeManagementTab, downloaderSubTabRequest, userPermissions } from './store.js';
   import { allSortOptions, authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -579,6 +581,22 @@
     refreshPresets(userId);
     fetchGenreTints().then((tints) => (genreTints = tints));
   });
+
+  // `hasPermission` reads its stores with `get`, so a template call is not re-run when the
+  // permissions arrive after the first render (a label page opened by URL). Reading the two
+  // stores here makes this one reactive.
+  const canManageRules = $derived.by(() => {
+    void $userPermissions;
+    void $mumaUser;
+    return hasPermission('rules.manage');
+  });
+
+  /** Opens Beheer -> Downloaders on its Koppelingen tab, where a curator (un)links channels (issue #122). */
+  function openChannelLinks() {
+    downloaderSubTabRequest.set('links');
+    activeManagementTab.set('downloaders');
+    activeView = 'management';
+  }
 
   /**
    * Saves the list on screen -- its genre/label/year, sort, rating floor and mode -- as a preset
@@ -1129,6 +1147,15 @@
           <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} bind:form={currentForm} showForm={$viewMode === 'sets'} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
         {/if}
     </div>
+    {#if activeView.startsWith('label:')}
+      <!-- The channels linked to this label, as a section of its own (issue #122). -->
+      <LabelChannels
+        label={viewArgument(activeView)}
+        onnavigate={(v) => activeView = v}
+        canManage={canManageRules}
+        onmanage={openChannelLinks}
+      />
+    {/if}
     <!-- The header above comes from the route, so it names the new place at once; the rows
          below never belong to the previous place (issue #109). -->
     <SectionState status={tracksStatus} onretry={() => loadAllTracks()}>

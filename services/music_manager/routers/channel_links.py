@@ -150,6 +150,23 @@ STALE_RIVALS_QUERY = (
 )
 SEARCH_LIMIT_MAX = 50
 
+# A label page's channels (issue #122). The label by its unique name, its channels through
+# idx_channel_label, each count through idx_track_channel_channel: a handful of index lookups.
+LABEL_CHANNELS_QUERY = """
+    SELECT c.id, c.platform, c.name, c.artist_id, a.name AS artist_name,
+           (SELECT COUNT(*) FROM library_track_channels tc WHERE tc.channel_id = c.id) AS track_count
+    FROM library_labels l
+    JOIN channels c ON c.label_id = l.id
+    LEFT JOIN library_artists a ON a.id = c.artist_id
+    WHERE l.name = %s
+    ORDER BY track_count DESC, c.name
+"""
+# The followed accounts, a few hundred short names per platform, for the channel's source link.
+ACCOUNTS_QUERY = {
+    'soundcloud': 'SELECT name FROM downloads_soundcloud_accounts',
+    'youtube': 'SELECT name FROM downloads_youtube_accounts',
+}
+
 
 class LinkRequest(BaseModel):
     """The label or artist to link a channel to, by its library id."""
@@ -474,3 +491,51 @@ def search_targets(kind: str, q: str = '', limit: int = Query(20), _auth: dict =
     if kind == links.LABEL:
         rows = [row for row in rows if is_label(row['name'])]
     return [{'id': row['id'], 'name': row['name']} for row in rows[:wanted]]
+
+
+def _account_indexes(cursor, platforms: set[str]) -> dict[str, dict[str, list[str]]]:
+    """Followed account names per platform, only for the platforms asked for.
+
+    Context for a link, never a reason to fail the list: a missing accounts table (a fresh
+    deploy, the integration schema) gives no source links instead of no channels.
+    """
+    indexes: dict[str, dict[str, list[str]]] = {}
+    for platform in sorted(platforms & set(ACCOUNTS_QUERY)):
+        try:
+            indexes[platform] = links.account_index(row['name'] for row in _rows(cursor, ACCOUNTS_QUERY[platform]))
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning('Could not read the followed %s accounts: %s', platform, e)
+            indexes[platform] = {}
+    return indexes
+
+
+@router.get('/by-label')
+def channels_of_label(name: str = '', _auth: dict = Depends(verify_api_key)):
+    """The channels linked to a label, busiest first, for the label page (issue #122).
+
+    Read-only and keyed on the label's name, because that is what the label page's route
+    carries. A name the library has no label for, or a label nothing is linked to, is an empty
+    list -- not a 404: every label page asks, and almost none has a channel.
+    """
+    label = name.strip()
+    if not label:
+        return []
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            rows = _rows(cursor, LABEL_CHANNELS_QUERY, (label,))
+            accounts = _account_indexes(cursor, {row['platform'] for row in rows}) if rows else {}
+    finally:
+        conn.close()
+    return [
+        {
+            'id': row['id'],
+            'platform': row['platform'],
+            'name': row['name'],
+            'track_count': int(row['track_count'] or 0),
+            'artist': {'id': row['artist_id'], 'name': row['artist_name']} if row['artist_id'] else None,
+            'album': links.channel_album(row['platform'], row['name']),
+            'source_url': links.source_url(row['platform'], row['name'], accounts.get(row['platform'], {})),
+        }
+        for row in rows
+    ]

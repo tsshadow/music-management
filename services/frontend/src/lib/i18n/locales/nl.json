@@ -158,6 +158,11 @@
     "editGenre": "Genre bewerken",
     "editLabel": "Label bewerken"
   },
+  "labelChannels": {
+    "title": "Kanalen",
+    "manage": "Koppelingen beheren",
+    "none": "Nog geen kanaal aan dit label gekoppeld."
+  },
   "equalizer": {
     "band": "Band {freq}",
     "close": "Equalizer sluiten",

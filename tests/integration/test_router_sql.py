@@ -97,6 +97,7 @@ READ_ENDPOINTS = [
     ('/api/channel-links/targets?kind=label&q=x', 200),
     ('/api/channel-links/targets?kind=artist&q=x', 200),
     ('/api/channel-links/targets?kind=genre&q=x', 400),
+    ('/api/channel-links/by-label?name=x', 200),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -1221,6 +1222,50 @@ class ChannelLinksTest:
         # D-Sturbia is in the library but was never approved.
         artists = api.get('/api/channel-links/targets?kind=artist&q=d-sturb', headers=headers).json()
         assert [row['name'] for row in artists] == ['D-Sturb']
+
+    def test_a_label_page_lists_its_linked_channels_busiest_first(self, api, headers, db):
+        """Issue #122: the label by name, its channels with counts, the source link by account."""
+        label_id, artist_id, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name, label_id, artist_id) VALUES "
+                "('youtube', 'Traxtorm Records', 'traxtorm records', %s, %s)",
+                (label_id, artist_id),
+            )
+            busy = cursor.lastrowid
+            cursor.execute('UPDATE channels SET label_id = %s WHERE id = %s', (label_id, channels['TRAXTORM']))
+            for n in range(2):
+                cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES (%s, 't')", (f'uid-l{n}',))
+                cursor.execute(
+                    'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)',
+                    (cursor.lastrowid, busy),
+                )
+            cursor.execute("INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id) VALUES ('traxtorm', '42')")
+            cursor.execute("INSERT INTO downloads_youtube_accounts (name) VALUES ('@traxtormrecords')")
+        db.commit()
+        response = api.get('/api/channel-links/by-label', params={'name': 'traxtorm'}, headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json() == [
+            {
+                'id': busy,
+                'platform': 'youtube',
+                'name': 'Traxtorm Records',
+                'track_count': 2,
+                'artist': {'id': artist_id, 'name': 'D-Sturb'},
+                'album': 'Youtube (Traxtorm Records)',
+                'source_url': 'https://www.youtube.com/@traxtormrecords',
+            },
+            {
+                'id': channels['TRAXTORM'],
+                'platform': 'soundcloud',
+                'name': 'TRAXTORM',
+                'track_count': 0,
+                'artist': None,
+                'album': 'Soundcloud (TRAXTORM)',
+                'source_url': 'https://soundcloud.com/traxtorm',
+            },
+        ]
+        assert api.get('/api/channel-links/by-label?name=Nobody', headers=headers).json() == []
 
     def test_a_link_change_queues_the_channels_files_for_the_tagger(self, api, headers, db):
         from services.common import db_init

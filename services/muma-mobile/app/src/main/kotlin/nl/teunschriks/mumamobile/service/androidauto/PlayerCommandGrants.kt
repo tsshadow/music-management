@@ -7,10 +7,15 @@
 
 package nl.teunschriks.mumamobile.service.androidauto
 
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
+import nl.teunschriks.mumamobile.service.PlaybackService
 
 /**
  * The player commands a controller connecting to this session is granted.
@@ -60,5 +65,28 @@ internal fun playerCommandsFor(radioActive: Boolean): Player.Commands {
     if (radioActive) {
         for (command in RADIO_WITHDRAWN_COMMANDS) builder.remove(command)
     }
+    return builder.build()
+}
+
+/**
+ * The session commands a controller connecting to this session is granted: media3's default
+ * library commands, every custom button's command, and the radio stop command.
+ *
+ * Every controller gets this set, Android Auto's included. Media3 leaves a custom button out of the
+ * platform session -- where Android Auto reads its custom actions -- when its command is not
+ * available, and a `MediaController` refuses to send a custom command it was not granted, so a
+ * button missing here is a button that silently does not exist.
+ *
+ * [PlaybackService.CUSTOM_COMMAND_STOP_RADIO] is added by hand: it has no [CommandButton] -- there
+ * is no car button for it, only the web module's own stop action -- but the app's own in-process
+ * controller still has to be allowed to send it.
+ */
+@OptIn(UnstableApi::class)
+internal fun sessionCommandsFor(buttons: List<CommandButton>): SessionCommands {
+    val builder = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+    for (commandButton in buttons) {
+        commandButton.sessionCommand?.let { builder.add(it) }
+    }
+    builder.add(SessionCommand(PlaybackService.CUSTOM_COMMAND_STOP_RADIO, Bundle.EMPTY))
     return builder.build()
 }

@@ -230,10 +230,10 @@ class PlaybackService :
             .setBitmapLoader(ArtworkBitmapLoader())
             .build()
 
-        // Publish the car/notification buttons, which also reaches the platform session.
-        mediaLibrarySession.setMediaButtonPreferences(
-            librarySessionCallback.getCommandHelper().defaultCustomCommands
-        )
+        // Publish the car/notification buttons, which also reaches the platform session. The same
+        // builder as every later publication, so the first list the car sees already has the
+        // rating first and no button the queue cannot use yet.
+        librarySessionCallback.getCommandHelper().updateCustomCommandsWrapper(mediaLibrarySession)
 
         // Set a listener to update the API client when the active server has changed
         rxBusSubscription += RxBus.activeServerChangedObservable.subscribe {
@@ -402,7 +402,17 @@ class PlaybackService :
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
                 librarySessionCallback.onQueueMoved(player)
+                // The shuffle button exists only for a queue long enough to shuffle, so a queue
+                // that grew or shrank past that point changes the buttons.
+                refreshCarButtons()
             }
+        }
+
+        // The repeat button shows the current mode. The car switches to "repeat all" when it
+        // connects, playback resumption restores a saved mode, and the phone can change it: none
+        // of those went through the button, so the car kept showing the mode from before.
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            refreshCarButtons()
         }
 
         // The same item twice in a row can arrive as a discontinuity with no item transition
@@ -433,6 +443,12 @@ class PlaybackService :
                 librarySessionCallback.onPlaybackEnded(player)
             }
         }
+    }
+
+    /** Re-publishes the car/notification buttons from the player's current state. */
+    private fun refreshCarButtons() {
+        if (!::mediaLibrarySession.isInitialized) return
+        librarySessionCallback.getCommandHelper().updateCustomCommandsWrapper(mediaLibrarySession)
     }
 
     private fun updateCustomRatingButton(rating: Int) {

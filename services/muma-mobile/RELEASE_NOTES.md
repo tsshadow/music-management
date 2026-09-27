@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## Global Version 7.10.1 (2026-09-27)
+
+- Genres, labels, festivals and other lists no longer flash the previous list when you open them.
+- Search shows "Searching…" instead of "No results" while it waits.
+
+- Daily mixes, the release radar and a song's other versions now open straight away.
+
+- Daily-mix cards now show their play button on the phone and tablet.
+
 ## Global Version 7.10.0 (2026-09-27)
 
 - No more black screen while the app starts: it now tells you it is connecting, signing in or

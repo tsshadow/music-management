@@ -11,6 +11,20 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.1 (2026-09-27)
+
+- Opening a genre, label, festival, podcast, year or lineup no longer briefly shows the previous
+  list; going back to one you just saw is instant.
+- Search shows that it is searching instead of "No results" while it waits, in the search box and
+  on the results page.
+- History, Favourites and Memories show placeholders while they load, and a retry button when
+  loading fails.
+
+- Daily mixes, the release radar and a song's other versions now open straight away and fill in
+  while you look.
+
+- The play button on daily-mix cards is now visible on phones and tablets.
+
 ## Global Version 0.81.0 (2026-09-27)
 
 - Starting the app now shows what it is doing instead of a black screen, and tapping an artist or

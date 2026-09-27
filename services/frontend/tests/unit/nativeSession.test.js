@@ -332,3 +332,52 @@ describe("rehydrateQueue", () => {
     expect(get(playlist)).toEqual([]);
   });
 });
+
+/**
+ * The boot screen says which step the shell is waiting on (docs/designs/perceived-performance/).
+ * The steps themselves and their order are the ones above; these only check what is reported.
+ */
+describe("bootstrapShell - boot stages", () => {
+  const songs = {
+    1: { id: "1", title: "One", duration: 100 },
+    2: { id: "2", title: "Two", duration: 200 },
+  };
+
+  it("reports connecting, signing in and the queue with a count, in that order", async () => {
+    credentials.set({ url: "https://lms.example", username: "web", password: "typed" });
+    const onStage = vi.fn();
+    const platform = shell({
+      stored: { username: "user", password: "" },
+      queue: { index: 0, trackIds: ["1", "2"] },
+      state: { status: "paused", trackId: "1" },
+    });
+
+    await bootstrapShell(platform, fakeLibrary(songs), onStage);
+
+    const stages = onStage.mock.calls.map(([stage]) => stage);
+    expect(stages.slice(0, 3)).toEqual(["connecting", "signingIn", "restoringQueue"]);
+    const counts = onStage.mock.calls.filter(([, progress]) => progress).map(([, p]) => p);
+    expect(counts[0]).toEqual({ done: 0, total: 2 });
+    expect(counts.at(-1)).toEqual({ done: 2, total: 2 });
+  });
+
+  it("does not announce a queue restore for a phone that is signed out", async () => {
+    const onStage = vi.fn();
+
+    await bootstrapShell(shell({ stored: { password: "" } }), undefined, onStage);
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(["connecting", "signingIn"]);
+  });
+
+  it("boots all the same when showing a stage throws", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    credentials.set({ url: "https://lms.example", username: "web", password: "typed" });
+    const onStage = vi.fn(() => {
+      throw new Error("no boot screen");
+    });
+
+    const result = await bootstrapShell(shell({ stored: { password: "" } }), undefined, onStage);
+
+    expect(result).toEqual({ native: true, signedIn: true, restored: 0 });
+  });
+});

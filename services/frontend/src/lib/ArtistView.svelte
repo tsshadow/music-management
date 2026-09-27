@@ -1,4 +1,14 @@
 <script>
+  /**
+   * The artist page.
+   *
+   * Renders at once from what the link that opened it already knew (the seed: name, picture) and
+   * fills in section by section: the tracks, the releases (from `getArtist`), the biography and
+   * similar artists, the MuMa genre chips. The first three requests start together; each section
+   * has its own skeleton, error and retry, so one slow or failing part never blanks the page
+   * (docs/designs/perceived-performance/). A revisit within a few minutes renders from the
+   * entity cache and refreshes in the background.
+   */
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
@@ -6,26 +16,71 @@
   import { getArtistImageUrl } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { Pencil } from '@lucide/svelte';
+  import { getDeduplicateKey } from './deduplicate.js';
   import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
   import ListEnd from './ListEnd.svelte';
   import TrackList from './TrackList.svelte';
-  import { subsonicJson } from './subsonic.js';
+  import { SubsonicError } from './subsonic.js';
   import { recordPlace } from './recentPlaces.js';
   import { startQueue } from './queue.js';
+  import { openEntity, peekSeed, pressEntity } from './entitySeeds.js';
+  import {
+    EntityNotFound,
+    artistInfoKey,
+    artistKey,
+    artistTracksKey,
+    entityCache,
+    fetchArtist,
+    fetchArtistInfo,
+  } from './entityLoaders.js';
+  import Skeleton from './loading/Skeleton.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
+  import SkeletonTiles from './loading/SkeletonTiles.svelte';
+  import SectionState from './loading/SectionState.svelte';
+  import Throbber from './loading/Throbber.svelte';
 
   const { artistId, onnavigate } = $props();
 
+  /** Subsonic's "the requested data was not found". */
+  const SUBSONIC_NOT_FOUND = 70;
+  /** The first page of tracks; "load more" asks for pages of 100. */
+  const FIRST_PAGE = 25;
+
+  /** What the link that opened this page knew; replaced by `artist` as soon as that arrives. */
+  let seed = $state(null);
+  /** The server's artist (`getArtist`), or null until it answers. */
   let artist = $state(null);
+  /** @type {'loading'|'ready'|'error'|'notfound'} */
+  let artistStatus = $state('loading');
   let albumGroups = $state({});
   let appearsOn = $state([]);
+  let genres = $state([]);
+
   let similarArtists = $state([]);
+  let biography = $state("");
+  let mbid = $state("");
+
   let allTracks = $state([]);
+  /** @type {'loading'|'ready'|'error'} */
+  let tracksStatus = $state('loading');
   let allTracksOffset = $state(0);
   let allTracksHasMore = $state(false);
   let seenKeys = new SvelteMap();
   // Whether "Meer laden" appended anything, so a list that ran out ends in "Einde van de lijst".
   let allTracksPagedMore = $state(false);
   let loadingMore = $state(false);
+  /** The cache key the tracks on screen belong to; a mode switch changes it. */
+  let tracksKey = '';
+
+  /** Play or shuffle pressed before the tracks arrived: started as soon as they do. */
+  let pendingPlay = $state(null);
+
+  // Which load is current. Every answer checks it before it writes anything, so the answer for
+  // an artist the listener already left can never land on the page of the one they went to.
+  let loadSeq = 0;
+
+  /** The header: the server's artist, or the seed standing in for it. */
+  const display = $derived(artist ?? (seed ? { ...seed, id: artistId } : null));
 
   /** The artist's tracks as `getSpotifyTracks` pages them, newest first, songs or sets. */
   function artistTrackParams() {
@@ -46,13 +101,6 @@
       ? spotifyTracksContinuation(artistTrackParams(), allTracksOffset, { pageSize: 100, dedupe: $deduplicateEnabled, kind: 'artist' })
       : null
   );
-  let biography = $state("");
-  let mbid = $state("");
-  let isLoading = $state(true);
-  let loadFailed = $state(false);
-  // Which load is current. Every answer checks it before it writes anything, so the answer for
-  // an artist the listener already left can never land on the page of the one they went to.
-  let loadSeq = 0;
 
   /**
    * Toggles the starred status of the artist.
@@ -61,10 +109,9 @@
     if (!artist) return;
     const isCurrentlyStarred = !!artist.starred;
     const endpoint = isCurrentlyStarred ? 'unstar' : 'star';
-    
-    // Optimistic update
-    if (isCurrentlyStarred) delete artist.starred;
-    else artist.starred = new Date().toISOString();
+
+    // Optimistic update, mirrored into the cache so a revisit shows it too.
+    setStarred(isCurrentlyStarred ? undefined : new Date().toISOString());
 
     try {
       const response = await fetch(restUrl(`/rest/${endpoint}?artistId=${artistId}&${$authParams}`));
@@ -72,104 +119,169 @@
     } catch (e) {
       console.error(e);
       // Rollback
-      if (isCurrentlyStarred) artist.starred = new Date().toISOString();
-      else delete artist.starred;
+      setStarred(isCurrentlyStarred ? new Date().toISOString() : undefined);
     }
   }
 
   /**
-   * Loads the artist's basic data and triggers related content loading.
+   * Writes the star state to the page and to the cached artist.
+   *
+   * @param {string|undefined} starred
    */
-  async function loadArtist() {
+  function setStarred(starred) {
+    const apply = (value) => {
+      const next = { ...value };
+      if (starred) next.starred = starred;
+      else delete next.starred;
+      return next;
+    };
+    artist = apply(artist);
+    entityCache.update(artistKey(artistId), apply);
+  }
+
+  /**
+   * Starts every section of the page for the current `artistId`.
+   */
+  function loadArtist() {
     if (!$authParams) return;
     const seq = ++loadSeq;
-    isLoading = true;
-    loadFailed = false;
+    const id = artistId;
     // Nothing of the previous artist survives into this one, whatever fails below.
+    seed = peekSeed('artist', id);
     artist = null;
+    artistStatus = 'loading';
     albumGroups = {};
     appearsOn = [];
+    genres = [];
     similarArtists = [];
-    allTracks = [];
     biography = "";
     mbid = "";
-    try {
-      const data = await subsonicJson('getArtist', { id: artistId });
-      if (seq !== loadSeq) return;
-      const artistData = data['subsonic-response']?.artist;
-      if (!artistData) loadFailed = true;
-      if (artistData) {
-        artist = artistData;
-        // The place is opened before this resolves (App's handleNavigate records the bare
-        // 'artist:<id>'); this backfills the name once it is known.
-        recordPlace(`artist:${artistId}`, artistData.name);
-        const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
+    pendingPlay = null;
 
-        const groups = {};
-        const other = [];
-
-        allAlbums.forEach(a => {
-          if (a.artist === artistData.name) {
-            const type = (a.releaseTypes && a.releaseTypes.length > 0) ? a.releaseTypes[0] : 'Album';
-            if (!groups[type]) groups[type] = [];
-            groups[type].push(a);
-          } else {
-            other.push(a);
-          }
-        });
-
-        albumGroups = groups;
-        appearsOn = other;
-
-        loadAllTracks(false, seq);
-        loadArtistInfo(seq);
-        loadArtistMuma(seq);
-      }
-    } catch (e) {
+    const { promise } = entityCache.swr(artistKey(id), () => fetchArtist(id), (value) => {
+      if (seq === loadSeq) applyArtist(value, seq);
+    });
+    promise.catch((e) => {
       if (seq !== loadSeq) return;
       console.error(e);
-      loadFailed = true;
-    } finally {
-      if (seq === loadSeq) isLoading = false;
-    }
+      // A failed background refresh leaves a page that is already showing alone.
+      if (artist) return;
+      artistStatus = isNotFound(e) ? 'notfound' : 'error';
+    });
+
+    // Neither needs anything from `getArtist`, so neither waits for it.
+    loadAllTracks(false, seq);
+    loadArtistInfo(seq);
   }
 
   /**
-   * Loads all tracks by the artist, filtered by duration based on viewMode.
+   * Whether an error says the artist does not exist, rather than that asking failed.
+   *
+   * @param {unknown} error
+   */
+  function isNotFound(error) {
+    return error instanceof EntityNotFound
+      || (error instanceof SubsonicError && Number(error.code) === SUBSONIC_NOT_FOUND);
+  }
+
+  /**
+   * Puts the server's artist on the page: the header, the release groups, the recent place and
+   * the genre chips.
+   *
+   * @param {Record<string, any>} artistData
+   * @param {number} seq
+   */
+  function applyArtist(artistData, seq) {
+    const nameChanged = artist?.name !== artistData.name;
+    artist = { ...artistData };
+    artistStatus = 'ready';
+    // The place is opened before this resolves (App's handleNavigate records the bare
+    // 'artist:<id>'); this backfills the name once it is known.
+    recordPlace(`artist:${artistId}`, artistData.name);
+    const allAlbums = Array.isArray(artistData.album) ? artistData.album : (artistData.album ? [artistData.album] : []);
+
+    const groups = {};
+    const other = [];
+
+    allAlbums.forEach(a => {
+      if (a.artist === artistData.name) {
+        const type = (a.releaseTypes && a.releaseTypes.length > 0) ? a.releaseTypes[0] : 'Album';
+        if (!groups[type]) groups[type] = [];
+        groups[type].push(a);
+      } else {
+        other.push(a);
+      }
+    });
+
+    albumGroups = groups;
+    appearsOn = other;
+
+    if (nameChanged) loadArtistMuma(artistData.name, seq);
+  }
+
+  /**
+   * Loads all tracks by the artist, filtered by duration based on viewMode. The first page goes
+   * through the entity cache, so a revisit shows it at once; "load more" always asks the server.
    *
    * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
    * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
   async function loadAllTracks(append = false, seq = loadSeq) {
-    if (!append) {
-        allTracksOffset = 0;
-        allTracksHasMore = true;
-        allTracksPagedMore = false;
-        seenKeys = new SvelteMap();
-    }
-    const pageSize = append ? 100 : 25;
-    loadingMore = append;
-    try {
-      const page = await fetchSpotifyTracksPage(artistTrackParams(), allTracksOffset, {
-        pageSize,
-        seen: $deduplicateEnabled ? seenKeys : null
-      });
-      if (seq !== loadSeq) return;
-      allTracksHasMore = page.hasMore;
-      allTracksOffset = page.nextOffset;
-      if (append) {
-          allTracks = [...allTracks, ...page.tracks];
-          allTracksPagedMore = true;
-      } else {
-          allTracks = page.tracks;
+    if (append) {
+      if (loadingMore) return;
+      loadingMore = true;
+      try {
+        const page = await fetchSpotifyTracksPage(artistTrackParams(), allTracksOffset, {
+          pageSize: 100,
+          seen: $deduplicateEnabled ? seenKeys : null
+        });
+        if (seq !== loadSeq) return;
+        allTracks = [...allTracks, ...page.tracks];
+        allTracksOffset = page.nextOffset;
+        allTracksHasMore = page.hasMore;
+        allTracksPagedMore = true;
+      } catch (e) {
+        if (seq !== loadSeq) return;
+        console.error(e);
+        allTracksHasMore = false;
+      } finally {
+        if (seq === loadSeq) loadingMore = false;
       }
-    } catch (e) {
-      if (seq !== loadSeq) return;
-      console.error(e);
-      allTracksHasMore = false;
-    } finally {
-      if (seq === loadSeq) loadingMore = false;
+      return;
     }
+
+    const key = artistTracksKey(artistId, $viewMode, $deduplicateEnabled);
+    const params = artistTrackParams();
+    const dedupe = $deduplicateEnabled;
+    tracksKey = key;
+    tracksStatus = 'loading';
+    allTracks = [];
+    allTracksOffset = 0;
+    allTracksHasMore = false;
+    allTracksPagedMore = false;
+    const { promise } = entityCache.swr(
+      key,
+      () => fetchSpotifyTracksPage(params, 0, { pageSize: FIRST_PAGE, seen: dedupe ? new Map() : null }),
+      (page) => {
+        if (seq !== loadSeq || tracksKey !== key) return;
+        allTracks = page.tracks;
+        allTracksOffset = page.nextOffset;
+        allTracksHasMore = page.hasMore;
+        // The keys "load more" folds against; the same map the page loop built, rebuilt from
+        // what it kept.
+        seenKeys = new SvelteMap(page.tracks.map((track) => [getDeduplicateKey(track), track]));
+        tracksStatus = 'ready';
+        startPendingPlay();
+      },
+    );
+    promise.catch((e) => {
+      if (seq !== loadSeq || tracksKey !== key) return;
+      console.error(e);
+      if (tracksStatus !== 'ready') {
+        tracksStatus = 'error';
+        pendingPlay = null;
+      }
+    });
   }
 
   /**
@@ -179,20 +291,18 @@
    *
    * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadArtistInfo(seq = loadSeq) {
-    try {
-      const data = await subsonicJson('getArtistInfo2', { id: artistId });
+  function loadArtistInfo(seq = loadSeq) {
+    const id = artistId;
+    const { promise } = entityCache.swr(artistInfoKey(id), () => fetchArtistInfo(id), (info) => {
       if (seq !== loadSeq) return;
-      const info = data['subsonic-response']?.artistInfo || data['subsonic-response']?.artistInfo2 || {};
-      similarArtists = info.similarArtist
-        ? (Array.isArray(info.similarArtist) ? info.similarArtist : [info.similarArtist])
-        : [];
-      biography = info.biography || "";
-      mbid = info.musicBrainzId || "";
-    } catch (e) {
-      if (seq !== loadSeq) return;
-      console.error(e);
-    }
+      similarArtists = info.similarArtists;
+      biography = info.biography;
+      mbid = info.mbid;
+    });
+    // Optional sections: a failure only means they stay away, as they always did.
+    promise.catch((e) => {
+      if (seq === loadSeq) console.error(e);
+    });
   }
 
   /**
@@ -203,19 +313,21 @@
    * (`/api/artists/{artistId}`) hit a route that does not exist and left the chips
    * empty for as long as they have been on the page.
    *
+   * @param {string} name - The server's name for the artist, never the seed's.
    * @param {number} [seq] - The load this belongs to; see `loadSeq`.
    */
-  async function loadArtistMuma(seq = loadSeq) {
-    if (!artist?.name) return;
+  async function loadArtistMuma(name, seq = loadSeq) {
+    if (!name) return;
     try {
       const response = await fetch(
-        `${$mumaApiUrl}/api/curation/artists/${encodeURIComponent(artist.name)}`,
+        `${$mumaApiUrl}/api/curation/artists/${encodeURIComponent(name)}`,
         { headers: getHeaders() });
       if (seq !== loadSeq) return;
       if (response.ok) {
         const data = await response.json();
+        if (seq !== loadSeq) return;
         if (data && data.genre_rules) {
-          artist.genres = data.genre_rules.map((rule) => ({ name: rule.name }));
+          genres = data.genre_rules.map((rule) => ({ name: rule.name }));
         }
       }
     } catch (e) {
@@ -223,50 +335,91 @@
     }
   }
 
+  /**
+   * Plays the artist's tracks, in order (continuing into the next pages) or shuffled. Pressed
+   * while the tracks are still on their way, it waits for them instead of doing nothing.
+   *
+   * @param {boolean} shuffle
+   */
+  function playAll(shuffle) {
+    if (tracksStatus === 'loading') {
+      pendingPlay = shuffle ? 'shuffle' : 'play';
+      return;
+    }
+    if (allTracks.length === 0) return;
+    if (shuffle) {
+      const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
+      currentTrack.set(shuffled[0]);
+      startQueue(shuffled, { name: display?.name });
+      playerState.update(s => ({ ...s, playing: true, shuffle: true }));
+      return;
+    }
+    currentTrack.set(allTracks[0]);
+    startQueue(allTracks, { name: display?.name, continuation: tracksContinuation });
+    playerState.update(s => ({ ...s, playing: true }));
+  }
+
+  /** Runs a play that was pressed while the tracks were loading. */
+  function startPendingPlay() {
+    if (!pendingPlay) return;
+    const shuffle = pendingPlay === 'shuffle';
+    pendingPlay = null;
+    playAll(shuffle);
+  }
+
   $effect(() => {
     const id = artistId;
     const auth = $authParams;
-    const mode = $viewMode;
     if (id && auth) {
       untrack(() => loadArtist());
     }
   });
 
+  // Only the tracks depend on the listening mode and the dedupe switch; the rest stays.
+  $effect(() => {
+    const key = artistTracksKey(artistId, $viewMode, $deduplicateEnabled);
+    untrack(() => {
+      if ($authParams && tracksKey && key !== tracksKey) loadAllTracks(false);
+    });
+  });
+
   /**
-   * Navigates to a specific album detail view.
+   * Navigates to an album, leaving what the tile knows for its header.
    *
-   * @param {string} id - The Subsonic album ID.
+   * @param {Record<string, any>} album
    */
-  function openAlbum(id) {
-    if (onnavigate) onnavigate(`album:${id}`);
+  function openAlbum(album) {
+    openEntity(onnavigate, 'album', album);
   }
 
   /**
-   * Navigates to a specific artist detail view.
+   * Navigates to another artist, leaving what the tile knows for its header.
    *
-   * @param {string} id - The Subsonic artist ID.
+   * @param {Record<string, any>} other
    */
-  function openArtist(id) {
-    if (onnavigate) onnavigate(`artist:${id}`);
+  function openArtist(other) {
+    openEntity(onnavigate, 'artist', other);
   }
 </script>
 
-{#if isLoading}
-  <div class="p-8">{$t('common.loading')}</div>
-{:else if !artist || loadFailed}
+{#if !display && (artistStatus === 'notfound' || artistStatus === 'error')}
   <div class="p-8 text-muma-spotify-text" role="alert">{$t('library.loadFailed')}</div>
 {:else}
-  <div class="flex flex-col">
+  <div class="flex flex-col" data-testid="artist-page">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
        <div class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] flex-shrink-0">
-         <img
-           src={getArtistImageUrl(artist, $authParams)}
-           alt={artist.name}
-           class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
-           onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
-         />
+         {#if display}
+           <img
+             src={getArtistImageUrl(display, $authParams)}
+             alt={display.name}
+             class="w-full h-full object-cover rounded-full shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+             onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+           />
+         {:else}
+           <Skeleton class="w-full h-full rounded-full" />
+         {/if}
        </div>
-       <div class="flex flex-col">
+       <div class="flex flex-col min-w-0">
          <div class="flex items-center justify-center md:justify-start gap-2 text-sm font-bold mb-2">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="#3d91f4">
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM10 17l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
@@ -274,7 +427,11 @@
             {$t('artist.verified')}
          </div>
          <div class="flex items-center gap-3 justify-center md:justify-start">
-           <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{artist.name}</h1>
+           {#if display?.name}
+             <h1 class="text-4xl md:text-7xl lg:text-9xl font-black m-0 leading-tight md:leading-none">{display.name}</h1>
+           {:else}
+             <div class="w-64 md:w-[28rem] max-w-full" data-testid="artist-name-skeleton"><Skeleton class="h-10 md:h-20 w-full" /></div>
+           {/if}
            {#if hasPermission('rules.manage')}
              <button
                class="bg-transparent border-none text-muma-spotify-text hover:text-white transition-all hover:scale-110 cursor-pointer p-1 shrink-0"
@@ -287,45 +444,45 @@
            {/if}
          </div>
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
-           <button 
-             class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer"
-             onclick={() => {
-                if (allTracks.length > 0) {
-                  currentTrack.set(allTracks[0]);
-                  startQueue(allTracks, { name: artist.name, continuation: tracksContinuation });
-                  playerState.update(s => ({ ...s, playing: true }));
-                }
-             }}
+           <button
+             class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer text-black"
+             onclick={() => playAll(false)}
              aria-label={$t('common.play')}
+             aria-busy={pendingPlay === 'play'}
            >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
-                <path d="M7 6v12l10-6z"></path>
-              </svg>
+              {#if pendingPlay === 'play'}
+                <Throbber size={20} />
+              {:else}
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
+                  <path d="M7 6v12l10-6z"></path>
+                </svg>
+              {/if}
            </button>
 
-           <button 
+           <button
              class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-muma-spotify-text hover:text-white"
-             onclick={() => {
-                if (allTracks.length > 0) {
-                  const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
-                  currentTrack.set(shuffled[0]);
-                  startQueue(shuffled, { name: artist.name });
-                  playerState.update(s => ({ ...s, playing: true, shuffle: true }));
-                }
-             }}
+             onclick={() => playAll(true)}
              title={$t('common.shufflePlay')}
+             aria-busy={pendingPlay === 'shuffle'}
            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"></path>
-              </svg>
+              {#if pendingPlay === 'shuffle'}
+                <Throbber size={18} />
+              {:else}
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"></path>
+                </svg>
+              {/if}
            </button>
 
-           <button 
-             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {artist.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
+           <!-- Disabled until the server has answered: a star on a seed would have nothing to roll
+                back to if the artist turned out not to exist. -->
+           <button
+             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-default disabled:hover:scale-100 {artist?.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
              onclick={toggleStar}
-             title={artist.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
+             disabled={!artist}
+             title={artist?.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
            >
-              {#if artist.starred}
+              {#if artist?.starred}
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
                 </svg>
@@ -336,9 +493,9 @@
               {/if}
            </button>
          </div>
-         {#if artist.genres}
+         {#if genres.length > 0}
            <div class="flex flex-wrap gap-2 mt-4">
-             {#each (Array.isArray(artist.genres) ? artist.genres : [artist.genres]) as genre (genre.name)}
+             {#each genres as genre (genre.name)}
                <span class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-colors cursor-default border border-white/5">
                  {genre.name}
                </span>
@@ -351,7 +508,7 @@
     <div class="p-6 md:p-8 flex flex-col gap-8">
         {#if biography || mbid}
             <section>
-                <h2 class="text-2xl font-bold mb-4">{$t('artist.about', { name: artist.name })}</h2>
+                <h2 class="text-2xl font-bold mb-4">{$t('artist.about', { name: display?.name ?? '' })}</h2>
                 <div class="bg-muma-spotify-panel rounded-xl p-6 md:p-8 relative overflow-hidden group">
                     <div class="relative z-10 max-w-3xl">
                         {#if biography}
@@ -360,9 +517,9 @@
                             </p>
                         {/if}
                         {#if mbid}
-                            <a 
-                                href="https://musicbrainz.org/artist/{mbid}" 
-                                target="_blank" 
+                            <a
+                                href="https://musicbrainz.org/artist/{mbid}"
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 class="inline-flex items-center gap-2 text-xs font-bold text-muma-spotify-text hover:text-white transition-colors"
                             >
@@ -380,16 +537,32 @@
 
         <section>
             <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? $t('artist.allSets') : $t('artist.allTracks')}</h2>
-            {#if allTracks.length > 0}
-                <TrackList tracks={allTracks} continuation={tracksContinuation} onnavigate={onnavigate} />
-                <ListEnd hasMore={allTracksHasMore} ended={allTracksPagedMore} loading={loadingMore} onmore={() => loadAllTracks(true)} testid="artist-tracks-load-more" />
-            {:else}
-                <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
-                    <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('artist.noSets') : $t('artist.noTracks')}</p>
-                    <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('artist.noSetsHelp') : $t('artist.noTracksHelp')}</p>
-                </div>
-            {/if}
+            <SectionState status={tracksStatus} onretry={() => loadAllTracks(false)}>
+                {#snippet skeleton()}
+                    <SkeletonRows count={8} />
+                {/snippet}
+                {#if allTracks.length > 0}
+                    <TrackList tracks={allTracks} continuation={tracksContinuation} onnavigate={onnavigate} />
+                    <ListEnd hasMore={allTracksHasMore} ended={allTracksPagedMore} loading={loadingMore} onmore={() => loadAllTracks(true)} testid="artist-tracks-load-more" />
+                {:else}
+                    <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
+                        <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('artist.noSets') : $t('artist.noTracks')}</p>
+                        <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('artist.noSetsHelp') : $t('artist.noTracksHelp')}</p>
+                    </div>
+                {/if}
+            </SectionState>
         </section>
+
+        {#if !artist && artistStatus === 'loading'}
+            <section data-testid="artist-releases-skeleton">
+                <Skeleton class="h-7 w-32 mb-4" />
+                <SkeletonTiles count={6} />
+            </section>
+        {:else if !artist}
+            <section>
+                <SectionState status="error" onretry={() => loadArtist()} />
+            </section>
+        {/if}
 
         {#each Object.entries(albumGroups).sort() as [type, groupAlbums] (type)}
             <section>
@@ -400,8 +573,9 @@
                           role="button"
                           tabindex="0"
                           class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
-                          onclick={() => openAlbum(album.id)}
-                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                          onpointerdown={() => pressEntity('album', album)}
+                          onclick={() => openAlbum(album)}
+                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album)}
                         >
                             <img
                               src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
@@ -426,8 +600,9 @@
                           role="button"
                           tabindex="0"
                           class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
-                          onclick={() => openAlbum(album.id)}
-                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album.id)}
+                          onpointerdown={() => pressEntity('album', album)}
+                          onclick={() => openAlbum(album)}
+                          onkeydown={(e) => e.key === 'Enter' && openAlbum(album)}
                         >
                             <img
                               src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
@@ -452,8 +627,9 @@
                           role="button"
                           tabindex="0"
                           class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg transition-colors cursor-pointer hover:bg-muma-spotify-light"
-                          onclick={() => openArtist(similar.id)}
-                          onkeydown={(e) => e.key === 'Enter' && openArtist(similar.id)}
+                          onpointerdown={() => pressEntity('artist', similar)}
+                          onclick={() => openArtist(similar)}
+                          onkeydown={(e) => e.key === 'Enter' && openArtist(similar)}
                         >
                             <div class="mb-2 md:mb-4">
                                 <img
@@ -473,6 +649,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-</style>

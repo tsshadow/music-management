@@ -10,6 +10,8 @@
    * even though, with several artists, only each name individually is. The
    * names stay on one line and truncate, however many artists there are.
    */
+  import { openEntity, pressEntity } from './entitySeeds.js';
+
   const { artist = '', artistId = '', artists = [], active = false, size = 'sm', onnavigate } = $props();
 
   const displayArtists = $derived.by(() => {
@@ -45,8 +47,9 @@
       role="link"
       tabindex={a.id ? 0 : -1}
       class="text-inherit hover:text-white {a.id ? 'hover:underline cursor-pointer' : ''}"
-      onclick={(e) => { e.stopPropagation(); if (a.id && onnavigate) onnavigate(`artist:${a.id}`); }}
-      onkeydown={(e) => { e.stopPropagation(); if (a.id && onnavigate && (e.key === 'Enter' || e.key === ' ')) onnavigate(`artist:${a.id}`); }}
+      onpointerdown={() => { if (a.id && onnavigate) pressEntity('artist', a); }}
+      onclick={(e) => { e.stopPropagation(); if (a.id && onnavigate) openEntity(onnavigate, 'artist', a); }}
+      onkeydown={(e) => { e.stopPropagation(); if (a.id && onnavigate && (e.key === 'Enter' || e.key === ' ')) openEntity(onnavigate, 'artist', a); }}
     >{a.name}</span>{i < displayArtists.length - 1 ? ', ' : ''}
   {/each}
   </span>

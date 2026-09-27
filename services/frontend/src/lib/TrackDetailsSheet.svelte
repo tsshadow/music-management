@@ -1,4 +1,5 @@
 <script>
+  import { openEntity, seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { authParams, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
@@ -170,7 +171,7 @@
         {#if track.albumId}
           <button
             class="block bg-transparent border-none p-0 text-sm text-muma-spotify-text hover:text-white hover:underline cursor-pointer text-left"
-            onclick={() => navigate(`album:${track.albumId}`)}
+            onclick={() => { seedFromTrack(track); navigate(`album:${track.albumId}`); }}
           >{track.album || ''}</button>
         {:else}
           <p class="text-sm text-muma-spotify-text m-0">{track.album || ''}</p>
@@ -303,9 +304,9 @@
         {/if}
       {/if}
       <a href={restUrl(`/rest/download?id=${track.id}&${$authParams}`)} download={`${track.artist} - ${track.title}.mp3`} onclick={(e) => e.stopPropagation()}>{$t('track.browserDownload')}</a>
-      {#if track.albumId}<button onclick={() => navigate(`album:${track.albumId}`)}>{$t('track.goToAlbum')}</button>{/if}
+      {#if track.albumId}<button onclick={() => { seedFromTrack(track); navigate(`album:${track.albumId}`); }}>{$t('track.goToAlbum')}</button>{/if}
       {#each artists as artist (artist.id)}
-        <button onclick={() => navigate(`artist:${artist.id}`)}>{$t('track.goToArtist')}: {artist.name}</button>
+        <button onclick={() => openEntity(navigate, 'artist', artist)}>{$t('track.goToArtist')}: {artist.name}</button>
       {/each}
       {#if onremove}
         <button onclick={() => onremove?.()}>{$t('common.remove')}</button>

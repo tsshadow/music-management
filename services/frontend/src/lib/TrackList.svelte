@@ -1,4 +1,5 @@
 <script>
+  import { pressEntity, seedFromTrack } from './entitySeeds.js';
   import { t, locale } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import { startQueue } from './queue.js';
@@ -507,7 +508,7 @@
               {#if $isMobile && Number($trackListLines) === 3}
                 <div class="text-xs text-muma-spotify-text truncate" data-testid="track-third-line">
                   {#if track.albumId}
-                    <button class="bg-transparent border-none p-0 text-inherit hover:underline cursor-pointer" onclick={(e) => { e.stopPropagation(); onnavigate?.(`album:${track.albumId}`); }}>{track.album || ''}</button>
+                    <button class="bg-transparent border-none p-0 text-inherit hover:underline cursor-pointer" onpointerdown={() => pressEntity('album', { id: track.albumId })} onclick={(e) => { e.stopPropagation(); seedFromTrack(track); onnavigate?.(`album:${track.albumId}`); }}>{track.album || ''}</button>
                   {:else}{track.album || ''}{/if}
                   {#if track.album} • {/if}{showDate ? formatDate(track.listenedAt) : releaseDateLabel(track)}
                 </div>
@@ -540,8 +541,9 @@
               role="link"
               tabindex="0"
               class="hover:underline cursor-pointer"
-              onclick={() => onnavigate && onnavigate(`album:${track.albumId}`)}
-              onkeydown={(e) => e.key === 'Enter' && onnavigate && onnavigate(`album:${track.albumId}`)}
+              onpointerdown={() => pressEntity('album', { id: track.albumId })}
+              onclick={() => { seedFromTrack(track); onnavigate?.(`album:${track.albumId}`); }}
+              onkeydown={(e) => { if (e.key === 'Enter') { seedFromTrack(track); onnavigate?.(`album:${track.albumId}`); } }}
             >{track.album || ''}</span>
           </td>
           <td class="p-2 px-4 text-xs italic opacity-80 truncate hidden @3xl:table-cell" title={track.genre || ''}>

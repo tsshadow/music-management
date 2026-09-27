@@ -32,3 +32,12 @@ def test_every_other_service_opts_out_explicitly():
         if name not in UPDATED_BY_WATCHTOWER and (svc.get('labels') or {}).get(LABEL) != 'false'
     ]
     assert missing == [], f'services without an explicit Watchtower opt-out: {missing}'
+
+
+LMS_COMPOSE = Path(__file__).resolve().parents[2] / 'services' / 'music-management-server' / 'docker-compose.yml'
+
+
+def test_the_lms_stack_opts_out_entirely():
+    services = yaml.safe_load(LMS_COMPOSE.read_text(encoding='utf-8'))['services']
+    missing = [name for name, svc in services.items() if (svc.get('labels') or {}).get(LABEL) != 'false']
+    assert missing == [], f'LMS stack services without a Watchtower opt-out: {missing}'

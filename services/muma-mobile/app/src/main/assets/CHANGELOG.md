@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.8.0] - 2026-09-27
+
+### Added
+- **A podcast show by name, by voice** (issue #88). "Speel de podcast van KTRA af", "play the
+  Monstercat podcast" and "speel de laatste aflevering van Monstercat af" play that show's episodes,
+  newest first -- in the car, through the microphone on the web and in the app. Until now only the
+  word "podcasts" was understood, and a show name landed in the artist slot, where it matched
+  nothing. The name is matched against the shows the library tags episodes under and, through the
+  podcast curation, their aliases ("KTRA" for Keeping The Rave Alive); "aflevering" / "episode" ask
+  for a podcast just as "podcast" does. A name that is no show still plays all podcasts, a genre
+  stays a genre ("speel hardstyle podcasts af"), and only a show name the library lists is ever
+  sent, since the server refuses an unknown one for the whole request.
+
+### Fixed
+- **The app's account-settings writes no longer overwrite the web player's** (issue #39, bug report
+  116). Favourite genres and the one-off bookmark migration into set resume used to read the whole
+  account settings blob and post it back, dropping anything another device saved in between. They
+  now send only their own key with the server's new per-key `PATCH`, and fall back to the old
+  whole-blob write against a server that answers it with 405. The web UI inside the app gets the
+  same change through the web player's own settings sync.
+
 ## [7.7.0] - 2026-09-27
 
 ### Added

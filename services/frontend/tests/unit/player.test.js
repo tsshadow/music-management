@@ -12,6 +12,7 @@ import {
   playlist,
   radioChannel,
   syncMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
 import { platform } from "../../src/lib/platform/index.js";
@@ -57,6 +58,7 @@ async function settled() {
 describe("Player", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     playlist.set([FIRST, SECOND]);
     currentTrack.set(FIRST);
     playerState.set({ playing: false, repeat: "none", shuffle: false, volume: 50 });

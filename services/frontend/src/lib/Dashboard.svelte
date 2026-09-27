@@ -1,4 +1,5 @@
 <script>
+  import { openEntity, pressEntity } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { fetchGenreTints, withTints } from './genreTints.js';
   import { Pencil } from '@lucide/svelte';
@@ -977,8 +978,9 @@
                   role="button"
                   tabindex="0"
                   class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-                  onclick={() => activeView = `album:${album.id}`}
-                  onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
+                  onpointerdown={() => pressEntity('album', album)}
+                  onclick={() => openEntity((v) => activeView = v, 'album', album)}
+                  onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'album', album)}
                 >
                     <img
                       src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
@@ -1103,8 +1105,9 @@
               role="button"
               tabindex="0"
               class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-              onclick={() => activeView = `artist:${artist.id}`}
-              onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
+              onpointerdown={() => pressEntity('artist', artist)}
+              onclick={() => openEntity((v) => activeView = v, 'artist', artist)}
+              onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'artist', artist)}
             >
                 <img
                   src={getArtistImageUrl(artist, $authParams)}
@@ -1263,8 +1266,9 @@
                 role="button"
                 tabindex="0"
                 class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-                onclick={() => activeView = `artist:${artist.id}`}
-                onkeydown={(e) => e.key === 'Enter' && (activeView = `artist:${artist.id}`)}
+                onpointerdown={() => pressEntity('artist', artist)}
+              onclick={() => openEntity((v) => activeView = v, 'artist', artist)}
+                onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'artist', artist)}
               >
                   <img
                     src={getArtistImageUrl(artist, $authParams)}
@@ -1289,8 +1293,9 @@
                 role="button"
                 tabindex="0"
                 class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-                onclick={() => activeView = `album:${album.id}`}
-                onkeydown={(e) => e.key === 'Enter' && (activeView = `album:${album.id}`)}
+                onpointerdown={() => pressEntity('album', album)}
+                  onclick={() => openEntity((v) => activeView = v, 'album', album)}
+                onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'album', album)}
               >
                   <img
                     src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}

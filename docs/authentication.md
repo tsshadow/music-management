@@ -121,7 +121,8 @@ password. After a sign-in, clients (the web player, the Android app's native cli
 shell) fetch their own token with the key the login returned and sign every `/rest` call with
 `t=md5(token + salt)&s=salt`; the password is only ever in the login's POST body. music-manager
 reads the token from, or issues it into, LMS's own `lms.db` (`services/music_manager/subsonic_token.py`).
-Until a fetch succeeds the client falls back to `p=`. See
+There is no password fallback (issue #72): without a token the client fetches one first, and while
+none can be had it sends no Subsonic request and shows "sign in again" or "server unreachable". See
 [docs/designs/subsonic-token-signing/](designs/subsonic-token-signing/) and bug report 103.
 
 ### 2. Google Sign-In (`POST /api/auth/google`)

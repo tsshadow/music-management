@@ -10,6 +10,7 @@ import {
   playlist,
   favoriteGenres,
   playerState,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 /**
@@ -41,6 +42,7 @@ function fetchMock() {
 describe("CarModeView", () => {
   beforeEach(() => {
     credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     resetRatings();
     currentTrack.set({ ...TRACK });
     playlist.set([]);

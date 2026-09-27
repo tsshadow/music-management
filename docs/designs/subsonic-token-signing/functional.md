@@ -29,12 +29,13 @@ apps use it.
 | Situation | Observable outcome |
 |---|---|
 | A listener signs in (phone or browser) | Signing in works as before. From then on, no request carries the password. |
-| A listener who signed in on an older app version updates the app | The first time the app opens, it quietly picks up the listener's token. Until then it keeps working the old way. |
-| Android Auto starts before the app's screen was ever opened after an update | Playback works (old way) until the app's screen is opened once. |
+| A listener who signed in on an older app version updates the app | Before the first song, cover or list is requested the app fetches the listener's token, quietly. The password is never sent in an address again, not even once (issue #72). |
+| Android Auto starts before the app's screen was ever opened after an update | The token is fetched when the car starts the app, before the first browse or play. If that fails the car says "sign in again" or "server not reachable" instead of showing empty lists. |
+| The token cannot be fetched (server down, or the account refused) | Nothing is requested from the music server. The phone's and the browser's screens say "the server is not reachable -- try again" or "sign in again", with a button for each; the car shows the same message. |
 | The listener has no token yet | One is created for them the first time they sign in. |
 | An administrator already gave the listener a token | The apps use that same token; external players keep working. |
 | An administrator replaces the listener's token | The web player asks the listener to sign in again; the phone, Android Auto included, fetches the new token on the first request the server refuses and repeats that request, without the app's screen having to open (issue #73). |
-| The music server cannot hand out a token (e.g. an older server) | Everything keeps working the old way. |
+| The music server cannot hand out a token (e.g. an older server) | Signing in fails with "no connection to the server"; there is no old way any more. |
 | A listener signs out | The token is forgotten on that device along with the password. |
 
 ## Acceptance Criteria
@@ -46,11 +47,12 @@ apps use it.
    reused and keeps working for external players.
 4. A listener can only ever obtain their own token, never anyone else's.
 5. Diagnostics reports and exported crash logs never contain the token or the password.
-6. If the token cannot be obtained, the apps keep working as before.
+6. If the token cannot be obtained, no request to the music server is sent, and the listener sees
+   why ("sign in again" or "server not reachable") rather than an empty library (issue #72).
 
 ## Open Questions / Not Yet Decided
 
-- Whether the password fallback should be removed once every installed app has fetched a token.
-  Deferred: tracked as a follow-up issue, decided after a release cycle.
+- ~~Whether the password fallback should be removed once every installed app has fetched a
+  token.~~ Decided (issue #72): removed. See the technical design, "Fallback decision".
 - ~~The phone only re-reads a replaced token when the app's screen opens.~~ Resolved (issue #73,
   bug report 111): a refused token is fetched again and the request repeated once.

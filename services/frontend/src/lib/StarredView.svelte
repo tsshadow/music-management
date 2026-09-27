@@ -1,4 +1,5 @@
 <script>
+  import { openEntity, pressEntity } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, currentTrack, playerState, mumaApiUrl, restUrl } from './store.js';
@@ -95,7 +96,8 @@
               {#each albums as album (album.id)}
                 <button 
                   class="bg-muma-spotify-panel p-4 rounded-lg hover:bg-muma-spotify-light transition-all group text-left border-none cursor-pointer"
-                  onclick={() => onnavigate(`album:${album.id}`)}
+                  onpointerdown={() => pressEntity('album', album)}
+                  onclick={() => openEntity(onnavigate, 'album', album)}
                 >
                   <div class="relative mb-4 aspect-square shadow-lg">
                     <img 
@@ -120,7 +122,8 @@
               {#each artists as artist (artist.id)}
                 <button 
                   class="bg-muma-spotify-panel p-4 rounded-lg hover:bg-muma-spotify-light transition-all group text-left border-none cursor-pointer"
-                  onclick={() => onnavigate(`artist:${artist.id}`)}
+                  onpointerdown={() => pressEntity('artist', artist)}
+                  onclick={() => openEntity(onnavigate, 'artist', artist)}
                 >
                   <div class="relative mb-4 aspect-square shadow-lg">
                     <img 

@@ -2,7 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import AlbumView from "../../src/lib/AlbumView.svelte";
-import { credentials, currentTrack, playerState, playlist, viewMode } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  playerState,
+  playlist,
+  viewMode,
+  subsonicToken,
+} from "../../src/lib/store.js";
+import { entityCache } from "../../src/lib/entityLoaders.js";
+import { clearSeeds, seedEntity } from "../../src/lib/entitySeeds.js";
 
 const SHORT_TRACK = {
   id: "song-1",
@@ -70,11 +79,15 @@ async function renderLoaded(props = {}) {
 describe("AlbumView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });
     globalThis.fetch = subsonic();
+    // Every test answers for the same ids with different data; nothing carries over.
+    entityCache.clear();
+    clearSeeds();
   });
 
   afterEach(() => {
@@ -232,6 +245,7 @@ describe("AlbumView - failures", () => {
 
   it("shows an error, not a blank page, when the album cannot be loaded", async () => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     vi.spyOn(console, "error").mockImplementation(() => {});
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
@@ -243,5 +257,53 @@ describe("AlbumView - failures", () => {
     render(AlbumView, { albumId: "gone", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+  });
+});
+
+/** The album page draws what the tapped tile knew at once (docs/designs/perceived-performance/). */
+describe("AlbumView - optimistic page", () => {
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    viewMode.set("songs");
+    entityCache.clear();
+    clearSeeds();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows the title and artist from the tile with skeleton rows while getAlbum is pending", () => {
+    globalThis.fetch = vi.fn(() => new Promise(() => {}));
+    seedEntity("album", "album-1", { name: "Close Combat", artist: "Angerfist", year: 2008 });
+
+    render(AlbumView, { albumId: "album-1", onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Close Combat" })).toBeTruthy();
+    expect(screen.getByText("Angerfist")).toBeTruthy();
+    expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows a skeleton title when opened by URL with nothing known", () => {
+    globalThis.fetch = vi.fn(() => new Promise(() => {}));
+
+    render(AlbumView, { albumId: "album-1", onnavigate: vi.fn() });
+
+    expect(screen.getByTestId("album-name-skeleton")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+  });
+
+  it("keeps the tile's header and offers a retry when getAlbum fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("down");
+    });
+    seedEntity("album", "album-1", { name: "Close Combat" });
+
+    render(AlbumView, { albumId: "album-1", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
+    expect(screen.getByRole("heading", { level: 1, name: "Close Combat" })).toBeTruthy();
   });
 });

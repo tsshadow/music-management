@@ -895,9 +895,10 @@ open class RESTMusicService(
 
     /**
      * Asks MuMa for the signed-in user's Subsonic API token and stores it in [SecureSettings]; see
-     * [MusicService.refreshSubsonicToken] and [SubsonicSigning]. A server without the endpoint
-     * (404), an account LMS does not know yet (404) or an outage leaves the stored state alone, so
-     * the client keeps signing with whatever it had. The token is never logged.
+     * [MusicService.refreshSubsonicToken] and [SubsonicSigning]. A refusal (401/403, or 404 for an
+     * account no server knows yet) returns `false`, an outage (5xx, 429, no network) throws; both
+     * leave the stored state alone, so the client keeps signing with whatever token it had -- and
+     * sends nothing when it had none (issue #72). The token is never logged.
      */
     @Throws(Exception::class)
     override fun refreshSubsonicToken(): Boolean {
@@ -907,9 +908,18 @@ open class RESTMusicService(
         ensureMumaLogin()
         val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSubsonicToken().execute() }
         if (!response.isSuccessful) {
-            Timber.w("Subsonic token not available (HTTP %d); requests keep their current signing", response.code())
+            val code = response.code()
             response.errorBody()?.close()
-            return false
+            // A refusal (401/403: the key or the account; 404: no server knows the account yet)
+            // means "sign in again"; anything else -- a 5xx, a 429 -- that the server is not
+            // answering for now. The difference is what the listener is told when no token can be
+            // had and requests are therefore not sent (issue #72).
+            if (MumaLoginRefusedException.isRefusal(code)) {
+                Timber.w("Subsonic token refused (HTTP %d); requests keep their current token", code)
+                return false
+            }
+            Timber.w("Subsonic token not available (HTTP %d); requests keep their current token", code)
+            throw IOException("Subsonic token endpoint answered HTTP $code")
         }
         val body = response.body()
         // A sign-out while the request was out must win: storing the answer now would put a
@@ -1001,8 +1011,9 @@ open class RESTMusicService(
                 Timber.i("MuMa login successful")
             }
         } else {
-            Timber.e("MuMa login failed: ${response.code()}")
-            throw IOException("MuMa login failed: ${response.code()}")
+            val code = response.code()
+            Timber.e("MuMa login failed: $code")
+            throw if (MumaLoginRefusedException.isRefusal(code)) MumaLoginRefusedException(code) else IOException("MuMa login failed: $code")
         }
     }
 

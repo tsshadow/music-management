@@ -1,4 +1,5 @@
 <script>
+  import { openEntity, pressEntity } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { authParams, viewMode, activeModal, activeView, deduplicateEnabled, restUrl } from './store.js';
@@ -91,8 +92,9 @@
             role="button"
             tabindex="0"
             class="bg-muma-spotify-panel p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-            onclick={() => navigate(`artist:${artist.id}`)}
-            onkeydown={(e) => e.key === 'Enter' && navigate(`artist:${artist.id}`)}
+            onpointerdown={() => pressEntity('artist', artist)}
+            onclick={() => openEntity(navigate, 'artist', artist)}
+            onkeydown={(e) => e.key === 'Enter' && openEntity(navigate, 'artist', artist)}
           >
               <img
                 src={getArtistImageUrl(artist, $authParams)}
@@ -112,8 +114,9 @@
             role="button"
             tabindex="0"
             class="bg-muma-spotify-panel p-4 rounded-lg flex flex-col gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-            onclick={() => navigate(`album:${album.id}`)}
-            onkeydown={(e) => e.key === 'Enter' && navigate(`album:${album.id}`)}
+            onpointerdown={() => pressEntity('album', album)}
+            onclick={() => openEntity(navigate, 'album', album)}
+            onkeydown={(e) => e.key === 'Enter' && openEntity(navigate, 'album', album)}
           >
               <img
                 src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}

@@ -8,6 +8,10 @@ import {
   playerState,
   playlist,
   signedOut,
+  subsonicToken,
+  subsonicTokenProblem,
+  subsonicAccess,
+  authParams,
 } from "../../src/lib/store.js";
 import { get } from "svelte/store";
 
@@ -49,9 +53,28 @@ function shell({ servers, stored, state, queue, log = vi.fn() } = {}) {
   };
 }
 
-/** A fetch that answers `/rest/getSong` from a table and pings with ok. */
+/** MuMa's two sign-in answers: the session for "user", and LMS's token for the same name. */
+function mumaAnswer(url) {
+  if (url.includes("/api/auth/login")) {
+    return {
+      ok: true,
+      json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+    };
+  }
+  if (url.includes("/api/auth/subsonic-token")) {
+    return {
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    };
+  }
+  return null;
+}
+
+/** A fetch that answers MuMa's sign-in, `/rest/getSong` from a table, and pings with ok. */
 function fakeLibrary(songs, { ping = "ok" } = {}) {
   return vi.fn(async (url) => {
+    const muma = mumaAnswer(url);
+    if (muma) return muma;
     if (url.includes("/rest/ping")) {
       return { json: async () => ({ "subsonic-response": { status: ping } }) };
     }
@@ -81,6 +104,8 @@ beforeEach(() => {
     repeat: "none",
   });
   signedOut.set(false);
+  subsonicToken.set({ username: "", token: "" });
+  subsonicTokenProblem.set("");
   global.fetch = vi.fn(async () => ({ ok: false, json: async () => ({}) }));
 });
 
@@ -171,12 +196,8 @@ describe("restoreSession", () => {
   // every Subsonic call with it, and LMS created a second user for that spelling.
   it("writes the account's own spelling back to a phone that stored another case", async () => {
     global.fetch = vi.fn(async (url) => {
-      if (url.includes("/api/auth/login")) {
-        return {
-          ok: true,
-          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
-        };
-      }
+      const muma = mumaAnswer(url);
+      if (muma) return muma;
       return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
     });
     const platform = shell({ stored: { username: "Teun", password: "hunter2" } });
@@ -193,12 +214,8 @@ describe("restoreSession", () => {
 
   it("leaves the phone alone when it already stored the account's own spelling", async () => {
     global.fetch = vi.fn(async (url) => {
-      if (url.includes("/api/auth/login")) {
-        return {
-          ok: true,
-          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
-        };
-      }
+      const muma = mumaAnswer(url);
+      if (muma) return muma;
       return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
     });
     const platform = shell({ stored: { username: "user", password: "hunter2" } });
@@ -218,7 +235,8 @@ describe("restoreSession", () => {
     expect(signedIn).toBe(true);
     expect(get(credentials).username).toBe("user");
     expect(get(credentials).password).toBe("hunter2");
-    expect(get(mumaApiKey)).toBe("key-1");
+    // The sign-in's own session key; the phone's is only a fallback when there is none.
+    expect(get(mumaApiKey)).toBe("own-key");
   });
 
   // Blank is how the native app says "logged out". It is not a sign-out of a
@@ -236,14 +254,90 @@ describe("restoreSession", () => {
     expect(await restoreSession(shell({ stored: { password: "" } }))).toBe(false);
   });
 
-  it("does not sign in again when the stores already hold the same pair", async () => {
+  it("does not sign in again when the stores already hold the same pair and a token", async () => {
     credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
     global.fetch = vi.fn();
 
     expect(await restoreSession(shell({ stored: { username: "user", password: "hunter2" } }))).toBe(
       true,
     );
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  // Issue #72: without a token nothing Subsonic is requested, so the boot makes sure of one.
+  it("takes over the phone's token instead of fetching one", async () => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    global.fetch = vi.fn();
+
+    const signedIn = await restoreSession(
+      shell({
+        stored: {
+          username: "user",
+          password: "hunter2",
+          subsonicToken: "the-phone-token",
+          subsonicTokenUser: "user",
+        },
+      }),
+    );
+
+    expect(signedIn).toBe(true);
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-phone-token" });
+    const urls = global.fetch.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/api/auth/subsonic-token"))).toBe(false);
+    expect(urls.every((url) => !new URL(url).searchParams.has("p"))).toBe(true);
+    expect(get(authParams)).not.toContain("p=");
+  });
+
+  it("ignores a phone token issued for another name", async () => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    mumaApiKey.set("own-key");
+    global.fetch = vi.fn(async (url) => mumaAnswer(url));
+
+    await restoreSession(
+      shell({
+        stored: {
+          username: "user",
+          password: "hunter2",
+          subsonicToken: "alices-token",
+          subsonicTokenUser: "alice",
+        },
+      }),
+    );
+
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+  });
+
+  it("fetches a missing token before the queue is rebuilt, an upgrade from the password build", async () => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    global.fetch = vi.fn(async (url) => mumaAnswer(url));
+
+    const signedIn = await restoreSession(
+      shell({ stored: { username: "user", password: "hunter2", mumaApiKey: "own-key" } }),
+    );
+
+    expect(signedIn).toBe(true);
+    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicAccess)).toBe("ok");
+    // The token fetch comes first; whatever Subsonic call follows is signed with the token.
+    const urls = global.fetch.mock.calls.map(([url]) => url);
+    expect(urls[0]).toContain("/api/auth/subsonic-token");
+    expect(urls.every((url) => !new URL(url, "https://x").searchParams.has("p"))).toBe(true);
+  });
+
+  it("stays signed in, sends nothing and says so when the token cannot be fetched", async () => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    global.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+
+    const signedIn = await restoreSession(
+      shell({ stored: { username: "user", password: "hunter2", mumaApiKey: "own-key" } }),
+    );
+
+    expect(signedIn).toBe(true);
+    expect(get(authParams)).toBe("");
+    expect(get(subsonicAccess)).toBe("offline");
   });
 
   it("reports a refused password rather than pretending to be signed in", async () => {
@@ -330,5 +424,54 @@ describe("rehydrateQueue", () => {
 
     expect(await rehydrateQueue(platform, failing)).toBe(0);
     expect(get(playlist)).toEqual([]);
+  });
+});
+
+/**
+ * The boot screen says which step the shell is waiting on (docs/designs/perceived-performance/).
+ * The steps themselves and their order are the ones above; these only check what is reported.
+ */
+describe("bootstrapShell - boot stages", () => {
+  const songs = {
+    1: { id: "1", title: "One", duration: 100 },
+    2: { id: "2", title: "Two", duration: 200 },
+  };
+
+  it("reports connecting, signing in and the queue with a count, in that order", async () => {
+    credentials.set({ url: "https://lms.example", username: "web", password: "typed" });
+    const onStage = vi.fn();
+    const platform = shell({
+      stored: { username: "user", password: "" },
+      queue: { index: 0, trackIds: ["1", "2"] },
+      state: { status: "paused", trackId: "1" },
+    });
+
+    await bootstrapShell(platform, fakeLibrary(songs), onStage);
+
+    const stages = onStage.mock.calls.map(([stage]) => stage);
+    expect(stages.slice(0, 3)).toEqual(["connecting", "signingIn", "restoringQueue"]);
+    const counts = onStage.mock.calls.filter(([, progress]) => progress).map(([, p]) => p);
+    expect(counts[0]).toEqual({ done: 0, total: 2 });
+    expect(counts.at(-1)).toEqual({ done: 2, total: 2 });
+  });
+
+  it("does not announce a queue restore for a phone that is signed out", async () => {
+    const onStage = vi.fn();
+
+    await bootstrapShell(shell({ stored: { password: "" } }), undefined, onStage);
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(["connecting", "signingIn"]);
+  });
+
+  it("boots all the same when showing a stage throws", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    credentials.set({ url: "https://lms.example", username: "web", password: "typed" });
+    const onStage = vi.fn(() => {
+      throw new Error("no boot screen");
+    });
+
+    const result = await bootstrapShell(shell({ stored: { password: "" } }), undefined, onStage);
+
+    expect(result).toEqual({ native: true, signedIn: true, restored: 0 });
   });
 });

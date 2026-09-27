@@ -1,4 +1,5 @@
 <script>
+  import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { fly } from 'svelte/transition';
   import { formatTime, formatClock, progressPercent } from './playerProgress.js';
@@ -534,7 +535,7 @@
                       <button
                         class="min-w-0 truncate border-none bg-transparent p-0 text-left text-inherit cursor-pointer hover:text-white hover:underline"
                         data-testid="now-playing-album"
-                        onclick={() => navigate(`album:${track.albumId}`)}
+                        onclick={() => { seedFromTrack(track); navigate(`album:${track.albumId}`); }}
                       >{track.album}</button>
                     {:else}
                       <span class="min-w-0 truncate">{track.album}</span>
@@ -832,7 +833,7 @@
               <h3 class="text-base font-bold">{$t('nowPlaying.moreFrom', { name: artistName })}</h3>
               <button
                 class="bg-transparent border-none p-0 text-sm text-muma-spotify-text hover:text-white hover:underline cursor-pointer"
-                onclick={() => navigate(`artist:${track.artistId}`)}
+                onclick={() => { seedFromTrack(track); navigate(`artist:${track.artistId}`); }}
               >
                 {$t('dashboard.showAll')}
               </button>

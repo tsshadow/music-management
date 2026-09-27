@@ -14,8 +14,19 @@ import okhttp3.Response
  */
 interface SubsonicTokenRecovery {
 
-    /** The token stored for the signed-in account, or `null` when none is (signed out, fallback). */
+    /** The token stored for the signed-in account, or `null` when none is (signed out, not fetched yet). */
     fun currentToken(): String?
+
+    /**
+     * The token to sign a new request with: the stored one, or -- when none is stored yet -- one
+     * fetched from MuMa right now (issue #72). `null` when none can be had: signed out, the fetch
+     * failed, or a failed fetch is still in back-off; [unavailableReason] then says which. The
+     * caller must not send the request then. May block.
+     */
+    fun obtain(): String?
+
+    /** Why the last [obtain] returned `null`. */
+    fun unavailableReason(): SubsonicTokenUnavailableException.Reason
 
     /**
      * Called after LMS refused a request signed with [rejectedToken], the currently stored one.
@@ -35,9 +46,9 @@ interface SubsonicTokenRecovery {
  * `t`/`s`), recognises a refusal, asks [recovery] for a fresh token and signs the same request
  * with it one more time. The retried answer is returned whatever it is: there is no second retry.
  *
- * Only requests signed with a token are touched. A request carrying `p=` is signed with the
- * password fallback, which a new token cannot repair, and a request without `t`/`s` is not a
- * Subsonic request at all (news streams, MuMa calls).
+ * Only requests signed with a token are touched. A request without `t`/`s` is not a Subsonic
+ * request at all (news streams, MuMa calls), and one carrying `p=` -- which no client of this app
+ * builds any more (issue #72) -- is not a token signature a new token could repair.
  */
 class TokenRecoveryInterceptor(private val recovery: SubsonicTokenRecovery) : Interceptor {
     private val secureRandom = SecureRandom()
@@ -95,7 +106,7 @@ class TokenRecoveryInterceptor(private val recovery: SubsonicTokenRecovery) : In
         private val XML_ERROR_40 = Regex("<error\\b[^>]*\\bcode=\"40\"")
 
         /** `md5(secret + salt)` as lowercase hex: the Subsonic `t` parameter. */
-        fun tokenHash(secret: String, salt: String): String = PasswordMD5Interceptor.md5Signature(secret, salt)
+        fun tokenHash(secret: String, salt: String): String = TokenSigningInterceptor.md5Signature(secret, salt)
 
         /**
          * Whether [response] says the credentials were refused: HTTP 401, or Subsonic error 40 in

@@ -161,6 +161,15 @@ export const subsonicToken = writable({ username: "", token: "" });
 persist("lms_subsonic_token", subsonicToken);
 
 /**
+ * Why the last token fetch brought no token: `""` when nothing failed,
+ * `"pending"` while a fetch runs, `"rejected"` when MuMa refused the key or
+ * the account (HTTP 401/403 -- only a new sign-in helps), `"offline"` when it
+ * could not be reached or has no token to give yet (network error, 5xx, 429,
+ * 404 for an account no music server knows yet -- retrying later helps).
+ */
+export const subsonicTokenProblem = writable("");
+
+/**
  * A random salt as hex. `authParams` draws one per page session and token (see
  * `sessionSaltFor`), not per request: the URLs a page builds stay stable, so
  * the browser's image cache keeps working, while no URL carries the token or
@@ -264,6 +273,7 @@ export const mumaUser = writable(null);
 export function endRejectedSession() {
   credentials.update((current) => ({ ...current, username: "", password: "" }));
   subsonicToken.set({ username: "", token: "" });
+  subsonicTokenProblem.set("");
   mumaApiKey.set("");
   mumaRefreshToken.set("");
   mumaSessionActive.set(false);
@@ -583,30 +593,73 @@ export const allSortOptions = {
 };
 
 /**
- * Derived store that computes Subsonic authentication parameters.
- * Returns a query string with username, password, and client info.
+ * Whether `token` may sign Subsonic requests for `username`: only for the name it was issued to,
+ * byte for byte -- LMS compares login names exactly (bug report 074), and a token left over from
+ * another account must never sign for this one.
+ *
+ * @param {string} username
+ * @param {{username: string, token: string}|null|undefined} token
+ * @returns {boolean}
+ */
+export function tokenSignsFor(username, token) {
+  return Boolean(username && token?.token && token.username === username);
+}
+
+/**
+ * Derived store that computes Subsonic authentication parameters: the
+ * signed-in name and the salted token signature `t`/`s` (bug report 103).
+ *
+ * Empty while no token is stored for the signed-in name -- and then no
+ * Subsonic request is made at all. The password is never put in a URL: the
+ * fallback that did so while no token was stored is gone (issue #72);
+ * `subsonicAccess` says what the listener sees meanwhile.
  */
 export const authParams = derived([credentials, subsonicToken], ([$c, $token]) => {
-  if (!$c.username || !$c.password) return "";
-  // The token only signs for the name it was issued to: LMS compares login names byte for byte
-  // (bug report 074), and a token left over from another account must never sign for this one.
-  if ($token?.token && $token.username === $c.username) {
-    return subsonicTokenQuery($c.username, $token.token, sessionSaltFor($token.token));
-  }
-  // No token yet (a server without the endpoint, or the fetch failed): the password, as before.
-  return `u=${encodeURIComponent($c.username)}&p=${encodeURIComponent($c.password)}&v=1.12.0&c=spotify&f=json`;
+  if (!tokenSignsFor($c.username, $token)) return "";
+  return subsonicTokenQuery($c.username, $token.token, sessionSaltFor($token.token));
 });
+
+/**
+ * What the player can do with the Subsonic server right now (issue #72):
+ * `"none"` signed out, `"ok"` a token signs every request, otherwise the
+ * reason there is none -- `"pending"`, `"offline"` or `"rejected"` -- and no
+ * Subsonic request is made. App.svelte shows a notice for the last two, with a
+ * retry or a way back to the login page, instead of a library that silently
+ * stays empty.
+ */
+export const subsonicAccess = derived(
+  [credentials, subsonicToken, subsonicTokenProblem],
+  ([$c, $token, $problem]) => {
+    if (!$c.username) return "none";
+    if (tokenSignsFor($c.username, $token)) return "ok";
+    return $problem || "pending";
+  },
+);
+
+/**
+ * Maps a failed token answer to a `subsonicTokenProblem` value.
+ *
+ * @param {number} status
+ * @returns {"rejected"|"offline"}
+ */
+function tokenProblemFor(status) {
+  return status === 401 || status === 403 ? "rejected" : "offline";
+}
 
 /**
  * Asks MuMa for the signed-in user's Subsonic token and stores it, so
  * `authParams` signs with it from then on. Needs the user's own MuMa key. A
- * server without the endpoint, an account LMS does not know yet, or an outage
- * leaves the stored token as it was -- the password stays the fallback until a
- * fetch succeeds. The token is never logged.
+ * failure leaves the stored token as it was and records why in
+ * `subsonicTokenProblem`; there is no password to fall back on (issue #72).
+ * The token is never logged.
+ *
+ * When the answer's name is only a case variant of the signed-in name, the
+ * signed-in name takes LMS's spelling: the token opens LMS only under the
+ * name it was issued for, and a session persisted with the typed spelling
+ * would otherwise never sign with it.
  *
  * One plain request, deliberately not `gatedFetch`: that retries a 503 for
- * several seconds, and the sign-in waits on this call. A token that is not
- * there now is asked for again at the next start.
+ * several seconds, and the sign-in waits on this call.
  *
  * @param {typeof fetch} [fetchImpl] - Injected by the tests.
  * @param {string} [apiKey] - The key to ask with; the stored one by default.
@@ -615,13 +668,20 @@ export const authParams = derived([credentials, subsonicToken], ([$c, $token]) =
  */
 export async function refreshSubsonicToken(fetchImpl = undefined, apiKey = undefined) {
   const key = apiKey ?? get(mumaApiKey);
-  if (!key) return null;
+  if (!key) {
+    subsonicTokenProblem.set("rejected");
+    return null;
+  }
+  subsonicTokenProblem.set("pending");
   try {
     const call = fetchImpl ?? fetch;
     const response = await call(`${get(mumaApiUrl)}/api/auth/subsonic-token`, {
       headers: { "X-API-Key": key },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      subsonicTokenProblem.set(tokenProblemFor(response.status));
+      return null;
+    }
     const data = await response.json();
     if (
       typeof data?.token !== "string" ||
@@ -629,17 +689,97 @@ export async function refreshSubsonicToken(fetchImpl = undefined, apiKey = undef
       typeof data.username !== "string" ||
       !data.username
     ) {
+      subsonicTokenProblem.set("offline");
       return null;
     }
     const answer = { username: data.username, token: data.token };
     const current = get(subsonicToken);
     if (current.username !== answer.username || current.token !== answer.token)
       subsonicToken.set(answer);
+    const signedIn = get(credentials).username;
+    if (
+      signedIn &&
+      signedIn !== answer.username &&
+      signedIn.toLowerCase() === answer.username.toLowerCase()
+    ) {
+      credentials.update((c) => ({ ...c, username: answer.username }));
+    }
+    subsonicTokenProblem.set("");
     return answer;
   } catch (error) {
     console.warn("Could not fetch the Subsonic token", error?.name ?? "error");
+    subsonicTokenProblem.set("offline");
     return null;
   }
+}
+
+/**
+ * The fetch `ensureSubsonicToken` is waiting on and the MuMa address it went to, so concurrent
+ * callers share one -- but not across a change of address: inside the Android shell the startup
+ * fetch leaves before the shell has set the phone's server, and must not answer for the boot's.
+ */
+let pendingTokenFetch = null;
+
+/**
+ * Makes sure a token signs for the signed-in name before the first Subsonic
+ * request: returns at once when one does, otherwise fetches one (one fetch at
+ * a time, shared by every caller). Called at app start and by the shell's
+ * boot; `signIn` fetches its own before it publishes the session.
+ *
+ * @param {typeof fetch} [fetchImpl] - Injected by the tests.
+ * @returns {Promise<boolean>} Whether a token now signs for the signed-in name.
+ */
+export async function ensureSubsonicToken(fetchImpl = undefined) {
+  const username = get(credentials).username;
+  if (!username) return false;
+  if (tokenSignsFor(username, get(subsonicToken))) return true;
+  const url = get(mumaApiUrl);
+  if (!pendingTokenFetch || pendingTokenFetch.url !== url) {
+    const fetchState = { url, promise: null };
+    fetchState.promise = refreshSubsonicToken(fetchImpl).finally(() => {
+      if (pendingTokenFetch === fetchState) pendingTokenFetch = null;
+    });
+    pendingTokenFetch = fetchState;
+  }
+  await pendingTokenFetch.promise;
+  return tokenSignsFor(get(credentials).username, get(subsonicToken));
+}
+
+/**
+ * Keeps asking for a missing Subsonic token for as long as the page lives, instead of once per
+ * page load (issue #72).
+ *
+ * The root cause of the password in the web shell's URLs: the token was fetched exactly once, at
+ * boot (`restoreSession` / `hydrateMumaUserFromApiKey`), and a failed fetch was silent. The
+ * Android WebView keeps a page alive for hours, and production restarts music-manager on every
+ * deploy -- a boot that hit that window signed with the password until the app was killed. The
+ * access log shows it: no token request reached music-manager between its restart at 04:36 and
+ * 05:17:18, the web shell sent 536 `p=` requests in between, and its first `t=` request came in
+ * the same second as the next token fetch.
+ *
+ * Retries every `intervalMs`, when the page becomes visible again, and when the device comes back
+ * online -- only while a name is signed in and no token signs for it. `ensureSubsonicToken` shares
+ * one fetch between callers, so overlapping triggers cost one request.
+ *
+ * @param {{intervalMs?: number, target?: object}} [options] - `target` is injected by the tests.
+ * @returns {function(): void} Stops retrying.
+ */
+export function keepSubsonicTokenFresh({ intervalMs = 30_000, target = globalThis } = {}) {
+  const retry = () => {
+    const name = get(credentials).username;
+    if (name && !tokenSignsFor(name, get(subsonicToken))) ensureSubsonicToken();
+  };
+  const onVisibility = () => {
+    if (target.document?.visibilityState !== "hidden") retry();
+  };
+  const timer = setInterval(retry, intervalMs);
+  target.document?.addEventListener?.("visibilitychange", onVisibility);
+  target.addEventListener?.("online", retry);
+  return () => {
+    clearInterval(timer);
+    target.document?.removeEventListener?.("visibilitychange", onVisibility);
+    target.removeEventListener?.("online", retry);
+  };
 }
 
 // Whether the logged-in user has the Subsonic adminRole. `null` means "not
@@ -679,8 +819,10 @@ async function checkAdminStatus(creds) {
 }
 
 let lastAdminCheckKey = null;
-credentials.subscribe(($c) => {
-  const key = $c.username && $c.password ? `${$c.username}:${$c.password}` : null;
+// Keyed on the name and the token that signs for it, not on the password: without a token no
+// Subsonic call can be made (issue #72), and the check has to run once the token arrives.
+derived([credentials, subsonicToken], (pair) => pair).subscribe(([$c, $token]) => {
+  const key = tokenSignsFor($c.username, $token) ? `${$c.username}:${$token.token}` : null;
   if (key === lastAdminCheckKey) return;
   lastAdminCheckKey = key;
   if (key) {
@@ -727,7 +869,10 @@ export function endLeftoverSharedKeySession() {
  */
 export async function hydrateMumaUserFromApiKey() {
   const key = get(mumaApiKey);
-  if (!key) return;
+  if (!key) {
+    if (get(credentials).username) ensureSubsonicToken();
+    return;
+  }
   try {
     const res = await gatedFetch(`${get(mumaApiUrl)}/api/auth/verify`, {
       headers: { "X-API-Key": key },
@@ -748,8 +893,6 @@ export async function hydrateMumaUserFromApiKey() {
       if (data.type === "user") {
         userPermissions.set(data.user.permissions || []);
         mumaUser.set(data.user);
-        // A session persisted by a build that signed with the password picks its token up here.
-        if (get(credentials).password) refreshSubsonicToken();
       } else if (data.type === "system") {
         endLeftoverSharedKeySession();
       }
@@ -758,6 +901,10 @@ export async function hydrateMumaUserFromApiKey() {
     console.warn("Kon gebruikersgegevens niet verversen bij opstarten", e);
   } finally {
     mumaUserHydrated.set(true);
+    // A session without a token -- persisted by a build that signed with the password, or one
+    // whose fetch failed -- fetches it here, before anything can be played (issue #72). Without a
+    // usable key that ends as "sign in again" rather than an empty library.
+    if (get(credentials).username) ensureSubsonicToken();
   }
 }
 hydrateMumaUserFromApiKey();

@@ -30,6 +30,14 @@
     "verified": "Verified artist",
     "edit": "Edit artist"
   },
+  "boot": {
+    "connecting": "Connecting to the server…",
+    "restoringQueue": "Restoring the queue…",
+    "retry": "Try again",
+    "signingIn": "Signing in…",
+    "slow": "This is taking longer than usual",
+    "starting": "Opening the library…"
+  },
   "car": {
     "microphone": "Voice search",
     "mixFavorites": "Favourites mix",
@@ -99,10 +107,12 @@
     "playlist": "Playlist",
     "refresh": "Refresh",
     "remove": "Remove",
+    "retry": "Retry",
     "save": "Save",
     "saveChanges": "Save changes",
     "saving": "Saving…",
     "searchPlaceholder": "Search...",
+    "sectionFailed": "Could not load this part",
     "settings": "Settings",
     "shufflePlay": "Shuffle play",
     "trackCount": {
@@ -1991,6 +2001,12 @@
   "offline": {
     "emptyHelp": "There is no connection, and nothing in this list is on the device.",
     "emptyTitle": "Nothing downloaded here",
+    "retry": "Try again",
+    "serverHelp": "MuMa cannot be reached right now, so nothing plays or loads. Try again in a moment.",
+    "serverTitle": "The server is not letting you in",
+    "signInAgain": "Sign in again",
+    "signInHelp": "The server no longer accepts this session. Sign in again to keep listening.",
+    "signInTitle": "Sign in again",
     "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
     "unavailableTitle": "Not available without a connection"
   },

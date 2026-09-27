@@ -21,6 +21,10 @@ import {
   subsonicTokenQuery,
   refreshSubsonicToken,
   endRejectedSession,
+  ensureSubsonicToken,
+  keepSubsonicTokenFresh,
+  subsonicAccess,
+  subsonicTokenProblem,
 } from "../../src/lib/store";
 import { md5 } from "../../src/lib/md5.js";
 import { locale } from "../../src/lib/i18n";
@@ -62,20 +66,23 @@ describe("store - authParams", () => {
     expect(get(authParams)).toBe("");
   });
 
-  it("should return encoded query params when credentials are set", () => {
+  it("should return encoded token-signed params when a token is stored", () => {
     credentials.set({ username: "test_user", password: "test_password" });
+    subsonicToken.set({ username: "test_user", token: "the-subsonic-token" });
     const params = get(authParams);
     expect(params).toContain("u=test_user");
-    expect(params).toContain("p=test_password");
+    expect(params).toContain("t=");
+    expect(params).not.toContain("p=");
     expect(params).toContain("v=1.12.0");
     expect(params).toContain("c=spotify");
   });
 
-  it("should encode special characters in credentials", () => {
+  it("should encode special characters in the name", () => {
     credentials.set({ username: "user@example.com", password: "pass word" });
+    subsonicToken.set({ username: "user@example.com", token: "the-subsonic-token" });
     const params = get(authParams);
     expect(params).toContain("u=user%40example.com");
-    expect(params).toContain("p=pass%20word");
+    expect(params).not.toContain("pass");
   });
 });
 
@@ -108,12 +115,22 @@ describe("store - authParams with a Subsonic token", () => {
     expect(get(authParams)).toBe(get(authParams));
   });
 
-  it("ignores a token issued for another account", () => {
+  it("ignores a token issued for another account -- and signs nothing at all then", () => {
     credentials.set({ username: "user", password: "hunter2" });
     subsonicToken.set({ username: "alice", token: "alices-token" });
 
-    expect(get(authParams)).toContain("p=hunter2");
-    expect(get(authParams)).not.toContain("t=");
+    expect(get(authParams)).toBe("");
+  });
+
+  /** Issue #72: no token, no Subsonic request -- the password is never the signature. */
+  it("never puts the password in the query, with or without a token", () => {
+    credentials.set({ username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "", token: "" });
+    expect(get(authParams)).toBe("");
+
+    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    expect(get(authParams)).not.toContain("p=");
+    expect(get(authParams)).not.toContain("hunter2");
   });
 
   it("signs nothing when signed out, token or not", () => {
@@ -161,12 +178,13 @@ describe("store - refreshSubsonicToken", () => {
     expect(options.headers["X-API-Key"]).toBe("own-key");
   });
 
-  it("a server without the endpoint leaves the stored token alone", async () => {
+  it("a server without the endpoint leaves the stored token alone, and says try later", async () => {
     subsonicToken.set({ username: "user", token: "kept" });
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) }));
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
     expect(get(subsonicToken)).toEqual({ username: "user", token: "kept" });
+    expect(get(subsonicTokenProblem)).toBe("offline");
   });
 
   it("an unreachable server leaves it alone too", async () => {
@@ -176,14 +194,37 @@ describe("store - refreshSubsonicToken", () => {
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
     expect(get(subsonicToken)).toEqual({ username: "", token: "" });
+    expect(get(subsonicTokenProblem)).toBe("offline");
   });
 
-  it("does not ask without a key", async () => {
+  it("a refused key means sign in again", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }));
+
+    expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
+    expect(get(subsonicTokenProblem)).toBe("rejected");
+  });
+
+  it("does not ask without a key, and says sign in again", async () => {
     mumaApiKey.set("");
     const fetchImpl = vi.fn();
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
     expect(fetchImpl).not.toHaveBeenCalled();
+    expect(get(subsonicTokenProblem)).toBe("rejected");
+  });
+
+  it("adopts LMS's spelling of the signed-in name, so the token signs for it", async () => {
+    credentials.set({ username: "Teun", password: "pw" });
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    }));
+
+    await refreshSubsonicToken(fetchImpl);
+
+    expect(get(credentials).username).toBe("user");
+    expect(get(authParams)).toContain("u=user");
+    expect(get(subsonicAccess)).toBe("ok");
   });
 
   it("an answer without a token stores nothing", async () => {
@@ -194,6 +235,180 @@ describe("store - refreshSubsonicToken", () => {
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
     expect(get(subsonicToken).token).toBe("");
+  });
+});
+
+/**
+ * Issue #72: a session without a token fetches one before its first Subsonic
+ * request, and says why when it cannot -- instead of signing with the password.
+ */
+describe("store - ensureSubsonicToken and subsonicAccess", () => {
+  beforeEach(() => {
+    subsonicToken.set({ username: "", token: "" });
+    subsonicTokenProblem.set("");
+    mumaApiUrl.set("https://muma.example/muma");
+    mumaApiKey.set("own-key");
+    credentials.set({ username: "user", password: "pw" });
+  });
+
+  const answering = (body) => vi.fn(async () => ({ ok: true, json: async () => body }));
+
+  it("fetches a missing token and reports access once it is there", async () => {
+    const fetchImpl = answering({ status: "ok", username: "user", token: "the-subsonic-token" });
+
+    expect(get(subsonicAccess)).toBe("pending");
+    expect(await ensureSubsonicToken(fetchImpl)).toBe(true);
+
+    expect(get(subsonicAccess)).toBe("ok");
+    expect(new URLSearchParams(get(authParams)).has("p")).toBe(false);
+  });
+
+  it("does not fetch when a token already signs for the name", async () => {
+    subsonicToken.set({ username: "user", token: "kept" });
+    const fetchImpl = vi.fn();
+
+    expect(await ensureSubsonicToken(fetchImpl)).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("concurrent callers share one fetch", async () => {
+    const fetchImpl = answering({ status: "ok", username: "user", token: "the-subsonic-token" });
+
+    const results = await Promise.all([
+      ensureSubsonicToken(fetchImpl),
+      ensureSubsonicToken(fetchImpl),
+    ]);
+
+    expect(results).toEqual([true, true]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("an unreachable server leaves no params and an offline state", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("network down");
+    });
+
+    expect(await ensureSubsonicToken(fetchImpl)).toBe(false);
+    expect(get(authParams)).toBe("");
+    expect(get(subsonicAccess)).toBe("offline");
+  });
+
+  it("a refused account leaves no params and a sign-in-again state", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+
+    expect(await ensureSubsonicToken(fetchImpl)).toBe(false);
+    expect(get(authParams)).toBe("");
+    expect(get(subsonicAccess)).toBe("rejected");
+  });
+
+  it("signed out there is nothing to fetch", async () => {
+    credentials.set({ username: "", password: "" });
+    const fetchImpl = vi.fn();
+
+    expect(await ensureSubsonicToken(fetchImpl)).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(get(subsonicAccess)).toBe("none");
+  });
+
+  it("a rejected session clears the problem with the rest", () => {
+    subsonicTokenProblem.set("rejected");
+
+    endRejectedSession();
+
+    expect(get(subsonicTokenProblem)).toBe("");
+    expect(get(subsonicAccess)).toBe("none");
+  });
+});
+
+/**
+ * The production cause of the password in the web shell's URLs: the token was asked for once per
+ * page load, and a failed ask was never repeated while the WebView page lived on for hours.
+ */
+describe("store - keepSubsonicTokenFresh", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    subsonicToken.set({ username: "", token: "" });
+    subsonicTokenProblem.set("");
+    mumaApiUrl.set("https://muma.example/muma");
+    mumaApiKey.set("own-key");
+    credentials.set({ username: "user", password: "pw" });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** How often the token endpoint was asked (the admin check that follows a token is not). */
+  const tokenFetches = () =>
+    globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/auth/subsonic-token"))
+      .length;
+
+  /** A window stand-in whose events the test fires by hand. */
+  function fakeTarget() {
+    const listeners = {};
+    const doc = { visibilityState: "visible", listeners: {} };
+    doc.addEventListener = (name, fn) => (doc.listeners[name] = fn);
+    doc.removeEventListener = (name) => delete doc.listeners[name];
+    return {
+      document: doc,
+      listeners,
+      addEventListener: (name, fn) => (listeners[name] = fn),
+      removeEventListener: (name) => delete listeners[name],
+    };
+  }
+
+  it("asks again after a failed fetch, without a reload, and stops once a token signs", async () => {
+    let answer = () => {
+      throw new Error("music-manager restarting");
+    };
+    globalThis.fetch = vi.fn(async () => answer());
+    await ensureSubsonicToken();
+    expect(get(subsonicAccess)).toBe("offline");
+
+    const stop = keepSubsonicTokenFresh({ intervalMs: 30_000, target: fakeTarget() });
+    answer = () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(get(subsonicAccess)).toBe("ok");
+    const calls = tokenFetches();
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(tokenFetches()).toBe(calls);
+    stop();
+  });
+
+  it("asks again when the page becomes visible or the device comes back online", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    }));
+    const target = fakeTarget();
+    const stop = keepSubsonicTokenFresh({ intervalMs: 3_600_000, target });
+
+    target.document.listeners.visibilitychange();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(tokenFetches()).toBe(1);
+
+    subsonicToken.set({ username: "", token: "" });
+    target.listeners.online();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(tokenFetches()).toBe(2);
+
+    stop();
+    expect(target.listeners.online).toBeUndefined();
+  });
+
+  it("does nothing while signed out", async () => {
+    credentials.set({ username: "", password: "" });
+    globalThis.fetch = vi.fn();
+    const stop = keepSubsonicTokenFresh({ intervalMs: 1_000, target: fakeTarget() });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    stop();
   });
 });
 

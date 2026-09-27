@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import StarredView from "../../src/lib/StarredView.svelte";
-import { credentials, currentTrack, playerState, playlist } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  playerState,
+  playlist,
+  subsonicToken,
+} from "../../src/lib/store.js";
 
 const SONG = { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", suffix: "flac" };
 const ALBUM = { id: "album-1", name: "Close Combat", artist: "Angerfist" };
@@ -20,6 +26,7 @@ function starred({ song = [SONG], album = [ALBUM], artist = [ARTIST] } = {}) {
 describe("StarredView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });

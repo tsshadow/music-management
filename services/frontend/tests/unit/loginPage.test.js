@@ -11,6 +11,9 @@ import {
   mumaUser,
   userPermissions,
 } from "../../src/lib/store.js";
+import { tokenRetry } from "../../src/lib/login.js";
+
+tokenRetry.delayMs = 0;
 
 const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: ["music.play"] };
 
@@ -21,6 +24,11 @@ const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: 
 function api({
   ping = { "subsonic-response": { status: "ok" } },
   login = { ok: true, body: { api_key: "key-1", refresh_token: "refresh-1", user: MUMA_USER } },
+  token = {
+    ok: true,
+    status: 200,
+    body: { status: "ok", username: "user", token: "the-subsonic-token" },
+  },
   setupStatus = { setup_required: false },
   setup = { ok: true, body: {} },
   google = { status: "ok", api_key: "key-1", refresh_token: "refresh-1", user: MUMA_USER },
@@ -31,7 +39,10 @@ function api({
 } = {}) {
   return vi.fn(async (url) => {
     if (url.includes("/rest/ping")) return { ok: true, json: async () => ping };
-    if (url.includes("/api/auth/login")) return { ok: login.ok, json: async () => login.body };
+    if (url.includes("/api/auth/login"))
+      return { ok: login.ok, status: login.status, json: async () => login.body };
+    if (url.includes("/api/auth/subsonic-token"))
+      return { ok: token.ok, status: token.status, json: async () => token.body };
     if (url.includes("/api/auth/setup-status")) return { ok: true, json: async () => setupStatus };
     if (url.includes("/api/auth/setup")) return { ok: setup.ok, json: async () => setup.body };
     if (url.includes("/api/auth/google")) return { ok: true, json: async () => google };
@@ -97,15 +108,33 @@ describe("LoginPage", () => {
     expect(get(mumaUser)).toEqual(MUMA_USER);
   });
 
-  it("a Subsonic login still works when the management API refuses", async () => {
-    globalThis.fetch = api({ login: { ok: false, body: {} } });
+  // Issue #72: the management session is what fetches the Subsonic token, and there is no
+  // password signature to fall back on -- a refused MuMa login is a refused sign-in.
+  it("a refused management login is a refused sign-in", async () => {
+    globalThis.fetch = api({ login: { ok: false, status: 401, body: {} } });
     render(LoginPage);
     await fillIn("user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
-    await waitFor(() => expect(get(credentials).username).toBe("user"));
+    await waitFor(() =>
+      expect(screen.getByText("Fout: Ongeldige gebruikersnaam of wachtwoord")).toBeTruthy(),
+    );
+    expect(get(credentials).username).toBe("");
     expect(get(mumaSessionActive)).toBe(false);
+    const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/rest/"))).toBe(false);
+  });
+
+  it("a server that cannot hand out a token reports no connection, not a wrong password", async () => {
+    globalThis.fetch = api({ token: { ok: false, status: 503, body: {} } });
+    render(LoginPage);
+    await fillIn("user", "pw");
+
+    await fireEvent.click(screen.getByText("Verbinden"));
+
+    await waitFor(() => expect(screen.getByText(/Fout|verbinding|server/i)).toBeTruthy());
+    expect(get(credentials).username).toBe("");
   });
 
   it("reports the reason the server refused the login", async () => {

@@ -29,6 +29,7 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenUnavailableException
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
 import nl.teunschriks.mumamobile.api.subsonic.models.Filter
 import nl.teunschriks.mumamobile.api.subsonic.models.Filters
@@ -118,7 +119,12 @@ class MediaLibraryBrowser(
      * The colours the genre covers are drawn in. Injectable so a test can walk a browse level
      * without a server; the default only reaches MuMa on the first lookup, not at construction.
      */
-    private val genreTints: GenreTintCache = AppGenreTints.cache
+    private val genreTints: GenreTintCache = AppGenreTints.cache,
+    /**
+     * Why no Subsonic request may be sent, or `null` to go on (issue #72, [SubsonicAccess]).
+     * Injectable so a test decides; the default fetches a missing token from MuMa first.
+     */
+    private val tokenGate: () -> SubsonicTokenUnavailableException.Reason? = { SubsonicAccess.blockingReason() }
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
@@ -271,7 +277,22 @@ class MediaLibraryBrowser(
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         Timber.i("getChildren session: %s, browser: %s, params: %s", session, browser, params)
-        return loadChildren(parentId, page, pageSize)
+        // Without a Subsonic token nothing is sent (issue #72): say so in the car rather than
+        // showing empty levels. The gate fetches a missing token first, on the service scope.
+        return mainScope.future {
+            val blocked = serviceScope.future { tokenGate() }.await()
+            if (blocked != null) {
+                Timber.w("Browse blocked: no Subsonic token (%s)", blocked)
+                LibraryResult.ofError(
+                    SessionError(
+                        SubsonicAccess.errorCode(blocked),
+                        UApp.applicationContext().getString(SubsonicAccess.messageRes(blocked))
+                    )
+                )
+            } else {
+                loadChildren(parentId, page, pageSize).await()
+            }
+        }
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")

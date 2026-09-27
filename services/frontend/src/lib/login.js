@@ -10,6 +10,7 @@ import {
   restUrl,
   signedOut,
   subsonicToken,
+  subsonicTokenProblem,
   subsonicTokenQuery,
   userPermissions,
 } from "./store.js";
@@ -22,32 +23,17 @@ import { logAction } from "./diagnosticsLog.js";
  * the muma API for the session, the permissions and the RBAC role that go with
  * the pair (the password travels in a POST body), fetch the account's Subsonic
  * token with the key that returns, and ping `/rest/ping` signed with that token
- * -- so the password never appears in a URL (bug report 103). Only when there
- * is no management session or no token is the ping signed with the password,
- * as it always used to be. `LoginPage.svelte`
- * does that when someone types them; the Android shell does it on boot with the
- * pair the phone already had. Making the shell its own path would have meant a
- * second place where "signed in" is decided, and the two would have drifted the
- * first time either changed.
+ * -- so the password never appears in a URL (bug report 103). Without a
+ * session or a token there is no sign-in: the password is not a fallback
+ * signature any more (issue #72). `LoginPage.svelte` does that when someone
+ * types them; the Android shell does it on boot with the pair the phone
+ * already had. Making the shell its own path would have meant a second place
+ * where "signed in" is decided, and the two would have drifted the first time
+ * either changed.
  *
  * Nothing here renders or translates anything: the caller owns the screen, so a
  * failure comes back as a reason rather than as a sentence.
  */
-
-/**
- * The query string every Subsonic call is signed with.
- *
- * `c=spotify` is the client id the web has always sent and the one the server
- * records sessions against; the phone's native client sends `Ultrasonic` for
- * the same account, and the server is happy with either.
- *
- * @param {string} username
- * @param {string} password
- * @returns {string}
- */
-export function subsonicAuthQuery(username, password) {
-  return `u=${encodeURIComponent(username)}&p=${encodeURIComponent(password)}&v=1.12.0&c=spotify&f=json`;
-}
 
 /**
  * Verifies a username and password and, when they hold, starts the session.
@@ -57,50 +43,94 @@ export function subsonicAuthQuery(username, password) {
  * @returns {Promise<{ok: boolean, username?: string, reason?: 'offline'|'rejected', message?: string}>}
  *   On success `username` is the account's own spelling of the name, which is
  *   what the caller must store or hand on (see `canonicalUsername`).
- *   `offline` means the server could not be reached at all -- a wrong base URL
- *   inside the shell looks exactly like this -- and `rejected` means it answered
- *   and said no, with its own message in `message`.
+ *   `offline` means the server could not be reached, or could not hand out a
+ *   Subsonic token yet -- a wrong base URL inside the shell looks exactly like
+ *   this -- and `rejected` means it answered and said no, with its own message
+ *   in `message` when it gave one.
  */
 export async function signIn(username, password) {
   // The management session first: it takes the password in a POST body, and its key is what
-  // fetches the Subsonic token. It is a bonus, not a condition -- a server without the muma API
-  // still gives a working player, signed with the password as it always was. It is published
-  // only once the ping has passed, together with the credentials: the app treats a stored key as
-  // "signed in", and a key published early let the UI run Subsonic calls with no credentials yet.
-  const session = await requestManagementSession(username, password);
+  // fetches the Subsonic token. It is published only once the ping has passed, together with the
+  // credentials: the app treats a stored key as "signed in", and a key published early let the UI
+  // run Subsonic calls with no credentials yet.
+  const { session, reason: sessionFailure } = await requestSessionForSignIn(username, password);
+  if (!session) {
+    logAction("auth.login", { ok: false, reason: sessionFailure, step: "session" });
+    return { ok: false, reason: sessionFailure, message: "" };
+  }
   // Account names are case-insensitive, and the account's own spelling is the
   // one every later call signs in with -- not the one typed. "Teun" typed for
   // the account "user" used to be stored as typed and sent as Subsonic `u=` on
   // every request, and LMS, comparing names byte for byte, created a second
   // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
-  let canonical = canonicalUsername(username, session?.user ?? null);
-  const token = session ? await refreshSubsonicToken(undefined, session.api_key) : null;
+  let canonical = canonicalUsername(username, session.user);
+  const token = await fetchTokenForSignIn(session.api_key);
   // LMS's own spelling of the login name is what the token opens; adopt it when it is only a case
-  // variant of the name we have.
+  // variant of the name we have. A token for any other name is not this account's.
   if (token && token.username.toLowerCase() === canonical.toLowerCase()) canonical = token.username;
-  else if (token) subsonicToken.set({ username: "", token: "" });
-  const usable = Boolean(token) && token.username === canonical;
-
-  let answer = await ping(
-    usable ? subsonicTokenQuery(canonical, token.token) : subsonicAuthQuery(username, password),
-  );
-  if (answer.reason === "rejected" && usable) {
-    // A token this server does not accept (issued into another server's database): the
-    // password still decides, and the token is dropped so it signs nothing.
-    subsonicToken.set({ username: "", token: "" });
-    answer = await ping(subsonicAuthQuery(username, password));
+  if (!token || token.username !== canonical) {
+    if (token) subsonicToken.set({ username: "", token: "" });
+    const reason = get(subsonicTokenProblem) === "rejected" ? "rejected" : "offline";
+    logAction("auth.login", { ok: false, reason, step: "token" });
+    return { ok: false, reason, message: "" };
   }
+
+  const answer = await ping(subsonicTokenQuery(canonical, token.token));
   if (!answer.ok) {
-    logAction("auth.login", { ok: false, reason: answer.reason });
+    // A token this server does not accept (issued into another server's database) signs nothing.
+    if (answer.reason === "rejected") subsonicToken.set({ username: "", token: "" });
+    logAction("auth.login", { ok: false, reason: answer.reason, step: "ping" });
     return { ok: false, reason: answer.reason, message: answer.message };
   }
 
-  if (session) publishManagementSession(session);
+  publishManagementSession(session);
   credentials.update((current) => ({ ...current, username: canonical, password }));
   // A sign-in ends a logout: the shell's boot may sign itself in again from here on.
   signedOut.set(false);
-  logAction("auth.login", { ok: true, signed: usable ? "token" : "password" });
+  logAction("auth.login", { ok: true, signed: "token" });
   return { ok: true, username: canonical };
+}
+
+/** How often, and how far apart, a sign-in asks for the Subsonic token before giving up. */
+export const TOKEN_ATTEMPTS = 3;
+export const tokenRetry = { delayMs: 700 };
+
+/**
+ * The Subsonic token for the session being started, asked for up to {@link TOKEN_ATTEMPTS} times.
+ *
+ * Without a token there is no sign-in any more (issue #72), so one busy answer must not decide
+ * it: the endpoint says 503 while LMS's database is locked (a scan, the hourly sync), and 404 for
+ * an account LMS has not synced yet, both of which pass in a second or two. A refusal (401/403)
+ * is final at once.
+ *
+ * @param {string} apiKey - The session's own key; it is not published yet.
+ * @returns {Promise<{username: string, token: string}|null>}
+ */
+async function fetchTokenForSignIn(apiKey) {
+  for (let attempt = 1; ; attempt++) {
+    const token = await refreshSubsonicToken(undefined, apiKey);
+    if (token || get(subsonicTokenProblem) === "rejected" || attempt >= TOKEN_ATTEMPTS)
+      return token;
+    await new Promise((resolve) => setTimeout(resolve, tokenRetry.delayMs * attempt));
+  }
+}
+
+/**
+ * MuMa's login for the pair, asked again (like the token, {@link TOKEN_ATTEMPTS} times) when the
+ * answer was not a refusal. The session is what fetches the token, and without a token there is
+ * no sign-in any more (issue #72), so a login that meets a restarting music-manager or a busy
+ * proxy (429, 5xx, no answer) must not decide it on its own.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<{session: object|null, reason?: 'offline'|'rejected'}>}
+ */
+async function requestSessionForSignIn(username, password) {
+  for (let attempt = 1; ; attempt++) {
+    const answer = await requestManagementSession(username, password);
+    if (answer.session || answer.reason === "rejected" || attempt >= TOKEN_ATTEMPTS) return answer;
+    await new Promise((resolve) => setTimeout(resolve, tokenRetry.delayMs * attempt));
+  }
 }
 
 /**
@@ -156,20 +186,21 @@ export function canonicalUsername(typed, account) {
  * @returns {Promise<boolean>} Whether a management session was started.
  */
 export async function startManagementSession(username, password) {
-  const session = await requestManagementSession(username, password);
+  const { session } = await requestManagementSession(username, password);
   if (!session) return false;
   publishManagementSession(session);
   return true;
 }
 
 /**
- * MuMa's login answer for the pair, or null when there is no session to be had
- * (refused, unreachable, or an answer without a key and a `user`). Stores
- * nothing; see `publishManagementSession`.
+ * MuMa's login answer for the pair, or no session with the reason there is
+ * none: `rejected` when MuMa refused the pair (HTTP 401/403, or an answer
+ * without a key and a `user`), `offline` when it could not be reached or
+ * failed. Stores nothing; see `publishManagementSession`.
  *
  * @param {string} username
  * @param {string} password
- * @returns {Promise<object|null>}
+ * @returns {Promise<{session: object|null, reason?: 'offline'|'rejected'}>}
  */
 async function requestManagementSession(username, password) {
   try {
@@ -178,16 +209,19 @@ async function requestManagementSession(username, password) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const refused = response.status === 401 || response.status === 403;
+      return { session: null, reason: refused ? "rejected" : "offline" };
+    }
     const data = await response.json();
     if (!data?.api_key || !data.user || typeof data.user !== "object") {
       console.warn("Management API login answered without a user key");
-      return null;
+      return { session: null, reason: "rejected" };
     }
-    return data;
+    return { session: data };
   } catch (error) {
-    console.warn("Management API login failed during Subsonic login", error);
-    return null;
+    console.warn("Management API login failed", error?.name ?? "error");
+    return { session: null, reason: "offline" };
   }
 }
 

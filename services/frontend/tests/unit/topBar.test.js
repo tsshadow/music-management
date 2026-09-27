@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import TopBar from "../../src/lib/TopBar.svelte";
-import { activeModal, activeView, credentials, isMobile, viewMode } from "../../src/lib/store.js";
+import {
+  activeModal,
+  activeView,
+  credentials,
+  isMobile,
+  viewMode,
+  subsonicToken,
+} from "../../src/lib/store.js";
 
 function subsonic({
   serverVersion = "0.0.57",
@@ -23,6 +30,7 @@ function subsonic({
 describe("TopBar", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     activeView.set("home");
     activeModal.set(null);
     isMobile.set(false);
@@ -131,6 +139,7 @@ describe("TopBar", () => {
 describe("TopBar on the phone", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     activeModal.set(null);
     isMobile.set(true);
     viewMode.set("songs");
@@ -220,6 +229,7 @@ describe("TopBar on a tablet in landscape", () => {
       dispatchEvent: () => false,
     });
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     activeModal.set(null);
     activeView.set("home");
     isMobile.set(true);

@@ -471,11 +471,31 @@ describe("capacitor system", () => {
       username: "user",
       password: "",
       clientId: "Ultrasonic",
-      forcePlainTextPassword: false,
       serverId: 0,
       mumaApiKey: "",
       mumaUserId: 0,
+      subsonicToken: "",
+      subsonicTokenUser: "",
     });
+  });
+
+  it("hands on the phone's Subsonic token with the name it was issued for", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: {
+        credentials: {
+          username: "user",
+          password: "pw",
+          subsonicToken: "the-subsonic-token",
+          subsonicTokenUser: "user",
+        },
+      },
+    });
+
+    const answer = await platform.system.credentials();
+
+    expect(answer.subsonicToken).toBe("the-subsonic-token");
+    expect(answer.subsonicTokenUser).toBe("user");
+    expect(answer).not.toHaveProperty("forcePlainTextPassword");
   });
 
   // The activity finishes 350 ms after emitting `back`, so the claim cannot be

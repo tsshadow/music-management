@@ -19,6 +19,8 @@
   --color-muma-spotify-hover: #333333;
   /* Strongest hover: a hovered button that already sits on the hover surface. */
   --color-muma-spotify-highlight: #3e3e3e;
+  /* Loading placeholders: one step lighter than the `light` card (styleguide "Loading States"). */
+  --color-muma-skeleton: #2f2f2f;
 }
 
 :root {
@@ -34,6 +36,29 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   @apply bg-muma-spotify-black text-white;
+}
+
+/*
+ * The skeleton pulse from the style guide's Loading States: opacity 1 -> 0.4 over 700ms, reversing.
+ * Tailwind's own `animate-pulse` is a 2s cycle to 0.5 and is left alone for the places using it.
+ */
+@keyframes skeleton-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.4;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 700ms ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse {
+    animation: none;
+  }
 }
 
 /* Improved focus styles for TV remote navigation */

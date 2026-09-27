@@ -30,6 +30,14 @@
     "verified": "Geverifieerde artiest",
     "edit": "Artiest bewerken"
   },
+  "boot": {
+    "connecting": "Verbinden met de server…",
+    "restoringQueue": "Wachtrij herstellen…",
+    "retry": "Opnieuw proberen",
+    "signingIn": "Inloggen…",
+    "slow": "Dit duurt langer dan normaal",
+    "starting": "Bibliotheek openen…"
+  },
   "car": {
     "microphone": "Spraakzoekopdracht",
     "mixFavorites": "Favorieten-mix",
@@ -99,10 +107,12 @@
     "playlist": "Afspeellijst",
     "refresh": "Vernieuwen",
     "remove": "Verwijderen",
+    "retry": "Opnieuw",
     "save": "Opslaan",
     "saveChanges": "Wijzigingen opslaan",
     "saving": "Opslaan...",
     "searchPlaceholder": "Zoeken...",
+    "sectionFailed": "Kon dit deel niet laden",
     "settings": "Instellingen",
     "shufflePlay": "Shuffle afspelen",
     "trackCount": {
@@ -1991,6 +2001,12 @@
   "offline": {
     "emptyHelp": "Er is geen verbinding en niets uit deze lijst staat op het apparaat.",
     "emptyTitle": "Hier is niets gedownload",
+    "retry": "Opnieuw proberen",
+    "serverHelp": "MuMa is nu niet bereikbaar, dus er wordt niets afgespeeld of geladen. Probeer het zo opnieuw.",
+    "serverTitle": "De server geeft geen toegang",
+    "signInAgain": "Opnieuw inloggen",
+    "signInHelp": "De server accepteert deze sessie niet meer. Log opnieuw in om verder te luisteren.",
+    "signInTitle": "Log opnieuw in",
     "unavailableHelp": "Dit scherm heeft de server nodig. Zodra er verbinding is werkt het weer.",
     "unavailableTitle": "Niet beschikbaar zonder verbinding"
   },

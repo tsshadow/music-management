@@ -1,4 +1,5 @@
 <script>
+  import { pressEntity, seedEntity } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   /**
    * @typedef {Object} Props
@@ -33,6 +34,8 @@
     if (type === 'genre' || type === 'label' || item === undefined) {
       onSelect(type, item);
     } else {
+      // What the row shows becomes the next page's header until the server answers.
+      if (type === 'artist' || type === 'album') seedEntity(type, item.id, item);
       onSelect(type, item.id);
     }
   }
@@ -60,7 +63,7 @@
               >
                 <div class="w-10 h-10 bg-muma-spotify-hover rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                   {#if track.coverArt}
-                    <img src={restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
+                    <img src={restUrl(`/rest/getCoverArt?id=${track.coverArt}&size=40&${$authParams}`)} alt="" class="w-full h-full object-cover" />
                   {:else}
                     <svg viewBox="0 0 24 24" class="w-6 h-6 fill-muma-spotify-text"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                   {/if}
@@ -85,6 +88,7 @@
             {#each artists.slice(0, 5) as artist (artist.id)}
               <button 
                 class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
+                onpointerdown={() => pressEntity('artist', artist)}
                 onclick={() => handleSelect('artist', artist)}
               >
                 <div class="w-10 h-10 bg-muma-spotify-hover rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -111,11 +115,12 @@
             {#each albums.slice(0, 5) as album (album.id)}
               <button 
                 class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
+                onpointerdown={() => pressEntity('album', album)}
                 onclick={() => handleSelect('album', album)}
               >
                 <div class="w-10 h-10 bg-muma-spotify-hover rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                    {#if album.coverArt}
-                    <img src={restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=40`)} alt="" class="w-full h-full object-cover" />
+                    <img src={restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=40&${$authParams}`)} alt="" class="w-full h-full object-cover" />
                   {:else}
                     <svg viewBox="0 0 24 24" class="w-6 h-6 fill-muma-spotify-text"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/></svg>
                   {/if}

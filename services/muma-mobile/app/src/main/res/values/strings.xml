@@ -102,6 +102,10 @@
     <string name="auto.group_live">Live</string>
     <string name="auto.group_browse">Browse</string>
     <string name="auto.group_play">Play</string>
+    <!-- Shown in the car instead of a browse level when no Subsonic token can be had, so nothing
+         is sent (issue #72). -->
+    <string name="auto.token_sign_in_again">Sign in again in the MuMa app on your phone</string>
+    <string name="auto.token_server_unreachable">Cannot reach the MuMa server. Try again in a moment</string>
     <string name="settings.cache_location_error">Invalid cache location. Using default.</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="widget.initial_text">Touch to select music</string>

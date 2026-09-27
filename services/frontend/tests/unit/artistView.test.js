@@ -9,8 +9,11 @@ import {
   playerState,
   playlist,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 import { recentPlaces, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
+import { entityCache } from "../../src/lib/entityLoaders.js";
+import { clearSeeds, seedEntity } from "../../src/lib/entitySeeds.js";
 
 const OWN_ALBUM = {
   id: "album-1",
@@ -75,13 +78,19 @@ function subsonic({
 
 async function renderLoaded(props = {}) {
   const rendered = render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn(), ...props });
-  await waitFor(() => expect(screen.getByText("Angerfist")).toBeTruthy());
+  // The heading, not any "Angerfist": the track rows name the artist too, and they now load
+  // alongside the artist rather than after it. "Loaded" means every section has answered.
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy(),
+  );
+  await waitFor(() => expect(screen.queryByTestId("skeleton-rows")).toBeNull());
   return rendered;
 }
 
 describe("ArtistView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     playlist.set([]);
@@ -89,6 +98,9 @@ describe("ArtistView", () => {
     playerState.set({ playing: false });
     globalThis.fetch = subsonic();
     clearRecentPlaces();
+    // Every test answers for the same ids with different data; nothing carries over.
+    entityCache.clear();
+    clearSeeds();
   });
 
   afterEach(() => {
@@ -317,9 +329,13 @@ describe("ArtistView - switching artists", () => {
 
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     clearRecentPlaces();
+    // Every test answers for the same ids with different data; nothing carries over.
+    entityCache.clear();
+    clearSeeds();
   });
 
   afterEach(() => {
@@ -368,5 +384,174 @@ describe("ArtistView - switching artists", () => {
     render(ArtistView, { artistId: "gone", onnavigate: vi.fn() });
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+  });
+});
+
+/**
+ * Optimistic navigation (docs/designs/perceived-performance/): the page draws what the link knew
+ * at once, starts its requests together, and loads, fails and retries per section.
+ */
+describe("ArtistView - optimistic page", () => {
+  /** A server whose getArtist answer is held back until `release()` is called. */
+  function heldArtist({ info = { biography: "Hardcore uit Amsterdam." }, infoFails = false } = {}) {
+    let release;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    const ok = (payload) => ({
+      ok: true,
+      json: async () => ({ "subsonic-response": { status: "ok", ...payload } }),
+    });
+    const fetchMock = vi.fn(async (url) => {
+      if (url.includes("/rest/getArtist?")) {
+        await held;
+        return ok({ artist: artist() });
+      }
+      if (url.includes("/rest/getArtistInfo2")) {
+        if (infoFails) throw new Error("info down");
+        return ok({ artistInfo2: info });
+      }
+      if (url.includes("/rest/getSpotifyTracks"))
+        return ok({ tracks: { track: [TRACK], moreResults: false } });
+      if (url.includes("/api/curation/artists/")) return { ok: true, json: async () => ({}) };
+      return ok({});
+    });
+    return { fetchMock, release: () => release() };
+  }
+
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    viewMode.set("songs");
+    deduplicateEnabled.set(false);
+    playlist.set([]);
+    currentTrack.set(null);
+    playerState.set({ playing: false });
+    clearRecentPlaces();
+    entityCache.clear();
+    clearSeeds();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("draws the name the link knew before the server has answered", async () => {
+    const { fetchMock } = heldArtist();
+    globalThis.fetch = fetchMock;
+    seedEntity("artist", "artist-1", { name: "Angerfist" });
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy();
+    // The releases are still on their way.
+    expect(screen.getByTestId("artist-releases-skeleton")).toBeTruthy();
+  });
+
+  it("draws a skeleton header when nothing is known about the artist yet", () => {
+    const { fetchMock } = heldArtist();
+    globalThis.fetch = fetchMock;
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    expect(screen.getByTestId("artist-name-skeleton")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("asks for the tracks without waiting for the artist", async () => {
+    const { fetchMock } = heldArtist();
+    globalThis.fetch = fetchMock;
+    seedEntity("artist", "artist-1", { name: "Angerfist" });
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    const urls = fetchMock.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/rest/getSpotifyTracks"))).toBe(true);
+    expect(urls.some((url) => url.includes("/rest/getArtistInfo2"))).toBe(true);
+  });
+
+  it("the server's name replaces a wrong one from the link", async () => {
+    const { fetchMock, release } = heldArtist();
+    globalThis.fetch = fetchMock;
+    seedEntity("artist", "artist-1", { name: "Angerfist, Outsiders" });
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist, Outsiders" })).toBeTruthy();
+    release();
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy(),
+    );
+  });
+
+  it("keeps the tracks when the similar-artists call fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { fetchMock, release } = heldArtist({ infoFails: true });
+    globalThis.fetch = fetchMock;
+    release();
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows a retry for the tracks alone when only they fail, and retrying loads them", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let tracksDown = true;
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/rest/getSpotifyTracks") && tracksDown) throw new Error("tracks down");
+      return subsonic()(url);
+    });
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy();
+    tracksDown = false;
+    await fireEvent.click(screen.getByRole("button", { name: "Opnieuw" }));
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+  });
+
+  it("play pressed while the tracks load waits for them, then plays", async () => {
+    let releaseTracks;
+    const tracksHeld = new Promise((resolve) => {
+      releaseTracks = resolve;
+    });
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/rest/getSpotifyTracks")) await tracksHeld;
+      return subsonic()(url);
+    });
+
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy(),
+    );
+    await fireEvent.click(screen.getByRole("button", { name: "Afspelen" }));
+    expect(screen.getByTestId("throbber")).toBeTruthy();
+    expect(get(currentTrack)).toBeNull();
+
+    releaseTracks();
+
+    await waitFor(() => expect(get(currentTrack)?.id).toBe("song-1"));
+    expect(get(playerState).playing).toBe(true);
+    expect(screen.queryByTestId("throbber")).toBeNull();
+  });
+
+  it("a revisit renders from the cache without waiting for the server", async () => {
+    globalThis.fetch = subsonic();
+    const first = render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    first.unmount();
+
+    const { fetchMock } = heldArtist();
+    globalThis.fetch = fetchMock;
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Angerfist" })).toBeTruthy();
+    expect(screen.getByText("Raise Your Fist")).toBeTruthy();
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
   });
 });

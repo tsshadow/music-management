@@ -3,6 +3,9 @@ import { render, fireEvent, waitFor } from "@testing-library/svelte";
 import LoginPage from "../../src/lib/LoginPage.svelte";
 import { platform } from "../../src/lib/platform/index.js";
 import { credentials, mumaApiUrl } from "../../src/lib/store.js";
+import { tokenRetry } from "../../src/lib/login.js";
+
+tokenRetry.delayMs = 0;
 
 /**
  * The other half of the sign-out fix: after a fresh sign-in on this screen inside the Capacitor
@@ -18,7 +21,16 @@ function fakeServer({ ping = "ok" } = {}) {
       return { json: async () => ({ "subsonic-response": { status: ping } }) };
     }
     if (url.includes("/api/auth/login")) {
-      return { ok: false };
+      return {
+        ok: true,
+        json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+      };
+    }
+    if (url.includes("/api/auth/subsonic-token")) {
+      return {
+        ok: true,
+        json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      };
     }
     if (url.includes("/api/auth/setup-status")) {
       return { ok: true, json: async () => ({ setup_required: false }) };

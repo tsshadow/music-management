@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { get } from "svelte/store";
-import { canonicalUsername, signIn, startManagementSession } from "../../src/lib/login.js";
+import {
+  TOKEN_ATTEMPTS,
+  canonicalUsername,
+  signIn,
+  startManagementSession,
+  tokenRetry,
+} from "../../src/lib/login.js";
+
+tokenRetry.delayMs = 0;
 import {
   credentials,
   isAdmin,
@@ -162,11 +170,17 @@ describe("login - the account's own spelling", () => {
     vi.restoreAllMocks();
   });
 
-  /** Subsonic ping says ok; MuMa's login answers with `account`. */
-  function serverAnswering(account) {
+  /** Subsonic ping says ok; MuMa's login answers with `account`, the token endpoint with LMS's name. */
+  function serverAnswering(account, lmsName = account.username) {
     return vi.fn(async (url) => {
       if (url.includes("/api/auth/login")) {
         return { ok: true, json: async () => ({ ...MUMA_ANSWER, user: account }) };
+      }
+      if (url.includes("/api/auth/subsonic-token")) {
+        return {
+          ok: true,
+          json: async () => ({ status: "ok", username: lmsName, token: "the-subsonic-token" }),
+        };
       }
       return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
     });
@@ -182,16 +196,13 @@ describe("login - the account's own spelling", () => {
     expect(get(credentials).password).toBe("pw");
   });
 
-  it("keeps the typed name when there is no management session to go by", async () => {
-    globalThis.fetch = vi.fn(async (url) => {
-      if (url.includes("/api/auth/login")) return { ok: false, json: async () => ({}) };
-      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
-    });
+  it("takes LMS's spelling from the token when MuMa's answer had none to go by", async () => {
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "" }, "user");
 
     const result = await signIn("Teun", "pw");
 
-    expect(result).toEqual({ ok: true, username: "Teun" });
-    expect(get(credentials).username).toBe("Teun");
+    expect(result).toEqual({ ok: true, username: "user" });
+    expect(get(credentials).username).toBe("user");
   });
 
   it("adopts only a spelling of the same name", () => {
@@ -206,7 +217,8 @@ describe("login - the account's own spelling", () => {
 /**
  * Bug report 103: a sign-in puts the password in a POST body only. The ping
  * that proves LMS accepts the account is signed with the Subsonic token the
- * management session fetches; the password is the fallback when there is none.
+ * management session fetches. Since issue #72 there is no password fallback:
+ * without a session or a token there is no sign-in, and no URL ever carries it.
  */
 describe("login - signing the ping with the Subsonic token", () => {
   beforeEach(() => {
@@ -265,28 +277,45 @@ describe("login - signing the ping with the Subsonic token", () => {
     expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
   });
 
-  it("falls back to the password when the server has no token endpoint", async () => {
+  it("fails as unreachable, and sends no ping, when no token can be had", async () => {
     globalThis.fetch = server({ token: null });
 
     const result = await signIn("user", "hunter2");
 
-    expect(result.ok).toBe(true);
-    expect(pings()[0].searchParams.get("p")).toBe("hunter2");
+    expect(result).toEqual({ ok: false, reason: "offline", message: "" });
+    expect(pings()).toHaveLength(0);
+    expect(get(credentials).username).toBe("");
+    expect(get(mumaApiKey)).toBe("");
   });
 
-  it("a token LMS refuses is dropped and the password decides", async () => {
-    globalThis.fetch = server({ pingAccepts: (url) => url.searchParams.has("p") });
+  it("a token LMS refuses is dropped and the sign-in fails -- no second ping with the password", async () => {
+    globalThis.fetch = server({ pingAccepts: () => false });
 
     const result = await signIn("user", "hunter2");
 
-    expect(result.ok).toBe(true);
-    expect(pings()).toHaveLength(2);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("rejected");
+    expect(pings()).toHaveLength(1);
+    expect(pings()[0].searchParams.has("p")).toBe(false);
     expect(get(subsonicToken).token).toBe("");
+  });
+
+  it("no request of the sign-in carries the password in its URL, whatever fails", async () => {
+    for (const setup of [{ token: null }, { pingAccepts: () => false }, {}]) {
+      credentials.set({ url: "https://lms.example", username: "", password: "" });
+      subsonicToken.set({ username: "", token: "" });
+      globalThis.fetch = server(setup);
+
+      await signIn("user", "hunter2");
+
+      for (const [url] of globalThis.fetch.mock.calls) expect(url).not.toContain("hunter2");
+    }
   });
 
   it("a wrong password is still rejected", async () => {
     globalThis.fetch = vi.fn(async (url) => {
-      if (url.includes("/api/auth/login")) return { ok: false, json: async () => ({}) };
+      if (url.includes("/api/auth/login"))
+        return { ok: false, status: 401, json: async () => ({}) };
       return {
         json: async () => ({
           "subsonic-response": {
@@ -299,12 +328,9 @@ describe("login - signing the ping with the Subsonic token", () => {
 
     const result = await signIn("user", "wrong");
 
-    expect(result).toEqual({
-      ok: false,
-      reason: "rejected",
-      message: "Wrong username or password",
-    });
+    expect(result).toEqual({ ok: false, reason: "rejected", message: "" });
     expect(get(credentials).password).toBe("");
+    expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/rest/"))).toBe(false);
   });
 
   it("publishes the management session only once the ping has passed", async () => {
@@ -331,13 +357,93 @@ describe("login - signing the ping with the Subsonic token", () => {
     expect(get(mumaSessionActive)).toBe(false);
   });
 
-  it("a token for another name is not used", async () => {
+  it("a token for another name is not used, and the sign-in fails", async () => {
     globalThis.fetch = server({ token: { username: "alice", token: "alices-token" } });
 
     const result = await signIn("user", "hunter2");
 
-    expect(result.ok).toBe(true);
-    expect(pings()[0].searchParams.get("p")).toBe("hunter2");
+    expect(result.ok).toBe(false);
+    expect(pings()).toHaveLength(0);
     expect(get(subsonicToken).token).toBe("");
+  });
+
+  it("an unreachable management API means offline, with no Subsonic request", async () => {
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) throw new TypeError("Failed to fetch");
+      throw new Error(`unexpected ${url}`);
+    });
+
+    const result = await signIn("user", "hunter2");
+
+    expect(result).toEqual({ ok: false, reason: "offline", message: "" });
+    // Asked again before giving up, and never anything but MuMa's login.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(TOKEN_ATTEMPTS);
+  });
+});
+
+/**
+ * Without a token there is no sign-in (issue #72), so a busy token endpoint -- 503 while LMS's
+ * database is locked, 404 for an account not synced yet -- is asked again before the sign-in
+ * gives up; a refusal is not.
+ */
+describe("login - asking for the token more than once", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    subsonicToken.set({ username: "", token: "" });
+    mumaApiKey.set("");
+  });
+
+  function server(tokenAnswers) {
+    return vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) return { ok: true, json: async () => MUMA_ANSWER };
+      if (url.includes("/api/auth/subsonic-token")) return tokenAnswers.shift()();
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+  }
+  const busy = () => ({ ok: false, status: 503, json: async () => ({}) });
+  const refused = () => ({ ok: false, status: 401, json: async () => ({}) });
+  const token = () => ({
+    ok: true,
+    json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+  });
+  const tokenCalls = () =>
+    globalThis.fetch.mock.calls.filter(([url]) => url.includes("/api/auth/subsonic-token")).length;
+
+  it("signs in when the endpoint answers on a later attempt", async () => {
+    globalThis.fetch = server([busy, token]);
+
+    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect(tokenCalls()).toBe(2);
+  });
+
+  it("gives up as unreachable after the last attempt", async () => {
+    globalThis.fetch = server(Array.from({ length: TOKEN_ATTEMPTS }, () => busy));
+
+    expect(await signIn("user", "hunter2")).toEqual({ ok: false, reason: "offline", message: "" });
+    expect(tokenCalls()).toBe(TOKEN_ATTEMPTS);
+  });
+
+  it("asks MuMa's login again when it was busy, not when it refused", async () => {
+    let logins = 0;
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        logins += 1;
+        return logins === 1
+          ? { ok: false, status: 503, json: async () => ({}) }
+          : { ok: true, json: async () => MUMA_ANSWER };
+      }
+      if (url.includes("/api/auth/subsonic-token")) return token();
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+
+    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect(logins).toBe(2);
+  });
+
+  it("does not ask again after a refusal", async () => {
+    globalThis.fetch = server([refused, token]);
+
+    expect((await signIn("user", "hunter2")).reason).toBe("rejected");
+    expect(tokenCalls()).toBe(1);
   });
 });

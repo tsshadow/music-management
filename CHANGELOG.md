@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.81.1] - 2026-09-27
+
+### Changed
+- **A genre, label, festival, podcast, year or lineup no longer shows the previous list under its
+  name, and search no longer says "No results" before it has asked** (issues #109 and #112,
+  `docs/designs/perceived-performance/`). Opening a second genre left the first genre's tracks on
+  screen under the new heading until `getSpotifyTracks` answered, and one loading flag shared with
+  the collection grids could mark the list done while it was still loading. The list now clears on
+  every new place and shows skeleton rows; a filter change on the same list keeps the old rows
+  dimmed until the new ones arrive; a failure is a section error with a retry instead of an empty
+  "Geen nummers" state. The first page of every list is cached per query for five minutes
+  (`trackListCache.js`, stale-while-revalidate, refreshed after one minute), so going back is
+  instant, and pressing a genre/label/podcast/festival/year/lineup card starts that list's
+  request on pointerdown, one request per press and shared with the page. The search results page
+  gives tracks, artists and albums their own skeletons, errors and retries, shows "Zoeken…" while
+  any is out, and says "No results" only once all three answered empty. The search dropdown
+  says it is searching from the first keystroke (the 300 ms debounce included), keeps the previous
+  results dimmed instead of flashing "No results", and offers a retry when `search3` fails. History,
+  Starred, Memories and the search "more" modal swap their whole-page "Laden…"/spinner for
+  skeleton sections, and Starred, History and the modal show an error with a retry where they
+  used to claim there was nothing. The style guide's Loading States section gains the stale-results
+  and search-as-you-type rules.
+
+- **Feeds, the release radar, the daily mixes and a song's versions open at once and fill in**
+  (issues #110 and #111, `docs/designs/perceived-performance/`). A daily mix showed its header and
+  then a bare "Laden..." until MuMa had answered and every `getSongsByPath` chunk had been
+  resolved, one after another. The song page (`song:`) showed nothing but "Laden..." until up to
+  five pages of `getSpotifyTracks` had come back. A tapped daily-mix card now leaves its title and
+  subtitle, and a tapped versions button the track's title, artist and cover: both pages draw that
+  header at once, with skeleton rows where the tracks go. A feed's chunks are resolved in parallel
+  (`/rest` does not pass the serial MuMa gate, and a feed is at most two chunks) and each chunk's
+  rows appear as it lands, always in MuMa's order. A chunk LMS fails to answer, or the feed itself,
+  gets its own "Opnieuw" instead of being counted as 100 files missing from the server; the
+  "N niet gevonden op de server" note (bug report 122), "Meer laden" and the queue continuation
+  from !1084/!1087 work as before, and play pressed during loading starts the feed when it is in.
+  Each page of versions is drawn as it arrives. A revisit within five minutes comes from the
+  entity cache. The daily mixes page shows card-shaped skeletons, and the track details sheet
+  shows skeleton rows while it asks MuMa for the tags, with a retry after a failure.
+
+### Fixed
+- **The play button on a daily-mix card could not be seen on a phone or tablet** (issue #99).
+  It only appeared on hover (`opacity-0 group-hover:opacity-100`), and a touchscreen has no hover.
+  On a coarse pointer it is now always visible and 48px (the style guide's touch target); with a
+  mouse it still appears on hover, and now also on keyboard focus.
+
 ## [0.81.0] - 2026-09-27
 
 ### Added

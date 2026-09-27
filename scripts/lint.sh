@@ -7,6 +7,10 @@
 #
 # Usage: ./scripts/lint.sh [file_or_dir ...] [pylint-threshold]
 
+# .env values are read the way docker-compose reads them (a `#` inside a
+# value is not a comment); see scripts/lib/dotenv.sh and bug report 038.
+# shellcheck source=scripts/lib/dotenv.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/dotenv.sh"
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,14 +28,7 @@ fi
 
 # Load .env if it exists to get any environment variables
 if [ -f .env ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
-            export "$clean_line"
-        fi
-    done < .env
+    dotenv_load .env
 fi
 
 TARGET=${1:-services/ tools/ tests/}

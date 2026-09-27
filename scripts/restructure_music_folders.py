@@ -76,7 +76,9 @@ def parse_args():
                         help='Base URL of the running music-manager API, e.g. '
                              'http://192.0.2.27:8000/api. Without it the two settings are only '
                              'reported, not changed.')
-    parser.add_argument('--api-key', default=None, help='API key for --api-base.')
+    parser.add_argument('--api-key', default=os.environ.get('MUMA_API_KEY') or os.environ.get('API_KEY'),
+                        help='API key for --api-base. Defaults to MUMA_API_KEY from the environment, '
+                             'which keeps it out of `ps` and shell history.')
     return parser.parse_args()
 
 

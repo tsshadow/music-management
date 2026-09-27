@@ -59,7 +59,8 @@ REPOSITORY="${RENOVATE_REPOSITORIES:-${CI_PROJECT_PATH:-muma/music-management}}"
 # it the merge requests still appear, with thinner descriptions.
 GITHUB_ENV=()
 if [ -n "${RENOVATE_GITHUB_COM_TOKEN:-}" ]; then
-    GITHUB_ENV=(-e "GITHUB_COM_TOKEN=${RENOVATE_GITHUB_COM_TOKEN}")
+    export GITHUB_COM_TOKEN="${RENOVATE_GITHUB_COM_TOKEN}"
+    GITHUB_ENV=(-e GITHUB_COM_TOKEN)
 fi
 
 DRY_RUN_ENV=()
@@ -72,8 +73,12 @@ RUN_LOG="$(mktemp)"
 trap 'rm -f "$RUN_LOG"' EXIT
 
 echo "--- Running Renovate (${IMAGE}) against ${REPOSITORY} ---"
+# The tokens go in as `-e NAME` without a value, copied from this environment:
+# `-e NAME=value` would put them on docker's argv, which every account on the
+# shared runner can read through `ps` (GitLab #40).
+export RENOVATE_TOKEN
 docker run --rm \
-    -e "RENOVATE_TOKEN=${RENOVATE_TOKEN}" \
+    -e RENOVATE_TOKEN \
     -e "RENOVATE_ENDPOINT=${ENDPOINT}" \
     -e RENOVATE_PLATFORM=gitlab \
     -e RENOVATE_AUTODISCOVER=false \

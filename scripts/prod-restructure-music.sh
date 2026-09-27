@@ -167,7 +167,9 @@ sql() {
     # No -i, and stdin closed: the query is passed with -e, so the client has no use for stdin --
     # and an interactive `docker exec` inside a `while read` loop swallows the rest of the loop's
     # input, which silently reduced a five-directory plan to its first entry.
-    docker exec -e MYSQL_PWD="$DB_PASS" "$DB_CONTAINER" \
+    # `-e MYSQL_PWD` without a value copies it from this environment, so the password is not on
+    # docker's argv either (GitLab #40).
+    MYSQL_PWD="$DB_PASS" docker exec -e MYSQL_PWD "$DB_CONTAINER" \
         mysql -u"$DB_USER" "$DB_NAME" -N -B -e "$1" < /dev/null
 }
 

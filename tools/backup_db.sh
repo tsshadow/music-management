@@ -14,16 +14,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Load .env if it exists
+# read the way docker-compose reads it (a `#` inside a value is not a comment);
+# see scripts/lib/dotenv.sh and bug report 038. Sourced only here: the tools
+# image carries tools/ without scripts/, and has no .env either.
 if [ -f "$PROJECT_ROOT/.env" ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            # Use export for the cleaned line, handling possible spaces
-            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
-            export "$clean_line"
-        fi
-    done < "$PROJECT_ROOT/.env"
+    # shellcheck source=scripts/lib/dotenv.sh
+    . "$PROJECT_ROOT/scripts/lib/dotenv.sh"
+    dotenv_load "$PROJECT_ROOT/.env"
 fi
 
 # Fallback values

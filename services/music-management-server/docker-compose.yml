@@ -29,6 +29,28 @@ services:
     logging: *request-logging
     container_name: lms
     image: ${IMAGE_NAME}:${LMS_TAG}
+    # Hardening (issue #32; docs/deployment.md, "Container hardening"). The
+    # image has no entrypoint script -- /usr/bin/lms is PID 1 -- and writes only
+    # to its working directory /var/lms (a volume), so the root filesystem is
+    # read-only with a small /tmp for anything a library spools; SQLite's own
+    # temp store is already in memory (PRAGMA temp_store=MEMORY). It runs as
+    # root here (`user: "0:0"`, because the host's /docker/lms is root-owned),
+    # so it keeps root's file capabilities and nothing else; it binds 5082,
+    # never a privileged port. The same settings run in docker/compose.test.yml,
+    # which is what the e2e and contract suites exercise. 40 PIDs on production.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - FSETID
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    pids_limit: 1024
     expose:
       - "5082"
     ports:
@@ -103,6 +125,16 @@ services:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
     image: willfarrell/autoheal:latest@sha256:3d5c946ac4c14612e7e1096137f27f71a7b3d7b6909ee89cc98412df184882e8
+    # A shell loop that talks to the Docker socket with curl: no capability
+    # needed (the socket is root's own file), nothing written. 2 PIDs.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    pids_limit: 64
     environment:
       - AUTOHEAL_CONTAINER_LABEL=autoheal
       - AUTOHEAL_INTERVAL=15
@@ -126,10 +158,33 @@ services:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
     image: nginx:1.31.6-alpine@sha256:d10753d9289b8e3f884386351f73554ce72b631378949deddd75e83ee296c427
+    # nginx's master runs as root, binds :80 (NET_BIND_SERVICE), creates its
+    # temp directories for the nginx user (CHOWN), starts workers as that user
+    # (SETUID, SETGID) and signals them on reload/stop (KILL). Read-only root:
+    # the pid file goes to a tmpfs /var/run, and /var/cache/nginx -- where the
+    # proxy spools a response a slow client has not taken yet, a whole audio
+    # file at worst -- is an anonymous volume on disk rather than a tmpfs that
+    # would count against the 128m memory limit. 9 PIDs on production.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /var/run:size=1m
+      - /tmp:size=8m
+    pids_limit: 256
     ports:
       - "${LMS_PORT:-80}:80"
     volumes:
       - ${DOCKER_DATA_PATH:-/docker}/lms/nginx/reverse-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - /var/cache/nginx
     depends_on:
       - lms
     # music-management_db is where "music-manager" resolves: the proxy hands

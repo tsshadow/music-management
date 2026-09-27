@@ -106,6 +106,14 @@ elif [ "$BUILD_TYPE" == "debug" ]; then
     echo "         certificate and its 'Sign in with Google' will fail (see bug report 020)."
 fi
 
+# The secrets are exported here and handed to docker as `-e NAME` without a value, which
+# copies them from this environment: `-e NAME=value` would put them on docker's argv, readable
+# by every account on the shared runner through `ps` (GitLab #40).
+export SIGNING_STORE_PASSWORD="${SIGNING_STORE_PASSWORD:-dummy}"
+export SIGNING_KEY_ALIAS="${SIGNING_KEY_ALIAS:-dummy}"
+export SIGNING_KEY_PASSWORD="${SIGNING_KEY_PASSWORD:-dummy}"
+export APK_HOSTER_PASSWORD="${APK_HOSTER_PASSWORD:-}"
+
 # Project-owned Android SDK image, same as scripts/test/muma-mobile-unit.sh.
 docker run --rm \
     --label "ci.job=${CI_JOB_ID:-local}" \
@@ -115,11 +123,11 @@ docker run --rm \
     -w "/workspace/services/muma-mobile" \
     -e GRADLE_USER_HOME="/gradle_home" \
     -e SIGNING_STORE_FILE="${STORE_FILE_NAME}" \
-    -e SIGNING_STORE_PASSWORD="${SIGNING_STORE_PASSWORD:-dummy}" \
-    -e SIGNING_KEY_ALIAS="${SIGNING_KEY_ALIAS:-dummy}" \
-    -e SIGNING_KEY_PASSWORD="${SIGNING_KEY_PASSWORD:-dummy}" \
+    -e SIGNING_STORE_PASSWORD \
+    -e SIGNING_KEY_ALIAS \
+    -e SIGNING_KEY_PASSWORD \
     -e APK_HOSTER_URL="${APK_HOSTER_URL}" \
-    -e APK_HOSTER_PASSWORD="${APK_HOSTER_PASSWORD}" \
+    -e APK_HOSTER_PASSWORD \
     -e GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}" \
     -e DIST_DIR="dist" \
     "$ANDROID_CI_IMAGE" \

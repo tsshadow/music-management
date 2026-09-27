@@ -3,6 +3,10 @@
 # Runs the Python unit tests for music_manager, tagger, scanner, importer and downloader.
 # Usage: ./scripts/test/music-management-unit.sh [pytest-args...]
 
+# .env values are read the way docker-compose reads them (a `#` inside a
+# value is not a comment); see scripts/lib/dotenv.sh and bug report 038.
+# shellcheck source=scripts/lib/dotenv.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/dotenv.sh"
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -26,13 +30,7 @@ fi
 
 # Load .env if it exists (same convention as build.sh / scripts/lint.sh)
 if [ -f .env ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && "$clean_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
-            export "$clean_line"
-        fi
-    done < .env
+    dotenv_load .env
 fi
 
 export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/services:$PYTHONPATH"

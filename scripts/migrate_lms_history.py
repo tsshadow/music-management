@@ -28,17 +28,17 @@ an inferred one). Every starred row is additionally exported to a JSON file
 where an explicit rating already covers the track.
 
 Usage:
-    python3 scripts/migrate_lms_history.py \\
+    MUMA_API_KEY=... python3 scripts/migrate_lms_history.py \\
         --source /backups/lms_20260723.db:lms \\
         --source /backups/lms_alpha_20260723.db:lms_alpha \\
         --api-base http://localhost:18000/api \\
-        --api-key test-api-key \\
         [--lms-music-root /music] [--mm-music-root /mnt/music] \\
         [--stars-export docs/lms-starred-tracks-export.json] \\
         [--dry-run] [--skip-ratings] [--skip-stars] [--skip-listens]
 """
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from dataclasses import dataclass, field
@@ -62,7 +62,12 @@ def parse_args():
         "e.g. /backups/lms.db:lms. Repeatable.",
     )
     parser.add_argument("--api-base", required=True, help="music-manager API base URL, e.g. http://localhost:18000/api")
-    parser.add_argument("--api-key", required=True, help="music-manager system API key (X-API-Key header)")
+    parser.add_argument(
+        "--api-key",
+        default=os.environ.get("MUMA_API_KEY") or os.environ.get("API_KEY"),
+        help="music-manager system API key (X-API-Key header). Prefer MUMA_API_KEY in the "
+        "environment: a value given here is visible in `ps` and shell history.",
+    )
     parser.add_argument("--lms-music-root", default="/music", help="LMS's mount prefix for absolute_file_path (default: /music)")
     parser.add_argument("--mm-music-root", default="/mnt/music", help="music-manager's mount prefix for the same files (default: /mnt/music)")
     parser.add_argument(
@@ -75,7 +80,10 @@ def parse_args():
     parser.add_argument("--skip-stars", action="store_true")
     parser.add_argument("--skip-listens", action="store_true")
     parser.add_argument("--timeout", type=float, default=15.0)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.api_key:
+        parser.error("no API key: set MUMA_API_KEY (or pass --api-key)")
+    return args
 
 
 @dataclass

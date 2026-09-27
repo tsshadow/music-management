@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.79.3 (2026-09-27)
+
+- New and retagged music reaches the app without restarting the music server's library scan every
+  five minutes, and the "Failed to trigger/notify LMS" alerts are gone.
+
 ## Global Version 0.79.2 (2026-09-27)
 
 - A video or other non-music file in the import folder is now reported once and listed in Beheer,

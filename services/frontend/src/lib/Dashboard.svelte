@@ -6,24 +6,19 @@
   import { untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import TrackList from './TrackList.svelte';
-  import FilterBar from './FilterBar.svelte';
-  import PlaylistView from './PlaylistView.svelte';
-  import ArtistView from './ArtistView.svelte';
-  import AlbumView from './AlbumView.svelte';
   import ArtistList from './ArtistList.svelte';
-  import FeedView from './FeedView.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
   import DailyMixesPage from './DailyMixesPage.svelte';
-  import CollectionBar from './CollectionBar.svelte';
-  import CollectionGrid from './CollectionGrid.svelte';
   import FavoritesView from './FavoritesView.svelte';
   import PhoneHome from './PhoneHome.svelte';
   import HomeShelf from './HomeShelf.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
   import PresetGrid from './PresetGrid.svelte';
-  import PresetView from './PresetView.svelte';
-  // Pages off the first screen, each in its own chunk (lazyViews.js, issue #114).
+  // Pages off the first screen, each in its own chunk (lazyViews.js, issues #114 and #118).
   import LazyView from './LazyView.svelte';
+  import EntityPageShell from './EntityPageShell.svelte';
+  import { lazyViews, listPartsForView } from './lazyViews.js';
+  import { lazyComponent } from './lazyComponent.svelte.js';
   import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
   import { formParam } from './trackForm.js';
   import { notify } from './notifications.js';
@@ -45,6 +40,21 @@
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
   // The local assignment stays the fallback for the many places that only switch the screen.
   let { activeView = $bindable('home'), onnavigate = (view) => (activeView = view) } = $props();
+
+  // The list pages' parts that take `bind:` props, so `LazyView` cannot render them (issue #118).
+  // Each is fetched when a view that shows it opens -- already there after the boot or idle
+  // preload, in the common case.
+  const listParts = {
+    filterBar: lazyComponent(lazyViews, 'filterBar'),
+    collectionBar: lazyComponent(lazyViews, 'collectionBar'),
+    collectionGrid: lazyComponent(lazyViews, 'collectionGrid'),
+  };
+  $effect(() => {
+    for (const part of listPartsForView(activeView)) listParts[part].load();
+  });
+  const FilterBar = $derived(listParts.filterBar.current);
+  const CollectionBar = $derived(listParts.collectionBar.current);
+  const CollectionGrid = $derived(listParts.collectionGrid.current);
 
   // LMS's own curated lists, as rows of tracks.
   //
@@ -1115,7 +1125,9 @@
               </button>
             {/if}
         </h2>
-        <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} bind:form={currentForm} showForm={$viewMode === 'sets'} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
+        {#if FilterBar}
+          <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} bind:form={currentForm} showForm={$viewMode === 'sets'} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
+        {/if}
     </div>
     <!-- The header above comes from the route, so it names the new place at once; the rows
          below never belong to the previous place (issue #109). -->
@@ -1146,7 +1158,9 @@
   {:else if activeView === 'albums'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">{$t('nav.albums')}</h2>
-      <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
+      {#if FilterBar}
+        <FilterBar view="albums" bind:genre={currentAlbumGenre} bind:sort={currentAlbumSort} bind:search={currentAlbumSearch} onchange={handleFilterChange} />
+      {/if}
     </div>
     {#if albums.length > 0}
         <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
@@ -1187,67 +1201,87 @@
         </div>
     {/if}
   {:else if activeView === 'genres'}
-    <CollectionGrid
-      type="genres"
-      title={$t('nav.genres')}
-      items={allGenres}
-      bind:state={genreView}
-      loading={isLoading}
-      favorites={$favoriteGenres}
-      onfavorite={(value) => toggleFavorite(value)}
-      emptyText={$t('dashboard.noGenres')}
-      onselect={(item) => (activeView = `genre:${item.value}`)}
-      onpress={(item) => prefetchTrackView(`genre:${item.value}`)}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="genres"
+        title={$t('nav.genres')}
+        items={allGenres}
+        bind:state={genreView}
+        loading={isLoading}
+        favorites={$favoriteGenres}
+        onfavorite={(value) => toggleFavorite(value)}
+        emptyText={$t('dashboard.noGenres')}
+        onselect={(item) => (activeView = `genre:${item.value}`)}
+        onpress={(item) => prefetchTrackView(`genre:${item.value}`)}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'podcasts'}
-    <CollectionGrid
-      type="podcasts"
-      title={$t('nav.podcasts')}
-      items={allPodcasts}
-      bind:state={podcastView}
-      loading={isLoading}
-      emptyText={$t('collection.noPodcasts')}
-      onselect={(item) => (activeView = `podcast:${item.value}`)}
-      onpress={(item) => prefetchTrackView(`podcast:${item.value}`)}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="podcasts"
+        title={$t('nav.podcasts')}
+        items={allPodcasts}
+        bind:state={podcastView}
+        loading={isLoading}
+        emptyText={$t('collection.noPodcasts')}
+        onselect={(item) => (activeView = `podcast:${item.value}`)}
+        onpress={(item) => prefetchTrackView(`podcast:${item.value}`)}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'labels'}
-    <CollectionGrid
-      type="labels"
-      title={$t('nav.labels')}
-      items={allLabels}
-      bind:state={labelView}
-      loading={isLoading}
-      favorites={$favoriteLabels}
-      onfavorite={(value) => toggleFavoriteIn(favoriteLabels, value)}
-      favoriteAriaLabel={$t('collection.toggleFavoriteLabel')}
-      emptyText={$t('dashboard.noLabels')}
-      onselect={(item) => (activeView = `label:${item.value}`)}
-      onpress={(item) => prefetchTrackView(`label:${item.value}`)}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="labels"
+        title={$t('nav.labels')}
+        items={allLabels}
+        bind:state={labelView}
+        loading={isLoading}
+        favorites={$favoriteLabels}
+        onfavorite={(value) => toggleFavoriteIn(favoriteLabels, value)}
+        favoriteAriaLabel={$t('collection.toggleFavoriteLabel')}
+        emptyText={$t('dashboard.noLabels')}
+        onselect={(item) => (activeView = `label:${item.value}`)}
+        onpress={(item) => prefetchTrackView(`label:${item.value}`)}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'festivals'}
-    <CollectionGrid
-      type="festivals"
-      title={$t('nav.festivals')}
-      items={allFestivals}
-      bind:state={festivalView}
-      loading={isLoading}
-      emptyText={$t('collection.noFestivals')}
-      emptyHint={tagHint('FESTIVAL')}
-      onselect={(item) => (activeView = `festival:${item.value}`)}
-      onpress={(item) => prefetchTrackView(`festival:${item.value}`)}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="festivals"
+        title={$t('nav.festivals')}
+        items={allFestivals}
+        bind:state={festivalView}
+        loading={isLoading}
+        emptyText={$t('collection.noFestivals')}
+        emptyHint={tagHint('FESTIVAL')}
+        onselect={(item) => (activeView = `festival:${item.value}`)}
+        onpress={(item) => prefetchTrackView(`festival:${item.value}`)}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'years'}
-    <CollectionGrid
-      type="years"
-      title={$t('nav.years')}
-      items={allYears}
-      bind:state={yearView}
-      loading={isLoading}
-      emptyText={$t('collection.noYears')}
-      emptyHint={tagHint('YEAR')}
-      onselect={(item) => (activeView = `year:${item.value}`)}
-      onpress={(item) => prefetchTrackView(`year:${item.value}`)}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="years"
+        title={$t('nav.years')}
+        items={allYears}
+        bind:state={yearView}
+        loading={isLoading}
+        emptyText={$t('collection.noYears')}
+        emptyHint={tagHint('YEAR')}
+        onselect={(item) => (activeView = `year:${item.value}`)}
+        onpress={(item) => prefetchTrackView(`year:${item.value}`)}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'lineups' || activeView.startsWith('lineups:')}
     {#if lineupCrumbs.length > 0}
       <nav class="flex flex-wrap items-center gap-2 text-sm text-muma-spotify-text mb-4" aria-label={$t('nav.lineups')}>
@@ -1266,21 +1300,27 @@
         {/each}
       </nav>
     {/if}
-    <CollectionGrid
-      type="lineups"
-      title={lineupCrumbs.length > 0 ? lineupCrumbs[lineupCrumbs.length - 1].label : $t('nav.lineups')}
-      items={lineupEntries}
-      bind:state={lineupView}
-      loading={isLoading}
-      emptyText={$t('collection.noLineups')}
-      emptyHint={$t('collection.noLineupsHelp')}
-      onselect={openLineupEntry}
-      onpress={(entry) => { if (!entry.hasChildren) prefetchTrackView(`lineup:${entry.value}`); }}
-    />
+    {#if CollectionGrid}
+      <CollectionGrid
+        type="lineups"
+        title={lineupCrumbs.length > 0 ? lineupCrumbs[lineupCrumbs.length - 1].label : $t('nav.lineups')}
+        items={lineupEntries}
+        bind:state={lineupView}
+        loading={isLoading}
+        emptyText={$t('collection.noLineups')}
+        emptyHint={$t('collection.noLineupsHelp')}
+        onselect={openLineupEntry}
+        onpress={(entry) => { if (!entry.hasChildren) prefetchTrackView(`lineup:${entry.value}`); }}
+      />
+    {:else}
+      <SkeletonTiles count={12} />
+    {/if}
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">{$t('nav.artists')}</h2>
-      <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
+      {#if FilterBar}
+        <FilterBar view="artists" bind:sort={currentArtistSort} bind:role={currentArtistRole} bind:search={currentArtistSearch} onchange={handleFilterChange} />
+      {/if}
     </div>
     <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
         {#each artists as artist (artist.id)}
@@ -1311,14 +1351,16 @@
   {:else if activeView === 'playlists'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">{$t('nav.playlists')}</h2>
-      <CollectionBar
-        type="playlists"
-        bind:state={playlistView}
-        total={playlists.length}
-        shown={visiblePlaylists.length}
-        favoriteCount={$favoritePlaylists.length}
-        visibilityOptions={PLAYLIST_VISIBILITY}
-      />
+      {#if CollectionBar}
+        <CollectionBar
+          type="playlists"
+          bind:state={playlistView}
+          total={playlists.length}
+          shown={visiblePlaylists.length}
+          favoriteCount={$favoritePlaylists.length}
+          visibilityOptions={PLAYLIST_VISIBILITY}
+        />
+      {/if}
     </div>
     {#if playlists.length === 0}
         <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
@@ -1405,7 +1447,7 @@
     </div>
     {/if}
   {:else if activeView === 'playlist-detail'}
-    <PlaylistView onnavigate={(v) => activeView = v} />
+    <LazyView name="playlistPage" props={{ onnavigate: (v) => activeView = v }} />
   {:else if activeView.startsWith('artist-edit:')}
     <LazyView name="artistEdit" props={{ artistId: viewArgument(activeView), onback: () => activeView = `artist:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('label-edit:')}
@@ -1416,11 +1458,21 @@
     <!-- Keyed on the id: going from one artist straight to another remounts the view instead of
          reusing it with the previous artist's fields still in place. -->
     {#key viewArgument(activeView)}
-      <ArtistView artistId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+      <!-- The page is its own chunk; until it is in, the seeded header keeps the heading on
+           screen from the first frame (issue #118, optimistic navigation of #107). -->
+      <LazyView name="artistPage" props={{ artistId: viewArgument(activeView), onnavigate: (v) => activeView = v }}>
+        {#snippet placeholder()}
+          <EntityPageShell kind="artist" id={viewArgument(activeView)} />
+        {/snippet}
+      </LazyView>
     {/key}
   {:else if activeView.startsWith('album:')}
     {#key viewArgument(activeView)}
-      <AlbumView albumId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+      <LazyView name="albumPage" props={{ albumId: viewArgument(activeView), onnavigate: (v) => activeView = v }}>
+        {#snippet placeholder()}
+          <EntityPageShell kind="album" id={viewArgument(activeView)} />
+        {/snippet}
+      </LazyView>
     {/key}
   {:else if activeView.startsWith('song:')}
     <LazyView name="song" props={{ workId: viewArgument(activeView), onnavigate: (v) => activeView = v }} />
@@ -1551,11 +1603,13 @@
   {:else if activeView === 'starred'}
     <LazyView name="starred" props={{ onnavigate: (v) => activeView = v }} />
   {:else if activeView === 'release-radar'}
-    <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="feedPage" props={{ slug: RELEASE_RADAR, onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'daily-mix'}
-    <FeedView slug={DAILY_MIX} onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="feedPage" props={{ slug: DAILY_MIX, onnavigate: (v) => onnavigate(v) }} />
   {:else if DAILY_MIXES.includes(activeView)}
-    <FeedView slug={activeView} onnavigate={(v) => onnavigate(v)} />
+    {#key activeView}
+      <LazyView name="feedPage" props={{ slug: activeView, onnavigate: (v) => onnavigate(v) }} />
+    {/key}
   {:else if activeView === 'daily-mixes'}
     <DailyMixesPage onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'new-preset'}
@@ -1572,7 +1626,7 @@
   {:else if activeView.startsWith('preset:')}
     {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
     {#if preset}
-      <PresetView {preset} onnavigate={(v) => onnavigate(v)} />
+      <LazyView name="presetPage" props={{ preset, onnavigate: (v) => onnavigate(v) }} />
     {:else}
       <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
     {/if}

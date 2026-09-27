@@ -95,35 +95,35 @@ class MediaLibraryTapQueueTest {
 
         queue.tracks.map { it.id } `should be equal to` listOf("a", "b", "c")
         queue.startIndex `should be equal to` 1
-        queue.feedSlug `should be equal to` "daily-mix"
-        queue.feedNextOffset `should be equal to` 3
+        (queue.continuation!!.source as FeedListSource).slug `should be equal to` "daily-mix"
+        queue.continuation!!.nextOffset `should be equal to` 3
     }
 
     @Test
     fun `play all in a feed folder starts at the top and says where it continues`() {
         every { feeds.firstPage("release-radar") } returns FeedPage(tracks("a", "b"), nextOffset = 2)
 
-        val queue = controller.queueForFeedPlayAll("${base.MEDIA_FEED_ID}|release-radar")!!
+        val queue = controller.queueForPlayAll("${base.MEDIA_FEED_ID}|release-radar")!!
 
         queue.tracks.map { it.id } `should be equal to` listOf("a", "b")
         queue.startIndex `should be equal to` 0
-        queue.feedSlug `should be equal to` "release-radar"
-        queue.feedNextOffset `should be equal to` 2
+        (queue.continuation!!.source as FeedListSource).slug `should be equal to` "release-radar"
+        queue.continuation!!.nextOffset `should be equal to` 2
     }
 
     @Test
-    fun `play all of anything else, or of an empty feed, is not a feed queue`() {
+    fun `play all of an empty feed, or of an id with no list behind it, takes the legacy path`() {
         every { feeds.firstPage("daily-mix") } returns FeedPage(emptyList(), nextOffset = null)
 
-        controller.queueForFeedPlayAll("${base.MEDIA_FEED_ID}|daily-mix") `should be equal to` null
-        controller.queueForFeedPlayAll(base.MEDIA_SONG_STARRED_ID) `should be equal to` null
+        controller.queueForPlayAll("${base.MEDIA_FEED_ID}|daily-mix") `should be equal to` null
+        controller.queueForPlayAll(base.MEDIA_SONG_STARRED_ID) `should be equal to` null
     }
 
     @Test
-    fun `a list that is not a feed carries no continuation`() {
+    fun `a list whose question is not known carries no continuation`() {
         dataProvider.randomSongsCache = tracks("a", "b")
 
-        controller.queueForTap("${base.MEDIA_SONG_RANDOM_ITEM}|b")!!.feedSlug `should be equal to` null
+        controller.queueForTap("${base.MEDIA_SONG_RANDOM_ITEM}|b")!!.continuation `should be equal to` null
     }
 
     @Test

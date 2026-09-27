@@ -64,7 +64,7 @@ class FeedRepository(
 
     /**
      * The feed's tracks together with where its next page starts -- what a queue started from
-     * the feed needs to continue past the end (issue #84, `FeedQueueContinuation`).
+     * the feed needs to continue past the end (issue #84, `ListQueueContinuation`).
      *
      * This is the day's whole stored list, which is what [tracksFor] always answered: the
      * configured length (`feeds_size`), or more once the web has continued it. `nextOffset` is

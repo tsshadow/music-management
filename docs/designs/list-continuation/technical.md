@@ -1,8 +1,9 @@
 # List continuation — Technical Design
 
-Implements [`functional.md`](functional.md). Frontend only (`services/frontend`); the Android shell
-follows the `playlist` store as it already does for the feed top-up, so the app gets the behaviour
-without native changes. Issue #100.
+Implements [`functional.md`](functional.md). Issue #100 is frontend only (`services/frontend`); the
+Android shell follows the `playlist` store as it already does for the feed top-up, so the app gets
+the behaviour without native changes. Issue #103 brings the same rule to Android Auto's native
+lists ([Android Auto](#android-auto)) and makes LMS `getSongs` honour `seed`.
 
 ## Data Model
 
@@ -87,11 +88,68 @@ No endpoint is added or changed. Existing, already-paged calls are used:
 
 ## Cross-App Impact
 
-None beyond the frontend. The Android shell's native queue follows `playlist`, so appended pages
-reach it the way the feed pages do. Android Auto's own browse lists (`MediaLibraryBrowser.kt`: the
-Songs tab sorts, the `TagQuery` genre/label/festival lists, preset tiles) are fixed-size `getSongs`
-calls; giving them the same top-up is follow-up work (`FeedQueueContinuation.kt` from !1056 is the
-model), tracked in issue #103.
+The Android shell's native queue follows `playlist`, so appended pages reach it the way the feed
+pages do. Android Auto does not run the web bundle; its own lists got the same top-up natively in
+issue #103 — see [Android Auto](#android-auto) below.
+
+The LMS fork's `getSongs` reads `seed` since issue #103 (`handleGetSongs`, as `getSongsByFilter`
+and `getSpotifyTracks` already did). Before that the web's `getSongsContinuation` sent the preset's
+seed and the server ignored it: every page of a shuffled preset was a new `RANDOM()` draw, which the
+queue's dedupe hid as a shorter, overlapping list. Additive: a client that sends no seed gets the
+unseeded shuffle it always got.
+
+## Android Auto
+
+Issue #103. `FeedQueueContinuation` (!1056, bug 112) became `ListQueueContinuation`
+(`service/androidauto/ListQueueContinuation.kt`): the same queue rule with a pluggable
+`Source` (`label`, `pageAt(offset): Page(tracks, nextOffset)?`, blocking, run on IO). Every guarantee
+of the feed version is kept unchanged — near-end trigger (`EXTEND_WHEN_LEFT` = 3, play order),
+append only ids neither in the list so far nor in the queue, a repeats-only page followed by the
+next (at most `MAX_PAGES_PER_TOP_UP` = 3), single flight, a failed page keeps the offset, a page
+that lands after `stop()`/a new `start()` is dropped (generation counter), main-thread append on the
+session's own player (no controller grant in the way; `COMMAND_CHANGE_MEDIA_ITEMS` checked), radio
+and news never extended — see [`feed-length/technical.md`](../feed-length/technical.md#continuation-in-android-auto).
+
+| Source | Class | Asks | End of list |
+|---|---|---|---|
+| Feed | `FeedListSource(slug)` | `FeedRepository.pageAfter(slug, offset)` | `next_offset: null` |
+| `getSongs` list | `SongsListSource(label, pageSize, load)` | the first page's `getSongs` again with `offset`, `count` = `DISPLAY_LIMIT` (100) | a page shorter than asked |
+
+The `getSongs` sources are built where the first page is fetched, from the query that page used,
+never re-derived from the media id — the car's ids carry no seed:
+
+- `MediaLibraryDataProvider.loadList(query, page, pageSize)` (behind `tracksFor`): tag folders
+  (genre, label, festival, podcast, year, lineup, and the Soort/`FORM` folders of !1064), their play
+  rows, the tab Random row, preset folders and preset play rows. A random query (`BrowseQuery.isRandom`)
+  is given a seed (`BrowseQuery.seeded()`, 0–999 999 like the web) *before* the first page, and the
+  seed travels in the query to every later page (`getSongs … &seed=`). A preset continues past its
+  saved size, as on the web.
+- `MediaLibraryDataProvider.loadLengthList(length, sort, count)`: the Songs/Sets tab sorts
+  ("Recent toegevoegd", "Recent uitgebracht"), which have always asked without a rating range —
+  the continuation asks the same way, so the list cannot change underneath the car.
+
+Each load returns a `LoadedList(tracks, continuation)` and remembers it next to the random-songs
+cache (`rememberList`); assigning `randomSongsCache` directly clears the continuation, so a cached
+list never carries the wrong list's source. A list that fit in its first page has no continuation.
+
+Arming, in `MediaLibrarySessionCallback`, exactly where the feed was armed:
+
+- **Row tap** (`onSetMediaItems` → `queueFromTap` → `queueForTap`): `MEDIA_SONG_RANDOM_ITEM` rows
+  (tab sort lists, tag folders, preset folders) return `CarQueue(tracks, index, continuation)`
+  with the continuation of the cached list; a feed row returns its `FeedListSource`.
+- **Play rows** (`onAddMediaItems` → `queueForPlayAll`): `MEDIA_FEED_ID`, `MEDIA_TAG_PLAY`,
+  `MEDIA_PRESET_PLAY` and a tab sort list's "Alles afspelen" (`MEDIA_SONG_RANDOM_ID`). Any other id,
+  and an empty list, takes the legacy path as before.
+- Every other queue replacement calls `stop()`, as before.
+
+Browse lists stay bounded (`DISPLAY_LIMIT` per tag folder page, `maxSongs` for a tab sort, the car's
+own item limits); the continuation only grows the playing queue. Filter values are the ones the
+first page sent — a form only ever from `TrackForm.SET_FORMS` via `TrackForm.known` — so a
+continuation page cannot hit the "unknown value fails the whole request" trap of `getSongs`.
+
+Not continued: albums, playlists, starred songs, shares, bookmarks and search results (complete
+lists, or not paged), and voice results (`tracksFromVoice`, one answer by design). A queue restored
+after the service was killed plays but does not continue — the state is in memory, like the feed's.
 
 ## Technical Acceptance Criteria
 
@@ -107,6 +165,14 @@ model), tracked in issue #103.
 4. `QueueLoadMore` renders the pill, the end line, or nothing (`tests/unit/queueLoadMore.test.js`).
 5. Playwright: a queue started from "Nummers" ends in the pill at phone and tablet size, a tap grows
    it, and the last page leaves "Einde van de lijst" (`tests/browser/list-continuation.spec.js`).
+6. Android Auto (issue #103): per source, the trigger distance, the append, the stop at the end,
+   no duplicates, single flight and the replaced-queue discard (`ListQueueContinuationFeedTest`,
+   `ListQueueContinuationSongsTest`); every car path that starts a queue from a tab sort, a tag
+   folder (form included) or a preset carries a continuation that asks the same filters, sort and
+   seed, and a random list's seed is the same on every page (`MediaLibraryListContinuationTest`,
+   `BrowseQueryTest`, `MediaLibraryTapQueueTest`).
+7. LMS: a seeded random `getSongs` answers one order, and paging past its end answers nothing
+   (`tests/contracts/test_lms_subsonic_contract.py::test_get_songs_random_with_a_seed_is_one_shuffle`).
 
 ## Related Docs
 

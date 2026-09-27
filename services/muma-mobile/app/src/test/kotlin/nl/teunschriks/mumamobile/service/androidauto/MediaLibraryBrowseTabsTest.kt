@@ -99,7 +99,8 @@ class MediaLibraryBrowseTabsTest {
                 workId = any(),
                 canonicalOnly = any(),
                 forms = any(),
-                year = any()
+                year = any(),
+                seed = any()
             )
         } returns songs
     }
@@ -135,7 +136,8 @@ class MediaLibraryBrowseTabsTest {
                 workId = any(),
                 canonicalOnly = any(),
                 forms = captureNullable(forms),
-                year = captureNullable(year)
+                year = captureNullable(year),
+                seed = any()
             )
         }
         return SongsCall(

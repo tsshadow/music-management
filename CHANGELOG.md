@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.81.4] - 2026-09-27
+
+### Changed
+- **The web player's first screen loads another 70 kB less, and its translation file no longer
+  waits for the app's code** (issue #118, `docs/designs/perceived-performance/technical.md`
+  section 7). The artist, album, feed, preset and playlist pages, the filter bar and the
+  collection grid and bar were still in the entry chunk; they are chunks of their own now, fetched
+  on idle after the first frame and, for artist, album and feed links, the moment a finger goes
+  down together with the page's data. The artist and album heading still appears at once: until
+  the page's code is in, a small seeded stand-in (`EntityPageShell`) draws the same header from
+  what the tapped link knew. `index.html` now carries a `modulepreload` for the listener's locale
+  file, so the browser fetches it together with the entry instead of one round trip later. The
+  entry went from 370 kB to 300 kB (107 to 89 kB gzip); everything the first screen waits for,
+  one locale included, from 580 kB to 511 kB (184 to 168 kB gzip).
+
+### Fixed
+- **A shuffled preset paged into a new shuffle every 100 tracks** (issue #103). The web's
+  `getSongsContinuation` sent the preset's `seed` to `getSongs`, but the LMS fork only read `seed`
+  on `getSongsByFilter` and `getSpotifyTracks`; every page of a Random preset was a fresh
+  `RANDOM()` draw, so "Meer laden" and the queue top-up repeated tracks (hidden by the dedupe as a
+  shorter page) and could skip others. `getSongs` now honours `seed`, which Android Auto's new list
+  continuation relies on as well. Additive: a request without `seed` shuffles as before.
+
 ## [0.81.3] - 2026-09-27
 
 ### Changed

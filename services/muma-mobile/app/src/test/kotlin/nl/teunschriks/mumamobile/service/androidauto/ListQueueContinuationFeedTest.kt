@@ -1,5 +1,5 @@
 /*
- * FeedQueueContinuationTest.kt
+ * ListQueueContinuationFeedTest.kt
  * Copyright (C) 2009-2026 Ultrasonic developers
  *
  * Distributed under terms of the GNU GPLv3 license.
@@ -17,14 +17,15 @@ import org.amshove.kluent.`should be equal to`
 import org.junit.Test
 
 /**
- * A feed queue the car started continues past its first page (issue #84).
+ * A feed queue the car started continues past its first page (issue #84), through the
+ * [FeedListSource] of the generalised [ListQueueContinuation] since issue #103.
  *
  * The web player's rule, for the native queue: near the end, fetch `next_offset` and append what
  * the queue does not hold yet; stop when the server says there is no more; never two requests at
  * once; and never touch a queue that is no longer the feed's.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class FeedQueueContinuationTest {
+class ListQueueContinuationFeedTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
@@ -35,21 +36,25 @@ class FeedQueueContinuationTest {
     /** The answer per offset; a missing offset is a failed request. */
     private val pages = mutableMapOf<Int, FeedPage>()
 
-    private val continuation = FeedQueueContinuation(
-        scope = scope,
-        loadPage = { _, offset ->
-            asked += offset
-            pages[offset]
-        },
-        io = dispatcher
-    )
+    private val continuation = ListQueueContinuation(scope = scope, io = dispatcher)
+
+    private val loadPage: (String, Int) -> FeedPage? = { _, offset ->
+        asked += offset
+        pages[offset]
+    }
+
+    /** Arms [continuation] the way the session does for a feed: only when the page continues. */
+    private fun ListQueueContinuation.startFeed(slug: String, page: FeedPage) {
+        val next = page.nextOffset
+        if (next == null) stop() else start(ListQueueContinuation.Start(FeedListSource(slug, loadPage), next), page.tracks)
+    }
 
     private fun tracks(vararg ids: String) = ids.map { Track(id = it, title = "Track $it") }
 
     private fun ids(from: Int, to: Int) = (from until to).map { "t$it" }.toTypedArray()
 
     /** The player's queue, reduced to what the continuation reads and does. */
-    private class FakeQueue(ids: List<String>, var current: Int = 0) : FeedQueueContinuation.Queue {
+    private class FakeQueue(ids: List<String>, var current: Int = 0) : ListQueueContinuation.Queue {
         val items = ids.toMutableList()
         var appends = 0
         override val mediaIds: List<String> get() = items.toList()
@@ -64,7 +69,7 @@ class FeedQueueContinuationTest {
     /** A queue of the feed's first ten tracks, playing [current]; the next page starts at 10. */
     private fun startedFeed(current: Int, nextOffset: Int? = 10): FakeQueue {
         val first = tracks(*ids(0, 10))
-        continuation.start("daily-mix", FeedPage(first, nextOffset))
+        continuation.startFeed("daily-mix", FeedPage(first, nextOffset))
         return FakeQueue(first.map { it.id }, current)
     }
 
@@ -183,7 +188,7 @@ class FeedQueueContinuationTest {
         continuation.onQueueMoved(queue)
         scope.advanceUntilIdle()
 
-        asked.size `should be equal to` FeedQueueContinuation.MAX_PAGES_PER_TOP_UP
+        asked.size `should be equal to` ListQueueContinuation.MAX_PAGES_PER_TOP_UP
         queue.appends `should be equal to` 0
     }
 
@@ -253,7 +258,7 @@ class FeedQueueContinuationTest {
         pages[10] = FeedPage(tracks(*ids(10, 20)), nextOffset = 20)
         startedFeed(current = 9)
         val soft = tracks("s0", "s1")
-        continuation.start("daily-mix-soft", FeedPage(soft, nextOffset = 2))
+        continuation.startFeed("daily-mix-soft", FeedPage(soft, nextOffset = 2))
         val queue = FakeQueue(listOf("s0", "s1"), current = 1)
         pages[2] = FeedPage(tracks("s2"), nextOffset = null)
 

@@ -456,7 +456,9 @@ class OfflineMusicService :
         // Ignored: the form is MuMa's classification and the offline cache never stored it. The
         // LENGTH cluster every form request also carries keeps the answer on the sets side.
         forms: List<String>?,
-        year: Int?
+        year: Int?,
+        // Ignored: the offline list is shuffled locally, not by the server's seeded order.
+        seed: Int?
     ): MusicDirectory {
         var list = getAllTracks()
         // The cache holds only the date tag, which is what the year means for everything but a

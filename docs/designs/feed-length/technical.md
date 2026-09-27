@@ -133,10 +133,13 @@ queue; the native side applies the same rule to the media3 player.
   configured length), is never cached (the server stores continuations, and a rebuilt radar must
   answer its new list), and answers null on failure so the caller retries instead of concluding
   the feed ended.
-- **Arming.** `FeedQueueContinuation` (in `service/androidauto`) belongs to one queue. It is armed
-  by the two car paths that start a feed queue — "Alles afspelen" (`MEDIA_FEED_ID`, handled by
-  `playAllFromFeed` in `onAddMediaItems`) and a tapped feed track (`queueFromTap`, which gets the
-  slug and `nextOffset` from `CarQueue`) — and stopped by every other queue replacement:
+- **Arming.** `ListQueueContinuation` (in `service/androidauto`; `FeedQueueContinuation` until
+  issue #103 generalised it to the car's own lists, see
+  [`list-continuation/technical.md`](../list-continuation/technical.md#android-auto)) belongs to
+  one queue. A feed is its `FeedListSource`. It is armed by the two car paths that start a feed
+  queue — "Alles afspelen" (`MEDIA_FEED_ID`, `queueForPlayAll` in `onAddMediaItems`) and a tapped
+  feed track (`queueFromTap`, which gets the source and `nextOffset` from `CarQueue.continuation`)
+  — and stopped by every other queue replacement:
   `onSetMediaItems` (except a voice "play next", which inserts), a voice search, radio, the legacy
   `onAddMediaItems` path. A first page with `next_offset: null` arms nothing. The state is in
   memory: a feed queue restored after the service was killed plays but does not continue.
@@ -177,7 +180,7 @@ queue; the native side applies the same rule to the media3 player.
 7. Android Auto: a feed queue within three tracks of its end fetches `next_offset` once (not again
    while that request is in flight), appends only ids the feed and queue do not hold, stops at
    `next_offset: null`, keeps the offset after a failed page, and never extends a queue that was
-   replaced or is not the feed's.
+   replaced or is not the feed's (`ListQueueContinuationFeedTest`).
 
 ## Related Docs
 

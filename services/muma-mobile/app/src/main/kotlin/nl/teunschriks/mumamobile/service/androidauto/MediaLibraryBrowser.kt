@@ -31,8 +31,6 @@ import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenUnavailableException
 import nl.teunschriks.mumamobile.api.subsonic.models.AlbumListType
-import nl.teunschriks.mumamobile.api.subsonic.models.Filter
-import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.api.subsonic.models.TrackForm
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.coverart.AppGenreTints
@@ -372,7 +370,7 @@ class MediaLibraryBrowser(
             MEDIA_SONG_RANDOM_ID -> {
                 val length = parts.getOrNull(INDEX_LENGTH)
                 if (length != null) {
-                    getSongs(length = length, sortMethod = "Random")
+                    getSongs(length = length, sortMethod = BrowseQuery.SORT_RANDOM)
                 } else {
                     emptyResult("Missing length in $parentId")
                 }
@@ -579,7 +577,7 @@ class MediaLibraryBrowser(
      * The list shows at most [DISPLAY_LIMIT] tracks: the stored list can reach 500 once the web
      * has continued it, and Auto has item limits of its own. What is not listed still plays --
      * "Alles afspelen" and a tapped track queue the whole first page, and that queue continues
-     * past its end on its own (FeedQueueContinuation, issue #84).
+     * past its end on its own (ListQueueContinuation, issue #84).
      */
     private fun getFeedItems(
         slug: String
@@ -1035,43 +1033,27 @@ class MediaLibraryBrowser(
         }
     }
 
+    /**
+     * A Songs/Sets tab list in one order, [maxSongs] long -- the browse list stays bounded; the
+     * queue a tap or "Alles afspelen" starts from it continues past that on its own (issue #103).
+     */
     private fun getSongs(
-        length: String?,
+        length: String,
         sortMethod: String?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val mediaItems: MutableList<MediaItem> = ArrayList()
 
-        val filters = Filters()
-        if (length != null) {
-            filters.add(Filter("LENGTH", length))
-        }
-
         return mainScope.future {
-            val songs = serviceScope.future {
-                callWithErrorHandling {
-                    musicService.getSongs(
-                        filters,
-                        null,
-                        null,
-                        count = maxSongs,
-                        0,
-                        sortMethod ?: "AddedDesc",
-                        null,
-                        null,
-                        null
-                    )
-                }
+            val list = serviceScope.future {
+                dataProvider.loadLengthList(length, sortMethod ?: BrowseQuery.SORT_ADDED, maxSongs)
             }.await()
 
-            if (songs != null) {
-                if (songs.size > 1) {
+            if (list != null) {
+                if (list.tracks.size > 1) {
                     mediaItems.addPlayAllItem(listOf(MEDIA_SONG_RANDOM_ID).joinToString("|"))
                 }
 
-                // TODO: Paging is not implemented for songs, is it necessary at all?
-                val items = songs.getTracks()
-                dataProvider.randomSongsCache = items
-                items.map { song ->
+                list.tracks.map { song ->
                     mediaItems.add(
                         song.toMediaItem(
                             listOf(MEDIA_SONG_RANDOM_ITEM, song.id).joinToString("|")

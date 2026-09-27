@@ -156,6 +156,11 @@
   section error with "Opnieuw" if it fails. Overlays, sheets and sidebars show nothing meanwhile —
   a skeleton would only flash. Opened by URL, the boot screen stays up until the page's chunk is
   in, so the app never appears with a skeleton in place of the page.
+  The artist and album pages (issue #118) instead show their header drawn from what the tapped
+  link knew -- picture, kind line, the name as the heading, placeholder play buttons -- with the
+  page's own classes, and 8 `SkeletonRows` below (`EntityPageShell.svelte`), so the heading is
+  there at once and nothing moves when the page's code arrives. A grid page (genres, labels ...)
+  shows `SkeletonTiles`; the filter and collection bars show nothing for that moment.
 - **New place, new rows**: a list that opens for a different thing (another genre, label,
   festival, search term) never shows the previous thing's rows, not even for one frame: it clears
   and shows skeletons, or shows its own cached rows. Only the same list under changed filters keeps

@@ -434,7 +434,9 @@ interface SubsonicAPIDefinition {
          * The year a track files under: the performance date for a live set, else the date tag.
          * Unlike the `YEAR` cluster an unknown year answers empty rather than failing.
          */
-        @Query("year") year: Int? = null
+        @Query("year") year: Int? = null,
+        /** The seed of a `Random` sort, so `offset` pages through one shuffle rather than a new one each time. */
+        @Query("seed") seed: Int? = null
     ): Call<GetSongsResponse>
 
     @GET("getSongsByMood.view")

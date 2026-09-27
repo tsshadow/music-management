@@ -370,6 +370,63 @@ behind the proxy's rewrite), and chunk URLs are `/assets/...` exactly like the e
 (`androidScheme: http`), so `/assets/<chunk>.js` is a local file read. No shell change;
 `frontend:bundle` and `mobile:smoke` are unchanged.
 
+**Follow-up: one-tap pages and the locale preload (issue #118).**
+
+*Measured before* (develop `47fb21f4f`): entry 370.32 kB (106.81 kB gzip), initial JS (entry and
+its static imports) 489.02 kB (153.17 kB gzip), plus the `nl` locale 90.61 kB (31.02 kB gzip):
+579.63 kB (184.19 kB gzip) before the first screen. The entry still held `FilterBar` 38 kB,
+`ArtistView` 29 kB, `CollectionBar` 21 kB, `AlbumView` 19 kB, `FeedView` 15 kB, `CollectionGrid`
+11 kB, `PresetView` 10 kB and `PlaylistView` 5 kB (pre-minify).
+
+*Measured after*: 109 chunks. Entry 299.94 kB (89.25 kB gzip, -19 % / -16 %), initial JS 420.33 kB
+(136.53 kB gzip); with the locale 510.94 kB (167.55 kB gzip) before the first screen -- and the
+locale no longer waits for the entry to run. The new chunks (minified): `FilterBar` 19.94 kB,
+`ArtistView` 15.38 kB, `CollectionBar` 11.71 kB, `AlbumView` 10.28 kB, `FeedView` 7.77 kB,
+`CollectionGrid` 6.14 kB, `PresetView` 5.83 kB, `PlaylistView` 3.23 kB. What remains big in the
+entry is the first screen itself: `Dashboard` 89 kB, `Player` 70 kB, `TrackList` 41 kB,
+`NowPlaying` 40 kB, `App` 24 kB, `LoginPage` 18 kB, `PhoneHome` 18 kB (pre-minify).
+
+- *Registry.* `lazyViews` gained `artistPage`, `albumPage`, `feedPage`, `presetPage`,
+  `playlistPage`, `filterBar`, `collectionBar` and `collectionGrid`. `chunksForState` maps
+  `artist:`, `album:`, `preset:`, `playlist-detail` and the feed slugs to their page, and
+  `listPartsForView(view)` the list pages to their parts: the track, album and artist lists (and
+  `genre:`, `label:`, `podcast:`, `festival:`, `year:`, `lineup:`) to `filterBar`, the collection
+  pages (`genres` ... `lineups`, `lineups:`) to `collectionGrid`, `playlists` to `collectionBar`.
+  So a URL that opens on one of these still mounts with the page complete, behind the boot screen.
+- *The optimistic heading.* `ArtistView` and `AlbumView` render through `LazyView` with its new
+  `placeholder` snippet prop: `EntityPageShell.svelte` (4.6 kB pre-minify, in the entry) draws the
+  page header from the seed -- picture, kind line, the name as `h1`, placeholder buttons -- with
+  the same classes as the page, and skeleton rows below. The heading is therefore on screen at
+  once whether or not the page's code is in, and when the page arrives nothing moves but the
+  content. The page itself still renders its header from the same seed, so the swap is invisible.
+- *Preloading.* `entitySeeds.registerPagePreloader(kind, fn)`; `pressEntity` calls it next to the
+  data prefetch, and `lazyViews.js` registers `artist`, `album` and `feed`, so a press starts the
+  page's code and its data in the same instant (`DailyMixCard` now presses as well as seeds).
+  `likelyNextChunks` lists the one-tap pages first (artist, album, feed, filter bar, preset,
+  collection grid, playlist, then settings and the rest), so in practice they are in before the
+  first tap.
+- *`bind:` parts.* `FilterBar`, `CollectionBar` and `CollectionGrid` take `bind:` props, which
+  `LazyView`'s props object cannot carry. `lazyComponent(registry, name)`
+  (`lazyComponent.svelte.js`) exposes the component as reactive `current` (set at once when the
+  chunk is already in) and `load()`; `Dashboard` loads the parts `listPartsForView(activeView)`
+  names and renders the component variable with its `bind:`s. While a grid's chunk is on its way
+  the page shows `SkeletonTiles`; the bars render nothing for that moment. `CollectionGrid`
+  imports `CollectionBar` statically, so the two share one chunk fetch.
+- *Locale `modulepreload`.* The `localePreload` plugin in `vite.config.js` reads the locale chunks'
+  hashed names from the bundle in `transformIndexHtml` (build only) and inlines
+  `preloadLocaleFiles` (`src/lib/i18n/localePreload.js`) into `index.html`'s `<head>` with a plan
+  of locale -> files (`localePreloadPlan`: a dialect needs itself and `nl`, the rest only
+  themselves, exactly `requiredLocales`; a unit test keeps the two in step). The script picks the
+  locale as `resolveInitialLocale` does (stored `muma_locale`, else the browser language when there
+  is a file, else English) and appends `<link rel="modulepreload" crossorigin>` for its files, so
+  the locale downloads in parallel with the entry instead of one round trip after it. It never
+  throws, and avoids `Object.hasOwn` for older WebViews. The URLs use `base` (`/assets/...`) like
+  the entry's own `<script>`, which is what LMS (immutable `assets/`, `no-cache` index) and the
+  APK's `http://localhost/` both serve. The dev server has no bundle and gets no script. An account
+  language that differs from the browser's still switches after sign-in, as before.
+- *Not done.* Splitting `Settings` per tab (its chunk is lazy already, 79 kB) and moving
+  `NowPlaying` out of the entry: issue #119.
+
 ## Risks
 
 - **Wrong seed.** Seeds are only ever replaced by server data, never merged into it. `ArtistList`
@@ -385,8 +442,14 @@ behind the proxy's rewrite), and chunk URLs are `/assets/...` exactly like the e
   next pages; everything else pays it once per session.
 - **A stale tab after a deploy.** Its `index.html` names chunks the new build replaced. It reloads
   once on `vite:preloadError`; `index.html` is `no-cache`, so the reload gets the new build.
-- **The locale file is a request after the entry.** One round trip in a browser, behind the boot
-  screen, in parallel with the page's chunk; a local read in the app.
+- **The locale file.** Preloaded from `index.html` together with the entry (issue #118), so it no
+  longer costs a round trip after the entry in a browser; a local read in the app. A listener whose
+  account language differs from the browser's gets the browser's file preloaded and the account's
+  fetched after sign-in, as before.
+- **A one-tap page opened before its chunk is in** (issue #118): the artist and album pages show
+  the seeded header and skeleton rows (`EntityPageShell`), the feed, preset and playlist pages
+  skeleton rows, for one request in a browser. A press starts the chunk with the data, and the idle
+  preload normally has it in before the first tap.
 - **Screenshot suite.** The skeletons only exist while a request is pending. The captured routes
   (`/artists`, `/albums`...) are lists whose markup does not change. The boot screen is removed
   before the first capture.
@@ -467,6 +530,23 @@ behind the proxy's rewrite), and chunk URLs are `/assets/...` exactly like the e
     `index.html` and an SPA route are `no-cache`, the entry chunk under `/assets/` is
     `public, max-age=31536000, immutable`, `version.json` is `no-cache`.
 16. `frontend:bundle` and `mobile:smoke` pass: the APK still launches and reaches its server URL.
+17. One-tap pages (issue #118): `chunksForState` maps the artist, album, preset, playlist and feed
+    views to their page chunk and the list pages to `filterBar`, `collectionGrid` or
+    `collectionBar`; the artist and album pages lead `likelyNextChunks`; `LazyView` renders its
+    `placeholder` snippet while loading (`tests/unit/lazyViews.test.js`). A press starts the
+    registered page chunk and swallows its failure; `artist`, `album` and `feed` are registered
+    (`tests/unit/entitySeeds.test.js`). `EntityPageShell` draws the seeded name as `h1` and the
+    seeded picture, and without a seed only skeletons (`tests/unit/entityPageShell.test.js`).
+    `lazyComponent` is null until loaded, fetches once, is there at once when preloaded, and
+    retries after a failure (`tests/unit/lazyComponent.test.js`).
+18. Locale preload (`tests/unit/localePreload.test.js`): the plan equals `requiredLocales` for every
+    supported locale; the stored choice wins, then the browser language, then English; a corrupted
+    or unsupported stored value is ignored; it never throws; it runs from its own source text.
+19. Playwright: with the `ArtistView` chunk held back as well as the artist's requests, a tap still
+    shows the seeded heading in `EntityPageShell` within the loose guard, and the page replaces it
+    once released (`tests/browser/optimistic-navigation.spec.js`). The first screen fetches none of
+    the one-tap chunks while idle preload is held; `index.html` carries a `modulepreload` for the
+    `nl` file and not `en`, and `nl` is fetched once (`tests/browser/lazy-views.spec.js`).
 
 ## Related Docs
 

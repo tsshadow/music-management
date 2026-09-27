@@ -446,6 +446,32 @@ def test_get_songs_by_path_without_a_path_is_refused(admin_credentials, media_li
     assert body["status"] == "failed", body
 
 
+def _random_song_ids(username, password, seed, offset=0):
+    resp = _subsonic_get("getSongs.view", username, password, sortMethod="Random", seed=seed, count=50, offset=offset)
+    assert resp.status_code == 200, resp.text[:500]
+    body = resp.json()["subsonic-response"]
+    assert body["status"] == "ok", body
+    return [song["id"] for song in body.get("songs", {}).get("song", [])]
+
+
+def test_get_songs_random_with_a_seed_is_one_shuffle(admin_credentials, media_library):
+    """A seeded random getSongs answers the same order every time (issue #103).
+
+    Android Auto's queue continuation and the web's presets page a shuffled list with `offset`,
+    and only a stable order under one seed makes the second page the rest of the first one
+    rather than a new draw that repeats it. getSongsByFilter took `seed` already; getSongs
+    ignored it until now, so every page was a fresh `RANDOM()`.
+    """
+    username, password = admin_credentials
+
+    first = _random_song_ids(username, password, seed=4242)
+
+    assert first, "the fixture library answered no songs"
+    assert _random_song_ids(username, password, seed=4242) == first
+    # Paging through the same shuffle: past the end of the library there is nothing left.
+    assert _random_song_ids(username, password, seed=4242, offset=len(first)) == []
+
+
 # A queue is one parameter per track. The web player used to put a queue in the query string of
 # savePlayQueue / createPlaylist and got 414 URI Too Long back for a long one; it now sends the
 # track ids in a form-encoded POST body (OpenSubsonic `formPost`). These pin that LMS reads them

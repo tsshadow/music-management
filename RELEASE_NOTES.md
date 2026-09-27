@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.4 (2026-09-27)
+
+- A shuffled preset no longer repeats tracks when it loads more.
+
+- The web player starts a little faster again, and artist and album pages still open instantly.
+
 ## Global Version 0.81.3 (2026-09-27)
 
 - The web player starts faster: the first screen loads less than half the code it used to, and

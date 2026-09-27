@@ -49,8 +49,24 @@ data class BrowseQuery(
     /** Forms from [TrackForm.FORMS]; anything else is dropped before the request. */
     val forms: List<String> = emptyList(),
     /** The filing year, sent as `year`; see the class comment for when it is used. */
-    val year: Int? = null
+    val year: Int? = null,
+    /**
+     * The random seed of a [SORT_RANDOM] list, sent as `seed`. Without one every page of a random
+     * list is a new shuffle, so the queue's next page would repeat what already played and miss
+     * the rest; with one, `offset` walks through the same shuffle (issue #103). Null for every
+     * other sort, and for a random list until [seeded] picks one.
+     */
+    val seed: Int? = null
 ) {
+    /** Whether the server shuffles this list, so its pages only line up under one [seed]. */
+    val isRandom: Boolean get() = sortMethod.equals(SORT_RANDOM, ignoreCase = true)
+
+    /**
+     * This query with a seed of its own when it is random and has none yet, else unchanged. The
+     * seed is picked once, for the first page, and travels with the query into every later page.
+     */
+    fun seeded(pick: () -> Int = ::randomSeed): BrowseQuery = if (isRandom && seed == null) copy(seed = pick()) else this
+
     fun toFilters(): Filters {
         val filters = Filters()
         clusters.forEach { (name, values) ->
@@ -92,6 +108,12 @@ data class BrowseQuery(
         const val SORT_RELEASE = "DateDescAndRelease"
         const val SORT_ADDED = "AddedDesc"
         const val SORT_RANDOM = "Random"
+
+        /** The largest seed handed out; the server multiplies it into a 32-bit expression. */
+        private const val MAX_SEED = 1_000_000
+
+        /** A fresh seed for a random list, in the web's range (`PresetView.svelte`). */
+        fun randomSeed(): Int = kotlin.random.Random.nextInt(MAX_SEED)
 
         /**
          * A preset as the car plays it. Everything the tile knows goes in, which is the fix for

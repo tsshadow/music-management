@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.11.1 (2026-09-27)
+
+- Settings opens faster, and the app's interface starts a little faster again; Now Playing
+  still opens instantly.
+
 ## Global Version 7.11.0 (2026-09-27)
 
 - In the car, a genre, label, festival, year, preset or "Recent" list now keeps playing past the

@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.5 (2026-09-27)
+
+- The settings page opens faster, and the web player's start-up code shrank again while Now
+  Playing still opens instantly.
+
 ## Global Version 0.81.4 (2026-09-27)
 
 - A shuffled preset no longer repeats tracks when it loads more.

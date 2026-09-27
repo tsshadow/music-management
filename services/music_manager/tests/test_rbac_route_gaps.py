@@ -92,6 +92,7 @@ READ_ROUTES = [
     '/api/channel-links/proposals',
     '/api/channel-links/channels?q=x',
     '/api/channel-links/targets?kind=label&q=x',
+    '/api/channel-links/by-label?name=x',
     '/api/config',
 ]
 

@@ -1,6 +1,8 @@
 <script >
   import { t, format } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
+  import { downloaderSubTabRequest } from '../../store.js';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
   import DownloaderCoverage from '../DownloaderCoverage.svelte';
@@ -14,7 +16,14 @@
   export let onError;
   export let refreshDownloaders;
 
-  let downloaderSubTab = 'soundcloud';
+  // Another page may have asked for a sub-tab (the label page's link to Koppelingen); take it once.
+  let downloaderSubTab = takeSubTabRequest() ?? 'soundcloud';
+
+  function takeSubTabRequest() {
+    const requested = get(downloaderSubTabRequest);
+    if (requested) downloaderSubTabRequest.set(null);
+    return requested;
+  }
   // The channel a Volledigheid row asked to link by hand; the Koppelingen tab starts from it.
   let linkChannel = null;
 

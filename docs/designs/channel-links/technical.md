@@ -304,6 +304,69 @@ confirm can queue 5.154 files and would otherwise sit in front of a genre decisi
     with `PUT` and reports the queued count, shows the 409 message; the coverage table's Koppelen
     button opens the tab with the channel picked.
 
+## A label page's channels (issue #122)
+
+Implements the section of the same name in [functional.md](functional.md).
+
+### API — additive
+
+`GET /api/channel-links/by-label?name=<label>` (API key, like the other reads). Keyed on the name,
+because that is what the label page's route (`/label/<name>`) carries; `library_labels.name` is
+unique. Response `[{id, platform, name, track_count, artist: {id, name} | null, album, source_url}]`,
+busiest first. An unknown label, a label without channels and a blank name are all `[]`, not `404`:
+every label page asks, and almost none has a channel.
+
+Cost: one statement over indexes -- `library_labels.name` (unique) -> `channels.label_id`
+(`idx_channel_label`) -> a correlated `COUNT(*)` per channel on `library_track_channels.channel_id`
+(`idx_track_channel_channel`) -- plus, only when there are channels, one `SELECT name` per platform
+present from the followed-account tables (a few hundred short rows each). No new index, no schema
+change, no migration.
+
+- `album` = `channel_links.channel_album(platform, name)`: `<publisher> (<channel>)` with the
+  publisher the tagger writes (`Soundcloud`, `Youtube`, `Telegram`), which is the album
+  `SoundcloudSong`/`YoutubeSong` give every download of the channel.
+- `source_url` = `channel_links.source_url(...)`: the followed account whose `account_key` (letters
+  and digits, casefolded, so `@traxtormrecords` meets `Traxtorm Records`) equals the channel's, when
+  exactly one does; SoundCloud `https://soundcloud.com/<slug>`, YouTube `https://www.youtube.com/@handle`
+  or `/channel/<id>` (the same rule as the coverage table). The exact bridge (the archive path, as
+  the coverage page uses) would mean scanning `downloads_soundcloud_archive.filename`, an unindexed
+  `TEXT` column of ~158.000 rows, on every label page; the name match costs nothing and on production
+  finds an account for roughly 40 % of SoundCloud and half of the YouTube channels. A failure to read
+  the account tables costs the link, never the list.
+
+### Frontend
+
+- `src/lib/labelChannels.js`: `fetchLabelChannels` (session cache per label name),
+  `channelAlbumView` (Subsonic `search3`, albums only, exact case-insensitive name match -> `album:<id>`),
+  `channelDestination` (album view, else `source_url` through `platform.system.openUrl`, else
+  `search:<name>`). The album is resolved on tap, not on load: resolving every card up front would put
+  one `search3` per channel through the LMS proxy queue on every label page.
+- `src/lib/LabelChannels.svelte`, rendered by `Dashboard.svelte` between the label header and its
+  track list. `SectionState` for skeleton/error/retry; skeletons only for `rules.manage` (see the
+  functional table). **Koppelingen beheren** sets `downloaderSubTabRequest` (new, unpersisted store)
+  to `links`, `activeManagementTab` to `downloaders` and opens `management`; `DownloadersTab` takes the
+  request once on mount. No new route: the Koppelingen sub-tab has no URL of its own.
+- i18n: `labelChannels.title|manage|none` (nl, en; the dialects fall back).
+
+### Cross-app impact
+
+- `music-manager`: one read endpoint, two pure helpers. `frontend`: one section, one store, one prop-less
+  change to `DownloadersTab`. MuMa Mobile shows the web interface, so it gets the section with no
+  native change. LMS: none.
+
+### Acceptance criteria (label page)
+
+19. `by-label` returns a label's channels busiest first with counts, `album` and `source_url`, runs
+    against MariaDB (`test_router_sql.py`), reads the account tables only for the platforms present,
+    survives an unreadable account table, and returns `[]` for a blank or unknown name.
+20. `source_url` is set only for exactly one matching account; `channel_album` follows the tagger's
+    publisher names.
+21. Frontend (vitest): the section lists cards from a mocked answer, opens the album or the source
+    page, hides for a listener with no channels, shows a curator the skeleton, empty line and the
+    Koppelingen link, retries after an error, and shows the cached answer on a revisit;
+    `DownloadersTab` starts on a requested sub-tab once. Playwright: the section at phone, tablet and
+    desktop widths without widening the page, and the curator's link landing on Koppelingen.
+
 ## Related Docs
 
 - [channel-coverage/technical.md](../channel-coverage/technical.md) — the coverage endpoint.

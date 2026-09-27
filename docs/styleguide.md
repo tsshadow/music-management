@@ -432,6 +432,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
   (`h-[150px] rounded-lg`) in its grid, and the track details sheet shows key/value skeleton rows
   for the tags. Daily-mix cards follow the Hover-revealed actions rule under Cards.
 
+- **Done** (2026-09-27, issue #122) — The label page's **Kanalen** section
+  (`LabelChannels.svelte`): a `text-base font-bold` heading, then one sideways-scrolling row
+  (`overflow-x-auto`, never widening the page) of channel cards -- `h-14`, `max-w-64`, `rounded-md`,
+  `bg-muma-spotify-light`, hover `bg-muma-spotify-hover`, a 20px platform icon in secondary text
+  (lucide `Cloud` for SoundCloud, as the downloader tabs already use; `TvMinimalPlay` for YouTube;
+  `Send` for Telegram; no brand logos), the name in bold white and the track count in `text-xs`
+  secondary text. Its skeleton is three card-sized `Skeleton` blocks, shown only where the section is
+  certain to appear (to a curator): a placeholder on every label page that then vanishes would move
+  the track list. The curator's way to Koppelingen is a text button in the heading row (`text-xs
+  font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
+  menu.
+
 - **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new
   place clears to skeletons, same place dims stale results, search says "Zoeken…" until it has an

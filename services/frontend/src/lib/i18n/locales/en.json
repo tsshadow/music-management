@@ -158,6 +158,11 @@
     "editGenre": "Edit genre",
     "editLabel": "Edit label"
   },
+  "labelChannels": {
+    "title": "Channels",
+    "manage": "Manage links",
+    "none": "No channel is linked to this label yet."
+  },
   "equalizer": {
     "band": "{freq} band",
     "close": "Close equalizer",

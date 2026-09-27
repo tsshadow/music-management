@@ -168,6 +168,12 @@ Removed outright, because every caller already uses the target: `GET|PUT
   - **GET `/targets?kind=label|artist&q=&limit=`** (any authenticated account): `[{id, name}]` -- labels
     that are not placeholders or platforms, or approved (`white`) artists the library has an id for. Blank
     `q` returns `[]`; `400` for an unknown kind.
+  - **GET `/by-label?name=`** (any authenticated account, issue #122): the channels linked to the label
+    of that name, for the label page. `[{id, platform, name, track_count, artist: {id, name}|null, album,
+    source_url}]`, busiest first. `album` is `<Platform> (<channel>)`, the album the tagger files the
+    channel's downloads under (`null` for an unknown platform); `source_url` is the platform page of the
+    followed account whose letters and digits equal the channel's, when exactly one does, else `null`.
+    An unknown label, a label nothing is linked to, or a blank name return `[]` (never `404`).
 - **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
   `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
   path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).

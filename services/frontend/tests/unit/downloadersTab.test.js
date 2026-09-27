@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { get } from "svelte/store";
 import DownloadersTab from "../../src/lib/management/tabs/DownloadersTab.svelte";
+import { downloaderSubTabRequest } from "../../src/lib/store.js";
 
 const SOUNDCLOUD_FIELDS = [
   {
@@ -194,5 +196,22 @@ describe("DownloadersTab timing settings", () => {
 
     await waitFor(() => expect(api.posts.length).toBe(1));
     expect(api.posts[0].updates).toEqual({ retry_attempts: 5 });
+  });
+});
+
+describe("DownloadersTab opened from another page", () => {
+  afterEach(() => {
+    downloaderSubTabRequest.set(null);
+    vi.restoreAllMocks();
+  });
+
+  it("starts on the sub-tab the label page asked for, once", async () => {
+    // Issue #122: "Koppelingen beheren" on a label page lands on the Koppelingen tab.
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => [] }));
+    downloaderSubTabRequest.set("links");
+    render(DownloadersTab, baseProps());
+    const tab = screen.getByRole("button", { name: /Koppelingen/ });
+    expect(tab.className).toContain("text-white");
+    expect(get(downloaderSubTabRequest)).toBeNull();
   });
 });

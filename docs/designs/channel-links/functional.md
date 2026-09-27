@@ -179,11 +179,33 @@ The artist proposals change little because they were made *because* the channel 
 artist, so the stand-in is usually already right. The artist half matters for hand links: the 8.632
 tracks above credit a channel name like `Hysta Official`.
 
+## A label page lists its channels (issue #122)
+
+With the tagger writing the label, a linked channel's tracks already appear under that label
+everywhere the library groups by label. The label page now also names the channels themselves.
+
+Measured read-only on production on 2026-09-27: no channel is linked yet (0 of 1.379), with 898
+proposals waiting for review. So today every label page shows no channels; the section fills as the
+proposals are confirmed.
+
+| Situation | Observable outcome |
+|---|---|
+| A label with linked channels | Under the heading, a **Kanalen** section: one card per channel, busiest first, with the platform's icon (SoundCloud, YouTube, Telegram), the channel's name and its number of tracks. The cards scroll sideways on a narrow screen; the page itself never gets wider than the screen. |
+| Tapping a card | Opens the channel's tracks: the album the downloads are filed under (`Soundcloud (<channel>)`, `Youtube (<channel>)`). When the library has no album of exactly that name (the platform reported the uploader in another spelling), the account's page on the platform opens instead, if a followed account carries the channel's name. Failing both, a library search for the channel's name. |
+| A label nothing is linked to (almost every label today) | No section, for a listener. |
+| The same, for a curator (rule-management permission) | The section with "Nog geen kanaal aan dit label gekoppeld." and a **Koppelingen beheren** link. |
+| A curator, any label | **Koppelingen beheren** next to the heading opens Beheer -> Downloaders on the Koppelingen tab, where channels are linked and (from the Volledigheid table) unlinked. |
+| The first visit to a label page | A curator sees three card-shaped placeholders until the answer arrives. A listener sees nothing until then: a placeholder on every label page that then disappears would move the track list for nothing. |
+| A revisit in the same session | The last answer shows at once and is refreshed behind it. |
+| The channels cannot be loaded | The section says so with **Opnieuw**, for everyone; the track list is unaffected. |
+
+**A channel view showing its label or artist.** There is no channel page in the web interface; the
+only place a channel is shown is the Volledigheid table under Beheer -> Downloaders, which already
+has the "Gekoppeld aan" column. An artist page listing *its* channels would be the mirror of this
+section and is issue #126 (with the label edit page and a per-channel filter).
+
 ## Open Questions / Not Yet Decided
 
-- **A label page listing its channels** (issue #58, part 3). With the tagger writing the label,
-  a linked channel's tracks already appear under that label everywhere the library groups by label.
-  Showing the *channels* themselves on the label page is a separate piece of UI, filed as issue
-  #122. Checking on production that a link does put its label on the tracks is issue #123.
+- Checking on production that a link does put its label on the tracks is issue #123.
 - **Running the search automatically.** It runs when the curator asks. New channels appear only as
   fast as the downloaders follow new accounts, which is a handful a month.

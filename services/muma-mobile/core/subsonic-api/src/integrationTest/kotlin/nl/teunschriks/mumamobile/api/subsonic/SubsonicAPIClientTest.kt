@@ -19,7 +19,7 @@ abstract class SubsonicAPIClientTest {
         config = SubsonicClientConfiguration(
             baseUrl = mockWebServerRule.mockWebServer.url("/").toString(),
             username = USERNAME,
-            password = PASSWORD,
+            token = TOKEN,
             minimalProtocolVersion = CLIENT_VERSION,
             clientID = CLIENT_ID
         )

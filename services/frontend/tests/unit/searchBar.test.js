@@ -10,6 +10,7 @@ import {
   currentTrack,
   playlist,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 const TRACK = { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", suffix: "flac" };
@@ -54,6 +55,7 @@ describe("SearchBar", () => {
     vi.useFakeTimers();
     resetSearchFacets();
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     activeView.set("home");
     activeModal.set(null);

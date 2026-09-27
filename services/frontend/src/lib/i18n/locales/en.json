@@ -2001,6 +2001,12 @@
   "offline": {
     "emptyHelp": "There is no connection, and nothing in this list is on the device.",
     "emptyTitle": "Nothing downloaded here",
+    "retry": "Try again",
+    "serverHelp": "MuMa cannot be reached right now, so nothing plays or loads. Try again in a moment.",
+    "serverTitle": "The server is not letting you in",
+    "signInAgain": "Sign in again",
+    "signInHelp": "The server no longer accepts this session. Sign in again to keep listening.",
+    "signInTitle": "Sign in again",
     "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
     "unavailableTitle": "Not available without a connection"
   },

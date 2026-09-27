@@ -3,7 +3,8 @@
 # Frontend browser test (Task 7 / Phase 5.2): starts the test stack, creates
 # the admin user, imports + scans the fixture track, then runs the Playwright
 # browser suite against the frontend dev server, and tears everything down.
-# Usage: ./scripts/test/frontend-browser.sh
+# Usage: ./scripts/test/frontend-browser.sh [playwright args...]
+#   e.g. ./scripts/test/frontend-browser.sh tests/browser/subsonic-signing.spec.js --project=desktop
 
 set -e
 
@@ -134,7 +135,7 @@ export VITE_LMS_TARGET="http://localhost:$MUMA_TEST_PORT_LMS"
 # change, since the build this suite renders is impractical on a workstation.
 # The rewritten references land in the job's artifacts; see
 # docs/frontend-screenshots.md for getting them back into the tree.
-PLAYWRIGHT_ARGS=()
+PLAYWRIGHT_ARGS=("$@")
 if [ "${MUMA_UPDATE_SNAPSHOTS:-}" = "1" ]; then
     echo "--- MUMA_UPDATE_SNAPSHOTS=1: rewriting the reference screenshots ---"
     PLAYWRIGHT_ARGS+=(--update-snapshots)

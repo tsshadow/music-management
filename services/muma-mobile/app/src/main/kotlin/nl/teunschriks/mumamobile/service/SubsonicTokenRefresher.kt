@@ -32,8 +32,11 @@ import timber.log.Timber
  * dropped, since the running one answers it.
  *
  * Neither of those runs while only Android Auto is in use, so [recovery] covers the rest: every
- * native Subsonic client refetches through it when LMS refuses the stored token, and retries the
- * refused request once (issue #73, bug report 111).
+ * native Subsonic client fetches a missing token through it before its first request -- and sends
+ * nothing when none can be had, there is no password fallback (issue #72) -- and refetches when LMS
+ * refuses the stored token, retrying the refused request once (issue #73, bug report 111).
+ * [prefetchIfMissing] starts that first fetch as soon as the media session is created, so a cold
+ * start in the car does not wait for it on the first browse.
  */
 object SubsonicTokenRefresher {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -58,8 +61,28 @@ object SubsonicTokenRefresher {
                 }
             },
             signOutEpoch = { SignOutEpoch.current() },
-            onRecovered = { scope.launch(Dispatchers.Main) { MusicServiceFactory.resetMusicService() } }
+            onRecovered = { scope.launch(Dispatchers.Main) { MusicServiceFactory.resetMusicService() } },
+            hasCredentials = {
+                val server = KoinJavaComponent.get<ActiveServerProvider>(ActiveServerProvider::class.java).getActiveServer()
+                !ActiveServerProvider.isOffline() && server.userName.isNotEmpty() && server.password.isNotEmpty()
+            }
         )
+    }
+
+    /**
+     * Fetches the Subsonic token in the background when none is stored for the signed-in user
+     * (issue #72). Called when the media session is created -- which is also how Android Auto
+     * starts the app without the UI -- so the first browse or play already finds a token. Uses
+     * [recovery], so it shares the single flight and back-off with the requests themselves.
+     */
+    fun prefetchIfMissing() {
+        scope.launch {
+            try {
+                if (recovery.currentToken() == null) recovery.obtain()
+            } catch (all: Exception) {
+                Timber.w("Subsonic token prefetch failed: %s", all.javaClass.simpleName)
+            }
+        }
     }
 
     /**

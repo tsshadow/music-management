@@ -1,5 +1,11 @@
 import { get, writable } from "svelte/store";
-import { authParams, endRejectedSession, restUrl } from "./store.js";
+import {
+  authParams,
+  credentials,
+  endRejectedSession,
+  ensureSubsonicToken,
+  restUrl,
+} from "./store.js";
 import { platform as defaultPlatform } from "./platform/index.js";
 
 /**
@@ -234,7 +240,8 @@ export async function subsonicJson(method, params = {}, options = {}) {
   let body;
   try {
     const call = fetchImpl ?? fetch;
-    const auth = get(authParams);
+    // No await while a token is there: the request leaves in the same turn, as it always did.
+    const auth = get(authParams) || (await signedAuthParams());
     const query = [auth, queryString(params)].filter(Boolean).join("&");
     const response = await call(restUrl(`/rest/${method}?${query}`), signal ? { signal } : {});
     body = await response.json();
@@ -249,6 +256,36 @@ export async function subsonicJson(method, params = {}, options = {}) {
     return await localQuery(storage, method, params);
   }
   return checkedBody(body);
+}
+
+/**
+ * Thrown instead of sending a `/rest` call that has no Subsonic token to sign it with (issue #72).
+ * The request never leaves the page: an unsigned call is answered with error 40, which would end
+ * the session, and a password-signed one is exactly what issue #72 removed.
+ */
+export class SubsonicTokenUnavailableError extends Error {
+  constructor() {
+    super("No Subsonic token to sign the request with");
+    this.name = "SubsonicTokenUnavailableError";
+  }
+}
+
+/**
+ * The token-signed query for the next `/rest` call: the current one, or -- when no token is
+ * stored yet for the signed-in name -- the one a token fetch brings. Throws
+ * {@link SubsonicTokenUnavailableError} when there is none, so nothing is sent unsigned.
+ *
+ * @returns {Promise<string>}
+ */
+async function signedAuthParams() {
+  const auth = get(authParams);
+  // Signed out there is nothing to sign with and no secret to leak: the call goes out as it always
+  // did and the server answers it as unauthenticated.
+  if (auth || !get(credentials).username) return auth;
+  await ensureSubsonicToken();
+  const fetched = get(authParams);
+  if (!fetched) throw new SubsonicTokenUnavailableError();
+  return fetched;
 }
 
 /**

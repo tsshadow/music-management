@@ -22,6 +22,7 @@ import {
   playlist,
   queueSource,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 const RANDOM_UPTEMPO = normalizePreset({
@@ -112,6 +113,7 @@ describe("PresetGrid", () => {
 describe("PresetView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     playlist.set([]);
     currentTrack.set(null);

@@ -13,6 +13,7 @@ import { get } from "svelte/store";
 import VoiceView from "../../src/lib/VoiceView.svelte";
 import {
   credentials,
+  subsonicToken,
   currentTrack,
   mumaApiKey,
   playerState,
@@ -107,6 +108,7 @@ const THUNDERDOME_TRACKS = [{ id: "t1", title: "Thunderdome Anthem", artist: "Va
 describe("VoiceView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     mumaApiKey.set("key");
     playlist.set([]);
     currentTrack.set(null);

@@ -8,7 +8,13 @@ import { get } from "svelte/store";
 import { feedContinuation } from "../../src/lib/feedQueue.js";
 import { EXTEND_WHEN_LEFT, extendQueue } from "../../src/lib/listContinuation.js";
 import { startQueue } from "../../src/lib/queue.js";
-import { credentials, currentTrack, playlist, queueContinuation } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  playlist,
+  queueContinuation,
+  subsonicToken,
+} from "../../src/lib/store.js";
 
 const QUEUE = Array.from({ length: 10 }, (_, i) => ({ id: `song-${i}` }));
 
@@ -27,6 +33,7 @@ function start(loadPage, nextOffset = 100) {
 describe("feedContinuation", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     currentTrack.set(null);
   });
 

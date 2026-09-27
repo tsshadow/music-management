@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import Sidebar from "../../src/lib/Sidebar.svelte";
-import { credentials, favoriteGenres, viewMode } from "../../src/lib/store.js";
+import { credentials, favoriteGenres, viewMode, subsonicToken } from "../../src/lib/store.js";
 
 const GENRES = [
   { value: "Hardcore", songCount: 1200 },
@@ -30,6 +30,7 @@ async function openLibrary() {
 describe("Sidebar", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     favoriteGenres.set([]);
     localStorage.clear();

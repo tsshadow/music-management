@@ -140,6 +140,10 @@
     <string name="auto.group_live">Live</string>
     <string name="auto.group_browse">Bladeren</string>
     <string name="auto.group_play">Afspelen</string>
+    <!-- Shown in the car instead of a browse level when no Subsonic token can be had, so nothing
+         is sent (issue #72). -->
+    <string name="auto.token_sign_in_again">Log opnieuw in in de MuMa-app op je telefoon</string>
+    <string name="auto.token_server_unreachable">De MuMa-server is niet bereikbaar. Probeer het zo opnieuw</string>
     <string name="download.menu_unstar">Ster verwijderen</string>
     <string name="crash_report.dialog_title">Vorige sessie is gecrasht</string>
     <string name="crash_report.dialog_message">MuMa is de vorige keer niet netjes afgesloten. Diagnostiek delen om dit te helpen oplossen?</string>

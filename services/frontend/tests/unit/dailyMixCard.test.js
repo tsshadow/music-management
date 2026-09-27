@@ -14,6 +14,7 @@ import {
   queueContinuation,
   playerState,
   playlist,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 const SONGS = [{ id: "song-1", title: "Legacy" }];
@@ -26,6 +27,7 @@ vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
 describe("DailyMixCard", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });

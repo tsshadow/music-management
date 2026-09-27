@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import LibrariesTab from "../../src/lib/management/tabs/LibrariesTab.svelte";
-import { credentials } from "../../src/lib/store.js";
+import { credentials, subsonicToken } from "../../src/lib/store.js";
 
 const LIBRARIES = [
   { id: 1, name: "Muziek", path: "/music" },
@@ -15,6 +15,7 @@ function props(overrides = {}) {
 describe("LibrariesTab", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => LIBRARIES,

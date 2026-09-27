@@ -140,9 +140,14 @@ export function createCapacitorSystem(plugin) {
      * check its own welcome screen makes -- so the boot path reads it as
      * "show the login page" rather than as a failed sign-in.
      *
+     * `subsonicToken`/`subsonicTokenUser` are the Subsonic token the native client signs with and
+     * the login name it was issued for, blank while the phone has none: the web signs with the
+     * same token instead of fetching its own, and without one sends no Subsonic request at all
+     * (issue #72).
+     *
      * @returns {Promise<{username: string, password: string, clientId: string,
-     *   forcePlainTextPassword: boolean, serverId: number, mumaApiKey?: string,
-     *   mumaUserId?: number}>}
+     *   serverId: number, mumaApiKey?: string, mumaUserId?: number,
+     *   subsonicToken: string, subsonicTokenUser: string}>}
      */
     async credentials() {
       const answer = await plugin.credentials();
@@ -150,10 +155,11 @@ export function createCapacitorSystem(plugin) {
         username: answer?.username ?? "",
         password: answer?.password ?? "",
         clientId: answer?.clientId ?? "",
-        forcePlainTextPassword: answer?.forcePlainTextPassword === true,
         serverId: answer?.serverId ?? 0,
         mumaApiKey: answer?.mumaApiKey ?? "",
         mumaUserId: answer?.mumaUserId ?? 0,
+        subsonicToken: answer?.subsonicToken ?? "",
+        subsonicTokenUser: answer?.subsonicTokenUser ?? "",
       };
     },
 

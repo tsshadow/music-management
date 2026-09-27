@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { loadSearchFacets, resetSearchFacets } from "../../src/lib/searchFacets.js";
-import { credentials } from "../../src/lib/store.js";
+import { credentials, subsonicToken } from "../../src/lib/store.js";
 
 /**
  * A Subsonic stand-in answering getGenres / getRecordLabels, with the genre
@@ -28,6 +28,7 @@ describe("loadSearchFacets", () => {
   beforeEach(() => {
     resetSearchFacets();
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 

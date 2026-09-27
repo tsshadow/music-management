@@ -153,10 +153,15 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   so the app (native client and web shell alike) fetches its own token from
   `GET /api/auth/subsonic-token` and signs every `/rest` URL with
   `t=md5(token + salt)&s=salt`. The password travels only in the MuMa login's
-  POST body. Until the first successful fetch -- an upgraded install, or a
-  server without the endpoint -- the old `p=` form is the fallback, over
-  verified TLS and redacted from every log (bug report 103). The browser web
-  player signs the same way.
+  POST body. There is no password fallback any more (issue #72): a client
+  without a stored token fetches one before its first Subsonic request, and
+  while none can be had it sends no Subsonic request at all -- the native
+  client throws `SubsonicTokenUnavailableException` before the request leaves
+  the device, the web player's `authParams` stays empty -- and says "sign in
+  again" or "server unreachable" instead. The browser web player signs the
+  same way. The stored password is kept after sign-in only as the credential
+  that re-obtains a refused MuMa key and as the "signed in" marker; it signs
+  nothing (see the design's "Fallback decision").
 * **Logs are redacted before they leave the phone.** `LogRedaction` masks the
   `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers,
   credential-named settings and credential-named JSON members in every

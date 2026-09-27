@@ -13,6 +13,7 @@ import {
   playlist,
   userPermissions,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 const ARTIST = { id: "artist-1", name: "Angerfist", album: [] };
@@ -40,6 +41,7 @@ function subsonicFetch(curationBody = {}) {
 
 beforeEach(() => {
   credentials.set({ url: "", username: "user", password: "pw" });
+  subsonicToken.set({ username: "user", token: "test-subsonic-token" });
   viewMode.set("songs");
   deduplicateEnabled.set(false);
   playlist.set([]);

@@ -102,6 +102,14 @@
   screen rather than to an empty app. On the web and in the app (the same web UI) that
   confirmation is a Confirmation dialog, see below; the line about downloads only shows in the app,
   since a browser tab has none (issue #80).
+- **No-connection notices** (`OfflineNotice.svelte`): a centred block on a faint surface
+  (`bg-white/5`, `border-white/5`, `rounded-xl`, `p-12`), a 48px icon at 20% opacity, a bold white
+  title and a muted one-line help text, never a spinner. `unavailable` and `empty` are for the
+  offline library; since issue #72 two more stand above the content when the player is signed in
+  but has no Subsonic token and so requests nothing: `server` ("De server geeft geen toegang",
+  with an "Opnieuw proberen" retry) and `signIn` ("Log opnieuw in", with an "Opnieuw inloggen"
+  button that ends the session and shows the login page). Their buttons are the outlined pill of
+  "Load more" above. The car shows the same two messages as Media3 session errors.
 - **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --

@@ -5,10 +5,11 @@ import {
   currentTrack,
   mumaApiKey,
   mumaApiUrl,
+  ensureSubsonicToken,
   playerState,
-  refreshSubsonicToken,
   signedOut,
   subsonicToken,
+  tokenSignsFor,
 } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
 import { signIn } from "./login.js";
@@ -136,8 +137,11 @@ export async function restoreSession(platform) {
 
   if (web.username === stored.username && web.password === stored.password) {
     if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
-    // A session from a build that signed with the password has no token yet (bug report 103).
-    if (get(subsonicToken).username !== web.username) await refreshSubsonicToken();
+    adoptPhoneToken(stored);
+    // No Subsonic request is made without a token (issue #72): a session from a build that signed
+    // with the password, or one whose fetch failed, gets it here, before the queue is rebuilt.
+    // Signed in either way -- without a token the app shows why instead of an empty library.
+    await ensureSubsonicToken();
     return true;
   }
 
@@ -152,6 +156,22 @@ export async function restoreSession(platform) {
   if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
   await adoptCanonicalUsername(platform, stored, result.username);
   return true;
+}
+
+/**
+ * Takes over the Subsonic token the phone's native client signs with, when it was issued for the
+ * name this session signs in under: one token for both halves of the app, and no fetch of our own.
+ * A token for any other name is ignored.
+ *
+ * @param {{username?: string, subsonicToken?: string, subsonicTokenUser?: string}} stored
+ */
+function adoptPhoneToken(stored) {
+  const name = get(credentials).username;
+  const phone = { username: stored.subsonicTokenUser ?? "", token: stored.subsonicToken ?? "" };
+  if (!tokenSignsFor(name, phone)) return;
+  const current = get(subsonicToken);
+  if (current.username !== phone.username || current.token !== phone.token)
+    subsonicToken.set(phone);
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import FilterBar from "../../src/lib/FilterBar.svelte";
-import { credentials, visibleSortOptions, isMobile } from "../../src/lib/store.js";
+import { credentials, visibleSortOptions, isMobile, subsonicToken } from "../../src/lib/store.js";
 
 const GENRES = [
   { value: "Uptempo", songCount: 40 },
@@ -38,6 +38,7 @@ async function renderLoaded(props = {}) {
 describe("FilterBar", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     visibleSortOptions.set({
       songs: ["recent", "alpha"],
       albums: ["newest"],
@@ -220,6 +221,7 @@ describe("FilterBar", () => {
 describe("FilterBar phone chips", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     visibleSortOptions.set({
       songs: ["recent", "alpha"],
       albums: ["newest"],

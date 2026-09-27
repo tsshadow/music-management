@@ -93,6 +93,9 @@ class PlaybackService :
     override fun onCreate() {
         Timber.i("onCreate called")
         super.onCreate()
+        // Before the session's first request: without a stored Subsonic token nothing is sent any
+        // more (issue #72), and Android Auto can start this service with the UI never opened.
+        SubsonicTokenRefresher.prefetchIfMissing()
         initializeSessionAndPlayer()
         setListener(MediaSessionServiceListener())
         instance = this

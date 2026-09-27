@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { credentials } from "../../src/lib/store.js";
+import { credentials, subsonicToken } from "../../src/lib/store.js";
 import { loadTopArtists, loadTopLabels, resolveArtistView } from "../../src/lib/homeRankings.js";
 
 /** A fetcher answering with `body`, `ok` by default. */
@@ -77,6 +77,7 @@ describe("loadTopLabels", () => {
 describe("resolveArtistView", () => {
   beforeEach(() => {
     credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
   });
 
   /** A search3 response carrying the given artist entries. */

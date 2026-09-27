@@ -32,19 +32,6 @@ object StaticServers {
      */
     const val ALLOW_SELF_SIGNED_CERTIFICATE = false
 
-    /**
-     * Whether requests authenticate with `p=enc:<hex password>` instead of the salted Subsonic
-     * token (`t=md5(token + salt)&s=salt`).
-     *
-     * `false` since bug report 103. LMS checks a `t`/`s` pair against the user's *Subsonic API
-     * token*, never against the login password, so the app fetches that token from MuMa
-     * (`GET /api/auth/subsonic-token`) and signs every request with it; the password no longer
-     * travels in any URL. [SubsonicSigning] decides per client: the token when one is stored for the
-     * signed-in user, and only until then the password as the fallback -- which is where this flag's
-     * old behaviour survives, deliberately limited to the time before the first successful fetch.
-     */
-    const val FORCE_PLAIN_TEXT_PASSWORD = false
-
     val STATIC_SERVERS = listOf(
         ServerSetting(
             id = 0,
@@ -54,7 +41,9 @@ object StaticServers {
             userName = "",
             password = "",
             allowSelfSignedCertificate = ALLOW_SELF_SIGNED_CERTIFICATE,
-            forcePlainTextPassword = FORCE_PLAIN_TEXT_PASSWORD,
+            // A Room column from the Ultrasonic era; nothing reads it since issue #72 removed
+            // password signing -- every request is signed with the Subsonic token.
+            forcePlainTextPassword = false,
             shareSupport = true,
             jukeboxByDefault = false,
             musicFolderId = null,

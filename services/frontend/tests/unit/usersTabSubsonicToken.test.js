@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import UsersTab from "../../src/lib/management/tabs/UsersTab.svelte";
-import { credentials, mumaUser, userPermissions } from "../../src/lib/store.js";
+import { credentials, mumaUser, userPermissions, subsonicToken } from "../../src/lib/store.js";
 
 const USER = { id: 7, username: "lisa", display_name: "Lisa", enabled: true, role_name: "user" };
 
@@ -45,6 +45,7 @@ function props(overrides = {}) {
 describe("UsersTab -- Subsonic API token", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     mumaUser.set({ id: 1, is_admin: true });
     userPermissions.set([]);
     globalThis.fetch = mockApi();

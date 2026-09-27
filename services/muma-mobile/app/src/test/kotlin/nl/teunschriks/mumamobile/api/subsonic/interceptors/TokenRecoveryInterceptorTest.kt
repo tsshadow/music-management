@@ -73,14 +73,13 @@ class TokenRecoveryInterceptorTest {
         clock = { 0L }
     )
 
-    private fun client(recovery: SubsonicTokenRecovery, signWith: String = OLD_TOKEN, passwordInUrl: Boolean = false) = SubsonicAPIClient(
+    private fun client(recovery: SubsonicTokenRecovery, signWith: String? = OLD_TOKEN) = SubsonicAPIClient(
         SubsonicClientConfiguration(
             baseUrl = server.url("/").toString().removeSuffix("/"),
             username = "listener",
-            password = signWith,
+            token = signWith,
             minimalProtocolVersion = SubsonicAPIVersions.V1_16_0,
             clientID = "test",
-            forcePlainTextPassword = passwordInUrl,
             tokenRecovery = recovery
         )
     )
@@ -154,12 +153,29 @@ class TokenRecoveryInterceptorTest {
         requests.size shouldBeEqualTo 2
     }
 
+    /**
+     * A client built before any token was stored obtains one for its first request (issue #72);
+     * when LMS then refuses that one, recovery still gets exactly one refetch and one retry.
+     */
     @Test
-    fun `a password-signed request is never retried`() {
-        ping(client(recovery(), passwordInUrl = true)) shouldBeEqualTo ERROR_40
+    fun `a client built without a token signs with the fetched one and still recovers once`() {
+        stored = null
+        val recovery = SubsonicTokenRecoverer(
+            refetch = {
+                refetches.incrementAndGet()
+                stored = if (stored == null) OLD_TOKEN else NEW_TOKEN
+            },
+            storedToken = { stored },
+            signOutEpoch = { 0 },
+            onRecovered = { },
+            clock = { 0L }
+        )
 
-        refetches.get() shouldBeEqualTo 0
-        requests.size shouldBeEqualTo 1
+        ping(client(recovery, signWith = null)) shouldBeEqualTo OK
+
+        refetches.get() shouldBeEqualTo 2
+        requests.size shouldBeEqualTo 2
+        requests.all { it.requestUrl!!.queryParameter("p") == null }.shouldBeTrue()
     }
 
     @Test

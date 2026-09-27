@@ -8,50 +8,35 @@
 package nl.teunschriks.mumamobile.data
 
 /**
- * What every Subsonic request is signed with, and how (bug report 103).
+ * What every Subsonic request is signed with (bug report 103, issue #72).
  *
  * LMS checks `t=md5(secret + salt)&s=salt` against the user's *Subsonic API token*, never against
  * the login password, which it does not hold in any form it could salt. The app therefore asks
  * MuMa for that token (`GET /api/auth/subsonic-token`, see
  * [nl.teunschriks.mumamobile.service.RESTMusicService.refreshSubsonicToken]) and signs with it:
- * the `PasswordMD5Interceptor` in `:core:subsonic-api` puts a fresh salt on every request, so no
+ * the `TokenSigningInterceptor` in `:core:subsonic-api` puts a fresh salt on every request, so no
  * URL carries a reusable secret, let alone the password.
  *
- * Until a token is stored -- the first start after an upgrade, a sign-in whose token fetch failed,
- * or a server that predates the endpoint -- the old form is the fallback: the password as
- * `p=enc:<hex>`, over verified TLS, redacted from every log. Failing closed instead would lock the
- * listener out of playback over a transient MuMa outage, and in particular out of Android Auto,
- * which can start without the UI ever opening. The fallback ends by itself at the next successful
- * fetch; the web shell asks for one on every start and after every sign-in.
+ * There is no password fallback any more (issue #72). Until a token is stored -- the first start
+ * after an upgrade, a sign-in whose token fetch failed -- the client asks
+ * [nl.teunschriks.mumamobile.service.SubsonicTokenRecoverer.obtain] for one before each request,
+ * which fetches it from MuMa; when that fails the request is not sent and the caller gets a
+ * `SubsonicTokenUnavailableException` saying whether to sign in again or wait for the server.
  *
  * Kept free of Android and of the settings stores so a JVM test can pin every decision.
  */
 object SubsonicSigning {
 
     /**
-     * The secret the Subsonic client is configured with.
-     *
-     * @property secret what the interceptors hash or encode: the token, or the password as fallback.
-     * @property passwordInUrl whether it goes out as `p=enc:<hex>` (only ever for the password).
-     */
-    data class Signing(val secret: String, val passwordInUrl: Boolean) {
-        /** Never prints the secret, so a stray log of the configuration cannot leak it. */
-        override fun toString(): String = "Signing(secret=<redacted>, passwordInUrl=$passwordInUrl)"
-    }
-
-    /**
-     * The signing for [userName]/[password], given the stored [token] and the login name it was
-     * issued for ([tokenUser]).
+     * The token to build the Subsonic client with for [userName], given the stored [token] and the
+     * login name it was issued for ([tokenUser]); `null` when it may not sign for this user, in
+     * which case the client obtains one per request instead.
      *
      * A token counts only for the user it was issued to, compared exactly: LMS looks the user up by
      * login name byte for byte (bug report 074), and a token stored for a previous account must
      * never sign for the next one.
      */
-    fun signingFor(userName: String, password: String, token: String?, tokenUser: String?): Signing = if (isUsable(userName, token, tokenUser)) {
-        Signing(secret = token!!, passwordInUrl = false)
-    } else {
-        Signing(secret = password, passwordInUrl = true)
-    }
+    fun tokenFor(userName: String, token: String?, tokenUser: String?): String? = token.takeIf { isUsable(userName, token, tokenUser) }
 
     /** Whether [token] may sign requests for [userName]. */
     fun isUsable(userName: String, token: String?, tokenUser: String?): Boolean = !token.isNullOrBlank() && userName.isNotBlank() && tokenUser == userName

@@ -208,7 +208,7 @@ describe("TrackDetailsSheet tags section", () => {
 
   it("shows no tags section when MuMa has never scanned the file", async () => {
     renderSheet({ track: track({ path: "a.mp3" }) });
-    await waitFor(() => expect(screen.queryByText("Tags ophalen…")).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId("tags-skeleton")).toBeNull());
     expect(screen.queryByTestId("tag-details")).toBeNull();
   });
 
@@ -216,6 +216,31 @@ describe("TrackDetailsSheet tags section", () => {
     globalThis.__fetchTrackDetails.mockResolvedValue({ state: "error", details: null });
     renderSheet({ track: track({ path: "a.mp3" }) });
     await waitFor(() => expect(screen.getByTestId("tags-unavailable")).toBeTruthy());
+  });
+
+  // Issue #111: the sheet's header and file section are there at once; only the tags wait, as
+  // skeleton rows rather than a line of text.
+  it("draws skeleton rows for the tags while MuMa is asked, and the rest of the sheet at once", () => {
+    globalThis.__fetchTrackDetails.mockImplementation(() => new Promise(() => {}));
+    renderSheet({ track: track({ path: "Youtube/Q-dance/a.mp3" }) });
+
+    expect(screen.getByTestId("tags-skeleton")).toBeTruthy();
+    expect(screen.getByTestId("file-details")).toBeTruthy();
+  });
+
+  it("asks MuMa again from the retry pill after a failure", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({ state: "error", details: null });
+    renderSheet({ track: track({ path: "a.mp3" }) });
+    await waitFor(() => expect(screen.getByTestId("tags-retry")).toBeTruthy());
+
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: { channels: [], tags: { CATALOGNUMBER: "Q404PRO" } },
+    });
+    await fireEvent.click(screen.getByTestId("tags-retry"));
+
+    await waitFor(() => expect(screen.getByTestId("tag-details").textContent).toContain("Q404PRO"));
+    expect(globalThis.__fetchTrackDetails).toHaveBeenCalledTimes(2);
   });
 });
 

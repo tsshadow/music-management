@@ -81,6 +81,13 @@ tapped.
 | The artist itself cannot be found | The header says the page could not be loaded. |
 | Pressing on a link (finger down, mouse down) | The page's main request starts before the finger lifts. No request is made just for hovering or scrolling past. |
 | Tapping play before the tracks have arrived | The button shows a small spinner (throbber) and playback starts as soon as the tracks arrive. |
+| Tapping a daily-mix card or the release radar (issue #110) | The feed page opens at once with the card's title and subtitle (the radar and the classic daily mix use their fixed copy). Skeleton rows stand where the tracks go. The tracks appear as each batch comes back from the server, always in the mix's own order. |
+| Opening a feed by URL with nothing known | A skeleton title bar until the server names the feed. |
+| Part of a feed fails to load | The tracks that did load stay; under them one line "Kon dit deel niet laden" with "Opnieuw", which asks for only the missing part. |
+| The feed itself fails to load | The header stays; the body says it could not load, with "Opnieuw". |
+| Tapping "Versies" on a track (issue #111) | The song page opens at once with the track's title, artist and cover. The versions appear page by page as they arrive, with skeleton rows under them while more are coming. |
+| The track details sheet | The header, chips and file section are there at once; the tags section shows placeholder rows while MuMa is asked, and "Opnieuw" if it could not be reached. |
+| A daily-mix card on a phone or tablet (issue #99) | The play button is always visible, 48px. With a mouse it appears on hover, as before. |
 
 ## Acceptance Criteria
 
@@ -95,6 +102,13 @@ tapped.
 7. Revisiting an artist or album within 5 minutes shows it without a loading state.
 8. A failing section shows its own error and retry. It never blanks the page.
 9. Loading placeholders follow the style guide (Loading States).
+10. A feed page shows its title (from the card, or fixed copy) and skeleton rows before MuMa has
+    answered, and the first batch of tracks before the second one has (issue #110).
+11. A feed's "N niet gevonden op de server" note, "Meer laden" and the queue continuation work as
+    before (bug report 122, !1084, !1087).
+12. The song page shows the tapped track's title, artist and cover before the versions have
+    arrived, and the first page of versions before the last (issue #111).
+13. A daily-mix card's play button is visible without hover on a touchscreen (issue #99).
 
 ## Decisions
 
@@ -115,4 +129,5 @@ tapped.
   filling in afterwards. It is the biggest part of the app's start-up wait, but the restore must
   never disturb playback, which needs its own look. It stays as it is for now; issue filed.
 - Which other pages follow first. Genre/label/festival lists, feeds, track versions and search each
-  get a follow-up issue using the same building blocks.
+  get a follow-up issue using the same building blocks. Feeds and track versions: done (#110,
+  #111).

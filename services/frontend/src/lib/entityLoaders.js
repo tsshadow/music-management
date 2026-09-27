@@ -49,6 +49,10 @@ export const artistTracksKey = (id, mode, dedupe) =>
 export const albumKey = (id) => `album:${id}`;
 /** @param {string} id */
 export const albumInfoKey = (id) => `album-info:${id}`;
+/** A feed's first page, as `loadFeedDetail` returns it. @param {string} slug */
+export const feedKey = (slug) => `feed:${slug}`;
+/** Every version of one song (`song:<workId>`). @param {string|number} workId */
+export const songVersionsKey = (workId) => `song-versions:${workId}`;
 
 /**
  * `getArtist`: the artist with its albums.

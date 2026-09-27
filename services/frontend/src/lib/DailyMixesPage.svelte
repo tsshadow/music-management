@@ -3,6 +3,7 @@
   import { authParams } from './store.js';
   import { loadDailyMixCards } from './dailyMixes.js';
   import DailyMixCard from './DailyMixCard.svelte';
+  import Skeleton from './loading/Skeleton.svelte';
 
   /**
    * The phone's own "Daily mixes" page: reached by tapping the Home tile when the account's
@@ -32,7 +33,12 @@
 <div class="flex flex-col gap-6 pb-12">
   <h1 class="text-3xl font-black">{$t('nav.dailyMixes')}</h1>
   {#if !loaded}
-    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
+    <!-- Five card-shaped placeholders in the same grid, so nothing moves when the cards land. -->
+    <div class="grid grid-cols-2 gap-3" role="status" aria-label={$t('common.loading')} data-testid="mix-card-skeletons">
+      {#each [0, 1, 2, 3, 4] as i (i)}
+        <Skeleton class="h-[150px] rounded-lg" />
+      {/each}
+    </div>
   {:else if cards.length === 0}
     <p class="text-muma-spotify-text">{$t('dashboard.noTracksInSection')}</p>
   {:else}

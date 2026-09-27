@@ -12,14 +12,17 @@ import { listOf, subsonicJson } from "./subsonic.js";
  * files rather than showing a fault.
  *
  * @param {string|number} workId
- * @param {{max?: number}} [options] - `max` bounds how many versions this call ever returns.
- *   The song page wants the true count (leaves it at the default, comfortably above any real
- *   work), the player's continuation section wants a small taste -- it never shows more than
- *   a handful of rows, so there is no reason to fetch, or wait for, the whole list.
+ * @param {{max?: number, onPage?: (soFar: Array<object>, done: boolean) => void}} [options] -
+ *   `max` bounds how many versions this call ever returns. The song page wants the true count
+ *   (leaves it at the default, comfortably above any real work), the player's continuation
+ *   section wants a small taste -- it never shows more than a handful of rows, so there is no
+ *   reason to fetch, or wait for, the whole list. `onPage` is called after every page with
+ *   everything collected so far (a fresh array each time) and whether that was the last page,
+ *   so the song page draws the first hundred while the rest are still on their way (issue #111).
  * @returns {Promise<Array<object>>} Every version, in the order the server returned them.
  * @throws {Error} When the server reports anything other than success.
  */
-export async function loadVersions(workId, { max = 500 } = {}) {
+export async function loadVersions(workId, { max = 500, onPage } = {}) {
   // The server's own page size, independent of `max`: a `max` smaller than this (the player's
   // 6) asks for exactly that many so a small request stays small on the wire, while the song
   // page's much larger `max` still pages in this chunk rather than one giant request.
@@ -42,7 +45,10 @@ export async function loadVersions(workId, { max = 500 } = {}) {
     collected.push(...result);
 
     const more = payload.tracks?.moreResults;
-    if (!(more === true || more === "true") || result.length === 0) break;
+    const last =
+      !(more === true || more === "true") || result.length === 0 || collected.length >= max;
+    onPage?.(collected.slice(0, max), last);
+    if (last) break;
     offset = Number(payload.tracks?.nextOffset ?? offset + PAGE_SIZE);
   }
   return collected.slice(0, max);

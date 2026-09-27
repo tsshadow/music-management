@@ -87,3 +87,39 @@ describe("loadVersions", () => {
     await expect(loadVersions("42")).rejects.toThrow("no such work");
   });
 });
+
+describe("loadVersions onPage", () => {
+  it("reports what it has after every page, so the song page can draw it at once", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockImplementationOnce(async () => ({
+        ok: true,
+        json: async () => ({
+          "subsonic-response": {
+            status: "ok",
+            tracks: { track: [version(1)], moreResults: true, nextOffset: 100 },
+          },
+        }),
+      }))
+      .mockImplementationOnce(async () => ({
+        ok: true,
+        json: async () => ({
+          "subsonic-response": {
+            status: "ok",
+            tracks: { track: [version(2)], moreResults: false },
+          },
+        }),
+      }));
+    const pages = [];
+
+    const all = await loadVersions("42", {
+      onPage: (soFar, done) => pages.push([soFar.map((v) => v.id), done]),
+    });
+
+    expect(pages).toEqual([
+      [["1"], false],
+      [["1", "2"], true],
+    ]);
+    expect(all.map((v) => v.id)).toEqual(["1", "2"]);
+  });
+});

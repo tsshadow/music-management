@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.79.4 (2026-09-27)
+
+- The music server's scan log now says what kind of problems it found, and no longer repeats the
+  same hundreds of playlist warnings after every small scan.
+
 ## Global Version 0.79.3 (2026-09-27)
 
 - New and retagged music reaches the app without restarting the music server's library scan every

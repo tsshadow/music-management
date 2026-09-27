@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.11.0] - 2026-09-27
+
+### Added
+- **Android Auto keeps playing past the end of its own lists** (issue #103). Since issue #84 a
+  feed queue in the car tops itself up near its end; every other list still stopped after what
+  was loaded -- 100 tracks of a genre, label, festival, podcast, year, lineup or Soort folder, 500
+  of "Recent toegevoegd"/"Recent uitgebracht", one page of a preset. `FeedQueueContinuation` is
+  now `ListQueueContinuation` with a source per kind of list (a feed's `next_offset`, or the
+  list's own `getSongs` question again with `offset`/`count`), and a tapped track or a play row
+  ("Alles afspelen", "Willekeurig", "Recent toegevoegd", a preset's rows, a tab's Random row) arms
+  it the same way a feed does. Within three tracks of the end the next 100 are appended, never a
+  track twice, one request at a time, and nothing is appended to a queue that has since been
+  replaced; radio and news are never extended. A shuffled list (the Random rows, a shuffled
+  preset) now carries a random seed from its first page on, so what follows is the rest of the
+  same shuffle rather than a new draw that repeats it. The browse lists themselves keep their
+  limits; only the playing queue grows. `docs/designs/list-continuation/technical.md` "Android
+  Auto".
+
+### Changed
+- **The bundled web interface reads another 70 kB less before it appears** (issue #118). The
+  artist, album, feed, preset and playlist pages and the list filter bar are separate files in the
+  APK now, read on idle after the home screen is up or the moment a link is pressed; the artist and
+  album heading still appears at once from what the tapped link knew. The file the WebView starts
+  with went from 370 kB to 300 kB, and everything read before the app appears from 580 kB to
+  511 kB. The translation file in use is announced to the WebView up front as well.
+
 ## [7.10.3] - 2026-09-27
 
 ### Changed

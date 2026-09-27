@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.11.0 (2026-09-27)
+
+- In the car, a genre, label, festival, year, preset or "Recent" list now keeps playing past the
+  tracks that were shown, like the daily mixes already did; shuffled lists stay one shuffle.
+
+- The app's interface starts a little faster again; artist and album pages still open instantly.
+
 ## Global Version 7.10.3 (2026-09-27)
 
 - The app's interface starts faster: it reads less than half the code at start, and loads pages

@@ -35,7 +35,7 @@ describe("phone song details", () => {
   it("opens metadata without playback and reuses the queue action", async () => {
     render(TrackList, { tracks: [track], onnavigate: vi.fn() });
     await fireEvent.click(screen.getByLabelText("Nummerdetails"));
-    const sheet = within(screen.getByTestId("song-details"));
+    const sheet = within(await screen.findByTestId("song-details"));
     expect(sheet.getByText("Label")).toBeTruthy();
     expect(sheet.getByText("Hardcore")).toBeTruthy();
     expect(sheet.getByText(/12/)).toBeTruthy();
@@ -49,7 +49,7 @@ describe("phone song details", () => {
     const onnavigate = vi.fn();
     render(TrackList, { tracks: [track], onnavigate });
     await fireEvent.click(screen.getByLabelText("Nummerdetails"));
-    await fireEvent.click(within(screen.getByTestId("song-details")).getByText("Versies"));
+    await fireEvent.click(within(await screen.findByTestId("song-details")).getByText("Versies"));
     expect(onnavigate).toHaveBeenCalledWith("song:w");
     expect(screen.queryByTestId("song-details")).toBeNull();
   });
@@ -83,7 +83,9 @@ describe("phone song details", () => {
     playlist.set([first, track, last]);
     render(TrackList, { tracks: [first, track, last], isQueue: true, onnavigate: vi.fn() });
     await fireEvent.click(screen.getAllByLabelText("Nummerdetails")[1]);
-    await fireEvent.click(within(screen.getByTestId("song-details")).getByText("Verwijderen"));
+    await fireEvent.click(
+      within(await screen.findByTestId("song-details")).getByText("Verwijderen"),
+    );
     expect(get(playlist).map((item) => item.id)).toEqual(["first", "last"]);
   });
 });

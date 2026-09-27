@@ -4,7 +4,8 @@
   import { onMount } from 'svelte';
   import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
   import { extendQueue } from './listContinuation.js';
-  import Equalizer from './Equalizer.svelte';
+  // Opened from its button only: its own chunk (lazyViews.js, issue #114).
+  import LazyView from './LazyView.svelte';
   import NowPlaying from './NowPlaying.svelte';
   import { fetchLyricsLines } from './lyrics.js';
   import * as equalizer from './equalizer.js';
@@ -1828,7 +1829,7 @@
     {/if}
     {#if showEqualizer}
       <div bind:this={equalizerPanelEl} class="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-24">
-        <Equalizer onclose={() => (showEqualizer = false)} />
+        <LazyView name="equalizer" fallback="none" props={{ onclose: () => (showEqualizer = false) }} />
       </div>
     {/if}
     <!-- Reuses everything this component already computed for the mini player --
@@ -2128,7 +2129,7 @@
           </button>
           {#if showEqualizer}
             <div bind:this={equalizerPanelEl} class="absolute bottom-full right-0 mb-3 z-50">
-              <Equalizer onclose={() => (showEqualizer = false)} />
+              <LazyView name="equalizer" fallback="none" props={{ onclose: () => (showEqualizer = false) }} />
             </div>
           {/if}
         </div>

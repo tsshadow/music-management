@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import { loadAllLocales } from "../../src/lib/i18n/index.js";
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -63,3 +64,8 @@ if (!Element.prototype.animate) {
 // actually read in, and keeps them from silently depending on the default.
 const { setLocaleFromAccount } = await import("../../src/lib/i18n/index.js");
 setLocaleFromAccount("nl");
+
+// The locale files are separate chunks the app fetches on demand (issue #114). Every test
+// renders in whichever language it sets without waiting, so all of them are in before any
+// test runs -- the same state the app is in after its first language switch.
+await loadAllLocales();

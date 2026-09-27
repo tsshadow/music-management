@@ -129,7 +129,8 @@ describe("mobile sidebar drawer", () => {
     const drawer = await screen.findByRole("dialog");
     // The management pages sit in collapsible groups now, so the drawer shows the
     // group headers until one of them is opened.
-    expect(drawer.textContent).toContain("Curatie");
+    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
+    await waitFor(() => expect(drawer.textContent).toContain("Curatie"));
     await fireEvent.click(groupHeader(drawer, "Curatie"));
 
     expect(drawer.textContent).toContain("Genre Curatie");
@@ -142,7 +143,8 @@ describe("mobile sidebar drawer", () => {
     sidebarDrawerOpen.set(true);
 
     const drawer = await screen.findByRole("dialog");
-    expect(drawer.textContent).toContain("Geavanceerd");
+    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
+    await waitFor(() => expect(drawer.textContent).toContain("Geavanceerd"));
   });
 
   it("picking a tab switches to it and closes the drawer again", async () => {
@@ -150,6 +152,8 @@ describe("mobile sidebar drawer", () => {
     await renderApp();
     sidebarDrawerOpen.set(true);
     const drawer = await screen.findByRole("dialog");
+    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
+    await waitFor(() => expect(drawer.textContent).toContain("Curatie"));
 
     await fireEvent.click(groupHeader(drawer, "Curatie"));
     const tab = [...drawer.querySelectorAll("button")].find((b) =>

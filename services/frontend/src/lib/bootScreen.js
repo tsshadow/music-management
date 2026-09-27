@@ -22,6 +22,17 @@ export const BOOT_FADE_MS = 200;
 let slowTimer = null;
 let lastStage = null;
 
+/**
+ * The text for a key, or null while the locale file is not in yet.
+ *
+ * @param {string} key
+ * @returns {string|null}
+ */
+function translated(key) {
+  const text = get(t)(key);
+  return text === key ? null : text;
+}
+
 /** @param {Document} doc */
 function screenOf(doc) {
   return doc?.getElementById?.("boot-screen") ?? null;
@@ -39,8 +50,11 @@ export function setBootStage(stage, { done = 0, total = 0 } = {}, doc = globalTh
   const screen = screenOf(doc);
   if (!screen) return;
 
+  // The locale file is a chunk of its own that may still be on its way (issue #114); until it
+  // is in, the translator hands back the key, and the inline "Laden…" stays instead.
   const label = screen.querySelector("[data-boot-stage]");
-  if (label) label.textContent = get(t)(`boot.${stage}`);
+  const text = translated(`boot.${stage}`);
+  if (label && text) label.textContent = text;
 
   const bar = screen.querySelector("[data-boot-bar]");
   if (bar) {
@@ -60,7 +74,8 @@ export function setBootStage(stage, { done = 0, total = 0 } = {}, doc = globalTh
   if (hint) hint.textContent = "";
   clearTimeout(slowTimer);
   slowTimer = setTimeout(() => {
-    if (hint && screen.isConnected) hint.textContent = get(t)("boot.slow");
+    const slow = translated("boot.slow");
+    if (hint && slow && screen.isConnected) hint.textContent = slow;
   }, BOOT_SLOW_AFTER_MS);
 }
 

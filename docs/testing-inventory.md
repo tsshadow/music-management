@@ -46,7 +46,16 @@
 - Compose: `docker/docker-compose.yml` (service `music-management-server`)
 
 ### frontend (Svelte + Vite)
-- Build: `npm run build` (Vite)
+- Build: `npm run build` (Vite). Since issue #114 the output is code-split: an entry chunk, a
+  `vendor` chunk (Svelte runtime, Capacitor core), one chunk per locale and one per page off the
+  first screen (`src/lib/lazyViews.js`), all under `dist/assets/` with content hashes. Size
+  report: `BUNDLE_REPORT=/tmp/report.json node_modules/.bin/vite build` then
+  `node scripts/bundle-report.mjs /tmp/report.json` (entry, its static-import closure, every chunk
+  and its largest modules). LMS serves `assets/` with a one-year immutable `Cache-Control` and
+  everything else `no-cache`, checked by `tests/contracts/test_spotify_static_cache.py`
+  (`scripts/test/contracts.sh`); `tests/browser/lazy-views.spec.js` opens lazily loaded pages.
+  The unit tests' setup file loads every locale first (`loadAllLocales`), so component tests
+  render in any language without waiting.
 - Start (dev): `npm run dev` (port 5173, proxy to `/api`→8000, `/rest`+`/muma`→5082, targets overridable via `VITE_API_TARGET`/`VITE_LMS_TARGET`)
 - Test: Vitest (jsdom) via `npm run test:unit` / `npm run coverage`, sources in `tests/unit/` (`store`,
   `downloaderTiming`, `genreCuration`); browser tests in `tests/browser/` via Playwright, in a `desktop`

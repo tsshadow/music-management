@@ -25,7 +25,7 @@ album, track versions, feed) waits for the network before it draws any of it.
 | Phase | Browser | MuMa Mobile shell |
 |---|---|---|
 | `index.html` parsed | empty `<div id="app">`, a black page | same |
-| Bundle downloaded and run | one chunk (no code splitting); blank until it runs | loaded from the APK, fast, but still blank |
+| Bundle downloaded and run | one chunk (no code splitting until #114); blank until it runs | loaded from the APK, fast, but still blank |
 | Before `mount` | nothing | `bootstrapShell` (`nativeSession.js`): server URL (bridge), sign-in (**network**: ping + MuMa login, skipped when the stored session matches), queue restore (**network**: one `getSong` per queued track, up to 200, in parallel) |
 | After `mount` | shell or login page appears at once; home shelves fill in | same |
 
@@ -96,6 +96,8 @@ tapped.
 | The list fails to load | "Kon dit deel niet laden" with "Opnieuw", instead of "Geen nummers gevonden". |
 | Opening the search results page (#112) | "Zoeken…" next to the heading, skeleton rows for tracks and skeleton tiles for artists and albums. Each section fills in, or fails with its own retry, on its own. "Geen resultaten gevonden" only once all three have answered empty. |
 | Typing in the search box (#112) | "Zoeken…" from the first keystroke. With nothing shown yet, skeleton rows; with results for the previous text, those stay dimmed. "Geen resultaten gevonden" only for an answer; a failed search offers "Opnieuw". |
+| Opening the app on a page off the first screen by URL, e.g. Beheer or settings (#114) | The boot screen stays up until that page's code has loaded, then the app appears with the page. |
+| Navigating to a page off the first screen for the first time (#114) | Skeleton rows for the moment its code takes to load, then the page. A second visit is instant. A page whose code could not load says so, with "Opnieuw". |
 | Opening History, Starred or Memories (#112) | Header at once, skeleton rows or tiles where the content goes. History and Starred show an error with a retry when loading fails, instead of "nothing here yet". |
 
 ## Acceptance Criteria
@@ -118,6 +120,10 @@ tapped.
 12. The song page shows the tapped track's title, artist and cover before the versions have
     arrived, and the first page of versions before the last (issue #111).
 13. A daily-mix card's play button is visible without hover on a touchscreen (issue #99).
+14. The code the first screen waits for is well under half of the single 1.29 MB bundle it used to
+    be; Beheer, settings, statistics and the other pages off the first screen load when opened,
+    and still render when opened by URL, by navigation, in a browser served by LMS and inside the
+    app (issue #114).
 
 ## Decisions
 
@@ -131,6 +137,12 @@ tapped.
 - **The name shown from a seed is replaced by the server's.** When a link's name turns out to be
   wrong (e.g. a track credited "A, B" whose link names A), the page corrects itself when the data
   arrives. It never keeps the guess.
+
+- **Code splitting by page, not by component (#114).** The pages behind a tap -- Beheer and each
+  of its tabs, settings, statistics, the edit pages, the setup tour, the car screen -- load when
+  opened. Home, the track lists, the player and Now Playing, and the artist and album pages stay
+  in the first file: they are what a start shows or what the next tap most often opens, and the
+  optimistic artist/album page (a heading within 100 ms of the tap) must not wait for a file.
 
 ## Open Questions / Not Yet Decided
 

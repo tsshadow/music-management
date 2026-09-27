@@ -10,32 +10,20 @@
   import PlaylistView from './PlaylistView.svelte';
   import ArtistView from './ArtistView.svelte';
   import AlbumView from './AlbumView.svelte';
-  import SongView from './SongView.svelte';
   import ArtistList from './ArtistList.svelte';
-  import Settings from './Settings.svelte';
-  import History from './History.svelte';
-  import ListeningStatsView from './ListeningStatsView.svelte';
-  import StarredView from './StarredView.svelte';
-  import MemoriesView from './MemoriesView.svelte';
   import FeedView from './FeedView.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
   import DailyMixesPage from './DailyMixesPage.svelte';
-  import MemoriesYearView from './MemoriesYearView.svelte';
-  import ArtistEdit from './curation/ArtistEdit.svelte';
-  import LabelEdit from './curation/LabelEdit.svelte';
-  import GenreEdit from './curation/GenreEdit.svelte';
-  import Management from './management/Management.svelte';
   import CollectionBar from './CollectionBar.svelte';
   import CollectionGrid from './CollectionGrid.svelte';
   import FavoritesView from './FavoritesView.svelte';
   import PhoneHome from './PhoneHome.svelte';
   import HomeShelf from './HomeShelf.svelte';
-  import DownloadsView from './DownloadsView.svelte';
   import OfflineNotice from './OfflineNotice.svelte';
   import PresetGrid from './PresetGrid.svelte';
-  import PresetBuilder from './PresetBuilder.svelte';
   import PresetView from './PresetView.svelte';
-  import VoiceView from './VoiceView.svelte';
+  // Pages off the first screen, each in its own chunk (lazyViews.js, issue #114).
+  import LazyView from './LazyView.svelte';
   import { presets, refreshPresets, createPreset, presetParamsFromFilters } from './presets.js';
   import { formParam } from './trackForm.js';
   import { notify } from './notifications.js';
@@ -1006,7 +994,7 @@
   {#if $offline && !viewHasOfflineSource(activeView)}
     <OfflineNotice kind="unavailable" onnavigate={onnavigate} />
   {:else if activeView === 'downloads'}
-    <DownloadsView onnavigate={onnavigate} />
+    <LazyView name="downloads" props={{ onnavigate }} />
   {:else if activeView === 'favorites'}
     <FavoritesView presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} {onnavigate} />
   {:else if activeView === 'home'}
@@ -1419,11 +1407,11 @@
   {:else if activeView === 'playlist-detail'}
     <PlaylistView onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('artist-edit:')}
-    <ArtistEdit artistId={viewArgument(activeView)} onback={() => activeView = `artist:${viewArgument(activeView)}`} />
+    <LazyView name="artistEdit" props={{ artistId: viewArgument(activeView), onback: () => activeView = `artist:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('label-edit:')}
-    <LabelEdit name={viewArgument(activeView)} onback={() => activeView = `label:${viewArgument(activeView)}`} />
+    <LazyView name="labelEdit" props={{ name: viewArgument(activeView), onback: () => activeView = `label:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('genre-edit:')}
-    <GenreEdit name={viewArgument(activeView)} onback={() => activeView = `genre:${viewArgument(activeView)}`} />
+    <LazyView name="genreEdit" props={{ name: viewArgument(activeView), onback: () => activeView = `genre:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('artist:')}
     <!-- Keyed on the id: going from one artist straight to another remounts the view instead of
          reusing it with the previous artist's fields still in place. -->
@@ -1435,7 +1423,7 @@
       <AlbumView albumId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
     {/key}
   {:else if activeView.startsWith('song:')}
-    <SongView workId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
+    <LazyView name="song" props={{ workId: viewArgument(activeView), onnavigate: (v) => activeView = v }} />
   {:else if activeView.startsWith('search:')}
     <!-- Every section loads on its own and says so: skeletons until its first answer, its own
          error line with a retry, and "No results" only once all three have answered empty
@@ -1553,15 +1541,15 @@
       {/if}
     </div>
   {:else if activeView === 'settings'}
-    <Settings onnavigate={onnavigate} />
+    <LazyView name="settings" props={{ onnavigate }} />
   {:else if activeView === 'management'}
-    <Management />
+    <LazyView name="management" />
   {:else if activeView === 'history'}
-    <History onnavigate={(v) => activeView = v} />
+    <LazyView name="history" props={{ onnavigate: (v) => activeView = v }} />
   {:else if activeView === 'listening'}
-    <ListeningStatsView onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="listening" props={{ onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'starred'}
-    <StarredView onnavigate={(v) => activeView = v} />
+    <LazyView name="starred" props={{ onnavigate: (v) => activeView = v }} />
   {:else if activeView === 'release-radar'}
     <FeedView slug={RELEASE_RADAR} onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'daily-mix'}
@@ -1571,12 +1559,12 @@
   {:else if activeView === 'daily-mixes'}
     <DailyMixesPage onnavigate={(v) => onnavigate(v)} />
   {:else if activeView === 'new-preset'}
-    <PresetBuilder onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="presetBuilder" props={{ onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView.startsWith('preset-edit:')}
     {@const preset = $presets.find((p) => p.id === viewArgument(activeView))}
     {#if preset}
       {#key preset.id}
-        <PresetBuilder {preset} onnavigate={(v) => onnavigate(v)} />
+        <LazyView name="presetBuilder" props={{ preset, onnavigate: (v) => onnavigate(v) }} />
       {/key}
     {:else}
       <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
@@ -1589,11 +1577,11 @@
       <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
     {/if}
   {:else if activeView === 'memories'}
-    <MemoriesView onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="memories" props={{ onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView.startsWith('memories:')}
-    <MemoriesYearView year={viewArgument(activeView)} onnavigate={(v) => onnavigate(v)} />
+    <LazyView name="memoriesYear" props={{ year: viewArgument(activeView), onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'voice'}
-    <VoiceView />
+    <LazyView name="voice" />
   {/if}
 </div>
 

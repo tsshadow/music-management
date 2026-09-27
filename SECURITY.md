@@ -189,6 +189,14 @@ What `services/muma-mobile` does with credentials, since bug report 054:
 * **WebView remote debugging is debug-only** (Capacitor's default when the key
   is absent from `capacitor.config.json`).
 
+## Container hardening
+
+Every production container runs with `no-new-privileges`, `cap_drop: [ALL]` plus a minimal
+`cap_add`, and a `pids_limit`; LMS, its nginx proxy and autoheal also have a read-only root
+filesystem. The per-service sets, the reasons, and what is still open (non-root users and
+read-only roots for the muma images, Firefox) are in `docs/deployment.md`, "Container
+hardening"; `tests/ci/test_compose_hardening.py` pins them.
+
 ## Secrets
 
 * `.env` is gitignored and must never be committed; `.env.example` documents the

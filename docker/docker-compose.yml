@@ -88,6 +88,9 @@ services:
     # mariadb-upgrade, which MARIADB_AUTO_UPGRADE below has the entrypoint run.
     image: mariadb:13.0.2@sha256:d4fdec0510ad498e4f3127da30a99df3745bd6d5e611ae6ac5f76403d9284a8d
     container_name: music-management-db-1
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     restart: unless-stopped
     # Measured 661 MiB on production (docker stats, 2026-09-25). What MariaDB
@@ -145,6 +148,9 @@ services:
       - no-new-privileges:true
     image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
     container_name: music-management-phpmyadmin-1
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     restart: unless-stopped
     # Measured 3 MiB idle (2026-09-25); PHP's own memory_limit caps one request
@@ -169,6 +175,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_CORE}:${IMAGE_TAG:-latest}
     container_name: music-manager
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     restart: unless-stopped
     # GET /health answers 503 when the database is unreachable or one of the
@@ -328,6 +337,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_IMPORTER}:${IMAGE_TAG:-latest}
     container_name: muma-importer-worker
+    labels:
+      # Watchtower may update this image (bug 050 / issue #68): only the downloader images.
+      com.centurylinklabs.watchtower.enable: "true"
     logging: *default-logging
     restart: unless-stopped
     healthcheck: *worker-healthcheck
@@ -364,6 +376,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-youtube-worker
+    labels:
+      # Watchtower may update this image (bug 050 / issue #68): only the downloader images.
+      com.centurylinklabs.watchtower.enable: "true"
     logging: *default-logging
     restart: unless-stopped
     healthcheck: *worker-healthcheck
@@ -403,6 +418,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-worker
+    labels:
+      # Watchtower may update this image (bug 050 / issue #68): only the downloader images.
+      com.centurylinklabs.watchtower.enable: "true"
     logging: *default-logging
     restart: unless-stopped
     healthcheck: *worker-healthcheck
@@ -442,6 +460,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:${IMAGE_TAG:-latest}
     container_name: muma-telegram-worker
+    labels:
+      # Watchtower may update this image (bug 050 / issue #68): only the downloader images.
+      com.centurylinklabs.watchtower.enable: "true"
     logging: *default-logging
     restart: unless-stopped
     healthcheck: *worker-healthcheck
@@ -537,6 +558,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-fetcher
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
     # never on a routine deploy (scripts/deploy.sh leaves it alone).
@@ -566,6 +590,9 @@ services:
       - no-new-privileges:true
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: genre-processor
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     # One-shot: runs when started by hand or by a DEPLOY_ONESHOTS=1 deploy,
     # never on a routine deploy (scripts/deploy.sh leaves it alone).
@@ -684,6 +711,9 @@ services:
       - no-new-privileges:true
     image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
     container_name: muma-firefox
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
     logging: *default-logging
     restart: unless-stopped
     # Measured 626 MiB (2026-09-25). /dev/shm is a 1 GB tmpfs (shm_size above) and

@@ -260,6 +260,18 @@ namespace lms::scanner
                         {
                             queue.push(std::make_unique<FileScanJob>(getFileScanners(), mediaLibrary, context.scanOptions.fullScan, filesToScan));
                             filesToScan.clear();
+
+                            // Folders MuMa announced wait for no library-wide walk (bug report
+                            // 126). Drain what is in flight first -- the priority pass needs the
+                            // job scheduler to itself -- then let it run, and carry on walking
+                            // from this very file. When the walk reaches those folders later,
+                            // their files are unchanged and cost a skip each.
+                            if (isPriorityWorkDue())
+                            {
+                                queue.finish();
+                                processFileScanOperations(context, operations, false /* force batch */);
+                                runPriorityWork();
+                            }
                         }
                     }
 

@@ -1,6 +1,7 @@
 # LMS scan trigger — Functional Design
 
-Status: implemented with bug report 120 (GitLab issue #93).
+Status: implemented with bug report 120 (GitLab issue #93); announced folders during a
+library-wide scan with bug report 126 (GitLab issue #125).
 
 ## Overview
 
@@ -19,6 +20,8 @@ ninety warnings a night on the alerts topic.
 - As the owner, I want LMS's periodic library scan to actually complete, so files nobody announced
   and files that were removed are picked up.
 - As the owner, I want one alert when LMS stops answering, not one per request.
+- As the owner, I want a new download to show up within minutes even while LMS is scanning the
+  whole library, which takes over an hour (bug report 126).
 
 ## Functional Flows
 
@@ -31,7 +34,15 @@ ninety warnings a night on the alerts topic.
    - if LMS is reading a few folders, the library-wide scan starts right after;
    - otherwise it starts now.
    A request for a full re-read, an optimize or a compact still starts over, as before.
-4. LMS does not answer: MuMa tries once more two seconds later. If that fails too, the folders are
+4. A folder is announced while LMS scans the whole library: the library scan does not stop and
+   does not start over. At its next safe point -- every few files while it walks the library or
+   checks for removed files, and between its steps -- it reads the announced folders first (a
+   "priority pass", the same work as a scoped scan) and then carries on where it was. Folders
+   announced within a few seconds of each other, or twice, are read together, once. After a pass the
+   library scan gets at least two minutes to itself before the next one, so a busy tagger cannot
+   stall it. Scan status shows how many announced folders are waiting and whether a pass is running;
+   the progress shown stays that of the library scan.
+5. LMS does not answer: MuMa tries once more two seconds later. If that fails too, the folders are
    sent along with the next notification, and a failed library-wide request is sent again as soon
    as LMS answers anything. With no further request at all, LMS's own periodic scan picks the
    change up.
@@ -41,6 +52,10 @@ ninety warnings a night on the alerts topic.
 - No "Failed to trigger LMS scan ... Read timed out" from the tagger's round.
 - LMS logs "Scan complete" for a library-wide scan again (it only ever logged "Scan aborted").
 - An LMS outage produces one WARNING, INFO for the rest of it, and an INFO when it recovers.
+- During a library-wide scan, a downloaded folder is readable in LMS within a few minutes (quiet
+  period + at most the two-minute gap + the pass itself), and LMS logs
+  `Priority scan of N announced folder(s) complete`; the library scan still ends with
+  `Scan complete ... priority passes = N (M folders)`.
 
 ## Open Questions / Not Yet Decided
 

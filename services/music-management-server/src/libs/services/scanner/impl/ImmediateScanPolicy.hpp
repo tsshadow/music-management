@@ -24,11 +24,13 @@
 namespace lms::scanner
 {
     // What the scanner is doing at the moment a library-wide scan request arrives.
+    //
+    // A priority pass that a library-wide scan runs for announced folders (bug report 126) is
+    // part of that library-wide scan: `scoped` stays false while it runs.
     struct RunningScan
     {
-        bool inProgress{};        // a scan() is running on the scanner thread
-        bool scoped{};            // ... and it only reads a handful of folders
-        bool libraryScanPaused{}; // a library-wide run is parked, waiting for the scoped one to end
+        bool inProgress{}; // a scan() is running on the scanner thread
+        bool scoped{};     // ... and it only reads a handful of folders
     };
 
     // What happens to a library-wide ("rescan everything that changed") request.
@@ -36,7 +38,8 @@ namespace lms::scanner
     {
         // Abort whatever runs and start the requested scan now. The only answer there used to be.
         Start,
-        // A library-wide scan is already walking the library, which is what was asked for.
+        // A library-wide scan is already walking the library, which is what was asked for --
+        // including while it is in a priority pass for announced folders.
         Absorb,
         // A scoped scan is running; the library-wide one runs as soon as that ends.
         QueueAfterCurrent,

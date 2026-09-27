@@ -34,9 +34,7 @@ namespace lms::scanner
         if (!isPlainLibraryScan(request))
             return ImmediateScanDecision::Start;
 
-        // A parked library-wide run counts as running even in the instant between the scoped
-        // scan ending and the parked one resuming: starting over there would throw it away.
-        if (running.libraryScanPaused || (running.inProgress && !running.scoped))
+        if (running.inProgress && !running.scoped)
             return ImmediateScanDecision::Absorb;
 
         if (running.inProgress)

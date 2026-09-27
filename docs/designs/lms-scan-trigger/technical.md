@@ -1,7 +1,7 @@
 # LMS scan trigger — Technical Design
 
-Status: implemented with bug report 120 (GitLab issue #93). See the
-[functional design](functional.md) for the behaviour.
+Status: implemented with bug report 120 (GitLab issue #93); priority passes with bug report 126
+(GitLab issue #125). See the [functional design](functional.md) for the behaviour.
 
 ## Data Model
 
@@ -15,16 +15,84 @@ when it answers and what a plain request does:
 - Plain library-wide request (no `path`, no `fullScan`/`forceOptimize`/`compact`):
   `ScannerService::requestImmediateScan` asks `decideImmediateScan()`
   (`scanner/impl/ImmediateScanPolicy.cpp`):
-  - a library-wide scan runs, or is paused behind a scoped one: **Absorb**, return at once;
+  - a library-wide scan runs (also while it is in a priority pass, see below): **Absorb**,
+    return at once;
   - a scoped scan runs: **QueueAfterCurrent**, `_libraryScanQueued` is set and the library-wide
     scan is scheduled when the scoped one completes;
   - nothing runs: **Start** (the old `abortScan()` + schedule path; nothing to wait for).
 - Any other request keeps the old behaviour (abort and start over), including the wait in
   `abortScan()` on the HTTP thread; it is a rare admin action.
 
-The decision reads `_scanRunning`, `_scanRunningScoped` and `_libraryScanPaused` (a mirror of
-`_pausedScan`), all guarded by `_statusMutex`, so the web thread never touches the scanner
-thread's own state.
+The decision reads `_scanRunning` and `_scanRunningScoped`, guarded by `_statusMutex`, so the web
+thread never touches the scanner thread's own state.
+
+### Scoped requests during a library-wide scan (bug report 126)
+
+`GET /rest/startScan.view?path=...` calls `requestScopedScan`, which adds the folders to
+`PriorityFolderQueue` (`scanner/impl/PriorityFolderQueue.cpp`) **on the web thread**: a mutex around
+the existing `ScanRequestCollector` (5 s quiet period, 60 s cap, a `std::set` so duplicates merge).
+It then posts `armScanRequestTimer()` to the io thread for the idle case.
+
+Why not the io thread, as before: `WIOService` has one thread and `scan()` runs on it. The earlier
+design paused the running scan from the debounce timer's handler, which could therefore only run
+after the scan it was meant to pause had ended. That pause/resume machinery (`InterruptReason`,
+`PausedScan`, `libraryScanPaused`) is removed.
+
+Two ways the folders leave the queue:
+
+- **Idle** -- the timer fires on the io thread, `runPendingScopedScan()` takes everything and runs a
+  scoped `scan()`, as before.
+- **During a library-wide scan** -- `ScannerService` implements `IPriorityScanYield`
+  (`impl/steps/IPriorityScanYield.hpp`), handed to every step through
+  `ScanStepBase::InitParams::priorityYield`. `isPriorityWorkDue()` is true when a library-wide scan
+  runs (`_libraryScanContext`), no pass runs, no abort is pending, and
+  `PriorityFolderQueue::isDue(now, DuringLibraryScan)`: the collector's deadline has passed **and**
+  at least `minGapDuringLibraryScan` (2 min) has passed since the previous pass ended.
+  `runPriorityWork()` calls `runPriorityPass()` (`ScanStepSequence.cpp`): take the due folders,
+  build a scoped `ScanContext`, `runScanSteps(_scanSteps, ...)` over it, put the folders back if
+  `_abortScan` went up.
+
+Where a step may yield -- the contract in `IPriorityScanYield`: nothing of the step's own may be
+queued on the job scheduler (`JobQueue` asserts it owns the scheduler: `getJobsDoneCount() == 0` on
+construction) and no transaction may be open.
+
+- `ScanStepScanFiles`: after each `queue.push()` of a 10-file job, if due: `queue.finish()` (drains
+  and writes the in-flight results), flush the remaining operations, run the pass, keep walking from
+  the current file. The walk's position is simply the stack frame of `exploreFilesRecursive`, so
+  nothing needs a cursor.
+- `ScanStepCheckForRemovedFiles`: after each batch push, same pattern; the keyset walk resumes from
+  `lastCheckedId`.
+- Between steps: `runScanSteps(..., betweenSteps)` calls it after each completed step except the
+  last. The DB-only steps (artist reconciliation, image/lyrics association, orphan removal, cluster
+  stats, duplicates) yield only there.
+
+Re-entrancy: a pass re-enters the same step objects the library scan is inside (`_scanSteps`).
+Steps keep all per-run state on the stack or in the `ScanContext`; their members are const or
+references. `_inPriorityPass` makes `isPriorityWorkDue()` false inside a pass, so passes never nest.
+`refreshScanSettings()` (which rebuilds `_scanSteps`) is only called at the start of `scan()`, never
+from a pass.
+
+Single writer: the pass runs on the scanner thread and takes the SQLite write lock batch by batch
+(10 files per write transaction in `ScanStepScanFiles`), like any scan. Auth's
+`tryCreateWriteTransaction()` bookkeeping from bug 120 is unaffected.
+
+Status and summary:
+
+- `IScannerService::Status` gains `pendingPriorityFolders` and `priorityPassInProgress`;
+  `getScanStatus` returns them as `pendingFolders` (number) and `priorityScan` (bool), always
+  present. `step`, `stepIndex`, `count`, `totalCount` keep describing the library-wide scan:
+  `notifyInProgress` ignores progress while `_inPriorityPass`.
+- `ScanStats` gains `priorityPasses` and `priorityFolders`, counted into the library-wide scan's
+  stats; its summary line appends `priority passes = N (M folders)` when N > 0.
+- Each pass logs `Priority scan of N announced folder(s) complete|aborted. Changes = ...` with the
+  same fields as the scan summary. Its changes and errors are not added to the library-wide stats
+  (the walk meets those files again and counts them as skips), and a pass emits no `scanStarted` /
+  `scanComplete` event and does not touch `lastScan` -- as for any scoped scan.
+- Bug 121's scoped error policy applies unchanged: the pass context is scoped, so
+  `decidePlayListErrorReporting` returns `SkipOutOfScope` for playlists outside its folders.
+
+Not done: a yield point inside the DB-only steps. If one of them turns out to take long enough to
+matter on production, adding one is the same five lines as in `ScanStepCheckForRemovedFiles`.
 
 Authentication (`AuthTokenService::processAuthToken`, `AuthServiceBase::onUserAuthenticated`)
 takes the process-wide write lock only when there is something to write. A use-limited token
@@ -38,7 +106,9 @@ into the next notify; a failed trigger sets `_trigger_pending`, re-sent after th
 notify or by the next `trigger()`. WARNING on the first failure of an outage, INFO afterwards,
 INFO on recovery.
 
-Not a breaking change: no consumer reads anything but the HTTP status.
+Not a breaking change: no consumer reads anything but the HTTP status. The two `getScanStatus`
+attributes added for bug report 126 are additive; the web Scanner tab and the contract/BDD tests
+read only `scanning`, `lastScan` and `scanSettings`.
 
 ## Cross-App Impact
 
@@ -49,7 +119,9 @@ Not a breaking change: no consumer reads anything but the HTTP status.
 
 ## Technical Acceptance Criteria
 
-- `test-scanner`: `ImmediateScanPolicy.*`.
+- `test-scanner`: `ImmediateScanPolicy.*`, `PriorityFolderQueue.*`, `ScanStepSequence.*`
+  (including `aFolderAnnouncedDuringALibraryScanIsReadBeforeItFinishes`: read mid-walk, the walk
+  runs once and is never interrupted, a folder announced twice is read once).
 - `test-auth`: `AuthTokenReadPath.aValidTokenDoesNotQueueBehindAWriterForBookkeeping`,
   `aValidTokenIsStampedWhenTheLockIsFree`.
 - `test-core`: `RecursiveSharedMutex.TryLockFailsWhileAnotherThreadHoldsItAndNests`.
@@ -59,4 +131,6 @@ Not a breaking change: no consumer reads anything but the HTTP status.
 ## Related Docs
 
 - [Bug report 120](../../bug-reports/120-lms-scan-trigger-read-timeouts.md)
+- [Bug report 126](../../bug-reports/126-scoped-scans-wait-for-full-scan.md)
+- [LMS scan errors design](../lms-scan-errors/technical.md) (scoped error policy, bug 121)
 - [Tagger rescan paths](../tagger/rescan-paths.md)

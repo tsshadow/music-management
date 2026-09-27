@@ -26,9 +26,8 @@ namespace lms::scanner::tests
     namespace
     {
         constexpr RunningScan idle{};
-        constexpr RunningScan libraryScanRunning{ .inProgress = true, .scoped = false, .libraryScanPaused = false };
-        constexpr RunningScan scopedScanRunning{ .inProgress = true, .scoped = true, .libraryScanPaused = false };
-        constexpr RunningScan scopedScanInterruptedALibraryScan{ .inProgress = true, .scoped = true, .libraryScanPaused = true };
+        constexpr RunningScan libraryScanRunning{ .inProgress = true, .scoped = false };
+        constexpr RunningScan scopedScanRunning{ .inProgress = true, .scoped = true };
     } // namespace
 
     TEST(ImmediateScanPolicy, startsWhenNothingRuns)
@@ -43,15 +42,22 @@ namespace lms::scanner::tests
         EXPECT_EQ(decideImmediateScan(ScanOptions{}, libraryScanRunning), ImmediateScanDecision::Absorb);
     }
 
-    TEST(ImmediateScanPolicy, aPlainRequestJoinsALibraryScanPausedForAScopedOne)
+    // Bug report 126: announced folders are read in a priority pass inside the running
+    // library-wide scan, which stays the scan that runs (scoped = false). A plain request in that
+    // moment joins it, as at any other moment -- it neither aborts the scan nor queues a second one.
+    TEST(ImmediateScanPolicy, aPlainRequestDuringAPriorityPassJoinsTheLibraryScan)
     {
-        EXPECT_EQ(decideImmediateScan(ScanOptions{}, scopedScanInterruptedALibraryScan), ImmediateScanDecision::Absorb);
+        constexpr RunningScan libraryScanInAPriorityPass{ .inProgress = true, .scoped = false };
+        EXPECT_EQ(decideImmediateScan(ScanOptions{}, libraryScanInAPriorityPass), ImmediateScanDecision::Absorb);
     }
 
-    TEST(ImmediateScanPolicy, aPlainRequestJoinsAParkedLibraryScanBetweenScopedScanAndResume)
+    // What a folder announcement looks like when it reaches the immediate-scan path by mistake:
+    // it is not a plain library-wide request, so the policy never absorbs it.
+    TEST(ImmediateScanPolicy, aScopedRequestIsNeverAbsorbed)
     {
-        constexpr RunningScan parkedAndAboutToResume{ .inProgress = false, .scoped = false, .libraryScanPaused = true };
-        EXPECT_EQ(decideImmediateScan(ScanOptions{}, parkedAndAboutToResume), ImmediateScanDecision::Absorb);
+        ScanOptions scoped;
+        scoped.scanDirectories.emplace_back("/music/Soundcloud/2TD");
+        EXPECT_EQ(decideImmediateScan(scoped, libraryScanRunning), ImmediateScanDecision::Start);
     }
 
     // A scoped scan reads a few folders; the library-wide request still has to run, after it.

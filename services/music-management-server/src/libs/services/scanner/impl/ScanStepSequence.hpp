@@ -22,13 +22,16 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
+
+#include "PriorityFolderQueue.hpp"
+#include "ScanContext.hpp"
 
 #include "services/scanner/ScannerStats.hpp"
 
 namespace lms::scanner
 {
-    struct ScanContext;
     class IScanStep;
 
     // Runs the scan steps from `startIndex` and returns the index it stopped at -- steps.size()
@@ -38,9 +41,26 @@ namespace lms::scanner
     //
     // `interrupted` is observed, never written: it is the same bool the steps themselves see,
     // and the caller decides what an interruption means.
+    //
+    // `betweenSteps`, when set, runs after every step that completed and before the next one:
+    // the moment nothing of the scan is in flight, which is where a library-wide scan lets the
+    // folders MuMa announced through (bug report 126). It does not run after the last step.
     std::size_t runScanSteps(std::vector<std::unique_ptr<IScanStep>>& steps,
                              ScanContext& context,
                              const bool& interrupted,
                              const std::function<void(const ScanStepStats&)>& notifyProgress,
-                             std::size_t startIndex = 0);
+                             std::size_t startIndex = 0,
+                             const std::function<void()>& betweenSteps = {});
+
+    // One priority pass inside a running library-wide scan (bug report 126): takes the folders
+    // that are due at `now`, runs `steps` over them as an ordinary scoped scan and returns that
+    // scan's context -- or nothing, when no folder was due. Progress is not reported: the status
+    // keeps describing the library-wide scan.
+    //
+    // When `interrupted` goes up during the pass (an admin abort, a shutdown), the folders are
+    // put back in `queue` rather than lost with the scan.
+    std::optional<ScanContext> runPriorityPass(std::vector<std::unique_ptr<IScanStep>>& steps,
+                                               PriorityFolderQueue& queue,
+                                               PriorityFolderQueue::Clock::time_point now,
+                                               const bool& interrupted);
 } // namespace lms::scanner

@@ -33,7 +33,8 @@ namespace lms::scanner
                              ScanContext& context,
                              const bool& interrupted,
                              const std::function<void(const ScanStepStats&)>& notifyProgress,
-                             std::size_t startIndex)
+                             std::size_t startIndex,
+                             const std::function<void()>& betweenSteps)
     {
         for (std::size_t stepIndex{ startIndex }; stepIndex < steps.size(); ++stepIndex)
         {
@@ -70,8 +71,34 @@ namespace lms::scanner
             // A step that unwound because the flag went up mid-batch has not finished its work.
             if (interrupted)
                 return stepIndex;
+
+            if (betweenSteps && stepIndex + 1 < steps.size())
+                betweenSteps();
         }
 
         return steps.size();
+    }
+
+    std::optional<ScanContext> runPriorityPass(std::vector<std::unique_ptr<IScanStep>>& steps,
+                                               PriorityFolderQueue& queue,
+                                               PriorityFolderQueue::Clock::time_point now,
+                                               const bool& interrupted)
+    {
+        std::vector<std::filesystem::path> folders{ queue.takeDue(now, PriorityFolderQueue::Moment::DuringLibraryScan) };
+        if (folders.empty())
+            return std::nullopt;
+
+        ScanContext context;
+        context.scanOptions.scanDirectories = std::move(folders);
+        context.stats.startTime = Wt::WDateTime::currentDateTime();
+
+        runScanSteps(steps, context, interrupted, [](const ScanStepStats&) {});
+
+        if (interrupted)
+            queue.add(context.scanOptions.scanDirectories, now);
+        else
+            context.stats.stopTime = Wt::WDateTime::currentDateTime();
+
+        return context;
     }
 } // namespace lms::scanner

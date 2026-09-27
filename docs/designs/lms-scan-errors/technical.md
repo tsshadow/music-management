@@ -58,4 +58,6 @@ feature it complements.
 ## Related Docs
 
 - [bug report 121](../../bug-reports/121-lms-scan-errors-and-queue-playlists.md)
-- [LMS scan trigger design](../lms-scan-trigger/technical.md) (scoped scans, bug 120)
+- [LMS scan trigger design](../lms-scan-trigger/technical.md) (scoped scans, bug 120; priority
+  passes inside a library-wide scan, bug 126 -- a pass is a scoped scan, so `SkipOutOfScope`
+  applies to it and its errors stay out of the published library-wide stats)

@@ -34,6 +34,36 @@ export const PROPOSAL_FILTERS = [
   { id: "unknown", labelKey: "management.artists.proposalNone" },
 ];
 
+/** Who the scheduled evidence run signs its approvals as (artist_auto_approve_worker). */
+export const AUTO_DECIDER = "auto-external";
+
+/**
+ * Who decided, as a filter over the approved list. The automatic filter also sorts the
+ * newest decision first: it is the review list of what the evidence run approved lately,
+ * each row with its own undo button.
+ */
+export const DECIDER_FILTERS = [
+  { id: null, labelKey: "management.artists.deciderAny" },
+  { id: AUTO_DECIDER, labelKey: "management.artists.deciderAuto" },
+];
+
+/**
+ * The query string of one list request.
+ *
+ * @param {{state: string, offset: number, search?: string, proposal?: string|null, decider?: string|null}} filters
+ * @returns {URLSearchParams}
+ */
+export function listParams({ state, offset, search = "", proposal = null, decider = null }) {
+  const params = new URLSearchParams({ state, limit: String(PAGE_SIZE), offset: String(offset) });
+  if (search.trim()) params.set("q", search.trim());
+  if (proposal && state === UNKNOWN) params.set("proposal", proposal);
+  if (decider && state === WHITE) {
+    params.set("decided_by", decider);
+    params.set("sort", "decided");
+  }
+  return params;
+}
+
 export const PAGE_SIZE = 100;
 
 /**

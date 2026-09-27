@@ -140,7 +140,126 @@ The bursts coincide with tagger deep runs and retag waves, which produce new var
 in bulk, and they are exactly the kind of growth that used to become trusted on sight. Expect the
 pending list to grow by a few dozen a day and by one to two thousand after a mass retag;
 `auto-external` has so far approved 8 of the recent names because the evidence run has not been
-repeated since it was first applied. Running it on a schedule is not part of this change.
+repeated since it was first applied. Running it on a schedule is not part of this change; it
+followed as the next section.
+
+## Scheduled evidence run (2026-09-27, issue #49)
+
+`services/music_manager/artist_auto_approve_worker.py`, thread `artist-auto-approve`, started
+with the other loops in `main.py` and run through `thread_registry.run_forever` with a stop event.
+
+### Why a loop inside music-manager, not a separate scheduler
+
+| Option | Against it |
+|---|---|
+| cron / systemd timer running the tool | The tool writes through `POST /decide` with the system key and keeps its state in a sqlite file on one host; prod has no host-side scheduler for this stack, a timer on the runner would reach prod over the network with a production key, and a lost sqlite file means re-asking every catalogue. |
+| A new worker container | One more image, compose entry and deploy path for a job that is ~95% waiting on the network. |
+| **A loop in music-manager** | Chosen. It has `ConfigStore` (Beheer settings, read every check), the database pool, the event log with the right `source`, `/health` heartbeats, and it can write the decision with the same helpers `decide` uses -- no HTTP, no key. |
+
+The worry with an in-process loop is the API: the tagger backlog once starved it. This loop holds
+no connection across a round (each read and write takes a pooled connection and returns it), its
+queries are bounded by `LIMIT`, and between requests it sleeps on the stop event, so it costs the
+API one thread that is almost always waiting.
+
+### What is shared with the tool
+
+The judgement moved to `services/common/Helpers/ArtistEvidence.py` -- normalisation, brand guards,
+the three approval rules, the three keyless lookups and `resolve` -- because the music-manager
+image does not contain `tools/`. The tool imports it back, so `tools.artist_auto_approve.resolve is
+ArtistEvidence.resolve` (pinned by a test): one set of rules, one `POLICY`. What stays in each is
+only how requests are cached and rate-limited: the tool into its sqlite file with `time.sleep`, the
+loop in memory with `RateLimitedFetcher`, whose clock and wait are injectable and whose wait is the
+stop event's (a stop ends a round between two requests; the name in progress is not stored).
+
+Evidence sources and their limits, unchanged from the tool: **Deezer** (keyless, undocumented
+limit, answers `Quota limit exceeded` as a 200 -- treated as 429; 0.25 s spacing),
+**iTunes Search** (keyless, ~20 requests/min documented; 3.2 s spacing), **MusicBrainz** (keyless,
+1 request/s with a real User-Agent, 503 above it; 1.1 s spacing, `Retry-After` honoured). No key is
+needed; none is read. Sources are asked cheapest first and a name stops at its first approval.
+
+### One round
+
+1. **Due?** The loop wakes hourly. A round runs when the switch is on and the last row in
+   `rules_artist_evidence_runs` started at least `interval_hours` ago (database clock) -- so a
+   restart or a deploy neither repeats nor skips a day.
+2. **New names**: pending names (undecided, not in `rules_artist_legacy_trust`, with at least one
+   track, no `rules_ignored_artists` row) without a current verdict, newest id first. "New since
+   the last run" is therefore not a watermark but the pending concept of "Wiring the queue": every
+   name recorded after that deploy, less the ones already judged. `library_artists` has no usable
+   `created_at` on prod, and an id watermark would drop names across a library rebuild.
+3. **Backlog slice**: grandfathered undecided names without a current verdict, most tracks first,
+   `backlog_slice` of them, within what `max_names` leaves after the new ones. A burst of new names
+   after a mass retag fills the round with new names and the backlog waits.
+4. **Current verdict** means: under the current `POLICY`, and either `approve`, or less than
+   `recheck_days` old and not `incomplete`. A name whose approval was applied and is undecided now
+   was undone by a curator and is never selected again.
+5. Per name: `resolve()` over its local titles, verdict stored in `rules_artist_evidence`
+   (upsert, one row per name). A name whose fold matches a `rules_ignored_artists` row gets
+   `skipped`/`tagger-rule` without a request, as the tool's snapshot excludes them.
+6. **Apply** unless dry run: stored `approve` verdicts not yet applied, name still undecided,
+   batches of 100, each one transaction that first drops names decided meanwhile, then
+   `artist_curation.record_approvals` (the rows `decide` writes for `white`, signed
+   `auto-external`) and `applied_at`. The tagger snapshots are refreshed once.
+7. **Report**: ledger row closed with its counts, and one INFO line on
+   `music-manager.artist-auto-approve` (an allowed prefix, so it reaches the event log with source
+   `music-manager`). Network errors are DEBUG and counted in the line, so a flaky catalogue never
+   reaches the alerts topic. A database failure raises; `run_forever` logs it and backs off.
+
+### Settings (Beheer -> Config, group "Artist curation")
+
+| Key | Default | |
+|---|---|---|
+| `artist_auto_approve_enabled` | on | off: no round, no lookups |
+| `artist_auto_approve_dry_run` | **on** | verdicts only; off applies them, earlier dry-run approvals included |
+| `artist_auto_approve_interval_hours` | 24 | |
+| `artist_auto_approve_backlog_slice` | 300 | 0 = new names only |
+| `artist_auto_approve_max_names` | 1000 | ceiling per round, new names included |
+| `artist_auto_approve_max_minutes` | 180 | a round stops here; the next continues |
+| `artist_auto_approve_recheck_days` | 90 | when an unresolved name is asked again |
+
+**Why dry run defaults to on.** The rules are the ones that produced the 5.903 approvals Teun
+reviewed and applied, so the evidence is not the risk; the risk is a loop that writes decisions
+unattended for the first time. Starting in dry run costs nothing -- the first live round applies
+every approval the dry runs stored -- and the switch is one click after reading a round's summary
+and its list under `GET /api/rules/artists/auto-approve/runs`. Enabled defaults to on so those
+dry-run rounds happen without a deploy step.
+
+### Review and undo
+
+No new audit table: `rules_artists.decided_by = 'auto-external'` and `decided_at` are the audit,
+`DELETE /api/rules/artists/{name}` is the undo, as for the hand-run tool. What was missing was a
+way to find them among 6.300 approvals: `GET /api/rules/artists` gains `decided_by` and
+`sort=decided`, and the Goedgekeurd tab a "Automatisch (bewijsronde)" chip (the existing advice
+chip style, so no styleguide change). `GET /api/rules/artists/auto-approve/runs` lists the ledger
+and what each round judged approvable, applied or not.
+
+### Measured load (production, read-only, 2026-09-27)
+
+49.382 undecided names; 325 of them pending (arrived since the wiring deploy two days earlier),
+318 with tracks. By track count: 3.542 with none (never looked up), 41.285 with 1-4, 4.041 with
+5-19, 514 with 20+. The hand-run of 2026-09-20 covered names with 5+ tracks, so most of those left
+are its unresolved ones and wait for `recheck_days`.
+
+Throughput from the hand-run: 40-60 names/min for big names (approval on the first source),
+~16/min for 1-4-track names, where every source is asked -- iTunes' 3.2 s spacing dominates, about
+4 s per name. A quiet day (20-35 new names) plus the 300-name backlog slice is ~330 names, **about
+20-25 minutes a day**. A burst of 1.000-1.700 new names after a mass retag fills `max_names` (1.000
+names, ~65 minutes) and spreads over two days. The backlog of ~45.800 names with tracks takes about
+150 days at 300 a day; at the hand-run's measured rate of 48 approvals per 200 small names that is
+~70 approvals a day for a curator to spot-check. Raising the slice is the lever if that is too
+slow; the 180-minute bound caps it at roughly 2.500 names a round.
+
+### Tests
+
+`services/music_manager/tests/test_artist_auto_approve_worker.py`: the settings and their schema,
+per-source spacing with an injected clock, `Retry-After`, the Deezer quota answer, a stop during a
+pause, the round through the real `resolve` (approve on two titles, one title is not enough, brand
+and tagger-ruled names skipped without a request), dry run writes no decision, turning dry run off
+applies stored approvals, the time bound, the candidate bounds, the due check and the loop's stop
+event and heartbeat window. `tests/integration/test_artist_auto_approve_worker.py`: every
+`EvidenceStore` query against MariaDB (candidate order and exclusions, recheck, apply never over a
+decision, an undone approval never returns, the ledger). `tests/integration/test_router_sql.py`:
+the review list and the runs endpoint.
 
 ### Tests
 

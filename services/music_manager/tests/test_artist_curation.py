@@ -584,3 +584,74 @@ class AnalyzeAtomicityTest(ArtistCurationTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class AutoApproveReviewListTest(ArtistCurationTestCase):
+    """The scheduled evidence run's approvals are reviewable: filter by decider, newest first."""
+
+    rules = (('SELECT COUNT(*) AS total', None, {'total': 0}),)
+
+    def test_decided_by_and_the_decided_sort_reach_the_query(self):
+        response = self.client.get(
+            '/api/rules/artists?state=white&decided_by=auto-external&sort=decided', headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        sql, params = self.statements('LIMIT %s OFFSET %s')[-1]
+        self.assertIn('r.decided_by = %s', sql)
+        self.assertIn('ORDER BY r.decided_at DESC, name', sql)
+        self.assertEqual(params[:2], ['white', 'auto-external'])
+
+
+class AutoApproveRunsTest(ArtistCurationTestCase):
+    rules = (
+        (
+            'FROM rules_artist_evidence_runs',
+            None,
+            [
+                {
+                    'id': 3,
+                    'started_at': '2026-09-27 04:00:00',
+                    'finished_at': '2026-09-27 04:20:00',
+                    'dry_run': 1,
+                    'new_names': 30,
+                    'backlog_names': 300,
+                    'approved': 70,
+                    'applied': 0,
+                    'unresolved': 250,
+                    'skipped': 10,
+                    'incomplete': 0,
+                    'requests': 900,
+                    'failed_requests': 2,
+                    'stopped_early': 0,
+                },
+            ],
+        ),
+        (
+            'FROM rules_artist_evidence e',
+            None,
+            [{'name': 'Angerfist', 'rule': 'two-titles-one-act', 'run_id': 3, 'applied_at': None, 'state': None}],
+        ),
+    )
+
+    def test_the_ledger_and_its_approvals_are_listed(self):
+        response = self.client.get('/api/rules/artists/auto-approve/runs', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIs(body['runs'][0]['dry_run'], True)
+        self.assertIs(body['runs'][0]['stopped_early'], False)
+        self.assertEqual(body['approvals'][0]['name'], 'Angerfist')
+        _sql, params = self.statements('FROM rules_artist_evidence e')[-1]
+        self.assertEqual(params[0], 3, 'approvals from the listed rounds only')
+
+
+class RecordApprovalsTest(ArtistCurationTestCase):
+    def test_it_writes_what_decide_writes_for_an_approval(self):
+        artist_curation.record_approvals(self.cursor, ['Angerfist', 'Ran-D'], 'auto-external')
+        decisions = self.statements('INSERT INTO rules_artists')
+        self.assertEqual([params[:2] for _sql, params in decisions], [('Angerfist', 'white'), ('Ran-D', 'white')])
+        self.assertEqual({params[3] for _sql, params in decisions}, {'auto-external'})
+        self.assertFalse(self.statements('INSERT INTO rules_ignored_artists'))
+
+    def test_refresh_reloads_both_tagger_snapshots(self):
+        artist_curation.refresh_artist_trust()
+        self.assertEqual(self.reloaded_helpers(), ['rules_ignored_artists', 'library_artists'])

@@ -48,6 +48,76 @@ class ConfigField:
     read_only: bool = False
 
 
+def _artist_auto_approve_fields() -> list[ConfigField]:
+    """The settings of the scheduled artist evidence run (services/music_manager/artist_auto_approve_worker.py)."""
+    group = 'Artist curation'
+    return [
+        ConfigField(
+            key='artist_auto_approve_enabled',
+            type='boolean',
+            default=True,
+            env='ARTIST_AUTO_APPROVE_ENABLED',
+            group=group,
+            description='Once a day, look the artist curation queue up on Deezer, iTunes and MusicBrainz and '
+            'judge each name on recording evidence (tools/artist_auto_approve.py rules). Off stops the round '
+            'entirely; nothing is looked up.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_dry_run',
+            type='boolean',
+            default=True,
+            env='ARTIST_AUTO_APPROVE_DRY_RUN',
+            group=group,
+            description='On: only record verdicts (visible under GET /api/rules/artists/auto-approve/runs), '
+            'approve nothing. Off: approve the names the evidence clears, signed auto-external -- including '
+            'the ones earlier dry runs judged approvable. Nothing is ever rejected automatically.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_interval_hours',
+            type='integer',
+            default=24,
+            env='ARTIST_AUTO_APPROVE_INTERVAL_HOURS',
+            group=group,
+            description='Hours between two rounds, counted from the start of the previous one.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_backlog_slice',
+            type='integer',
+            default=300,
+            env='ARTIST_AUTO_APPROVE_BACKLOG_SLICE',
+            group=group,
+            description='How many older (grandfathered) queue names a round looks up after the new ones, '
+            'most tracks first. About 4 seconds per name.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_max_names',
+            type='integer',
+            default=1000,
+            env='ARTIST_AUTO_APPROVE_MAX_NAMES',
+            group=group,
+            description='Ceiling on the names one round looks up, new ones included, so a burst of new names '
+            'after a mass retag is spread over several days.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_max_minutes',
+            type='integer',
+            default=180,
+            env='ARTIST_AUTO_APPROVE_MAX_MINUTES',
+            group=group,
+            description='A round stops after this many minutes, however much is left; the next round continues.',
+        ),
+        ConfigField(
+            key='artist_auto_approve_recheck_days',
+            type='integer',
+            default=90,
+            env='ARTIST_AUTO_APPROVE_RECHECK_DAYS',
+            group=group,
+            description='A name the evidence did not clear is looked up again after this many days, since the '
+            'catalogues and the library both grow.',
+        ),
+    ]
+
+
 #: Default age, in days, after which the events-retention loop deletes an event of
 #: each level. Tuned to production volume in bug report 072: INFO, WARNING and the
 #: per-video yt-dlp ERRORs are the bulk, CRITICAL is rare and worth a year.
@@ -538,6 +608,7 @@ def _config_fields() -> list[ConfigField]:
             'lossless. The version kind (pro edit, radio edit, ...) decides within a format. Changing it rescores '
             'every song within the hour; songs pinned on the Versions page keep their pin.',
         ),
+        *_artist_auto_approve_fields(),
     ]
 
 

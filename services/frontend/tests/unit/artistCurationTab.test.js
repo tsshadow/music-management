@@ -231,6 +231,26 @@ describe("ArtistCurationTab", () => {
     await waitFor(() => expect(screen.queryByTestId("artist-summary")).toBeNull());
   });
 
+  it("lists what the evidence run approved, newest first, on the approved tab", async () => {
+    render(ArtistCurationTab, props());
+    await waitFor(() => expect(screen.getByText("Premiere")).toBeTruthy());
+    expect(screen.queryByText("Automatisch (bewijsronde)")).toBeNull();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Goedgekeurd" }));
+    await fireEvent.click(await screen.findByText("Automatisch (bewijsronde)"));
+
+    await waitFor(() =>
+      expect(
+        globalThis.fetch.mock.calls.some(
+          ([u]) =>
+            u.includes("state=white") &&
+            u.includes("decided_by=auto-external") &&
+            u.includes("sort=decided"),
+        ),
+      ).toBe(true),
+    );
+  });
+
   it("undoes a decision on a decided row", async () => {
     globalThis.fetch = mockApi({
       rows: [

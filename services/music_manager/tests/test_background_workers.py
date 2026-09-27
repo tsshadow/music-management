@@ -75,6 +75,8 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
                 'feeds-refresh',
                 # Inserts the listens LMS recorded but never relayed (bug report 075).
                 'lms-listen-backfill',
+                # The daily artist evidence run (issue #49).
+                'artist-auto-approve',
             },
             registered,
         )

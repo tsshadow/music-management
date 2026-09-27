@@ -11,7 +11,7 @@ import {
   authParams,
   credentials,
   currentTrack,
-  feedContinuation,
+  queueContinuation,
   playerState,
   playlist,
 } from "../../src/lib/store.js";
@@ -81,6 +81,10 @@ describe("DailyMixCard", () => {
     expect(globalThis.__loadFeed.mock.calls[0][0]).toBe("daily-mix-soft");
     expect(globalThis.__loadFeed.mock.calls[0][1]).toBe(get(authParams));
     // The queue remembers where the mix continues, so it can top itself up.
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix-soft", nextOffset: 100 });
+    expect(get(queueContinuation)).toMatchObject({
+      kind: "feed",
+      slug: "daily-mix-soft",
+      cursor: 100,
+    });
   });
 });

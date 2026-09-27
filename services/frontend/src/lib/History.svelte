@@ -1,8 +1,10 @@
 <script>
   import { t } from './i18n/index.js';
   import { untrack } from 'svelte';
-  import { authParams, trackPageSize, restUrl } from './store.js';
+  import { authParams, trackPageSize } from './store.js';
   import TrackList from './TrackList.svelte';
+  import ListEnd from './ListEnd.svelte';
+  import { fetchHistoryPage, historyContinuation } from './trackPages.js';
 
   const { onnavigate } = $props();
 
@@ -11,6 +13,17 @@
   let offset = $state(0);
   const pageSize = $derived($trackPageSize);
   let hasMore = $state(true);
+
+  // Whether "Meer laden" appended anything, so a history that ran out says "Einde van de lijst".
+  let pagedMore = $state(false);
+
+  /**
+   * Where the history continues, for a queue started by tapping one of its rows
+   * (docs/designs/list-continuation/). A song heard twice is queued once.
+   */
+  const continuation = $derived(
+    hasMore && history.length > 0 ? historyContinuation(offset, { pageSize }) : null
+  );
 
   /**
    * Loads the listen history from the backend.
@@ -22,31 +35,21 @@
     if (!append) {
         offset = 0;
         hasMore = true;
+        pagedMore = false;
     }
     if (!hasMore) return;
 
     isLoading = true;
     try {
-        const response = await fetch(restUrl(`/rest/getSpotifyHistory?offset=${offset}&count=${pageSize}&${$authParams}`));
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        const entries = data['subsonic-response']?.history?.entry || [];
-        const entriesArr = Array.isArray(entries) ? entries : [entries];
-        
-        const mappedEntries = entriesArr.map(entry => ({
-            ...entry,
-            listenedAt: entry.listenedAt
-        }));
-
+        const page = await fetchHistoryPage(offset, pageSize, $authParams);
         if (append) {
-            history = [...history, ...mappedEntries];
+            history = [...history, ...page.entries];
+            pagedMore = true;
         } else {
-            history = mappedEntries;
+            history = page.entries;
         }
-
-        const moreResults = data['subsonic-response']?.history?.moreResults;
-        hasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : mappedEntries.length === pageSize;
-        offset += mappedEntries.length;
+        hasMore = page.hasMore;
+        offset += page.entries.length;
     } catch (e) {
         console.error("Failed to load history:", e);
     } finally {
@@ -76,19 +79,8 @@
   </div>
 
   {#if history.length > 0}
-    <TrackList tracks={history} showDate={true} onnavigate={onnavigate} />
-    
-    {#if hasMore}
-        <div class="flex justify-center mt-8">
-            <button 
-                class="bg-white text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50"
-                onclick={() => loadHistory(true)}
-                disabled={isLoading}
-            >
-                {isLoading ? $t('common.loading') : $t('common.loadMore')}
-            </button>
-        </div>
-    {/if}
+    <TrackList tracks={history} showDate={true} {continuation} onnavigate={onnavigate} />
+    <ListEnd {hasMore} ended={pagedMore} loading={isLoading} onmore={() => loadHistory(true)} testid="history-load-more" />
   {:else if isLoading}
     <div class="flex justify-center py-20">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>

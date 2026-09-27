@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## Global Version 7.9.0 (2026-09-27)
+
+- A queue started from any long list, such as "Recent uitgebracht", keeps going past the first page,
+  and the queue ends in "Meer laden" or "Einde van de lijst".
+
+- A daily mix started by tapping one of its tracks keeps going past 100 tracks, and the queue has
+  a "Meer laden" button.
+
+- Logging out now asks for confirmation first, and tells you your downloads stay on the phone.
+
 ## Global Version 7.8.1 (2026-09-27)
 
 - No app changes of its own: the release build is now started twice on the CI emulator and must show its server address on screen (issue #24), which touched the app's build scripts and README.

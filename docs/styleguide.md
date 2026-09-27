@@ -61,14 +61,34 @@
 - **Forms & Inputs**: Dark background (`bg-muma-spotify-light`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
 - **Cards**: Surface gray (`bg-muma-spotify-light`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
+- **Confirmation dialog**: a question that needs a yes before something hard to undo happens is
+  `Modal.svelte`, never the browser's `confirm()` for anything a listener (not only an admin) sees.
+  The title is the question ("Log out?"), the body says in `text-sm` what happens and what does not,
+  and the buttons sit right-aligned: an outlined pill `common.cancel` (`bg-transparent border
+  border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold`, hover `border-white`)
+  followed by a brand pill naming the action (`bg-brand text-black px-6 py-2 rounded-[24px]
+  font-bold`). A short question passes `widthClass="max-w-md"`. Escape, the close button and the
+  backdrop all mean cancel. Examples: the set-size download question (`TrackList.svelte`) and the
+  logout confirmation (`ProfileButton.svelte`, `docs/designs/logout-confirmation/`). A dialog opened
+  from inside a `backdrop-blur` bar is moved to `<body>` with `use:portal` (`src/lib/portal.js`),
+  or the bar clips it.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
 - **Load more**: a list that continues past what it shows ends in one centred, outlined pill under
   the list (`bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px]
   font-bold`, hover `border-white` and `scale-[1.04]`), labelled `common.loadMore` ("Meer laden")
-  and `common.loading` while the next page is on its way. It disappears when there is nothing more;
-  it never shows a count or a page number. Used by the song, artist and album lists and, since
-  2026-09-26, the feed pages (`FeedView.svelte`, `docs/designs/feed-length/`). A queue started from
-  a paged list tops itself up instead -- there is no button in the player.
+  and `common.loading` while the next page is on its way. It never shows a count or a page number.
+  Once a list that did continue has nothing more, the pill is replaced by one centred line in the
+  muted text colour (`text-muma-spotify-text text-sm py-6`), `common.endOfList` ("Einde van de
+  lijst"); a list that fit on one page shows neither. Pill and end line are one component,
+  `ListEnd.svelte`, so a page and the queue cannot drift apart. Used by the song, artist and album
+  lists, the search results, presets, the listen history and the feed pages
+  (`docs/designs/feed-length/`, `docs/designs/list-continuation/`). A queue started from any of
+  these lists tops itself up near its end, and the queue list (the bottom sheet on the phone and the
+  tablet, the side panel on the desktop) ends in the same pill while its list has a next page and in
+  the end line once it ran out (`QueueLoadMore.svelte`). The Now Playing screen itself gets no
+  button. Rows a list could not show, such as feed paths the server has no song for, are
+  mentioned once in the list's header meta line in the muted text colour ("• 2 niet gevonden op de
+  server"). The row count stays the count of what can be played.
 - **Sign in with Google**: in a browser the login page renders Google's own button (Google
   Identity Services, `theme: "outline"`, pill shape). Inside the Android shell Google's web
   sign-in cannot run, so `LoginPage.svelte` draws the same button itself and the shell signs in
@@ -79,7 +99,9 @@
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
-  screen rather than to an empty app.
+  screen rather than to an empty app. On the web and in the app (the same web UI) that
+  confirmation is a Confirmation dialog, see below; the line about downloads only shows in the app,
+  since a browser tab has none (issue #80).
 - **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --
@@ -184,6 +206,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** — Feed length (2026-09-26, `docs/designs/feed-length/`): no new token or component. The
   existing load-more pill is documented above under Components ("Load more") and reused as-is under
   a feed's track list.
+- **Done** — List continuation (2026-09-27, `docs/designs/list-continuation/`, issue #100): no new
+  token. Every paged list continues in the queue with the existing load-more pill; the new "Einde
+  van de lijst" end line uses only the muted text colour. Documented above under Components ("Load
+  more").
+- **Done** — Feed "Meer laden" in the queue (2026-09-27, bug report 122): no new token. The same
+  load-more pill under the queue list for a feed queue, and a muted "not found on the server" note
+  in the feed header meta line, both documented above under Components ("Load more").
 - **Done** — Versies page in Beheer (2026-09-26, `docs/designs/song-versions/`): built only from
   existing tokens. The list is the curation table surface (`bg-muma-spotify-panel/40`, rows
   `divide-muma-spotify-panel/30`); a row expands in place to the versions table instead of opening

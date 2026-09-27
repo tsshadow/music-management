@@ -91,6 +91,7 @@
       "other": "{count} listens"
     },
     "loadMore": "Load more",
+    "endOfList": "End of the list",
     "loading": "Loading…",
     "logout": "Log out",
     "play": "Play",
@@ -170,6 +171,10 @@
     "emptyMixHelp": "The mix is built from your listening history. Play some music and come back.",
     "emptyRadarHelp": "The radar shows releases from the past week that fit what you listen to.",
     "filledFromUnknown": "{count} filled in",
+    "unresolved": {
+      "one": "{count} not found on the server",
+      "other": "{count} not found on the server"
+    },
     "mixSubtitle": "Picked for you today",
     "radarSubtitle": "Released this week, picked for you"
   },
@@ -349,6 +354,11 @@
     "googleSignIn": "Sign in with Google",
     "googleNoCredential": "Google returned no account. Is there a Google account on this phone, and is this app registered with Google?",
     "googleFailed": "Google sign-in failed ({reason})."
+  },
+  "logout": {
+    "confirmTitle": "Log out?",
+    "confirmLost": "Playback stops and your queue is cleared.",
+    "confirmKept": "Your downloads stay on this device."
   },
   "management": {
     "connectFailed": "Could not sign in to the Music Management API with your account. Try logging in again on the player page.",

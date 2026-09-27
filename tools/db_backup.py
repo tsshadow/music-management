@@ -43,6 +43,7 @@ import os
 import queue
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -69,6 +70,11 @@ LATEST_NAME = 'latest.json'
 # verified, so nothing that looks like a backup is ever half a backup -- not even after a
 # SIGKILL, which no `finally` survives. prune() clears what such a kill leaves behind.
 PARTIAL_SUFFIX = '.partial'
+# prune() only sweeps a partial file this old. A younger one may belong to a dump still in
+# progress -- the pre-deploy fallback in scripts/deploy.sh, or another container's run -- and
+# a live dump rewrites its file continuously (the stall watchdog stops it after five silent
+# minutes), so an hour without a write means nobody is writing it any more (bug report 123).
+PARTIAL_STALE_SECONDS = 3600
 # Free space a dump needs, as a multiple of the last one. The dump grows a little from one
 # day to the next; the margin is for that, not for a second copy. On the first of the month
 # the monthly copy needs room of its own, which is the second term.
@@ -351,8 +357,9 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
     newest daily backup is never removed, however old -- after a fortnight of failed
     runs it is the only backup left, and the one about to be taken may fail too.
 
-    Also removes the `.partial` files a killed run left behind. Only this job
-    writes them, and none of them is a backup.
+    Also removes the `.partial` files a killed run left behind, once they are older
+    than PARTIAL_STALE_SECONDS: none of them is a backup, but a young one may be another
+    writer's dump still in progress (bug report 123).
     """
     removed: list[Path] = []
     daily_cutoff = now - timedelta(days=retention_days)
@@ -369,8 +376,9 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
     newest_daily = max(dailies, key=lambda path: _parse_daily(path.name) or now, default=None)
     for path in sorted(destination.iterdir()):
         if path.is_file() and _is_partial(path.name):
-            path.unlink()
-            removed.append(path)
+            if now.timestamp() - path.stat().st_mtime >= PARTIAL_STALE_SECONDS:
+                path.unlink()
+                removed.append(path)
             continue
         if not path.is_file() or not path.name.endswith(SUFFIX) or path == newest_daily:
             continue
@@ -391,6 +399,20 @@ def prune(destination: Path, retention_days: int, now: datetime) -> list[Path]:
 def _is_partial(name: str) -> bool:
     """Whether `name` is an unfinished file of this job's own: a dump or monthly copy mid-write."""
     return name.startswith(DAILY_PREFIX) and name.endswith(SUFFIX + PARTIAL_SUFFIX)
+
+
+def partial_path(target: Path) -> Path:
+    """The temporary name a dump of TARGET is written under before it is verified and renamed.
+
+    It carries the writer's host name (inside a container, the container id) and process id,
+    so two writers that start in the same second never share a file: on 2026-09-27 a
+    recreated db-backup container and the pre-deploy fallback dump both wrote
+    muma_db_pre-deploy_20260927_050503.sql.gz.partial, and neither dump survived
+    (bug report 123). It still ends in `.sql.gz.partial`, so prune() recognises it.
+    """
+    stem = target.name[: -len(SUFFIX)] if target.name.endswith(SUFFIX) else target.name
+    writer = re.sub(r'[^A-Za-z0-9-]', '-', f'{socket.gethostname()}-{os.getpid()}')
+    return target.with_name(f'{stem}.{writer}{SUFFIX}{PARTIAL_SUFFIX}')
 
 
 def _parse_daily(name: str) -> datetime | None:
@@ -560,7 +582,7 @@ def run_backup(argv_destination: str | None = None) -> int:
     ensure_free_space(destination, started)
     name_prefix = f'{DAILY_PREFIX}{label}_' if label else DAILY_PREFIX
     backup = destination / f'{name_prefix}{started:%Y%m%d_%H%M%S}{SUFFIX}'
-    partial = backup.with_name(backup.name + PARTIAL_SUFFIX)
+    partial = partial_path(backup)
     try:
         dump(partial, creds)
         verify(partial)

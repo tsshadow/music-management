@@ -218,6 +218,10 @@ namespace lms::db
             // restart is indistinguishable, from the client's side, from a key that was never
             // valid. Columns must stay in sync with AuthToken::persist().
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS auth_token (id INTEGER PRIMARY KEY AUTOINCREMENT, version INTEGER NOT NULL DEFAULT 0, domain TEXT NOT NULL DEFAULT '', value TEXT NOT NULL DEFAULT '', expiry DATETIME, use_count INTEGER NOT NULL DEFAULT 0, last_used TEXT, max_use_count INTEGER, user_id INTEGER)");
+            // The listens still to be relayed to music-manager (database/MumaListenOutbox.hpp).
+            // Created here for a fresh database, whose version starts at the current one so no
+            // migration step runs; migration step 124 creates it for an existing one.
+            utils::executeCommand(_session, std::string{ Migration::mumaListenOutboxTableDefinition });
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.ui_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, key TEXT, value TEXT)");
         }
 

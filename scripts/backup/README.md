@@ -36,7 +36,8 @@ one, or a truncated file all fall far outside it.
 
 A full destination recovers on its own. The job prunes first -- dailies past
 `BACKUP_RETENTION_DAYS`, monthlies past six months, and any `*.partial` a killed
-run left behind -- and only then dumps. It never prunes the newest daily, however
+run left behind, once it is an hour old (a younger one may be a pre-deploy dump
+still being written, bug report 123) -- and only then dumps. It never prunes the newest daily, however
 old: after a run of failures that one is the only backup left.
 
 Before dumping it checks for room: the last daily's size plus 10%, and as much
@@ -48,6 +49,9 @@ Every file is written under a `.partial` name and renamed once it has verified
 daily dump, the monthly copy and `latest.json`. So a name without `.partial` is
 always a complete file, and an exception of any kind -- running out of space is
 an `OSError`, not a failed dump -- removes the partial on the way out.
+A dump's partial name also carries its writer's host name (inside a container,
+the container id) and PID, so two dumps started in the same second never share a
+file (bug report 123).
 
 ## Why the staleness check exists twice
 

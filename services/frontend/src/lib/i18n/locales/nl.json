@@ -91,6 +91,7 @@
       "other": "{count} keer geluisterd"
     },
     "loadMore": "Meer laden",
+    "endOfList": "Einde van de lijst",
     "loading": "Laden...",
     "logout": "Uitloggen",
     "play": "Afspelen",
@@ -170,6 +171,10 @@
     "emptyMixHelp": "De mix wordt gebouwd uit je luistergeschiedenis. Draai wat muziek en kom terug.",
     "emptyRadarHelp": "De radar toont releases van de afgelopen week die bij je luistergedrag passen.",
     "filledFromUnknown": "{count} aangevuld",
+    "unresolved": {
+      "one": "{count} niet gevonden op de server",
+      "other": "{count} niet gevonden op de server"
+    },
     "mixSubtitle": "Vandaag voor jou gekozen",
     "radarSubtitle": "Deze week uitgebracht, voor jou gekozen"
   },
@@ -349,6 +354,11 @@
     "googleSignIn": "Inloggen met Google",
     "googleNoCredential": "Google gaf geen account terug. Is er een Google-account op deze telefoon, en is deze app bij Google geregistreerd?",
     "googleFailed": "Inloggen met Google is mislukt ({reason})."
+  },
+  "logout": {
+    "confirmTitle": "Uitloggen?",
+    "confirmLost": "Het afspelen stopt en je wachtrij wordt leeggemaakt.",
+    "confirmKept": "Je downloads blijven op dit apparaat staan."
   },
   "management": {
     "connectFailed": "Kon niet inloggen bij de Music Management API met je account. Probeer opnieuw in te loggen op de player-pagina.",

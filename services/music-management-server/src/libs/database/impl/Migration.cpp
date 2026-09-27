@@ -38,7 +38,7 @@ namespace lms::db
         // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
         // sequence. Upstream migrations above 103 are ported under the next free number here,
         // never merged under theirs -- see services/music-management-server/FORK.md.
-        static constexpr Version LMS_DATABASE_VERSION{ 124 };
+        static constexpr Version LMS_DATABASE_VERSION{ 125 };
     } // namespace
 
     VersionInfo::VersionInfo()
@@ -2081,6 +2081,15 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             // way; Session::createIndexesIfNeeded() retries the index on every start.
             createUserLoginNameUniqueIndexIfPossible(session);
         }
+
+        void migrateFromV124(Session& session)
+        {
+            // The listen outbox: every listen for music-manager is written here first and
+            // removed once music-manager has it, so an outage of music-manager or a restart of
+            // LMS no longer loses listens (bug report 075, docs/designs/lms-listen-outbox/).
+            // Re-runnable, like its neighbours.
+            utils::executeCommand(*session.getDboSession(), std::string{ mumaListenOutboxTableDefinition });
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2183,6 +2192,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 121, migrateFromV121 },
             { 122, migrateFromV122 },
             { 123, migrateFromV123 },
+            { 124, migrateFromV124 },
         };
 
         bool migrationPerformed{};

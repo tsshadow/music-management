@@ -14,6 +14,7 @@ add_executable(test-database
 	Listen.cpp
 	Medium.cpp
 	Migration.cpp
+	MumaListenOutbox.cpp
 	PlayListFile.cpp
 	Podcast.cpp
 	RadioFilters.cpp

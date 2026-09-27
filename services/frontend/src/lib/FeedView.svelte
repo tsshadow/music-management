@@ -3,7 +3,9 @@
   import { authParams, currentTrack, playerState } from './store.js';
   import { loadFeedDetail, loadFeedPage, RELEASE_RADAR } from './feeds.js';
   import TrackList from './TrackList.svelte';
+  import ListEnd from './ListEnd.svelte';
   import { startQueue } from './queue.js';
+  import { feedContinuation } from './feedQueue.js';
 
   /**
    * One personalized feed, whole: everything MuMa picked, in its order, with a play button.
@@ -24,6 +26,15 @@
   // Where the feed continues (`next_offset`), null once MuMa says there is nothing more.
   let nextOffset = $state(null);
   let loadingMore = $state(false);
+  // Whether "Meer laden" fetched anything here, so a feed that ran out says so ("Einde van de
+  // lijst") while one that fit on its first page ends in nothing.
+  let pagedMore = $state(false);
+  // MuMa's rows that LMS had no song for, over every page shown so far (bug report 122). The list
+  // leaves them out -- they cannot be played -- and the header says how many, so a 100-track page
+  // showing 98 is explained rather than looking like a bug.
+  let unresolved = $state(0);
+  // What a tapped row or the play button hands the queue, so either way it continues the feed.
+  const continuation = $derived(feedContinuation(slug, nextOffset));
 
   const isRadar = $derived(slug === RELEASE_RADAR);
   const title = $derived(detail?.title ?? (isRadar ? $t('nav.releaseRadar') : $t('nav.dailyMix')));
@@ -50,6 +61,8 @@
     tracks = [];
     detail = null;
     nextOffset = null;
+    pagedMore = false;
+    unresolved = 0;
     loadFeedDetail(which, auth)
       .then((result) => {
         // The feed may have changed while this was in flight -- a click on the other one in the
@@ -58,6 +71,7 @@
           tracks = result.tracks;
           detail = result;
           nextOffset = result.nextOffset ?? null;
+          unresolved = result.unresolved ?? 0;
         }
       })
       .finally(() => {
@@ -81,6 +95,8 @@
       const have = new Set(tracks.map((track) => String(track.id)));
       tracks = [...tracks, ...page.tracks.filter((track) => !have.has(String(track.id)))];
       nextOffset = page.nextOffset;
+      pagedMore = true;
+      unresolved += page.unresolved ?? 0;
     } finally {
       loadingMore = false;
     }
@@ -89,7 +105,7 @@
   /** Queues the whole feed, in MuMa's order, and starts it; the queue continues the feed. */
   function playAll() {
     if (tracks.length === 0) return;
-    startQueue(tracks, { name: title, continuation: { slug, nextOffset } });
+    startQueue(tracks, { name: title, continuation });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }
@@ -113,6 +129,9 @@
         <span class="text-white">{subtitle}</span>
         {#if tracks.length > 0}
           <span class="text-muma-spotify-text">• {$t('common.trackCount', { count: tracks.length })}</span>
+        {/if}
+        {#if unresolved > 0}
+          <span class="text-muma-spotify-text" data-testid="feed-unresolved">• {$t('feed.unresolved', { count: unresolved })}</span>
         {/if}
       </div>
       {#if bandLine}
@@ -144,20 +163,10 @@
         <p class="text-sm">{isRadar ? $t('feed.emptyRadarHelp') : $t('feed.emptyMixHelp')}</p>
       </div>
     {:else}
-      <TrackList {tracks} onnavigate={onnavigate} />
-      {#if nextOffset}
-        <!-- The existing "load more" pattern (docs/styleguide.md, Components): the outlined pill
-             under a track list, the same one the song and artist lists use. -->
-        <div class="flex justify-center py-6">
-          <button
-            class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04] disabled:cursor-default"
-            onclick={loadMore}
-            disabled={loadingMore}
-          >
-            {loadingMore ? $t('common.loading') : $t('common.loadMore')}
-          </button>
-        </div>
-      {/if}
+      <TrackList {tracks} {continuation} sourceName={title} onnavigate={onnavigate} />
+      <!-- The existing "load more" pattern (docs/styleguide.md, Components): the outlined pill
+           under a track list, the same one the song and artist lists and the queue use. -->
+      <ListEnd hasMore={Boolean(nextOffset)} ended={pagedMore} loading={loadingMore} onmore={loadMore} testid="feed-load-more" />
     {/if}
   </div>
 </div>

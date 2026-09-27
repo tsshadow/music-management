@@ -8,10 +8,12 @@
    * @property {string} [title] - Modal title.
    * @property {function(): void} onclose - Callback to close the modal.
    * @property {import('svelte').Snippet} [children] - Modal content.
+   * @property {string} [widthClass] - Tailwind max-width class of the card. Wide by default for
+   *   content (lyrics, search results); a short confirmation passes a narrow one.
    */
 
   /** @type {Props} */
-  let { title = '', onclose, children } = $props();
+  let { title = '', onclose, children, widthClass = 'max-w-4xl' } = $props();
 
   function handleKeydown(e) {
     if (e.key === 'Escape') {
@@ -43,7 +45,10 @@
 
   <!-- Modal Container -->
   <div 
-    class="relative w-full max-w-4xl max-h-[90vh] bg-muma-spotify-dark rounded-xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
+    role="dialog"
+    aria-modal="true"
+    aria-label={title}
+    class="relative w-full {widthClass} max-h-[90vh] bg-muma-spotify-dark rounded-xl shadow-2xl flex flex-col overflow-hidden border border-white/10"
     transition:scale={{ duration: 200, start: 0.95 }}
   >
     <!-- Header -->

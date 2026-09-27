@@ -4,7 +4,12 @@
  * This file is part of LMS.
  */
 
+#include <chrono>
+#include <functional>
 #include <memory>
+#include <thread>
+
+#include <boost/asio/io_context.hpp>
 
 #include <gtest/gtest.h>
 
@@ -12,6 +17,7 @@
 #include <Wt/Json/Parser.h>
 #include <Wt/WDateTime.h>
 
+#include "database/MumaListenOutbox.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
@@ -20,7 +26,6 @@
 
 #include "Common.hpp"
 #include "FakeHttpClient.hpp"
-#include "http/RetryPolicy.hpp"
 #include "musicmanagement/MusicManagementBackend.hpp"
 
 namespace lms::scrobbling::musicManagement::tests
@@ -58,9 +63,80 @@ namespace lms::scrobbling::musicManagement::tests
                 link.modify()->setArtistName("Angerfist");
             }
 
-            std::unique_ptr<IScrobblingBackend> createBackend(std::string apiKey = "system-key")
+            void TearDown() override
             {
-                return std::make_unique<MusicManagementBackend>(session.getDb(), std::make_unique<FakeHttpClient>(sent), std::move(apiKey));
+                auto transaction{ session.createWriteTransaction() };
+                session.execute("DELETE FROM muma_listen_outbox");
+            }
+
+            // Retries are quick here, so a test waits milliseconds for one, not seconds.
+            static ListenOutboxSettings quickRetries()
+            {
+                ListenOutboxSettings settings;
+                settings.minRetryDelay = std::chrono::milliseconds{ 1 };
+                settings.maxRetryDelay = std::chrono::milliseconds{ 4 };
+                return settings;
+            }
+
+            std::unique_ptr<IScrobblingBackend> createBackend(std::string apiKey = "system-key", ListenOutboxSettings settings = quickRetries(), std::shared_ptr<SentRequests> recorder = {})
+            {
+                return std::make_unique<MusicManagementBackend>(ioContext, session.getDb(), std::make_unique<FakeHttpClient>(recorder ? recorder : sent), std::move(apiKey), settings);
+            }
+
+            // Runs whatever the relay has posted to the io_context so far, on this thread.
+            void drain()
+            {
+                ioContext.restart();
+                ioContext.poll();
+            }
+
+            // Drains until `done` holds, for at most two seconds: long enough for any retry timer here.
+            bool drainUntil(const std::function<bool()>& done)
+            {
+                const auto deadline{ std::chrono::steady_clock::now() + std::chrono::seconds{ 2 } };
+                while (std::chrono::steady_clock::now() < deadline)
+                {
+                    drain();
+                    if (done())
+                        return true;
+                    std::this_thread::sleep_for(std::chrono::milliseconds{ 1 });
+                }
+                return false;
+            }
+
+            // Plays music-manager's answer to the `index`th POST back through its own callback.
+            void answer(std::size_t index, int status, SentRequests* recorder = nullptr)
+            {
+                Wt::Http::Message msg;
+                msg.setStatus(status);
+                (recorder ? recorder : sent.get())->posts.at(index).onSuccessFunc(msg);
+                drain();
+            }
+
+            // The connection failed: what the send queue reports once its own retries are spent.
+            void failTransport(std::size_t index)
+            {
+                sent->posts.at(index).onFailureFunc();
+                drain();
+            }
+
+            std::size_t outboxCount()
+            {
+                auto transaction{ session.createReadTransaction() };
+                return db::mumaListenOutbox::getStatus(session).count;
+            }
+
+            TimedListen timedListenAt(std::time_t listenedAt) const
+            {
+                TimedListen listen;
+                static_cast<Listen&>(listen) = listenOf(user.getId());
+                listen.listenedAt = Wt::WDateTime::fromTime_t(listenedAt);
+                return listen;
+            }
+
+            long long listenedAtOf(std::size_t index) const
+            {
+                return static_cast<long long>(parseBody(sent->posts.at(index)).get("listened_at"));
             }
 
             Listen listenOf(db::UserId userId) const
@@ -71,6 +147,7 @@ namespace lms::scrobbling::musicManagement::tests
                 return listen;
             }
 
+            boost::asio::io_context ioContext;
             std::shared_ptr<SentRequests> sent{ std::make_shared<SentRequests>() };
             db::tests::ScopedArtist artist{ session, "Angerfist" };
             db::tests::ScopedRelease release{ session, "Raise Your Fist EP" };
@@ -85,6 +162,8 @@ namespace lms::scrobbling::musicManagement::tests
         const auto before{ Wt::WDateTime::currentDateTime().toTime_t() };
 
         backend->listenFinished(listenOf(user.getId()), std::chrono::seconds{ 185 });
+
+        drain();
 
         ASSERT_EQ(sent->posts.size(), 1);
         const Wt::Json::Object body{ parseBody(sent->posts.front()) };
@@ -118,6 +197,8 @@ namespace lms::scrobbling::musicManagement::tests
 
         backend->addTimedListen(listen);
 
+        drain();
+
         ASSERT_EQ(sent->posts.size(), 1);
         const Wt::Json::Object body{ parseBody(sent->posts.front()) };
         EXPECT_EQ(static_cast<long long>(body.get("listened_at")), 1'700'000'000);
@@ -134,6 +215,8 @@ namespace lms::scrobbling::musicManagement::tests
 
         backend->listenFinished(listen, std::chrono::seconds{ 300 });
 
+        drain();
+
         ASSERT_EQ(sent->posts.size(), 1);
         EXPECT_EQ(static_cast<long long>(parseBody(sent->posts.front()).get("played_secs")), 30);
     }
@@ -143,6 +226,8 @@ namespace lms::scrobbling::musicManagement::tests
         const auto backend{ createBackend() };
 
         backend->listenFinished(listenOf(user.getId()), std::chrono::seconds{ 0 });
+
+        drain();
 
         ASSERT_EQ(sent->posts.size(), 1);
         EXPECT_FALSE(parseBody(sent->posts.front()).contains("played_secs"));
@@ -155,6 +240,8 @@ namespace lms::scrobbling::musicManagement::tests
 
         backend->listenStarted(listenOf(user.getId()));
 
+        drain();
+
         EXPECT_TRUE(sent->posts.empty());
     }
 
@@ -163,9 +250,12 @@ namespace lms::scrobbling::musicManagement::tests
         const auto backend{ createBackend() };
 
         backend->listenFinished(listenOf(db::UserId{ 987654 }), std::nullopt);
+        drain();
+
         Listen unknownTrack{ listenOf(user.getId()) };
         unknownTrack.trackId = db::TrackId{ 987654 };
         backend->listenFinished(unknownTrack, std::nullopt);
+        drain();
 
         EXPECT_TRUE(sent->posts.empty());
     }
@@ -176,40 +266,207 @@ namespace lms::scrobbling::musicManagement::tests
 
         backend->listenFinished(listenOf(user.getId()), std::nullopt);
 
+        drain();
+
         ASSERT_EQ(sent->posts.size(), 1);
         EXPECT_EQ(sent->posts.front().message.getHeader("X-API-Key"), nullptr);
     }
 
     TEST_F(MusicManagementScrobbling, withoutAClientNothingIsSentAndNothingBreaks)
     {
-        MusicManagementBackend backend{ session.getDb(), nullptr, "system-key" };
+        MusicManagementBackend backend{ ioContext, session.getDb(), nullptr, "system-key" };
         IScrobblingBackend& asBackend{ backend };
 
         EXPECT_NO_THROW(asBackend.listenFinished(listenOf(user.getId()), std::nullopt));
+        drain();
+        EXPECT_EQ(outboxCount(), 0U);
     }
 
-    // Pins how the send queue treats a relayed listen, as it is today. The request is a plain one:
-    // not a proxy call, no callbacks. So a transport error is retried until the queue's retry cap
-    // and then the listen is dropped; a 429 is retried later, a bounded number of times; and any
-    // other non-200 answer is dropped at once (SendQueue calls the absent onFailureFunc). A listen
-    // MuMa never received is gone -- nothing re-sends it later.
-    TEST_F(MusicManagementScrobbling, aRelayedListenIsRetriedThenDroppedByTheQueue)
+    // Recording a listen only writes the outbox; the POST goes out from the io_context, never
+    // from the thread that recorded it (a Wt request thread in production).
+    TEST_F(MusicManagementScrobbling, recordingAListenSendsNothingOnTheCallingThread)
+    {
+        const auto backend{ createBackend() };
+
+        backend->listenFinished(listenOf(user.getId()), std::nullopt);
+
+        EXPECT_TRUE(sent->posts.empty());
+        EXPECT_EQ(outboxCount(), 1U);
+        drain();
+        EXPECT_EQ(sent->posts.size(), 1U);
+    }
+
+    TEST_F(MusicManagementScrobbling, aListenStaysInTheOutboxUntilMusicManagerHasIt)
     {
         const auto backend{ createBackend() };
         backend->listenFinished(listenOf(user.getId()), std::nullopt);
+        drain();
 
-        ASSERT_EQ(sent->posts.size(), 1);
-        const core::http::ClientPOSTRequestParameters& request{ sent->posts.front() };
-        EXPECT_FALSE(request.treatAnyStatusAsSuccess);
-        EXPECT_EQ(request.priority, core::http::ClientRequestParameters::Priority::Normal);
-        EXPECT_FALSE(request.onSuccessFunc);
-        EXPECT_FALSE(request.onFailureFunc);
-        EXPECT_FALSE(request.onAbortFunc);
+        ASSERT_EQ(sent->posts.size(), 1U);
+        // Every status comes back to the relay, so it -- not the send queue -- decides.
+        EXPECT_TRUE(sent->posts.front().treatAnyStatusAsSuccess);
+        EXPECT_EQ(outboxCount(), 1U);
 
-        constexpr std::size_t maxRetries{ 2 };
-        EXPECT_TRUE(core::http::decideAfterTransportError(0, maxRetries, 1, 3).retryRequest);
-        EXPECT_FALSE(core::http::decideAfterTransportError(maxRetries, maxRetries, 1, 3).retryRequest);
-        EXPECT_EQ(core::http::decideAfterRateLimited(request.treatAnyStatusAsSuccess, 0, 3), core::http::RateLimitedAction::RetryLater);
-        EXPECT_EQ(core::http::decideAfterRateLimited(request.treatAnyStatusAsSuccess, 3, 3), core::http::RateLimitedAction::GiveUp);
+        answer(0, 200);
+        EXPECT_EQ(outboxCount(), 0U);
+        EXPECT_EQ(sent->posts.size(), 1U);
+    }
+
+    // The outage bug report 075 describes, played through: three listens made while music-manager
+    // is down arrive once it is back, in the order they were made, one request at a time.
+    TEST_F(MusicManagementScrobbling, anOutageThenRecoveryDeliversEveryListenInOrder)
+    {
+        const auto backend{ createBackend() };
+        backend->addTimedListen(timedListenAt(1'700'000'000));
+        backend->addTimedListen(timedListenAt(1'700'000'300));
+        backend->addTimedListen(timedListenAt(1'700'000'600));
+        drain();
+
+        // One in flight, the rest wait behind it.
+        ASSERT_EQ(sent->posts.size(), 1U);
+        EXPECT_EQ(listenedAtOf(0), 1'700'000'000);
+
+        // Down: the connection fails, then music-manager answers 503 while it starts up.
+        failTransport(0);
+        ASSERT_TRUE(drainUntil([&] { return sent->posts.size() == 2; }));
+        EXPECT_EQ(listenedAtOf(1), 1'700'000'000);
+        answer(1, 503);
+        ASSERT_TRUE(drainUntil([&] { return sent->posts.size() == 3; }));
+        EXPECT_EQ(listenedAtOf(2), 1'700'000'000);
+        EXPECT_EQ(outboxCount(), 3U);
+
+        // Back.
+        answer(2, 200);
+        ASSERT_EQ(sent->posts.size(), 4U);
+        EXPECT_EQ(listenedAtOf(3), 1'700'000'300);
+        answer(3, 201);
+        ASSERT_EQ(sent->posts.size(), 5U);
+        EXPECT_EQ(listenedAtOf(4), 1'700'000'600);
+        answer(4, 200);
+
+        EXPECT_EQ(sent->posts.size(), 5U);
+        EXPECT_EQ(outboxCount(), 0U);
+    }
+
+    // The answer can be lost after music-manager stored the listen. The retry then sends the very
+    // same body -- same start time -- which music-manager's unique (username, listened_at, track)
+    // absorbs, and its answer to the duplicate clears the listen here.
+    TEST_F(MusicManagementScrobbling, aRetryIsTheSameListenSoADuplicateIsHarmless)
+    {
+        const auto backend{ createBackend() };
+        backend->listenFinished(listenOf(user.getId()), std::chrono::seconds{ 185 });
+        drain();
+
+        failTransport(0);
+        ASSERT_TRUE(drainUntil([&] { return sent->posts.size() == 2; }));
+        EXPECT_EQ(sent->posts[1].message.body(), sent->posts[0].message.body());
+        EXPECT_EQ(headerOf(sent->posts[1], "X-API-Key"), "system-key");
+
+        answer(1, 409);
+        EXPECT_EQ(outboxCount(), 0U);
+    }
+
+    TEST_F(MusicManagementScrobbling, theOutboxSurvivesARestart)
+    {
+        {
+            const auto backend{ createBackend() };
+            backend->addTimedListen(timedListenAt(1'700'000'000));
+            drain();
+            ASSERT_EQ(sent->posts.size(), 1U);
+            // LMS stops before music-manager answers.
+        }
+        EXPECT_EQ(outboxCount(), 1U);
+
+        // The answer to the old process arrives nowhere, and does not remove anything.
+        answer(0, 200);
+        EXPECT_EQ(outboxCount(), 1U);
+
+        const auto restarted{ std::make_shared<SentRequests>() };
+        const auto backend{ createBackend("system-key", quickRetries(), restarted) };
+        drain();
+
+        ASSERT_EQ(restarted->posts.size(), 1U);
+        EXPECT_EQ(restarted->posts.front().message.body(), sent->posts.front().message.body());
+        answer(0, 200, restarted.get());
+        EXPECT_EQ(outboxCount(), 0U);
+    }
+
+    TEST_F(MusicManagementScrobbling, beyondItsSizeTheOutboxDropsTheOldest)
+    {
+        ListenOutboxSettings settings{ quickRetries() };
+        settings.maxCount = 2;
+        const auto backend{ createBackend("system-key", settings) };
+
+        backend->addTimedListen(timedListenAt(1'700'000'000));
+        backend->addTimedListen(timedListenAt(1'700'000'300));
+        backend->addTimedListen(timedListenAt(1'700'000'600));
+        EXPECT_EQ(outboxCount(), 2U);
+        drain();
+
+        ASSERT_EQ(sent->posts.size(), 1U);
+        EXPECT_EQ(listenedAtOf(0), 1'700'000'300);
+    }
+
+    TEST_F(MusicManagementScrobbling, aListenPastItsAgeIsDropped)
+    {
+        {
+            auto transaction{ session.createWriteTransaction() };
+            db::mumaListenOutbox::push(session, R"({"listened_at":1})", Wt::WDateTime::currentDateTime().addSecs(-2 * 3600));
+        }
+        ListenOutboxSettings settings{ quickRetries() };
+        settings.maxAge = std::chrono::hours{ 1 };
+        const auto backend{ createBackend("system-key", settings) };
+        backend->addTimedListen(timedListenAt(1'700'000'000));
+        drain();
+
+        ASSERT_EQ(sent->posts.size(), 1U);
+        EXPECT_EQ(listenedAtOf(0), 1'700'000'000);
+        EXPECT_EQ(outboxCount(), 1U);
+    }
+
+    // A body music-manager rejects will be rejected every time; it must not block the ones behind it.
+    TEST_F(MusicManagementScrobbling, aListenRefusedForGoodIsDroppedAndTheNextOneGoes)
+    {
+        const auto backend{ createBackend() };
+        backend->addTimedListen(timedListenAt(1'700'000'000));
+        backend->addTimedListen(timedListenAt(1'700'000'300));
+        drain();
+
+        answer(0, 422);
+        ASSERT_EQ(sent->posts.size(), 2U);
+        EXPECT_EQ(listenedAtOf(1), 1'700'000'300);
+        EXPECT_EQ(outboxCount(), 1U);
+    }
+
+    // 401/403 is a key that is being rotated, not a listen that is wrong: it waits.
+    TEST_F(MusicManagementScrobbling, anUnauthorisedAnswerKeepsTheListen)
+    {
+        const auto backend{ createBackend() };
+        backend->listenFinished(listenOf(user.getId()), std::nullopt);
+        drain();
+
+        answer(0, 401);
+        EXPECT_EQ(outboxCount(), 1U);
+        ASSERT_TRUE(drainUntil([&] { return sent->posts.size() == 2; }));
+        answer(1, 200);
+        EXPECT_EQ(outboxCount(), 0U);
+    }
+
+    // A listen recorded while a retry is pending waits for that retry instead of jumping ahead.
+    TEST_F(MusicManagementScrobbling, aNewListenDuringAnOutageWaitsItsTurn)
+    {
+        const auto backend{ createBackend() };
+        backend->addTimedListen(timedListenAt(1'700'000'000));
+        drain();
+        failTransport(0);
+
+        backend->addTimedListen(timedListenAt(1'700'000'300));
+        ASSERT_TRUE(drainUntil([&] { return sent->posts.size() == 2; }));
+        EXPECT_EQ(listenedAtOf(1), 1'700'000'000);
+        answer(1, 200);
+        ASSERT_EQ(sent->posts.size(), 3U);
+        EXPECT_EQ(listenedAtOf(2), 1'700'000'300);
+        answer(2, 200);
+        EXPECT_EQ(outboxCount(), 0U);
     }
 } // namespace lms::scrobbling::musicManagement::tests

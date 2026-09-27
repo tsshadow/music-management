@@ -182,6 +182,12 @@ outage loses the listens relayed during it. LMS's own `listen` table keeps them.
 to make that durable -- an outbox in LMS, or MuMa pulling -- MuMa pulls: it reuses the tested
 reconcile, survives LMS restarts, and needs no C++ change; LMS's `listen` table is the outbox.
 
+**Update (issue #67):** the LMS outbox was added as well. Since LMS database version 125 the relay
+writes each listen to `muma_listen_outbox` and delivers from there with backoff, so this loop is
+the safety net behind it rather than the primary repair. It catches what the outbox gives up on
+(full, older than 14 days, refused as malformed) and anything the relay matched to no track. See
+[docs/designs/lms-listen-outbox/](../lms-listen-outbox/technical.md).
+
 **The loop.** `services/music_manager/lms_listen_backfill.py`, started at startup as the
 `lms-listen-backfill` thread through `thread_registry.run_forever` (so it appears in `/health`
 `threads` and `heartbeats`; `stale_after` is 72 h because the interval can be raised at runtime).

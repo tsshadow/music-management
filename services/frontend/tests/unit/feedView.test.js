@@ -14,7 +14,8 @@ import FeedView from "../../src/lib/FeedView.svelte";
 import {
   credentials,
   currentTrack,
-  feedContinuation,
+  queueContinuation,
+  isMobile,
   playerState,
   playlist,
 } from "../../src/lib/store.js";
@@ -58,7 +59,8 @@ describe("FeedView", () => {
       nextOffset: null,
       failed: false,
     }));
-    feedContinuation.set(null);
+    queueContinuation.set(null);
+    isMobile.set(false);
     globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
   });
 
@@ -200,6 +202,89 @@ describe("FeedView", () => {
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
     await fireEvent.click(screen.getByTitle("Alles afspelen"));
 
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 100 });
+    expect(get(queueContinuation)).toMatchObject({ kind: "feed", slug: "daily-mix", cursor: 100 });
   });
+
+  // Bug report 122. A row tap is how most people start a mix; it used to start a queue without
+  // the continuation, so the player never topped it up.
+  it("a tapped row starts a queue that continues the feed, like the play button", async () => {
+    // A single tap plays a row on the phone and the tablet; the desktop needs a double click.
+    isMobile.set(true);
+    globalThis.__loadFeedDetail = vi.fn(async () =>
+      detailOf(SONGS, { title: "Harder", nextOffset: 100 }),
+    );
+
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
+    await fireEvent.click(screen.getByText("Second"));
+
+    expect(get(playlist).map((track) => track.id)).toEqual(["song-1", "song-2"]);
+    expect(get(currentTrack).id).toBe("song-2");
+    expect(get(queueContinuation)).toMatchObject({
+      kind: "feed",
+      slug: "daily-mix-hard",
+      cursor: 100,
+    });
+  });
+
+  it("a tapped row after the last page starts a queue with nothing to continue", async () => {
+    isMobile.set(true);
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
+    await fireEvent.click(screen.getByText("Second"));
+
+    expect(get(queueContinuation)).toBeNull();
+  });
+
+  it("says how many of MuMa's tracks the server could not find, and adds a later page's", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () =>
+      detailOf(SONGS, { nextOffset: 100, unresolved: 2 }),
+    );
+    globalThis.__loadFeedPage = vi.fn(async () => ({
+      tracks: [{ id: "song-3", title: "Third", artist: "Other", suffix: "mp3" }],
+      nextOffset: 200,
+      unresolved: 1,
+      failed: false,
+    }));
+
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText(/2 niet gevonden op de server/)).toBeTruthy());
+
+    await fireEvent.click(screen.getByText("Meer laden"));
+
+    await waitFor(() => expect(screen.getByText(/3 niet gevonden op de server/)).toBeTruthy());
+    // The button stays: MuMa said there is a page after this one.
+    expect(screen.getByText("Meer laden")).toBeTruthy();
+  });
+
+  it("says nothing about missing tracks when every path resolved", async () => {
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS, { unresolved: 0 }));
+
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+
+    expect(screen.queryByTestId("feed-unresolved")).toBeNull();
+  });
+
+  // The phone and the tablet both run with `isMobile` (bug report 090: a tablet is "mobile" at
+  // any width). The button must not depend on the layout.
+  for (const layout of ["phone", "tablet"]) {
+    it(`offers "Meer laden" under a 98-track list on the ${layout}`, async () => {
+      isMobile.set(true);
+      const many = Array.from({ length: 98 }, (_, i) => ({
+        id: `s${i}`,
+        title: `Track ${i}`,
+        artist: "A",
+        suffix: "mp3",
+      }));
+      globalThis.__loadFeedDetail = vi.fn(async () =>
+        detailOf(many, { nextOffset: 100, unresolved: 2 }),
+      );
+
+      render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+
+      await waitFor(() => expect(screen.getByTestId("feed-load-more")).toBeTruthy());
+      expect(screen.getByText(/98 nummers/)).toBeTruthy();
+    });
+  }
 });

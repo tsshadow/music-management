@@ -1,5 +1,5 @@
 <script>
-  import { seedFromTrack } from './entitySeeds.js';
+  import { openSong, seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { fly } from 'svelte/transition';
   import { formatTime, formatClock, progressPercent } from './playerProgress.js';
@@ -784,7 +784,7 @@
               <button
                 class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-muma-spotify-text hover:text-white transition-colors"
                 data-testid="now-playing-song"
-                onclick={() => navigate(`song:${track.workId}`)}
+                onclick={() => openSong(navigate, track)}
                 aria-label={$t('track.versions')}
               >
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">

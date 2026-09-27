@@ -11,6 +11,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
 import FeedView from "../../src/lib/FeedView.svelte";
+import { entityCache, feedKey } from "../../src/lib/entityLoaders.js";
+import { clearSeeds, seedEntity } from "../../src/lib/entitySeeds.js";
 import {
   credentials,
   currentTrack,
@@ -39,11 +41,27 @@ function detailOf(tracks, extra = {}) {
   };
 }
 
+/**
+ * `streamFeedDetail` told from a `__loadFeedDetail` answer: the header first, then its songs as
+ * one chunk whose paths count the unresolved ones too -- what the page needs to say "2 niet
+ * gevonden". Tests that care about chunking replace `__streamFeedDetail` with their own.
+ */
+async function streamFromDetail(slug, auth, handlers = {}) {
+  const result = await globalThis.__loadFeedDetail(slug, auth);
+  const total = result.tracks.length + (result.unresolved ?? 0);
+  const paths = Array.from({ length: total }, (_, i) => `p${i}.mp3`);
+  handlers.onHeader?.({ ...result, chunks: total > 0 ? [paths] : [] });
+  if (total > 0) handlers.onChunk?.(0, { songs: result.tracks, failed: false });
+  return { failedChunks: 0, unresolved: 0, ...result };
+}
+
 vi.mock("../../src/lib/feeds.js", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
     loadFeedDetail: (...args) => globalThis.__loadFeedDetail(...args),
+    streamFeedDetail: (...args) => globalThis.__streamFeedDetail(...args),
+    resolveFeedChunk: (...args) => globalThis.__resolveFeedChunk(...args),
     loadFeedPage: (...args) => globalThis.__loadFeedPage(...args),
   };
 });
@@ -56,6 +74,10 @@ describe("FeedView", () => {
     currentTrack.set(null);
     playerState.set({ playing: false });
     globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS));
+    globalThis.__streamFeedDetail = vi.fn(streamFromDetail);
+    globalThis.__resolveFeedChunk = vi.fn(async () => ({ songs: [], failed: false }));
+    entityCache.clear();
+    clearSeeds();
     globalThis.__loadFeedPage = vi.fn(async () => ({
       tracks: [],
       nextOffset: null,
@@ -289,4 +311,197 @@ describe("FeedView", () => {
       expect(screen.getByText(/98 nummers/)).toBeTruthy();
     });
   }
+});
+
+/**
+ * Issue #110: the page opens at once and fills in. The header comes from what the card knew, the
+ * rows from each `getSongsByPath` chunk as it lands -- in MuMa's order, whatever order LMS answers
+ * in -- and a chunk or a feed that fails gets its own retry rather than a blank page.
+ */
+describe("FeedView progressive load", () => {
+  /** A controllable stream: the test decides when the header and each chunk arrive. */
+  function heldStream() {
+    const held = {};
+    globalThis.__streamFeedDetail = vi.fn(
+      (slug, auth, handlers) =>
+        new Promise((resolve) => {
+          held.handlers = handlers;
+          held.resolve = resolve;
+        }),
+    );
+    return held;
+  }
+
+  const song = (n) => ({ id: `s${n}`, title: `Track ${n}`, artist: "A", suffix: "mp3" });
+
+  beforeEach(() => {
+    credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    playlist.set([]);
+    currentTrack.set(null);
+    playerState.set({ playing: false });
+    queueContinuation.set(null);
+    isMobile.set(false);
+    entityCache.clear();
+    clearSeeds();
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS));
+    globalThis.__resolveFeedChunk = vi.fn(async () => ({ songs: [], failed: false }));
+    globalThis.__loadFeedPage = vi.fn(async () => ({
+      tracks: [],
+      nextOffset: null,
+      failed: false,
+    }));
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+  });
+
+  it("draws the card's title and subtitle and skeleton rows before MuMa has answered", async () => {
+    heldStream();
+    seedEntity("feed", "daily-mix-soft", { name: "Zachter", subtitle: "≤ 42 hardheid" });
+
+    render(FeedView, { slug: "daily-mix-soft", onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Zachter");
+    expect(screen.getByText("≤ 42 hardheid")).toBeTruthy();
+    expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
+    expect(screen.queryByText("Laden...")).toBeNull();
+  });
+
+  it("draws a skeleton title for a mix opened by URL, with nothing known about it", () => {
+    heldStream();
+
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+
+    expect(screen.getByTestId("feed-title-skeleton")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+  });
+
+  it("names the release radar at once from its fixed copy", () => {
+    heldStream();
+
+    render(FeedView, { slug: "release-radar", onnavigate: vi.fn() });
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Release Radar");
+    expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
+  });
+
+  it("replaces the card's title with the server's once it answers", async () => {
+    const held = heldStream();
+    seedEntity("feed", "daily-mix-artist", { name: "Old guess" });
+    render(FeedView, { slug: "daily-mix-artist", onnavigate: vi.fn() });
+
+    held.handlers.onHeader({ ...detailOf([], { title: "Angerfist" }), chunks: [] });
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Angerfist"),
+    );
+  });
+
+  it("shows each chunk in MuMa's order as it lands, with skeletons for the rest", async () => {
+    const held = heldStream();
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+    const first = Array.from({ length: 100 }, (_, i) => `a${i}.mp3`);
+    const second = ["b0.mp3", "b1.mp3"];
+
+    held.handlers.onHeader({ ...detailOf([]), chunks: [first, second] });
+    // The second chunk answers first: it must not appear above the first.
+    held.handlers.onChunk(1, { songs: [song(100), song(101)], failed: false });
+    await waitFor(() => expect(screen.getByTestId("skeleton-rows")).toBeTruthy());
+    expect(screen.queryByText("Track 100")).toBeNull();
+
+    held.handlers.onChunk(0, { songs: [song(0), song(1)], failed: false });
+
+    await waitFor(() => expect(screen.getByText("Track 100")).toBeTruthy());
+    const titles = screen.getAllByText(/^Track \d+$/).map((el) => el.textContent.trim());
+    expect(titles).toEqual(["Track 0", "Track 1", "Track 100", "Track 101"]);
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    // 102 paths, 4 songs: the unresolved note from bug report 122 still adds up.
+    expect(screen.getByTestId("feed-unresolved").textContent).toMatch(/98 niet gevonden/);
+  });
+
+  it("draws the first chunk's rows while the second is still on its way", async () => {
+    const held = heldStream();
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+
+    held.handlers.onHeader({ ...detailOf([]), chunks: [["a.mp3"], ["b.mp3"]] });
+    held.handlers.onChunk(0, { songs: [song(0)], failed: false });
+
+    await waitFor(() => expect(screen.getByText("Track 0")).toBeTruthy());
+    expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
+    // No "Meer laden" before the first page is whole.
+    expect(screen.queryByTestId("feed-load-more")).toBeNull();
+  });
+
+  it("offers a retry for a chunk LMS failed to answer, and fills it in on retry", async () => {
+    const held = heldStream();
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+    held.handlers.onHeader({ ...detailOf([]), chunks: [["a.mp3"], ["b.mp3"]] });
+    held.handlers.onChunk(0, { songs: [song(0)], failed: false });
+    held.handlers.onChunk(1, { songs: [], failed: true });
+
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
+    expect(screen.getByText("Track 0")).toBeTruthy();
+    expect(screen.queryByTestId("feed-unresolved")).toBeNull();
+
+    globalThis.__resolveFeedChunk = vi.fn(async () => ({ songs: [song(1)], failed: false }));
+    await fireEvent.click(screen.getByText("Opnieuw"));
+
+    await waitFor(() => expect(screen.getByText("Track 1")).toBeTruthy());
+    expect(globalThis.__resolveFeedChunk.mock.calls[0][0]).toEqual(["b.mp3"]);
+    expect(screen.queryByTestId("section-error")).toBeNull();
+    // Whole now: a revisit is answered from the cache.
+    expect(entityCache.peek(feedKey("daily-mix")).value.tracks.map((t) => t.id)).toEqual([
+      "s0",
+      "s1",
+    ]);
+  });
+
+  it("offers a retry when MuMa itself could not be reached", async () => {
+    globalThis.__streamFeedDetail = vi.fn(streamFromDetail);
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf([], { state: "error" }));
+    render(FeedView, { slug: "daily-mix-hard", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
+    expect(screen.queryByText("Hier staat nu niets")).toBeNull();
+
+    globalThis.__loadFeedDetail = vi.fn(async () => detailOf(SONGS));
+    await fireEvent.click(screen.getByText("Opnieuw"));
+
+    await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    expect(globalThis.__streamFeedDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it("starts the feed as soon as it is whole when play was pressed while it loaded", async () => {
+    const held = heldStream();
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+
+    await fireEvent.click(screen.getByTestId("feed-play"));
+    expect(screen.getByTestId("throbber")).toBeTruthy();
+    expect(get(playlist)).toEqual([]);
+
+    held.handlers.onHeader({ ...detailOf([], { nextOffset: 100 }), chunks: [["a.mp3", "b.mp3"]] });
+    held.handlers.onChunk(0, { songs: SONGS, failed: false });
+
+    await waitFor(() => expect(get(playlist).map((t) => t.id)).toEqual(["song-1", "song-2"]));
+    expect(get(playerState).playing).toBe(true);
+    expect(get(queueContinuation)).toMatchObject({ kind: "feed", slug: "daily-mix", cursor: 100 });
+  });
+
+  it("answers a revisit from the cache without asking again", async () => {
+    globalThis.__streamFeedDetail = vi.fn(streamFromDetail);
+    entityCache.set(feedKey("daily-mix"), { ...detailOf(SONGS), unresolved: 0, failedChunks: 0 });
+
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+
+    expect(screen.getByText("Raise Your Fist")).toBeTruthy();
+    expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    expect(globalThis.__streamFeedDetail).not.toHaveBeenCalled();
+  });
+
+  it("caches a whole first page after streaming it", async () => {
+    globalThis.__streamFeedDetail = vi.fn(streamFromDetail);
+
+    render(FeedView, { slug: "daily-mix", onnavigate: vi.fn() });
+
+    await waitFor(() => expect(entityCache.peek(feedKey("daily-mix"))).not.toBeNull());
+  });
 });

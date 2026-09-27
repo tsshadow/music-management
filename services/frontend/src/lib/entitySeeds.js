@@ -15,7 +15,16 @@
 export const MAX_SEEDS = 200;
 
 /** Fields a seed may carry. Anything else on the object it is built from is ignored. */
-const SEED_FIELDS = ["name", "coverArt", "artistImageUrl", "artist", "artistId", "year"];
+const SEED_FIELDS = [
+  "name",
+  "coverArt",
+  "artistImageUrl",
+  "artist",
+  "artistId",
+  "year",
+  // A feed card's second line ("Zachter" / "≤ 42 hardheid"), for the feed page's header.
+  "subtitle",
+];
 
 /** @type {Map<string, Record<string, any>>} */
 const seeds = new Map();
@@ -163,4 +172,38 @@ export function seedFromTrack(track) {
   if (artist) seedEntity("artist", artist.id, artist.seed);
   const album = albumSeedFromTrack(track);
   if (album) seedEntity("album", album.id, album.seed);
+}
+
+/**
+ * The seed for a song's versions page (`song:<workId>`), from the track row that was tapped:
+ * the title, the artist line and the cover the row was already showing.
+ *
+ * @param {Record<string, any>|null|undefined} track
+ * @returns {{id: string, seed: Record<string, any>}|null}
+ */
+export function songSeedFromTrack(track) {
+  if (!track?.workId) return null;
+  return {
+    id: String(track.workId),
+    seed: {
+      name: track.title,
+      artist: track.artist,
+      artistId: track.artistId,
+      coverArt: track.coverArt,
+    },
+  };
+}
+
+/**
+ * Seeds and opens the versions page of the song `track` belongs to -- the drop-in for
+ * `onnavigate(\`song:${track.workId}\`)`.
+ *
+ * @param {((view: string) => void)|null|undefined} navigate
+ * @param {Record<string, any>|null|undefined} track - Must carry `workId`.
+ */
+export function openSong(navigate, track) {
+  const song = songSeedFromTrack(track);
+  if (!song) return;
+  seedEntity("song", song.id, song.seed);
+  navigate?.(keyOf("song", song.id));
 }

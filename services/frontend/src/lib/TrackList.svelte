@@ -1,5 +1,5 @@
 <script>
-  import { pressEntity, seedFromTrack } from './entitySeeds.js';
+  import { openSong, pressEntity, seedFromTrack } from './entitySeeds.js';
   import { t, locale } from './i18n/index.js';
   import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import { startQueue } from './queue.js';
@@ -668,7 +668,7 @@
                   aria-label={$t('track.versions')}
                   title={$t('track.versions')}
                   class="hidden md:flex bg-transparent border-none text-muma-spotify-text cursor-pointer p-1 items-center justify-center rounded hover:bg-muma-spotify-hover hover:text-white"
-                  onclick={(e) => { e.stopPropagation(); onnavigate?.(`song:${track.workId}`); }}
+                  onclick={(e) => { e.stopPropagation(); openSong(onnavigate, track); }}
                 >
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                         <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"></path>

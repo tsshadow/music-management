@@ -25,6 +25,8 @@ import {
   loadFeedDetail,
   loadFeedPage,
   resetFeedsCache,
+  resolveFeedChunk,
+  streamFeedDetail,
   SONGS_BY_PATH_LIMIT,
 } from "../../src/lib/feeds.js";
 
@@ -434,5 +436,85 @@ describe("feed pages (docs/designs/feed-length/)", () => {
 
     expect(page.unresolved).toBe(2);
     expect(page.nextOffset).toBe(200);
+  });
+});
+
+/** Issue #110: the chunks are asked for at once and reported as they land. */
+describe("streamFeedDetail", () => {
+  beforeEach(() => {
+    globalThis.__fetchMumaJson = vi.fn();
+    globalThis.fetch = vi.fn();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("asks LMS for every chunk before the first has answered", async () => {
+    const paths = Array.from({ length: 150 }, (_, i) => `t${i}.mp3`);
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf(...paths));
+    const answers = [];
+    globalThis.fetch.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+
+    const done = streamFeedDetail(DAILY_MIX, AUTH);
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
+
+    // Answered in reverse: the result still follows MuMa's order.
+    answers[1](songsResponse(...paths.slice(100)));
+    answers[0](songsResponse(...paths.slice(0, 100)));
+    const detail = await done;
+    expect(detail.tracks.map((t) => t.id)).toEqual(paths);
+  });
+
+  it("reports the header before any song, then each chunk by its index", async () => {
+    const paths = Array.from({ length: 101 }, (_, i) => `t${i}.mp3`);
+    globalThis.__fetchMumaJson.mockResolvedValue({ ...feedOf(...paths), title: "Harder" });
+    globalThis.fetch
+      .mockResolvedValueOnce(songsResponse(...paths.slice(0, 100)))
+      .mockResolvedValueOnce(songsResponse(...paths.slice(100)));
+    const events = [];
+
+    await streamFeedDetail(DAILY_MIX_HARD, AUTH, {
+      onHeader: (header) =>
+        events.push(["header", header.title, header.chunks.map((c) => c.length)]),
+      onChunk: (index, result) => events.push(["chunk", index, result.songs.length]),
+    });
+
+    expect(events[0]).toEqual(["header", "Harder", [100, 1]]);
+    expect(events.slice(1).sort()).toEqual([
+      ["chunk", 0, 100],
+      ["chunk", 1, 1],
+    ]);
+  });
+
+  it("counts a chunk LMS failed to answer as failed, not as unresolved paths", async () => {
+    const paths = Array.from({ length: 150 }, (_, i) => `t${i}.mp3`);
+    globalThis.__fetchMumaJson.mockResolvedValue(feedOf(...paths));
+    globalThis.fetch
+      .mockResolvedValueOnce(songsResponse(...paths.slice(0, 99)))
+      .mockResolvedValueOnce({ ok: false, status: 503 });
+
+    const detail = await streamFeedDetail(DAILY_MIX, AUTH);
+
+    expect(detail.failedChunks).toBe(1);
+    expect(detail.unresolved).toBe(1);
+    expect(detail.tracks).toHaveLength(99);
+  });
+
+  it("resolves one chunk again for a retry", async () => {
+    globalThis.fetch.mockResolvedValue(songsResponse("a.mp3"));
+
+    expect(await resolveFeedChunk(["a.mp3"], AUTH)).toEqual({
+      songs: [{ id: "a.mp3" }],
+      failed: false,
+    });
+  });
+
+  it("treats a next page whose chunk failed as a failed page, keeping the continuation", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({ ...feedOf("a.mp3"), next_offset: 200 });
+    globalThis.fetch.mockResolvedValue({ ok: false, status: 503 });
+
+    const page = await loadFeedPage(DAILY_MIX, AUTH, 100);
+
+    expect(page).toEqual({ tracks: [], nextOffset: 100, unresolved: 0, failed: true });
   });
 });

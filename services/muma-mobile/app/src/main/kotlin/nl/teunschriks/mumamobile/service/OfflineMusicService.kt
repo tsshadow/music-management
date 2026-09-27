@@ -698,10 +698,6 @@ class OfflineMusicService :
     @Throws(OfflineException::class)
     override fun getPodcastEpisodes(podcastChannelId: String?): MusicDirectory? = throw OfflineException("getPodcastEpisodes isn't available in offline mode")
 
-    override fun mumaLogin() {
-        // No-op
-    }
-
     override fun getMumaTiles(): List<MumaTile> = emptyList()
 
     override fun saveMumaTile(tile: MumaTile): String = ""

@@ -142,12 +142,31 @@ export function defaultSubsonicUrl() {
   return import.meta.env.VITE_SUBSONIC_URL || (import.meta.env.DEV ? "" : window.location.origin);
 }
 
+/**
+ * The session's credentials without the password: a stored copy loses it on load.
+ *
+ * Builds before issue #101 persisted the password here after a sign-in. It signs nothing since
+ * issue #72, and nothing re-logs in with it any more, so it is dropped the first time the page
+ * loads -- the store's persisting subscriber then rewrites `lms_credentials` without it.
+ *
+ * @param {object} value - A stored `lms_credentials` value.
+ * @returns {{url: string, username: string}}
+ */
+export function withoutPassword(value) {
+  const rest = { ...(value && typeof value === "object" ? value : {}) };
+  delete rest.password;
+  return { url: defaultSubsonicUrl(), username: "", ...rest };
+}
+
+/**
+ * The Subsonic server and the signed-in name. Never a password (issue #101): signing in trades it
+ * for the MuMa session and the Subsonic token (`login.js`), and neither side of the app keeps it.
+ */
 export const credentials = writable({
   url: defaultSubsonicUrl(),
   username: "",
-  password: "",
 });
-persist("lms_credentials", credentials);
+persist("lms_credentials", credentials, { onLoad: withoutPassword });
 
 /**
  * The signed-in user's own Subsonic API token, and the LMS login name it was
@@ -249,6 +268,17 @@ export const mumaSessionActive = writable(false);
 persist("muma_session_active", mumaSessionActive);
 
 /**
+ * Whether someone is signed in: a name to sign in under, or a MuMa session. The one definition the
+ * app shell and the login page go by; it replaced the stored password the Android shell used to
+ * read as the marker (issue #101). A session the server stops accepting ends through
+ * `endRejectedSession`, which clears both.
+ */
+export const signedIn = derived(
+  [credentials, mumaSessionActive],
+  ([$c, $active]) => Boolean($c.username) || $active,
+);
+
+/**
  * Set by a deliberate logout, cleared by the next successful sign-in. While it is set the Android
  * shell's boot does not sign itself back in from whatever the phone still holds
  * (`restoreSession` in nativeSession.js): a native sign-out that failed or never answered used to
@@ -271,7 +301,7 @@ export const mumaUser = writable(null);
  * address, which belongs to this device rather than to the account.
  */
 export function endRejectedSession() {
-  credentials.update((current) => ({ ...current, username: "", password: "" }));
+  credentials.update((current) => ({ ...withoutPassword(current), username: "" }));
   subsonicToken.set({ username: "", token: "" });
   subsonicTokenProblem.set("");
   mumaApiKey.set("");
@@ -801,7 +831,7 @@ const subsonicIsAdmin = writable(null);
  * Fetches the current user's Subsonic adminRole and updates the
  * `subsonicIsAdmin` store accordingly.
  *
- * @param {{username: string, password: string}} creds - The credentials to check.
+ * @param {{username: string}} creds - The credentials to check.
  */
 async function checkAdminStatus(creds) {
   try {
@@ -878,16 +908,12 @@ export async function hydrateMumaUserFromApiKey() {
       headers: { "X-API-Key": key },
     });
     if (!res.ok && (res.status === 401 || res.status === 403)) {
-      // The backend does not accept this key any more -- a rotated or
-      // no-longer-resolving system key, or an account whose key was reissued.
-      // Keeping it makes every later call fail with no way back: the login
-      // paths (AuthOverlay, LoginPage, Management's auto-login) only run when
-      // there is no key at all, so a user would have to clear localStorage by
-      // hand. A 5xx or a thrown request is NOT evidence of a bad key and
-      // deliberately leaves it alone.
-      mumaApiKey.set("");
-      mumaUser.set(null);
-      userPermissions.set([]);
+      // The backend does not accept this key any more -- an account whose key was reissued, a
+      // disabled or removed account. The key is permanent, and no password is stored to log in
+      // again with (issue #101), so only a new sign-in helps: the session ends and the login page
+      // comes back. A 5xx or a thrown request is NOT evidence of a bad key and deliberately leaves
+      // it alone.
+      endRejectedSession();
     } else if (res.ok) {
       const data = await res.json();
       if (data.type === "user") {

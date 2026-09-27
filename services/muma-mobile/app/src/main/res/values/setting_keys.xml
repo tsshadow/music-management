@@ -58,6 +58,7 @@
     <string name="setting_key.muma_user_id" translatable="false">mumaUserId</string>
     <string name="setting_key.static_username" translatable="false">staticUserName</string>
     <string name="setting_key.static_password" translatable="false">staticPassword</string>
+    <string name="setting_key.signed_in" translatable="false">signedIn</string>
     <string name="setting_key.media_device_export" translatable="false">mediaDeviceExportEnabled</string>
     <string name="setting_key.bookmarks_migrated_to_set_resume" translatable="false">bookmarksMigratedToSetResume</string>
 </resources>

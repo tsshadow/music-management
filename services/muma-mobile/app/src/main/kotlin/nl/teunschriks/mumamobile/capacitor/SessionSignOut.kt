@@ -12,9 +12,9 @@ import timber.log.Timber
 /**
  * What `MumaSystem.signOut` does, in the order that matters, without the plugin around it.
  *
- * The credentials go first because they are the part that must happen: as long as the phone holds
- * a password, the shell's next boot signs itself back in with it and the logout looks like it did
- * nothing (bug report 106). The queue comes second and may fail on its own -- a Media3 controller
+ * The credentials go first because they are the part that must happen: as long as the phone still
+ * counts itself signed in, the shell's next boot takes that session back and the logout looks like
+ * it did nothing (bug report 106). The queue comes second and may fail on its own -- a Media3 controller
  * that is not connected, a service that is being torn down -- without keeping the credentials.
  *
  * Both steps must run on the main thread: [nl.teunschriks.mumamobile.service.MediaPlayerManager]
@@ -30,7 +30,7 @@ object SessionSignOut {
      * Clears the credentials, then the queue.
      *
      * @param clearCredentials forgets everything that can authenticate; its failure propagates,
-     *   since a sign-out that kept the password has not happened.
+     *   since a sign-out that kept the session has not happened.
      * @param clearQueue empties the playback queue; a failure is logged and returned, not thrown.
      * @return the queue's failure, or null when both steps succeeded.
      */

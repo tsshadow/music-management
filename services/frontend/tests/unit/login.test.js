@@ -193,7 +193,20 @@ describe("login - the account's own spelling", () => {
 
     expect(result).toEqual({ ok: true, username: "user" });
     expect(get(credentials).username).toBe("user");
-    expect(get(credentials).password).toBe("pw");
+  });
+
+  // Issue #101: the password signs nothing after the sign-in, so it is not kept anywhere.
+  it("keeps no copy of the password after a sign-in, in the store or in localStorage", async () => {
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "user" });
+
+    expect((await signIn("user", "hunter2-secret")).ok).toBe(true);
+
+    expect(get(credentials)).not.toHaveProperty("password");
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      expect(localStorage.getItem(key)).not.toContain("hunter2-secret");
+    }
+    expect(JSON.parse(localStorage.getItem("lms_credentials"))).not.toHaveProperty("password");
   });
 
   it("takes LMS's spelling from the token when MuMa's answer had none to go by", async () => {

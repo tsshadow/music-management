@@ -383,7 +383,7 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   shell that has to ask across a bridge caches the answer, and its boot path
  *   pulls it once with `loadServerUrl()` before anything fetches.
  * @property {function(): Promise<void>} signOut Ends the session on the phone -- the
- *   stored password, the muma API key/user id and the muma tokens, plus whatever the
+ *   signed-in flag, the muma API key/user id and the muma tokens, plus whatever the
  *   platform service had queued. A browser tab has none of that and resolves at once.
  *   Downloaded files are never touched by this. The caller still owns clearing its own
  *   stores and reloading; this only has to make sure the next boot has nothing left to
@@ -395,10 +395,11 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): Promise<string|null>} googleSignIn A Google ID token for
  *   `/api/auth/google`, `null` when the user closed the chooser; rejects with `code`
  *   `not-configured`, `no-credential` or `failed` otherwise.
- * @property {function({url?: string, username: string, password: string}): Promise<void>}
- *   saveCredentials Writes a pair the web login screen just verified back to the phone,
- *   so downloads and Android Auto see the same session afterwards. A
- *   browser tab has nowhere to put it and resolves at once.
+ * @property {function({url?: string, username: string, mumaApiKey: string, mumaUserId?: number}): Promise<void>}
+ *   saveCredentials Hands the session the web login screen just started -- the account's
+ *   name, its MuMa API key and account id, never the password (issue #101) -- to the phone,
+ *   so downloads and Android Auto see the same session afterwards. A browser tab has nowhere
+ *   to put it and resolves at once.
  * @property {function(function(): boolean): function(): void} onBack The platform's
  *   back gesture, not browser history. The handler must be synchronous and
  *   return `true` when it used the press -- closing a sheet, a drawer or a

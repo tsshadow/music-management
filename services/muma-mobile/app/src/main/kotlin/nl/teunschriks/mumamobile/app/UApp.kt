@@ -2,6 +2,8 @@ package nl.teunschriks.mumamobile.app
 
 import android.app.Application
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteException
 import android.os.Build
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
@@ -12,6 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.AuthenticationFailureNotifier
+import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.di.DB_FILENAME
 import nl.teunschriks.mumamobile.di.appPermanentStorage
 import nl.teunschriks.mumamobile.di.applicationModule
 import nl.teunschriks.mumamobile.di.baseNetworkModule
@@ -83,6 +87,11 @@ class UApp : Application() {
 
         // In general we should not access the settings from the main thread to avoid blocking...
         ioScope.launch {
+            // Before anything can dump the preferences: an install from before issue #101 still
+            // keeps the password in plain preferences. Readers of the signed-in state run the same
+            // migration first, so the order with the media session does not matter.
+            ActiveServerProvider.migrateLegacyPassword()
+            wipeLegacyServerPasswords()
             if (Settings.debugLogToFile) {
                 FileLoggerTree.plantToTimberForest()
                 Util.dumpSettingsToLog()
@@ -95,6 +104,25 @@ class UApp : Application() {
 
         if (GlobalContext.getOrNull() == null) {
             startKoin()
+        }
+    }
+
+    /**
+     * Blanks the `password` column of the legacy Room `ServerSetting` table, a leftover of the
+     * Ultrasonic server list that nothing reads any more (the one server is static, see
+     * `StaticServers`). Opened as a plain SQLite file, not through Room, so no Room migration runs
+     * for a database the app otherwise never opens; skipped when the file does not exist, and a
+     * no-op once the column is blank (issue #101). Never fails the start.
+     */
+    private fun wipeLegacyServerPasswords() {
+        val file = getDatabasePath(DB_FILENAME)
+        if (!file.exists()) return
+        try {
+            SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+                db.execSQL("UPDATE ServerSetting SET password = '' WHERE password != ''")
+            }
+        } catch (all: SQLiteException) {
+            Timber.w("Could not blank the legacy server passwords: %s", all.javaClass.simpleName)
         }
     }
 

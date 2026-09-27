@@ -62,7 +62,7 @@ import timber.log.Timber
  * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
  * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
  * | `signOut()` | `signOut()` |
- * | `saveCredentials({url, username, password})` | `saveCredentials()` |
+ * | `saveCredentials({url, username, mumaApiKey, mumaUserId})` | `saveCredentials()` |
  * | `onBack(fn)` | listener on the `back` event, answered with `handledBack({seq})` |
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
@@ -323,26 +323,25 @@ class MumaSystemPlugin :
     }
 
     /**
-     * What the web login needs, taken from where the native client already keeps it.
+     * The session the native side holds, for the web shell to take over on boot.
      *
-     * `username`/`password` are the account's sign-in pair: the web trades them for the MuMa key
-     * (in a POST body) when it has none, and a blank password means "logged out". Neither signs a
-     * `/rest` call any more: `subsonicToken`/`subsonicTokenUser` are the Subsonic token the native
-     * client signs with and the name it was issued for, handed on so the web signs with the same
-     * one, and absent while none is stored -- the web then fetches its own and, without one, sends
-     * no Subsonic request (issue #72). `clientId` is the `c=` parameter the server records sessions
-     * against. `mumaApiKey` and `mumaUserId` are the muma API's own credentials, and are absent
-     * when the user has never signed in there.
-     *
-     * `password` is blank exactly when the app considers itself logged out, which is the same
-     * check `NavigationActivity` makes before showing the welcome screen.
+     * `signedIn` is the explicit flag ([ActiveServerProvider.isSignedIn]); it replaces the blank
+     * password that used to mean "logged out" -- no password is stored or handed over any more
+     * (issue #101). `username` is the account's name, kept across a sign-out so the login page can
+     * prefill it. `mumaApiKey` and `mumaUserId` are the muma API's own credentials, absent when
+     * none are stored; the key is what the web restores its session with. `subsonicToken` /
+     * `subsonicTokenUser` are the Subsonic token the native client signs with and the name it was
+     * issued for, handed on so the web signs with the same one, and absent while none is stored --
+     * the web then fetches its own with the key and, without one, sends no Subsonic request (issue
+     * #72). `clientId` is the `c=` parameter the server records sessions against.
      */
     @PluginMethod
     fun credentials(call: PluginCall) {
         val server = activeServerProvider.getActiveServer()
+        val signedIn = ActiveServerProvider.isSignedIn()
         val result = JSObject()
             .put("username", server.userName)
-            .put("password", server.password)
+            .put("signedIn", signedIn)
             .put("clientId", Constants.REST_CLIENT_ID)
             .put("serverId", server.id)
         Settings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
@@ -355,13 +354,13 @@ class MumaSystemPlugin :
         call.resolve(result)
         // Every shell start re-reads the Subsonic token, so an upgrade from a build that signed with
         // the password, or a token an administrator replaced, is picked up (bug report 103).
-        if (server.password.isNotBlank()) SubsonicTokenRefresher.refreshInBackground()
+        if (signedIn) SubsonicTokenRefresher.refreshInBackground()
     }
 
     /**
      * Ends the session started in the Svelte shell.
      *
-     * [ActiveServerProvider.signOut] clears the password, the muma API key/user id, the encrypted
+     * [ActiveServerProvider.signOut] clears the signed-in flag, the muma API key/user id, the encrypted
      * muma tokens and the Subsonic token, so the shell's next boot has nothing to sign back in
      * with; then the queue is emptied with [MediaPlayerManager.clear] -- never `onDestroy()`, which
      * tears down the controller for the whole app, not just the session. The username and any
@@ -418,22 +417,26 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Persists a username/password pair the Svelte login screen just verified, so downloads,
-     * Android Auto and the legacy UI see the same session afterwards. Goes through
-     * [ActiveServerProvider.saveCredentials]. `url` is accepted for symmetry with the JS contract
-     * but not stored: static mode has exactly one server address (see
-     * `StaticServers.STATIC_SERVERS`), so there is nowhere on this side to put a different
-     * one.
+     * Records a session the Svelte login screen just started -- `{username, mumaApiKey,
+     * mumaUserId}` -- so downloads and Android Auto see the same session afterwards. Goes through
+     * [ActiveServerProvider.saveSession]. No password: the page signed in with it, and neither
+     * side keeps it (issue #101); a `password` member sent by anything else is ignored. `url` is
+     * accepted for symmetry with the JS contract but not stored: static mode has exactly one server
+     * address (see `StaticServers.STATIC_SERVERS`), so there is nowhere on this side to put a
+     * different one. Rejected without a name or a key: there is no session to record then.
      */
     @PluginMethod
     fun saveCredentials(call: PluginCall) {
         val username = call.getString("username") ?: ""
-        val password = call.getString("password") ?: ""
-        activeServerProvider.saveCredentials(username, password)
+        val apiKey = call.getString("mumaApiKey") ?: ""
+        if (username.isBlank() || apiKey.isBlank()) {
+            call.reject("username and mumaApiKey are required")
+            return
+        }
+        activeServerProvider.saveSession(username, apiKey, call.getInt("mumaUserId"))
         call.resolve()
-        // A new sign-in: fetch this account's Subsonic token so the native client stops signing
-        // with the password as soon as it arrives (bug report 103).
-        if (password.isNotBlank()) SubsonicTokenRefresher.refreshInBackground()
+        // A new session: fetch this account's Subsonic token with its key (bug report 103).
+        SubsonicTokenRefresher.refreshInBackground()
     }
 
     /** Step 3 of the back protocol. See the class comment. */

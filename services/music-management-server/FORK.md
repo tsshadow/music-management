@@ -54,7 +54,7 @@ Wholly ours (new files; upstream has no counterpart):
 | HTTP client hardening (retry policy, proxy continuation, concurrency gate) | `src/libs/core/impl/http/RetryPolicy.*`, `ProxyContinuation.cpp`, `ProxyState.hpp`, `src/libs/core/include/core/http/ProxyContinuation.hpp`, `src/libs/core/*/ConcurrencyGate.*`, `src/libs/core/*/Md5.*` |
 | Spotify-style Subsonic extensions (`getSpotify*`, dedupe/paging, memories, festival line-ups, songs by path, scan scope) | `src/libs/subsonic/impl/endpoints/Spotify.*`, `SpotifyPaging.hpp`, `Memories.*`, `FestivalLineupRepository.*`, `SongsByPath.*`, `ScanScope.*`, `UserSettingsValidation.hpp`, `src/libs/subsonic/impl/AuthCache.*` |
 | Scan lanes (quick/full scan schedule, request collector) | `src/libs/services/scanner/impl/ScanRequestCollector.*`, `ScanSchedule.*`, `ScanStepSequence.*`, `ScanStepScanFiles.cpp` |
-| MuMa web UI (Svelte) | `src/lms/ui/spotify-ui/` |
+| MuMa web UI (Svelte) | not in this tree: `services/frontend`, copied into `docroot/spotify` by `Dockerfile-release` and served by `SpotifyResource` (`src/lms/main.cpp`) |
 | Vendored JSON | `src/libs/rapidjson/` |
 
 Ours inside upstream files (modified, not new) -- the places a port most often lands on:

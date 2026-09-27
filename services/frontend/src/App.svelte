@@ -19,7 +19,7 @@
   import CarModeView from './lib/CarModeView.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh, signedIn } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -73,7 +73,7 @@
   $effect(() => {
     if (setupOffered || !isMounted) return;
     if (!$mumaUserHydrated || !$accountSettingsSynced) return;
-    if (!$credentials.username && !$mumaSessionActive) return;
+    if (!$signedIn) return;
     if (['login', 'setup', 'car', 'voice'].includes($activeView)) return;
     if (setupPending.length === 0) return;
     setupOffered = true;
@@ -178,7 +178,7 @@
     updateMobile();
     window.addEventListener('resize', updateMobile);
 
-    if (!get(credentials).username && !get(mumaSessionActive)) {
+    if (!get(signedIn)) {
         activeView.set('login');
     } else {
         applyState(pathToState(window.location.pathname));
@@ -381,7 +381,7 @@
     if (isMounted) {
         const path = viewToPath({
             view: $activeView,
-            loggedIn: Boolean($credentials.username) || $mumaSessionActive,
+            loggedIn: $signedIn,
             playlistId: $currentPlaylist?.id,
             settingsTab: $activeSettingsTab,
             managementTab: $activeManagementTab
@@ -463,7 +463,7 @@
 
 <svelte:window onkeydown={handleDrawerKeydown} />
 
-{#if !$credentials.username && !$mumaSessionActive}
+{#if !$signedIn}
   <LoginPage />
 {:else}
 <!-- From `md` up (a tablet, a desktop) nothing else pads the system bars: the phone's TopBar

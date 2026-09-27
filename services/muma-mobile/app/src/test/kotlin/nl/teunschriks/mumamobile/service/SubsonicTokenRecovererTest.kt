@@ -6,6 +6,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenUnavailableException.Reason
 import nl.teunschriks.mumamobile.data.SignOutEpoch
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
@@ -147,6 +148,38 @@ class SubsonicTokenRecovererTest {
 
         recoverer.recover(OLD_TOKEN).shouldBeNull()
 
+        recoveries.get() shouldBeEqualTo 0
+    }
+
+    /**
+     * Issue #101: MuMa refusing the stored key ends the session (there is no password to log in
+     * again with). The car then reads "sign in again" and nothing is fetched until someone does.
+     */
+    @Test
+    fun `a refused MuMa key during the first fetch asks to sign in again and stops fetching`() {
+        stored = null
+        var signedIn = true
+        val recoverer = SubsonicTokenRecoverer(
+            refetch = {
+                refetches.incrementAndGet()
+                SignOutEpoch.signOut { signedIn = false }
+                throw MumaLoginRefusedException(401)
+            },
+            storedToken = { stored },
+            signOutEpoch = { SignOutEpoch.current() },
+            onRecovered = { recoveries.incrementAndGet() },
+            hasCredentials = { signedIn },
+            clock = { now }
+        )
+
+        recoverer.obtain().shouldBeNull()
+        recoverer.unavailableReason() shouldBeEqualTo Reason.SIGN_IN_AGAIN
+
+        now += 60_000
+        recoverer.obtain().shouldBeNull()
+
+        recoverer.unavailableReason() shouldBeEqualTo Reason.SIGN_IN_AGAIN
+        refetches.get() shouldBeEqualTo 1
         recoveries.get() shouldBeEqualTo 0
     }
 

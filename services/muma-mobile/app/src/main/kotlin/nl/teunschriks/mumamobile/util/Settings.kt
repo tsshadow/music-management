@@ -501,8 +501,28 @@ object Settings {
     @JvmStatic
     var staticUserName by StringSetting(getKey(R.string.setting_key_static_username), "")
 
+    /**
+     * Whether someone is signed in: set by a sign-in ([nl.teunschriks.mumamobile.data.ActiveServerProvider.saveSession]),
+     * cleared by a sign-out. Replaces the blank password that used to mean "signed out" (issue
+     * #101); read it through [nl.teunschriks.mumamobile.data.ActiveServerProvider.isSignedIn],
+     * which first migrates an install that still has a password stored.
+     */
     @JvmStatic
-    var staticPassword by StringSetting(getKey(R.string.setting_key_static_password), "")
+    var signedIn by BooleanSetting(getKey(R.string.setting_key_signed_in), false)
+
+    /**
+     * The password builds before issue #101 kept here in plain text after a sign-in. Nothing
+     * writes it any more; [nl.teunschriks.mumamobile.data.LegacyPasswordMigration] reads it once
+     * to decide [signedIn] and then removes it with [clearLegacyStaticPassword].
+     */
+    @JvmStatic
+    val legacyStaticPassword: String
+        get() = preferences.getString(getKey(R.string.setting_key_static_password), null) ?: ""
+
+    /** Removes the key [legacyStaticPassword] reads, rather than leaving it behind blank. */
+    fun clearLegacyStaticPassword() {
+        preferences.edit { remove(getKey(R.string.setting_key_static_password)) }
+    }
 
     fun hasKey(key: String): Boolean = preferences.contains(key)
 

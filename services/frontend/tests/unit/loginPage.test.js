@@ -59,7 +59,7 @@ async function fillIn(user, pass) {
 
 describe("LoginPage", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "", password: "" });
+    credentials.set({ url: "", username: "" });
     mumaApiKey.set(null);
     mumaRefreshToken.set(null);
     mumaSessionActive.set(false);
@@ -85,14 +85,16 @@ describe("LoginPage", () => {
     expect(screen.getByText("Verbinden")).toBeTruthy();
   });
 
-  it("a correct login stores the credentials", async () => {
+  // Issue #101: the name is kept, the password is not -- not in the store, not in the form.
+  it("a correct login stores the name and forgets the password", async () => {
     render(LoginPage);
     await fillIn("user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
     await waitFor(() => expect(get(credentials).username).toBe("user"));
-    expect(get(credentials).password).toBe("pw");
+    expect(get(credentials)).not.toHaveProperty("password");
+    await waitFor(() => expect(screen.getByLabelText("Wachtwoord").value).toBe(""));
   });
 
   it("a correct login also opens a management session", async () => {
@@ -185,13 +187,13 @@ describe("LoginPage", () => {
     await waitFor(() => expect(get(credentials).username).toBe("user"));
   });
 
-  it("a remembered account is filled in on arrival", async () => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+  it("a remembered account's name is filled in on arrival, the password never", async () => {
+    credentials.set({ url: "", username: "user" });
 
     render(LoginPage);
 
     await waitFor(() => expect(screen.getByLabelText("Gebruikersnaam").value).toBe("user"));
-    expect(screen.getByLabelText("Wachtwoord").value).toBe("pw");
+    expect(screen.getByLabelText("Wachtwoord").value).toBe("");
   });
 
   it("a server without any user asks to set one up", async () => {

@@ -159,11 +159,19 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   client throws `SubsonicTokenUnavailableException` before the request leaves
   the device, the web player's `authParams` stays empty -- and says "sign in
   again" or "server unreachable" instead. The browser web player signs the
-  same way. The stored password is kept after sign-in only as the credential
-  that re-obtains a refused MuMa key and as the "signed in" marker; it signs
-  nothing (see the design's "Fallback decision").
+  same way.
+* **No password is stored after sign-in** (issue #101). Neither the app's
+  native side nor the web player (native preferences, WebView and browser
+  localStorage) keeps the password once a sign-in has traded it for the MuMa
+  API key and the Subsonic token; a password an older build stored is removed
+  on the first start. "Signed in" is an explicit flag. A MuMa key the server
+  refuses (401) ends the session and shows the sign-in page -- it is not
+  silently traded for a new key -- and Android Auto then says to sign in on the
+  phone. The MuMa API key is now the one long-lived credential on the device;
+  on Android it sits in the plain app preferences, not in
+  `EncryptedSharedPreferences` (issue #115 moves it).
 * **Logs are redacted before they leave the phone.** `LogRedaction` masks the
-  `u`/`p`/`t`/`s`/`apiKey` query parameters, credential headers,
+  `u`/`p`/`t`/`s`/`apiKey`/`password` query parameters, credential headers,
   credential-named settings and credential-named JSON members in every
   ring-buffer line, which is what diagnostics reports upload; the copy saved to
   Downloads is redacted the same way. The debug build's OkHttp logging redacts the same names.

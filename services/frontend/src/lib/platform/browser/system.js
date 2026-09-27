@@ -108,7 +108,7 @@ const system = {
    * The phone-side half of persisting a verified sign-in. A browser tab has nowhere to write it
    * back to, so this resolves immediately.
    *
-   * @param {{url?: string, username: string, password: string}} _creds
+   * @param {{url?: string, username: string, mumaApiKey: string, mumaUserId?: number}} _creds
    * @returns {Promise<void>}
    */
   saveCredentials(_creds) {

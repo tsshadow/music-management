@@ -169,7 +169,7 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   silently traded for a new key -- and Android Auto then says to sign in on the
   phone. The MuMa API key is now the one long-lived credential on the device;
   on Android it sits in the plain app preferences, not in
-  `EncryptedSharedPreferences` (see the open issue about moving it).
+  `EncryptedSharedPreferences` (issue #115 moves it).
 * **Logs are redacted before they leave the phone.** `LogRedaction` masks the
   `u`/`p`/`t`/`s`/`apiKey`/`password` query parameters, credential headers,
   credential-named settings and credential-named JSON members in every

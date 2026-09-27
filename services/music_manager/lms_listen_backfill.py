@@ -1,12 +1,17 @@
 """Insert the listens LMS recorded but never relayed to muma (bug report 075).
 
-LMS relays every listen to `POST /api/scrobble/event` through an in-memory queue with two
-back-to-back retries, drops anything that is not a 200 and forgets the queue on a restart. Every
-music-manager outage -- each deploy -- therefore loses the listens made during it. LMS's own
-`listen` table keeps them, so rather than making LMS's relay durable, muma pulls: this loop runs
-the reconcile's classification (`scrobble_reconcile.backfill`) over a bounded recent window every
+LMS relayed every listen to `POST /api/scrobble/event` through an in-memory queue with two
+back-to-back retries, dropped anything that was not a 200 and forgot the queue on a restart, so
+every music-manager outage -- each deploy -- lost the listens made during it. Since LMS database
+version 125 the relay is durable itself: LMS writes each listen to its `muma_listen_outbox` table
+first and delivers it from there (docs/designs/lms-listen-outbox/). This loop stays as the safety
+net behind that outbox, for what it gives up on (full, too old, refused) and for a listen the relay
+matched to no track: LMS's own `listen` table keeps every listen, and muma pulls. The loop runs the
+reconcile's classification (`scrobble_reconcile.backfill`) over a bounded recent window every
 few minutes and inserts the `insertable` LMS-only listens under source `lms-backfill`, with LMS's
 start time, where the `(username, listened_at, track_id)` key makes a repeat a no-op.
+
+`outbox_status()` reads that outbox, read-only, for `/health`.
 
 It never applies `shifted`: restoring times moved by bug 039 stays a manual, admin-triggered
 repair (`POST /api/scrobble/reconcile/lms`), as does inserting the historical backlog older than
@@ -28,9 +33,11 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 from services.common.config_store import ConfigStore
@@ -93,6 +100,38 @@ def _open_servers() -> list:
     from services.music_manager.routers.users import lms_db_targets
 
     return scrobble_reconcile.open_servers(lms_db_targets())
+
+
+#: LMS's outbox of listens still to be relayed (LMS database version 125 and later).
+OUTBOX_STATUS_SQL = 'SELECT COUNT(*), MIN(created) FROM muma_listen_outbox'
+
+
+def outbox_status(servers_factory: Callable[[], list] | None = None) -> list[dict[str, Any]]:
+    """Per LMS database: how many listens its outbox still holds for muma, and since when.
+
+    One entry per server, `{'server', 'count', 'oldest'}`: `oldest` is when the oldest waiting
+    listen was queued (ISO 8601, UTC), None when nothing waits. An LMS older than database version
+    125 has no outbox; its entry carries `count: None`. So does a database that could not be read,
+    with an `error`. Informational only: a listen waiting through a music-manager restart is the
+    outbox working, not a fault.
+    """
+    servers = (servers_factory or _open_servers)()
+    status = []
+    for server_conn, server in servers:
+        entry: dict[str, Any] = {'server': server, 'count': None, 'oldest': None}
+        try:
+            count, oldest = server_conn.execute(OUTBOX_STATUS_SQL).fetchone()
+            entry['count'] = int(count)
+            if oldest is not None:
+                entry['oldest'] = datetime.fromtimestamp(int(oldest), tz=UTC).isoformat()
+        except sqlite3.Error as exc:
+            if 'no such table' not in str(exc):
+                entry['error'] = str(exc)
+        finally:
+            with contextlib.suppress(Exception):
+                server_conn.close()
+        status.append(entry)
+    return status
 
 
 def run_once(now: int, window_seconds: int, servers_factory: Callable[[], list] | None = None) -> dict | None:

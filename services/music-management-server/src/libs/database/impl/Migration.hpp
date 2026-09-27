@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include <Wt/Dbo/Dbo.h>
 
 namespace lms::db
@@ -57,5 +59,11 @@ namespace lms::db
         // Creates the case-insensitive unique index on user.login_name, or logs the login names
         // that differ only in case and skips it. Returns whether the index exists afterwards.
         bool createUserLoginNameUniqueIndexIfPossible(Session& session);
+
+        // The outbox of listens still to be relayed to music-manager
+        // (database/MumaListenOutbox.hpp). Shared by migration step 124 and by
+        // Session::createIndexesIfNeeded() for a fresh database, so the two cannot drift.
+        // `created` is Unix seconds; `attempts` counts failed deliveries, for the status only.
+        inline constexpr std::string_view mumaListenOutboxTableDefinition{ "CREATE TABLE IF NOT EXISTS muma_listen_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)" };
     } // namespace Migration
 } // namespace lms::db

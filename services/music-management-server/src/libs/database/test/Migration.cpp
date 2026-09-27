@@ -453,7 +453,7 @@ VALUES
         EXPECT_EQ(loginNameIndexCount(), 0);
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 124);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 125);
             EXPECT_EQ(User::getCount(session), 3U);
         }
 
@@ -471,6 +471,26 @@ VALUES
             auto transaction{ session.createWriteTransaction() };
             EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'TEUN' WHERE login_name = 'other'"));
             session.execute("DELETE FROM user");
+        }
+
+        // migrateFromV124: the listen outbox exists, empty, and a second run -- on a database that
+        // already holds a waiting listen -- neither fails nor touches it.
+        const auto outboxCount{ [&] {
+            auto transaction{ session.createReadTransaction() };
+            return session.getDboSession()->query<int>("SELECT COUNT(*) FROM muma_listen_outbox").resultValue();
+        } };
+        EXPECT_EQ(outboxCount(), 0);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("INSERT INTO muma_listen_outbox (payload, created) VALUES ('{}', 1700000000)");
+            session.execute("UPDATE version_info SET db_version = 124");
+        }
+        EXPECT_NO_THROW(db.getTLSSession().migrateSchemaIfNeeded());
+        EXPECT_EQ(outboxCount(), 1);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 125);
+            session.execute("DELETE FROM muma_listen_outbox");
         }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped

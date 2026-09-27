@@ -70,6 +70,15 @@ a stateful fake MariaDB and an in-memory `lms.db`. It covers:
 `tests/integration/test_scrobble_reconcile.py` runs the same round against MariaDB, and
 `tests/integration/test_router_sql.py` runs the new windowed queries against the real schema.
 
+**Follow-up (issue #67, 2026-09-27): LMS got the outbox too.** Teun chose to have both. Since
+LMS database version 125 every listen for music-manager is written to `lms.db`'s
+`muma_listen_outbox` first. A background relay on LMS's io_context delivers it in order, with
+backoff (5 s doubling to 60 s), and deletes it only on a 2xx or 409. The outbox survives LMS
+restarts and is bounded at 10,000 listens and 14 days, with a WARNING per drop. music-manager's
+`/health` shows its size and oldest entry per LMS (`lms_listen_outbox`). The backfill loop above
+stays as the safety net behind it. Design:
+[docs/designs/lms-listen-outbox/](../designs/lms-listen-outbox/technical.md).
+
 On production (2026-09-25): the loop shipped in 0.74.0, and the historical backlog older than the
 48-hour window was reconciled once by hand -- 160 listens inserted, 0 collisions. The 1,319
 LMS-only listens that remain stay out on purpose: each has a MuMa listen within 10 minutes of it,

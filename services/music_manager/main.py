@@ -217,7 +217,8 @@ def health(response: Response):
 
     `threads` is True per loop when its thread is alive and its heartbeat -- the
     last completed tick -- is younger than that loop's staleness window;
-    `heartbeats` carries the detail behind each verdict.
+    `heartbeats` carries the detail behind each verdict. `lms_listen_outbox` says, per
+    LMS, how many listens it still holds for us and since when; it never affects `status`.
     """
     database = _database_status()
 
@@ -234,7 +235,21 @@ def health(response: Response):
         'database': database,
         'threads': threads,
         'heartbeats': thread_heartbeats(),
+        'lms_listen_outbox': _lms_listen_outbox_status(),
     }
+
+
+def _lms_listen_outbox_status() -> list[dict] | None:
+    """What each LMS still has to relay to us (lms_listen_backfill.outbox_status); None when unreadable.
+
+    Informational: it never turns /health red. Listens wait there during every restart of this
+    service, and LMS drops what it has to with its own WARNING (docs/designs/lms-listen-outbox/).
+    """
+    try:
+        return lms_listen_backfill.outbox_status()
+    except Exception:  # pylint: disable=broad-except  # a status field must not break the health check
+        logger.debug('lms listen outbox status unavailable', exc_info=True)
+        return None
 
 
 @app.get('/health/backup')

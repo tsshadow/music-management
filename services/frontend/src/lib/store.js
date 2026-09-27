@@ -745,6 +745,43 @@ export async function ensureSubsonicToken(fetchImpl = undefined) {
   return tokenSignsFor(get(credentials).username, get(subsonicToken));
 }
 
+/**
+ * Keeps asking for a missing Subsonic token for as long as the page lives, instead of once per
+ * page load (issue #72).
+ *
+ * The root cause of the password in the web shell's URLs: the token was fetched exactly once, at
+ * boot (`restoreSession` / `hydrateMumaUserFromApiKey`), and a failed fetch was silent. The
+ * Android WebView keeps a page alive for hours, and production restarts music-manager on every
+ * deploy -- a boot that hit that window signed with the password until the app was killed. The
+ * access log shows it: no token request reached music-manager between its restart at 04:36 and
+ * 05:17:18, the web shell sent 536 `p=` requests in between, and its first `t=` request came in
+ * the same second as the next token fetch.
+ *
+ * Retries every `intervalMs`, when the page becomes visible again, and when the device comes back
+ * online -- only while a name is signed in and no token signs for it. `ensureSubsonicToken` shares
+ * one fetch between callers, so overlapping triggers cost one request.
+ *
+ * @param {{intervalMs?: number, target?: object}} [options] - `target` is injected by the tests.
+ * @returns {function(): void} Stops retrying.
+ */
+export function keepSubsonicTokenFresh({ intervalMs = 30_000, target = globalThis } = {}) {
+  const retry = () => {
+    const name = get(credentials).username;
+    if (name && !tokenSignsFor(name, get(subsonicToken))) ensureSubsonicToken();
+  };
+  const onVisibility = () => {
+    if (target.document?.visibilityState !== "hidden") retry();
+  };
+  const timer = setInterval(retry, intervalMs);
+  target.document?.addEventListener?.("visibilitychange", onVisibility);
+  target.addEventListener?.("online", retry);
+  return () => {
+    clearInterval(timer);
+    target.document?.removeEventListener?.("visibilitychange", onVisibility);
+    target.removeEventListener?.("online", retry);
+  };
+}
+
 // Whether the logged-in user has the Subsonic adminRole. `null` means "not
 // determined yet" (checking, or not logged in), `true`/`false` once known.
 // Centralized here (instead of every component doing its own /rest/getUser

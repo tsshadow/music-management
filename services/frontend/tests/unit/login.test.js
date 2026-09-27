@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { get } from "svelte/store";
-import { canonicalUsername, signIn, startManagementSession } from "../../src/lib/login.js";
+import {
+  TOKEN_ATTEMPTS,
+  canonicalUsername,
+  signIn,
+  startManagementSession,
+  tokenRetry,
+} from "../../src/lib/login.js";
+
+tokenRetry.delayMs = 0;
 import {
   credentials,
   isAdmin,
@@ -368,6 +376,74 @@ describe("login - signing the ping with the Subsonic token", () => {
     const result = await signIn("user", "hunter2");
 
     expect(result).toEqual({ ok: false, reason: "offline", message: "" });
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    // Asked again before giving up, and never anything but MuMa's login.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(TOKEN_ATTEMPTS);
+  });
+});
+
+/**
+ * Without a token there is no sign-in (issue #72), so a busy token endpoint -- 503 while LMS's
+ * database is locked, 404 for an account not synced yet -- is asked again before the sign-in
+ * gives up; a refusal is not.
+ */
+describe("login - asking for the token more than once", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    subsonicToken.set({ username: "", token: "" });
+    mumaApiKey.set("");
+  });
+
+  function server(tokenAnswers) {
+    return vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) return { ok: true, json: async () => MUMA_ANSWER };
+      if (url.includes("/api/auth/subsonic-token")) return tokenAnswers.shift()();
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+  }
+  const busy = () => ({ ok: false, status: 503, json: async () => ({}) });
+  const refused = () => ({ ok: false, status: 401, json: async () => ({}) });
+  const token = () => ({
+    ok: true,
+    json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+  });
+  const tokenCalls = () =>
+    globalThis.fetch.mock.calls.filter(([url]) => url.includes("/api/auth/subsonic-token")).length;
+
+  it("signs in when the endpoint answers on a later attempt", async () => {
+    globalThis.fetch = server([busy, token]);
+
+    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect(tokenCalls()).toBe(2);
+  });
+
+  it("gives up as unreachable after the last attempt", async () => {
+    globalThis.fetch = server(Array.from({ length: TOKEN_ATTEMPTS }, () => busy));
+
+    expect(await signIn("user", "hunter2")).toEqual({ ok: false, reason: "offline", message: "" });
+    expect(tokenCalls()).toBe(TOKEN_ATTEMPTS);
+  });
+
+  it("asks MuMa's login again when it was busy, not when it refused", async () => {
+    let logins = 0;
+    globalThis.fetch = vi.fn(async (url) => {
+      if (url.includes("/api/auth/login")) {
+        logins += 1;
+        return logins === 1
+          ? { ok: false, status: 503, json: async () => ({}) }
+          : { ok: true, json: async () => MUMA_ANSWER };
+      }
+      if (url.includes("/api/auth/subsonic-token")) return token();
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+
+    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect(logins).toBe(2);
+  });
+
+  it("does not ask again after a refusal", async () => {
+    globalThis.fetch = server([refused, token]);
+
+    expect((await signIn("user", "hunter2")).reason).toBe("rejected");
+    expect(tokenCalls()).toBe(1);
   });
 });

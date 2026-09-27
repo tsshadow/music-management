@@ -19,7 +19,7 @@
   import CarModeView from './lib/CarModeView.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -210,6 +210,8 @@
       // Also a no-op in a browser: `platform.storage.supported` is false there,
       // `offline` never becomes true, and no screen changes.
       watchConnectivity(platform),
+      // A token fetch that failed at boot is retried for the page's lifetime (issue #72).
+      keepSubsonicTokenFresh(),
     ];
 
     // A cold start already in the car: `carConnected` only reaches a listener that

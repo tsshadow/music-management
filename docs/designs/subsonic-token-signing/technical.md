@@ -80,13 +80,14 @@ All in one MR (AGENTS.md rule 7):
 **Removed (issue #72).** Until then the password stayed the signature while no token was stored:
 failing closed would have locked a listener out whenever the first fetch failed, and out of Android
 Auto after an upgrade, because the only fetch ran when the UI opened. Two things changed that
-trade-off: bug report 111 gave the native client a way to fetch a token from any request thread,
-without the UI, and a measurement on production (lms-reverse-proxy access log, 2026-09-27,
-02:51-04:26 UTC since the proxy's last restart) showed the fallback was not a rare transition state
-at all: every one of the 664 `/rest` requests from the web shell (`c=spotify`, the phone's
-WebView) carried a plain `p=`, and none a `t=`, while all 336 native requests (`c=Ultrasonic`)
-were token-signed. A fallback that silently covers a broken token path is how the password stayed
-in URLs for weeks after the fix.
+trade-off. Bug report 111 gave the native client a way to fetch a token from any request thread,
+without the UI. And production showed the fallback was not a short transition state: on
+2026-09-27 the web shell (`c=spotify`, the phone's WebView) sent 1,200 `/rest` requests with a
+plain `p=` over two log windows, while all native requests were token-signed. The cause is in bug
+report [124](../../bug-reports/124-web-shell-signs-with-the-password-after-a-failed-token-fetch.md):
+the web fetched the token once per page load, silently, and a page whose fetch failed signed with
+the password for its whole lifetime -- hours, in a WebView. A fallback that silently covers a
+failing token path is how the password stayed in URLs after the fix.
 
 Now every client fails closed:
 
@@ -112,20 +113,42 @@ Now every client fails closed:
   `LibraryResult.ofError(SessionError(...))` with `ERROR_SESSION_AUTHENTICATION_EXPIRED` and
   "Sign in again in the MuMa app on your phone", or `ERROR_IO` and "Cannot reach the MuMa
   server", instead of swallowing the failure into empty lists.
-- **Web** (`services/frontend`, also the shell's UI). `authParams` is the token query or `""`;
-  there is no `p=` branch, and the password is no longer needed to sign (only the name and a token
-  issued for it). `signIn` fails without a MuMa session (`rejected` on 401/403, `offline`
-  otherwise) or without a token, and never pings with the password. `ensureSubsonicToken()` fetches
-  a missing token once for all callers and runs at start-up (`hydrateMumaUserFromApiKey`) and in
-  the shell's `restoreSession`, which first takes over the native client's token when the bridge
-  hands one over for the same name (`MumaSystemPlugin.credentials` now returns
-  `subsonicToken`/`subsonicTokenUser`; `forcePlainTextPassword` is gone). `refreshSubsonicToken`
-  records why a fetch failed in `subsonicTokenProblem`, and adopts LMS's spelling of the signed-in
-  name when it differs in case only -- a token stored for `user` never signed for a session
-  persisted as `Teun`, which is the likeliest reason the shell kept falling back. `subsonicAccess`
-  (`none`/`ok`/`pending`/`offline`/`rejected`) drives a notice above the content in `App.svelte`
-  (`OfflineNotice` kinds `server`, with a retry, and `signIn`, which ends the session and shows the
-  login page).
+- **Web** (`services/frontend`, also the shell's UI).
+  - **Signing.** `authParams` is the token query or `""`; there is no `p=` branch, and the password
+    is no longer needed to sign (only the name and a token issued for it).
+  - **Sign-in.** `signIn` fails without a MuMa session (`rejected` on 401/403, `offline`
+    otherwise) or without a token, and never pings with the password. It asks for the token up to
+    three times, because 503 (LMS's database locked) and 404 (account not synced yet) pass in a
+    second or two; a refusal is final.
+  - **`/rest` calls.** `subsonicJson` fetches a missing token before a call and throws
+    `SubsonicTokenUnavailableError` without sending anything when none comes. An unsigned call
+    would be answered with error 40 and end the session.
+  - **Fetching.** `ensureSubsonicToken()` fetches a missing token once for all callers. It runs at
+    start-up (`hydrateMumaUserFromApiKey`) and in the shell's `restoreSession`, which first takes
+    over the native client's token when the bridge hands one over for the same name
+    (`MumaSystemPlugin.credentials` now returns `subsonicToken`/`subsonicTokenUser`;
+    `forcePlainTextPassword` is gone).
+  - **Retrying.** `keepSubsonicTokenFresh()` (started in `App.svelte`) keeps asking every 30 s, on
+    `visibilitychange` and on `online` while no token signs. That is the fix for bug report 124:
+    a page is never again stuck with the outcome of the one fetch it made at load.
+  - **Errors and names.** `refreshSubsonicToken` records why a fetch failed in
+    `subsonicTokenProblem`, and adopts LMS's spelling of the signed-in name when it differs in case
+    only.
+  - **Notice.** `subsonicAccess` (`none`/`ok`/`pending`/`offline`/`rejected`) drives a notice
+    above the content in `App.svelte`: `OfflineNotice` kind `server`, with a retry, or `signIn`,
+    which ends the session and shows the login page.
+  - **Search thumbnails.** These now carry the signature too; they were sent with no credentials
+    at all before.
+- **Proof in a real browser.** `services/frontend/tests/browser/subsonic-signing.spec.js`
+  (`frontend:browser`, against `docker/compose.test.yml`, whose music-manager shares LMS's
+  database) signs in through the UI and checks every `/rest` request -- API, cover art, stream --
+  for `t`/`s` and against `p`. It covers four starts:
+  - a fresh sign-in;
+  - a start with the stored session;
+  - a start without a stored token;
+  - a start whose token fetch fails (which must also recover without a reload).
+
+  On develop the last two send `p=` (bug report 124); on this branch all four pass.
 
 **The stored password is kept.** After sign-in it signs nothing, native or web. It stays in
 `ServerSetting.password` / the web's `credentials.password` for two jobs no token covers yet: it
@@ -224,9 +247,12 @@ answering error 40 until the phone's UI was opened once (bug report
     a failed fetch sends nothing and reports `SIGN_IN_AGAIN` or `SERVER_UNREACHABLE`; a failed fetch
     backs off; signed out nothing is fetched; no stream URL is built without a token
     (`FailClosedSigningTest`). The car answers a browse without a token with a session error and
-    message (`SubsonicAccessTest`). The web fetches a missing token once for all callers, reports
-    `offline`/`rejected`, takes over the phone's token, and the notice offers retry / sign in again
-    (`store.test.js`, `nativeSession.test.js`, `offlineShell.test.js`, `platformCapacitor.test.js`).
+    message (`SubsonicAccessTest`). The web fetches a missing token once for all callers, keeps
+    retrying while none signs, sends no `/rest` call without one, retries the sign-in's fetch,
+    reports `offline`/`rejected`, takes over the phone's token, and the notice offers retry / sign
+    in again (`store.test.js`, `subsonic.test.js`, `login.test.js`, `nativeSession.test.js`,
+    `offlineShell.test.js`, `platformCapacitor.test.js`); end to end in a browser against the test
+    stack (`tests/browser/subsonic-signing.spec.js`).
 
 ## Related Docs
 

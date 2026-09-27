@@ -22,6 +22,7 @@ import {
   refreshSubsonicToken,
   endRejectedSession,
   ensureSubsonicToken,
+  keepSubsonicTokenFresh,
   subsonicAccess,
   subsonicTokenProblem,
 } from "../../src/lib/store";
@@ -316,6 +317,98 @@ describe("store - ensureSubsonicToken and subsonicAccess", () => {
 
     expect(get(subsonicTokenProblem)).toBe("");
     expect(get(subsonicAccess)).toBe("none");
+  });
+});
+
+/**
+ * The production cause of the password in the web shell's URLs: the token was asked for once per
+ * page load, and a failed ask was never repeated while the WebView page lived on for hours.
+ */
+describe("store - keepSubsonicTokenFresh", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    subsonicToken.set({ username: "", token: "" });
+    subsonicTokenProblem.set("");
+    mumaApiUrl.set("https://muma.example/muma");
+    mumaApiKey.set("own-key");
+    credentials.set({ username: "user", password: "pw" });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** How often the token endpoint was asked (the admin check that follows a token is not). */
+  const tokenFetches = () =>
+    globalThis.fetch.mock.calls.filter(([url]) => String(url).includes("/api/auth/subsonic-token"))
+      .length;
+
+  /** A window stand-in whose events the test fires by hand. */
+  function fakeTarget() {
+    const listeners = {};
+    const doc = { visibilityState: "visible", listeners: {} };
+    doc.addEventListener = (name, fn) => (doc.listeners[name] = fn);
+    doc.removeEventListener = (name) => delete doc.listeners[name];
+    return {
+      document: doc,
+      listeners,
+      addEventListener: (name, fn) => (listeners[name] = fn),
+      removeEventListener: (name) => delete listeners[name],
+    };
+  }
+
+  it("asks again after a failed fetch, without a reload, and stops once a token signs", async () => {
+    let answer = () => {
+      throw new Error("music-manager restarting");
+    };
+    globalThis.fetch = vi.fn(async () => answer());
+    await ensureSubsonicToken();
+    expect(get(subsonicAccess)).toBe("offline");
+
+    const stop = keepSubsonicTokenFresh({ intervalMs: 30_000, target: fakeTarget() });
+    answer = () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(get(subsonicAccess)).toBe("ok");
+    const calls = tokenFetches();
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(tokenFetches()).toBe(calls);
+    stop();
+  });
+
+  it("asks again when the page becomes visible or the device comes back online", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    }));
+    const target = fakeTarget();
+    const stop = keepSubsonicTokenFresh({ intervalMs: 3_600_000, target });
+
+    target.document.listeners.visibilitychange();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(tokenFetches()).toBe(1);
+
+    subsonicToken.set({ username: "", token: "" });
+    target.listeners.online();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(tokenFetches()).toBe(2);
+
+    stop();
+    expect(target.listeners.online).toBeUndefined();
+  });
+
+  it("does nothing while signed out", async () => {
+    credentials.set({ username: "", password: "" });
+    globalThis.fetch = vi.fn();
+    const stop = keepSubsonicTokenFresh({ intervalMs: 1_000, target: fakeTarget() });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    stop();
   });
 });
 

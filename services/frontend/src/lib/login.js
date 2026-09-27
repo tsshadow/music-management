@@ -53,7 +53,7 @@ export async function signIn(username, password) {
   // fetches the Subsonic token. It is published only once the ping has passed, together with the
   // credentials: the app treats a stored key as "signed in", and a key published early let the UI
   // run Subsonic calls with no credentials yet.
-  const { session, reason: sessionFailure } = await requestManagementSession(username, password);
+  const { session, reason: sessionFailure } = await requestSessionForSignIn(username, password);
   if (!session) {
     logAction("auth.login", { ok: false, reason: sessionFailure, step: "session" });
     return { ok: false, reason: sessionFailure, message: "" };
@@ -64,7 +64,7 @@ export async function signIn(username, password) {
   // every request, and LMS, comparing names byte for byte, created a second
   // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
   let canonical = canonicalUsername(username, session.user);
-  const token = await refreshSubsonicToken(undefined, session.api_key);
+  const token = await fetchTokenForSignIn(session.api_key);
   // LMS's own spelling of the login name is what the token opens; adopt it when it is only a case
   // variant of the name we have. A token for any other name is not this account's.
   if (token && token.username.toLowerCase() === canonical.toLowerCase()) canonical = token.username;
@@ -89,6 +89,48 @@ export async function signIn(username, password) {
   signedOut.set(false);
   logAction("auth.login", { ok: true, signed: "token" });
   return { ok: true, username: canonical };
+}
+
+/** How often, and how far apart, a sign-in asks for the Subsonic token before giving up. */
+export const TOKEN_ATTEMPTS = 3;
+export const tokenRetry = { delayMs: 700 };
+
+/**
+ * The Subsonic token for the session being started, asked for up to {@link TOKEN_ATTEMPTS} times.
+ *
+ * Without a token there is no sign-in any more (issue #72), so one busy answer must not decide
+ * it: the endpoint says 503 while LMS's database is locked (a scan, the hourly sync), and 404 for
+ * an account LMS has not synced yet, both of which pass in a second or two. A refusal (401/403)
+ * is final at once.
+ *
+ * @param {string} apiKey - The session's own key; it is not published yet.
+ * @returns {Promise<{username: string, token: string}|null>}
+ */
+async function fetchTokenForSignIn(apiKey) {
+  for (let attempt = 1; ; attempt++) {
+    const token = await refreshSubsonicToken(undefined, apiKey);
+    if (token || get(subsonicTokenProblem) === "rejected" || attempt >= TOKEN_ATTEMPTS)
+      return token;
+    await new Promise((resolve) => setTimeout(resolve, tokenRetry.delayMs * attempt));
+  }
+}
+
+/**
+ * MuMa's login for the pair, asked again (like the token, {@link TOKEN_ATTEMPTS} times) when the
+ * answer was not a refusal. The session is what fetches the token, and without a token there is
+ * no sign-in any more (issue #72), so a login that meets a restarting music-manager or a busy
+ * proxy (429, 5xx, no answer) must not decide it on its own.
+ *
+ * @param {string} username
+ * @param {string} password
+ * @returns {Promise<{session: object|null, reason?: 'offline'|'rejected'}>}
+ */
+async function requestSessionForSignIn(username, password) {
+  for (let attempt = 1; ; attempt++) {
+    const answer = await requestManagementSession(username, password);
+    if (answer.session || answer.reason === "rejected" || attempt >= TOKEN_ATTEMPTS) return answer;
+    await new Promise((resolve) => setTimeout(resolve, tokenRetry.delayMs * attempt));
+  }
 }
 
 /**

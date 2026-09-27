@@ -3,6 +3,7 @@ import { get } from "svelte/store";
 import {
   SUBSONIC_BAD_CREDENTIALS,
   SubsonicError,
+  SubsonicTokenUnavailableError,
   listOf,
   offline,
   queryString,
@@ -16,6 +17,8 @@ import {
   mumaSessionActive,
   mumaUser,
   subsonicToken,
+  mumaApiUrl,
+  subsonicTokenProblem,
 } from "../../src/lib/store.js";
 
 const BODY = { "subsonic-response": { status: "ok", tracks: { track: [{ id: "1" }] } } };
@@ -417,5 +420,57 @@ describe("subsonicJson - failed answers", () => {
     expect(get(mumaUser)).toBeNull();
     // The server address belongs to the device and survives.
     expect(get(credentials).url).toBe("https://lms.example");
+  });
+});
+
+/**
+ * Issue #72: signed in without a Subsonic token, a `/rest` call fetches the token first and signs
+ * with it; when none can be had nothing is sent -- neither with the password nor unsigned (which
+ * LMS answers with error 40, ending the session).
+ */
+describe("subsonicJson without a stored token", () => {
+  beforeEach(() => {
+    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    subsonicToken.set({ username: "", token: "" });
+    subsonicTokenProblem.set("");
+    mumaApiUrl.set("https://muma.example/muma");
+    mumaApiKey.set("own-key");
+  });
+
+  it("fetches the token before the call and signs the call with it", async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url).includes("/api/auth/subsonic-token")) {
+        return {
+          ok: true,
+          json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+        };
+      }
+      return { json: async () => ({ "subsonic-response": { status: "ok", genres: {} } }) };
+    });
+    globalThis.fetch = fetchImpl;
+
+    await subsonicJson("getGenres", {}, { fetchImpl });
+
+    const urls = fetchImpl.mock.calls.map(([url]) => String(url));
+    expect(urls[0]).toContain("/api/auth/subsonic-token");
+    const rest = new URL(urls.find((url) => url.includes("/rest/getGenres")));
+    expect(rest.searchParams.has("p")).toBe(false);
+    expect(rest.searchParams.get("t")).toBeTruthy();
+    expect(urls.join(" ")).not.toContain("hunter2");
+  });
+
+  it("sends nothing and throws when no token can be had", async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url).includes("/api/auth/subsonic-token")) throw new TypeError("Failed to fetch");
+      return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
+    });
+    globalThis.fetch = fetchImpl;
+
+    await expect(subsonicJson("getGenres", {}, { fetchImpl })).rejects.toBeInstanceOf(
+      SubsonicTokenUnavailableError,
+    );
+    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes("/rest/"))).toBe(false);
+    // Not ended as a rejected session: the credentials stay, only the token is missing.
+    expect(get(credentials).username).toBe("user");
   });
 });

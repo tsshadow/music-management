@@ -11,6 +11,9 @@ import {
   mumaUser,
   userPermissions,
 } from "../../src/lib/store.js";
+import { tokenRetry } from "../../src/lib/login.js";
+
+tokenRetry.delayMs = 0;
 
 const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: ["music.play"] };
 

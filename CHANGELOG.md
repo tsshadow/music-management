@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-09-27
+
+### Added
+- **A label page lists the channels linked to it** (issue #122, `docs/designs/channel-links/`).
+  Under the label's heading a **Kanalen** section shows every SoundCloud, YouTube or Telegram channel a
+  curator linked to that label, busiest first, with its platform and number of tracks; tapping one
+  opens the channel's tracks (the `Soundcloud (<channel>)` / `Youtube (<channel>)` album), or the
+  account's page on the platform when the library has no such album. A curator also gets
+  **Koppelingen beheren**, which opens Beheer -> Downloaders on the Koppelingen tab, and sees the
+  section (with its placeholders) on every label; a listener only on a label that has channels, so the
+  track list does not jump on the many that have none. On production (2026-09-27) no channel is
+  linked yet -- 898 proposals await review -- so the section fills as they are confirmed. New:
+  `GET /api/channel-links/by-label?name=` (read-only, index lookups only, no schema change).
+
+- **The artist evidence run now runs by itself, once a day, inside music-manager** (issue #49,
+  `docs/designs/artist-curation/technical.md`, "Scheduled evidence run"). `tools/artist_auto_approve.py`
+  approved 5.903 names when it was run by hand on 2026-09-20; since then only 8 of ~3.300 new names
+  left the queue. The new `artist-auto-approve` loop looks up every new (pending) name plus 300
+  older ones a day, most tracks first, on Deezer, iTunes and MusicBrainz at their documented rates,
+  with the tool's own rules (the judgement moved to `services/common/Helpers/ArtistEvidence.py`, so
+  both share it). A round is bounded (1.000 names, 180 minutes), writes one INFO line to the event
+  log and a row to the new `rules_artist_evidence_runs`; verdicts live in `rules_artist_evidence`
+  (migrate_v47). **Dry run is on by default**: it approves nothing until "Artist curation -> dry run"
+  is switched off in Beheer, after which the first round also applies what the dry runs judged
+  approvable. Approvals are signed `auto-external`, never overwrite a curator's decision, and an
+  undone approval is never made again; nothing is ever rejected automatically. Review them on the
+  Goedgekeurd tab with the new "Automatisch (bewijsronde)" filter (`GET /api/rules/artists` gains
+  `decided_by` and `sort=decided`), or per round via `GET /api/rules/artists/auto-approve/runs`.
+  Measured on prod: 49.382 undecided names, 325 of them new; about 20-25 minutes of lookups a day.
+
+- **A channel link now changes the tags, and a channel the search found nothing for can be linked by
+  hand** (issue #58, `docs/designs/channel-links/`). Until now a confirmed link between a
+  SoundCloud/YouTube channel and its label or artist was only shown in the Volledigheid table. The
+  tagger reads it now: a download from a linked channel gets the linked label as its publisher --
+  which the library stores as the track's label, where it used to store none because the publisher
+  was always the platform -- and the linked artist replaces the channel name wherever that name
+  was only standing in for an artist because the title named nobody. An artist the title did name
+  is never touched, a real label is never overwritten, and the linked label's genre rules apply as
+  they do to a label release. Linking, confirming or unlinking queues the channel's files for the
+  tagger (reason `channel_link`, served after decisions and new files). Beheer -> Downloaders ->
+  Koppelingen gains a **Handmatig koppelen** panel: type part of a channel's name, pick label or
+  artist, type part of that name (only approved artists and real labels are offered) and link; the
+  Volledigheid table has a **koppelen** button on every channel with no link and no proposal. On
+  production (2026-09-27) the 149 open label proposals cover 52.128 tracks, 50.449 of which have no
+  label today; 515 channels with 77.171 tracks got no proposal at all and can only be linked by hand.
+  New: `PUT /api/channel-links/channels/{id}/{kind}`, `GET /api/channel-links/channels` and
+  `GET /api/channel-links/targets`; `confirm` and `unlink` responses gain `queued` (additive);
+  `channel_link_proposals.source` gains `manual` (`migrate_v48`).
+
+### Fixed
+- **A new download stayed invisible in LMS for as long as its library-wide scan ran -- well over
+  an hour** (issue #125, `docs/bug-reports/126-scoped-scans-wait-for-full-scan.md`). On production
+  the library-wide scan started at 15:38 on 2026-09-27; by 17:23 LMS had received 225 scan
+  requests, 224 of them folder announcements from the downloader and tagger, and started not one
+  scan. Before 15:38 each announcement was read within about a minute. The cause: the "pause the
+  library scan for a scoped one" path ran on the scanner's io thread, which is the thread the
+  library scan itself occupies, so it could only fire once there was nothing left to pause.
+  Announced folders now go into a queue the running scan reads itself: at a safe point in the file
+  walk, the removed-files check and between steps, it runs a priority pass over them -- the
+  ordinary scoped scan -- and carries on where it was, without restarting or aborting anything
+  (bug report 120's loop stays closed). Two minutes of library scan between passes keep a busy
+  tagger from stalling it. The scan summary in the log gains `priority passes = N (M folders)`,
+  each pass logs its own `Priority scan of N announced folder(s) complete` line, and
+  `getScanStatus` gains `pendingFolders` and `priorityScan`.
+
+### Security
+- **Every production container now drops all Linux capabilities and has a PID ceiling; LMS, its
+  nginx proxy and autoheal also run on a read-only root filesystem** (issue #32,
+  `docs/deployment.md`, "Container hardening"). Until now `no-new-privileges` was the only
+  hardening, and the LMS stack did not even have that. Each service gets back only a named set:
+  the muma Python images and LMS keep root's four file capabilities (CHOWN, DAC_OVERRIDE, FOWNER,
+  FSETID) so their access to the music share and `lms.db` is unchanged, and lose raw sockets,
+  MKNOD, SETUID/SETGID and the rest; MariaDB, phpMyAdmin and nginx keep what their root parent
+  needs to switch users and bind port 80; autoheal needs nothing. `pids_limit` sits far above the
+  PID counts measured on production (29 for music-manager, 40 for LMS, 326 for Firefox). The test
+  stack runs the same settings, so core-smoke, the e2e chain and the contract suite exercise
+  them. Applies to a container when it is next recreated -- `db` on a `DEPLOY_DB=1` deploy. Not
+  done yet, listed in the deployment doc: non-root users and read-only roots for music-manager
+  and the workers, and Firefox.
+
+- **No password, token or key goes on a command line any more, outside the deploy as well**
+  (issue #40, bug report 125). The release jobs sent the GitLab tag/merge token as a curl header,
+  Renovate and the mobile release build passed their tokens and the signing passwords as
+  `docker run -e NAME=value`, the nightly check and crash triage put the production system API key
+  in a curl header, and three prod scripts put the MariaDB root password on the argv of
+  `docker exec` or the client -- all readable through `ps` by every account on the shared runner or
+  the production host. They now use `MYSQL_PWD` via `-e NAME` without a value, curl headers through
+  a process substitution, ssh's stdin, `sshpass -e` and `keytool -storepass:env`;
+  `scripts/migrate_lms_history.py` reads its key from `MUMA_API_KEY`. The nine scripts that still
+  read `.env` with the loop that cut `ab#cd` to `ab` use `scripts/lib/dotenv.sh`, as the deploy
+  does. A new CI test (`tests/ci/test_no_secrets_on_command_lines.py`) fails on any new
+  occurrence.
+
 ## [0.81.5] - 2026-09-27
 
 ### Changed

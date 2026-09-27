@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.12.0] - 2026-09-27
+
+### Added
+- **A label page in the bundled web interface lists the channels linked to it** (issue #122): the
+  SoundCloud, YouTube and Telegram channels a curator linked to the label, with their track counts; a
+  tap opens the channel's tracks, or its page on the platform. Curators get a shortcut to Beheer ->
+  Downloaders -> Koppelingen.
+
+- **Beheer -> Downloaders -> Koppelingen in the bundled web interface can link a channel by hand**
+  (issue #58): pick the channel and a label or approved artist by typing part of the name. Tracks
+  from a linked channel get that label, and that artist where the channel name stood in for one,
+  once the tagger has been over them and the server has rescanned.
+
 ## [7.11.1] - 2026-09-27
 
 ### Changed

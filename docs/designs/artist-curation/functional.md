@@ -60,8 +60,9 @@ their reasoning attached, so a human decides only what genuinely needs deciding.
 
 ## Open Questions / Not Yet Decided
 
-- The auto-approve threshold for external evidence — proposed: an exact MusicBrainz match, or two
-  independent sources agreeing — is not settled and no external lookups are performed yet.
+- ~~The auto-approve threshold for external evidence.~~ Settled in `tools/artist_auto_approve.py`
+  (MR !874, three rules on matching recording titles) and run on a schedule since 2026-09-27, see
+  "Scheduled evidence run" below.
 - ~~Whether the scanner should start placing new artists in an undecided state instead of approving them on
   sight.~~ Decided and built 2026-09-25, see "Wiring the queue" below. The queue does not start at its
   full size: the names already in the library keep being trusted until someone decides on them.
@@ -105,3 +106,36 @@ Acceptance criteria:
 Expected growth, measured on production: about 20-35 new names on a quiet day and 1.000-1.700 after
 a mass retag, ~3.500 in the last 30 days. See the technical design for the numbers.
 
+
+## Scheduled evidence run (2026-09-27, issue #49)
+
+The external-evidence run approved 5.903 names when it was run once by hand on 2026-09-20; since
+then new names only left the queue when a curator decided them (8 of ~3.300 in the first thirty
+days). It now runs by itself inside music-manager, once a day.
+
+| Situation | What happens |
+|---|---|
+| A name arrived since the last round (pending, **Nieuw**) | Looked up in the next round, before anything else. |
+| An older, grandfathered undecided name | Looked up a slice at a time, most tracks first (300 a day by default). |
+| The evidence clears a name (the tool's three rules, unchanged) | Dry run (the default): recorded as approvable, nothing changes. Live: approved, signed `auto-external`, recognised by the tagger at once. |
+| The evidence does not clear a name | Stays in the queue as it was. Looked up again after 90 days. Never rejected. |
+| A curator undoes an automatic approval | The name goes back to the queue and the run never approves it again. |
+| A curator decided a name while a round ran | The curator's decision stands; the run never overwrites a decision. |
+
+**Dry run is on by default.** This is the first thing in the system that writes curation
+decisions on its own every night. The first rounds show in the event log, and under Beheer ->
+Curatie -> Artiestcuratie, what they would approve; one switch in Beheer -> Config ("Artist
+curation") turns approving on, and the first live round then applies everything the dry runs
+judged approvable as well, so nothing is lost by starting in dry run.
+
+**Review and undo.** On the "Goedgekeurd" tab, the "Automatisch (bewijsronde)" filter lists the
+names the run approved, newest first, each with the existing undo button.
+
+Acceptance criteria:
+
+1. A round never looks up more than `artist_auto_approve_max_names` names and never runs longer
+   than `artist_auto_approve_max_minutes`; what is left is continued the next day.
+2. A dry run writes no decision.
+3. A name is approved only on the tool's own rules; nothing is ever rejected automatically.
+4. Each round writes exactly one INFO line to the event log with what it did.
+5. An automatic approval can be found and undone in Beheer, and an undone name is not re-approved.

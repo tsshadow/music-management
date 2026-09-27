@@ -66,6 +66,9 @@ READ_ENDPOINTS = [
     ('/api/rules/artists?state=all&q=a&proposal=reject&sort=name', 200),
     ('/api/rules/artists/summary', 200),
     ('/api/rules/artists/redirects/issues', 200),
+    # The scheduled evidence run's review list and ledger (artist_auto_approve_worker).
+    ('/api/rules/artists?state=white&decided_by=auto-external&sort=decided', 200),
+    ('/api/rules/artists/auto-approve/runs', 200),
     ('/api/rules/festivals', 200),
     ('/api/curation/labels', 200),
     ('/api/curation/labels?q=a', 200),

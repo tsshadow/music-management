@@ -214,11 +214,12 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
   not make the check wait. `/health` therefore always answers within about two seconds.
 - `threads` has one boolean per long-running loop — `tagger`, `scanner`, `radio`, `news`,
   `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync`,
-  `lms-listen-backfill` — plus `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
+  `lms-listen-backfill`, `artist-auto-approve` — plus `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
   heartbeat (the last *completed* tick) is younger than its window: three intervals with a one-hour
   floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h, `news` 3 h
-  (it sleeps up to an hour inside its tick) and `lms-listen-backfill` 72 h (its interval is a
-  config key that can be raised at runtime). The window counts from startup, so a fresh process is
+  (it sleeps up to an hour inside its tick), `lms-listen-backfill` 72 h (its interval is a
+  config key that can be raised at runtime) and `artist-auto-approve` 72 h (it checks hourly, but
+  a round of external lookups may take up to three hours). The window counts from startup, so a fresh process is
   green. `heartbeats` carries the detail per loop: `alive`, `stale`, `last_tick_age_seconds`,
   `stale_after_seconds`, `ticks`, `failures`.
 - Every loop runs through `thread_registry.run_forever`: an exception in a tick is logged with

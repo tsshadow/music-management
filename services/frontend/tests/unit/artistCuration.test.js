@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  AUTO_DECIDER,
   BLACK,
+  UNKNOWN,
   WHITE,
+  listParams,
   buildDecision,
   describeOutcome,
   describeProposal,
@@ -113,5 +116,33 @@ describe("pageOf", () => {
     expect(pageOf(250, 0)).toEqual({ page: 1, pages: 3 });
     expect(pageOf(250, 200)).toEqual({ page: 3, pages: 3 });
     expect(pageOf(250, 900)).toEqual({ page: 3, pages: 3 });
+  });
+});
+
+describe("listParams", () => {
+  it("asks for one page of a state, with the search trimmed", () => {
+    const params = listParams({ state: UNKNOWN, offset: 200, search: "  peac " });
+    expect(Object.fromEntries(params)).toEqual({
+      state: "unknown",
+      limit: "100",
+      offset: "200",
+      q: "peac",
+    });
+  });
+
+  it("sends the advice filter only for the queue", () => {
+    expect(listParams({ state: UNKNOWN, offset: 0, proposal: "reject" }).get("proposal")).toBe(
+      "reject",
+    );
+    expect(listParams({ state: WHITE, offset: 0, proposal: "reject" }).has("proposal")).toBe(false);
+  });
+
+  it("turns the automatic filter into the evidence run's review list, newest decision first", () => {
+    const params = listParams({ state: WHITE, offset: 0, decider: AUTO_DECIDER });
+    expect(params.get("decided_by")).toBe("auto-external");
+    expect(params.get("sort")).toBe("decided");
+    expect(listParams({ state: BLACK, offset: 0, decider: AUTO_DECIDER }).has("decided_by")).toBe(
+      false,
+    );
   });
 });

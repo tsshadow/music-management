@@ -19,6 +19,7 @@
 
 #include "ScannerService.hpp"
 
+#include "ImmediateScanPolicy.hpp"
 #include "ScanSchedule.hpp"
 #include "ScanStepSequence.hpp"
 
@@ -246,15 +247,43 @@ namespace lms::scanner
 
         _abortScan = false;
         _interruptReason = InterruptReason::None;
-        _pausedScan.reset(); // an aborted run is thrown away, paused or not
+        setPausedScan(std::nullopt); // an aborted run is thrown away, paused or not
         _ioService.start();
 
         if (isRunning)
             _events.scanAborted.emit();
     }
 
+    void ScannerService::setPausedScan(std::optional<PausedScan> pausedScan)
+    {
+        _pausedScan = std::move(pausedScan);
+
+        const std::unique_lock lock{ _statusMutex };
+        _libraryScanPaused = _pausedScan.has_value();
+    }
+
     void ScannerService::requestImmediateScan(const ScanOptions& scanOptions)
     {
+        // Called from a Wt web thread. Starting over means abortScan(), which waits on this
+        // thread until the running scan unwinds; see ImmediateScanPolicy for why a plain request
+        // no longer does that.
+        {
+            const std::unique_lock lock{ _statusMutex };
+            const RunningScan running{ .inProgress = _scanRunning, .scoped = _scanRunningScoped, .libraryScanPaused = _libraryScanPaused };
+            switch (decideImmediateScan(scanOptions, running))
+            {
+            case ImmediateScanDecision::Absorb:
+                LMS_LOG(DBUPDATER, INFO, "Library scan requested while one is running: joining it");
+                return;
+            case ImmediateScanDecision::QueueAfterCurrent:
+                _libraryScanQueued = true;
+                LMS_LOG(DBUPDATER, INFO, "Library scan requested during a scoped scan: queued after it");
+                return;
+            case ImmediateScanDecision::Start:
+                break;
+            }
+        }
+
         abortScan();
         _ioService.post([this, scanOptions] {
             if (_abortScan)
@@ -422,6 +451,8 @@ namespace lms::scanner
         {
             std::unique_lock lock{ _statusMutex };
             _nextScheduledScan = {};
+            _scanRunning = true;
+            _scanRunningScoped = scanOptions.isScoped();
         }
 
         LMS_LOG(UI, INFO, "New scan started!");
@@ -436,7 +467,7 @@ namespace lms::scanner
             // stats, and the interrupted step runs again from its own beginning.
             scanContext = std::move(_pausedScan->context);
             startIndex = _pausedScan->stepIndex;
-            _pausedScan.reset();
+            setPausedScan(std::nullopt);
             LMS_LOG(DBUPDATER, INFO, "Resuming the paused scan at step " << startIndex);
         }
         else
@@ -453,6 +484,8 @@ namespace lms::scanner
 
             _curState = State::NotScheduled;
             _currentScanStepStats.reset(); // must be sync with _curState
+            _scanRunning = false;
+            _scanRunningScoped = false;
         }
 
         refreshTracingLoggerStats();
@@ -472,7 +505,7 @@ namespace lms::scanner
             // Only a periodic run is worth coming back to: a scoped one is seconds of work and
             // its paths are still in the collector if they were not all read.
             if (!scanOptions.isScoped())
-                _pausedScan = PausedScan{ std::move(scanContext), stoppedAt };
+                setPausedScan(PausedScan{ std::move(scanContext), stoppedAt });
 
             runPendingScopedScan();
 
@@ -500,6 +533,15 @@ namespace lms::scanner
             writeScannerSettings(_db.getTLSSession(), lastScanSettingsName, _settings);
             _lastScanSettings = _settings;
 
+            // A library-wide request that arrived during this scoped scan runs now. One that
+            // arrived during a library-wide run was absorbed by it and left nothing behind.
+            bool runQueuedLibraryScan{};
+            {
+                const std::unique_lock lock{ _statusMutex };
+                runQueuedLibraryScan = scanOptions.isScoped() && _libraryScanQueued;
+                _libraryScanQueued = false;
+            }
+
             // A scoped scan is not allowed to move the periodic one: recomputing the moment
             // here is what used to push an hourly scan out by an hour on every request, so
             // the library-wide scan never came round again.
@@ -507,6 +549,13 @@ namespace lms::scanner
             {
                 LMS_LOG(DBUPDATER, DEBUG, "Scan not aborted, scheduling next scan!");
                 scheduleNextScan();
+            }
+            else if (runQueuedLibraryScan)
+            {
+                // Takes the schedule timer, as resuming a paused scan does; the library-wide run
+                // puts the periodic schedule back when it completes.
+                LMS_LOG(DBUPDATER, INFO, "Running the library scan queued during the scoped scan");
+                scheduleScan(ScanOptions{});
             }
 
             _events.scanComplete.emit(stats);

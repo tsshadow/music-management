@@ -21,6 +21,7 @@
 
 #include <Wt/Dbo/Session.h>
 
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
@@ -41,6 +42,10 @@ namespace lms::db
         Session& operator=(const Session&) = delete;
 
         [[nodiscard]] WriteTransaction createWriteTransaction();
+        // A write transaction if the process-wide write lock is free right now, nothing if it is
+        // not. Never waits: for a write that may be skipped (bookkeeping), so the caller does not
+        // queue behind a scanner batch that holds the lock for seconds at a time.
+        [[nodiscard]] std::unique_ptr<WriteTransaction> tryCreateWriteTransaction();
         [[nodiscard]] ReadTransaction createReadTransaction();
 
         void checkWriteTransaction() const;
@@ -96,6 +101,8 @@ namespace lms::db
         }
 
     private:
+        // The process-wide lock every write transaction takes.
+        core::RecursiveSharedMutex& getWriteMutex();
         void execute(std::string_view query, long long id);
 
         IDb& _db;

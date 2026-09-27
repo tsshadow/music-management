@@ -79,12 +79,15 @@ namespace lms::auth
                 return;
         }
 
-        {
-            auto transaction{ session.createWriteTransaction() };
+        // Bookkeeping, so it never waits for the process-wide write lock: a scanner batch holds
+        // that for seconds at a time, and an HTTP thread parked here for a last-login stamp is how
+        // MuMa's scan requests ran out of time (bug report 120). A later login stamps it instead.
+        const std::unique_ptr<db::WriteTransaction> transaction{ session.tryCreateWriteTransaction() };
+        if (!transaction)
+            return;
 
-            if (User::pointer user{ User::find(session, userId) })
-                user.modify()->setLastLogin(Wt::WDateTime::currentDateTime());
-        }
+        if (User::pointer user{ User::find(session, userId) })
+            user.modify()->setLastLogin(Wt::WDateTime::currentDateTime());
     }
 
     bool AuthServiceBase::isUserDisabled(UserId userId)

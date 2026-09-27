@@ -256,7 +256,12 @@ class RunTest(TaggerTestCase):
             self.tagger.run()
         self.processed.drop_snapshot.assert_called_once()
 
-    def test_a_run_asks_lms_to_pick_up_what_changed(self):
+    def test_a_run_does_not_ask_lms_for_a_library_wide_scan(self):
+        """One per ~5-minute round aborted LMS's hour-long scan before it could finish (bug 120).
+
+        The folders a round writes are announced one by one (`notify`); that is the whole of
+        what LMS needs to hear from the tagger.
+        """
         with (
             patch.object(self.tagger, '_parse_label_folders'),
             patch.object(self.tagger, '_parse_channel_folders'),
@@ -264,7 +269,7 @@ class RunTest(TaggerTestCase):
             patch.object(tagger_module, 'lms_scan_trigger') as trigger,
         ):
             self.tagger.run()
-        trigger.trigger.assert_called_once()
+        trigger.trigger.assert_not_called()
 
 
 class PendingPassTest(TaggerTestCase):

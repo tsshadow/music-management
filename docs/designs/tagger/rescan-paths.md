@@ -27,7 +27,7 @@ it; the downloader and importer workers run in other containers and do not.
 | D4 | Importer (label release) | `mover.py` → `LabelSong.parse()`, in `muma-importer-worker` | none | Same as D1. |
 | D5 | File placed by hand / other tool | nothing until the walk | the walk sees a path not in the table | Only the walk finds it. On 0.66.1 the walk restarts at EPs on every deploy, so a file dropped in Youtube can wait days. |
 | D6 | LMS "rerun parse" (web + app) | `library.rerun_parse[_path]` → `mark_for_rescan` + `tag_single` + `scan_single` | flag set, cleared by the tag | **Blocks on the lock.** With a round running for hours the request waits, then the LMS thread waits with it (see the LMS thread-pool starvation note in memory). |
-| D7 | Curation "apply now" | `curation._run_retag` → `tag_single` per path, ≤ `MAX_RETAG_FILES` (2000) | via `TagSingleFile` | Takes and releases the lock per file and triggers an LMS scan per file; a running round makes every one of those waits a long one. |
+| D7 | Curation "apply now" | `curation._run_retag` → `tag_single` per path, ≤ `MAX_RETAG_FILES` (2000) | via `TagSingleFile` | Takes and releases the lock per file and notifies LMS of the file's folder (queued and merged, never blocking; a library-wide LMS scan per file until bug report 120); a running round makes every one of those waits a long one. |
 
 ## 3. Rescan triggers — what says "tag it again"
 
@@ -57,7 +57,9 @@ length + 5 minutes; `/retag/run` and `/retag/restart` start one by hand):
    cursor while the pass ran, waits for the next round.
 3. **Walk** — EPs, Soundcloud, Youtube, Telegram, generic; every file `stat()`ed and checked
    against the table (per-file query on 0.66.1; one snapshot per round from !856 on).
-4. One LMS scan trigger.
+4. No LMS scan trigger of its own since bug report 120: every folder the round wrote to is
+   announced to LMS as it is written (`lms_scan_trigger.notify`). The library-wide trigger
+   each round used to send aborted LMS's hour-long library scan every ~5 minutes.
 
 ### Measured on prod, 2026-09-18
 

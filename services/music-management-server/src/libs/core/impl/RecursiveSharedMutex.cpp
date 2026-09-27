@@ -41,6 +41,26 @@ namespace lms::core
         }
     }
 
+    bool RecursiveSharedMutex::try_lock()
+    {
+        const auto thisThreadId{ std::this_thread::get_id() };
+
+        if (_uniqueOwner == thisThreadId)
+        {
+            // already locked by this thread, same as lock()
+            _uniqueCount++;
+            return true;
+        }
+
+        if (!_mutex.try_lock())
+            return false;
+
+        _uniqueOwner = thisThreadId;
+        assert(_uniqueCount == 0);
+        _uniqueCount = 1;
+        return true;
+    }
+
     void RecursiveSharedMutex::unlock()
     {
         assert(_uniqueCount > 0);

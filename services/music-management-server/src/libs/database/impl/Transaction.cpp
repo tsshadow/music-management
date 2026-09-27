@@ -19,6 +19,8 @@
 
 #include "database/Transaction.hpp"
 
+#include <cassert>
+
 #include "core/RecursiveSharedMutex.hpp"
 
 #include "TransactionChecker.hpp"
@@ -30,6 +32,17 @@ namespace lms::db
         , _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }
         , _transaction{ session }
     {
+#if LMS_CHECK_TRANSACTION_ACCESSES
+        TransactionChecker::pushWriteTransaction(_transaction.session());
+#endif
+    }
+
+    WriteTransaction::WriteTransaction(std::unique_lock<core::RecursiveSharedMutex>&& lock, Wt::Dbo::Session& session)
+        : _lock{ std::move(lock) }
+        , _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }
+        , _transaction{ session }
+    {
+        assert(_lock.owns_lock());
 #if LMS_CHECK_TRANSACTION_ACCESSES
         TransactionChecker::pushWriteTransaction(_transaction.session());
 #endif

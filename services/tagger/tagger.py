@@ -178,10 +178,13 @@ class Tagger:
         with RoundScope.round_scope() as scope, self._round_pool(scope):
             self._run_round(walk, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram)
         self._log_round_summary(time.monotonic() - started, scope.opened)
-        # One scan per run, not per file: LMS only reprocesses what changed, so this is
-        # cheap, and it is what makes a new or corrected tag show up in the app without
-        # waiting for LMS's own schedule. Best effort -- it never raises.
-        lms_scan_trigger.trigger()
+        # No library-wide LMS scan here. There used to be one after every round, every ~5
+        # minutes, and a library-wide scan on LMS takes the better part of an hour: each
+        # trigger aborted the one before it, so none ever finished, and the request itself
+        # waited for the abort until its timeout ran out (bug report 120). Every folder this
+        # round wrote to has already been announced on its own (`notify`, in the queue pass
+        # and in the walk), which is what makes a corrected tag show up in the app; LMS's
+        # periodic scan covers anything nobody announced.
 
     def _run_round(self, walk, parse_labels, parse_soundcloud, parse_youtube, parse_generic, parse_telegram):
         """The body of a round: the queue, then the walk when asked for."""

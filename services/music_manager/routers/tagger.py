@@ -79,8 +79,10 @@ class TaggerManager:
             result = TagSingleFile(path, extra_info=extra_info)
         # Outside the lock: a slow or unreachable LMS must not hold up the tagger. This
         # is the path behind rerun-parse, where the correction is expected in the app
-        # straight away, so a per-file trigger is worth it here.
-        lms_scan_trigger.trigger()
+        # straight away -- so LMS is told the file's folder, which it reads in seconds,
+        # rather than asked for a library-wide scan it would still be busy with an hour
+        # from now (bug report 120). `notify` never blocks.
+        lms_scan_trigger.notify([str(Path(path).parent)])
         return result
 
 

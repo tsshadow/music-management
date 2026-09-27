@@ -18,7 +18,10 @@ import org.amshove.kluent.`should not be`
 import retrofit2.Response
 
 const val USERNAME = "some-user"
-const val PASSWORD = "some-password"
+
+/** The Subsonic token every test client signs with; there is no password signing (issue #72). */
+const val TOKEN = "some-subsonic-token-0123456789"
+
 val CLIENT_VERSION = SubsonicAPIVersions.V1_16_0
 const val CLIENT_ID = "test-client"
 

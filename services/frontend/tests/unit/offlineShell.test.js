@@ -6,7 +6,7 @@ import MobileNav from "../../src/lib/MobileNav.svelte";
 import BrowseGrid from "../../src/lib/BrowseGrid.svelte";
 import { pathToState, viewToPath } from "../../src/lib/router.js";
 import platformModule from "../../src/lib/platform/index.js";
-import { credentials, favoriteGenres, viewMode } from "../../src/lib/store.js";
+import { credentials, favoriteGenres, viewMode, subsonicToken } from "../../src/lib/store.js";
 import { offline } from "../../src/lib/subsonic.js";
 
 describe("the downloads route", () => {
@@ -34,6 +34,25 @@ describe("OfflineNotice", () => {
     expect(screen.getByRole("button", { name: "Downloads" })).toBeTruthy();
   });
 
+  // Issue #72: signed in without a Subsonic token nothing is requested; the notice says why.
+  it("says the server is unreachable and offers a retry", async () => {
+    const onretry = vi.fn();
+    render(OfflineNotice, { kind: "server", onretry });
+
+    expect(screen.getByText("De server geeft geen toegang")).toBeTruthy();
+    await fireEvent.click(screen.getByRole("button", { name: "Opnieuw proberen" }));
+    expect(onretry).toHaveBeenCalledOnce();
+  });
+
+  it("asks to sign in again and offers the way back to the login page", async () => {
+    const onsignin = vi.fn();
+    render(OfflineNotice, { kind: "signIn", onsignin });
+
+    expect(screen.getByText("Log opnieuw in")).toBeTruthy();
+    await fireEvent.click(screen.getByRole("button", { name: "Opnieuw inloggen" }));
+    expect(onsignin).toHaveBeenCalledOnce();
+  });
+
   it("is a message, never a spinner", () => {
     render(OfflineNotice, { kind: "unavailable" });
 
@@ -44,6 +63,7 @@ describe("OfflineNotice", () => {
 describe("the Downloads entry in the navigation", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     favoriteGenres.set([]);
     localStorage.clear();

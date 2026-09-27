@@ -9,11 +9,10 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 import nl.teunschriks.mumamobile.api.muma.MumaAPIClient
-import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordHexInterceptor
-import nl.teunschriks.mumamobile.api.subsonic.interceptors.PasswordMD5Interceptor
-import nl.teunschriks.mumamobile.api.subsonic.interceptors.ProxyPasswordInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.RangeHeaderInterceptor
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenUnavailableException
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenRecoveryInterceptor
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenSigningInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.VersionInterceptor
 import nl.teunschriks.mumamobile.api.subsonic.response.StreamResponse
 import okhttp3.Credentials
@@ -42,11 +41,18 @@ class SubsonicAPIClient(
 ) {
     private val versionInterceptor = VersionInterceptor(config.minimalProtocolVersion)
 
-    private val proxyPasswordInterceptor = ProxyPasswordInterceptor(
-        config.minimalProtocolVersion,
-        PasswordHexInterceptor(config.password),
-        PasswordMD5Interceptor(config.password),
-        config.forcePlainTextPassword
+    /**
+     * Token signing only (issue #72): the token the client was built with, or -- when none was
+     * stored then -- whatever [SubsonicClientConfiguration.tokenRecovery] can obtain now. Without
+     * a token the request is refused before it leaves the device; there is no password fallback.
+     */
+    private val tokenSigningInterceptor = TokenSigningInterceptor(
+        token = {
+            config.token?.takeIf { it.isNotEmpty() } ?: config.tokenRecovery?.obtain()
+        },
+        unavailableReason = {
+            config.tokenRecovery?.unavailableReason() ?: SubsonicTokenUnavailableException.Reason.SIGN_IN_AGAIN
+        }
     )
 
     var onProtocolChange: (SubsonicAPIVersions) -> Unit = {}
@@ -58,7 +64,6 @@ class SubsonicAPIClient(
     var protocolVersion = config.minimalProtocolVersion
         private set(value) {
             field = value
-            proxyPasswordInterceptor.apiVersion = field
             wrappedApi.currentApiVersion = field
             wrappedApi.isRealProtocolVersion = true
             versionInterceptor.protocolVersion = field
@@ -93,7 +98,7 @@ class SubsonicAPIClient(
             chain.proceed(newRequestBuilder.build())
         }
         .addInterceptor(versionInterceptor)
-        .addInterceptor(proxyPasswordInterceptor)
+        .addInterceptor(tokenSigningInterceptor)
         // Behind the signing, so it sees the finished t/s and can re-sign a refused request.
         .apply { config.tokenRecovery?.let { addInterceptor(TokenRecoveryInterceptor(it)) } }
         .addInterceptor(RangeHeaderInterceptor())
@@ -181,7 +186,8 @@ class SubsonicAPIClient(
         /**
          * The debug build's HEADERS-level request logging, with every credential header and query
          * parameter replaced by `██`. Without the redaction each logged request line carried the
-         * password (`p=enc:<hex>`) or its salted token, and each muma call its `X-API-Key`.
+         * salted token signature (and, before issue #72, could carry the password as `p=enc:<hex>`),
+         * and each muma call its `X-API-Key`. `p` stays on the list for anything that still sends it.
          */
         fun redactingLoggingInterceptor(logger: HttpLoggingInterceptor.Logger): HttpLoggingInterceptor = HttpLoggingInterceptor(logger).apply {
             level = HttpLoggingInterceptor.Level.HEADERS

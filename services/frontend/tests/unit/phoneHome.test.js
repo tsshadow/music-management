@@ -11,6 +11,7 @@ import {
   credentials,
   mumaApiKey,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 import { loadTopArtists, loadTopLabels, resolveArtistView } from "../../src/lib/homeRankings.js";
 
@@ -66,6 +67,7 @@ describe("phone home modes", () => {
   });
   it("loads real release and addition order for the current mode", async () => {
     credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    subsonicToken.set({ username: "test", token: "test-subsonic-token" });
     viewMode.set("sets");
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
@@ -162,6 +164,7 @@ describe("phone home empty, loading and failed copy", () => {
 
   it("shows the failed copy when the favourites request breaks", async () => {
     credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    subsonicToken.set({ username: "test", token: "test-subsonic-token" });
     globalThis.fetch = vi.fn(async (url) => {
       if (String(url).includes("getStarred2")) throw new Error("network down");
       return {
@@ -223,6 +226,7 @@ describe("phone home quick-access tile count", () => {
 describe("phone home recent shelves", () => {
   it("renders the recently released and recently added shelves as rows", async () => {
     credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    subsonicToken.set({ username: "test", token: "test-subsonic-token" });
     memoriesOnHomeEnabled.set(false);
     homeModeReleaseRadar.set("OFF");
     homeModeDailyMix.set("OFF");
@@ -296,6 +300,7 @@ describe("phone home fallback recent shelf", () => {
     homeModeDailyMix.set("OFF");
     homeModeFavorites.set("OFF");
     credentials.set({ url: "https://lms.example", username: "test", password: "test" });
+    subsonicToken.set({ username: "test", token: "test-subsonic-token" });
     globalThis.fetch = vi.fn(async (url) => {
       const parsed = new URL(url);
       const sort = parsed.searchParams.get("sort");

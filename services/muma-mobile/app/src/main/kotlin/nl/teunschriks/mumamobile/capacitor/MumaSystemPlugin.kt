@@ -32,10 +32,12 @@ import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.SubsonicTokenRefresher
 import nl.teunschriks.mumamobile.util.Constants
+import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.Util
@@ -323,11 +325,14 @@ class MumaSystemPlugin :
     /**
      * What the web login needs, taken from where the native client already keeps it.
      *
-     * `username`/`password` are the Subsonic credentials `SubsonicAPIClient` signs every `/rest` endpoint
-     * call with — the same pair, not a second auth path: the interceptors hash the password per
-     * request, they do not hold a token. `clientId` is the `c=` parameter the server records
-     * sessions against. `mumaApiKey` and `mumaUserId` are the muma API's own credentials, and are
-     * absent when the user has never signed in there.
+     * `username`/`password` are the account's sign-in pair: the web trades them for the MuMa key
+     * (in a POST body) when it has none, and a blank password means "logged out". Neither signs a
+     * `/rest` call any more: `subsonicToken`/`subsonicTokenUser` are the Subsonic token the native
+     * client signs with and the name it was issued for, handed on so the web signs with the same
+     * one, and absent while none is stored -- the web then fetches its own and, without one, sends
+     * no Subsonic request (issue #72). `clientId` is the `c=` parameter the server records sessions
+     * against. `mumaApiKey` and `mumaUserId` are the muma API's own credentials, and are absent
+     * when the user has never signed in there.
      *
      * `password` is blank exactly when the app considers itself logged out, which is the same
      * check `NavigationActivity` makes before showing the welcome screen.
@@ -339,9 +344,13 @@ class MumaSystemPlugin :
             .put("username", server.userName)
             .put("password", server.password)
             .put("clientId", Constants.REST_CLIENT_ID)
-            .put("forcePlainTextPassword", server.forcePlainTextPassword)
             .put("serverId", server.id)
         Settings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
+        val tokenUser = SecureSettings.subsonicTokenUser
+        SubsonicSigning.tokenFor(server.userName, SecureSettings.subsonicToken, tokenUser)?.let {
+            result.put("subsonicToken", it)
+            result.put("subsonicTokenUser", tokenUser)
+        }
         Settings.mumaUserId.takeIf { it > 0 }?.let { result.put("mumaUserId", it) }
         call.resolve(result)
         // Every shell start re-reads the Subsonic token, so an upgrade from a build that signed with

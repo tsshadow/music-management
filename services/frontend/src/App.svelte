@@ -6,6 +6,7 @@
   import Dashboard from './lib/Dashboard.svelte';
   import QueueLoadMore from './lib/QueueLoadMore.svelte';
   import LoginPage from './lib/LoginPage.svelte';
+  import OfflineNotice from './lib/OfflineNotice.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
@@ -18,7 +19,7 @@
   import CarModeView from './lib/CarModeView.svelte';
   import SetupWizard from './lib/SetupWizard.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, credentials, mumaSessionActive, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -495,6 +496,13 @@
            and so out of the URL -- which is what put the back button a page behind.
            Dashboard has no branch for 'search' (it is entirely phone content, above),
            so on that view this renders nothing and never fights MobileSearchView. -->
+      <!-- Signed in without a Subsonic token nothing is requested at all (issue #72): say why,
+           instead of a library that silently stays empty. -->
+      {#if $subsonicAccess === 'offline'}
+        <div class="mb-6"><OfflineNotice kind="server" onretry={() => ensureSubsonicToken()} /></div>
+      {:else if $subsonicAccess === 'rejected'}
+        <div class="mb-6"><OfflineNotice kind="signIn" onsignin={() => endRejectedSession()} /></div>
+      {/if}
       <Dashboard bind:activeView={$activeView} onnavigate={handleNavigate} />
     </div>
   </div>

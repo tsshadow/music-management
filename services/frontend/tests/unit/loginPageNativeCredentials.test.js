@@ -18,7 +18,16 @@ function fakeServer({ ping = "ok" } = {}) {
       return { json: async () => ({ "subsonic-response": { status: ping } }) };
     }
     if (url.includes("/api/auth/login")) {
-      return { ok: false };
+      return {
+        ok: true,
+        json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+      };
+    }
+    if (url.includes("/api/auth/subsonic-token")) {
+      return {
+        ok: true,
+        json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      };
     }
     if (url.includes("/api/auth/setup-status")) {
       return { ok: true, json: async () => ({ setup_required: false }) };

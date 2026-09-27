@@ -15,6 +15,7 @@ import {
   memoriesOnHomeEnabled,
   queueSource,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 
 const TRACK = {
@@ -145,6 +146,7 @@ function urlsFor(fragment) {
 describe("Dashboard", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);
@@ -580,6 +582,7 @@ describe("Dashboard - collection sorting and filtering", () => {
 
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);

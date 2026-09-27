@@ -9,6 +9,7 @@ import {
   playerState,
   playlist,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 import { recentPlaces, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
 import { entityCache } from "../../src/lib/entityLoaders.js";
@@ -89,6 +90,7 @@ async function renderLoaded(props = {}) {
 describe("ArtistView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     playlist.set([]);
@@ -327,6 +329,7 @@ describe("ArtistView - switching artists", () => {
 
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     clearRecentPlaces();

@@ -7,12 +7,20 @@
 
 package nl.teunschriks.mumamobile.service
 
+import java.io.IOException
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenRecovery
+import nl.teunschriks.mumamobile.api.subsonic.interceptors.SubsonicTokenUnavailableException.Reason
 import timber.log.Timber
 
 /**
- * Fetches a replacement when LMS refuses the stored Subsonic token, for every native request at
- * once (issue #73, bug report 111).
+ * Fetches the Subsonic token when none is stored yet (issue #72), and a replacement when LMS
+ * refuses the stored one (issue #73, bug report 111), for every native request at once.
+ *
+ * [obtain] is what makes the client fail closed: the `TokenSigningInterceptor` asks it for a token
+ * whenever the client was built without one -- the first start after an upgrade from a build that
+ * signed with the password, a sign-in whose token fetch failed, Android Auto starting the media
+ * session with the UI never opened. It fetches one (the same [refetch], with the MuMa API key) and
+ * returns it, or returns `null` with an [unavailableReason], and the request is then not sent.
  *
  * [nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenRecoveryInterceptor] calls [recover]
  * from whichever OkHttp thread got the refusal. Three rules keep that from turning into a storm:
@@ -29,8 +37,7 @@ import timber.log.Timber
  *   back or rebuilds the music service.
  *
  * When there is no new token the stored one stays and the refused answer reaches the caller as
- * before: the password fallback applies only while no token is stored (technical design,
- * "Fallback decision"), and whether to keep that fallback at all is issue #72.
+ * before. There is no password fallback (issue #72, technical design "Fallback decision").
  *
  * The token itself is never logged, only what happened.
  *
@@ -38,21 +45,88 @@ import timber.log.Timber
  * @param storedToken the token stored for the signed-in account, or `null`.
  * @param signOutEpoch the current [SignOutEpoch] value.
  * @param onRecovered called after a new token was stored, to rebuild the Subsonic client.
+ * @param hasCredentials whether anyone is signed in; without, [obtain] fetches nothing and answers
+ *   "sign in again" at once, and sets no back-off, so the sign-in that follows is not held up.
  * @param clock milliseconds on a monotonic clock.
+ * @param missingBackoffMs how long [obtain] waits after a failed first fetch before trying again.
+ *   Shorter than [failureBackoffMs]: without any token nothing plays, so the next attempt should
+ *   come soon once the network is back.
  */
 class SubsonicTokenRecoverer(
     private val refetch: () -> Unit,
     private val storedToken: () -> String?,
     private val signOutEpoch: () -> Int,
     private val onRecovered: () -> Unit,
+    private val hasCredentials: () -> Boolean = { true },
     private val clock: () -> Long = { System.nanoTime() / NANOS_PER_MILLI },
     private val minIntervalMs: Long = MIN_INTERVAL_MS,
-    private val failureBackoffMs: Long = FAILURE_BACKOFF_MS
+    private val failureBackoffMs: Long = FAILURE_BACKOFF_MS,
+    private val missingBackoffMs: Long = MISSING_BACKOFF_MS
 ) : SubsonicTokenRecovery {
     private val lock = Any()
     private var nextAttemptAt: Long? = null
+    private var nextObtainAt: Long? = null
+
+    @Volatile
+    private var lastUnavailable: Reason = Reason.SIGN_IN_AGAIN
 
     override fun currentToken(): String? = storedToken()?.takeIf { it.isNotEmpty() }
+
+    override fun unavailableReason(): Reason = lastUnavailable
+
+    override fun obtain(): String? {
+        currentToken()?.let { return it }
+        val epoch = signOutEpoch()
+        synchronized(lock) {
+            // Another caller's fetch may have finished while this one waited for the lock.
+            currentToken()?.let { return it }
+            if (!hasCredentials()) {
+                lastUnavailable = Reason.SIGN_IN_AGAIN
+                return null
+            }
+            val now = clock()
+            val next = nextObtainAt
+            if (next != null && now < next) {
+                Timber.d("No Subsonic token; fetch in back-off for another %d ms", next - now)
+                return null
+            }
+            return fetchMissing(epoch, now)
+        }
+    }
+
+    /** Runs the first fetch of a token for an account that has none stored; [lock] held. */
+    private fun fetchMissing(epoch: Int, now: Long): String? {
+        Timber.i("No Subsonic token stored; fetching one before the request")
+        var failure: Reason = Reason.SIGN_IN_AGAIN
+        try {
+            refetch()
+        } catch (all: Exception) {
+            failure = classify(all)
+            // Never the exception's message: an HTTP client error can quote a URL.
+            Timber.w("Subsonic token fetch failed: %s", all.javaClass.simpleName)
+        }
+
+        val fetched = currentToken()
+        return when {
+            signOutEpoch() != epoch -> {
+                lastUnavailable = Reason.SIGN_IN_AGAIN
+                Timber.i("Signed out during the Subsonic token fetch; answer dropped")
+                null
+            }
+            fetched == null -> {
+                lastUnavailable = failure
+                nextObtainAt = now + missingBackoffMs
+                Timber.w("No Subsonic token available (%s); requests are not sent for %d s", failure, missingBackoffMs / MILLIS_PER_SECOND)
+                null
+            }
+            else -> {
+                nextObtainAt = null
+                Timber.i("Subsonic token stored; requests are signed with it from now on")
+                onRecovered()
+                fetched
+            }
+        }
+    }
 
     override fun recover(rejectedToken: String): String? {
         val epoch = signOutEpoch()
@@ -102,10 +176,23 @@ class SubsonicTokenRecoverer(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val NANOS_PER_MILLI = 1_000_000L
         const val MILLIS_PER_SECOND = 1_000L
         const val MIN_INTERVAL_MS = 30_000L
         const val FAILURE_BACKOFF_MS = 5 * 60_000L
+        const val MISSING_BACKOFF_MS = 30_000L
+
+        /**
+         * What a failed fetch means for the listener. MuMa refusing the login is a sign-in problem;
+         * any other I/O failure -- no network, a timeout, TLS, a 5xx answer -- means the server is
+         * unreachable for now. Anything else (a programming error) is reported as a sign-in
+         * problem, the state a listener can always get out of.
+         */
+        fun classify(failure: Exception): Reason = when (failure) {
+            is MumaLoginRefusedException -> Reason.SIGN_IN_AGAIN
+            is IOException -> Reason.SERVER_UNREACHABLE
+            else -> Reason.SIGN_IN_AGAIN
+        }
     }
 }

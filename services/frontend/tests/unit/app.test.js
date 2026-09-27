@@ -16,6 +16,7 @@ import {
   searchResultsOpen,
   setupStepsSeen,
   viewMode,
+  subsonicToken,
 } from "../../src/lib/store.js";
 import { recentPlaces, clearRecentPlaces } from "../../src/lib/recentPlaces.js";
 import { SETUP_STEPS } from "../../src/lib/setup.js";
@@ -103,6 +104,7 @@ function modeChip(label) {
 describe("App", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     mumaSessionActive.set(false);
     activeView.set("home");
     activeModal.set(null);

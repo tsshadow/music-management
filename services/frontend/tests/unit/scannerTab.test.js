@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import ScannerTab from "../../src/lib/management/tabs/ScannerTab.svelte";
-import { credentials } from "../../src/lib/store.js";
+import { credentials, subsonicToken } from "../../src/lib/store.js";
 
 const SCAN_SETTINGS = {
   updatePeriod: 1,
@@ -44,6 +44,7 @@ function props(overrides = {}) {
 describe("ScannerTab", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     globalThis.fetch = mockScanApi();
   });
 

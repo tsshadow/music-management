@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import AlbumView from "../../src/lib/AlbumView.svelte";
-import { credentials, currentTrack, playerState, playlist, viewMode } from "../../src/lib/store.js";
+import {
+  credentials,
+  currentTrack,
+  playerState,
+  playlist,
+  viewMode,
+  subsonicToken,
+} from "../../src/lib/store.js";
 import { entityCache } from "../../src/lib/entityLoaders.js";
 import { clearSeeds, seedEntity } from "../../src/lib/entitySeeds.js";
 
@@ -72,6 +79,7 @@ async function renderLoaded(props = {}) {
 describe("AlbumView", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     playlist.set([]);
     currentTrack.set(null);
@@ -237,6 +245,7 @@ describe("AlbumView - failures", () => {
 
   it("shows an error, not a blank page, when the album cannot be loaded", async () => {
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     vi.spyOn(console, "error").mockImplementation(() => {});
     globalThis.fetch = vi.fn(async () => ({
       ok: true,

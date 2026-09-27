@@ -9,10 +9,15 @@
    * the offline library at all (playlists are m3u files with no server id; the
    * feeds, memories and the listening stats are muma endpoints). Showing a
    * spinner there would be a lie that never resolves.
+   *
+   * Two more for a player that is signed in but has no Subsonic token, and so
+   * sends no request at all (issue #72): `server` -- MuMa could not be reached
+   * or had no token yet, with a retry (`onretry`) -- and `signIn` -- MuMa
+   * refused the account, with a way back to the login page (`onsignin`).
    */
   import { t } from './i18n/index.js';
 
-  const { kind = 'unavailable', onnavigate = null } = $props();
+  const { kind = 'unavailable', onnavigate = null, onretry = null, onsignin = null } = $props();
 </script>
 
 <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5" data-testid="offline-notice">
@@ -26,5 +31,19 @@
       class="mt-4 bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
       onclick={() => onnavigate('downloads')}
     >{$t('nav.downloads')}</button>
+  {/if}
+  {#if kind === 'server' && onretry}
+    <button
+      class="mt-4 bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+      data-testid="offline-notice-retry"
+      onclick={onretry}
+    >{$t('offline.retry')}</button>
+  {/if}
+  {#if kind === 'signIn' && onsignin}
+    <button
+      class="mt-4 bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+      data-testid="offline-notice-sign-in"
+      onclick={onsignin}
+    >{$t('offline.signInAgain')}</button>
   {/if}
 </div>

@@ -267,8 +267,8 @@ d074aeb075825a8f x6  # sqlalchemy-execute-raw-query tools/repair_username_case.p
 # Content and path hashing for cache keys and duplicate detection, never for
 # authentication or signatures.
 65a59f2d9966fb93 x1  # use-of-md5 services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt
-e1aa004efd8e6a7b x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5InterceptorTest.kt
-9de9ab833e989d02 x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/main/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/PasswordMD5Interceptor.kt
+1a26cd11141e63ad x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/TokenSigningInterceptorTest.kt
+c5dbe1d89fda735e x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/main/kotlin/nl/teunschriks/mumamobile/api/subsonic/interceptors/TokenSigningInterceptor.kt
 
 # --- writable-filesystem-service --- [r:6850f7c8]
 # Container hardening that is not safe to switch on blind: a service that

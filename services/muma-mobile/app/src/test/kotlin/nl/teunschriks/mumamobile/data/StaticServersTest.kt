@@ -7,7 +7,6 @@
 
 package nl.teunschriks.mumamobile.data
 
-import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldStartWith
 import org.junit.Test
@@ -29,13 +28,12 @@ class StaticServersTest {
     }
 
     /**
-     * The server entry no longer asks for the password in the URL (bug report 103): requests are
-     * signed with the Subsonic token, and [SubsonicSigning] alone decides when the password is the
-     * fallback.
+     * The server entry never asks for the password in the URL (bug report 103). The flag is a
+     * leftover Room column that nothing reads since issue #72 removed password signing; it stays
+     * `false` so an old reader of the column could not switch it back on.
      */
     @Test
     fun `the server entry does not put the password in the URL`() {
         server.forcePlainTextPassword.shouldBeFalse()
-        server.forcePlainTextPassword shouldBeEqualTo StaticServers.FORCE_PLAIN_TEXT_PASSWORD
     }
 }

@@ -10,7 +10,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import PresetBuilder from "../../src/lib/PresetBuilder.svelte";
 import MultiPicker from "../../src/lib/MultiPicker.svelte";
 import { normalizePreset, presets } from "../../src/lib/presets.js";
-import { credentials, mumaApiKey, mumaUser, viewMode } from "../../src/lib/store.js";
+import { credentials, mumaApiKey, mumaUser, viewMode, subsonicToken } from "../../src/lib/store.js";
 
 const SONGS = [{ id: "song-1", title: "Raise Your Fist", artist: "Angerfist", suffix: "flac" }];
 
@@ -106,6 +106,7 @@ describe("PresetBuilder", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     credentials.set({ url: "", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     viewMode.set("songs");
     mumaUser.set({ id: 7, username: "user" });
     mumaApiKey.set("key");

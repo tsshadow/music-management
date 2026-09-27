@@ -16,7 +16,7 @@ class VersionAwareJacksonConverterFactoryTest : SubsonicAPIClientTest() {
         config = SubsonicClientConfiguration(
             baseUrl = mockWebServerRule.mockWebServer.url("/").toString(),
             username = USERNAME,
-            password = PASSWORD,
+            token = TOKEN,
             minimalProtocolVersion = initialProtocolVersion,
             clientID = CLIENT_ID
         )

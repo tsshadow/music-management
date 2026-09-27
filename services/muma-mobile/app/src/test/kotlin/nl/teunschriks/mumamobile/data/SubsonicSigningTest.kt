@@ -18,39 +18,33 @@ import okhttp3.mockwebserver.MockWebServer
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeInstanceOf
-import org.amshove.kluent.shouldBeTrue
+import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
 import org.amshove.kluent.shouldNotContain
 import org.junit.Test
 
 /**
  * Every Subsonic request used to carry the login password as `p=enc:<hex>`, a reversible encoding,
- * in the URL (bug report 054 item 2, bug report 103). These pin when the app signs with the Subsonic
- * token instead, when the password is still the fallback, and what an answer from
- * `GET /api/auth/subsonic-token` changes.
+ * in the URL (bug report 054 item 2, bug report 103), and until issue #72 it still did while no
+ * token was stored. These pin which stored token may sign for which user -- there is no password
+ * alternative any more -- and what an answer from `GET /api/auth/subsonic-token` changes.
  */
 class SubsonicSigningTest {
 
     @Test
     fun `a token stored for the signed-in user signs every request`() {
-        val signing = SubsonicSigning.signingFor("user", "hunter2", "the-subsonic-token", "user")
-
-        signing.secret shouldBeEqualTo "the-subsonic-token"
-        signing.passwordInUrl.shouldBeFalse()
+        SubsonicSigning.tokenFor("user", "the-subsonic-token", "user") shouldBeEqualTo "the-subsonic-token"
     }
 
     @Test
-    fun `without a token the password is the fallback`() {
-        val signing = SubsonicSigning.signingFor("user", "hunter2", null, null)
-
-        signing.secret shouldBeEqualTo "hunter2"
-        signing.passwordInUrl.shouldBeTrue()
+    fun `without a token there is nothing to sign with -- not the password`() {
+        SubsonicSigning.tokenFor("user", null, null).shouldBeNull()
     }
 
     @Test
     fun `a token issued for another account never signs`() {
         SubsonicSigning.isUsable("user", "someone-elses-token", "alice").shouldBeFalse()
-        SubsonicSigning.signingFor("user", "hunter2", "someone-elses-token", "alice").passwordInUrl.shouldBeTrue()
+        SubsonicSigning.tokenFor("user", "someone-elses-token", "alice").shouldBeNull()
     }
 
     @Test
@@ -65,8 +59,7 @@ class SubsonicSigningTest {
     }
 
     @Test
-    fun `the signing never prints its secret`() {
-        SubsonicSigning.signingFor("user", "hunter2", null, null).toString() shouldNotContain "hunter2"
+    fun `an adoption never prints its token`() {
         SubsonicSigning.Adoption.Store("the-token", "user", null).toString() shouldNotContain "the-token"
     }
 
@@ -111,15 +104,13 @@ class SubsonicSigningTest {
         server.enqueue(MockResponse().setBody("""{"subsonic-response":{"status":"ok","version":"1.16.1"}}"""))
         server.start()
         try {
-            val signing = SubsonicSigning.signingFor("user", "hunter2", "the-subsonic-token", "user")
             val client = SubsonicAPIClient(
                 SubsonicClientConfiguration(
                     baseUrl = server.url("/").toString().trimEnd('/'),
                     username = "user",
-                    password = signing.secret,
+                    token = SubsonicSigning.tokenFor("user", "the-subsonic-token", "user"),
                     minimalProtocolVersion = SubsonicAPIVersions.V1_16_0,
-                    clientID = "test",
-                    forcePlainTextPassword = signing.passwordInUrl
+                    clientID = "test"
                 )
             )
 

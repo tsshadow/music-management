@@ -42,14 +42,15 @@ val musicServiceModule = module {
 
     single {
         val server = get<ActiveServerProvider>().getActiveServer()
-        // The Subsonic token when one is stored for this user, the password only until then
-        // (bug report 103). Offline has no credentials and needs no token.
-        val signing = if (server.id == ActiveServerProvider.OFFLINE_DB_ID) {
-            SubsonicSigning.Signing(secret = server.password, passwordInUrl = server.forcePlainTextPassword)
+        val offline = server.id == ActiveServerProvider.OFFLINE_DB_ID
+        // Always the Subsonic token, never the password (issue #72). When none is stored yet the
+        // client obtains one from MuMa before its first request (SubsonicTokenRecoverer.obtain);
+        // offline has no server to sign for.
+        val token = if (offline) {
+            null
         } else {
-            SubsonicSigning.signingFor(
+            SubsonicSigning.tokenFor(
                 userName = server.userName,
-                password = server.password,
                 token = nl.teunschriks.mumamobile.util.SecureSettings.subsonicToken,
                 tokenUser = nl.teunschriks.mumamobile.util.SecureSettings.subsonicTokenUser
             )
@@ -58,7 +59,7 @@ val musicServiceModule = module {
         return@single SubsonicClientConfiguration(
             baseUrl = server.url,
             username = server.userName,
-            password = signing.secret,
+            token = token,
             apiKey = server.apiKey ?: nl.teunschriks.mumamobile.util.Settings.mumaApiKey.takeIf { it.isNotEmpty() },
             mumaUserId = server.mumaUserId ?: nl.teunschriks.mumamobile.util.Settings.mumaUserId.takeIf { it != -1 },
             minimalProtocolVersion = SubsonicAPIVersions.getClosestKnownClientApiVersion(
@@ -67,12 +68,12 @@ val musicServiceModule = module {
             ),
             clientID = Constants.REST_CLIENT_ID,
             allowSelfSignedCertificate = server.allowSelfSignedCertificate,
-            forcePlainTextPassword = signing.passwordInUrl,
             debug = BuildConfig.DEBUG,
             isRealProtocolVersion = server.minimumApiVersion != null,
             tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings,
-            // A refused token is refetched and the request retried once (issue #73).
-            tokenRecovery = if (server.id == ActiveServerProvider.OFFLINE_DB_ID) null else SubsonicTokenRefresher.recovery
+            // Fetches a missing token before the first request (issue #72), and refetches a refused
+            // one and retries the request once (issue #73).
+            tokenRecovery = if (offline) null else SubsonicTokenRefresher.recovery
         )
     }
 

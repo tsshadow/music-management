@@ -10,7 +10,13 @@ import {
   viewHasOfflineSource,
   watchConnectivity,
 } from "../../src/lib/subsonic.js";
-import { credentials, mumaApiKey, mumaSessionActive, mumaUser } from "../../src/lib/store.js";
+import {
+  credentials,
+  mumaApiKey,
+  mumaSessionActive,
+  mumaUser,
+  subsonicToken,
+} from "../../src/lib/store.js";
 
 const BODY = { "subsonic-response": { status: "ok", tracks: { track: [{ id: "1" }] } } };
 const LOCAL = { "subsonic-response": { status: "ok", tracks: { track: [{ id: "local" }] } } };
@@ -51,6 +57,7 @@ function unreachable() {
 describe("subsonicJson", () => {
   beforeEach(() => {
     credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     offline.set(false);
   });
 
@@ -354,6 +361,7 @@ describe("watchConnectivity", () => {
 describe("subsonicJson - failed answers", () => {
   beforeEach(() => {
     credentials.set({ url: "https://lms.example", username: "user", password: "old" });
+    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
     mumaApiKey.set("key-1");
     mumaSessionActive.set(true);
     mumaUser.set({ id: 1, username: "user" });

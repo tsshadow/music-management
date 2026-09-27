@@ -104,7 +104,7 @@ class SubsonicApiSSLTest {
         val config = SubsonicClientConfiguration(
             baseUrl = "https://$HOST:$PORT/",
             username = USERNAME,
-            password = PASSWORD,
+            token = TOKEN,
             minimalProtocolVersion = CLIENT_VERSION,
             clientID = CLIENT_ID,
             allowSelfSignedCertificate = allowSelfSignedCertificate

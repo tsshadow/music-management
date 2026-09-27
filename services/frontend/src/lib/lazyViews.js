@@ -15,6 +15,8 @@
 
 import { registerPagePreloader } from "./entitySeeds.js";
 import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from "./feeds.js";
+import { platform } from "./platform/index.js";
+import { SETTINGS_TABS } from "./router.js";
 
 /**
  * Creates a registry over a table of loaders.
@@ -85,6 +87,10 @@ export const lazyViews = createLazyRegistry({
   filterBar: () => import("./FilterBar.svelte"),
   collectionBar: () => import("./CollectionBar.svelte"),
   collectionGrid: () => import("./CollectionGrid.svelte"),
+  // The full-screen player (issue #119). `Player.svelte` draws a seeded stand-in
+  // (`NowPlayingShell.svelte`) while this is on its way, preloads it on idle and on a press of
+  // the mini player, so opening Now Playing never waits for a file in practice.
+  nowPlaying: () => import("./NowPlaying.svelte"),
   settings: () => import("./Settings.svelte"),
   settingsSidebar: () => import("./SettingsSidebar.svelte"),
   management: () => import("./management/Management.svelte"),
@@ -139,6 +145,56 @@ export const managementTabs = createLazyRegistry({
   events: () => import("./management/tabs/EventsTab.svelte"),
 });
 
+/**
+ * The settings tabs, one chunk each (issue #119): opening settings fetches the tab on screen,
+ * not all five. `Settings.svelte` renders the active one through `LazyView` with a form-shaped
+ * skeleton and preloads the next one in sidebar order on idle.
+ */
+export const settingsTabs = createLazyRegistry({
+  general: () => import("./settings/GeneralSettings.svelte"),
+  advanced: () => import("./settings/Advanced.svelte"),
+  about: () => import("./settings/About.svelte"),
+  help: () => import("./settings/Help.svelte"),
+  device: () => import("./settings/DeviceSettings.svelte"),
+});
+
+/**
+ * The settings tabs this platform shows, in sidebar order: `device` only inside the Android
+ * shell, where its Kotlin plugin exists.
+ *
+ * @param {boolean} [native] - Defaults to `platform.system.isNative`.
+ * @returns {string[]}
+ */
+export function visibleSettingsTabs(native = platform.system.isNative) {
+  return SETTINGS_TABS.filter((tab) => native || tab !== "device");
+}
+
+/**
+ * The tab `Settings.svelte` actually renders for a stored or routed tab name: an unknown name
+ * (a removed admin tab, a typo) and `device` outside the shell both show General.
+ *
+ * @param {string|undefined} tab
+ * @param {boolean} [native] - Defaults to `platform.system.isNative`.
+ * @returns {string} A name in `settingsTabs`.
+ */
+export function settingsTabName(tab, native = platform.system.isNative) {
+  return visibleSettingsTabs(native).includes(tab) ? tab : "general";
+}
+
+/**
+ * The tab most likely opened after `tab`: the next one in the sidebar, wrapping round.
+ *
+ * @param {string|undefined} tab
+ * @param {boolean} [native] - Defaults to `platform.system.isNative`.
+ * @returns {string|null} Null when there is no other tab.
+ */
+export function nextSettingsTab(tab, native = platform.system.isNative) {
+  const tabs = visibleSettingsTabs(native);
+  const current = settingsTabName(tab, native);
+  const next = tabs[(tabs.indexOf(current) + 1) % tabs.length];
+  return next === current ? null : next;
+}
+
 /** `activeView` prefixes whose page is a lazy view, for the "kind:argument" routes. */
 const PREFIXED_VIEWS = [
   ["artist:", "artistPage"],
@@ -184,10 +240,11 @@ export function listPartsForView(view) {
 
 /**
  * The lazy views a view state needs on screen, in the order they should be fetched: the page,
- * the sidebar that goes with it, and for Beheer the open tab.
+ * the sidebar that goes with it, and for settings and Beheer the open tab.
  *
- * @param {{view: string, managementTab?: string}} state - What `pathToState` returns, with the
- *   management tab filled in from the store when the path names none.
+ * @param {{view: string, managementTab?: string, settingsTab?: string}} state - What
+ *   `pathToState` returns, with the management and settings tab filled in from the store when
+ *   the path names none.
  * @returns {Array<[ReturnType<typeof createLazyRegistry>, string]>} Registry and name pairs.
  */
 export function chunksForState(state) {
@@ -199,6 +256,7 @@ export function chunksForState(state) {
   if (view === "settings") {
     add(lazyViews, "settings");
     add(lazyViews, "settingsSidebar");
+    add(settingsTabs, settingsTabName(state.settingsTab));
   } else if (view === "management") {
     add(lazyViews, "management");
     add(lazyViews, "managementSidebar");
@@ -220,7 +278,7 @@ export function chunksForState(state) {
  * Fetches every chunk a view state needs. Never rejects: a chunk that fails here is fetched
  * again by the `LazyView` that renders it, which has the retry pill to show for it.
  *
- * @param {{view: string, managementTab?: string}} state
+ * @param {{view: string, managementTab?: string, settingsTab?: string}} state
  * @returns {Promise<void>}
  */
 export function preloadState(state) {
@@ -237,6 +295,9 @@ export function preloadState(state) {
  */
 export function likelyNextChunks() {
   return [
+    // The full-screen player first: a tap on the mini player is the one tap every session
+    // makes, and its seeded stand-in only covers the moment the chunk takes (issue #119).
+    [lazyViews, "nowPlaying"],
     // The pages a tap on the home screen or a list opens, first: an artist or album link is
     // the most common tap, and its page should not wait for a file (issue #118).
     [lazyViews, "artistPage"],
@@ -248,6 +309,7 @@ export function likelyNextChunks() {
     [lazyViews, "playlistPage"],
     [lazyViews, "settings"],
     [lazyViews, "settingsSidebar"],
+    [settingsTabs, "general"],
     [lazyViews, "song"],
     [lazyViews, "searchMore"],
     [lazyViews, "trackDetails"],

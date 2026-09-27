@@ -10,10 +10,14 @@ import {
   lazyViews,
   likelyNextChunks,
   managementTabs,
+  nextSettingsTab,
   preloadOnIdle,
   preloadState,
+  settingsTabName,
+  settingsTabs,
+  visibleSettingsTabs,
 } from "../../src/lib/lazyViews.js";
-import { MANAGEMENT_TABS } from "../../src/lib/router.js";
+import { MANAGEMENT_TABS, SETTINGS_TABS } from "../../src/lib/router.js";
 
 /** A promise with its resolve/reject handed out, to hold a chunk "on its way". */
 function deferred() {
@@ -28,7 +32,10 @@ function deferred() {
 
 /** Names of what `chunksForState` returns, readable in an assertion. */
 const names = (pairs) =>
-  pairs.map(([registry, name]) => `${registry === managementTabs ? "tab:" : ""}${name}`);
+  pairs.map(
+    ([registry, name]) =>
+      `${registry === managementTabs ? "tab:" : registry === settingsTabs ? "settings:" : ""}${name}`,
+  );
 
 describe("createLazyRegistry", () => {
   it("fetches a chunk once, however often it is asked for", async () => {
@@ -91,8 +98,27 @@ describe("the app's lazy views", () => {
     expect(managementTabs.names().sort()).toEqual(expected);
   });
 
+  it("has a chunk for every settings tab", () => {
+    expect(settingsTabs.names().sort()).toEqual([...SETTINGS_TABS].sort());
+  });
+
+  it("resolves the settings tab Settings renders, and the one likely opened next", () => {
+    expect(visibleSettingsTabs(false)).toEqual(["general", "advanced", "about", "help"]);
+    expect(visibleSettingsTabs(true)).toEqual(["general", "advanced", "about", "help", "device"]);
+    expect(settingsTabName("about", false)).toBe("about");
+    // `device` outside the shell, and a removed admin tab, show General.
+    expect(settingsTabName("device", false)).toBe("general");
+    expect(settingsTabName("device", true)).toBe("device");
+    expect(settingsTabName("scanner", true)).toBe("general");
+    expect(settingsTabName(undefined, false)).toBe("general");
+    expect(nextSettingsTab("general", false)).toBe("advanced");
+    expect(nextSettingsTab("help", false)).toBe("general");
+    expect(nextSettingsTab("help", true)).toBe("device");
+    expect(nextSettingsTab("device", true)).toBe("general");
+  });
+
   it("every loader resolves to a component", async () => {
-    for (const registry of [lazyViews, managementTabs]) {
+    for (const registry of [lazyViews, managementTabs, settingsTabs]) {
       for (const name of registry.names()) {
         expect(typeof (await registry.load(name)), name).toBe("function");
       }
@@ -118,7 +144,17 @@ describe("the app's lazy views", () => {
     expect(names(chunksForState({ view: "genres" }))).toEqual(["collectionGrid"]);
     expect(names(chunksForState({ view: "lineups:x" }))).toEqual(["collectionGrid"]);
     expect(names(chunksForState({ view: "playlists" }))).toEqual(["collectionBar"]);
-    expect(names(chunksForState({ view: "settings" }))).toEqual(["settings", "settingsSidebar"]);
+    // Settings fetches its open tab too (issue #119), General when none is named.
+    expect(names(chunksForState({ view: "settings" }))).toEqual([
+      "settings",
+      "settingsSidebar",
+      "settings:general",
+    ]);
+    expect(names(chunksForState({ view: "settings", settingsTab: "about" }))).toEqual([
+      "settings",
+      "settingsSidebar",
+      "settings:about",
+    ]);
     expect(names(chunksForState({ view: "management", managementTab: "users" }))).toEqual([
       "management",
       "managementSidebar",
@@ -170,8 +206,14 @@ describe("the app's lazy views", () => {
     expect(loader).toHaveBeenCalledTimes(2);
 
     expect(names(likelyNextChunks())).toContain("settings");
-    // The artist and album pages come first: the most common tap should never wait for a file.
-    expect(names(likelyNextChunks()).slice(0, 2)).toEqual(["artistPage", "albumPage"]);
+    expect(names(likelyNextChunks())).toContain("settings:general");
+    // The full-screen player first (issue #119), then the artist and album pages: the most
+    // common taps should never wait for a file.
+    expect(names(likelyNextChunks()).slice(0, 3)).toEqual([
+      "nowPlaying",
+      "artistPage",
+      "albumPage",
+    ]);
     expect(names(likelyNextChunks())).not.toContain("management");
     expect(names(adminNextChunks())).toEqual(["management", "managementSidebar", "tab:overview"]);
   });

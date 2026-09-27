@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
@@ -88,6 +88,11 @@ const {
   syncMode,
 } = await import("../../src/lib/store.js");
 const { dismissAll } = await import("../../src/lib/notifications.js");
+// Imported after the platform mocks above, like the component. Now Playing is its own chunk
+// (issue #119): loaded up front so the tests that open it see the real view on the first frame,
+// not its seeded shell (issue #120).
+const { LAZY_HOOK_TIMEOUT_MS, loadLazy } = await import("./lazyTestUtils.js");
+beforeAll(() => loadLazy("nowPlaying"), LAZY_HOOK_TIMEOUT_MS);
 
 const FIRST = { id: "song-1", title: "Raise Your Fist", artist: "Angerfist", duration: 240 };
 const SECOND = { id: "song-2", title: "Encore", artist: "Angerfist", duration: 200 };

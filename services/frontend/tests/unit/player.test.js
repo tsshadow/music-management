@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { resetRatings } from "../../src/lib/ratings.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
@@ -16,6 +16,8 @@ import {
 } from "../../src/lib/store.js";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
 import { platform } from "../../src/lib/platform/index.js";
+import { lazyViews } from "../../src/lib/lazyViews.js";
+import { LAZY_HOOK_TIMEOUT_MS, loadLazy } from "./lazyTestUtils.js";
 
 const FIRST = {
   id: "song-1",
@@ -54,6 +56,21 @@ async function settled() {
   );
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+/** A promise with its resolve/reject handed out, to hold a chunk "on its way". */
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+// Now Playing is its own chunk (issue #119): loaded up front, so the tests about what it does
+// see it on the first frame (issue #120). The seeded shell has its own tests below.
+beforeAll(() => loadLazy("nowPlaying"), LAZY_HOOK_TIMEOUT_MS);
 
 describe("Player", () => {
   beforeEach(() => {
@@ -291,6 +308,94 @@ describe("Player", () => {
       expect(screen.queryByTestId("now-playing-output")).toBeNull();
       expect(subscribe).not.toHaveBeenCalled();
       expect(read).not.toHaveBeenCalled();
+    });
+    describe("while its chunk is on its way (issue #119)", () => {
+      /** Makes `lazyViews` report Now Playing as not loaded, and hands out its fetch. */
+      async function holdNowPlaying() {
+        const NowPlaying = await lazyViews.load("nowPlaying");
+        const held = deferred();
+        const peek = lazyViews.peek.bind(lazyViews);
+        const load = lazyViews.load.bind(lazyViews);
+        vi.spyOn(lazyViews, "peek").mockImplementation((name) =>
+          name === "nowPlaying" ? null : peek(name),
+        );
+        const loadSpy = vi
+          .spyOn(lazyViews, "load")
+          .mockImplementation((name) => (name === "nowPlaying" ? held.promise : load(name)));
+        return { NowPlaying, held, loadSpy };
+      }
+
+      it("opens at once as a seeded shell, then swaps in the real view", async () => {
+        const { NowPlaying, held } = await holdNowPlaying();
+        isMobile.set(true);
+        renderPlayer();
+
+        await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+        const shell = screen.getByTestId("now-playing-shell");
+        expect(screen.getByTestId("now-playing-shell-title").textContent).toBe("Raise Your Fist");
+        expect(shell.textContent).toContain("Angerfist");
+        expect(screen.queryByTestId("now-playing")).toBeNull();
+
+        held.resolve(NowPlaying);
+
+        expect(await screen.findByTestId("now-playing")).toBeTruthy();
+        expect(screen.queryByTestId("now-playing-shell")).toBeNull();
+      });
+
+      it("starts the fetch when a finger goes down on the mini player, not only on open", async () => {
+        const { loadSpy } = await holdNowPlaying();
+        isMobile.set(true);
+        renderPlayer();
+
+        await fireEvent.pointerDown(screen.getByText("Raise Your Fist"));
+
+        expect(loadSpy).toHaveBeenCalledWith("nowPlaying");
+        expect(get(nowPlayingOpen)).toBe(false);
+      });
+
+      it("does not start it from a press on the play button", async () => {
+        const { loadSpy } = await holdNowPlaying();
+        isMobile.set(true);
+        renderPlayer();
+
+        await fireEvent.pointerDown(screen.getByLabelText("Afspelen"));
+
+        expect(loadSpy).not.toHaveBeenCalledWith("nowPlaying");
+      });
+
+      it("plays and pauses from the shell, and closes from its chevron", async () => {
+        vi.spyOn(window.history, "back").mockImplementation(() => {});
+        await holdNowPlaying();
+        isMobile.set(true);
+        renderPlayer();
+        await fireEvent.click(screen.getByText("Raise Your Fist"));
+        const shell = screen.getByTestId("now-playing-shell");
+
+        await fireEvent.click(shell.querySelector('button[aria-label="Afspelen"]'));
+        expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalled();
+
+        await fireEvent.click(screen.getByLabelText("Sluiten"));
+        expect(screen.queryByTestId("now-playing-shell")).toBeNull();
+        expect(get(nowPlayingOpen)).toBe(false);
+      });
+
+      it("says so with a retry when the chunk cannot be loaded, and the retry loads it", async () => {
+        const { NowPlaying, held, loadSpy } = await holdNowPlaying();
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        isMobile.set(true);
+        renderPlayer();
+        await fireEvent.click(screen.getByText("Raise Your Fist"));
+
+        held.reject(new Error("offline"));
+        const retry = await screen.findByText("Opnieuw");
+        expect(screen.getByTestId("now-playing-shell")).toBeTruthy();
+
+        loadSpy.mockImplementation(() => Promise.resolve(NowPlaying));
+        await fireEvent.click(retry);
+
+        expect(await screen.findByTestId("now-playing")).toBeTruthy();
+      });
     });
   });
 

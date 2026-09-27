@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
@@ -136,6 +136,11 @@ window.Capacitor = { isNativePlatform: () => true };
 const { default: Player } = await import("../../src/lib/Player.svelte");
 const { currentTrack, isMobile, nowPlayingOpen, playerState, playlist, radioChannel, syncMode } =
   await import("../../src/lib/store.js");
+// Imported after the platform mocks above, like the component. Now Playing is its own chunk
+// (issue #119): loaded up front so the tests that open it see the real view on the first frame,
+// not its seeded shell (issue #120).
+const { LAZY_HOOK_TIMEOUT_MS, loadLazy } = await import("./lazyTestUtils.js");
+beforeAll(() => loadLazy("nowPlaying"), LAZY_HOOK_TIMEOUT_MS);
 
 const TRACKS = Array.from({ length: 6 }, (_, i) => ({
   id: `song-${i + 1}`,

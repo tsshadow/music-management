@@ -4,7 +4,9 @@
 // The genre list and the search requests are answered here, and the second genre's tracks and the
 // search sections are held back until the test lets them go, so "the previous genre's rows are
 // gone while the next one loads" and "no 'No results' before the answer" are facts of this run
-// rather than a race with a fast stack.
+// rather than a race with a fast stack. The held requests are counted with expect.poll, not read
+// once: the page can draw its skeleton before Playwright's route handler has seen the request
+// (issue #116).
 //
 // Runs in the `desktop` project only and sets its own viewport per layout, the way
 // optimistic-navigation.spec.js does.
@@ -117,7 +119,7 @@ for (const layout of [
       await expect(page.getByRole("heading", { level: 2, name: new RegExp(SECOND) })).toBeVisible();
       await expect(page.getByTestId("skeleton-rows")).toBeVisible();
       await expect(page.getByText("Alpha Only Track")).toHaveCount(0);
-      expect(server.pending()).toBeGreaterThan(0);
+      await expect.poll(() => server.pending()).toBeGreaterThan(0);
 
       server.release();
       await expect(page.getByText("Beta Only Track")).toBeVisible({ timeout: 10_000 });
@@ -142,7 +144,7 @@ for (const layout of [
       await expect(page.getByTestId("skeleton-tiles")).toHaveCount(2);
       await expect(page.getByTestId("search-pending")).toBeVisible();
       await expect(page.getByText(/No results found\.|Geen resultaten gevonden\./)).toHaveCount(0);
-      expect(server.pending()).toBeGreaterThan(0);
+      await expect.poll(() => server.pending()).toBeGreaterThan(0);
 
       server.release();
       await expect(page.getByText(/No results found\.|Geen resultaten gevonden\./)).toBeVisible({

@@ -5,8 +5,12 @@
 // The artist list is answered here with one artist, and the artist's own requests (getArtist,
 // getSpotifyTracks) are held back until the test lets them go, so "the name is on screen while
 // the tracks are still loading" is a fact of this run rather than a race with a fast stack.
-// The time is measured inside the page, from the tap to the frame the heading appears in, so
-// Playwright's own polling interval is not part of the number.
+// The property is the order, not a stopwatch: the heading (seeded from the tile) is on screen while
+// every held request is still unanswered, which is deterministic because nothing is answered until
+// the test calls release(). The time from the tap to the frame the heading appears in is measured
+// inside the page and recorded as an annotation; it is only held to a loose guard, because a
+// tight wall-clock budget measures the runner's load rather than the app (issue #116: 118 ms
+// against a 100 ms budget on a busy tablet run).
 //
 // Runs in the `desktop` project only and sets its own viewport per layout, the way
 // feed-load-more.spec.js does; running it in the `phone` project as well would only repeat it.
@@ -15,12 +19,17 @@ import { ADMIN_STORAGE_STATE, PHONE_VIEWPORT } from "../../playwright.config.js"
 
 const ARTIST = { id: "ar-optimistic-1", name: "Angerfist", albumCount: 1 };
 
-/** The budget for the name to appear after the tap. */
-const INSTANT_MS = 100;
+/**
+ * A loose guard on the time from the tap to the heading. Well above the 118 ms seen once on CI, well
+ * below anything that could be a server round trip the test lets through; the ordering assertions
+ * below are what prove the heading came from the tile.
+ */
+const LOOSE_GUARD_MS = 500;
 
 /**
  * Answers the artist list with ARTIST and holds the artist's page requests until `release()`.
- * `pending()` counts the held requests that have not been answered yet.
+ * `pending()` counts the held requests that have not been answered yet, `answered()` the artist
+ * requests that have been fulfilled.
  */
 async function mockSlowArtist(page) {
   let release;
@@ -28,6 +37,7 @@ async function mockSlowArtist(page) {
     release = resolve;
   });
   let waiting = 0;
+  let answered = 0;
   const ok = (payload) => ({ json: { "subsonic-response": { status: "ok", ...payload } } });
 
   await page.route(/\/rest\/getArtistList(\.view)?\?/, (route) =>
@@ -38,6 +48,7 @@ async function mockSlowArtist(page) {
     await held;
     waiting -= 1;
     await route.fulfill(ok({ artist: { ...ARTIST, album: [] } }));
+    answered += 1;
   });
   await page.route(/\/rest\/getSpotifyTracks(\.view)?\?/, async (route) => {
     if (!route.request().url().includes(ARTIST.id)) return route.continue();
@@ -45,8 +56,9 @@ async function mockSlowArtist(page) {
     await held;
     waiting -= 1;
     await route.fulfill(ok({ tracks: { track: [], moreResults: false } }));
+    answered += 1;
   });
-  return { release: () => release(), pending: () => waiting };
+  return { release: () => release(), pending: () => waiting, answered: () => answered };
 }
 
 /** Taps the artist tile and returns how long the heading took to appear, measured in the page. */
@@ -89,15 +101,24 @@ for (const layout of [
       await page.goto("/artists");
 
       const elapsed = await tapAndTime(page, ARTIST.name);
+      testInfo.annotations.push({
+        type: "tap-to-heading",
+        description: `${Math.round(elapsed)} ms (${layout.name})`,
+      });
 
-      expect(elapsed).toBeLessThan(INSTANT_MS);
+      // The heading is on screen and no artist request has been answered: it came from the tile.
+      expect(server.answered()).toBe(0);
       await expect(page).toHaveURL(new RegExp(`/artist/${ARTIST.id}$`));
-      // Still loading: the heading came from the tile, not from the server.
-      expect(server.pending()).toBeGreaterThan(0);
+      // The page did ask for the artist, and those requests are still held.
+      await expect.poll(() => server.pending()).toBeGreaterThan(0);
       await expect(page.getByTestId("skeleton-rows")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
+      expect(server.answered()).toBe(0);
+      expect(elapsed).toBeLessThan(LOOSE_GUARD_MS);
 
       server.release();
       await expect(page.getByTestId("skeleton-rows")).toHaveCount(0, { timeout: 10_000 });
+      await expect.poll(() => server.answered()).toBeGreaterThan(0);
       await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
     });
   });

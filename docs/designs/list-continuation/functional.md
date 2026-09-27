@@ -41,8 +41,13 @@ mix, and — unchanged — the feeds and daily mixes. Search results also get "M
 which they did not have.
 
 Not in scope: albums and playlists (they are loaded whole), the Home shelf cards (a card plays only
-its own track and starts no queue), the "Nu speelt" continuation sections, voice results, and the
-native Android Auto lists (follow-up issue #103).
+its own track and starts no queue), the "Nu speelt" continuation sections, and voice results.
+
+Android Auto (issue #103): a queue the car starts from its own lists -- a tapped track or a play row
+in a Songs/Sets tab sort, a genre, label, festival, podcast, year, lineup or Soort folder, or a
+preset -- continues past what was shown in the same way, near its end and without repeats, as the
+feeds already did there since issue #84. A shuffled list stays one shuffle across its pages. The
+car has no queue pill or end line; the list it shows keeps its size, only the playing queue grows.
 
 ## Acceptance Criteria
 

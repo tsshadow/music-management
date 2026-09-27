@@ -10,6 +10,8 @@ package nl.teunschriks.mumamobile.service.androidauto
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.future
+import nl.teunschriks.mumamobile.api.subsonic.models.Filter
+import nl.teunschriks.mumamobile.api.subsonic.models.Filters
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.MusicDirectory
 import nl.teunschriks.mumamobile.domain.SearchResult
@@ -60,8 +62,35 @@ class MediaLibraryDataProvider(
     lateinit var playbackController: MediaLibraryPlaybackController
     var playlistCache: List<Track>? = null
     var starredSongsCache: List<Track>? = null
-    var randomSongsCache: List<Track>? = null
     var searchSongsCache: List<Track>? = null
+
+    /**
+     * The last `getSongs` list the car browsed or played: what a tap on one of its rows
+     * (`MEDIA_SONG_RANDOM_ITEM`) plays from. Setting it directly forgets where it continues;
+     * [rememberList] sets both.
+     */
+    var randomSongsCache: List<Track>? = null
+        set(value) {
+            field = value
+            randomSongsContinuation = null
+        }
+
+    /**
+     * Where [randomSongsCache] continues past what was loaded, so a queue started from it tops
+     * itself up (issue #103). Null for a list that fit in what was loaded, and for one whose
+     * question is not known (the legacy random-songs call).
+     */
+    var randomSongsContinuation: ListQueueContinuation.Start? = null
+        private set
+
+    /** One loaded `getSongs` list: its tracks, and where it continues -- null when it does not. */
+    data class LoadedList(val tracks: List<Track>, val continuation: ListQueueContinuation.Start?)
+
+    /** Makes [list] the one a row tap plays from, together with where it continues. */
+    fun rememberList(list: LoadedList) {
+        randomSongsCache = list.tracks
+        randomSongsContinuation = list.continuation
+    }
 
     fun tracksFromMediaId(mediaId: String?): List<Track>? {
         Timber.d(
@@ -127,25 +156,83 @@ class MediaLibraryDataProvider(
      * other list calls here: callers already sit on a background future. The answer becomes the
      * random-songs cache, which is what a tap on one of the rows plays from.
      */
-    fun tracksFor(query: BrowseQuery, page: Int, pageSize: Int): List<Track>? {
-        val songs = callWithErrorHandling {
-            musicService.getSongs(
-                filters = query.toFilters(),
-                ratingMin = query.ratingMin,
-                ratingMax = query.ratingMax,
-                count = minOf(pageSize, query.count),
-                offset = page * pageSize,
-                sortMethod = query.sortMethod,
-                festivalLineup = query.festivalLineup,
-                minDuration = query.minDuration,
-                maxDuration = query.maxDuration,
-                forms = query.forms.takeIf { it.isNotEmpty() },
-                year = query.year
-            )
-        } ?: return null
-        val tracks = songs.getTracks()
-        randomSongsCache = tracks
-        return tracks
+    fun tracksFor(query: BrowseQuery, page: Int, pageSize: Int): List<Track>? = loadList(query, page, pageSize)?.tracks
+
+    /**
+     * [tracksFor], with where the list continues. A random query is given its seed here, before
+     * the first page, so the page on screen and every page the queue appends later are one
+     * shuffle. The list is remembered for a row tap either way.
+     */
+    fun loadList(query: BrowseQuery, page: Int, pageSize: Int): LoadedList? {
+        val seeded = query.seeded()
+        val count = minOf(pageSize, seeded.count)
+        val offset = page * pageSize
+        val tracks = fetchTracks(seeded, offset, count) ?: return null
+        val list = LoadedList(tracks, continuationOf(seeded, offset, tracks.size, count))
+        rememberList(list)
+        return list
+    }
+
+    /**
+     * Where [query] continues after [got] of [asked] tracks from [offset], as the queue's
+     * continuation. Its pages are [DISPLAY_LIMIT] long whatever the first one was: the queue
+     * grows by a page the size of a browse list, and a preset carries on past its saved size,
+     * as it does on the web.
+     */
+    private fun continuationOf(query: BrowseQuery, offset: Int, got: Int, asked: Int): ListQueueContinuation.Start? {
+        val next = SongsListSource.nextOffsetAfter(offset, got, asked) ?: return null
+        val source = SongsListSource(describe(query), DISPLAY_LIMIT) { from, count -> fetchTracks(query, from, count) }
+        return ListQueueContinuation.Start(source, next)
+    }
+
+    private fun describe(query: BrowseQuery): String = "songs ${query.length} ${query.clusters} forms=${query.forms} year=${query.year} sort=${query.sortMethod} seed=${query.seed}"
+
+    /** One page of [query], without touching any cache: what the queue's continuation asks for. */
+    private fun fetchTracks(query: BrowseQuery, offset: Int, count: Int): List<Track>? = callWithErrorHandling {
+        musicService.getSongs(
+            filters = query.toFilters(),
+            ratingMin = query.ratingMin,
+            ratingMax = query.ratingMax,
+            count = count,
+            offset = offset,
+            sortMethod = query.sortMethod,
+            festivalLineup = query.festivalLineup,
+            minDuration = query.minDuration,
+            maxDuration = query.maxDuration,
+            forms = query.forms.takeIf { it.isNotEmpty() },
+            year = query.year,
+            seed = query.seed
+        )
+    }?.getTracks()
+
+    /**
+     * A Songs/Sets tab list by one order ("Recent toegevoegd", "Recent uitgebracht"): every track
+     * of [length], [count] of them, remembered with where it continues. Kept apart from
+     * [loadList] because it asks without a rating range, as it always has -- a range of 0 to 5
+     * is not the same question to the server, and the list must not change underneath the car.
+     */
+    fun loadLengthList(length: String, sortMethod: String, count: Int): LoadedList? {
+        val seed = if (sortMethod.equals(BrowseQuery.SORT_RANDOM, ignoreCase = true)) BrowseQuery.randomSeed() else null
+        val fetch = { offset: Int, size: Int ->
+            val filters = Filters().apply { add(Filter(BrowseQuery.CLUSTER_LENGTH, length)) }
+            callWithErrorHandling {
+                musicService.getSongs(
+                    filters = filters,
+                    ratingMin = null,
+                    ratingMax = null,
+                    count = size,
+                    offset = offset,
+                    sortMethod = sortMethod,
+                    seed = seed
+                )
+            }?.getTracks()
+        }
+        val tracks = fetch(0, count) ?: return null
+        val next = SongsListSource.nextOffsetAfter(0, tracks.size, count)
+        val source = SongsListSource("songs $length sort=$sortMethod seed=$seed", DISPLAY_LIMIT, fetch)
+        val list = LoadedList(tracks, next?.let { ListQueueContinuation.Start(source, it) })
+        rememberList(list)
+        return list
     }
 
     /**

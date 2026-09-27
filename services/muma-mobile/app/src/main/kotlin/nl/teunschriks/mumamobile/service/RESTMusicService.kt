@@ -736,7 +736,8 @@ open class RESTMusicService(
         workId: Int?,
         canonicalOnly: Boolean?,
         forms: List<String>?,
-        year: Int?
+        year: Int?,
+        seed: Int?
     ): MusicDirectory {
         Timber.d(filters.toString())
 
@@ -763,7 +764,8 @@ open class RESTMusicService(
             // The one place every caller's forms pass through: the server refuses an unknown
             // form for the whole request, so nothing it does not know ever leaves the app.
             TrackForm.sanitize(forms),
-            year
+            year,
+            seed
         ).execute().throwOnFailure()
 
         val result = MusicDirectory()

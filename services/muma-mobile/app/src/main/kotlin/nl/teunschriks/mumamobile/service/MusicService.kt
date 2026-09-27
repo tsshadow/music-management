@@ -233,7 +233,12 @@ interface MusicService {
          */
         forms: List<String>? = null,
         /** The year a track files under: a live set's performance year, else its date tag. */
-        year: Int? = null
+        year: Int? = null,
+        /**
+         * The seed of a `Random` sort: the same seed answers the same shuffle, so `offset` pages
+         * through it without repeats. Ignored for every other sort, and by a server that predates it.
+         */
+        seed: Int? = null
     ): MusicDirectory
 
     @Throws(Exception::class)

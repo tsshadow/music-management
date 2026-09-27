@@ -622,6 +622,10 @@ namespace lms::api::subsonic
         // and voice can ask what the web asks. The YEAR cluster keeps its tag-year meaning.
         std::vector<std::string> forms{ parseTrackForms(context.getParameters()) };
         const std::optional<int> year{ getParameterAs<int>(context.getParameters(), "year") };
+        // The seed of a Random sort, as getSongsByFilter and getSpotifyTracks take it: the same
+        // seed answers the same shuffle, so offset pages through one order instead of drawing a
+        // new one per page. The web's presets and the car's queue continuation page with it.
+        const std::optional<int> seed{ getParameterAs<int>(context.getParameters(), "seed") };
 
         size = std::min(size, defaultMaxCountSize);
 
@@ -638,6 +642,7 @@ namespace lms::api::subsonic
         params.canonicalOnly = canonicalOnly && !workId.has_value();
         params.forms = std::move(forms);
         params.year = year;
+        params.randomSeed = seed;
 
         std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())

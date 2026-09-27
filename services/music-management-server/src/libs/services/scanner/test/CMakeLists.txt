@@ -7,6 +7,7 @@ add_executable(test-scanner
 	Lyrics.cpp
 	PlayList.cpp
 	Scanner.cpp
+	ScanErrorPolicy.cpp
 	ScanOptions.cpp
 	ScanRequestCollector.cpp
 	ScanSchedule.cpp

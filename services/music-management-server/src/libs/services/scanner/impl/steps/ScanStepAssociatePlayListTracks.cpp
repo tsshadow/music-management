@@ -36,6 +36,7 @@
 
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
+#include "ScanErrorPolicy.hpp"
 #include "ScannerSettings.hpp"
 
 namespace lms::scanner
@@ -174,9 +175,10 @@ namespace lms::scanner
         class ComputePlayListFileAssociationsJob : public core::IJob
         {
         public:
-            ComputePlayListFileAssociationsJob(db::IDb& db, const ScannerSettings& settings, db::IdRange<db::PlayListFileId> playListFileIdRange)
+            ComputePlayListFileAssociationsJob(db::IDb& db, const ScannerSettings& settings, const ScanOptions& scanOptions, db::IdRange<db::PlayListFileId> playListFileIdRange)
                 : _db{ db }
                 , _settings{ settings }
+                , _scanOptions{ scanOptions }
                 , _playListFileIdRange{ playListFileIdRange }
             {
             }
@@ -215,7 +217,7 @@ namespace lms::scanner
                         pendingErrors.clear();
                         pendingErrors.emplace_back(std::make_shared<PlayListFileAllPathesMissingError>(playListFile->getAbsoluteFilePath()));
                     }
-                    _errors.insert(std::end(_errors), std::begin(pendingErrors), std::end(pendingErrors));
+                    reportErrors(playListFile->getAbsoluteFilePath(), pendingErrors);
 
                     if (playListAssociation.tracks.empty()
                         || (_settings.skipSingleReleasePlayLists && isSingleReleasePlayList(playListAssociation.tracks)))
@@ -239,8 +241,23 @@ namespace lms::scanner
                 });
             }
 
+            // Keeps a playlist's missing-entry errors, unless ScanErrorPolicy says they are noise
+            // for this scan (outside a scoped scan's folders, or in the import queue).
+            void reportErrors(const std::filesystem::path& playListFile, std::span<const std::shared_ptr<ScanError>> pendingErrors)
+            {
+                if (pendingErrors.empty())
+                    return;
+
+                const PlayListErrorDecision decision{ decidePlayListErrorReporting(playListFile, _scanOptions) };
+                if (decision == PlayListErrorDecision::Report)
+                    _errors.insert(std::end(_errors), std::begin(pendingErrors), std::end(pendingErrors));
+                else
+                    LMS_LOG(DBUPDATER, DEBUG, "Not reporting " << pendingErrors.size() << " missing entries in playlist " << playListFile << (decision == PlayListErrorDecision::SkipImportQueue ? ": in the import queue" : ": outside the scan scope"));
+            }
+
             db::IDb& _db;
             const ScannerSettings& _settings;
+            ScanOptions _scanOptions; // a copy: a handful of paths at most
             db::IdRange<db::PlayListFileId> _playListFileIdRange;
             std::vector<PlayListFileAssociation> _associations;
             std::vector<std::shared_ptr<ScanError>> _errors;
@@ -296,7 +313,7 @@ namespace lms::scanner
             db::PlayListFileId lastPlayListFileId;
             db::IdRange<db::PlayListFileId> playListFileIdRange;
             while (fetchNextPlayListFileIdRange(session, lastPlayListFileId, playListFileIdRange))
-                queue.push(std::make_unique<ComputePlayListFileAssociationsJob>(_db, _settings, playListFileIdRange));
+                queue.push(std::make_unique<ComputePlayListFileAssociationsJob>(_db, _settings, context.scanOptions, playListFileIdRange));
         }
 
         // process all remaining associations

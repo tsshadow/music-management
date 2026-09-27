@@ -20,6 +20,7 @@
 #include "ScanStepBase.hpp"
 
 #include "ScanContext.hpp"
+#include "ScanErrorPolicy.hpp"
 
 namespace lms::scanner
 {
@@ -42,6 +43,7 @@ namespace lms::scanner
         error->accept(_scanErrorLogger);
 
         context.stats.errorsCount++;
+        context.stats.errorCountsByKind.at(static_cast<std::size_t>(getScanErrorKind(*error)))++;
 
         if (context.stats.errors.size() < ScanStats::maxStoredErrorCount)
             context.stats.errors.emplace_back(error);

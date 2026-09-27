@@ -38,6 +38,7 @@
 #include "FileScanners.hpp"
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
+#include "ScanErrorPolicy.hpp"
 #include "ScannerSettings.hpp"
 #include "services/scanner/ScannerStats.hpp"
 
@@ -91,8 +92,14 @@ namespace lms::scanner
                 const std::filesystem::directory_entry fileEntry{ p, ec };
                 if (ec)
                 {
-                    // TODO store error?
-                    LMS_LOG(DBUPDATER, ERROR, "Error while checking file " << p << ": " << ec.message());
+                    // A file that is simply gone is what this step exists to find: the importer
+                    // moves releases out of the queue and artwork gets replaced all day. That
+                    // outcome was logged as an ERROR, about 92,000 lines in six hours on
+                    // production, burying the errors that are real (bug report 121).
+                    if (isMissingFileError(ec))
+                        LMS_LOG(DBUPDATER, DEBUG, "Removing " << p << ": missing");
+                    else
+                        LMS_LOG(DBUPDATER, ERROR, "Error while checking file " << p << ": " << ec.message());
                     return false;
                 }
 

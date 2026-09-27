@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.12.0 (2026-09-27)
+
+- A label page shows the channels linked to that label.
+
+- Channels can be linked to their label or artist by hand in Beheer, and their tracks then show
+  that label.
+
 ## Global Version 7.11.1 (2026-09-27)
 
 - Settings opens faster, and the app's interface starts a little faster again; Now Playing

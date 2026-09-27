@@ -11,6 +11,25 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.82.0 (2026-09-27)
+
+- A label page now shows the SoundCloud, YouTube and Telegram channels linked to that label.
+
+- **New downloads show up in the app while LMS is scanning the whole library**, within a few
+  minutes instead of after the library scan (which takes over an hour) has finished.
+
+- Containers run with fewer privileges (capabilities dropped, process limits, read-only
+  filesystem for LMS and its proxy).
+
+- Scripts and CI jobs no longer show passwords or tokens in the process list.
+
+- The artist curation queue is now checked against Deezer, iTunes and MusicBrainz every night.
+  It starts in dry run: switch it on in Beheer -> Config -> Artist curation once a round looks
+  right, and review what it approved under Goedgekeurd -> Automatisch.
+
+- A channel linked to its label or artist now puts that label and artist on its downloads, and a
+  channel without a proposal can be linked by hand under Beheer -> Downloaders -> Koppelingen.
+
 ## Global Version 0.81.5 (2026-09-27)
 
 - The settings page opens faster, and the web player's start-up code shrank again while Now

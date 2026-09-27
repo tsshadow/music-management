@@ -9,6 +9,7 @@
   import { trackAfterCommand } from './nativeQueue.js';
   import { notify } from './notifications.js';
   import { startQueue } from './queue.js';
+  import { getSongsContinuation } from './trackPages.js';
 
   /**
    * The driving screen, ported from the Kotlin `CarModeFragment`: everything at arm's length,
@@ -154,8 +155,18 @@
         return;
       }
       // No human name to give this one; the mix has no place of its own, so the header falls
-      // back to the track's own album, same as before car mode existed.
-      startQueue(tracks);
+      // back to the track's own album, same as before car mode existed. The mix goes on past its
+      // first MIX_SIZE with the same seed -- the rest of the same shuffle, not a new one that
+      // repeats it (docs/designs/list-continuation/).
+      const continuation =
+        tracks.length < MIX_SIZE
+          ? null
+          : getSongsContinuation(
+              (offset, count) => ({ method: 'getSongs', params: { ...params, offset, count } }),
+              tracks.length,
+              { pageSize: MIX_SIZE, kind: 'mix' },
+            );
+      startQueue(tracks, { continuation });
       currentTrack.set(tracks[0]);
       playerState.update((s) => ({ ...s, playing: true }));
     } catch (error) {

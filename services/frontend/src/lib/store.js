@@ -300,13 +300,15 @@ persist("lms_playlist", playlist);
 export const queueSource = writable(null);
 
 /**
- * The feed the current queue continues from -- `{slug, nextOffset} | null`, set
- * by `queue.js`'s `startQueue()` for a queue started from a feed and advanced by
- * `feedQueue.js` as it tops the queue up. Any other start clears it, so an album
- * never grows with feed tracks. Not persisted, for the same reason as
- * `queueSource`. See `docs/designs/feed-length/technical.md`.
+ * Where the current queue's list continues -- a `{kind, cursor, fetchNext, exhausted}`
+ * continuation or null. Set by `queue.js`'s `startQueue()` for a queue started from a
+ * paged list (a feed, the songs list, a genre, a preset, search, ...) and advanced by
+ * `listContinuation.js` as it tops the queue up; `exhausted` once the list ran out, which
+ * the queue shows as "Einde van de lijst". Any other start clears it, so an album never
+ * grows with another list's tracks. Not persisted, for the same reason as `queueSource`:
+ * `fetchNext` is a function. See `docs/designs/list-continuation/technical.md`.
  */
-export const feedContinuation = writable(null);
+export const queueContinuation = writable(null);
 
 export const playerState = writable({
   playing: false,
@@ -1210,7 +1212,7 @@ export function resetSessionState() {
     }
     // Not persisted, but still the previous person's until the page reloads.
     queueSource.set(null);
-    feedContinuation.set(null);
+    queueContinuation.set(null);
     currentPlaylist.set(null);
     isPlaying.set(false);
     radioChannel.set(null);

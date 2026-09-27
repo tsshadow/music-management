@@ -41,7 +41,8 @@
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
-  import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
+  import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
+  import ListEnd from './ListEnd.svelte';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
@@ -87,6 +88,9 @@
   let playlists = $state([]);
   let tracksOffset = $state(0);
   let tracksHasMore = $state(true);
+  // Whether "Meer laden" appended anything to the list on screen, so a list that ran out ends in
+  // "Einde van de lijst" and one that fit on its first page ends in nothing.
+  let tracksPagedMore = $state(false);
   let albumsOffset = $state(0);
   let albumsHasMore = $state(true);
   let artistsOffset = $state(0);
@@ -180,6 +184,50 @@
   }
 
   /**
+   * The query every track list on this page asks `getSpotifyTracks` -- the songs and sets lists,
+   * a genre, label, podcast, festival, year or lineup, search -- without `offset`/`count`, which
+   * the pager adds. One function, so the page and the queue it starts ask the same question.
+   *
+   * @returns {Record<string, unknown>}
+   */
+  function trackQueryParams() {
+    const argument = viewArgument(activeView);
+    return {
+      sort: currentSort,
+      seed: currentSort === 'random' ? currentSeed : undefined,
+      deduplicate: $deduplicateEnabled ? 'true' : undefined,
+      query: currentTrackSearch || undefined,
+      genre: currentGenre || (activeView.startsWith('genre:') ? argument : undefined),
+      label: activeView.startsWith('label:') ? argument : undefined,
+      podcast: activeView.startsWith('podcast:') ? argument : undefined,
+      festival: activeView.startsWith('festival:') ? argument : undefined,
+      lineup: activeView.startsWith('lineup:') ? argument : undefined,
+      // The year view reuses the parameter the filter bar already drives. Seeding
+      // `currentYear` from the route instead would not survive: resetTrackFiltersFor
+      // clears it on every arrival at a new track view, before the first fetch.
+      year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
+      minRating: currentMinRating !== '0' ? currentMinRating : undefined,
+      includeUnrated: includeUnrated ? 'true' : undefined,
+      minQuality: currentMinQuality || undefined,
+      form: formParam(currentForm, $viewMode),
+      // Minutes on this endpoint, not seconds; the offline library reads them
+      // the same way. Ten is the songs/sets boundary the whole app uses.
+      ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
+    };
+  }
+
+  /**
+   * Where the track list on screen continues, for the queue a row tap or play starts from it
+   * (docs/designs/list-continuation/): the same query from `tracksOffset` on. Null once the list
+   * has nothing more, so a list that fit on one page hands the queue no continuation.
+   */
+  const tracksContinuation = $derived(
+    tracksHasMore && tracks.length > 0
+      ? spotifyTracksContinuation(trackQueryParams(), tracksOffset, { pageSize, dedupe: $deduplicateEnabled })
+      : null
+  );
+
+  /**
    * Loads tracks for the 'songs', 'sets', or 'genre' views with pagination.
    *
    * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
@@ -189,6 +237,7 @@
     if (!append) {
       tracksOffset = 0;
       tracksHasMore = true;
+      tracksPagedMore = false;
       seenKeys = new SvelteMap();
       if (tracksController) {
         tracksController.abort();
@@ -202,64 +251,19 @@
     console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, minRating=${currentMinRating}, offset=${tracksOffset}`);
     isLoading = true;
 
-    let currentBatch = [];
     try {
-      while (currentBatch.length < pageSize && tracksHasMore) {
-        const argument = viewArgument(activeView);
-        const params = {
-          sort: currentSort,
-          offset: tracksOffset,
-          count: pageSize,
-          seed: currentSort === 'random' ? currentSeed : undefined,
-          deduplicate: $deduplicateEnabled ? 'true' : undefined,
-          query: currentTrackSearch || undefined,
-          genre: currentGenre || (activeView.startsWith('genre:') ? argument : undefined),
-          label: activeView.startsWith('label:') ? argument : undefined,
-          podcast: activeView.startsWith('podcast:') ? argument : undefined,
-          festival: activeView.startsWith('festival:') ? argument : undefined,
-          lineup: activeView.startsWith('lineup:') ? argument : undefined,
-          // The year view reuses the parameter the filter bar already drives. Seeding
-          // `currentYear` from the route instead would not survive: resetTrackFiltersFor
-          // clears it on every arrival at a new track view, before the first fetch.
-          year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
-          minRating: currentMinRating !== '0' ? currentMinRating : undefined,
-          includeUnrated: includeUnrated ? 'true' : undefined,
-          minQuality: currentMinQuality || undefined,
-          form: formParam(currentForm, $viewMode),
-          // Minutes on this endpoint, not seconds; the offline library reads them
-          // the same way. Ten is the songs/sets boundary the whole app uses.
-          ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
-        };
-
-        const data = await subsonicJson('getSpotifyTracks', params, { signal });
-        const tracksNode = data['subsonic-response']?.tracks;
-        const newTracks = listOf(data, 'tracks.track');
-
-        // Deduplicate this batch against what we've seen before if enabled
-        const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
-
-        // Update seenKeys for the tracks we are actually going to show
-        if ($deduplicateEnabled) {
-          for (const track of deduped) {
-            seenKeys.set(getDeduplicateKey(track), track);
-          }
-        }
-
-        currentBatch.push(...deduped);
-        
-        const moreResults = tracksNode?.moreResults;
-        tracksHasMore = moreResults !== undefined ? (String(moreResults) === 'true' || moreResults === true) : newTracks.length === pageSize;
-        tracksOffset = tracksNode?.nextOffset !== undefined ? tracksNode.nextOffset : (tracksOffset + newTracks.length);
-
-        console.log(`Fetched ${newTracks.length} tracks, ${deduped.length} unique in this batch. Total unique in batch: ${currentBatch.length}. tracksHasMore: ${tracksHasMore}, nextOffset: ${tracksOffset}`);
-
-        if (!tracksHasMore || currentBatch.length >= pageSize) break;
-      }
-
+      const page = await fetchSpotifyTracksPage(trackQueryParams(), tracksOffset, {
+        pageSize,
+        seen: $deduplicateEnabled ? seenKeys : null,
+        signal
+      });
+      tracksHasMore = page.hasMore;
+      tracksOffset = page.nextOffset;
       if (append) {
-        tracks = [...tracks, ...currentBatch];
+        tracks = [...tracks, ...page.tracks];
+        tracksPagedMore = true;
       } else {
-        tracks = currentBatch;
+        tracks = page.tracks;
       }
     } catch (e) {
       if (e.name === 'AbortError') return;
@@ -946,14 +950,10 @@
         <p>{$t('common.loading')}</p>
     {:else}
         {#if tracks.length > 0}
-            <TrackList {tracks} sourceName={listSourceName} onnavigate={(v) => activeView = v} />
-            {#if tracksHasMore}
-                <div bind:this={sentinel} class="flex justify-center py-6">
-                    <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>
-                        {isLoading ? $t('common.loading') : $t('common.loadMore')}
-                    </button>
-                </div>
-            {/if}
+            <TrackList {tracks} sourceName={listSourceName} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
+            <div bind:this={sentinel}>
+                <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={isLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
+            </div>
         {:else if $offline}
             <!-- The list is empty and there is no connection, so the reason is
                  that nothing here is downloaded -- not that the library is empty. -->
@@ -1245,7 +1245,12 @@
       {#if tracks.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$viewMode === 'sets' ? $t('dashboard.sets') : $t('dashboard.tracks')}</h3>
-          <TrackList {tracks} onnavigate={(v) => activeView = v} />
+          <TrackList {tracks} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
+          <!-- Search results page like any other track list, and continue in the queue the same way
+               (docs/designs/list-continuation/). -->
+          <div bind:this={sentinel}>
+            <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={isLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
+          </div>
         </section>
       {/if}
 

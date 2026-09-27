@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.8.1 (2026-09-27)
+
+- No app changes of its own: the release build is now started twice on the CI emulator and must show its server address on screen (issue #24), which touched the app's build scripts and README.
+
 ## Global Version 7.8.0 (2026-09-27)
 
 - Settings changed in the app and in the web player at the same time no longer overwrite each

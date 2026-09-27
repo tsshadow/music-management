@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.2 (2026-09-27)
+
+- The web player no longer remembers your password after you sign in. If your account's key is
+  revoked, you now see the sign-in page instead of being signed in again in the background.
+
 ## Global Version 0.81.1 (2026-09-27)
 
 - Opening a genre, label, festival, podcast, year or lineup no longer briefly shows the previous

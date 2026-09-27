@@ -43,9 +43,9 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
             if (cachedServer != null && cachedServer!!.id == serverId) return cachedServer!!
 
             // Get from the static list
+            // No password: none is stored after a sign-in any more (issue #101).
             cachedServer = StaticServers.STATIC_SERVERS.find { it.id == serverId }?.copy(
-                userName = Settings.staticUserName,
-                password = Settings.staticPassword
+                userName = Settings.staticUserName
             )
 
             if (cachedServer != null) {
@@ -186,11 +186,10 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     }
 
     /**
-     * Stores the account's own spelling of the user name after a login returned it, keeping the
-     * password. Deliberately not through [update]: the pair is still valid, so there is no reason
-     * to reset the music service in the middle of the call that learned the spelling -- the next
-     * client built from the settings signs with it. See
-     * [nl.teunschriks.mumamobile.service.MumaStoredCredentials.canonicalUserName].
+     * Stores the account's own spelling of the user name after MuMa returned it. Deliberately not
+     * through [update]: the session is still valid, so there is no reason to reset the music
+     * service in the middle of the call that learned the spelling -- the next client built from
+     * the settings signs with it. See [SubsonicSigning.adopt].
      */
     fun adoptCanonicalUserName(userName: String) {
         if (userName.isBlank() || userName == Settings.staticUserName) return
@@ -198,10 +197,13 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
         invalidateCache()
     }
 
+    /**
+     * Stores the user name of [serverSetting] and rebuilds the music service. Its password is
+     * ignored: none is kept after a sign-in (issue #101).
+     */
     fun update(serverSetting: ServerSetting) {
         if (serverSetting.id > OFFLINE_DB_ID) {
             Settings.staticUserName = serverSetting.userName
-            Settings.staticPassword = serverSetting.password
             invalidateCache()
             launch(Dispatchers.Main) {
                 resetMusicService()
@@ -219,48 +221,90 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
      * shell reads the real server from here instead of from [getActiveServer].
      */
     fun signInServer(): ServerSetting = StaticServers.STATIC_SERVERS.first().copy(
-        userName = Settings.staticUserName,
-        password = Settings.staticPassword
+        userName = Settings.staticUserName
     )
 
     /**
-     * Persists a signed-in username/password pair, e.g. from the Capacitor shell's web login
-     * screen, so downloads, Android Auto and the legacy UI see the same session. Goes through
-     * [update] -- the same path the server-selector settings screen uses -- rather than writing
-     * [Settings] a second way. There is one server in static mode (see
-     * [StaticServers.STATIC_SERVERS]), so its url is fixed
-     * and only the credentials move.
+     * Records a session the Capacitor shell's web login just started -- with a password or with
+     * Google -- so downloads, Android Auto and the rest of the native side see the same session:
+     * the account's name, its MuMa API key and account id, and the signed-in flag. No password: the
+     * page signed in with it and keeps no copy either, and nothing native needs it (issue #101).
+     * The Subsonic token is fetched with the key afterwards
+     * ([nl.teunschriks.mumamobile.service.SubsonicTokenRefresher]).
+     *
+     * A new session replaces whatever account was stored, id included (an [setMumaSettings] after
+     * a login only fills an id that is missing). Under the sign-out epoch, like [signOut]: a token
+     * fetch for the previous session that is still out must not store its answer afterwards.
      *
      * Written against [signInServer], not [getActiveServer]: on a fresh install the active server
-     * is Offline, [update] ignores that id, and the pair the listener just typed would be lost.
-     * The server is then made active as well, which is what the legacy login dialog does
-     * (`NavigationActivity`) and what the next boot's `credentials()` relies on.
+     * is Offline, and the server is then made active as well, which is what the next boot's
+     * `credentials()` relies on.
      */
-    fun saveCredentials(username: String, password: String) {
+    fun saveSession(username: String, apiKey: String, userId: Int?) {
         val server = signInServer()
-        update(server.copy(userName = username, password = password))
+        SignOutEpoch.signOut {
+            Settings.staticUserName = username
+            Settings.mumaApiKey = apiKey
+            Settings.mumaUserId = userId?.takeIf { isUsableMumaUserId(it) } ?: -1
+            Settings.clearLegacyStaticPassword()
+            Settings.signedIn = username.isNotEmpty() && apiKey.isNotEmpty()
+            invalidateCache()
+        }
+        launch(Dispatchers.Main) { resetMusicService() }
         if (getActiveServerId() == OFFLINE_DB_ID) setActiveServerById(server.id)
     }
 
     /**
-     * Clears everything that can authenticate: the static password, the muma API key/user id and
-     * the encrypted muma tokens in [SecureSettings]. The username is kept -- it is not a secret,
-     * and it is what the next sign-in prefills. This is the same clearing `NavigationActivity`'s
-     * logout menu already did; both now call this so there is one definition of "signed out".
-     * Callers that hold a [nl.teunschriks.mumamobile.service.MediaPlayerManager] still have to
-     * clear its queue themselves -- that is not this class's job. Downloaded files are untouched.
+     * Clears everything that can authenticate: the signed-in flag, any password an old build left
+     * behind, the muma API key/user id and the encrypted muma and Subsonic tokens in
+     * [SecureSettings]. The username is kept -- it is not a secret, and it is what the next
+     * sign-in prefills. Callers that hold a [nl.teunschriks.mumamobile.service.MediaPlayerManager]
+     * still have to clear its queue themselves -- that is not this class's job. Downloaded files
+     * are untouched.
      */
     fun signOut() {
-        // Under the sign-out epoch, so a Subsonic token fetch still in flight cannot store its
-        // answer after this (bug reports 106 and 111).
-        SignOutEpoch.signOut {
-            Settings.staticPassword = ""
-            Settings.mumaApiKey = ""
-            Settings.mumaUserId = -1
-            SecureSettings.clear()
-            invalidateCache()
-        }
+        clearSession()
         resetMusicService()
+    }
+
+    /**
+     * MuMa refused [refusedKey] (HTTP 401): the key is permanent, so a refusal means the account's
+     * key was revoked or the account is gone, and only a new sign-in helps (issue #101). Ends the
+     * session like [signOut] does -- the shell then shows its sign-in page, and Android Auto
+     * answers "sign in again in the MuMa app on your phone" -- but leaves the queue alone and
+     * rebuilds the music service on the main thread, because this runs on the request's thread.
+     *
+     * Only when [refusedKey] is still the stored key: a sign-in that replaced it while the refused
+     * request was out must not be undone by that request's answer. Returns whether it signed out.
+     */
+    fun keyRefused(refusedKey: String): Boolean {
+        var cleared = false
+        SignOutEpoch.signOut {
+            if (refusedKey.isNotEmpty() && Settings.mumaApiKey == refusedKey) {
+                clearCredentials()
+                cleared = true
+            }
+        }
+        if (cleared) {
+            Timber.w("MuMa refused the stored API key; signed out, sign in again")
+            launch(Dispatchers.Main) { resetMusicService() }
+        }
+        return cleared
+    }
+
+    /** Clears the credentials under the sign-out epoch (bug reports 106 and 111). */
+    private fun clearSession() {
+        SignOutEpoch.signOut { clearCredentials() }
+    }
+
+    /** The clearing itself; the caller holds the sign-out epoch. */
+    private fun clearCredentials() {
+        Settings.signedIn = false
+        Settings.clearLegacyStaticPassword()
+        Settings.mumaApiKey = ""
+        Settings.mumaUserId = -1
+        SecureSettings.clear()
+        invalidateCache()
     }
 
     /**
@@ -330,6 +374,52 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
          * @return True, if the "Offline" mode is selected
          */
         fun isOffline(): Boolean = getActiveServerId() == OFFLINE_DB_ID
+
+        /**
+         * Whether someone is signed in (issue #101): the explicit flag a sign-in sets and a
+         * sign-out clears, for a stored name. Migrates an install that still has a password stored
+         * first ([LegacyPasswordMigration]), so a component that starts before the app -- the media
+         * session Android Auto starts without the UI -- reads the same answer.
+         */
+        fun isSignedIn(): Boolean {
+            migrateLegacyPassword()
+            return Settings.signedIn && Settings.staticUserName.isNotEmpty()
+        }
+
+        @Volatile
+        private var legacyPasswordChecked = false
+
+        /**
+         * Runs [LegacyPasswordMigration] once per process against the plain preferences. Called
+         * from `UApp.onCreate` and from [isSignedIn], whichever comes first.
+         */
+        fun migrateLegacyPassword() {
+            if (legacyPasswordChecked) return
+            synchronized(this) {
+                if (legacyPasswordChecked) return
+                if (LegacyPasswordMigration.run(SettingsPasswordStore)) {
+                    Timber.i("Removed the stored password; signed in: %s", Settings.signedIn)
+                }
+                legacyPasswordChecked = true
+            }
+        }
+
+        /** Resets the once-per-process guard of [migrateLegacyPassword]; tests only. */
+        internal fun resetLegacyPasswordCheck() {
+            legacyPasswordChecked = false
+        }
+
+        /** [LegacyPasswordMigration.Store] over [Settings]. */
+        private object SettingsPasswordStore : LegacyPasswordMigration.Store {
+            override val userName: String get() = Settings.staticUserName
+            override val legacyPassword: String get() = Settings.legacyStaticPassword
+            override fun clearLegacyPassword() = Settings.clearLegacyStaticPassword()
+            override var signedIn: Boolean
+                get() = Settings.signedIn
+                set(value) {
+                    Settings.signedIn = value
+                }
+        }
 
         /**
          * Queries the Id of the Active Server

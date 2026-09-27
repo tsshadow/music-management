@@ -352,9 +352,6 @@ interface MusicService {
     @Throws(Exception::class)
     fun getPodcastEpisodes(podcastChannelId: String?): MusicDirectory?
 
-    @Throws(Exception::class)
-    fun mumaLogin()
-
     /**
      * Fetches the signed-in user's Subsonic API token from MuMa and stores it, so every later
      * `/rest` call is signed with it (bug report 103); without one no `/rest` call is sent at all

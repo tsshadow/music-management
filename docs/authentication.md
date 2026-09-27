@@ -70,9 +70,9 @@ it is enforced (bug report [074](bug-reports/074-login-case-forks-user-identity.
   matches `LOWER(username) = LOWER(%s)` and returns the stored name under `user.username`. Its
   rate-limit bucket is keyed on the casefolded name, so capitalising a name differently does not
   buy a fresh budget of guesses. Clients sign in under the returned name from then on, not the
-  typed one: the web (`signIn()` in `login.js` stores it), the phone (`LoginPage` saves it,
-  `restoreSession` writes it back over a stored case variant, and native `ensureMumaLogin` does
-  the same), and so every Subsonic `u=` carries it. Google sign-in maps by `user_identities`, not
+  typed one: the web (`signIn()` in `login.js` stores it), the phone (`LoginPage` hands it to the
+  native side, and the native token fetch adopts LMS's spelling, `SubsonicSigning.adopt`), and so
+  every Subsonic `u=` carries it. Google sign-in maps by `user_identities`, not
   by name, and is unaffected.
 - **No second account for a case variant.** `POST /api/users` and approving a Google access
   request answer `409` for a name that differs only in case from an existing account. The
@@ -124,6 +124,14 @@ reads the token from, or issues it into, LMS's own `lms.db` (`services/music_man
 There is no password fallback (issue #72): without a token the client fetches one first, and while
 none can be had it sends no Subsonic request and shows "sign in again" or "server unreachable". See
 [docs/designs/subsonic-token-signing/](designs/subsonic-token-signing/) and bug report 103.
+
+No client keeps the password after the sign-in (issue #101): the session lives on as the MuMa
+`api_key` and the Subsonic token. The `api_key` is permanent (a refresh does not rotate it), so when
+MuMa answers 401 to a stored key -- the account was disabled, removed or its key reissued -- the
+client ends the session and shows its sign-in page (password or Google) instead of logging in again
+in the background. The Android app's Android Auto side, which has no sign-in page, answers "Sign in
+again in the MuMa app on your phone". A native client that has a key but no account id asks
+`GET /api/auth/verify` with the key alone.
 
 ### 2. Google Sign-In (`POST /api/auth/google`)
 

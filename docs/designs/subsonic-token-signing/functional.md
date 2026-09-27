@@ -36,7 +36,10 @@ apps use it.
 | An administrator already gave the listener a token | The apps use that same token; external players keep working. |
 | An administrator replaces the listener's token | The web player asks the listener to sign in again; the phone, Android Auto included, fetches the new token on the first request the server refuses and repeats that request, without the app's screen having to open (issue #73). |
 | The music server cannot hand out a token (e.g. an older server) | Signing in fails with "no connection to the server"; there is no old way any more. |
-| A listener signs out | The token is forgotten on that device along with the password. |
+| A listener signs out | The token and the MuMa key are forgotten on that device. |
+| A listener signs in | The password is used for the sign-in and then forgotten; neither the phone nor the browser keeps it (issue #101). |
+| A listener who signed in on an older app version updates the app (issue #101) | Nothing to do: they stay signed in, and the password the old version stored is removed. |
+| The listener's account key is revoked or the account removed | The phone and the browser show the sign-in page (password or Google) instead of signing in again in the background; the car says "Sign in again in the MuMa app on your phone". |
 
 ## Acceptance Criteria
 
@@ -49,6 +52,9 @@ apps use it.
 5. Diagnostics reports and exported crash logs never contain the token or the password.
 6. If the token cannot be obtained, no request to the music server is sent, and the listener sees
    why ("sign in again" or "server not reachable") rather than an empty library (issue #72).
+7. After signing in, the password is stored nowhere on the device -- not in the app's settings,
+   not in the browser's or WebView's storage -- and updating from an older version removes a stored
+   one without signing the listener out (issue #101).
 
 ## Open Questions / Not Yet Decided
 
@@ -56,3 +62,5 @@ apps use it.
   token.~~ Decided (issue #72): removed. See the technical design, "Fallback decision".
 - ~~The phone only re-reads a replaced token when the app's screen opens.~~ Resolved (issue #73,
   bug report 111): a refused token is fetched again and the request repeated once.
+- ~~Whether the stored password can go once nothing signs with it.~~ Decided (issue #101): removed;
+  a revoked key means signing in again. See the technical design, "No stored password".

@@ -134,18 +134,19 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
-     * What the phone has stored for this server.
+     * The session the phone holds for this server.
      *
-     * A blank `password` is how the native app says "logged out" -- the same
-     * check its own welcome screen makes -- so the boot path reads it as
-     * "show the login page" rather than as a failed sign-in.
+     * `signedIn` is the phone's explicit signed-in flag. It replaced the blank
+     * password that used to mean "logged out": the phone no longer stores the
+     * password or hands it over (issue #101). `mumaApiKey` is what the web
+     * takes the session over with.
      *
      * `subsonicToken`/`subsonicTokenUser` are the Subsonic token the native client signs with and
      * the login name it was issued for, blank while the phone has none: the web signs with the
      * same token instead of fetching its own, and without one sends no Subsonic request at all
      * (issue #72).
      *
-     * @returns {Promise<{username: string, password: string, clientId: string,
+     * @returns {Promise<{username: string, signedIn: boolean, clientId: string,
      *   serverId: number, mumaApiKey?: string, mumaUserId?: number,
      *   subsonicToken: string, subsonicTokenUser: string}>}
      */
@@ -153,7 +154,7 @@ export function createCapacitorSystem(plugin) {
       const answer = await plugin.credentials();
       return {
         username: answer?.username ?? "",
-        password: answer?.password ?? "",
+        signedIn: answer?.signedIn === true,
         clientId: answer?.clientId ?? "",
         serverId: answer?.serverId ?? 0,
         mumaApiKey: answer?.mumaApiKey ?? "",
@@ -164,7 +165,7 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
-     * Ends the session on the phone: clears the stored password, the muma API key/user id and
+     * Ends the session on the phone: clears the signed-in flag, the muma API key/user id and
      * the muma tokens, and stops the queue the platform service was holding. Downloaded files are
      * left alone. The caller reloads afterwards -- this only has to make sure the next boot finds
      * nothing to sign back in with.
@@ -210,10 +211,11 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
-     * Writes a username/password pair the web login screen just verified back to the phone, so
-     * downloads and Android Auto see the same session afterwards.
+     * Hands the session the web login screen just started to the phone -- the account's name, its
+     * MuMa API key and account id, never the password (issue #101) -- so downloads and Android
+     * Auto see the same session afterwards.
      *
-     * @param {{url?: string, username: string, password: string}} creds
+     * @param {{url?: string, username: string, mumaApiKey: string, mumaUserId?: number}} creds
      * @returns {Promise<void>}
      */
     saveCredentials(creds) {

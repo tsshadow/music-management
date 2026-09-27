@@ -36,7 +36,7 @@ function server(
 
 describe("LoginPage native Google sign-in", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    credentials.set({ url: "https://lms.example", username: "" });
     mumaApiUrl.set("https://lms.example/muma");
     mumaApiKey.set("");
     mumaSessionActive.set(false);
@@ -77,7 +77,7 @@ describe("LoginPage native Google sign-in", () => {
     expect(queryByText("Inloggen met Google")).toBeNull();
   });
 
-  it("signs in with the token and hands the pair to the phone", async () => {
+  it("signs in with the token and hands the session to the phone", async () => {
     vi.spyOn(platform.system, "googleSignInAvailable").mockResolvedValue(true);
     vi.spyOn(platform.system, "googleSignIn").mockResolvedValue("an-id-token");
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
@@ -88,11 +88,13 @@ describe("LoginPage native Google sign-in", () => {
     await waitFor(() => expect(get(mumaSessionActive)).toBe(true));
     const [, request] = global.fetch.mock.calls.find(([url]) => url.includes("/api/auth/google"));
     expect(JSON.parse(request.body)).toEqual({ id_token: "an-id-token" });
-    expect(get(credentials)).toMatchObject({ username: "user", password: "key-1" });
+    expect(get(credentials)).toMatchObject({ username: "user" });
+    expect(get(credentials)).not.toHaveProperty("password");
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
       username: "user",
-      password: "key-1",
+      mumaApiKey: "key-1",
+      mumaUserId: 1,
     });
     expect(get(signedOut)).toBe(false);
   });

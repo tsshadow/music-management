@@ -462,14 +462,22 @@ describe("capacitor system", () => {
     });
   });
 
-  it("reads the phone's credentials, blank password and all", async () => {
+  // Issue #101: the phone says whether it is signed in; it hands over no password.
+  it("reads the phone's session: the signed-in flag, never a password", async () => {
     const { platform } = nativePlatform({
-      MumaSystem: { credentials: { username: "user", password: "", clientId: "Ultrasonic" } },
+      MumaSystem: {
+        credentials: {
+          username: "user",
+          signedIn: true,
+          password: "leftover",
+          clientId: "Ultrasonic",
+        },
+      },
     });
 
     expect(await platform.system.credentials()).toEqual({
       username: "user",
-      password: "",
+      signedIn: true,
       clientId: "Ultrasonic",
       serverId: 0,
       mumaApiKey: "",
@@ -484,7 +492,7 @@ describe("capacitor system", () => {
       MumaSystem: {
         credentials: {
           username: "user",
-          password: "pw",
+          signedIn: true,
           subsonicToken: "the-subsonic-token",
           subsonicTokenUser: "user",
         },
@@ -626,9 +634,14 @@ describe("capacitor system", () => {
     await expect(platform.system.googleSignIn()).rejects.toMatchObject({ code: "no-credential" });
   });
 
-  it("forwards a verified pair to saveCredentials unchanged", async () => {
+  it("forwards a new session to saveCredentials unchanged", async () => {
     const { platform, plugins } = nativePlatform();
-    const creds = { url: "https://lms.example", username: "user", password: "hunter2" };
+    const creds = {
+      url: "https://lms.example",
+      username: "user",
+      mumaApiKey: "key-1",
+      mumaUserId: 7,
+    };
 
     await platform.system.saveCredentials(creds);
 

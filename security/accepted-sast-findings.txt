@@ -261,7 +261,6 @@ d074aeb075825a8f x6  # sqlalchemy-execute-raw-query tools/repair_username_case.p
 # Format strings built from internal constants in one-off tools, not from
 # anything a request supplies.
 5af5655cad4b33be x1  # unsafe-formatstring services/frontend/src/lib/store.js
-83cb57328830a7fa x1  # unsafe-formatstring services/music-management-server/src/lms/ui/spotify-ui/src/lib/store.js
 
 # --- use-of-md5 --- [r:c174e7d9]
 # Content and path hashing for cache keys and duplicate detection, never for

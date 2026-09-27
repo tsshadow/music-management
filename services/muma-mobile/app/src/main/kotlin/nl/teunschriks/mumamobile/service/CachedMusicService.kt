@@ -324,11 +324,6 @@ class CachedMusicService(private val musicService: MusicService) :
     override fun getPodcastEpisodes(podcastChannelId: String?): MusicDirectory? = musicService.getPodcastEpisodes(podcastChannelId)
 
     @Throws(Exception::class)
-    override fun mumaLogin() {
-        musicService.mumaLogin()
-    }
-
-    @Throws(Exception::class)
     override fun refreshSubsonicToken(): Boolean = musicService.refreshSubsonicToken()
 
     @Throws(Exception::class)

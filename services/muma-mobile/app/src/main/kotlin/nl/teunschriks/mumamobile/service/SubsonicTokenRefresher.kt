@@ -62,10 +62,8 @@ object SubsonicTokenRefresher {
             },
             signOutEpoch = { SignOutEpoch.current() },
             onRecovered = { scope.launch(Dispatchers.Main) { MusicServiceFactory.resetMusicService() } },
-            hasCredentials = {
-                val server = KoinJavaComponent.get<ActiveServerProvider>(ActiveServerProvider::class.java).getActiveServer()
-                !ActiveServerProvider.isOffline() && server.userName.isNotEmpty() && server.password.isNotEmpty()
-            }
+            // The explicit signed-in flag, not a stored password (issue #101).
+            hasCredentials = { !ActiveServerProvider.isOffline() && ActiveServerProvider.isSignedIn() }
         )
     }
 

@@ -8,7 +8,6 @@ package nl.teunschriks.mumamobile.service
 
 import java.io.IOException
 import java.io.InputStream
-import nl.teunschriks.mumamobile.api.muma.LoginRequest
 import nl.teunschriks.mumamobile.api.muma.MumaTile as MumaApiTile
 import nl.teunschriks.mumamobile.api.subsonic.ApiNotSupportedException
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
@@ -85,7 +84,13 @@ open class RESTMusicService(
         API.ping().execute().throwOnFailure()
         val activeServer = activeServerProvider.getActiveServer()
         if (activeServer.url.contains("example.com")) {
-            ensureMumaLogin()
+            // Primes the MuMa client with the stored key; a missing or refused key is not a failed
+            // Subsonic ping.
+            try {
+                ensureMumaKey()
+            } catch (refused: MumaLoginRefusedException) {
+                Timber.i("No usable MuMa API key after the ping (HTTP %d)", refused.code)
+            }
         }
     }
 
@@ -888,25 +893,20 @@ open class RESTMusicService(
         API.updateShare(id, description, expiresValue).execute().throwOnFailure()
     }
 
-    @Throws(Exception::class)
-    override fun mumaLogin() {
-        ensureMumaLogin(force = true)
-    }
-
     /**
      * Asks MuMa for the signed-in user's Subsonic API token and stores it in [SecureSettings]; see
      * [MusicService.refreshSubsonicToken] and [SubsonicSigning]. A refusal (401/403, or 404 for an
      * account no server knows yet) returns `false`, an outage (5xx, 429, no network) throws; both
      * leave the stored state alone, so the client keeps signing with whatever token it had -- and
-     * sends nothing when it had none (issue #72). The token is never logged.
+     * sends nothing when it had none (issue #72). A refused MuMa key (401) ends the session and
+     * throws [MumaLoginRefusedException] (issue #101). The token is never logged.
      */
     @Throws(Exception::class)
     override fun refreshSubsonicToken(): Boolean {
-        val activeServer = activeServerProvider.getActiveServer()
-        if (activeServer.userName.isEmpty() || activeServer.password.isEmpty()) return false
+        if (!ActiveServerProvider.isSignedIn()) return false
         val epoch = SignOutEpoch.current()
-        ensureMumaLogin()
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSubsonicToken().execute() }
+        ensureMumaKey()
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.getSubsonicToken().execute() }
         if (!response.isSuccessful) {
             val code = response.code()
             response.errorBody()?.close()
@@ -924,7 +924,7 @@ open class RESTMusicService(
         val body = response.body()
         // A sign-out while the request was out must win: storing the answer now would put a
         // credential back that the sign-out just cleared (bug report 106).
-        if (activeServerProvider.getActiveServer().password.isEmpty()) {
+        if (!ActiveServerProvider.isSignedIn()) {
             Timber.i("Signed out while the Subsonic token was being fetched; answer dropped")
             return false
         }
@@ -960,16 +960,20 @@ open class RESTMusicService(
     }
 
     /**
-     * Makes sure the MuMa client carries an API key, logging in with the Subsonic credentials
-     * only when no key is stored yet or when [force] says the stored one was refused.
+     * Makes sure the MuMa client carries the stored API key -- the only MuMa credential the app
+     * keeps (issue #101). There is no login here any more: the password it used to log in with is
+     * not stored, and the key is permanent, so a missing or refused key means "sign in again".
      *
-     * The stored key lives in [Settings.mumaApiKey] (written by
-     * [ActiveServerProvider.setMumaSettings]); the server entry's own `apiKey` is never filled
-     * for the static servers. Reading only the latter made every settings, tile and crash-report
-     * call post `/api/auth/login` first, which is what fed the login rate limit.
+     * The key lives in [Settings.mumaApiKey], written by a sign-in
+     * ([ActiveServerProvider.saveSession]); the server entry's own `apiKey` is never filled for
+     * the static servers. A key without a usable account id asks MuMa which account it belongs to
+     * (`GET /api/auth/verify`, with the key alone) and stores the id.
+     *
+     * @throws MumaLoginRefusedException 401 when no key is stored or MuMa refused it (the session
+     *   is then ended, see [ActiveServerProvider.keyRefused]), or the refusal code of `verify`.
      */
     @Throws(Exception::class)
-    private fun ensureMumaLogin(force: Boolean = false) {
+    private fun ensureMumaKey() {
         val activeServer = activeServerProvider.getActiveServer()
         val credentials = MumaStoredCredentials.resolve(
             serverApiKey = activeServer.apiKey,
@@ -977,107 +981,96 @@ open class RESTMusicService(
             settingsApiKey = Settings.mumaApiKey,
             settingsUserId = Settings.mumaUserId
         )
-        if (!force && credentials != null) {
+        if (credentials != null) {
             subsonicAPIClient.mumaApi.setApiKey(credentials.apiKey)
             return
         }
 
-        if (activeServer.userName.isEmpty() || activeServer.password.isEmpty()) {
-            return
-        }
+        val apiKey = activeServer.apiKey?.takeIf { it.isNotBlank() }
+            ?: Settings.mumaApiKey.takeIf { it.isNotBlank() }
+            ?: throw MumaLoginRefusedException(MumaStoredCredentials.HTTP_UNAUTHORIZED)
 
-        Timber.i("MuMa API key missing or logon forced, attempting login with Subsonic credentials")
-        val req = LoginRequest(activeServer.userName, activeServer.password)
-        val response = subsonicAPIClient.mumaApi.api.login(req).execute()
-
-        if (response.isSuccessful) {
-            val body = response.body()
-            if (body != null) {
-                val apiKey = body.apiKey ?: body.accessToken
-                    ?: throw IOException("MuMa login returned no API key")
-                // The account id is nested under "user". Reading it flat left it at Gson's default
-                // of 0, which is not the "unknown" sentinel, so every per-user call afterwards went
-                // to /api/users/0/... -- settings saves answered 500 on a foreign key violation.
-                val userId = body.user?.id
-                if (userId == null) {
-                    Timber.w("MuMa login returned no account id; leaving the stored id untouched")
-                }
-                activeServerProvider.setMumaSettings(apiKey, userId)
-                subsonicAPIClient.mumaApi.setApiKey(apiKey)
-                // Sign in under the account's own spelling from now on, not the typed one: LMS
-                // created a second user for a case variant (bug report 074).
-                MumaStoredCredentials.canonicalUserName(activeServer.userName, body.user?.username)
-                    ?.let { activeServerProvider.adoptCanonicalUserName(it) }
-                Timber.i("MuMa login successful")
-            }
-        } else {
+        Timber.i("MuMa account id missing; asking MuMa which account the stored key belongs to")
+        subsonicAPIClient.mumaApi.setApiKey(apiKey)
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.verify().execute() }
+        if (!response.isSuccessful) {
             val code = response.code()
-            Timber.e("MuMa login failed: $code")
-            throw if (MumaLoginRefusedException.isRefusal(code)) MumaLoginRefusedException(code) else IOException("MuMa login failed: $code")
+            response.errorBody()?.close()
+            Timber.e("MuMa key check failed: $code")
+            throw if (MumaLoginRefusedException.isRefusal(code)) MumaLoginRefusedException(code) else IOException("MuMa key check failed: $code")
         }
+        val userId = response.body()?.user?.id
+        if (userId == null) {
+            Timber.w("MuMa key check returned no account id; leaving the stored id untouched")
+        }
+        activeServerProvider.setMumaSettings(apiKey, userId)
     }
 
     /**
-     * Runs [request] and, when the server answers 401 to the stored key, logs in once and runs
-     * it again. Now that a stored key is trusted instead of re-validated by a login on every
-     * call, this is what recovers from a key the server no longer accepts.
+     * Runs [request]; when MuMa answers 401 to the stored key, ends the session and throws
+     * [MumaLoginRefusedException] instead of logging in again with a stored password, which the
+     * app no longer has (issue #101). See [MumaStoredCredentials.signOutWhenKeyRefused].
      */
     @Throws(Exception::class)
-    private fun <T> retryOnceWhenUnauthorized(request: () -> retrofit2.Response<T>): retrofit2.Response<T> = MumaStoredCredentials.retryOnceWhenUnauthorized(
-        login = { ensureMumaLogin(force = true) },
-        request = request
-    )
+    private fun <T> signOutWhenKeyRefused(request: () -> retrofit2.Response<T>): retrofit2.Response<T> {
+        // Captured before the request: a sign-in that replaces the key meanwhile must survive it.
+        val key = Settings.mumaApiKey
+        return MumaStoredCredentials.signOutWhenKeyRefused(
+            onRefused = { activeServerProvider.keyRefused(key) },
+            request = request
+        )
+    }
 
     @Throws(Exception::class)
     override fun getMumaTiles(): List<MumaTile> {
-        ensureMumaLogin()
+        ensureMumaKey()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getTiles(userId).execute() }
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.getTiles(userId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to get MuMa tiles: ${response.code()}")
         return response.body()?.map { MumaTile(it.id?.toString(), it.name, it.smartParams) } ?: emptyList()
     }
 
     @Throws(Exception::class)
     override fun saveMumaTile(tile: MumaTile): String {
-        ensureMumaLogin()
+        ensureMumaKey()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val apiTile = MumaApiTile(tile.id?.toIntOrNull(), tile.name, tile.smartParams)
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.saveTile(userId, apiTile).execute() }
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.saveTile(userId, apiTile).execute() }
         if (!response.isSuccessful) throw IOException("Failed to save MuMa tile: ${response.code()}")
         return response.body()?.id ?: throw IOException("Empty response from server")
     }
 
     @Throws(Exception::class)
     override fun deleteMumaTile(id: String) {
-        ensureMumaLogin()
+        ensureMumaKey()
         val activeServer = activeServerProvider.getActiveServer()
         val userId = activeServer.mumaUserId ?: Settings.mumaUserId
         if (!isUsableMumaUserId(userId)) throw IOException("User ID not set")
 
         val playlistId = id.toIntOrNull() ?: throw IOException("Invalid tile ID: $id")
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.deleteTile(userId, playlistId).execute() }
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.deleteTile(userId, playlistId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to delete MuMa tile: ${response.code()}")
     }
 
     @Throws(Exception::class)
     override fun getMumaSettings(userId: Int, appId: String): String? {
-        ensureMumaLogin()
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.getSettings(userId, appId).execute() }
+        ensureMumaKey()
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.getSettings(userId, appId).execute() }
         if (!response.isSuccessful) throw IOException("Failed to get settings: ${response.code()}")
         return response.body()?.settings
     }
 
     @Throws(Exception::class)
     override fun saveMumaSettings(userId: Int, appId: String, settings: String) {
-        ensureMumaLogin()
+        ensureMumaKey()
         val req = nl.teunschriks.mumamobile.api.muma.MumaSettingsRequest(settings)
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.saveSettings(userId, appId, req).execute() }
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.saveSettings(userId, appId, req).execute() }
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
@@ -1087,9 +1080,9 @@ open class RESTMusicService(
      */
     @Throws(Exception::class)
     override fun patchMumaSettings(userId: Int, appId: String, changes: String) {
-        ensureMumaLogin()
+        ensureMumaKey()
         val req = nl.teunschriks.mumamobile.api.muma.MumaSettingsPatchRequest(settingsChangesObject(changes))
-        val response = retryOnceWhenUnauthorized {
+        val response = signOutWhenKeyRefused {
             subsonicAPIClient.mumaApi.api.patchSettings(userId, appId, req).execute()
         }
         if (response.code() == HTTP_METHOD_NOT_ALLOWED) {
@@ -1109,7 +1102,7 @@ open class RESTMusicService(
         ringBufferText: String,
         stacktraceText: String?
     ) {
-        ensureMumaLogin()
+        ensureMumaKey()
         val req = nl.teunschriks.mumamobile.api.muma.CrashReportRequest(
             deviceModel = deviceModel,
             osVersion = osVersion,
@@ -1119,7 +1112,7 @@ open class RESTMusicService(
             ringBufferText = ringBufferText,
             stacktraceText = stacktraceText
         )
-        val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute() }
+        val response = signOutWhenKeyRefused { subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute() }
         if (!response.isSuccessful) throw IOException("Failed to upload crash report: ${response.code()}")
     }
 

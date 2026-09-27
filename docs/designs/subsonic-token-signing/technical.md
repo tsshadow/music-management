@@ -2,7 +2,8 @@
 
 Implements [`functional.md`](functional.md). Bug report
 [103](../../bug-reports/103-subsonic-requests-signed-with-the-password.md), GitLab issue #21; the
-password fallback was removed by issue #72 (see "Fallback decision").
+password fallback was removed by issue #72 (see "Fallback decision"), and the stored password
+itself by issue #101 (see "No stored password").
 
 ## Which scheme LMS accepts
 
@@ -96,7 +97,7 @@ Now every client fails closed:
   `token` instead of `password`/`forcePlainTextPassword`. It signs with the token the client was
   built with, or -- when none was stored then -- asks `SubsonicTokenRecovery.obtain()`, which
   `SubsonicTokenRecoverer` implements: under the same lock as recovery it fetches the token
-  (`refreshSubsonicToken`, MuMa key first, re-login only if the key is refused), stores it,
+  (`refreshSubsonicToken`, with the MuMa key; a refused key ends the session, issue #101), stores it,
   rebuilds the music service and hands it back. When no token can be had the interceptor throws
   `SubsonicTokenUnavailableException` (an `IOException`) and the request is never sent. The
   exception carries a reason: `SIGN_IN_AGAIN` (signed out; MuMa refused the login,
@@ -150,21 +151,89 @@ Now every client fails closed:
 
   On develop the last two send `p=` (bug report 124); on this branch all four pass.
 
-**The stored password is kept.** After sign-in it signs nothing, native or web. It stays in
-`ServerSetting.password` / the web's `credentials.password` for two jobs no token covers yet: it
-is what `ensureMumaLogin(force = true)` re-logs in with when MuMa refuses the stored key (the
-token fetch, tiles, settings), and a blank password is the "signed out" marker the shell bridge,
-`restoreSession` and the native sign-out rely on. Clearing it would need a MuMa-key-only re-auth
-path and a separate signed-in flag on both sides; that is a follow-up (issue #101), not
-part of removing the fallback.
-
 **What an old install does after updating.** Its first start after the update has no token or a
 token stored by the previous build. With one, nothing changes. Without one, the app (or the car)
-fetches it with the stored MuMa key before the first request; a stored password is still there for
-a re-login if the key was refused. If MuMa is down at that moment, the app shows "server not
-reachable" and retries (native: after 30 s, on the next request; web: the notice's retry button,
-or the next start) -- it does not play until then. LMS itself is unchanged and still accepts `p=`
-from installs that were never updated.
+fetches it with the stored MuMa key before the first request. If MuMa is down at that moment, the
+app shows "server not reachable" and retries (native: after 30 s, on the next request; web: the
+notice's retry button, or the next start) -- it does not play until then. LMS itself is unchanged
+and still accepts `p=` from installs that were never updated.
+
+## No stored password (issue #101)
+
+Until issue #101 the password stayed stored after sign-in -- natively in the plain preferences
+(`Settings.staticPassword`, copied into `ServerSetting.password` in memory), on the web in the
+persisted `credentials.password` (`lms_credentials`) -- although it signed nothing any more. It did
+two jobs no token covered: `ensureMumaLogin(force = true)` and the web's `Management.svelte`
+re-logged in with it when MuMa refused the stored key, and a blank password was the "signed out"
+marker the shell bridge, `restoreSession` and the native sign-out relied on. A Google sign-in
+stored the MuMa API key in the password slot on both sides.
+
+**Signed in is a flag.**
+- **Native.** `Settings.signedIn`, read through `ActiveServerProvider.isSignedIn()` (flag and a
+  stored name). Set by `saveSession`, cleared by `signOut` and `keyRefused`.
+  `SubsonicTokenRefresher`'s `hasCredentials`, `refreshSubsonicToken` and the bridge's
+  `credentials()` read it where they used to test for a password.
+- **Web.** The derived store `signedIn` -- a name or a MuMa session -- is what `App.svelte` shows
+  the login page on. It already was the condition there; now it is named, and nothing reads a
+  password.
+
+**The bridge carries the session, not the pair.**
+- `MumaSystem.credentials()` answers `{username, signedIn, mumaApiKey, mumaUserId, subsonicToken,
+  subsonicTokenUser, clientId, serverId}`.
+- `saveCredentials` takes `{url, username, mumaApiKey, mumaUserId}` and rejects a call without a
+  name or a key.
+- The shell's `restoreSession` no longer signs in: with the phone signed in and holding a key it
+  adopts the name, the key (checking a key it did not have yet with `hydrateMumaUserFromApiKey`)
+  and the phone's token, and fetches a missing token. Signed out on the phone, a web session is
+  left alone.
+- The web bundle ships inside the APK, so both sides of the contract change in the same build
+  (AGENTS.md rule 7); the contract is internal to the app, no server API changes.
+
+**A refused key means "sign in again".** The MuMa `api_key` is permanent (login returns the
+account's fixed key, refresh does not rotate it), so a 401 to it means the key was reissued or the
+account is gone. No stored password can replace it any more:
+- **Native.** `MumaStoredCredentials.signOutWhenKeyRefused` replaces `retryOnceWhenUnauthorized`: on
+  a 401 it calls `ActiveServerProvider.keyRefused(key)` and throws `MumaLoginRefusedException(401)`.
+  `keyRefused` clears the session under the sign-out epoch -- flag, key, account id, the MuMa and
+  Subsonic tokens -- only when the refused key is still the stored one, so a sign-in made while the
+  refused request was out survives; the queue is left alone. The token recoverer then reports
+  `SIGN_IN_AGAIN` (the refetch saw the epoch move, and `hasCredentials` is false afterwards, with no
+  back-off), which the car shows as "Sign in again in the MuMa app on your phone"; the shell's next
+  start shows the web sign-in page (password or Google, bug report 106).
+- **Key without an account id.** `ensureMumaKey` has no login any more: without a key it throws
+  `MumaLoginRefusedException(401)`, and a key without a usable account id asks
+  `GET /api/auth/verify` with the key alone and stores the id. `MusicService.mumaLogin`, which had
+  no caller, is gone.
+- **Web.** `hydrateMumaUserFromApiKey` (every start, and the shell's restore of a new key) and
+  `Management.svelte` answer a 401/403 with `endRejectedSession()`, which shows the login page.
+  `loginWithPlayerCredentials` is gone.
+
+**Clearing what older builds stored.**
+- **Native.** `LegacyPasswordMigration` runs once per process, from `UApp.onCreate` and from
+  whichever reader of `isSignedIn` comes first. It is also how the media session that Android Auto
+  starts without the UI gets the migrated answer. A stored name and password become
+  `signedIn = true`, then the preference key is removed; a blank password stays signed out. It is
+  idempotent. `UApp` also blanks the `password` column of the unused legacy Room `ServerSetting`
+  table (opened as a plain SQLite file, skipped when the file does not exist). A sign-out removes
+  any leftover as well.
+- **Web.** `persist("lms_credentials", ..., { onLoad: withoutPassword })` drops the member on load,
+  and the store's subscriber rewrites localStorage without it the same moment; `signIn`, the Google
+  path, `endRejectedSession` and the login form's `save` write the name only, and the form clears
+  its password field after a successful sign-in.
+
+**Diagnostics.** `LogRedaction` already masked credential-named preferences, `key: value` pairs and
+JSON members (`password`, `mumaApiKey`); it now also masks a `password` query parameter -- the new
+password in Subsonic's `updateUser` URL, which a failed password change can quote into the web
+action trail.
+
+**What an existing install does after updating.**
+- **Native.** First start: the old marker becomes the flag, the password is removed, the key,
+  token and queue stay -- no one has to sign in again.
+- **Web shell.** Its next start drops the stored password; the phone hands it the key and token as
+  before.
+- **Edge case.** An install that stored a password but never received a MuMa key (a login that
+  never reached MuMa) can no longer obtain one without the password. Its first MuMa call reports
+  "sign in again", and a sign-in on the phone repairs it.
 
 ## Recovering from a refused token (issue #73)
 
@@ -188,8 +257,8 @@ answering error 40 until the phone's UI was opened once (bug report
 - **What happens.** When `t = md5(storedToken + s)` the stored token itself was refused, and the
   interceptor asks `SubsonicTokenRecoverer` (process-wide, `SubsonicTokenRefresher.recovery`, so its
   state survives the Koin rebuild) for a new one. The recoverer runs
-  `RESTMusicService.refreshSubsonicToken` -- the MuMa API key, re-logging in only if the key itself
-  is refused, exactly as the shell-triggered refresh does -- and, when a different token got
+  `RESTMusicService.refreshSubsonicToken` -- with the MuMa API key, exactly as the shell-triggered
+  refresh does; a key MuMa refuses ends the session (issue #101) -- and, when a different token got
   stored, rebuilds the music service on the main thread and hands it back. The interceptor re-signs
   the same request with it (fresh salt) and sends it once more; that second answer is returned
   whatever it is. A request signed with an older token than the stored one (a client built before
@@ -253,6 +322,20 @@ answering error 40 until the phone's UI was opened once (bug report
     in again (`store.test.js`, `subsonic.test.js`, `login.test.js`, `nativeSession.test.js`,
     `offlineShell.test.js`, `platformCapacitor.test.js`); end to end in a browser against the test
     stack (`tests/browser/subsonic-signing.spec.js`).
+
+11. No stored password (issue #101): an install with a stored name and password is signed in
+    after the first start and the password is gone, a blank one stays signed out, a second run
+    changes nothing (`LegacyPasswordMigrationTest`, `ActiveServerProviderSignOutTest`); a session is
+    recorded as name, key and account id, a refused key ends it unless a newer sign-in replaced the
+    key (`ActiveServerProviderSignOutTest`); a 401 is not retried with a login
+    (`MumaStoredCredentialsTest`); a refused key during a token fetch reads `SIGN_IN_AGAIN` and
+    fetches nothing more (`SubsonicTokenRecovererTest`); a `password` query parameter is redacted
+    (`LogRedactionTest`). The web keeps no password in the store or localStorage after a password
+    or Google sign-in, drops one persisted by an older build, shows the login page on a refused key,
+    and restores the shell's session from the phone's key (`login.test.js`, `store.test.js`,
+    `loginPage*.test.js`, `management.test.js`, `nativeSession.test.js`,
+    `platformCapacitor.test.js`); end to end in a browser against the test stack
+    (`tests/browser/stored-password.spec.js`).
 
 ## Related Docs
 

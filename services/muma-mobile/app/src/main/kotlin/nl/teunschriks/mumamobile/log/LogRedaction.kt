@@ -25,8 +25,12 @@ object LogRedaction {
 
     const val MASK = "<redacted>"
 
-    /** Query parameters whose value authenticates a request; see [redactUrl]. */
-    val SENSITIVE_QUERY_PARAMS: List<String> = listOf("u", "p", "t", "s", "apiKey")
+    /**
+     * Query parameters whose value authenticates a request; see [redactUrl]. `password` is the
+     * new password Subsonic's `updateUser` carries in its query (the web's password change), which
+     * a failed call's error message can quote into the web action trail (issue #101).
+     */
+    val SENSITIVE_QUERY_PARAMS: List<String> = listOf("u", "p", "t", "s", "apiKey", "password")
 
     /** Request headers whose value authenticates a request. */
     val SENSITIVE_HEADERS: List<String> = listOf("X-API-Key", "Authorization", "X-Upload-Password")
@@ -93,7 +97,7 @@ object LogRedaction {
     }
 
     /**
-     * [text] with the value of every `u`, `p`, `t`, `s` and `apiKey` query parameter replaced by
+     * [text] with the value of every `u`, `p`, `t`, `s`, `apiKey` and `password` query parameter replaced by
      * [MASK]. Works on a bare URL as well as on a log line that contains one, such as a media3
      * `DataSpec[...]` dump.
      */

@@ -1,6 +1,7 @@
 package nl.teunschriks.mumamobile.log
 
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldContain
 import org.amshove.kluent.shouldNotContain
 import org.junit.Test
 
@@ -112,5 +113,25 @@ class LogRedactionTest {
 
         redacted shouldNotContain "0a1b2c"
         redacted shouldNotContain "f00d"
+    }
+
+    /** Issue #101: a failed password change quotes its URL, and the new password is in the query. */
+    @Test
+    fun `the password of an updateUser URL is masked`() {
+        val line = "js.error {\"message\":\"GET https://x/rest/updateUser?u=user&t=0a1b&s=f0&username=user&password=hunter2 failed\"}"
+
+        val redacted = LogRedaction.redact(line)
+
+        redacted shouldNotContain "hunter2"
+        redacted shouldContain "password=<redacted>"
+        LogRedaction.redact(redacted) shouldBeEqualTo redacted
+    }
+
+    /** The shell's saveCredentials carries the MuMa key since issue #101; it never reaches a report. */
+    @Test
+    fun `the MuMa key handed to the shell is masked in a JSON detail`() {
+        val redacted = LogRedaction.redact("""{"username":"user","mumaApiKey":"abc123","signedIn":true}""")
+
+        redacted shouldBeEqualTo """{"username":"user","mumaApiKey":"<redacted>","signedIn":true}"""
     }
 }

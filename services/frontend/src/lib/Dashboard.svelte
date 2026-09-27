@@ -36,7 +36,7 @@
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
   import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
-  import { activeManagementTab, downloaderSubTabRequest } from './store.js';
+  import { activeManagementTab, downloaderSubTabRequest, userPermissions } from './store.js';
   import { allSortOptions, authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
   // Navigation that has to survive a refresh goes through onnavigate, which App turns into a URL.
@@ -580,6 +580,15 @@
     }
     refreshPresets(userId);
     fetchGenreTints().then((tints) => (genreTints = tints));
+  });
+
+  // `hasPermission` reads its stores with `get`, so a template call is not re-run when the
+  // permissions arrive after the first render (a label page opened by URL). Reading the two
+  // stores here makes this one reactive.
+  const canManageRules = $derived.by(() => {
+    void $userPermissions;
+    void $mumaUser;
+    return hasPermission('rules.manage');
   });
 
   /** Opens Beheer -> Downloaders on its Koppelingen tab, where a curator (un)links channels (issue #122). */
@@ -1143,7 +1152,7 @@
       <LabelChannels
         label={viewArgument(activeView)}
         onnavigate={(v) => activeView = v}
-        canManage={hasPermission('rules.manage')}
+        canManage={canManageRules}
         onmanage={openChannelLinks}
       />
     {/if}

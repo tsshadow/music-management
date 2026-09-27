@@ -88,9 +88,10 @@ class UApp : Application() {
         // In general we should not access the settings from the main thread to avoid blocking...
         ioScope.launch {
             // Before anything can dump the preferences: an install from before issue #101 still
-            // keeps the password in plain preferences. Readers of the signed-in state run the same
-            // migration first, so the order with the media session does not matter.
-            ActiveServerProvider.migrateLegacyPassword()
+            // keeps the password in plain preferences, one from before #115 the MuMa key. Readers
+            // of the signed-in state run the same migration first, so the order with the media
+            // session does not matter.
+            ActiveServerProvider.migrateLegacyCredentials()
             wipeLegacyServerPasswords()
             if (Settings.debugLogToFile) {
                 FileLoggerTree.plantToTimberForest()

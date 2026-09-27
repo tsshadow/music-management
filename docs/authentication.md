@@ -133,6 +133,13 @@ in the background. The Android app's Android Auto side, which has no sign-in pag
 again in the MuMa app on your phone". A native client that has a key but no account id asks
 `GET /api/auth/verify` with the key alone.
 
+On Android both credentials are kept encrypted at rest (issue #115): an AES-256-GCM key in the
+Android Keystore, which the app cannot read out and which is in no backup, seals the `api_key` and
+the Subsonic token into a file that is also excluded from auto-backup and device transfer. When the
+Keystore key is lost or invalidated, or a restore brings the preferences but not the credentials,
+the app is simply signed out and shows its sign-in page. See the technical design,
+"Credentials at rest".
+
 ### 2. Google Sign-In (`POST /api/auth/google`)
 
 | Situation | Result |

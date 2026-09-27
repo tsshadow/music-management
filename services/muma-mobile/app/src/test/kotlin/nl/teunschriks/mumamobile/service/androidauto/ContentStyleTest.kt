@@ -15,8 +15,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.util.SignedInFixture
 import nl.teunschriks.mumamobile.util.buildMediaItem
 import org.amshove.kluent.`should be equal to`
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,6 +36,10 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = nl.teunschriks.mumamobile.app.UApp::class, manifest = Config.NONE)
 class ContentStyleTest {
+
+    /** Signed in with a token, so the car's token gate lets the browse through (issue #115). */
+    @Before
+    fun signedInWithToken() = SignedInFixture.install()
 
     private fun browsable(title: String, withArtwork: Boolean): MediaItem = buildMediaItem(
         title = title,

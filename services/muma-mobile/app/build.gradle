@@ -320,7 +320,6 @@ dependencies {
     implementation libs.credentials
     implementation libs.credentialsPlayServicesAuth
     implementation libs.googleid
-    implementation libs.securityCrypto
 
 
     implementation libs.kotlinStdlib

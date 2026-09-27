@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.log
 
+import android.util.Log
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
@@ -72,7 +73,7 @@ class FileLoggerTree :
                 t?.printStackTrace(pw)
             } catch (all: Throwable) {
                 // Using base class DebugTree here, we don't want to try to log this into file
-                super.log(6, TAG, String.format("Failed to write log to %s", file), all)
+                super.log(Log.ERROR, TAG, "Failed to write log to $file", all)
             } finally {
                 pw?.safeClose()
             }
@@ -89,7 +90,7 @@ class FileLoggerTree :
                 if (file != null) return
                 getNumberedFile(false)
                 // Using base class DebugTree here, we don't want to try to log this into file
-                super.log(4, TAG, String.format("Logging into file %s", file?.name), null)
+                super.log(Log.INFO, TAG, "Logging into file ${file?.name}", null)
                 return
             }
         }
@@ -101,9 +102,9 @@ class FileLoggerTree :
                     getNumberedFile(true)
                     // Using base class DebugTree here, we don't want to try to log this into file
                     super.log(
-                        4,
+                        Log.INFO,
                         TAG,
-                        String.format("Log file rotated, logging into file %s", file?.name),
+                        "Log file rotated, logging into file ${file?.name}",
                         null
                     )
                 }

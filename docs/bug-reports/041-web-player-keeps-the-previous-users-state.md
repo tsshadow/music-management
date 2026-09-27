@@ -52,7 +52,7 @@ belongs to the page that is still showing.
 - Account-setting writes go through one queue: changes are collected per user, one debounced flush
   reads the blob once, merges everything pending and writes once. A failed read or write keeps the
   changes queued and retries after 10 s; a blob is never written after a failed read. The server
-  contract is unchanged, so a per-key write on the server stays open work (`docs/open-work.md`).
+  contract is unchanged, so a per-key write on the server stays open work (`docs/open-work.md`) -- since done: bug report 116 added the per-key `PATCH`.
 - `fetchMumaJson` throws a `MumaHttpError` (status and parsed body) on a non-2xx answer;
   `listFeeds` does not cache a failure or a body without a list; `Management.svelte` keeps each
   section at its default when its call fails; the error banner is reserved for every call

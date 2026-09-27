@@ -54,10 +54,24 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val genres = lookup(trace, "genres", "") { vocabulary.genres() }
 
+        // Only forms the server knows: it refuses any other value for the whole request.
+        val spokenForms = parsed.forms.mapNotNull { TrackForm.known(it) }.distinct()
+        val show = podcastNamed(parsed, spokenForms, genres, trace)
+        // A named show is the podcast answer on its own. Keeping the form as well would hide the
+        // episode downloaded an hour ago -- the form is only filled in by the hourly pass -- and
+        // "the latest episode" is exactly the one somebody asks for.
+        val forms = if (show != null) {
+            trace?.rule("a podcast show was named, so its PODCAST tag replaces the podcast form")
+            spokenForms - TrackForm.PODCAST
+        } else {
+            spokenForms
+        }
+        val showTookTheArtist = show?.slot == SpokenSlot.ARTIST
+
         val spokenGenres = spokenGenre?.takeIf { it.isNotBlank() }?.let { listOf(it) }
             ?: parsed.genres
         var namedGenres = spokenGenres.flatMap { genreSpellings(trace, it, genres) }.distinct()
-        var artist = parsed.artist?.let {
+        var artist = parsed.artist?.takeUnless { showTookTheArtist }?.let {
             val names = lookup(trace, "artists", it) { vocabulary.artists(it) }
             matched(trace, "artist", it, VoiceQuery.match(it, names))
         }
@@ -65,9 +79,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             val names = lookup(trace, "labels", "") { vocabulary.labels() }
             matched(trace, "label", it, VoiceQuery.match(it, names))
         }
-        var festival: String? = festivalNamedAsArtist(parsed, artist, trace)
-        // Only forms the server knows: it refuses any other value for the whole request.
-        val forms = parsed.forms.mapNotNull { TrackForm.known(it) }.distinct()
+        var festival: String? = if (showTookTheArtist) null else festivalNamedAsArtist(parsed, artist, trace)
         val filingYear = filingYearOf(parsed, forms, trace)
         val known = if (parsed.years.isEmpty() || filingYear != null) {
             emptyList()
@@ -82,7 +94,11 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             }
         }
 
-        val nothingNamedYet = namedGenres.isEmpty() && artist == null && label == null && festival == null
+        val nothingNamedYet = namedGenres.isEmpty() &&
+            artist == null &&
+            label == null &&
+            festival == null &&
+            show == null
         val free = parsed.free?.takeIf { nothingNamedYet }
         if (free != null) {
             val candidates = candidatesFor(free, parsed, years.firstOrNull(), genres, trace)
@@ -111,7 +127,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
 
         val asksForARating = parsed.ratingMin != null
         val quality = QualityTier.atLeast(parsed.minQuality)
-        val named = namedGenres + listOfNotNull(artist, label, festival, filingYear?.toString()) + years
+        val named = namedGenres + listOfNotNull(artist, label, festival, show?.name, filingYear?.toString()) + years
         val namesNothing = named.isEmpty() && !asksForARating && parsed.sort == null && quality == null
         // "Play a set" alone names none of the above, and it is still a request worth running:
         // the length filter is an answer on its own -- any liveset -- rather than nothing.
@@ -126,6 +142,7 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
             artist?.let { add(Filter(FILTER_ARTIST, it)) }
             label?.let { add(Filter(FILTER_PUBLISHER, it)) }
             festival?.let { add(Filter(FILTER_FESTIVAL, it)) }
+            show?.let { add(Filter(FILTER_PODCAST, it.name)) }
             // One year stays a single value, so the request looks exactly as it always has; several
             // become the array the engine reads as an OR.
             when (years.size) {
@@ -218,6 +235,79 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         val name = VoiceQuery.match(spoken, festivals) ?: return null
         trace?.note("\"$spoken\" is no artist but a festival the library spells \"$name\"")
         return name
+    }
+
+    /** Which spoken slot a podcast show was read from, so that slot is not read a second time. */
+    private enum class SpokenSlot { ARTIST, FREE }
+
+    /** A podcast show the utterance named, as the library spells it. */
+    private data class NamedShow(val name: String, val slot: SpokenSlot)
+
+    /**
+     * @brief The podcast show a podcast request named, if the library has one by that name.
+     *
+     * @details Only asked when the podcast form was spoken -- "podcast", "aflevering", "episode" --
+     * so no other request pays for the lookup. The name stands where an artist would ("de podcast
+     * van KTRA", "de laatste aflevering van Monstercat") or unqualified ("de Monstercat podcast"),
+     * and the artist slot is tried first because it is the one the speaker introduced on purpose.
+     *
+     * An unqualified term that is exactly a genre stays a genre: "speel hardstyle podcasts af" is
+     * the podcast form within Hardstyle, as it was before shows were matched, not whichever show
+     * happens to carry the word in its name.
+     *
+     * Only a name from [LibraryVocabulary.podcasts] can come out of here, never the spoken words:
+     * the server refuses a `PODCAST` value it does not know for the whole request. No show found
+     * leaves the request exactly as it was -- the podcast form, and the term read as before.
+     */
+    private fun podcastNamed(
+        parsed: ParsedQuery,
+        forms: List<String>,
+        genres: List<String>,
+        trace: QueryTrace?
+    ): NamedShow? {
+        if (TrackForm.PODCAST !in forms) return null
+        val free = parsed.free?.takeUnless { VoiceQuery.match(it, genres, exact = true) != null }
+        val spoken = listOfNotNull(
+            parsed.artist?.let { it to SpokenSlot.ARTIST },
+            free?.let { it to SpokenSlot.FREE }
+        )
+        if (spoken.isEmpty()) return null
+
+        val shows = runCatching { vocabulary.podcasts() }.getOrDefault(emptyList())
+        trace?.lookup("podcasts", "", shows.size)
+        spoken.forEach { (term, slot) ->
+            val name = showNamed(term, shows)
+            trace?.match("podcast", term, name)
+            if (name != null) return NamedShow(name, slot)
+        }
+        return null
+    }
+
+    /**
+     * @brief Resolves one spoken name to the show it most likely means, deterministically.
+     *
+     * @details In order, each step only reached when the one before it found nothing:
+     * 1. the name with "podcast" put back -- the parser takes that word out, and "de Monstercat
+     *    podcast" means the show called "Monstercat Podcast" more than the one called "Monstercat";
+     * 2. the name exactly as a show is called;
+     * 3. the name exactly as one of a show's aliases;
+     * 4. the partial fallback [VoiceQuery.match] applies to a festival, over every name and alias,
+     *    for a name of at least [MIN_PARTIAL_SHOW] letters -- "Darkside" for "Twisted's Darkside
+     *    Podcast". Below that a partial match is noise: "raw" sits inside half the list.
+     *
+     * Every tie goes to the show listed first, which is the one with the most episodes.
+     */
+    private fun showNamed(term: String, shows: List<PodcastShow>): String? {
+        fun byName(spoken: String) = shows.firstOrNull { VoiceQuery.match(spoken, listOf(it.name), exact = true) != null }
+        fun byAlias(spoken: String) = shows.firstOrNull { VoiceQuery.match(spoken, it.aliases, exact = true) != null }
+
+        val withTheWord = "$term podcast"
+        (byName(withTheWord) ?: byAlias(withTheWord) ?: byName(term) ?: byAlias(term))?.let { return it.name }
+
+        if (term.count { it.isLetterOrDigit() } < MIN_PARTIAL_SHOW) return null
+        val spellings = shows.flatMap { show -> (listOf(show.name) + show.aliases).map { it to show.name } }
+        val hit = VoiceQuery.match(term, spellings.map { it.first }) ?: return null
+        return spellings.first { it.first == hit }.second
     }
 
     /**
@@ -547,6 +637,10 @@ class QueryResolver(private val vocabulary: LibraryVocabulary) {
         const val FILTER_RATING = "RATING"
         const val FILTER_LENGTH = "LENGTH"
         const val FILTER_FESTIVAL = "FESTIVAL"
+        const val FILTER_PODCAST = "PODCAST"
+
+        /** The fewest letters a podcast name needs before a partial match on it counts. */
+        const val MIN_PARTIAL_SHOW = 4
         const val FILTER_QUALITY = QualityTier.CLUSTER
 
         /** What an exact match on the library's own spelling is worth. */

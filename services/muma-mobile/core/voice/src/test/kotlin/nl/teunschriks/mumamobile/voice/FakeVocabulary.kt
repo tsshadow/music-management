@@ -37,7 +37,15 @@ class FakeVocabulary(
         NamedRef("pl-1", "Thunderdome"),
         NamedRef("pl-2", "Zomer")
     ),
-    private val festivals: List<String> = listOf("Defqon.1", "Decibel")
+    private val festivals: List<String> = listOf("Defqon.1", "Decibel"),
+    private val podcasts: List<PodcastShow> = listOf(
+        PodcastShow("Keeping The Rave Alive", listOf("KTRA")),
+        PodcastShow("Twisted's Darkside Podcast", listOf("Darkside Podcast")),
+        PodcastShow("Monstercat Podcast"),
+        PodcastShow("ISAAC'S HARDSTYLE SESSIONS", listOf("Q-dance: Isaac's Hardstyle Sessions")),
+        PodcastShow("Monstercat"),
+        PodcastShow("Headhunterz - HARD with STYLE")
+    )
 ) : LibraryVocabulary {
 
     /** Every lookup the resolver made, so a test can assert it did not ask for what it cannot use. */
@@ -86,5 +94,10 @@ class FakeVocabulary(
     override fun festivals(): List<String> {
         asked.add("festivals")
         return festivals
+    }
+
+    override fun podcasts(): List<PodcastShow> {
+        asked.add("podcasts")
+        return podcasts
     }
 }

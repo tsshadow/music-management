@@ -82,7 +82,7 @@ namespace lms::core::http
         std::vector<Wt::Http::Message::Header> headers;
     };
 
-    // POST, PUT and DELETE all travel as a Wt message (headers plus body); only the
+    // POST, PUT, DELETE and PATCH all travel as a Wt message (headers plus body); only the
     // verb on the wire differs, and the verb is the type of the parameters.
     struct ClientRequestWithBodyParameters : public ClientRequestParameters
     {
@@ -98,6 +98,10 @@ namespace lms::core::http
     };
 
     struct ClientDELETERequestParameters final : public ClientRequestWithBodyParameters
+    {
+    };
+
+    struct ClientPATCHRequestParameters final : public ClientRequestWithBodyParameters
     {
     };
 

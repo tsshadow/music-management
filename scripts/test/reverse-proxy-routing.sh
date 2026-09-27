@@ -48,7 +48,7 @@ class Echo(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-    do_GET = do_POST = do_PUT = do_DELETE = _answer
+    do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = _answer
     def log_message(self, *args):
         pass
 
@@ -120,6 +120,7 @@ expect GET    "/muma/api/curation/artists/AC%2FDC"                      music-ma
 expect GET    "/muma/api/curation/labels/Q-dance%20Records?x=1&y=a%20b" music-manager "/api/curation/labels/Q-dance%20Records?x=1&y=a%20b"
 expect GET    "/muma/api/curation/artists/D%C3%A9j%C3%A0%20Vu"          music-manager "/api/curation/artists/D%C3%A9j%C3%A0%20Vu"
 expect POST   "/muma/api/users/1/settings/frontend"                     music-manager "/api/users/1/settings/frontend"
+expect PATCH  "/muma/api/users/1/settings/frontend"                     music-manager "/api/users/1/settings/frontend"
 expect PUT    "/muma/api/radio/channels/3"                              music-manager "/api/radio/channels/3"
 expect DELETE "/muma/api/radio/channels/3"                              music-manager "/api/radio/channels/3"
 expect GET    "/muma/api/news/bulletins/2026-09-17.mp3"                 music-manager "/api/news/bulletins/2026-09-17.mp3"

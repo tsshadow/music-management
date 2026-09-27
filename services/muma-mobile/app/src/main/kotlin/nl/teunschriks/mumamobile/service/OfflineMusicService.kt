@@ -716,6 +716,10 @@ class OfflineMusicService :
         // No-op
     }
 
+    override fun patchMumaSettings(userId: Int, appId: String, changes: String) {
+        // No-op
+    }
+
     @Throws(OfflineException::class)
     override fun uploadCrashReport(
         deviceModel: String,

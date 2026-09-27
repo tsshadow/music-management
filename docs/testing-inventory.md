@@ -109,7 +109,8 @@
 - Test: JVM unit tests present under `services/muma-mobile/app/src/test/kotlin/...` (e.g. `ArchitectureTest`, `imageloader/*Test`, `domain/*Test`)
 - Static analysis in `mobile:unit`: ktlint formatting
   (`./scripts/test/muma-mobile-ktlint.sh`, no baseline — `ktlintFormat` fixes what it finds),
-  detekt (`./scripts/test/muma-mobile-detekt.sh`, per-module `detekt-baseline.xml`) and
+  detekt (`./scripts/test/muma-mobile-detekt.sh`, no baseline since issue #34 -- an intentional
+  finding gets a targeted `@Suppress` with its reason) and
   Android Lint (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with
   `checkDependencies=true` so the core modules are analyzed too; pre-existing findings in
   `app/lint-baseline.xml`)

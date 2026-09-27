@@ -389,4 +389,11 @@ interface MusicService {
 
     @Throws(Exception::class)
     fun saveMumaSettings(userId: Int, appId: String, settings: String)
+
+    /**
+     * Writes only the top-level keys in [changes] (a JSON object) into the account's [appId] blob;
+     * every other key stays as the server has it, whichever device wrote it.
+     */
+    @Throws(Exception::class)
+    fun patchMumaSettings(userId: Int, appId: String, changes: String)
 }

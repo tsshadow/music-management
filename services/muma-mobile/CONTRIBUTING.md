@@ -64,12 +64,10 @@ You can run it yourself locally with
 ```
 ./gradlew -Pqc detekt
 ```
-There is a "baseline" file, in which errors which have been in the code base
-before are noted. Sometimes it is necessary to regenerate this file by
-running:
-```
-./gradlew -Pqc detektBaseline
-```
+There is no baseline: every finding fails the build. Fix what it reports; where a
+finding is intentional, put a targeted `@Suppress("<Rule>")` on the declaration
+with a comment saying why. The build still picks up a per-module
+`detekt-baseline.xml` if one exists, but none should be added back.
 
 #### Lint
 

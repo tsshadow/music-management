@@ -63,8 +63,8 @@ describe("LanguageSetting", () => {
     // with the page; the account would then hand the old language straight back on reload.
     const order = [];
     global.fetch = vi.fn((_url, opts = {}) => {
-      if (opts.method === "POST") {
-        order.push(`save:${JSON.parse(JSON.parse(opts.body).settings).language}`);
+      if (opts.method === "PATCH") {
+        order.push(`save:${JSON.parse(opts.body).set.language}`);
         return Promise.resolve({ ok: true, json: async () => ({ status: "ok" }) });
       }
       return Promise.resolve({

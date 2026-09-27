@@ -71,6 +71,23 @@ interface LibraryVocabulary {
     fun playlists(): List<NamedRef> = emptyList()
 
     /**
+     * @brief Every podcast show the library has episodes tagged under, with the other names it
+     *        goes by.
+     *
+     * @details [PodcastShow.name] is a value of the `PODCAST` tag exactly as the server lists it,
+     * and it is the only part of a show that is ever sent: the server refuses a `PODCAST` value it
+     * does not know for the whole request. The aliases are only a way to reach that name -- "KTRA"
+     * for "Keeping The Rave Alive".
+     *
+     * Asked only when the utterance named the podcast form, so an ordinary request never pays for
+     * it. The order is part of the contract, as for [genres]: a tie between two equally good matches
+     * goes to the earlier show, so an implementation should list the shows with the most episodes
+     * first. Default empty, like the other optional lookups -- "speel podcasts af" then still plays
+     * every podcast through the form alone.
+     */
+    fun podcasts(): List<PodcastShow> = emptyList()
+
+    /**
      * @brief The genres large enough to guess at.
      *
      * @details A near miss is only worth accepting against a genre that holds real music.

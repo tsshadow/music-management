@@ -1037,7 +1037,7 @@ namespace lms::api::muma
                 };
                 _httpClient->sendGETRequest(std::move(getParams));
             }
-            else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE")
+            else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE" || request.method() == "PATCH")
             {
                 core::http::ClientRequestWithBodyParameters bodyParams;
                 // See the matching comment in the GET branch above: pathInfo is decoded.
@@ -1068,12 +1068,25 @@ namespace lms::api::muma
                 // as a POST, so MuMa answered 405 for a route that only takes the real verb
                 // (editing or removing a radio channel) and the caller saw a method error
                 // for a request it never sent.
+                // PATCH too: MuMa's per-key account-settings write (bug report 116). It used to
+                // fall through every branch here, send nothing, and then park this thread -- and
+                // a MuMa call slot -- on a promise nobody would ever fulfil until the 30 s timeout.
                 if (request.method() == "PUT")
                     _httpClient->sendPUTRequest(core::http::ClientPUTRequestParameters{ std::move(bodyParams) });
                 else if (request.method() == "DELETE")
                     _httpClient->sendDELETERequest(core::http::ClientDELETERequestParameters{ std::move(bodyParams) });
+                else if (request.method() == "PATCH")
+                    _httpClient->sendPATCHRequest(core::http::ClientPATCHRequestParameters{ std::move(bodyParams) });
                 else
                     _httpClient->sendPOSTRequest(core::http::ClientPOSTRequestParameters{ std::move(bodyParams) });
+            }
+            else
+            {
+                // A verb this proxy does not forward: say so at once rather than waiting out the
+                // timeout below on a request that was never sent.
+                response.setStatus(405);
+                response.out() << "Method Not Allowed";
+                return;
             }
 
             if (resultFuture.wait_for(std::chrono::seconds(30)) == std::future_status::ready)

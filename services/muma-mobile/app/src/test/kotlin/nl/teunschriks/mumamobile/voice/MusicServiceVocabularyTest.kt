@@ -9,6 +9,7 @@ package nl.teunschriks.mumamobile.voice
 
 import io.mockk.every
 import io.mockk.mockk
+import nl.teunschriks.mumamobile.api.muma.MumaPodcastRule
 import nl.teunschriks.mumamobile.domain.Genre
 import nl.teunschriks.mumamobile.domain.Tag
 import nl.teunschriks.mumamobile.service.MusicService
@@ -97,5 +98,45 @@ class MusicServiceVocabularyTest {
             IllegalStateException("offline")
 
         MusicServiceVocabulary(service).festivals() `should be equal to` emptyList()
+    }
+
+    @Test
+    fun `podcasts are the PODCAST tag values, most episodes first, with the curated aliases`() {
+        val service = mockk<MusicService>()
+        every { service.getTags(false, MusicServiceVocabulary.TAG_PODCAST, null, null) } returns
+            listOf(Tag("1", "Monstercat Podcast", 301), Tag("2", "Keeping The Rave Alive", 818))
+        val curated = listOf(
+            MumaPodcastRule(id = 7, name = "keeping the rave alive", aliases = listOf("KTRA", "Keeping The Rave Alive")),
+            MumaPodcastRule(id = 8, name = "A show nobody tagged", aliases = listOf("Untagged"))
+        )
+
+        MusicServiceVocabulary(service) { curated }.podcasts() `should be equal to` listOf(
+            PodcastShow("Keeping The Rave Alive", listOf("KTRA")),
+            PodcastShow("Monstercat Podcast")
+        )
+    }
+
+    @Test
+    fun `podcasts still match by name when the curated aliases cannot be read`() {
+        val service = mockk<MusicService>()
+        every { service.getTags(false, MusicServiceVocabulary.TAG_PODCAST, null, null) } returns
+            listOf(Tag("1", "Monstercat Podcast", 301))
+
+        MusicServiceVocabulary(service) { throw IllegalStateException("offline") }.podcasts() `should be equal to`
+            listOf(PodcastShow("Monstercat Podcast"))
+    }
+
+    @Test
+    fun `a failing podcast tag lookup answers with nothing and never asks for aliases`() {
+        val service = mockk<MusicService>()
+        every { service.getTags(false, MusicServiceVocabulary.TAG_PODCAST, null, null) } throws
+            IllegalStateException("offline")
+        var asked = false
+
+        MusicServiceVocabulary(service) {
+            asked = true
+            emptyList()
+        }.podcasts() `should be equal to` emptyList()
+        asked `should be equal to` false
     }
 }

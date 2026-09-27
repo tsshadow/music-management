@@ -34,6 +34,9 @@ object VoiceExplanation {
         YEAR,
         FESTIVAL,
 
+        /** The podcast show, as the library's `PODCAST` tag spells it. */
+        PODCAST,
+
         /** The star range asked for, as "5", "4-5" or "4+". */
         RATING,
 
@@ -76,7 +79,8 @@ object VoiceExplanation {
         Field.ALBUM,
         Field.PLAYLIST,
         Field.YEAR,
-        Field.FESTIVAL
+        Field.FESTIVAL,
+        Field.PODCAST
     )
 
     /** Every row worth showing about [resolution], the words that were heard first. */
@@ -110,6 +114,8 @@ object VoiceExplanation {
     private fun filtered(target: Target.Filtered): List<Row> {
         val rows = mutableListOf<Row>()
         var ratingTag: String? = null
+        // A show is a podcast by definition, so "Sets" next to it would only repeat it.
+        val namesAShow = target.filters.getAll().any { it.name == QueryResolver.FILTER_PODCAST }
 
         target.filters.getAll().forEach { filter ->
             val value = display(filter.value)
@@ -121,9 +127,11 @@ object VoiceExplanation {
                 QueryResolver.FILTER_PUBLISHER -> rows.add(Row(Field.LABEL, value))
                 QueryResolver.FILTER_YEAR -> rows.add(Row(Field.YEAR, value))
                 QueryResolver.FILTER_FESTIVAL -> rows.add(Row(Field.FESTIVAL, value))
+                QueryResolver.FILTER_PODCAST -> rows.add(Row(Field.PODCAST, value))
                 QueryResolver.FILTER_LENGTH -> when {
                     value != VoiceQuery.LENGTH_LONG -> Unit
                     target.forms.isNotEmpty() -> rows.add(Row(Field.FORM, target.forms.joinToString(",")))
+                    namesAShow -> Unit
                     else -> rows.add(Row(Field.SETS))
                 }
                 // The tag is only a fallback: the range is the wider truth, and the two are set

@@ -65,8 +65,12 @@ import timber.log.Timber
 
 /**
  * This Music Service implementation connects to a server using the Subsonic REST API
+ *
+ * TooManyFunctions is suppressed on purpose: almost every function here is an override of
+ * [MusicService], so the count is the size of that interface rather than of this class, and
+ * CachedMusicService and OfflineMusicService implement the same surface.
  */
-@Suppress("LargeClass")
+@Suppress("LargeClass", "TooManyFunctions")
 open class RESTMusicService(
     private val subsonicAPIClient: SubsonicAPIClient,
     private val activeServerProvider: ActiveServerProvider
@@ -979,7 +983,7 @@ open class RESTMusicService(
         if (response.isSuccessful) {
             val body = response.body()
             if (body != null) {
-                val apiKey = body.api_key ?: body.access_token
+                val apiKey = body.apiKey ?: body.accessToken
                     ?: throw IOException("MuMa login returned no API key")
                 // The account id is nested under "user". Reading it flat left it at Gson's default
                 // of 0, which is not the "unknown" sentinel, so every per-user call afterwards went
@@ -1066,6 +1070,24 @@ open class RESTMusicService(
         if (!response.isSuccessful) throw IOException("Failed to save settings: ${response.code()}")
     }
 
+    /**
+     * A per-key `PATCH`. A server from before it answers 405; only then does this fall back to the
+     * old read-merge-write, which can still lose another device's write made in between.
+     */
+    @Throws(Exception::class)
+    override fun patchMumaSettings(userId: Int, appId: String, changes: String) {
+        ensureMumaLogin()
+        val req = nl.teunschriks.mumamobile.api.muma.MumaSettingsPatchRequest(settingsChangesObject(changes))
+        val response = retryOnceWhenUnauthorized {
+            subsonicAPIClient.mumaApi.api.patchSettings(userId, appId, req).execute()
+        }
+        if (response.code() == HTTP_METHOD_NOT_ALLOWED) {
+            saveMumaSettings(userId, appId, mergeSettingsChanges(getMumaSettings(userId, appId), changes))
+            return
+        }
+        if (!response.isSuccessful) throw IOException("Failed to patch settings: ${response.code()}")
+    }
+
     @Throws(Exception::class)
     override fun uploadCrashReport(
         deviceModel: String,
@@ -1078,13 +1100,13 @@ open class RESTMusicService(
     ) {
         ensureMumaLogin()
         val req = nl.teunschriks.mumamobile.api.muma.CrashReportRequest(
-            device_model = deviceModel,
-            os_version = osVersion,
-            app_version_name = appVersionName,
-            app_version_code = appVersionCode,
-            build_type = buildType,
-            ring_buffer_text = ringBufferText,
-            stacktrace_text = stacktraceText
+            deviceModel = deviceModel,
+            osVersion = osVersion,
+            appVersionName = appVersionName,
+            appVersionCode = appVersionCode,
+            buildType = buildType,
+            ringBufferText = ringBufferText,
+            stacktraceText = stacktraceText
         )
         val response = retryOnceWhenUnauthorized { subsonicAPIClient.mumaApi.api.uploadCrashReport(req).execute() }
         if (!response.isSuccessful) throw IOException("Failed to upload crash report: ${response.code()}")
@@ -1107,3 +1129,6 @@ open class RESTMusicService(
         private const val ROLE_RELEASE_ARTISTS = "release"
     }
 }
+
+/** What a server without the per-key settings `PATCH` answers it with. */
+private const val HTTP_METHOD_NOT_ALLOWED = 405

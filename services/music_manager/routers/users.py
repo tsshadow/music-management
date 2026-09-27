@@ -7,8 +7,10 @@ import secrets
 import sqlite3
 import threading
 import time
+from typing import Any
 
 import bcrypt
+import pymysql
 import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
@@ -24,6 +26,7 @@ from services.music_manager.rbac import has_permission, require_permission
 from services.music_manager.thread_registry import run_forever
 
 router = APIRouter(tags=['users'])
+logger = logging.getLogger(__name__)
 # These four are the keys this service *presents* when it calls the muma server.
 # What it *accepts* as the system key is api_key.is_system_api_key(), which reads
 # API_KEY/MUMA_API_KEY and has no literal fallback -- see that module for why.
@@ -145,7 +148,20 @@ class PasswordUpdate(BaseModel):
 
 
 class AppSettingsUpdate(BaseModel):
+    """A whole settings blob, as a JSON string, that replaces whatever the account stored."""
+
     settings: str
+
+
+class AppSettingsPatch(BaseModel):
+    """A per-key change to a settings blob: the top-level keys to set and the ones to remove.
+
+    Each value in `set` replaces that key's value whole -- nested objects are not merged -- and
+    every key the request does not name is left as stored. A key in both lists is a 422.
+    """
+
+    set: dict[str, Any] = {}
+    remove: list[str] = []
 
 
 class LoginRequest(BaseModel):
@@ -1375,6 +1391,112 @@ def update_user_app_settings(user_id: int, app_id: str, req: AppSettingsUpdate, 
             )
             conn.commit()
             return {'status': 'ok'}
+    finally:
+        conn.close()
+
+
+#: MariaDB error codes after which the whole read-merge-write is simply tried again: a deadlock
+#: (two first writes of a missing row both hold its gap lock) and the duplicate key the loser of
+#: two concurrent first writes gets for its INSERT; and 1020, "record has changed since last read",
+#: which snapshot isolation raises should any read view predate the row lock (none should, see
+#: `_patch_settings_once`). A lock wait timeout is not retried: it already waited
+#: innodb_lock_wait_timeout, and something holding the row that long is stuck.
+_SETTINGS_RETRY_ERRORS = frozenset({1213, 1062, 1020})
+_SETTINGS_ATTEMPTS = 3
+
+
+def merge_settings_blob(stored: str | None, changes: dict[str, Any], remove: list[str]) -> dict[str, Any]:
+    """`stored` with every key in `changes` set and every key in `remove` gone.
+
+    Top-level only: a value replaces the stored value of its key whole. A stored blob that is
+    missing, not valid JSON or not a JSON object counts as empty -- there is nothing in it left to
+    preserve, and refusing the write would leave the account stuck on it (the web player already
+    treats such a blob the same way when it reads).
+    """
+    current: dict[str, Any] = {}
+    if stored:
+        try:
+            parsed = json.loads(stored)
+        except ValueError:
+            logger.warning('A stored settings blob is not valid JSON; the per-key write starts from empty')
+            parsed = None
+        if isinstance(parsed, dict):
+            current = parsed
+    for key in remove:
+        current.pop(key, None)
+    current.update(changes)
+    return current
+
+
+def _patch_settings_once(conn: Any, user_id: int, app_id: str, req: AppSettingsPatch) -> dict[str, Any]:
+    """One attempt at the locked read-merge-write of `user_id`'s `app_id` blob, in one transaction."""
+    with transaction(conn), conn.cursor() as cursor:
+        # A locking read, not a plain one. A plain SELECT opens the transaction's read view here,
+        # before the FOR UPDATE below has waited for another writer; MariaDB's snapshot isolation
+        # (innodb_snapshot_isolation, on by default since 11.6) then refuses our UPDATE of a row
+        # that writer changed after that view with error 1020. The share lock also keeps the user
+        # from being deleted under the INSERT.
+        cursor.execute('SELECT id FROM users WHERE id = %s LOCK IN SHARE MODE', (user_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail='User not found')
+        # FOR UPDATE: a second writer of this row waits here until this one commits, and then
+        # reads the blob with this writer's keys already in it. A plain SELECT would hand both
+        # the same snapshot and the later UPDATE would drop the earlier one's keys again.
+        cursor.execute(
+            'SELECT settings_json FROM user_app_settings WHERE user_id = %s AND app_id = %s FOR UPDATE',
+            (user_id, app_id),
+        )
+        row = cursor.fetchone()
+        merged = json.dumps(
+            merge_settings_blob(row['settings_json'] if row else None, req.set, req.remove),
+            ensure_ascii=False,
+            separators=(',', ':'),
+        )
+        if row:
+            cursor.execute(
+                'UPDATE user_app_settings SET settings_json = %s WHERE user_id = %s AND app_id = %s',
+                (merged, user_id, app_id),
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO user_app_settings (user_id, app_id, settings_json) VALUES (%s, %s, %s)',
+                (user_id, app_id, merged),
+            )
+        cursor.execute(
+            'SELECT CAST(updated_at AS CHAR) AS updated_at FROM user_app_settings WHERE user_id = %s AND app_id = %s',
+            (user_id, app_id),
+        )
+        stamp = cursor.fetchone()
+    return {'status': 'ok', 'settings': merged, 'updated_at': stamp['updated_at'] if stamp else None}
+
+
+@router.patch('/{user_id}/settings/{app_id}')
+def patch_user_app_settings(user_id: int, app_id: str, req: AppSettingsPatch, auth: dict = Depends(verify_api_key)):
+    """Set and remove individual top-level keys of a settings blob, leaving every other key alone.
+
+    The per-key counterpart of the POST above (GitLab issue #39, bug report 116): two devices that
+    each change a different key both keep their change, where two whole-blob POSTs lose whichever
+    landed first. Answers the merged blob and its `updated_at`, in the GET's shape, so a client can
+    refresh its copy without a second request.
+    """
+    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
+        raise HTTPException(status_code=403, detail='Forbidden')
+    both = set(req.set).intersection(req.remove)
+    if both:
+        raise HTTPException(status_code=422, detail=f'Keys both set and removed: {sorted(both)}')
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500)
+    try:
+        for attempt in range(1, _SETTINGS_ATTEMPTS + 1):
+            try:
+                return _patch_settings_once(conn, user_id, app_id, req)
+            except (pymysql.err.OperationalError, pymysql.err.IntegrityError) as exc:
+                code = exc.args[0] if exc.args else None
+                if code not in _SETTINGS_RETRY_ERRORS or attempt == _SETTINGS_ATTEMPTS:
+                    raise
+                logger.info('Settings write for user %s/%s collided (%s), retrying', user_id, app_id, code)
+        raise AssertionError('unreachable')  # pragma: no cover
     finally:
         conn.close()
 

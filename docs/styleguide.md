@@ -137,6 +137,30 @@
   its data arrives; one slow section never holds up the ones that are ready.
 - **Refresh**: re-loading a screen that already shows content keeps that content on screen —
   skeletons are for the first load, not for every refresh.
+- **Web tokens**: the placeholder colour is the `muma-skeleton` token (`bg-muma-skeleton`) and the
+  pulse is the `skeleton-pulse` class in `src/app.css` (it stops under `prefers-reduced-motion`).
+  Use `Skeleton.svelte` for a single block, `SkeletonRows.svelte` for track rows (TrackList
+  geometry: `h-14 md:h-16`, 48px cover, two text lines) and `SkeletonTiles.svelte` for a card grid.
+  Never write "Loading…" text as the only content of a page.
+- **Boot screen** (web and app): from the very first frame, `index.html` shows the MuMa mark
+  centred on `#191414`, with a status line under it in secondary text (`#B3B3B3`, 14px). The status
+  line names the stage ("Verbinden…", "Inloggen…", "Wachtrij herstellen…"). Under it runs a 3px
+  progress bar, 160px wide and `rounded-full`, in the brand green on a `#2F2F2F` track. The bar is
+  indeterminate (a sliding segment) unless the stage has a count, in which case it fills. After 8 s
+  on one stage a muted line (`#727272`, 12px) says it is taking longer than usual. After 20 s
+  without the app, an outlined "Opnieuw proberen" pill reloads the page. The screen fades out
+  (200 ms) once the app is mounted. It is never shown again during the session.
+- **Optimistic page shell**: a page that opens a thing (artist, album...) renders its header at
+  once from what the tapped link already knew: name, picture and action buttons. Only the sections
+  that still need data show skeletons. Opened by URL with nothing known, the header itself is a
+  skeleton, a round or square picture block and a title bar, with the same geometry as the real
+  one. Server data always replaces what the link knew.
+- **Section errors**: a section that fails shows one muted line ("Kon dit deel niet laden") and the
+  outlined Load-more pill labelled "Opnieuw", in place of its content. The rest of the page stays.
+- **Inline throbber**: `Throbber.svelte`, a 16px ring in `currentColor`, spinning. It marks an
+  action that is waiting (a play button pressed before its tracks arrived) or a background refresh
+  next to a section heading. It never replaces a whole page or section: that is what skeletons are
+  for.
 
 ## Borders & Effects
 - **Border Radius**: Small (`rounded` / 4px) for inputs/buttons, Medium (`rounded-md` / 8px) for cards/modals, Full (`rounded-full`) for avatars and primary action pills.
@@ -168,6 +192,7 @@
   | `muma-spotify-text` | `#B3B3B3` | secondary text (subtitles, metadata, inactive items) |
   | `muma-spotify-muted` | `#727272` | muted text (timestamps, disabled) |
   | `muma-spotify-subtle` | `#535353` | dimmest text: placeholder glyphs, empty states |
+  | `muma-skeleton` | `#2F2F2F` | loading placeholders (skeletons, boot-screen bar track) |
 
   Opacity uses the Tailwind v4 modifier on the colour (`hover:bg-muma-spotify-light/80`); the v3
   `bg-opacity-*` / `text-opacity-*` utilities compile to nothing in v4.
@@ -334,3 +359,10 @@ To maintain clean design governance and prevent ad-hoc style drift:
   the bottom bar is Home / Browse / Favorites, with Playlists offered in Browse.
   Track overflow opens the existing BottomSheet with metadata, stars and full-width action rows;
   three-line track rows retain album links and touch-accessible rating controls.
+
+- **Done** (2026-09-27, issue #107) — Perceived performance on the web and in the app: the boot
+  screen, skeleton placeholders on the web (`muma-skeleton`, `skeleton-pulse`,
+  `src/lib/loading/`), the optimistic page shell for the artist and album pages, section errors
+  with a retry, and the inline throbber, as described under Loading States above
+  (`docs/designs/perceived-performance/`). The other entity pages (genre, label, festival, feeds,
+  track versions, search) follow in their own issues and use the same components.

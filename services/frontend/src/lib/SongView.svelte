@@ -1,4 +1,5 @@
 <script>
+  import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import TrackList from './TrackList.svelte';
   import { loadVersions as fetchVersions } from './versions.js';
@@ -82,7 +83,7 @@
       <h2 class="text-3xl font-bold m-0 text-white">{canonical.title}</h2>
       <button
         class="self-start bg-transparent border-none p-0 text-muma-spotify-text hover:text-white hover:underline cursor-pointer"
-        onclick={() => canonical.artistId && onnavigate && onnavigate(`artist:${canonical.artistId}`)}
+        onclick={() => { if (canonical.artistId && onnavigate) { seedFromTrack(canonical); onnavigate(`artist:${canonical.artistId}`); } }}
       >
         {canonical.artist}
       </button>

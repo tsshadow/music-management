@@ -30,6 +30,14 @@
     "verified": "Verified artist",
     "edit": "Edit artist"
   },
+  "boot": {
+    "connecting": "Connecting to the server…",
+    "restoringQueue": "Restoring the queue…",
+    "retry": "Try again",
+    "signingIn": "Signing in…",
+    "slow": "This is taking longer than usual",
+    "starting": "Opening the library…"
+  },
   "car": {
     "microphone": "Voice search",
     "mixFavorites": "Favourites mix",
@@ -99,10 +107,12 @@
     "playlist": "Playlist",
     "refresh": "Refresh",
     "remove": "Remove",
+    "retry": "Retry",
     "save": "Save",
     "saveChanges": "Save changes",
     "saving": "Saving…",
     "searchPlaceholder": "Search...",
+    "sectionFailed": "Could not load this part",
     "settings": "Settings",
     "shufflePlay": "Shuffle play",
     "trackCount": {

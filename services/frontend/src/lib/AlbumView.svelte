@@ -4,7 +4,12 @@
   import { authParams, viewMode, currentTrack, playerState, restUrl } from './store.js';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
-  import { listOf, subsonicJson } from './subsonic.js';
+  import { peekSeed } from './entitySeeds.js';
+  import { albumInfoKey, albumKey, entityCache, fetchAlbum, fetchAlbumInfo } from './entityLoaders.js';
+  import Skeleton from './loading/Skeleton.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
+  import SectionState from './loading/SectionState.svelte';
+  import Throbber from './loading/Throbber.svelte';
   import { recordPlace } from './recentPlaces.js';
   import { startQueue } from './queue.js';
 
@@ -13,10 +18,17 @@
   let album = $state(null);
   let allTracks = $state([]);
   let albumInfo = $state(null);
-  let isLoading = $state(true);
-  let loadFailed = $state(false);
+  /** What the link that opened this page knew; replaced by `album` as soon as that arrives. */
+  let seed = $state(null);
+  /** @type {'loading'|'ready'|'error'} */
+  let albumStatus = $state('loading');
+  /** Play or shuffle pressed before the tracks arrived: started as soon as they do. */
+  let pendingPlay = $state(null);
   // Which load is current; an answer for an album the listener already left is dropped.
   let loadSeq = 0;
+
+  /** The header: the server's album, or the seed standing in for it. */
+  const display = $derived(album ?? (seed ? { ...seed, id: albumId } : null));
 
   /**
    * Toggles the starred status of the album.
@@ -25,10 +37,9 @@
     if (!album) return;
     const isCurrentlyStarred = !!album.starred;
     const endpoint = isCurrentlyStarred ? 'unstar' : 'star';
-    
-    // Optimistic update
-    if (isCurrentlyStarred) delete album.starred;
-    else album.starred = new Date().toISOString();
+
+    // Optimistic update, mirrored into the cache so a revisit shows it too.
+    setStarred(isCurrentlyStarred ? undefined : new Date().toISOString());
 
     try {
       const response = await fetch(restUrl(`/rest/${endpoint}?albumId=${albumId}&${$authParams}`));
@@ -36,9 +47,24 @@
     } catch (e) {
       console.error(e);
       // Rollback
-      if (isCurrentlyStarred) album.starred = new Date().toISOString();
-      else delete album.starred;
+      setStarred(isCurrentlyStarred ? new Date().toISOString() : undefined);
     }
+  }
+
+  /**
+   * Writes the star state to the page and to the cached album.
+   *
+   * @param {string|undefined} starred
+   */
+  function setStarred(starred) {
+    const apply = (value) => {
+      const next = { ...value };
+      if (starred) next.starred = starred;
+      else delete next.starred;
+      return next;
+    };
+    album = apply(album);
+    entityCache.update(albumKey(albumId), (cached) => ({ ...cached, album: apply(cached.album) }));
   }
 
   /**
@@ -78,53 +104,70 @@
   }
 
   /**
-   * Loads the album's details and its tracks.
+   * Loads the album and, in parallel, its notes. Both go through the entity cache: a revisit
+   * renders at once and refreshes in the background, and a press on the tile that opened this
+   * page may already have started the album request (docs/designs/perceived-performance/).
    */
-  async function loadAlbum() {
+  function loadAlbum() {
     if (!$authParams) return;
     const seq = ++loadSeq;
-    isLoading = true;
-    loadFailed = false;
+    const id = albumId;
     // Nothing of the previous album survives into this one, whatever fails below.
+    seed = peekSeed('album', id);
     album = null;
     allTracks = [];
     albumInfo = null;
-    try {
-      const data = await subsonicJson('getAlbum', { id: albumId });
-      if (seq !== loadSeq) return;
-      const albumData = data['subsonic-response']?.album;
-      if (!albumData) loadFailed = true;
-      if (albumData) {
-        album = albumData;
-        allTracks = listOf(data, 'album.song');
-        // The place is opened before this resolves; this backfills the name once it is known.
-        recordPlace(`album:${albumId}`, albumData.name);
+    albumStatus = 'loading';
+    pendingPlay = null;
 
-        loadAlbumInfo(seq);
-      }
-    } catch (e) {
+    const { promise } = entityCache.swr(albumKey(id), () => fetchAlbum(id), (value) => {
+      if (seq !== loadSeq) return;
+      album = { ...value.album };
+      allTracks = value.tracks;
+      albumStatus = 'ready';
+      // The place is opened before this resolves; this backfills the name once it is known.
+      recordPlace(`album:${id}`, value.album.name);
+      startPendingPlay();
+    });
+    promise.catch((e) => {
       if (seq !== loadSeq) return;
       console.error(e);
-      loadFailed = true;
-    } finally {
-      if (seq === loadSeq) isLoading = false;
-    }
+      if (album) return;
+      albumStatus = 'error';
+      pendingPlay = null;
+    });
+
+    const info = entityCache.swr(albumInfoKey(id), () => fetchAlbumInfo(id), (value) => {
+      if (seq === loadSeq) albumInfo = value;
+    });
+    info.promise.catch((e) => {
+      if (seq === loadSeq) console.error(e);
+    });
   }
 
   /**
-   * Loads additional album information, such as notes/descriptions.
+   * Plays the album, in order or shuffled; pressed before the tracks arrived, it waits for them.
    *
-   * @param {number} [seq] - The load this belongs to; see `loadSeq`.
+   * @param {boolean} shuffle
    */
-  async function loadAlbumInfo(seq = loadSeq) {
-    try {
-      const data = await subsonicJson('getAlbumInfo2', { id: albumId });
-      if (seq !== loadSeq) return;
-      albumInfo = data['subsonic-response']?.albumInfo ?? null;
-    } catch (e) {
-      if (seq !== loadSeq) return;
-      console.error(e);
+  function playAll(shuffle) {
+    if (albumStatus === 'loading') {
+      pendingPlay = shuffle ? 'shuffle' : 'play';
+      return;
     }
+    if (allTracks.length === 0) return;
+    const list = shuffle ? [...allTracks].sort(() => Math.random() - 0.5) : allTracks;
+    currentTrack.set(list[0]);
+    startQueue(list, { name: display?.name });
+    playerState.update(s => ({ ...s, playing: true, ...(shuffle ? { shuffle: true } : {}) }));
+  }
+
+  /** Runs a play that was pressed while the tracks were loading. */
+  function startPendingPlay() {
+    if (!pendingPlay) return;
+    const shuffle = pendingPlay === 'shuffle';
+    pendingPlay = null;
+    playAll(shuffle);
   }
 
   $effect(() => {
@@ -137,62 +180,66 @@
 
 </script>
 
-{#if isLoading}
-  <div class="p-8">{$t('common.loading')}</div>
-{:else if !album || loadFailed}
+{#if !display && albumStatus === 'error'}
   <div class="p-8 text-muma-spotify-text" role="alert">{$t('library.loadFailed')}</div>
 {:else}
-  <div class="flex flex-col">
+  <div class="flex flex-col" data-testid="album-page">
     <header class="h-auto md:h-[340px] flex flex-col md:flex-row items-center md:items-end p-6 md:p-8 bg-linear-to-b from-transparent to-black/50 relative gap-6 text-center md:text-left">
-       <img
-         src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
-         alt={album.name}
-         class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
-         onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
-       />
+       {#if display}
+         <img
+           src={display.coverArt ? restUrl(`/rest/getCoverArt?id=${display.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
+           alt={display.name}
+           class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] object-cover shadow-[0_4px_60px_rgba(0,0,0,0.5)]"
+           onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+         />
+       {:else}
+         <Skeleton class="w-[160px] h-[160px] md:w-[232px] md:h-[232px] shrink-0" />
+       {/if}
        <div class="flex flex-col">
          <div class="uppercase text-xs font-bold">{$t('common.album')}</div>
-         <h1 class="text-3xl md:text-5xl lg:text-7xl font-black my-2 leading-tight md:leading-none">{album.name}</h1>
+         {#if display?.name}
+           <h1 class="text-3xl md:text-5xl lg:text-7xl font-black my-2 leading-tight md:leading-none">{display.name}</h1>
+         {:else}
+           <div class="my-2 w-64 md:w-[28rem] max-w-full" data-testid="album-name-skeleton"><Skeleton class="h-9 md:h-14 w-full" /></div>
+         {/if}
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 my-4">
-           <button 
-             class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer"
-             onclick={() => {
-                if (allTracks.length > 0) {
-                  currentTrack.set(allTracks[0]);
-                  startQueue(allTracks, { name: album.name });
-                  playerState.update(s => ({ ...s, playing: true }));
-                }
-             }}
+           <button
+             class="w-12 h-12 md:w-14 md:h-14 bg-brand rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg border-none cursor-pointer text-black"
+             onclick={() => playAll(false)}
              aria-label={$t('common.play')}
+             aria-busy={pendingPlay === 'play'}
            >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
-                <path d="M7 6v12l10-6z"></path>
-              </svg>
+              {#if pendingPlay === 'play'}
+                <Throbber size={20} />
+              {:else}
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="black">
+                  <path d="M7 6v12l10-6z"></path>
+                </svg>
+              {/if}
            </button>
 
-           <button 
+           <button
              class="w-10 h-10 md:w-12 md:h-12 bg-transparent border border-white/20 rounded-full flex items-center justify-center hover:border-white hover:scale-105 transition-all cursor-pointer text-muma-spotify-text hover:text-white"
-             onclick={() => {
-                if (allTracks.length > 0) {
-                  const shuffled = [...allTracks].sort(() => Math.random() - 0.5);
-                  currentTrack.set(shuffled[0]);
-                  startQueue(shuffled, { name: album.name });
-                  playerState.update(s => ({ ...s, playing: true, shuffle: true }));
-                }
-             }}
+             onclick={() => playAll(true)}
              title={$t('common.shufflePlay')}
+             aria-busy={pendingPlay === 'shuffle'}
            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"></path>
-              </svg>
+              {#if pendingPlay === 'shuffle'}
+                <Throbber size={18} />
+              {:else}
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.45 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"></path>
+                </svg>
+              {/if}
            </button>
 
-           <button 
-             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 {album.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
+           <button
+             class="bg-transparent border-none p-0 cursor-pointer transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-default disabled:hover:scale-100 {album?.starred ? 'text-brand' : 'text-muma-spotify-text hover:text-white'}"
              onclick={toggleStar}
-             title={album.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
+             disabled={!album}
+             title={album?.starred ? $t('dashboard.removeFavorite') : $t('dashboard.addFavorite')}
            >
-              {#if album.starred}
+              {#if album?.starred}
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
                 </svg>
@@ -205,18 +252,22 @@
          </div>
          <div class="flex flex-wrap items-center justify-center md:justify-start gap-1 font-bold">
             <ArtistList
-              artist={album.artist}
-              artistId={album.artistId}
-              artists={album.albumArtists}
+              artist={display?.artist}
+              artistId={display?.artistId}
+              artists={album?.albumArtists}
               onnavigate={onnavigate}
             />
-            {#if album.year} <span class="text-muma-spotify-text hidden md:inline">•</span> {album.year}{/if}
+            {#if display?.year} <span class="text-muma-spotify-text hidden md:inline">•</span> {display.year}{/if}
             {#if allTracks.length > 0} <span class="text-muma-spotify-text">•</span> {$t('common.trackCount', { count: allTracks.length })}{/if}
          </div>
        </div>
     </header>
 
     <div class="p-6 md:p-8 pt-0">
+      <SectionState status={albumStatus} onretry={() => loadAlbum()}>
+      {#snippet skeleton()}
+        <SkeletonRows count={8} />
+      {/snippet}
       {#if groupedTracks.length > 0}
         {#each groupedTracks as [disc, tracks] (disc)}
           <div class={hasMultipleDiscs ? "mt-8 first:mt-0" : ""}>
@@ -237,8 +288,9 @@
           <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('album.noSetsHelp') : $t('album.noTracksHelp')}</p>
         </div>
       {/if}
+      </SectionState>
 
-      {#if album.genre || album.created}
+      {#if album?.genre || album?.created}
         <div class="text-muma-spotify-text text-sm mt-8 space-y-1">
             {#if album.genre}<div>{$t('album.genre', { genre: album.genre })}</div>{/if}
             {#if album.created}<div>{$t('album.addedOn', { date: new Date(album.created).toLocaleDateString($locale) })}</div>{/if}

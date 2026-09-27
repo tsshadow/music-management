@@ -51,17 +51,40 @@ export const MAX_REHYDRATED_TRACKS = 200;
  * Never rejects: a shell that cannot reach its server must still show a login
  * page rather than a blank screen.
  *
+ * Reports each step through `onStage` so the boot screen can say what it is waiting for
+ * (`bootScreen.js`); the order of the steps is the same with or without it.
+ *
  * @param {object} [platform] - Injected by the tests.
  * @param {typeof fetch} [fetchImpl] - Injected by the tests.
+ * @param {(stage: string, progress?: {done: number, total: number}) => void} [onStage] - Told
+ *   `connecting`, `signingIn` and `restoringQueue` (with a count as the tracks come back).
  * @returns {Promise<{native: boolean, signedIn: boolean, restored: number}>}
  */
-export async function bootstrapShell(platform = defaultPlatform, fetchImpl = undefined) {
+export async function bootstrapShell(
+  platform = defaultPlatform,
+  fetchImpl = undefined,
+  onStage = () => {},
+) {
   if (!platform?.system?.isNative) return { native: false, signedIn: false, restored: 0 };
 
+  const report = (stage, progress) => {
+    // The boot screen is decoration: a failure there must never stop the boot itself.
+    try {
+      onStage(stage, progress);
+    } catch (error) {
+      console.warn("Could not show the boot stage", stage, error);
+    }
+  };
+
   try {
+    report("connecting");
     await applyServerUrls(platform);
+    report("signingIn");
     const signedIn = await restoreSession(platform);
-    const restored = signedIn ? await rehydrateQueue(platform, fetchImpl) : 0;
+    if (signedIn) report("restoringQueue");
+    const restored = signedIn
+      ? await rehydrateQueue(platform, fetchImpl, (progress) => report("restoringQueue", progress))
+      : 0;
     platform.diagnostics.log("shell:boot", { signedIn, restored });
     return { native: true, signedIn, restored };
   } catch (error) {
@@ -160,9 +183,11 @@ async function adoptCanonicalUsername(platform, stored, canonical) {
  *
  * @param {object} platform
  * @param {typeof fetch} [fetchImpl]
+ * @param {(progress: {done: number, total: number}) => void} [onProgress] - Told how many of
+ *   the queued ids have been answered, as they are.
  * @returns {Promise<number>} How many tracks were restored.
  */
-export async function rehydrateQueue(platform, fetchImpl = undefined) {
+export async function rehydrateQueue(platform, fetchImpl = undefined, onProgress = () => {}) {
   const [state, queue] = await Promise.all([
     platform.player.refresh(),
     platform.player.queueState(),
@@ -171,7 +196,7 @@ export async function rehydrateQueue(platform, fetchImpl = undefined) {
   const ids = queue.trackIds.slice(0, MAX_REHYDRATED_TRACKS);
   if (!ids.length) return 0;
 
-  const tracks = await fetchTracks(ids, fetchImpl);
+  const tracks = await fetchTracks(ids, fetchImpl, onProgress);
   if (!tracks.length) return 0;
 
   // Matched on the id rather than on the queue index: a track the server no
@@ -209,10 +234,14 @@ export async function rehydrateQueue(platform, fetchImpl = undefined) {
  *
  * @param {string[]} ids
  * @param {typeof fetch} [fetchImpl]
+ * @param {(progress: {done: number, total: number}) => void} [onProgress]
  * @returns {Promise<Array<object>>} In queue order, without the failures.
  */
-async function fetchTracks(ids, fetchImpl = undefined) {
+async function fetchTracks(ids, fetchImpl = undefined, onProgress = () => {}) {
   const call = fetchImpl ?? fetch;
+  const total = ids.length;
+  let done = 0;
+  onProgress({ done, total });
   const answers = await Promise.all(
     ids.map(async (id) => {
       try {
@@ -221,6 +250,9 @@ async function fetchTracks(ids, fetchImpl = undefined) {
       } catch (error) {
         console.warn("Could not look up a queued track", id, error);
         return null;
+      } finally {
+        done += 1;
+        onProgress({ done, total });
       }
     }),
   );

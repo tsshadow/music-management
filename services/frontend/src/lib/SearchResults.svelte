@@ -1,4 +1,5 @@
 <script>
+  import { pressEntity, seedEntity } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   /**
    * @typedef {Object} Props
@@ -33,6 +34,8 @@
     if (type === 'genre' || type === 'label' || item === undefined) {
       onSelect(type, item);
     } else {
+      // What the row shows becomes the next page's header until the server answers.
+      if (type === 'artist' || type === 'album') seedEntity(type, item.id, item);
       onSelect(type, item.id);
     }
   }
@@ -85,6 +88,7 @@
             {#each artists.slice(0, 5) as artist (artist.id)}
               <button 
                 class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
+                onpointerdown={() => pressEntity('artist', artist)}
                 onclick={() => handleSelect('artist', artist)}
               >
                 <div class="w-10 h-10 bg-muma-spotify-hover rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
@@ -111,6 +115,7 @@
             {#each albums.slice(0, 5) as album (album.id)}
               <button 
                 class="flex items-center gap-3 p-2 rounded hover:bg-muma-spotify-highlight text-left transition-colors group"
+                onpointerdown={() => pressEntity('album', album)}
                 onclick={() => handleSelect('album', album)}
               >
                 <div class="w-10 h-10 bg-muma-spotify-hover rounded flex-shrink-0 flex items-center justify-center overflow-hidden">

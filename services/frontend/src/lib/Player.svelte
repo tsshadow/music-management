@@ -1,4 +1,5 @@
 <script>
+  import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
   import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
@@ -1219,6 +1220,7 @@
   function goToAlbum() {
     if (track && track.albumId) {
       highlightedTrackId.set(track.id);
+      seedFromTrack(track);
       onnavigate(`album:${track.albumId}`);
     }
   }

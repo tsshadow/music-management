@@ -22,6 +22,8 @@
 #include <map>
 #include <shared_mutex>
 
+#include <Wt/WDateTime.h>
+
 #include "services/auth/IAuthTokenService.hpp"
 
 #include "AuthServiceBase.hpp"
@@ -53,6 +55,8 @@ namespace lms::auth
         void clearAuthTokens(core::LiteralString domain, db::UserId userId) override;
 
         std::optional<AuthTokenInfo> processAuthToken(core::LiteralString domain, std::string_view tokenValue);
+        // Bumps use_count and last_used; the caller holds a write transaction on the session.
+        static std::optional<AuthTokenInfo> bumpAuthToken(db::Session& session, core::LiteralString domain, std::string_view token, const Wt::WDateTime& now);
         const DomainParameters& getDomainParameters(core::LiteralString domain) const;
 
         std::shared_mutex _mutex;

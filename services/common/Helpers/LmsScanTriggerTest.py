@@ -1,6 +1,9 @@
+import logging
 import time
 import unittest
 from unittest.mock import MagicMock, patch
+
+import requests
 
 from services.common.Helpers.LmsScanTrigger import LmsScanTrigger
 
@@ -29,6 +32,7 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.addCleanup(env.stop)
         env.start()
         self.trigger = LmsScanTrigger()
+        self.trigger.RETRY_DELAY_SECONDS = 0
 
     def _configure(self, hosts, api_key, music_folder='/mnt/music'):
         self.mock_config.get.side_effect = lambda key: {
@@ -251,6 +255,114 @@ class LmsScanTriggerTest(unittest.TestCase):
         self.trigger.flush_for_test()
 
         mock_get.assert_not_called()
+
+    # --- bug report 120: read timeouts, retries, and nothing silently lost -------------------
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_a_timeout_is_retried_once(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        ok = MagicMock(raise_for_status=MagicMock())
+        mock_get.side_effect = [requests.ReadTimeout('Read timed out'), ok]
+
+        with self.assertNoLogs(level='WARNING'):
+            self.trigger.trigger()
+
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertFalse(self.trigger._trigger_pending)
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_an_http_error_is_not_retried(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.side_effect = RuntimeError('500 Server Error')
+
+        self.trigger.trigger()
+
+        self.assertEqual(mock_get.call_count, 1)
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_the_client_timeout_leaves_room_for_a_busy_server(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.return_value = MagicMock(raise_for_status=MagicMock())
+
+        self.trigger.trigger()
+
+        connect, read = mock_get.call_args.kwargs['timeout']
+        self.assertLessEqual(connect, 10)
+        self.assertGreaterEqual(read, 30)
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_an_outage_is_one_warning_not_one_per_request(self, mock_get):
+        """Every WARNING is a push on the alerts topic; production had ~90 a night."""
+        self._configure('lms:5082', 'my-api-key')
+        mock_get.side_effect = requests.ReadTimeout('Read timed out')
+
+        with self.assertLogs(level='INFO') as logs:
+            self.trigger.trigger()
+            self.trigger.trigger()
+            self.trigger.notify(['/mnt/music/EPs/Label/One'])
+            self.trigger.flush_for_test()
+
+        warnings = [r for r in logs.records if r.levelno >= logging.WARNING]
+        failures = [r for r in logs.records if 'Failed to' in r.getMessage()]
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(len(failures), 3)
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_recovery_is_logged_and_the_next_outage_warns_again(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        ok = MagicMock(raise_for_status=MagicMock())
+        timeout = requests.ReadTimeout('Read timed out')
+        mock_get.side_effect = [timeout, timeout, ok, ok, timeout, timeout]
+
+        with self.assertLogs(level='INFO') as logs:
+            self.trigger.trigger()  # fails, warns
+            self.trigger.trigger()  # recovers
+            self.trigger.notify(['/mnt/music/EPs/Label/One'])
+            self.trigger.flush_for_test()  # ok
+            self.trigger.trigger()  # fails again, warns again
+
+        self.assertEqual(len([r for r in logs.records if r.levelno >= logging.WARNING]), 2)
+        self.assertTrue(any('answers scan requests again' in r.getMessage() for r in logs.records))
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_paths_of_a_failed_notify_go_out_with_the_next_one(self, mock_get):
+        """A lost notify used to mean the release showed up only after the periodic scan."""
+        self._configure('lms:5082', 'my-api-key')
+        ok = MagicMock(raise_for_status=MagicMock())
+        timeout = requests.ReadTimeout('Read timed out')
+        mock_get.side_effect = [timeout, timeout, ok]
+
+        self.trigger.notify(['/mnt/music/EPs/Label/One'])
+        self.trigger.flush_for_test()
+        self.trigger.notify(['/mnt/music/EPs/Label/Two'])
+        self.trigger.flush_for_test()
+
+        self.assertEqual(mock_get.call_args.kwargs['params']['path'], ['EPs/Label/One', 'EPs/Label/Two'])
+        self.assertEqual(self.trigger._carried, {})
+
+    @patch('services.common.Helpers.LmsScanTrigger.requests.get')
+    def test_a_failed_trigger_is_resent_once_lms_answers_a_notify(self, mock_get):
+        self._configure('lms:5082', 'my-api-key')
+        ok = MagicMock(raise_for_status=MagicMock())
+        timeout = requests.ReadTimeout('Read timed out')
+        mock_get.side_effect = [timeout, timeout, ok, ok]
+
+        self.trigger.trigger()
+        self.assertTrue(self.trigger._trigger_pending)
+        self.trigger.notify(['/mnt/music/EPs/Label/One'])
+        self.trigger.flush_for_test()
+
+        self.assertEqual(mock_get.call_count, 4)
+        self.assertNotIn('path', mock_get.call_args.kwargs['params'])  # the resent trigger
+        self.assertFalse(self.trigger._trigger_pending)
+
+    def test_carried_paths_are_bounded_and_drop_the_oldest(self):
+        self.trigger.MAX_CARRIED_PATHS = 2
+
+        self.trigger._carry(['a', 'b'])
+        self.trigger._carry(['c'])
+
+        self.assertEqual(list(self.trigger._carried), ['b', 'c'])
 
 
 if __name__ == '__main__':

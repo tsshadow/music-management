@@ -115,9 +115,23 @@ namespace lms::db
         _session.mapClass<VersionInfo>("version_info");
     }
 
+    core::RecursiveSharedMutex& Session::getWriteMutex()
+    {
+        return static_cast<Db&>(_db).getMutex();
+    }
+
     WriteTransaction Session::createWriteTransaction()
     {
-        return WriteTransaction{ static_cast<Db&>(_db).getMutex(), _session };
+        return WriteTransaction{ getWriteMutex(), _session };
+    }
+
+    std::unique_ptr<WriteTransaction> Session::tryCreateWriteTransaction()
+    {
+        std::unique_lock lock{ getWriteMutex(), std::try_to_lock };
+        if (!lock.owns_lock())
+            return nullptr;
+
+        return std::unique_ptr<WriteTransaction>{ new WriteTransaction{ std::move(lock), _session } };
     }
 
     ReadTransaction Session::createReadTransaction()

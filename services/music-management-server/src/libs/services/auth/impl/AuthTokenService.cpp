@@ -96,6 +96,7 @@ namespace lms::auth
     std::optional<AuthTokenService::AuthTokenInfo> AuthTokenService::processAuthToken(core::LiteralString domain, std::string_view token)
     {
         db::Session& session{ getDbSession() };
+        const auto now{ Wt::WDateTime::currentDateTime() };
 
         // Resolve the token under a read transaction first, which takes no lock at all. An unknown
         // token is the normal case whenever a client is stuck on a stale key, and a write
@@ -103,6 +104,17 @@ namespace lms::auth
         // queueing behind every other writer -- the scanner above all, which writes in batches for
         // the whole length of a scan. Resolving a key that was never issued used to park an HTTP
         // thread there, several times a minute, for as long as the client kept retrying.
+        //
+        // The same went for a key that *was* issued: after the read, the write transaction was
+        // taken unconditionally, even when there was nothing to write. MuMa's scan trigger arrived
+        // every ~5.1 minutes, just past the subsonic auth cache's five, so every one of them was
+        // resolved here and waited behind a scan batch until its ten-second client timeout ran out
+        // (bug report 120). Everything the decision needs is read here, and the write lock is only
+        // asked for when there is something to write.
+        std::optional<AuthTokenInfo> res;
+        bool expired{};
+        bool countMatters{};
+        bool stampIsStale{};
         {
             auto readTransaction{ session.createReadTransaction() };
 
@@ -116,78 +128,101 @@ namespace lms::auth
             const db::User::pointer user{ db::User::find(session, authToken->getUserId()) };
             if (!user || user->isDisabled())
                 return std::nullopt;
+
+            expired = authToken->getExpiry().isValid() && authToken->getExpiry() < now;
+            countMatters = authToken->getMaxUseCount().has_value();
+            stampIsStale = !authToken->getLastUsed().isValid() || authToken->getLastUsed().secsTo(now) >= LAST_USED_GRANULARITY_SECS;
+            res = createAuthTokenInfo(authToken);
         }
 
-        auto transaction{ session.createWriteTransaction() };
+        if (expired)
+        {
+            auto transaction{ session.createWriteTransaction() };
+            if (db::AuthToken::pointer authToken{ db::AuthToken::find(session, domain.str(), token) })
+                authToken.remove();
+            return std::nullopt;
+        }
 
-        // Looked up again: the read transaction above was released before this one was taken, so
+        // Every authenticated request used to write here: bump use_count, stamp last_used.
+        // The write only matters when something reads it: a token with a use limit needs the
+        // count, and last_used needs to move now and then, not on every call.
+        if (!countMatters && !stampIsStale)
+            return res;
+
+        if (countMatters)
+        {
+            // A use limit is a promise, so this write waits for the lock like any other.
+            auto transaction{ session.createWriteTransaction() };
+            return bumpAuthToken(session, domain, token, now);
+        }
+
+        // Only the last_used stamp is due, and that is bookkeeping: the next request a minute from
+        // now does it just as well. Waiting for it behind a scanner batch is what timed MuMa's scan
+        // requests out, so it is skipped when the lock is taken.
+        const std::unique_ptr<db::WriteTransaction> transaction{ session.tryCreateWriteTransaction() };
+        if (!transaction)
+        {
+            LMS_LOG(UI, DEBUG, "Database busy, not stamping last use of auth token for user ID '" << res->userId.getValue() << "' this time");
+            return res;
+        }
+        return bumpAuthToken(session, domain, token, now);
+    }
+
+    std::optional<AuthTokenService::AuthTokenInfo> AuthTokenService::bumpAuthToken(db::Session& session, core::LiteralString domain, std::string_view token, const Wt::WDateTime& now)
+    {
+        session.checkWriteTransaction();
+
+        // Looked up again: the read transaction was released before the write one was taken, so
         // the token may have been removed in between (expiry sweep, use count, user deletion).
         db::AuthToken::pointer authToken{ db::AuthToken::find(session, domain.str(), token) };
         if (!authToken)
             return std::nullopt;
 
-        if (authToken->getExpiry().isValid() && authToken->getExpiry() < Wt::WDateTime::currentDateTime())
-        {
-            authToken.remove();
-            return std::nullopt;
-        }
-
         LMS_LOG(UI, DEBUG, "Found auth token for user ID '" << authToken->getUserId().getValue() << "' on domain '" << domain.str() << "'");
 
         AuthTokenInfo res{ createAuthTokenInfo(authToken) };
 
-        // Every authenticated request used to write here: bump use_count, stamp last_used.
-        // Dbo versions the row, so two requests carrying the same token -- the app's home
-        // screen fires several at once -- both load version N, the second write throws
-        // StaleObjectException, and that request is aborted with "Uncaught exception from
-        // handleRequest". Nine of those in one hour on one token, every one of them a
-        // failed call the user saw.
+        // Dbo versions the row, so two requests carrying the same token -- the app's home screen
+        // fires several at once -- both load version N, the second write throws
+        // StaleObjectException, and that request used to be aborted with "Uncaught exception from
+        // handleRequest". Nine of those in one hour on one token, every one of them a failed call
+        // the user saw.
         //
-        // The write only matters when something reads it: a token with a use limit needs
-        // the count, and last_used needs to move now and then, not on every call. Everything
-        // else stays a read.
-        const auto now{ Wt::WDateTime::currentDateTime() };
-        const bool countMatters{ authToken->getMaxUseCount().has_value() };
-        const bool stampIsStale{ !authToken->getLastUsed().isValid() || authToken->getLastUsed().secsTo(now) >= LAST_USED_GRANULARITY_SECS };
-
-        if (countMatters || stampIsStale)
+        // The pointer is this thread's cached copy -- Dbo keeps objects per session, and the
+        // session is per thread (Db::getTLSSession) -- so it may date from an earlier request on
+        // this thread, at a version another thread has since moved on. Writing on top of that copy
+        // is the stale write below. Rereading here, under the process-wide write lock, makes the
+        // bump land on what the row holds now.
+        authToken.reread();
+        try
         {
-            // The pointer is this thread's cached copy -- Dbo keeps objects per session, and the
-            // session is per thread (Db::getTLSSession) -- so it may date from an earlier request
-            // on this thread, at a version another thread has since moved on. Writing on top of
-            // that copy is the stale write below. Rereading here, under the process-wide write
-            // lock, makes the bump land on what the row holds now.
+            const std::size_t tokenUseCount{ authToken.modify()->incUseCount() };
+            authToken.modify()->setLastUsed(now);
+
+            if (auto maxUseCount{ authToken->getMaxUseCount() })
+            {
+                if (*maxUseCount >= tokenUseCount)
+                    authToken.remove();
+            }
+
+            // Flushed here, inside the try. The transaction's own flush runs from
+            // WriteTransaction's destructor, outside every catch, which is how a
+            // StaleObjectException reached handleRequest as "Uncaught exception".
+            session.getDboSession()->flush();
+        }
+        catch (const Wt::Dbo::StaleObjectException&)
+        {
+            // A concurrent writer got there first; its bump is as good as ours, the token was
+            // valid when we looked, and failing the caller over bookkeeping cannot be right.
+            //
+            // The copy has to go, not only the exception: a failed flush leaves the object dirty
+            // and stale in this thread's session (Transaction::rollback does not reread), and
+            // Session::flush flushes every dirty object, so the *next* write transaction on this
+            // thread -- a scrobble, a stream, whatever -- would throw the same stale write again,
+            // until the process restarts. That is what poisoned one HTTP thread with "Stale
+            // object, auth_token, id = 4, version = 2392" on every request it got.
             authToken.reread();
-            try
-            {
-                const std::size_t tokenUseCount{ authToken.modify()->incUseCount() };
-                authToken.modify()->setLastUsed(now);
-
-                if (auto maxUseCount{ authToken->getMaxUseCount() })
-                {
-                    if (*maxUseCount >= tokenUseCount)
-                        authToken.remove();
-                }
-
-                // Flushed here, inside the try. The transaction's own flush runs from
-                // WriteTransaction's destructor at the end of this function, outside every catch,
-                // which is how a StaleObjectException reached handleRequest as "Uncaught exception".
-                session.getDboSession()->flush();
-            }
-            catch (const Wt::Dbo::StaleObjectException&)
-            {
-                // A concurrent writer got there first; its bump is as good as ours, the token was
-                // valid when we looked, and failing the caller over bookkeeping cannot be right.
-                //
-                // The copy has to go, not only the exception: a failed flush leaves the object
-                // dirty and stale in this thread's session (Transaction::rollback does not reread),
-                // and Session::flush flushes every dirty object, so the *next* write transaction
-                // on this thread -- a scrobble, a stream, whatever -- would throw the same stale
-                // write again, until the process restarts. That is what poisoned one HTTP thread
-                // with "Stale object, auth_token, id = 4, version = 2392" on every request it got.
-                authToken.reread();
-                LMS_LOG(UI, WARNING, "Auth token bump lost a race with a concurrent writer; dropped");
-            }
+            LMS_LOG(UI, WARNING, "Auth token bump lost a race with a concurrent writer; dropped");
         }
 
         return res;

@@ -33,6 +33,7 @@ add_library(lmsscanner STATIC
 	impl/steps/ScanStepScanFiles.cpp
 	impl/steps/ScanStepUpdateLibraryFields.cpp
 	impl/FileScanners.cpp
+	impl/ImmediateScanPolicy.cpp
 	impl/ScanRequestCollector.cpp
 	impl/ScanSchedule.cpp
 	impl/ScanStepSequence.cpp

@@ -95,6 +95,7 @@ namespace lms::scanner
         void scheduleScan(const ScanOptions& scanOptions, const Wt::WDateTime& dateTime = {});
 
         void abortScan();
+        void setPausedScan(std::optional<PausedScan> pausedScan);
 
         // Scoped request handling (all of this runs on the io thread)
         void armScanRequestTimer();
@@ -142,6 +143,12 @@ namespace lms::scanner
         std::optional<ScanStats> _lastCompleteScanStats;
         std::optional<ScanStepStats> _currentScanStepStats;
         Wt::WDateTime _nextScheduledScan;
+        // What requestImmediateScan() needs to decide without touching the scanner thread's own
+        // state (see ImmediateScanPolicy). Guarded by _statusMutex like the rest of this block.
+        bool _scanRunning{};
+        bool _scanRunningScoped{};
+        bool _libraryScanPaused{}; // mirrors _pausedScan.has_value()
+        bool _libraryScanQueued{}; // a plain request arrived during a scoped scan
 
         ScannerSettings _settings;
         std::optional<ScannerSettings> _lastScanSettings;

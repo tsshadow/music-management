@@ -56,6 +56,31 @@ namespace lms::core
         }
     }
 
+    // Used for bookkeeping writes that must never wait behind a long writer (bug report 120).
+    TEST(RecursiveSharedMutex, TryLockFailsWhileAnotherThreadHoldsItAndNests)
+    {
+        RecursiveSharedMutex mutex;
+
+        {
+            std::unique_lock held{ mutex };
+            EXPECT_TRUE(mutex.try_lock()) << "the owning thread nests, as lock() does";
+            mutex.unlock();
+
+            bool otherThreadGotIt{ true };
+            std::thread other{ [&] {
+                otherThreadGotIt = mutex.try_lock();
+                if (otherThreadGotIt)
+                    mutex.unlock();
+            } };
+            other.join();
+            EXPECT_FALSE(otherThreadGotIt);
+        }
+
+        ASSERT_TRUE(mutex.try_lock());
+        mutex.unlock();
+        std::shared_lock afterwards{ mutex };
+    }
+
     TEST(RecursiveSharedMutex, MultiThreaded)
     {
         constexpr std::size_t nbThreads{ 10 };

@@ -18,9 +18,8 @@ target_link_libraries(test-scrobbling PRIVATE
 target_include_directories(test-scrobbling PRIVATE
 	../impl
 	../../../database/test
-	# FakeHttpClient.hpp, and http/RetryPolicy.hpp to pin how the send queue treats a relayed listen.
+	# FakeHttpClient.hpp.
 	../../../core/test
-	../../../core/impl
 	)
 
 if (NOT CMAKE_CROSSCOMPILING)

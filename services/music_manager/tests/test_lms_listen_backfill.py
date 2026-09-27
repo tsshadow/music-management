@@ -412,6 +412,71 @@ class RunOnceTest(unittest.TestCase):
         server.close.assert_called_once()
 
 
+class OutboxStatusTest(unittest.TestCase):
+    """`outbox_status()`: what each LMS still holds for muma in `muma_listen_outbox` (LMS db 125+)."""
+
+    @staticmethod
+    def _server_with_outbox(created: list[int]) -> sqlite3.Connection:
+        """An in-memory LMS database with the outbox table as LMS creates it, holding `created`."""
+        server = sqlite3.connect(':memory:')
+        server.execute(
+            'CREATE TABLE muma_listen_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL,'
+            ' created INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)'
+        )
+        server.executemany(
+            'INSERT INTO muma_listen_outbox (payload, created) VALUES (?, ?)', [('{}', c) for c in created]
+        )
+        return server
+
+    def test_counts_the_waiting_listens_and_dates_the_oldest(self):
+        server = self._server_with_outbox([NOW - HOUR, NOW - 2 * HOUR, NOW])
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')])
+        self.assertEqual(
+            status,
+            [{'server': 'server-a', 'count': 3, 'oldest': datetime.fromtimestamp(NOW - 2 * HOUR, tz=UTC).isoformat()}],
+        )
+
+    def test_an_empty_outbox_has_no_oldest(self):
+        server = self._server_with_outbox([])
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')])
+        self.assertEqual(status, [{'server': 'server-a', 'count': 0, 'oldest': None}])
+
+    def test_an_lms_without_an_outbox_reports_no_count_and_no_error(self):
+        server = sqlite3.connect(':memory:')
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')])
+        self.assertEqual(status, [{'server': 'server-a', 'count': None, 'oldest': None}])
+
+    def test_an_unreadable_database_says_why_and_the_connection_is_closed(self):
+        server = MagicMock()
+        server.execute.side_effect = sqlite3.OperationalError('database is locked')
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')])
+        self.assertEqual(status, [{'server': 'server-a', 'count': None, 'oldest': None, 'error': 'database is locked'}])
+        server.close.assert_called_once()
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_health_carries_it_without_turning_red(self, _check, mock_events):
+        mock_events.is_alive.return_value = True
+        thread_registry.reset()
+        self.addCleanup(thread_registry.reset)
+        waiting = [{'server': 'server-a', 'count': 12, 'oldest': '2026-09-21T10:00:00+00:00'}]
+        with patch.object(loop, 'outbox_status', return_value=waiting):
+            response = TestClient(app).get('/health')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['lms_listen_outbox'], waiting)
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_health_survives_a_status_that_raises(self, _check, mock_events):
+        mock_events.is_alive.return_value = True
+        thread_registry.reset()
+        self.addCleanup(thread_registry.reset)
+        with patch.object(loop, 'outbox_status', side_effect=RuntimeError('boom')):
+            response = TestClient(app).get('/health')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()['lms_listen_outbox'])
+
+
 class LoopThreadTest(unittest.TestCase):
     """The thread runs through `run_forever`, stops on its event and shows in /health."""
 

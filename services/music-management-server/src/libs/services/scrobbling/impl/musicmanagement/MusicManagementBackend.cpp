@@ -42,18 +42,25 @@ namespace lms::scrobbling::musicManagement
     } // namespace
 
     MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
-        : MusicManagementBackend{ db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
+        : MusicManagementBackend{ ioContext, db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
     {
     }
 
-    MusicManagementBackend::MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey)
+    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey, ListenOutboxSettings settings)
         : _db{ db }
-        , _apiKey{ std::move(apiKey) }
-        , _client{ std::move(client) }
     {
+        if (!client)
+            return;
+
+        _relay = std::make_shared<ListenOutboxRelay>(ioContext, db, std::move(client), std::move(apiKey), settings);
+        _relay->start();
     }
 
-    MusicManagementBackend::~MusicManagementBackend() = default;
+    MusicManagementBackend::~MusicManagementBackend()
+    {
+        if (_relay)
+            _relay->stop();
+    }
 
     void MusicManagementBackend::listenStarted(const Listen& listen)
     {
@@ -78,66 +85,66 @@ namespace lms::scrobbling::musicManagement
 
     void MusicManagementBackend::sendScrobble(const Listen& listen, const Wt::WDateTime& timePoint, std::optional<std::chrono::seconds> duration)
     {
-        if (!_client)
+        if (!_relay)
             return;
 
-        db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createReadTransaction() };
-
-        // Scrobbling to the central MuMa database is on for every user: it is what
-        // feeds the shared listening history, so it is not an opt-out.
-        const db::User::pointer user{ db::User::find(session, listen.userId) };
-        if (!user)
-            return;
-
-        const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
-        if (!track)
-            return;
-
-        Wt::Json::Object payload;
-        payload["username"] = Wt::Json::Value(std::string{ user->getLoginName() });
-
-        // Where the play happened, not which server relayed it. Every listen used to claim "lms",
-        // which made the web player, the phone and the car indistinguishable afterwards. That
-        // value is kept only as the fallback for a caller that did not say.
-        payload["source"] = Wt::Json::Value(listen.source.empty() ? std::string{ "lms" } : listen.source);
-
-        // How long the track was actually played. This arrives from the player and used to be
-        // discarded here, which left "minutes listened" unanswerable: most of this library is DJ
-        // sets, so plays multiplied by track length is not an approximation of it. A duration
-        // carried on the listen wins, because it came from the client that did the playing; the
-        // argument is what the local player reports for its own playback.
-        const std::optional<std::chrono::seconds> playedDuration{ listen.playedDuration ? listen.playedDuration : duration };
-        if (playedDuration && playedDuration->count() > 0)
-            payload["played_secs"] = Wt::Json::Value(static_cast<long long>(playedDuration->count()));
-
-        Wt::WDateTime listenedAt = timePoint.isValid() ? timePoint : Wt::WDateTime::currentDateTime();
-        payload["listened_at"] = Wt::Json::Value(static_cast<long long>(listenedAt.toTime_t()));
-
-        payload["track_title"] = Wt::Json::Value(std::string{ track->getName() });
-
-        if (auto release = track->getRelease())
+        std::string jsonBody;
         {
-            payload["album_name"] = Wt::Json::Value(std::string{ release->getName() });
+            db::Session& session{ _db.getTLSSession() };
+            auto transaction{ session.createReadTransaction() };
+
+            // Scrobbling to the central MuMa database is on for every user: it is what
+            // feeds the shared listening history, so it is not an opt-out.
+            const db::User::pointer user{ db::User::find(session, listen.userId) };
+            if (!user)
+                return;
+
+            const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
+            if (!track)
+                return;
+
+            Wt::Json::Object payload;
+            payload["username"] = Wt::Json::Value(std::string{ user->getLoginName() });
+
+            // Where the play happened, not which server relayed it. Every listen used to claim "lms",
+            // which made the web player, the phone and the car indistinguishable afterwards. That
+            // value is kept only as the fallback for a caller that did not say.
+            payload["source"] = Wt::Json::Value(listen.source.empty() ? std::string{ "lms" } : listen.source);
+
+            // How long the track was actually played. This arrives from the player and used to be
+            // discarded here, which left "minutes listened" unanswerable: most of this library is DJ
+            // sets, so plays multiplied by track length is not an approximation of it. A duration
+            // carried on the listen wins, because it came from the client that did the playing; the
+            // argument is what the local player reports for its own playback.
+            const std::optional<std::chrono::seconds> playedDuration{ listen.playedDuration ? listen.playedDuration : duration };
+            if (playedDuration && playedDuration->count() > 0)
+                payload["played_secs"] = Wt::Json::Value(static_cast<long long>(playedDuration->count()));
+
+            Wt::WDateTime listenedAt = timePoint.isValid() ? timePoint : Wt::WDateTime::currentDateTime();
+            payload["listened_at"] = Wt::Json::Value(static_cast<long long>(listenedAt.toTime_t()));
+
+            payload["track_title"] = Wt::Json::Value(std::string{ track->getName() });
+
+            if (auto release = track->getRelease())
+            {
+                payload["album_name"] = Wt::Json::Value(std::string{ release->getName() });
+            }
+
+            if (auto mbid = track->getTrackMBID())
+                payload["mbid_track"] = Wt::Json::Value(std::string{ mbid->getAsString() });
+
+            for (const auto& link : track->getArtistLinks(db::TrackArtistLinkType::Artist))
+            {
+                payload["artist_name"] = Wt::Json::Value(std::string{ link->getArtistName() });
+                break;
+            }
+
+            jsonBody = Wt::Json::serialize(payload);
         }
 
-        if (auto mbid = track->getTrackMBID())
-            payload["mbid_track"] = Wt::Json::Value(std::string{ mbid->getAsString() });
-
-        for (const auto& link : track->getArtistLinks(db::TrackArtistLinkType::Artist))
-        {
-            payload["artist_name"] = Wt::Json::Value(std::string{ link->getArtistName() });
-            break;
-        }
-
-        core::http::ClientPOSTRequestParameters request;
-        request.message.addHeader("Content-Type", "application/json");
-        if (!_apiKey.empty())
-            request.message.addHeader("X-API-Key", _apiKey);
-
-        std::string jsonBody = Wt::Json::serialize(payload);
-        request.message.addBodyText(jsonBody);
-
-        _client->sendPOSTRequest(std::move(request));
+        // Written to the outbox before anything is sent, on this thread, and delivered from the
+        // io_context. The body is fixed here, start time included, so every retry is the same
+        // listen to music-manager.
+        _relay->enqueue(jsonBody);
     }
 } // namespace lms::scrobbling::musicManagement

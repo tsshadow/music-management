@@ -228,6 +228,12 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
   did. A new loop goes through `run_forever` too, or a single exception ends it for good.
   `lms-listen-backfill` catches its own failures instead: one `WARNING` per run of failures, so a
   missing `lms.db` does not raise an `ERROR` every quarter of an hour (bug report 075).
+- `lms_listen_outbox` lists, per LMS database, how many listens LMS still holds for
+  music-manager in its outbox (`muma_listen_outbox`, LMS db version 125+) and when the oldest was
+  queued. It is informational and never turns `/health` red: listens wait there through every
+  music-manager restart. LMS delivers them in order with backoff, and it logs a `WARNING` for each
+  one it drops (over 10,000 waiting, older than 14 days, or refused as malformed). See
+  `docs/designs/lms-listen-outbox/`.
 - A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
   503 with `Retry-After`, rather than waiting forever.
 

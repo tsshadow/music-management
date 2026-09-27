@@ -1,6 +1,6 @@
 # Perceived performance — Technical Design
 
-Implements [functional.md](functional.md). Issue #107.
+Implements [functional.md](functional.md). Issue #107; code splitting issue #114.
 
 ## Data Model
 
@@ -51,7 +51,10 @@ runs only inside the shell.
   `getSong` answers come in. The order of the boot sequence is unchanged; only its visibility is
   new.
 - `main.js`: in the browser it mounts and dismisses. In the shell it runs `bootstrapShell` with
-  `setBootStage`, then `starting`, then mounts and dismisses.
+  `setBootStage`, then `starting`, then mounts and dismisses. Since #114 both paths first wait for
+  the active locale's file and the chunks the URL's page needs (see 7 below), still behind the
+  boot screen. `setBootStage` leaves the inline "Laden…" in place while the locale file is still
+  on its way, rather than writing the raw key.
 
 ### 2. Entity cache: `src/lib/entityCache.js`
 
@@ -272,6 +275,101 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
   a skeleton line beside the year and `SkeletonRows`. Memories keep their silent empty state on
   failure (an older server has no memories), as before.
 
+### 7. Code splitting (issue #114)
+
+**Measured before** (develop `e2f6b6a81`, `vite build` with the report below): one JS file,
+1,289.18 kB (350.04 kB gzip), plus 83.66 kB CSS. Largest modules: `nl.json` 102 kB and
+`en.json` 96 kB (all four locale files were imported eagerly), `Dashboard.svelte` 82 kB,
+`Player.svelte` 70 kB, `GeneralSettings.svelte` 52 kB, `DeviceSettings.svelte` 50 kB, then
+twenty-odd management tabs of 11-48 kB each (`UsersTab`, `GenreCurationTab`,
+`ArtistCurationTab`, `ArtistImagesTab`, `ScannerTab`, `DownloadersTab` ...), `TrackList`,
+`NowPlaying`, `FilterBar`. Sizes are Rolldown's rendered length, before minification.
+
+**Measured after**: 99 chunks, 1,334.84 kB in total. The entry is 370.25 kB (106.80 kB gzip).
+Its static imports -- `vendor` 70.27 kB, `platform`, `store`, `i18n` (the translator without any
+dictionary) and a few small shared modules -- bring what loads before `main.js` runs to
+488.95 kB (153.16 kB gzip). Before mounting it also waits for one locale: `nl` 90.61 kB
+(31.02 kB gzip) or `en` 83.84 kB (28.71 kB gzip), so the first screen waits for about 580 kB
+(184 kB gzip): 45 % of the old bundle, and the entry chunk alone is 29 %. The largest lazy chunks:
+`Settings` 79 kB, `DownloadersTab` 49 kB, `AdvancedLibraryTab` 38 kB, `GenreCurationTab` 37 kB,
+`UsersTab` 29 kB. Opening Beheer on its overview tab fetches `Management` 15 kB,
+`ManagementSidebar` 7 kB and `OverviewTab` 12 kB instead of every tab.
+
+**Measuring.** `vite.config.js` has a `bundleReport` plugin: `BUNDLE_REPORT=<file> vite build`
+writes every chunk with its size, gzip size, static imports and modules by size, outside `dist/`
+so it never ships. `node scripts/bundle-report.mjs <file> [modules-per-chunk]` prints it and sums
+the entry's static-import closure. It is in-tree rather than `rollup-plugin-visualizer` so a
+measurement needs no network install.
+
+**The registry: `src/lib/lazyViews.js`.**
+
+- `createLazyRegistry(loaders)` wraps a table of `() => import(...)`. `load(name)` memoises the
+  promise (a preload racing the real open fetches once) and forgets a failure (the retry fetches
+  again); `peek(name)` returns the component once it is in; `has`, `names`.
+- `lazyViews`: `settings`, `settingsSidebar`, `management`, `managementSidebar`, `history`,
+  `listening`, `starred`, `memories`, `memoriesYear`, `artistEdit`, `labelEdit`, `genreEdit`,
+  `presetBuilder`, `voice`, `downloads`, `song`, `car`, `setup`, `searchMore`, `trackDetails`,
+  `equalizer`.
+- `managementTabs`: every entry of `MANAGEMENT_TABS` except `scrobble`, which takes two `bind:`
+  props a props object cannot carry and stays in the `Management` chunk. A unit test keeps the
+  two lists in step.
+- `chunksForState(state)` maps a `pathToState` result to the chunks it needs: the page, the
+  sidebar for settings and Beheer, and Beheer's open tab. `preloadState` fetches them and never
+  rejects.
+- `likelyNextChunks()` (settings and its sidebar, song versions, the search "more" modal, the
+  details sheet) and `adminNextChunks()` (Beheer's shell, sidebar and overview tab);
+  `preloadOnIdle(chunks)` fetches them one per `requestIdleCallback` slot (a 1.5 s timeout where
+  there is none), so a tap in between never waits behind a parse.
+
+**The renderer: `src/lib/LazyView.svelte`.** `name`, `registry` (default `lazyViews`), `props`
+(spread onto the view) and `fallback` (`rows` or `none`). A chunk already in renders on the first
+frame; otherwise `SkeletonRows` (8) for a page, nothing for an overlay or sidebar, and a failure
+is `SectionState` error whose retry fetches again. `Dashboard.svelte`, `App.svelte`,
+`Management.svelte` (`tabProps(tab)` builds each tab's props, read in the template so the tab
+follows the shell's data), `TrackList.svelte`, `NowPlaying.svelte` and `Player.svelte` render
+through it. `Management.svelte` also starts its tab's chunk while its own data is loading.
+
+**Boot: `src/lib/bootChunks.js` and `main.js`.**
+
+- `initialState(pathname)`: the login view when signed out, else `pathToState`, with Beheer's
+  remembered tab filled in when the path names none.
+- `mountApp` awaits `localeReady()` and `preloadState(initialState(...))` together, then mounts;
+  in the shell this runs after `bootstrapShell` under the "starting" stage. The app therefore
+  appears with the page the URL names, never with a skeleton in its place.
+- After the first frame, `preloadLikelyNext()` runs `preloadOnIdle(likelyNextChunks())` and
+  subscribes to `isAdmin`; the first `true` preloads `adminNextChunks()` once.
+- `installChunkReload(window)` listens for Vite's `vite:preloadError`: a tab left open across a
+  deploy asks for chunk names the new build replaced. It reloads once, and a second failure within
+  10 s is left to `LazyView`'s retry, so an unreachable server never loops.
+
+**Locales: `src/lib/i18n/index.js`.** `import.meta.glob("./locales/*.json")` without `eager`: each
+locale is a chunk. `dictionaries` is a store, and `t` derives from it and the locale, so the page
+re-renders when a file arrives. `requiredLocales(code)` is the fallback chain minus the trailing
+English (`nl` -> `nl`, `sallands` -> `sallands, nl`, `en` -> `en`): Dutch is key-complete
+(`localeFiles.test.js`), so a Dutch listener never reads English and does not wait for it.
+`loadLocale` fetches the required files, then the rest of the chain in the background.
+`locale.set`, `setLocaleFromAccount` and `resetLocaleToBrowser` switch at once when the files are
+in, otherwise after the fetch (last switch wins), so the interface never shows keys. The unit
+tests' setup file awaits `loadAllLocales()`, so tests render in any language synchronously.
+
+**Vendor chunk.** `build.rolldownOptions.output.codeSplitting.groups` puts `svelte`,
+`@capacitor/core`, `esm-env` and `clsx` in `vendor`, which only changes with a dependency bump and
+so stays cached across deploys. The icon packages are left out: most icons belong to lazy views,
+and a shared icon chunk would put them back on the first screen. The cost is a few dozen sub-1 kB
+icon chunks, fetched in parallel with the view that needs them (Vite's preload helper), never in a
+waterfall.
+
+**Served by LMS.** `SpotifyResource` (`services/music-management-server/src/lms/main.cpp`)
+serves `docroot/spotify`; it sent no cache headers. `cacheControlFor(relativePath)` now answers
+`public, max-age=31536000, immutable` for files under `assets/` (content-hashed by Vite) and
+`no-cache` for everything else, `index.html` and the SPA fallback included. The nginx reverse
+proxy passes both through. `base` stays `/`: LMS serves the bundle at the root (or `/spotify`
+behind the proxy's rewrite), and chunk URLs are `/assets/...` exactly like the entry's.
+
+**Inside the app.** Capacitor serves `dist/` from the APK at `http://localhost/`
+(`androidScheme: http`), so `/assets/<chunk>.js` is a local file read. No shell change;
+`frontend:bundle` and `mobile:smoke` are unchanged.
+
 ## Risks
 
 - **Wrong seed.** Seeds are only ever replaced by server data, never merged into it. `ArtistList`
@@ -282,6 +380,13 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
 - **Load on LMS.** Prefetch is one request per press, deduplicated with the page load. Starting the
   artist's requests together raises the peak from one to three `/rest` calls on the same server,
   which is what the page already did one round trip later. There is no hover or viewport prefetch.
+- **A page opened before its chunk is in** shows skeleton rows for as long as the chunk takes:
+  a local file read in the app, one request in a browser. The idle preload covers the most likely
+  next pages; everything else pays it once per session.
+- **A stale tab after a deploy.** Its `index.html` names chunks the new build replaced. It reloads
+  once on `vite:preloadError`; `index.html` is `no-cache`, so the reload gets the new build.
+- **The locale file is a request after the entry.** One round trip in a browser, behind the boot
+  screen, in parallel with the page's chunk; a local read in the app.
 - **Screenshot suite.** The skeletons only exist while a request is pending. The captured routes
   (`/artists`, `/albums`...) are lists whose markup does not change. The boot screen is removed
   before the first capture.
@@ -344,6 +449,24 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
     until hover with a mouse); tapping a card shows the mix's heading and skeleton rows while the
     feed is held back, then the rows; `/song/<id>` shows its header skeleton while the versions are
     held back, then both pages.
+
+13. Code splitting (issue #114): the registry fetches once, forgets a failure and peeks only a
+    loaded chunk; every management tab except Scrobble has a chunk; every loader resolves to a
+    component; `chunksForState` maps views to chunks; `preloadState` never rejects; the idle
+    preload takes one chunk per slot (`tests/unit/lazyViews.test.js`). `LazyView` shows skeleton
+    rows then the view, renders a loaded chunk at once, shows nothing for `fallback="none"`,
+    retries a failure and follows new props without reloading (same file). `initialState`, the
+    once-per-window chunk reload and the admin preload (`tests/unit/bootChunks.test.js`).
+    `requiredLocales` and loading (`tests/unit/i18n.test.js`).
+14. Playwright (`tests/browser/lazy-views.spec.js`, desktop and phone against the built bundle):
+    `/management/config` by URL renders its heading with the `Management` and `ConfigTab` chunks
+    fetched and not `UsersTab`; the statistics page reached from the desktop sidebar fetches
+    `ListeningStatsView` only on the click and renders; the first screen fetches no management,
+    settings or statistics chunk.
+15. Contract (`tests/contracts/test_spotify_static_cache.py`, against the test stack's LMS):
+    `index.html` and an SPA route are `no-cache`, the entry chunk under `/assets/` is
+    `public, max-age=31536000, immutable`, `version.json` is `no-cache`.
+16. `frontend:bundle` and `mobile:smoke` pass: the APK still launches and reaches its server URL.
 
 ## Related Docs
 

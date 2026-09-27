@@ -11,13 +11,11 @@
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
   import MobileSearchView from './lib/MobileSearchView.svelte';
-  import SettingsSidebar from './lib/SettingsSidebar.svelte';
-  import ManagementSidebar from './lib/management/ManagementSidebar.svelte';
-  import SearchMoreModal from './lib/SearchMoreModal.svelte';
   import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
-  import CarModeView from './lib/CarModeView.svelte';
-  import SetupWizard from './lib/SetupWizard.svelte';
+  // The sidebars of settings and Beheer, the car screen, the setup tour and the search "more"
+  // modal each load as their own chunk (lazyViews.js, issue #114).
+  import LazyView from './lib/LazyView.svelte';
   import { notify } from './lib/notifications.js';
   import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh, signedIn } from './lib/store.js';
   import { get } from 'svelte/store';
@@ -473,9 +471,9 @@
 <main class="grid grid-cols-1 md:grid-cols-[240px_1fr_auto] grid-rows-[1fr_auto_auto] md:grid-rows-[1fr_calc(90px+env(safe-area-inset-bottom,0px))] md:pt-[env(safe-area-inset-top,0px)] h-dvh w-screen overflow-hidden bg-black text-white">
   <div class="bg-black row-start-1 row-end-2 col-start-1 col-end-2 overflow-y-auto min-h-0 hidden md:block">
     {#if $activeView === 'settings'}
-      <SettingsSidebar onnavigate={handleNavigate} />
+      <LazyView name="settingsSidebar" fallback="none" props={{ onnavigate: handleNavigate }} />
     {:else if $activeView === 'management'}
-      <ManagementSidebar onnavigate={handleNavigate} />
+      <LazyView name="managementSidebar" fallback="none" props={{ onnavigate: handleNavigate }} />
     {:else}
       <Sidebar activeView={$activeView} onnavigate={handleNavigate} />
     {/if}
@@ -580,9 +578,9 @@
         transition:fly={{ x: -280, duration: 200 }}
       >
         {#if $activeView === 'settings'}
-          <SettingsSidebar onnavigate={handleNavigate} onselect={closeDrawer} />
+          <LazyView name="settingsSidebar" fallback="none" props={{ onnavigate: handleNavigate, onselect: closeDrawer }} />
         {:else}
-          <ManagementSidebar onnavigate={handleNavigate} onselect={closeDrawer} />
+          <LazyView name="managementSidebar" fallback="none" props={{ onnavigate: handleNavigate, onselect: closeDrawer }} />
         {/if}
       </div>
     </div>
@@ -593,13 +591,13 @@
        underneath rather than being torn down, so playback is untouched -- the point of
        this screen is that music keeps going while it is up. -->
   {#if $activeView === 'car'}
-    <CarModeView onclose={handleCarClose} onmicrophone={() => handleNavigate('voice')} />
+    <LazyView name="car" fallback="none" props={{ onclose: handleCarClose, onmicrophone: () => handleNavigate('voice') }} />
   {/if}
 
   <!-- Same layer as the car screen: a full-screen sheet over the app, player still mounted
        underneath. -->
   {#if $activeView === 'setup'}
-    <SetupWizard steps={setupSteps} update={setupIsUpdate} {platform} onclose={handleSetupClose} />
+    <LazyView name="setup" fallback="none" props={{ steps: setupSteps, update: setupIsUpdate, platform, onclose: handleSetupClose }} />
   {/if}
 </main>
 {/if}
@@ -633,7 +631,7 @@
 
 {#if $activeModal}
   {#if $activeModal.type === 'search-results'}
-    <SearchMoreModal query={$activeModal.data.query} category={$activeModal.data.category} />
+    <LazyView name="searchMore" fallback="none" props={{ query: $activeModal.data.query, category: $activeModal.data.category }} />
   {/if}
 {/if}
 

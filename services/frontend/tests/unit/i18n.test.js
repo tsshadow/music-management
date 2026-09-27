@@ -8,6 +8,9 @@ import {
   t,
   SUPPORTED_LOCALES,
   DEFAULT_LOCALE,
+  requiredLocales,
+  isLocaleLoaded,
+  loadLocale,
 } from "../../src/lib/i18n";
 
 const DICTS = {
@@ -239,5 +242,25 @@ describe("i18n - t store", () => {
     expect(get(t)("management.tabs.users")).toBe("Gebruikers");
     locale.set("brabants");
     expect(get(t)("management.tabs.users")).toBe("Gebruikers");
+  });
+});
+
+describe("i18n - locale files as chunks (issue #114)", () => {
+  it("waits only for what a locale is shown in, not for the English fallback behind Dutch", () => {
+    expect(requiredLocales("en")).toEqual(["en"]);
+    expect(requiredLocales("nl")).toEqual(["nl"]);
+    expect(requiredLocales("sallands")).toEqual(["sallands", "nl"]);
+    expect(requiredLocales("brabants")).toEqual(["brabants", "nl"]);
+  });
+
+  it("knows a locale is loaded once its files are in, and loading it again never rejects", async () => {
+    // The unit tests' setup file loads every locale up front.
+    for (const { code } of SUPPORTED_LOCALES) expect(isLocaleLoaded(code)).toBe(true);
+    await expect(loadLocale("nl")).resolves.toBeUndefined();
+  });
+
+  it("skips a dictionary that has not arrived instead of failing on it", () => {
+    const translate = createTranslator({ en: DICTS.en }, "nl");
+    expect(translate("onlyEnglish")).toBe("English only");
   });
 });

@@ -5,6 +5,9 @@ import { platform } from "./lib/platform/index.js";
 import { bootstrapShell } from "./lib/nativeSession.js";
 import { dismissBootScreen, setBootStage } from "./lib/bootScreen.js";
 import { logError, identifyBundle } from "./lib/diagnosticsLog.js";
+import { initialState, installChunkReload, preloadLikelyNext } from "./lib/bootChunks.js";
+import { preloadState } from "./lib/lazyViews.js";
+import { localeReady } from "./lib/i18n/index.js";
 
 const target = document.querySelector("#app");
 
@@ -19,12 +22,21 @@ window.addEventListener("unhandledrejection", (event) => {
   logError(event.reason, { action: "js.unhandledRejection" });
 });
 
+// A tab left open over a deploy asks for chunks the server no longer has; reload once to
+// pick up the new index.html instead of showing a retry pill that can never succeed.
+installChunkReload(window);
+
 // Fire-and-forget: nothing here gates the first render, and a report is
 // still useful without an answer -- see `identifyBundle`.
 identifyBundle();
 
+// The locale file is its own chunk: start fetching it now, alongside the shell's bootstrap,
+// rather than after it. `mountApp` waits for the same promise.
+localeReady();
+
 /**
- * In a browser the app mounts at once, and the boot screen leaves with the first frame.
+ * In a browser the app mounts as soon as the chunk the URL needs is in (see below), and the
+ * boot screen leaves with the first frame.
  *
  * Inside the Android shell the app is mounted only after the phone's server,
  * session and playback queue have reached the stores -- the first component to
@@ -44,12 +56,23 @@ const app = platform.system.isNative
  * Mounts the app and takes the boot screen away once it has painted underneath
  * (`bootScreen.js`). A mount that throws still removes it: an error on the real page is
  * more use than a boot screen that never leaves.
+ *
+ * A page off the first screen (Beheer, settings, statistics...) lives in its own chunk
+ * (`lazyViews.js`, issue #114). Opened by URL, that chunk is fetched first, behind the boot
+ * screen, so the app appears with the page rather than with a skeleton in its place.
+ * `preloadState` never rejects: a chunk that failed shows its retry pill once mounted. The
+ * locale file is a chunk too and is waited for the same way (`localeReady`, never rejects).
+ * Once the app is up, the pages one tap away are fetched on idle.
  */
-function mountApp() {
+async function mountApp() {
+  await Promise.all([localeReady(), preloadState(initialState(window.location.pathname))]);
   try {
     return mount(App, { target });
   } finally {
-    requestAnimationFrame(() => dismissBootScreen());
+    requestAnimationFrame(() => {
+      dismissBootScreen();
+      preloadLikelyNext();
+    });
   }
 }
 

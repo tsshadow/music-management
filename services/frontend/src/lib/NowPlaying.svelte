@@ -7,7 +7,9 @@
   import ArtistList from './ArtistList.svelte';
   import Artwork from './Artwork.svelte';
   import MetaChips from './MetaChips.svelte';
-  import TrackDetailsSheet from './TrackDetailsSheet.svelte';
+  // Opened from a row's menu or a long press, never on the first screen: its own chunk
+  // (lazyViews.js, issue #114).
+  import LazyView from './LazyView.svelte';
   import TrackRowCompact from './TrackRowCompact.svelte';
   import { genreNames } from './genreSegments.js';
   import { playlist, queueSource } from './store.js';
@@ -886,17 +888,17 @@
   {/if}
 
   {#if showDetailsSheet && track}
-    <TrackDetailsSheet
-      {track}
-      {rating}
-      {onrate}
-      hasLyrics={lyricsLines.length > 0}
-      onclose={() => (showDetailsSheet = false)}
-      onnavigate={navigate}
-      durationLabel={isSetMode ? formatClock(duration) : formatTime(duration)}
-      onlyrics={() => { showDetailsSheet = false; showLyricsSheet = true; }}
-      onplaynext={() => { addAfterCurrent(); showDetailsSheet = false; }}
-      onaddqueue={() => { addToEnd(); showDetailsSheet = false; }}
-    />
+    <LazyView name="trackDetails" fallback="none" props={{
+      track,
+      rating,
+      onrate,
+      hasLyrics: lyricsLines.length > 0,
+      onclose: () => (showDetailsSheet = false),
+      onnavigate: navigate,
+      durationLabel: isSetMode ? formatClock(duration) : formatTime(duration),
+      onlyrics: () => { showDetailsSheet = false; showLyricsSheet = true; },
+      onplaynext: () => { addAfterCurrent(); showDetailsSheet = false; },
+      onaddqueue: () => { addToEnd(); showDetailsSheet = false; },
+    }} />
   {/if}
 {/if}

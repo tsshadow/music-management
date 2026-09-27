@@ -1,4 +1,7 @@
 import { execSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+import { gzipSync } from "node:zlib";
 import { defineConfig, loadEnv } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 
@@ -43,11 +46,49 @@ function bundleVersionFile() {
   };
 }
 
+/**
+ * Writes a per-chunk, per-module size report when `BUNDLE_REPORT=<path>` is set
+ * (issue #114): which chunk each module landed in and how many minified bytes it
+ * contributes. Kept in-tree instead of a visualizer dependency so measuring the
+ * split never needs a network install, and written outside `dist/` so it never
+ * ships in the APK or the LMS docroot. `node scripts/bundle-report.mjs <path>`
+ * prints it as a table.
+ */
+function bundleReport() {
+  const target = process.env.BUNDLE_REPORT;
+  return {
+    name: "muma-bundle-report",
+    apply: "build",
+    writeBundle(_options, bundle) {
+      if (!target) return;
+      const chunks = Object.values(bundle)
+        .filter((item) => item.type === "chunk")
+        .map((chunk) => ({
+          fileName: chunk.fileName,
+          name: chunk.name,
+          isEntry: chunk.isEntry,
+          isDynamicEntry: chunk.isDynamicEntry,
+          bytes: Buffer.byteLength(chunk.code),
+          gzipBytes: gzipSync(chunk.code).length,
+          imports: chunk.imports,
+          modules: Object.entries(chunk.modules)
+            .map(([id, info]) => ({
+              id: path.relative(process.cwd(), id),
+              bytes: info.renderedLength,
+            }))
+            .sort((a, b) => b.bytes - a.bytes),
+        }))
+        .sort((a, b) => b.bytes - a.bytes);
+      writeFileSync(target, JSON.stringify({ chunks }, null, 2));
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
-    plugins: [svelte(), bundleVersionFile()],
+    plugins: [svelte(), bundleVersionFile(), bundleReport()],
     base: "/",
     // Vitest runs in Node, where Svelte would otherwise resolve to its
     // server-only build and `mount()` throws. Component tests need the
@@ -67,6 +108,24 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       emptyOutDir: true,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            // The Svelte runtime and the Capacitor bridge change with a dependency bump, not
+            // with every app change, so they get a chunk of their own that a browser keeps
+            // cached across deploys (issue #114). Both are needed by the first screen anyway;
+            // this moves bytes, it does not add a request that waits. The icon packages are
+            // left out on purpose: most icons are used by lazily loaded views, and pulling
+            // them into a shared vendor chunk would put them back on the first screen.
+            groups: [
+              {
+                name: "vendor",
+                test: /node_modules[\\/](svelte|@capacitor[\\/]core|esm-env|clsx)[\\/]/,
+              },
+            ],
+          },
+        },
+      },
     },
     test: {
       environment: "jsdom",

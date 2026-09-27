@@ -267,7 +267,8 @@ describe("NowPlaying", () => {
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
 
-    expect(screen.getByTestId("song-details")).toBeTruthy();
+    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
+    expect(await screen.findByTestId("song-details")).toBeTruthy();
     expect(screen.getByLabelText("Meer")).toBeTruthy();
   });
 
@@ -276,13 +277,16 @@ describe("NowPlaying", () => {
 
     await fireEvent.click(screen.getByTestId("now-playing-title"));
 
-    expect(screen.getByTestId("song-details")).toBeTruthy();
+    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
+    expect(await screen.findByTestId("song-details")).toBeTruthy();
   });
 
   it("hides the sheet's lyrics row when the player found none for the track", async () => {
     renderNowPlaying({ lyricsLines: [] });
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
+    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
+    await screen.findByTestId("song-details");
 
     expect(screen.queryByText("Lyrics")).toBeNull();
   });
@@ -291,7 +295,8 @@ describe("NowPlaying", () => {
     renderNowPlaying({ lyricsLines: ["Raise your fist", "in the air"] });
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
-    await fireEvent.click(screen.getByText("Lyrics"));
+    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
+    await fireEvent.click(await screen.findByText("Lyrics"));
 
     expect(screen.getByText("Raise your fist")).toBeTruthy();
     expect(screen.getByText("in the air")).toBeTruthy();

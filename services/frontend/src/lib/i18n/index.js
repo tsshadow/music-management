@@ -44,16 +44,95 @@ export function documentLanguage(localeCode) {
 const STORAGE_KEY = "muma_locale";
 
 /**
- * Every translation file, loaded eagerly: there are only two of them and a
- * synchronous lookup keeps `t` free of "not loaded yet" states, both on first
- * paint and in unit tests. Revisit if the locale count grows materially.
+ * Every translation file, as a loader: each locale is its own chunk, and only the ones the
+ * active locale needs are fetched (issue #114). They used to be imported eagerly, which put
+ * all four files -- 190 kB, over a quarter of what the first screen loaded -- in front of every
+ * start, while a listener only ever reads one of them.
  */
-const DICTIONARIES = Object.fromEntries(
-  Object.entries(import.meta.glob("./locales/*.json", { eager: true })).map(([path, module]) => [
-    path.match(/([^/]+)\.json$/)[1],
-    module.default,
-  ]),
+const LOADERS = Object.fromEntries(
+  Object.entries(import.meta.glob("./locales/*.json", { import: "default" })).map(
+    ([path, load]) => [path.match(/([^/]+)\.json$/)[1], load],
+  ),
 );
+
+/** The dictionaries that have arrived, by locale code. A store so `t` re-renders on arrival. */
+const dictionaries = writable({});
+const inFlight = new Map();
+
+/**
+ * The dictionaries a locale cannot be shown without: its fallback chain minus the English at
+ * its end. Dutch is complete (`tests/unit/localeFiles.test.js`), so a Dutch or dialect
+ * listener never reads an English string and does not wait for the file; English is still
+ * fetched right after, for the key a future change forgets to translate.
+ *
+ * @param {string} localeCode
+ * @returns {string[]}
+ */
+export function requiredLocales(localeCode) {
+  const chain = [...new Set(chainFor(localeCode))].filter((code) => LOADERS[code]);
+  return chain.length > 1 ? chain.filter((code) => code !== DEFAULT_LOCALE) : chain;
+}
+
+/** Fetches one dictionary, once; a failure is forgotten so the next call tries again. */
+function loadDictionary(code) {
+  if (get(dictionaries)[code]) return Promise.resolve();
+  if (!LOADERS[code]) return Promise.resolve();
+  if (!inFlight.has(code)) {
+    inFlight.set(
+      code,
+      LOADERS[code]().then(
+        (dictionary) => {
+          dictionaries.update((all) => ({ ...all, [code]: dictionary }));
+          inFlight.delete(code);
+        },
+        (error) => {
+          inFlight.delete(code);
+          throw error;
+        },
+      ),
+    );
+  }
+  return inFlight.get(code);
+}
+
+/**
+ * Whether a locale can be shown right now.
+ *
+ * @param {string} localeCode
+ * @returns {boolean}
+ */
+export function isLocaleLoaded(localeCode) {
+  const loaded = get(dictionaries);
+  return requiredLocales(localeCode).every((code) => loaded[code]);
+}
+
+/**
+ * Fetches what a locale needs (`requiredLocales`), then the rest of its chain in the
+ * background. Resolves once it can be shown; never rejects -- a locale whose file failed to
+ * load falls back along its chain, and at worst shows the keys.
+ *
+ * @param {string} localeCode
+ * @returns {Promise<void>}
+ */
+export function loadLocale(localeCode) {
+  const required = requiredLocales(localeCode);
+  const rest = chainFor(localeCode).filter((code) => !required.includes(code));
+  return Promise.all(required.map((code) => loadDictionary(code).catch(() => null))).then(() => {
+    for (const code of rest) loadDictionary(code).catch(() => null);
+  });
+}
+
+/**
+ * Fetches every locale. For the unit tests' setup file, which renders components in any
+ * language without waiting; the app itself never needs all of them.
+ *
+ * @returns {Promise<void>}
+ */
+export function loadAllLocales() {
+  return Promise.all(Object.keys(LOADERS).map((code) => loadDictionary(code))).then(
+    () => undefined,
+  );
+}
 
 function isSupported(code) {
   return SUPPORTED_LOCALES.some((l) => l.code === code);
@@ -122,6 +201,7 @@ export function createTranslator(dictionaries, localeCode) {
   return (key, vars) => {
     let value;
     for (const code of chain) {
+      if (!dictionaries[code]) continue;
       value = lookup(dictionaries[code], key, code, vars);
       if (value !== undefined) break;
     }
@@ -156,6 +236,37 @@ export function resolveInitialLocale(browserLanguage = globalThis.navigator?.lan
 
 const localeStore = writable(resolveInitialLocale());
 
+let switchSeq = 0;
+
+/**
+ * Switches the active locale once its dictionary is in: at once when it already is (every
+ * switch after the first, and every unit test), otherwise after the fetch, so the interface
+ * never shows keys in between. The last request wins when switches overlap.
+ *
+ * @param {string} code
+ */
+function switchTo(code) {
+  const seq = ++switchSeq;
+  if (isLocaleLoaded(code)) {
+    localeStore.set(code);
+    loadLocale(code);
+    return;
+  }
+  loadLocale(code).then(() => {
+    if (seq === switchSeq) localeStore.set(code);
+  });
+}
+
+/**
+ * Resolves once the locale the app starts in can be shown. `main.js` waits for it before it
+ * mounts, behind the boot screen.
+ *
+ * @returns {Promise<void>}
+ */
+export function localeReady() {
+  return loadLocale(get(localeStore));
+}
+
 /**
  * The active locale. Unsupported codes are ignored rather than applied, so a
  * stale account value or a corrupted stored one can never blank the
@@ -166,7 +277,7 @@ export const locale = {
   set(code) {
     if (!isSupported(code)) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(code));
-    localeStore.set(code);
+    switchTo(code);
   },
 };
 
@@ -178,7 +289,7 @@ export const locale = {
  * @param {string} code
  */
 export function setLocaleFromAccount(code) {
-  if (isSupported(code)) localeStore.set(code);
+  if (isSupported(code)) switchTo(code);
 }
 
 /**
@@ -186,7 +297,7 @@ export function setLocaleFromAccount(code) {
  * the account whose language was applied logs out.
  */
 export function resetLocaleToBrowser() {
-  localeStore.set(resolveInitialLocale());
+  switchTo(resolveInitialLocale());
 }
 
 localeStore.subscribe((code) => {
@@ -199,7 +310,9 @@ localeStore.subscribe((code) => {
  * Translation function for the active locale, as a store, so components
  * written as `{$t('some.key')}` re-render when the language changes.
  */
-export const t = derived(localeStore, ($locale) => createTranslator(DICTIONARIES, $locale));
+export const t = derived([localeStore, dictionaries], ([$locale, $dictionaries]) =>
+  createTranslator($dictionaries, $locale),
+);
 
 /**
  * Reads the active locale outside of a component.

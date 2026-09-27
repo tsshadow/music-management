@@ -1,0 +1,87 @@
+// The views off the first screen load as their own chunks (issue #114,
+// docs/designs/perceived-performance/technical.md "Code splitting"). These tests
+// run against the built bundle (`vite preview`, see playwright.config.js), which is
+// the only place the split exists: in vitest every import is local.
+//
+// Two ways into a lazily loaded view, both of which must end on the rendered page:
+// - by URL, where main.js fetches the chunk behind the boot screen before mounting;
+// - by navigating inside the app, where LazyView fetches it and shows skeleton rows
+//   meanwhile.
+import { test, expect } from "@playwright/test";
+import { ADMIN_STORAGE_STATE } from "../../playwright.config.js";
+
+test.use({ storageState: ADMIN_STORAGE_STATE });
+
+/** Collects the JavaScript files the page fetches, by file name. */
+function recordScripts(page) {
+  const files = [];
+  page.on("response", (response) => {
+    const url = new URL(response.url());
+    if (url.pathname.startsWith("/assets/") && url.pathname.endsWith(".js")) {
+      files.push(url.pathname.slice("/assets/".length));
+    }
+  });
+  return files;
+}
+
+/** Fails the test on any uncaught error, a failed chunk import included. */
+function recordErrors(page) {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  return errors;
+}
+
+test("a management tab opened by URL renders, fetched as its own chunk", async ({ page }) => {
+  const scripts = recordScripts(page);
+  const errors = recordErrors(page);
+
+  await page.goto("/management/config");
+
+  await expect(page.getByRole("heading", { name: "Configuratie" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("#boot-screen")).toHaveCount(0);
+  await expect(page.getByTestId("lazy-view-loading")).toHaveCount(0);
+  // The shell and the one tab on screen, not every tab.
+  expect(scripts.some((file) => /^Management-[\w-]+\.js$/.test(file))).toBe(true);
+  expect(scripts.some((file) => /^ConfigTab-[\w-]+\.js$/.test(file))).toBe(true);
+  expect(scripts.some((file) => /^UsersTab-[\w-]+\.js$/.test(file))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("the statistics page reached from the sidebar loads on demand and renders", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "the sidebar is the desktop layout's");
+  const scripts = recordScripts(page);
+  const errors = recordErrors(page);
+
+  await page.goto("/");
+  await expect(page.locator("#boot-screen")).toHaveCount(0, { timeout: 20_000 });
+  // Not part of the first screen: nothing has asked for it yet.
+  expect(scripts.some((file) => /^ListeningStatsView-[\w-]+\.js$/.test(file))).toBe(false);
+
+  await page.getByRole("button", { name: "Luisterstatistieken" }).first().click();
+
+  await expect(page.getByRole("heading", { name: "Luisterstatistieken", level: 1 })).toBeVisible({
+    timeout: 15_000,
+  });
+  expect(scripts.some((file) => /^ListeningStatsView-[\w-]+\.js$/.test(file))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("the first screen does not fetch the management or settings code", async ({ page }) => {
+  const scripts = recordScripts(page);
+  // Hold back the idle preload: this is about what the first paint waits for.
+  await page.addInitScript(() => {
+    window.requestIdleCallback = () => 0;
+  });
+
+  await page.goto("/");
+  await expect(page.locator("#boot-screen")).toHaveCount(0, { timeout: 20_000 });
+
+  const lazy = scripts.filter((file) =>
+    /^(Management|Settings|[A-Za-z]+Tab|ListeningStatsView|SetupWizard)-/.test(file),
+  );
+  expect(lazy).toEqual([]);
+});

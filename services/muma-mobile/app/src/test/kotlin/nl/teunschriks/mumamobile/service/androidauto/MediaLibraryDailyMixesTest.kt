@@ -19,7 +19,9 @@ import nl.teunschriks.mumamobile.api.muma.MumaFeedInfo
 import nl.teunschriks.mumamobile.api.muma.MumaFeedList
 import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
+import nl.teunschriks.mumamobile.util.SignedInFixture
 import org.amshove.kluent.`should be equal to`
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -36,6 +38,10 @@ import retrofit2.Response
  */
 @RunWith(RobolectricTestRunner::class)
 class MediaLibraryDailyMixesTest {
+
+    /** Signed in with a token, so the car's token gate lets the browse through (issue #115). */
+    @Before
+    fun signedInWithToken() = SignedInFixture.install()
 
     private val api: MumaAPIDefinition = mockk()
     private val musicService: MusicService = mockk(relaxed = true)

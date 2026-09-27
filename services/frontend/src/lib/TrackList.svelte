@@ -4,7 +4,9 @@
   import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
   import { startQueue } from './queue.js';
   import ArtistList from './ArtistList.svelte';
-  import TrackDetailsSheet from './TrackDetailsSheet.svelte';
+  // Opened from a row's menu or a long press, never on the first screen: its own chunk
+  // (lazyViews.js, issue #114).
+  import LazyView from './LazyView.svelte';
   import Modal from './Modal.svelte';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
@@ -737,22 +739,22 @@
 </div>
 
 {#if detailsTrack}
-  <TrackDetailsSheet
-    track={detailsTrack}
-    rating={ratingOf(detailsTrack)}
-    onrate={(star) => updateRating(detailsTrack, star)}
-    onclose={() => (detailsTrack = null)}
-    onnavigate={detailsNavigate}
-    durationLabel={durationCellText(detailsTrack)}
-    onlyrics={() => { showLyrics({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
-    onplaynext={() => { addAfterCurrent({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
-    onaddqueue={() => { addToEnd({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
-    onremove={(isQueue || playlistId) ? () => { removeTrack({ stopPropagation() {} }, detailsIndex); detailsTrack = null; } : null}
-    downloadsSupported={downloadsSupported}
-    downloadState={downloadStateOf(detailsTrack)}
-    ondownload={() => { download({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
-    onremovedownload={() => { removeDownload({ stopPropagation() {} }, detailsTrack); detailsTrack = null; }}
-  />
+  <LazyView name="trackDetails" fallback="none" props={{
+    track: detailsTrack,
+    rating: ratingOf(detailsTrack),
+    onrate: (star) => updateRating(detailsTrack, star),
+    onclose: () => (detailsTrack = null),
+    onnavigate: detailsNavigate,
+    durationLabel: durationCellText(detailsTrack),
+    onlyrics: () => { showLyrics({ stopPropagation() {} }, detailsTrack); detailsTrack = null; },
+    onplaynext: () => { addAfterCurrent({ stopPropagation() {} }, detailsTrack); detailsTrack = null; },
+    onaddqueue: () => { addToEnd({ stopPropagation() {} }, detailsTrack); detailsTrack = null; },
+    onremove: (isQueue || playlistId) ? () => { removeTrack({ stopPropagation() {} }, detailsIndex); detailsTrack = null; } : null,
+    downloadsSupported,
+    downloadState: downloadStateOf(detailsTrack),
+    ondownload: () => { download({ stopPropagation() {} }, detailsTrack); detailsTrack = null; },
+    onremovedownload: () => { removeDownload({ stopPropagation() {} }, detailsTrack); detailsTrack = null; },
+  }} />
 {/if}
 
 {#if pendingSet}

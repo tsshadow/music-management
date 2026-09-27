@@ -17,7 +17,8 @@ package nl.teunschriks.mumamobile.data
  * "sign in again", and [ActiveServerProvider.isSignedIn] reads a flag of its own. So the first
  * start of a new build reads the old marker once -- a stored name and password meant signed in --
  * records it as the flag and removes the password. A Google sign-in stored the MuMa API key in the
- * password slot; that copy goes the same way (the key itself stays where every login put it).
+ * password slot; that copy goes the same way (the key itself is kept; [CredentialMigration], which
+ * runs right after this, moves it into encrypted storage -- issue #115).
  *
  * Idempotent: once the password is gone there is nothing left to migrate, so it is safe to run on
  * every start and from whichever component starts first (the app, or the media session that

@@ -64,6 +64,19 @@ async function mockFeed(page) {
   });
 }
 
+/**
+ * Scrolls `locator` into view and asserts it is in the viewport, scrolling again on every retry.
+ * One scroll followed by `toBeInViewport` fails when the layout moves after the scroll -- a sheet
+ * still sliding in, rows appended above -- because the assertion's own retries never scroll back
+ * (issue #116).
+ */
+async function expectScrolledIntoView(locator) {
+  await expect(async () => {
+    await locator.scrollIntoViewIfNeeded({ timeout: 2_000 });
+    await expect(locator).toBeInViewport({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
 const LAYOUTS = [
   { name: "phone", viewport: { width: 412, height: 915 } },
   { name: "tablet", viewport: { width: 1280, height: 800 } },
@@ -85,8 +98,7 @@ for (const layout of LAYOUTS) {
       await expect(page.getByText("2 niet gevonden op de server")).toBeVisible();
 
       const loadMore = page.getByTestId("feed-load-more");
-      await loadMore.scrollIntoViewIfNeeded();
-      await expect(loadMore).toBeInViewport();
+      await expectScrolledIntoView(loadMore);
       await loadMore.click();
 
       await expect(page.getByText("Feed track 102")).toBeVisible({ timeout: 15_000 });

@@ -27,11 +27,21 @@ function song(n) {
   };
 }
 
-/** Answers `getSpotifyTracks` with the 105-track list, by offset. */
+/**
+ * Answers `getSpotifyTracks` with the 105-track list, by offset. Every page after the first is held
+ * until `releaseNextPages()`: scrolling the list's own pill into view loads its next page, which
+ * appends 50 rows above the pill and pushes it out of the viewport again -- the tablet flake of
+ * issue #116. Held, the pill stays where it was scrolled to (as "Laden...") until it is checked.
+ */
 async function mockSongs(page) {
+  let releaseNextPages;
+  const nextPages = new Promise((resolve) => {
+    releaseNextPages = resolve;
+  });
   await page.route(/\/rest\/getSpotifyTracks/, async (route) => {
     const params = new URL(route.request().url()).searchParams;
     const offset = Number(params.get("offset") ?? 0);
+    if (offset > 0) await nextPages;
     const count = Number(params.get("count") ?? PAGE);
     const end = Math.min(offset + count, TOTAL);
     const track = [];
@@ -46,6 +56,20 @@ async function mockSongs(page) {
       },
     });
   });
+  return { releaseNextPages: () => releaseNextPages() };
+}
+
+/**
+ * Scrolls `locator` into view and asserts it is in the viewport, scrolling again on every retry.
+ * One scroll followed by `toBeInViewport` fails when the layout moves after the scroll -- a sheet
+ * still sliding in, rows appended above -- because the assertion's own retries never scroll back
+ * (issue #116).
+ */
+async function expectScrolledIntoView(locator) {
+  await expect(async () => {
+    await locator.scrollIntoViewIfNeeded({ timeout: 2_000 });
+    await expect(locator).toBeInViewport({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 const LAYOUTS = [
@@ -61,7 +85,7 @@ for (const layout of LAYOUTS) {
       page,
     }, testInfo) => {
       test.skip(testInfo.project.name !== "desktop", "sets its own viewport per layout");
-      await mockSongs(page);
+      const server = await mockSongs(page);
 
       await page.goto("/songs");
       const firstRow = page.getByText("Lijst track 0", { exact: true }).first();
@@ -73,8 +97,8 @@ for (const layout of LAYOUTS) {
       // The page itself ends in the pill. (Scrolling to it loads the page's next page; the queue
       // started above keeps its own continuation.)
       const listPill = page.getByTestId("tracks-load-more");
-      await listPill.scrollIntoViewIfNeeded();
-      await expect(listPill).toBeInViewport();
+      await expectScrolledIntoView(listPill);
+      server.releaseNextPages();
 
       // Mini player -> Now Playing -> the queue sheet. The title, not the row's centre: on a
       // 412px phone the centre of the mini player is one of its rating stars.
@@ -89,8 +113,7 @@ for (const layout of LAYOUTS) {
 
       const sheet = page.getByRole("dialog", { name: "Wachtrij" });
       const queuePill = sheet.getByTestId("queue-load-more");
-      await queuePill.scrollIntoViewIfNeeded();
-      await expect(queuePill).toBeInViewport();
+      await expectScrolledIntoView(queuePill);
 
       // Two more pages: 100, then the last 5. Each tap waits for its own answer.
       for (const last of ["Lijst track 99", "Lijst track 104"]) {
@@ -104,8 +127,7 @@ for (const layout of LAYOUTS) {
 
       const end = sheet.getByTestId("queue-load-more-end");
       await expect(end).toBeAttached({ timeout: 15_000 });
-      await end.scrollIntoViewIfNeeded();
-      await expect(end).toBeInViewport();
+      await expectScrolledIntoView(end);
       await expect(end).toHaveText("Einde van de lijst");
       await expect(queuePill).toHaveCount(0);
     });

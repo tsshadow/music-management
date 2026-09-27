@@ -9,4 +9,7 @@
     <!-- The following "include" elements are part of the auto backup -->
     <include domain="sharedpref" path="."/>
     <include domain="database" path="."/>
+    <!-- Credentials (issue #115), see backup_rules.xml. -->
+    <exclude domain="sharedpref" path="muma_credentials.xml"/>
+    <exclude domain="sharedpref" path="secure_settings.xml"/>
 </full-backup-content>

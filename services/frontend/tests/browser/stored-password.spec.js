@@ -72,8 +72,11 @@ test("a session stored by an older build loses its password on the next start", 
 
   await page.reload();
 
+  // The app shell, not merely a page without a login form: right after the reload neither exists.
+  await expect(page.getByPlaceholder(/Wat wil je luisteren\?/)).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("#username")).toHaveCount(0);
-  expect(await keysHoldingPassword(page)).toEqual([]);
+  // Polled: the start strips the password asynchronously, and one early read would race it.
+  await expect.poll(() => keysHoldingPassword(page)).toEqual([]);
 });
 
 test("a key MuMa refuses on start brings the login page back, without a re-login", async ({

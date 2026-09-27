@@ -45,6 +45,14 @@ HEADER = """\
 """
 
 REASONS = {
+    'gcm-detection': (
+        'The Android credential store (issue #115, CredentialCipher.kt). The flagged '
+        'line is the decrypt, which must take the IV stored beside the ciphertext. '
+        'Encryption never passes an IV: the Android Keystore key is created with '
+        'setRandomizedEncryptionRequired(true), so the Keystore picks a fresh random '
+        'IV per value and refuses a caller-chosen one; AesGcmCredentialCipherTest '
+        'pins that two encryptions of the same value differ. Audited 2026-09-27.'
+    ),
     'sqlalchemy-execute-raw-query': (
         'Table and column names cannot be bound as parameters, and every site '
         'interpolates an internal constant rather than request data. Revisit '

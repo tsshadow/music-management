@@ -367,6 +367,22 @@ namespace lms
             return assetExtensions.contains(extension.string());
         }
 
+        // How long a browser may keep a file of the built frontend (issue #114). Vite names
+        // everything under assets/ after its content, so a file there never changes under the
+        // same name and may be kept for a year without asking. Everything else -- index.html
+        // above all, the one file that says which chunks the current build consists of -- is
+        // revalidated on every load, or a browser keeps starting a build whose lazily loaded
+        // chunks were replaced by the last deploy.
+        //
+        // `relativePath` is the served file relative to the frontend's docroot.
+        std::string cacheControlFor(const std::filesystem::path& relativePath)
+        {
+            if (!relativePath.empty() && *relativePath.begin() == "assets")
+                return "public, max-age=31536000, immutable";
+
+            return "no-cache";
+        }
+
         class SpotifyResource : public Wt::WResource
         {
         public:
@@ -430,6 +446,8 @@ namespace lms
                 std::ifstream ifs{ filePath, std::ios::binary };
                 if (ifs)
                 {
+                    response.addHeader("Cache-Control", cacheControlFor(filePath.lexically_relative(spotifyRoot.lexically_normal())));
+
                     std::string extension = filePath.extension().string();
                     if (extension == ".html")
                         response.setMimeType("text/html");

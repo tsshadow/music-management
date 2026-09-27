@@ -7,8 +7,15 @@
         <exclude domain="root"/>
         <include domain="sharedpref" path="."/>
         <include domain="database" path="."/>
+        <!-- Credentials (issue #115): ciphertext whose Keystore key never leaves the device, so a
+             copy could not be opened anyway. Restored without it, the app is signed out. -->
+        <exclude domain="sharedpref" path="muma_credentials.xml"/>
+        <exclude domain="sharedpref" path="secure_settings.xml"/>
     </cloud-backup>
     <device-transfer>
-        <!-- Specifying nothing here means: Include all: https://developer.android.com/guide/topics/data/autobackup#include-exclude-android-11 -->
+        <!-- Without an include everything is transferred except what is excluded:
+             https://developer.android.com/guide/topics/data/autobackup#include-exclude-android-11 -->
+        <exclude domain="sharedpref" path="muma_credentials.xml"/>
+        <exclude domain="sharedpref" path="secure_settings.xml"/>
     </device-transfer>
 </data-extraction-rules>

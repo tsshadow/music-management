@@ -151,6 +151,11 @@
   its data arrives; one slow section never holds up the ones that are ready.
 - **Refresh**: re-loading a screen that already shows content keeps that content on screen —
   skeletons are for the first load, not for every refresh.
+- **A page whose code is still loading** (web, issue #114: pages off the first screen are separate
+  chunks, `LazyView.svelte`): 8 `SkeletonRows` in the content area while the chunk loads, and the
+  section error with "Opnieuw" if it fails. Overlays, sheets and sidebars show nothing meanwhile —
+  a skeleton would only flash. Opened by URL, the boot screen stays up until the page's chunk is
+  in, so the app never appears with a skeleton in place of the page.
 - **New place, new rows**: a list that opens for a different thing (another genre, label,
   festival, search term) never shows the previous thing's rows, not even for one frame: it clears
   and shows skeletons, or shows its own cached rows. Only the same list under changed filters keeps

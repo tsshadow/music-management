@@ -6,31 +6,19 @@
   import { getHeaders as sharedHeaders, fetchMumaJson, mapWithLimit } from '../mumaApi.js';
   import { MANAGEMENT_TABS } from '../router.js';
 
-  // Import Tabs
-  import OverviewTab from './tabs/OverviewTab.svelte';
-  import AdvancedLibraryTab from './tabs/AdvancedLibraryTab.svelte';
-  import ArtistImagesTab from './tabs/ArtistImagesTab.svelte';
-  import PlaylistsTab from './tabs/PlaylistsTab.svelte';
-  import TaggerTab from './tabs/TaggerTab.svelte';
-  import GenreCurationTab from './tabs/GenreCurationTab.svelte';
-  import ArtistCurationTab from './tabs/ArtistCurationTab.svelte';
-  import LabelsTab from './tabs/LabelsTab.svelte';
-  import FestivalsTab from './tabs/FestivalsTab.svelte';
-  import LineupsTab from './tabs/LineupsTab.svelte';
-  import LabelProposalsTab from './tabs/LabelProposalsTab.svelte';
-  import PodcastCurationTab from './tabs/PodcastCurationTab.svelte';
-  import VersionsTab from './tabs/VersionsTab.svelte';
-  import RadioTab from './tabs/RadioTab.svelte';
-  import NewsTab from './tabs/NewsTab.svelte';
-  import DownloadersTab from './tabs/DownloadersTab.svelte';
+  // Every tab but Scrobble is its own chunk (lazyViews.js, issue #114): an admin opening
+  // Beheer fetches the tab on screen, not all of them. Scrobble takes two `bind:` props, which
+  // a props object cannot carry, so it stays in this chunk.
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
-  import HealthTab from './tabs/HealthTab.svelte';
-  import ScannerTab from './tabs/ScannerTab.svelte';
-  import LibrariesTab from './tabs/LibrariesTab.svelte';
-  import UsersTab from './tabs/UsersTab.svelte';
-  import UserRequestsTab from './tabs/UserRequestsTab.svelte';
-  import EventsTab from './tabs/EventsTab.svelte';
-  import ConfigTab from './tabs/ConfigTab.svelte';
+  import LazyView from '../LazyView.svelte';
+  import { managementTabs } from '../lazyViews.js';
+
+  // Fetch the open tab's chunk while the shell's own data is still loading, so the two
+  // waits overlap instead of adding up.
+  $effect(() => {
+    const tab = $activeManagementTab;
+    if (managementTabs.has(tab)) managementTabs.load(tab).catch(() => {});
+  });
 
   // The active tab is persisted and can also arrive from the URL, so a name
   // that no longer exists -- a renamed tab, an old bookmark, a typo -- would
@@ -338,6 +326,43 @@
     loading = false;
   });
 
+  const onMessage = (m) => (message = m);
+  const onError = (e) => (error = e);
+
+  /**
+   * The props one tab is rendered with. Called from the template, so everything it reads is
+   * tracked and the tab gets fresh props when the shell's data changes.
+   *
+   * @param {string} tab
+   * @returns {Record<string, any>}
+   */
+  function tabProps(tab) {
+    const common = { API_BASE, getHeaders, onMessage, onError };
+    switch (tab) {
+      case 'overview':
+        return { containers, activity, config, allNotes, selectedServiceNotes, notes, stats, fetchStats, fetchArtistImages };
+      case 'libraries':
+      case 'scanner':
+        return { onMessage, onError };
+      case 'images':
+        return { ...common, apiKey, fetchArtistImages, fetchProgress, imageStats, refreshStats: fetchImageStats };
+      case 'playlists':
+        return { ...common, apiKey, users, playlists, selectedUser, fetchPlaylists, onSelectUser: selectUser };
+      case 'downloaders':
+        return { ...common, accounts, youtubeAccounts, refreshDownloaders: fetchData };
+      case 'health':
+        return { containers, activity, API_BASE, getHeaders, refreshSystemStatus };
+      case 'users':
+        return { ...common, users, roles, selectedUser, fetchUsers, onSelectUser: selectUser, navigateToScrobbleImport };
+      case 'user-requests':
+        return { ...common, users };
+      case 'events':
+        return { ...common, config };
+      default:
+        return common;
+    }
+  }
+
   function navigateToScrobbleImport(user, lbUser) {
     activeManagementTab.set('scrobble');
     importMumaUser = user;
@@ -380,105 +405,7 @@
         <RefreshCw class="animate-spin text-brand" size={48} />
       </div>
     {:else}
-      {#if $activeManagementTab === 'overview'}
-        <OverviewTab {containers} {activity} {config} {allNotes} {selectedServiceNotes} {notes} {stats} {fetchStats} {fetchArtistImages} />
-      {:else if $activeManagementTab === 'library'}
-        <AdvancedLibraryTab {API_BASE} {getHeaders} onMessage={(m) => message = m} onError={(e) => error = e} />
-      {:else if $activeManagementTab === 'libraries'}
-        <LibrariesTab onMessage={(m) => message = m} onError={(e) => error = e} />
-      {:else if $activeManagementTab === 'scanner'}
-        <ScannerTab onMessage={(m) => message = m} onError={(e) => error = e} />
-      {:else if $activeManagementTab === 'images'}
-        <ArtistImagesTab
-          {API_BASE} {apiKey} getHeaders={getHeaders}
-          {fetchArtistImages} {fetchProgress} {imageStats}
-          refreshStats={fetchImageStats}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'playlists'}
-        <PlaylistsTab 
-          {API_BASE} {apiKey} {users} {playlists} {selectedUser} 
-          getHeaders={getHeaders} {fetchPlaylists} 
-          onSelectUser={selectUser} 
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
-        />
-      {:else if $activeManagementTab === 'tagger'}
-        <TaggerTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'genre-curation'}
-        <GenreCurationTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'artist-curation'}
-        <ArtistCurationTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'labels'}
-        <LabelsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'festivals'}
-        <FestivalsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'lineups'}
-        <LineupsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'label-proposals'}
-        <LabelProposalsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'podcast-curation'}
-        <PodcastCurationTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'song-versions'}
-        <VersionsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'radio'}
-        <RadioTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'news'}
-        <NewsTab
-          {API_BASE} getHeaders={getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'downloaders'}
-        <DownloadersTab 
-          {API_BASE} getHeaders={getHeaders} 
-          {accounts} {youtubeAccounts} 
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
-          refreshDownloaders={fetchData} 
-        />
-      {:else if $activeManagementTab === 'scrobble'}
+      {#if $activeManagementTab === 'scrobble'}
         <ScrobbleTab 
           {API_BASE} getHeaders={getHeaders} 
           {users} {latestImports} 
@@ -488,35 +415,8 @@
           onSelectUser={selectUser} 
           fetchLatestImports={fetchLatestImports} 
         />
-      {:else if $activeManagementTab === 'health'}
-        <HealthTab {containers} {activity} {API_BASE} getHeaders={getHeaders} {refreshSystemStatus} />
-      {:else if $activeManagementTab === 'users'}
-        <UsersTab 
-          {users} {roles} {selectedUser} {API_BASE} getHeaders={getHeaders} {fetchUsers} 
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
-          onSelectUser={selectUser} 
-          navigateToScrobbleImport={navigateToScrobbleImport} 
-        />
-      {:else if $activeManagementTab === 'user-requests'}
-        <UserRequestsTab 
-          {API_BASE} getHeaders={getHeaders} {users}
-          onMessage={(m) => message = m} 
-          onError={(e) => error = e} 
-        />
-      {:else if $activeManagementTab === 'config'}
-        <ConfigTab
-          {API_BASE} {getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-        />
-      {:else if $activeManagementTab === 'events'}
-        <EventsTab
-          {API_BASE} {getHeaders}
-          onMessage={(m) => message = m}
-          onError={(e) => error = e}
-          {config}
-        />
+      {:else if managementTabs.has($activeManagementTab)}
+        <LazyView registry={managementTabs} name={$activeManagementTab} props={tabProps($activeManagementTab)} />
       {/if}
     {/if}
   {/if}

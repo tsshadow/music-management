@@ -76,8 +76,9 @@ for (const layout of LAYOUTS) {
       await listPill.scrollIntoViewIfNeeded();
       await expect(listPill).toBeInViewport();
 
-      // Mini player -> Now Playing -> the queue sheet.
-      await page.locator('footer [role="button"]').first().tap();
+      // Mini player -> Now Playing -> the queue sheet. The title, not the row's centre: on a
+      // 412px phone the centre of the mini player is one of its rating stars.
+      await page.locator('footer [role="button"]').first().getByText("Lijst track 0").tap();
       await page.getByTestId("now-playing").getByRole("button", { name: "Wachtrij" }).tap();
 
       const sheet = page.getByRole("dialog", { name: "Wachtrij" });

@@ -76,6 +76,12 @@ REVIEWED_SAFE = {
         "order, all of which keep working, and a binary key is strictly finer so no existing row "
         "can collide; conditional on information_schema, so it is a no-op once applied (bug 051)"
     ),
+    "migrate_v46_importer_file_problems.sql": (
+        "the MODIFY only appends 'extractor' to the end of importer_conflicts.step's ENUM, keeping "
+        "'renamer' and 'mover' and NOT NULL; the previous release only ever writes those two and "
+        "reads rows by step, so nothing it does changes, and appending an ENUM value is a "
+        "metadata-only ALTER that is a no-op when re-run (bug 119)"
+    ),
 }
 
 

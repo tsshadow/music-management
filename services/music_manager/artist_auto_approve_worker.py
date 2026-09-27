@@ -297,6 +297,11 @@ def _placeholders(values: list) -> str:
     return ', '.join(['%s'] * len(values))
 
 
+def _in_list_sql(template: str, values: list) -> str:
+    """`template` with its `{placeholders}` filled by one `%s` per value; the values stay bound parameters."""
+    return template.format(placeholders=_placeholders(values))
+
+
 @dataclass
 class Candidate:
     """One name a round looks up: its library id, spelling and whether it is new (pending) or backlog."""
@@ -395,7 +400,7 @@ class EvidenceStore:
         out: dict[int, list[str]] = {artist_id: [] for artist_id in artist_ids}
         for start in range(0, len(artist_ids), TITLE_CHUNK):
             chunk = artist_ids[start : start + TITLE_CHUNK]
-            for row in self._rows(TITLES_SQL.format(placeholders=_placeholders(chunk)), chunk):
+            for row in self._rows(_in_list_sql(TITLES_SQL, chunk), chunk):
                 out.setdefault(int(row['artist_id']), []).append(row['title'] or '')
         return out
 
@@ -435,12 +440,12 @@ class EvidenceStore:
             conn = self._connect()
             try:
                 with transaction(conn), conn.cursor() as cursor:
-                    cursor.execute(DECIDED_AMONG_SQL.format(placeholders=_placeholders(batch)), batch)
+                    cursor.execute(_in_list_sql(DECIDED_AMONG_SQL, batch), batch)
                     decided = {row['name'] for row in cursor.fetchall()}
                     batch = [name for name in batch if name not in decided]
                     if batch:
                         record_approvals(cursor, batch, DECIDED_BY)
-                        cursor.execute(MARK_APPLIED_SQL.format(placeholders=_placeholders(batch)), batch)
+                        cursor.execute(_in_list_sql(MARK_APPLIED_SQL, batch), batch)
             finally:
                 conn.close()
             applied.extend(batch)

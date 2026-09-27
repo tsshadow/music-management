@@ -10,10 +10,20 @@
 # was a user's phone, via the hoster's auto-update. This script is the earlier
 # execution.
 #
-# What it proves and no more: the APK installs, the launcher activity starts,
-# and the process is still alive with no FATAL EXCEPTION after a grace period.
-# It logs into nothing and taps nothing - a startup-crash tripwire, not a UI
-# suite.
+# What it proves and no more, for two launches (a first start and a cold
+# restart after force-stop, which reads back what the first one persisted):
+# the APK installs, the process is alive with no FATAL EXCEPTION or ANR after a
+# grace period, CapacitorActivity is the resumed activity (the trampoline
+# handed over and the Koin graph resolved in onResume), and the login page's
+# server field shows the app's static server. That last value only arrives
+# through a JS -> native Capacitor plugin call, which R8 can break without
+# crashing anything (minify/proguard-capacitor.pro). It logs into nothing and
+# taps nothing - a startup tripwire, not a UI suite.
+#
+# Signing: the release variant is signed with a throwaway keystore that
+# build.sh generates (keystore.jks, dummy passwords below). The real signing
+# key only exists on release/* pipelines, in mobile:build-release; R8 runs
+# identically either way, which is all this needs.
 #
 # Needs /dev/kvm (runner LXC has passthrough since 2026-08-22; the udev rule
 # making it 0666 is part of that setup). Fails fast with a clear message when
@@ -44,6 +54,15 @@ fi
 
 echo "--- Running MuMa Mobile emulator smoke test (release build) ---"
 
+# The server the login page must show on a fresh install. Read from the source
+# rather than repeated here, so moving the server cannot break this silently.
+SMOKE_EXPECTED_SERVER="$(sed -n 's/.*const val SERVER_URL = "\(.*\)".*/\1/p' \
+    "$ROOT_DIR/services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/data/StaticServers.kt")"
+if [ -z "$SMOKE_EXPECTED_SERVER" ]; then
+    echo "Error: could not read SERVER_URL from StaticServers.kt." >&2
+    exit 1
+fi
+
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
 
@@ -73,6 +92,7 @@ docker run --rm \
     -e SIGNING_STORE_PASSWORD=dummy-ci-password \
     -e SIGNING_KEY_ALIAS=dummy-ci \
     -e SIGNING_KEY_PASSWORD=dummy-ci-password \
+    -e SMOKE_EXPECTED_SERVER="$SMOKE_EXPECTED_SERVER" \
     "$ANDROID_CI_IMAGE" \
     /bin/bash /workspace/scripts/test/muma-mobile-emulator-smoke-inner.sh
 

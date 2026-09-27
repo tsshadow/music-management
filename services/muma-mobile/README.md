@@ -82,6 +82,15 @@ If you are modifying the code and need to rebuild and redeploy the system:
 5.  **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh [debug|release]` (defaults to debug)
     - Use `patch`, `minor`, or `major` as mode for version increments (e.g., `./install patch`).
 
+### Release-build smoke test
+The shipped APK is R8-minified (`app/minify/*.pro`), and a missing keep rule only fails in that
+build -- the 6.21.0 startup crash (`docs/bug-reports/029`) was invisible to every unit test.
+`./scripts/test/muma-mobile-emulator-smoke.sh` (CI job `mobile:smoke`, which gates
+`mobile:build-release`) builds the release variant with a throwaway keystore, starts it twice on a
+headless emulator and checks that it survives, that `CapacitorActivity` is resumed, and that the
+login page shows the static server, which only arrives through a Capacitor plugin call. Needs
+`/dev/kvm`; run it locally after touching a keep rule. Details in `docs/testing-inventory.md`.
+
 ### APK Hoster
 The `apk-hoster` service is managed in its own repository: [muma/apk-hoster](https://github.com/muma/apk-hoster).
 Builds from this project are automatically synced to the hoster's storage if configured in `.env`.

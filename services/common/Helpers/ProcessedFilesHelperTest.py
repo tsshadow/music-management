@@ -244,6 +244,11 @@ class PendingReasonsTest(ProcessedFilesHelperTestCase):
         self.cursor.execute.side_effect = RuntimeError('database gone')
         self.assertEqual(self.helper.pending_reasons(), [])
 
+    def test_a_channel_link_waits_behind_decisions_and_new_files(self):
+        # One confirm can queue thousands of files that are already correct (docs/designs/channel-links).
+        self.cursor.fetchall.return_value = [('channel_link',), ('genre_decision',), ('new_in_library',)]
+        self.assertEqual(self.helper.pending_reasons(), ['genre_decision', 'new_in_library', 'channel_link'])
+
 
 class PendingPathsTest(ProcessedFilesHelperTestCase):
     def test_a_page_of_queued_paths_is_read_in_key_order_past_the_cursor(self):

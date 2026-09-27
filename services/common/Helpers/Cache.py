@@ -1,3 +1,4 @@
+from services.common.Helpers.ChannelLinkHelper import ChannelLinkHelper
 from services.common.Helpers.FestivalHelper import FestivalHelper
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.GenreRulesHelper import GenreRulesHelper
@@ -22,6 +23,8 @@ databaseHelpers = {
     'sceneGroupDateFormatHelper': LookupTableHelper('rules_scene_group_date_format', 'scene_group', 'date_format'),
     'festivalHelper': FestivalHelper(),
     'podcastHelper': PodcastHelper(),
+    # The label/artist a download's channel is linked to; see docs/designs/channel-links.
+    'channelLinkHelper': ChannelLinkHelper(),
 }
 
 

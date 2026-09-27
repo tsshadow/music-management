@@ -29,7 +29,17 @@ class FakeDatabase:
     string fails here rather than silently matching nothing.
     """
 
-    def __init__(self, channels=(), labels=(), approved=(), aliases=(), redirects=(), proposals=(), targets=None):
+    def __init__(
+        self,
+        channels=(),
+        labels=(),
+        approved=(),
+        aliases=(),
+        redirects=(),
+        proposals=(),
+        targets=None,
+        pending=(),
+    ):
         self.channels = {c['id']: dict(c) for c in channels}
         self.labels = list(labels)
         self.approved = list(approved)
@@ -44,6 +54,8 @@ class FakeDatabase:
             if targets is not None
             else ({('label', i) for i, _ in labels} | {('artist', i) for i, _ in approved})
         )
+        # Library artists that are not approved: in the queue or rejected.
+        self.pending = list(pending)
         self.executed = []
         self.rowcount = 0
         self._result = []
@@ -92,6 +104,14 @@ class FakeDatabase:
         ):
             kind = 'label' if 'library_labels' in statement else 'artist'
             self._result = [{'id': params[0]}] if (kind, params[0]) in self.targets else []
+        elif statement == normalize(router_module.TARGET_QUERY['label']):
+            self._result = [{'id': i, 'name': n, 'approved': 1} for i, n in self.labels if i == params[0]]
+        elif statement == normalize(router_module.TARGET_QUERY['artist']):
+            self._result = [{'id': i, 'name': n, 'approved': 1} for i, n in self.approved if i == params[0]] + [
+                {'id': i, 'name': n, 'approved': 0} for i, n in self.pending if i == params[0]
+            ]
+        elif statement == normalize(router_module.MANUAL_RECORD_QUERY):
+            self._record_manual(*params)
         elif statement.startswith('SELECT id FROM channels'):
             self._result = [{'id': params[0]}] if params[0] in self.channels else []
         elif statement.startswith('UPDATE channels SET'):
@@ -124,10 +144,36 @@ class FakeDatabase:
         }
         self.rowcount = 1
 
+    def _record_manual(self, channel_id, kind, target_id, target_name, actor):
+        for row in self.proposals.values():
+            if (row['channel_id'], row['kind'], row['target_id']) == (channel_id, kind, target_id):
+                row.update(status='confirmed', decided_by=actor)
+                self.rowcount = 2
+                return
+        new_id = max(self.proposals, default=0) + 1
+        self.proposals[new_id] = {
+            'id': new_id,
+            'channel_id': channel_id,
+            'kind': kind,
+            'target_id': target_id,
+            'target_name': target_name,
+            'source': 'manual',
+            'status': 'confirmed',
+            'decided_by': actor,
+        }
+        self.rowcount = 1
+
     def _update_proposals(self, statement, params):
         status = statement.split("status = '")[1].split("'")[0]
         if 'WHERE id = %s AND status' in statement or statement.endswith('WHERE id = %s'):
             ids = [params[-1]]
+        elif 'AND target_id <> %s' in statement:
+            channel_id, kind, keep = params
+            ids = [
+                i
+                for i, p in self.proposals.items()
+                if (p['channel_id'], p['kind'], p['status']) == (channel_id, kind, 'new') and p['target_id'] != keep
+            ]
         elif 'AND id <> %s' in statement:
             channel_id, kind, keep = params
             ids = [
@@ -159,6 +205,10 @@ class ChannelLinksTestCase(unittest.TestCase):
         self.client = TestClient(app)
         self.headers = {'x-api-key': API_KEY}
         self.use(FakeDatabase())
+
+        queue = patch.object(router_module, 'queue_retag', return_value=7)
+        self.queue_retag = queue.start()
+        self.addCleanup(queue.stop)
 
     def use(self, db):
         self.db = db
@@ -255,7 +305,8 @@ class ConfirmTest(ChannelLinksTestCase):
     def test_confirming_links_the_channel_and_withdraws_its_rivals(self):
         self.use(with_open_proposals())
         body = self.post('/proposals/5/confirm').json()
-        self.assertEqual({'status': 'confirmed', 'channel_id': 1, 'kind': 'label', 'target_id': 10}, body)
+        self.assertEqual({'status': 'confirmed', 'channel_id': 1, 'kind': 'label', 'target_id': 10, 'queued': 7}, body)
+        self.queue_retag.assert_called_once_with(1)
         self.assertEqual(10, self.db.channels[1]['label_id'])
         self.assertEqual('confirmed', self.db.proposals[5]['status'])
         self.assertEqual('stale', self.db.proposals[6]['status'])
@@ -267,12 +318,15 @@ class ConfirmTest(ChannelLinksTestCase):
         writes = len(self.db.writes())
         body = self.post('/proposals/5/confirm').json()
         self.assertEqual('confirmed', body['status'])
+        self.assertEqual(0, body['queued'])
         self.assertEqual(writes, len(self.db.writes()))
+        self.queue_retag.assert_called_once()
 
     def test_a_deleted_target_makes_the_proposal_stale(self):
         self.use(with_open_proposals(targets={('label', 11)}))
         body = self.post('/proposals/5/confirm').json()
         self.assertEqual('stale', body['status'])
+        self.queue_retag.assert_not_called()
         self.assertIsNone(self.db.channels[1]['label_id'])
         self.assertEqual('stale', self.db.proposals[5]['status'])
 
@@ -311,9 +365,15 @@ class RejectAndUnlinkTest(ChannelLinksTestCase):
         self.use(with_open_proposals())
         self.post('/proposals/5/confirm')
         response = self.client.delete('/api/channel-links/channels/1/label', headers=self.headers)
-        self.assertEqual({'status': 'unlinked'}, response.json())
+        self.assertEqual({'status': 'unlinked', 'queued': 7}, response.json())
         self.assertIsNone(self.db.channels[1]['label_id'])
         self.assertEqual('rejected', self.db.proposals[5]['status'])
+
+    def test_unlinking_a_channel_with_no_link_queues_nothing(self):
+        self.use(with_open_proposals())
+        response = self.client.delete('/api/channel-links/channels/1/artist', headers=self.headers)
+        self.assertEqual({'status': 'unlinked', 'queued': 0}, response.json())
+        self.queue_retag.assert_not_called()
 
     def test_unlinking_an_unknown_kind_or_channel_is_refused(self):
         self.assertEqual(
@@ -322,6 +382,175 @@ class RejectAndUnlinkTest(ChannelLinksTestCase):
         self.assertEqual(
             404, self.client.delete('/api/channel-links/channels/9/label', headers=self.headers).status_code
         )
+
+
+def unproposed():
+    """A channel the search found nothing for, with one open proposal of another spelling."""
+    return FakeDatabase(
+        channels=[{'id': 1, 'platform': 'soundcloud', 'name': 'Hysta Official', 'label_id': None, 'artist_id': None}],
+        labels=[(10, 'Hysta Records'), (11, '__TODO')],
+        approved=[(20, 'Hysta'), (21, 'Hysta.')],
+        pending=[(30, 'Queued Name')],
+        proposals=[
+            {'id': 5, 'channel_id': 1, 'kind': 'artist', 'target_id': 21, 'target_name': 'Hysta.', 'source': 'alias'},
+        ],
+    )
+
+
+class HandLinkTest(ChannelLinksTestCase):
+    def put(self, path, target_id):
+        return self.client.put(f'/api/channel-links{path}', headers=self.headers, json={'target_id': target_id})
+
+    def test_linking_by_hand_records_a_manual_confirmed_row_and_queues_the_files(self):
+        self.use(unproposed())
+        response = self.put('/channels/1/artist', 20)
+        self.assertEqual(
+            {
+                'status': 'linked',
+                'channel_id': 1,
+                'kind': 'artist',
+                'target_id': 20,
+                'target_name': 'Hysta',
+                'queued': 7,
+            },
+            response.json(),
+        )
+        self.assertEqual(20, self.db.channels[1]['artist_id'])
+        manual = next(p for p in self.db.proposals.values() if p['target_id'] == 20)
+        self.assertEqual(('manual', 'confirmed', 'system'), (manual['source'], manual['status'], manual['decided_by']))
+        # The rival spelling's open proposal is withdrawn, as a confirm would.
+        self.assertEqual('stale', self.db.proposals[5]['status'])
+        self.queue_retag.assert_called_once_with(1)
+        self.conn.commit.assert_called_once()
+
+    def test_linking_the_target_of_an_open_proposal_confirms_that_proposal(self):
+        self.use(unproposed())
+        self.put('/channels/1/artist', 21)
+        self.assertEqual(1, len(self.db.proposals))
+        self.assertEqual(('alias', 'confirmed'), (self.db.proposals[5]['source'], self.db.proposals[5]['status']))
+
+    def test_the_same_link_again_writes_and_queues_nothing(self):
+        self.use(unproposed())
+        self.put('/channels/1/artist', 20)
+        writes = len(self.db.writes())
+        body = self.put('/channels/1/artist', 20).json()
+        self.assertEqual(('linked', 0), (body['status'], body['queued']))
+        self.assertEqual(writes, len(self.db.writes()))
+        self.queue_retag.assert_called_once()
+
+    def test_a_channel_linked_to_something_else_must_be_unlinked_first(self):
+        db = unproposed()
+        db.channels[1]['artist_id'] = 21
+        self.use(db)
+        response = self.put('/channels/1/artist', 20)
+        self.assertEqual(409, response.status_code)
+        self.assertEqual(21, db.channels[1]['artist_id'])
+        self.queue_retag.assert_not_called()
+
+    def test_only_an_approved_artist_and_a_real_label_can_be_linked(self):
+        self.use(unproposed())
+        self.assertEqual(409, self.put('/channels/1/artist', 30).status_code)
+        with patch('services.common.channels._import_queue') as queue:
+            queue.return_value.is_placeholder_publisher.side_effect = lambda name: name == '__todo'
+            self.assertEqual(409, self.put('/channels/1/label', 11).status_code)
+            self.assertEqual(200, self.put('/channels/1/label', 10).status_code)
+        self.assertEqual(10, self.db.channels[1]['label_id'])
+
+    def test_unknown_channel_target_or_kind(self):
+        self.use(unproposed())
+        self.assertEqual(404, self.put('/channels/9/artist', 20).status_code)
+        self.assertEqual(404, self.put('/channels/1/artist', 99).status_code)
+        self.assertEqual(400, self.put('/channels/1/genre', 20).status_code)
+
+    def test_linking_needs_the_rule_permission(self):
+        response = self.client.put('/api/channel-links/channels/1/label', json={'target_id': 1})
+        self.assertIn(response.status_code, (401, 403))
+
+
+class SearchTest(ChannelLinksTestCase):
+    def search(self, path, rows):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = rows
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = cursor
+        with patch.object(router_module, 'get_db_connection', return_value=conn):
+            response = self.client.get(f'/api/channel-links{path}', headers=self.headers)
+        return response, cursor
+
+    def test_channels_carry_their_links_and_the_query_is_taken_literally(self):
+        row = {
+            'id': 1,
+            'platform': 'youtube',
+            'name': '100% Hard',
+            'label_id': 10,
+            'label_name': 'Hard Records',
+            'artist_id': None,
+            'artist_name': None,
+            'track_count': 12,
+            'open_proposals': 1,
+        }
+        response, cursor = self.search('/channels?q=100%25&limit=500', [row])
+        self.assertEqual(
+            [
+                {
+                    'id': 1,
+                    'platform': 'youtube',
+                    'name': '100% Hard',
+                    'track_count': 12,
+                    'label': {'id': 10, 'name': 'Hard Records'},
+                    'artist': None,
+                    'open_proposals': 1,
+                }
+            ],
+            response.json(),
+        )
+        _sql, params = cursor.execute.call_args.args
+        self.assertEqual(('soundcloud', 'youtube', '%100\\%%', '100%', '100\\%%', 50), params)
+
+    def test_label_targets_drop_placeholders(self):
+        with patch('services.common.channels._import_queue') as queue:
+            queue.return_value.is_placeholder_publisher.return_value = False
+            response, cursor = self.search(
+                '/targets?kind=label&q=so', [{'id': 1, 'name': 'Soundcloud'}, {'id': 2, 'name': 'Sonic'}]
+            )
+        self.assertEqual([{'id': 2, 'name': 'Sonic'}], response.json())
+        self.assertIn('library_labels', cursor.execute.call_args.args[0])
+
+    def test_artist_targets_are_approved_names_only(self):
+        response, cursor = self.search('/targets?kind=artist&q=hys', [{'id': 20, 'name': 'Hysta'}])
+        self.assertEqual([{'id': 20, 'name': 'Hysta'}], response.json())
+        self.assertIn("r.state = 'white'", cursor.execute.call_args.args[0])
+
+    def test_a_blank_target_query_asks_nothing_and_an_unknown_kind_is_refused(self):
+        response, cursor = self.search('/targets?kind=artist&q=%20', [])
+        self.assertEqual([], response.json())
+        cursor.execute.assert_not_called()
+        self.assertEqual(400, self.search('/targets?kind=genre&q=x', [])[0].status_code)
+
+
+class QueueRetagTest(unittest.TestCase):
+    def test_a_link_change_refreshes_the_tagger_and_queues_the_channel(self):
+        with (
+            patch.object(router_module, 'refresh_helper') as refresh,
+            patch.object(router_module.rescan_invalidator, 'invalidate_by_channel', return_value=3) as mark,
+        ):
+            self.assertEqual(3, router_module.queue_retag(4))
+        refresh.assert_called_once_with('channelLinkHelper')
+        mark.assert_called_once_with(4, 'channel_link')
+
+    def test_the_refresh_is_the_helper_reload_and_not_the_search_endpoint(self):
+        # The search endpoint is also called `refresh`; importing the helper under that name
+        # once made every link change "refresh" by calling the endpoint instead.
+        from services.music_manager import curation_rules
+
+        self.assertIs(router_module.refresh_helper, curation_rules.refresh)
+
+    def test_a_failure_to_queue_never_fails_the_link(self):
+        with (
+            patch.object(router_module, 'refresh_helper'),
+            patch.object(router_module.rescan_invalidator, 'invalidate_by_channel', side_effect=RuntimeError('db')),
+        ):
+            self.assertEqual(0, router_module.queue_retag(4))
 
 
 class ListTest(ChannelLinksTestCase):

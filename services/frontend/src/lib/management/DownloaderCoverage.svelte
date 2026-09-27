@@ -1,7 +1,7 @@
 <script>
   import { t, locale, formatNumber, formatDateTime } from '../i18n/index.js';
   import { AlertTriangle, RotateCcw, ExternalLink, X } from '@lucide/svelte';
-  import { linksOf, kindLabel } from './channelLinks.js';
+  import { linksOf, kindLabel, offersHandLink } from './channelLinks.js';
   import { describeBackoff } from './downloaderTiming';
   import {
     filterAccounts,
@@ -16,7 +16,8 @@
 
   export let API_BASE;
   export let getHeaders;
-  // Opens the Koppelingen sub-tab, where a channel's open proposal is decided.
+  // Opens the Koppelingen sub-tab, where a channel's open proposal is decided; with a channel,
+  // that channel is preselected in the hand-link panel.
   export let onOpenLinks = () => {};
   export let onMessage = () => {};
   export let onError = () => {};
@@ -287,6 +288,14 @@
                       class="text-xs font-bold px-2 py-0.5 rounded-full border border-brand/40 text-brand hover:bg-brand/10"
                     >
                       {$t('management.downloaders.coverage.linkProposal')}
+                    </button>
+                  {:else if offersHandLink(row.channel)}
+                    <button
+                      on:click={() => onOpenLinks(row.channel)}
+                      title={$t('management.downloaders.coverage.linkByHandTitle', { channel: row.channel.name })}
+                      class="text-xs font-bold px-2 py-0.5 rounded-full border border-white/20 text-muma-spotify-text hover:text-white hover:border-white"
+                    >
+                      {$t('management.downloaders.coverage.linkByHand')}
                     </button>
                   {/if}
                 </div>

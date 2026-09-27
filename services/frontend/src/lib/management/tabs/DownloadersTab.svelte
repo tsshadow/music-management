@@ -15,6 +15,14 @@
   export let refreshDownloaders;
 
   let downloaderSubTab = 'soundcloud';
+  // The channel a Volledigheid row asked to link by hand; the Koppelingen tab starts from it.
+  let linkChannel = null;
+
+  /** Open the Koppelingen tab, with a channel preselected when a table row passed one. */
+  function openLinks(channel = null) {
+    linkChannel = channel;
+    downloaderSubTab = 'links';
+  }
   let newAccountName = '';
   let newAccountId = '';
   let newYoutubeDownloadType = 'audio';
@@ -266,7 +274,7 @@
       {/if}
     </button>
     <button
-      on:click={() => downloaderSubTab = 'links'}
+      on:click={() => openLinks()}
       class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'links' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       {$t('management.downloaders.tabLinks')}
@@ -372,9 +380,9 @@
       </div>
     </div>
   {:else if downloaderSubTab === 'coverage'}
-    <DownloaderCoverage {API_BASE} {getHeaders} {onMessage} {onError} onOpenLinks={() => (downloaderSubTab = 'links')} />
+    <DownloaderCoverage {API_BASE} {getHeaders} {onMessage} {onError} onOpenLinks={openLinks} />
   {:else if downloaderSubTab === 'links'}
-    <ChannelLinkProposals {API_BASE} {getHeaders} {onMessage} {onError} />
+    <ChannelLinkProposals {API_BASE} {getHeaders} {onMessage} {onError} initialChannel={linkChannel} />
   {:else if downloaderSubTab === 'timing'}
     <div class="space-y-6 animate-in fade-in duration-300">
       <p class="text-muma-spotify-text text-sm max-w-3xl">

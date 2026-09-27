@@ -54,6 +54,10 @@ The system is split into specialized services, each handling a specific part of 
       records later is pending until decided, so a guessed artist cannot confirm itself.
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
+    - Channel links: a SoundCloud/YouTube download whose channel a curator linked to a label or artist
+      (Beheer → Downloaders → Koppelingen, by proposal or by hand) gets that label as its publisher and
+      the linked artist in place of the channel name standing in for one (`ApplyChannelLinkRule`,
+      [docs/designs/channel-links/](docs/designs/channel-links/functional.md)).
 - **Background Task**: Managed via a background thread in `music-manager`.
 
 ### 4. `scanner` (Integrated in `music-manager`)

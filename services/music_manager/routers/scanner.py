@@ -52,6 +52,12 @@ OVERLONG_TAG_REASON = 'overlong_tag'
 #: error per file per hour in the event log (bug report 117).
 SCANNER_PARK_AFTER = 3
 
+#: The label a channel is linked to, by the channel's identity key. See _channel_label_id.
+CHANNEL_LABEL_QUERY = (
+    'SELECT l.id, l.name FROM channels c JOIN library_labels l ON l.id = c.label_id '
+    'WHERE c.platform = %s AND c.normalized_name = %s'
+)
+
 
 def fit_column(value, max_chars):
     """`value` cut to at most `max_chars` characters; None and short values pass unchanged.
@@ -336,8 +342,13 @@ class ScannerManager:
         See services/common/channels.py.
         """
         label_name = song.publisher()
-        if not (label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path)):
+        if not (label_name and is_label(label_name)):
             return None
+        if not path_can_carry_a_label(path, self.music_path):
+            # A file under a platform folder carries the one label its channel is linked to,
+            # which the tagger writes as its publisher (docs/designs/channel-links), and no
+            # other: that is still the platform, or a stale value from before an unlink.
+            return self._channel_label_id(cursor, path, label_name)
         # INSERT IGNORE would store a longer name cut short, and the SELECT by the full name
         # below would then find nothing; cutting it here keeps the two statements agreeing.
         label_name = fit_column(label_name, NAME_MAX_CHARS)
@@ -345,6 +356,18 @@ class ScannerManager:
         cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
         row = cursor.fetchone()
         return row['id'] if row else None
+
+    def _channel_label_id(self, cursor, path, label_name):
+        """The id of the label this file's channel is linked to, when the file names that label."""
+        found = channel_from_path(path, self.music_path)
+        if not found:
+            return None
+        platform, name = found
+        cursor.execute(CHANNEL_LABEL_QUERY, (platform, normalize_channel_name(name)))
+        row = cursor.fetchone()
+        if row and str(row['name']).strip().casefold() == str(label_name).strip().casefold():
+            return row['id']
+        return None
 
     def _write_links(self, cursor, track_id, path_hash, label_id=None, channel_id=None):
         """Replace the track's label and channel links with what its files say today.

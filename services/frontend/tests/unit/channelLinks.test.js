@@ -6,6 +6,10 @@ import {
   sourceLabel,
   linksOf,
   refreshMessage,
+  offersHandLink,
+  firstUnlinkedKind,
+  describeChannel,
+  handLinkMessage,
 } from "../../src/lib/management/channelLinks";
 
 const ROWS = [
@@ -87,5 +91,48 @@ describe("linksOf", () => {
 
   it("has nothing for an account without a channel", () => {
     expect(linksOf(null)).toEqual([]);
+  });
+});
+
+describe("hand-linking helpers", () => {
+  const unlinked = { id: 1, name: "Hysta Official", label: null, artist: null, open_proposals: 0 };
+
+  it("offers a hand link for a channel with something unlinked and nothing to decide", () => {
+    expect(offersHandLink(unlinked)).toBe(true);
+    expect(offersHandLink({ ...unlinked, label: { id: 3, name: "X" } })).toBe(true);
+    expect(offersHandLink({ ...unlinked, open_proposals: 2 })).toBe(false);
+    expect(
+      offersHandLink({ ...unlinked, label: { id: 3, name: "X" }, artist: { id: 4, name: "Y" } }),
+    ).toBe(false);
+    expect(offersHandLink(null)).toBe(false);
+  });
+
+  it("starts on the kind the channel lacks", () => {
+    expect(firstUnlinkedKind(unlinked)).toBe("label");
+    expect(firstUnlinkedKind({ ...unlinked, label: { id: 3, name: "X" } })).toBe("artist");
+    expect(firstUnlinkedKind(null)).toBe("label");
+  });
+
+  it("describes a channel by platform, tracks and links, and skips what a coverage row lacks", () => {
+    expect(
+      describeChannel(
+        {
+          ...unlinked,
+          platform: "youtube",
+          track_count: 12,
+          label: { id: 3, name: "Hysta Records" },
+        },
+        { youtube: "YouTube" },
+      ),
+    ).toBe("YouTube · 12 tracks · Label: Hysta Records");
+    expect(describeChannel({ ...unlinked, artist: { id: 4, name: "Hysta" } })).toBe(
+      "Artiest: Hysta",
+    );
+  });
+
+  it("reports the link and how many files were queued", () => {
+    expect(handLinkMessage({ target_name: "Hysta", queued: 44 }, "Hysta Official")).toBe(
+      "Hysta Official gekoppeld aan Hysta; 44 bestanden staan klaar voor de tagger.",
+    );
   });
 });

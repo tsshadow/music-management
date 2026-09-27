@@ -70,3 +70,42 @@ export function refreshMessage(result) {
     ambiguous: result?.ambiguous ?? 0,
   });
 }
+
+/**
+ * Whether the Volledigheid table offers "koppelen" for a channel: it has a
+ * channel, no open proposal to decide instead, and at least one kind unlinked.
+ */
+export function offersHandLink(channel) {
+  if (!channel || channel.open_proposals) return false;
+  return KINDS.some((kind) => !channel[kind]);
+}
+
+/** The kind a hand link should start on: the first one the channel lacks. */
+export function firstUnlinkedKind(channel) {
+  return KINDS.find((kind) => !channel?.[kind]) ?? KINDS[0];
+}
+
+/** The muted line under a channel suggestion: platform, tracks, current links. */
+export function describeChannel(channel, platformLabels = {}) {
+  if (!channel) return "";
+  const parts = [];
+  if (channel.platform) parts.push(platformLabels[channel.platform] ?? channel.platform);
+  if (channel.track_count != null) {
+    parts.push(
+      get(t)("management.downloaders.links.byHand.tracks", {
+        count: channel.track_count,
+      }),
+    );
+  }
+  for (const link of linksOf(channel)) parts.push(`${kindLabel(link.kind)}: ${link.name}`);
+  return parts.join(" · ");
+}
+
+/** The message after a hand link, from the PUT response. */
+export function handLinkMessage(result, channelName) {
+  return get(t)("management.downloaders.links.byHand.linked", {
+    channel: channelName,
+    target: result?.target_name ?? "",
+    queued: result?.queued ?? 0,
+  });
+}

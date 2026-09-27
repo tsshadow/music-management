@@ -76,4 +76,4 @@ scripts that meant to avoid `-p` ended up exposing the same value anyway.
 Not verifiable from CI: the prod-side scripts only run by hand against production. The tokens
 listed under 1-4 were visible on the runner for as long as each command ran; nothing shows they were
 read, but the runner is shared, so rotating `TAG_CREATION_TOKEN`, `RENOVATE_TOKEN` and the
-`APK_HOSTER_PASSWORD` is a reasonable precaution and is left to the owner.
+`APK_HOSTER_PASSWORD` is a reasonable precaution and is left to the owner (issue #129).

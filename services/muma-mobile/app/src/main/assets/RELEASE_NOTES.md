@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## Global Version 7.10.3 (2026-09-27)
+
+- The app's interface starts faster: it reads less than half the code at start, and loads pages
+  like settings and statistics when you open them.
+
+- Your sign-in is now stored encrypted on the phone. After updating you stay signed in. If the
+  phone's secure storage is ever reset, the app asks you to sign in again.
+
 ## Global Version 7.10.2 (2026-09-27)
 
 - The app no longer stores your password. After updating you stay signed in. If your account's key

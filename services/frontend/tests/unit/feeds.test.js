@@ -377,7 +377,12 @@ describe("feed pages (docs/designs/feed-length/)", () => {
 
     const page = await loadFeedPage(DAILY_MIX, AUTH, 100);
 
-    expect(page).toEqual({ tracks: [{ id: "2" }, { id: "3" }], nextOffset: 200, failed: false });
+    expect(page).toEqual({
+      tracks: [{ id: "2" }, { id: "3" }],
+      nextOffset: 200,
+      unresolved: 0,
+      failed: false,
+    });
     expect(globalThis.__fetchMumaJson.mock.calls[0][0]).toContain("offset=100");
   });
 
@@ -386,7 +391,7 @@ describe("feed pages (docs/designs/feed-length/)", () => {
 
     const page = await loadFeedPage(DAILY_MIX, AUTH, 100);
 
-    expect(page).toEqual({ tracks: [], nextOffset: 100, failed: true });
+    expect(page).toEqual({ tracks: [], nextOffset: 100, unresolved: 0, failed: true });
   });
 
   it("resolves a feed longer than LMS accepts in one call in chunks, in order", async () => {
@@ -403,5 +408,31 @@ describe("feed pages (docs/designs/feed-length/)", () => {
     const sent = globalThis.fetch.mock.calls.map(([, options]) => options.body.getAll("path"));
     expect(sent.map((chunk) => chunk.length)).toEqual([100, 50]);
     expect(detail.tracks.map((t) => t.id)).toEqual(paths);
+  });
+
+  // Bug report 122: Harder showed 98 of MuMa's 100 because two paths had no song in LMS.
+  it("counts the paths LMS had no song for, and pages by MuMa's rows regardless", async () => {
+    const paths = Array.from({ length: 100 }, (_, i) => `t${i}.mp3`);
+    globalThis.__fetchMumaJson.mockResolvedValue({ ...feedOf(...paths), next_offset: 100 });
+    globalThis.fetch.mockResolvedValue(songsResponse(...paths.slice(0, 98)));
+
+    const detail = await loadFeedDetail(DAILY_MIX_HARD, AUTH);
+
+    expect(detail.tracks).toHaveLength(98);
+    expect(detail.unresolved).toBe(2);
+    expect(detail.nextOffset).toBe(100);
+  });
+
+  it("counts a later page's unresolved paths too", async () => {
+    globalThis.__fetchMumaJson.mockResolvedValue({
+      ...feedOf("a.mp3", "b.mp3", "c.mp3"),
+      next_offset: 200,
+    });
+    globalThis.fetch.mockResolvedValue(songsResponse("a.mp3"));
+
+    const page = await loadFeedPage(DAILY_MIX_HARD, AUTH, 100);
+
+    expect(page.unresolved).toBe(2);
+    expect(page.nextOffset).toBe(200);
   });
 });

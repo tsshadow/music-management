@@ -106,6 +106,13 @@ One MR (AGENTS rule 7):
   chunks of 100; `FeedView.svelte` shows "Meer laden"; `startQueue(..., { continuation })` plus
   `feedQueue.js` top up a queue started from a feed (Player's effect, once the current track is within three of the end;
   the native queue follows the `playlist` store as for "add to queue").
+  Since bug report 122 (issue #97): a queue started by tapping a row of the feed list carries the
+  continuation as well (`TrackList`'s `continuation` prop), not only one started with the play
+  button. The queue list ends in "Meer laden" while its feed has a next page
+  (`QueueFeedLoadMore.svelte`, `extendFeedQueue({ force: true })`). `loadFeedDetail`/`loadFeedPage`
+  report `unresolved`, the paths LMS had no song for. The feed header shows that count, and the
+  list leaves those rows out. `next_offset` keeps counting MuMa's rows, so a gap never shifts a
+  page.
 - **MuMa Mobile native (Android Auto)**: `FeedRepository` gets the configured length without
   asking (it never sent `limit`), and resolves paths in chunks of 100 so a length above 100 works.
   A feed queue started in the car continues too, since issue #84 — see the next section.

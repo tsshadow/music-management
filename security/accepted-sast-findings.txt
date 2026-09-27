@@ -126,6 +126,16 @@ c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.p
 ca3641fe8527c571 x2  # formatted-sql-query tools/repair_username_case.py
 be399114a500d0c0 x1  # formatted-sql-query tools/test_repair_username_case.py
 
+# --- gcm-detection --- [r:4363f9f2]
+# The Android credential store (issue #115, CredentialCipher.kt). The
+# flagged line is the decrypt, which must take the IV stored beside the
+# ciphertext. Encryption never passes an IV: the Android Keystore key is
+# created with setRandomizedEncryptionRequired(true), so the Keystore picks
+# a fresh random IV per value and refuses a caller-chosen one;
+# AesGcmCredentialCipherTest pins that two encryptions of the same value
+# differ. Audited 2026-09-27.
+d3f060960caab710 x1  # gcm-detection services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/util/CredentialCipher.kt
+
 # --- github-actions-mutable-action-tag --- [r:c9a318ff]
 # services/muma-mobile/.github/ is dead weight inherited from Ultrasonic at
 # the rename commit 054b115df. This is a GitLab repository with no GitHub

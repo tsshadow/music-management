@@ -66,3 +66,11 @@ def test_the_backup_services_do_not_write_to_the_dump_directory_read_only():
         assert mount.endswith(':ro'), (
             f'{mount} is writable; a restore check that can overwrite its own source is not a check'
         )
+
+
+def test_watchtower_never_replaces_a_running_backup_job():
+    """Bug report 123: Watchtower recreated a running db-backup container, starting a second dump."""
+    compose = _load(BACKUP_COMPOSE)
+    for name in ('db-backup', 'db-restore-check'):
+        labels = compose['services'][name].get('labels', [])
+        assert 'com.centurylinklabs.watchtower.enable=false' in labels, f'{name} lacks the Watchtower opt-out'

@@ -39,6 +39,12 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-backup
     restart: "no"
+    # Watchtower must leave these alone: it replaces a running container whose
+    # image has a newer :latest with a fresh copy under the same name, and a
+    # fresh copy of a dump job starts a second dump beside the first. That is
+    # how a pre-deploy backup broke on 2026-09-27 (bug report 123).
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
     # Python streams mariadb-dump/mariadb through gzip in chunks; neither holds
     # the dump in memory. The server-side work lands in `db`, not here. 512m.
     mem_limit: ${MUMA_MEM_LIMIT_BACKUP:-512m}
@@ -77,6 +83,12 @@ services:
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:latest
     container_name: muma-db-restore-check
     restart: "no"
+    # Watchtower must leave these alone: it replaces a running container whose
+    # image has a newer :latest with a fresh copy under the same name, and a
+    # fresh copy of a dump job starts a second dump beside the first. That is
+    # how a pre-deploy backup broke on 2026-09-27 (bug report 123).
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
     # Python streams mariadb-dump/mariadb through gzip in chunks; neither holds
     # the dump in memory. The server-side work lands in `db`, not here. 512m.
     mem_limit: ${MUMA_MEM_LIMIT_BACKUP:-512m}

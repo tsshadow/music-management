@@ -18,9 +18,12 @@ actually receives the env file, gives it mode 0600, and deletes it again.
 from __future__ import annotations
 
 import base64
+import contextlib
+import gzip
 import hashlib
 import os
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -244,6 +247,12 @@ case "$1" in
                 [ "${FAKE_FAIL_DUMP:-0}" = 1 ] && exit 2
                 # A dump queued behind a metadata lock: no output, no exit.
                 [ "${FAKE_DUMP_STALL:-0}" = 1 ] && exec sleep 600
+                # A slow but healthy dump: a burst of incompressible output every
+                # second, for FAKE_DUMP_SLOW seconds in total.
+                for _ in $(seq 1 "${FAKE_DUMP_SLOW:-0}"); do
+                    printf -- '-- %s\n' "$(head -c 200000 /dev/urandom | base64 -w0)"
+                    sleep 1
+                done
                 printf -- '-- MariaDB dump\nCREATE TABLE t (id INT);\n'
                 [ "${FAKE_DUMP_NO_TRAILER:-0}" = 1 ] || printf -- '-- Dump completed on 2026-09-24\n'
                 exit 0
@@ -278,6 +287,30 @@ case "$1" in
         [ "$2" = imagetools ] && echo "$6 -> $5" >> "$FAKE_LOG/promotions"
         ;;
     logs) echo '[Note] [Entrypoint]: Starting mariadb-upgrade' ;;
+    # Containers the fake compose `run` left behind live as pid files in
+    # $FAKE_LOG/containers/<name> (bug report 123).
+    inspect)
+        if [ "$2" = --type ]; then
+            [ -e "$FAKE_LOG/containers/$4" ] && exit 0
+            exit 1
+        fi
+        ;;
+    rm)
+        name="${@: -1}"
+        echo "rm $name" >> "$FAKE_LOG/events"
+        if [ -e "$FAKE_LOG/containers/$name" ] && [ "${FAKE_BACKUP_CONTAINER_STUCK:-0}" != 1 ]; then
+            kill "$(cat "$FAKE_LOG/containers/$name")" 2>/dev/null
+            rm -f "$FAKE_LOG/containers/$name"
+        fi
+        ;;
+    ps)
+        case "$*" in
+            *com.docker.compose.service=db-backup*)
+                ls "$FAKE_LOG/containers" 2>/dev/null
+                [ "${FAKE_OTHER_BACKUP_RUNNING:-0}" = 1 ] && echo 0123456789ab
+                ;;
+        esac
+        ;;
     push) echo "push $2" >> "$FAKE_LOG/pushes" ;;
     login)
         cat > "$FAKE_LOG/login-stdin"
@@ -301,7 +334,27 @@ while [ $# -gt 0 ]; do
             shift 2 ;;
         -f) printf '%s' "$2" > "$FAKE_LOG/compose-path"; shift 2 ;;
         config) printf '%s\n' ${FAKE_SERVICES:-music-manager}; exit 0 ;;
-        run) [ "${FAKE_FAIL_BACKUP_SERVICE:-0}" = 1 ] && exit "${FAKE_BACKUP_SERVICE_RC:-1}"; exit 0 ;;
+        run)
+            # FAKE_BACKUP_SERVICE_ORPHAN: what Watchtower did on 2026-09-27 -- the
+            # run fails, but a copy of its container keeps dumping and writes
+            # into the pre-deploy partial files beside it (bug report 123).
+            if [ "${FAKE_BACKUP_SERVICE_ORPHAN:-0}" = 1 ]; then
+                name="" prev=""
+                for arg in "$@"; do [ "$prev" = --name ] && name="$arg"; prev="$arg"; done
+                mkdir -p "$FAKE_LOG/containers"
+                (
+                    while :; do
+                        for f in "$FAKE_BACKUP_DEST"/muma_db_pre-deploy_*.partial; do
+                            [ -e "$f" ] && printf 'not gzip' >> "$f"
+                        done
+                        sleep 0.05
+                    done
+                ) </dev/null >/dev/null 2>&1 &
+                echo "$!" > "$FAKE_LOG/containers/${name:-unnamed}"
+                echo "orphan ${name:-unnamed}" >> "$FAKE_LOG/events"
+                exit 1
+            fi
+            [ "${FAKE_FAIL_BACKUP_SERVICE:-0}" = 1 ] && exit "${FAKE_BACKUP_SERVICE_RC:-1}"; exit 0 ;;
         *) shift ;;
     esac
 done
@@ -662,7 +715,9 @@ def test_the_installed_backup_service_is_the_first_choice(tmp_path: Path) -> Non
     result, log_dir = _run_deploy(tmp_path, BACKUP_COMPOSE_DIR=str(backup_dir))
     assert result.returncode == 0, result.stdout + result.stderr
     events = _events(log_dir)
-    backup = _index(events, lambda e: "run --rm -T -e BACKUP_LABEL=pre-deploy db-backup" in e)
+    backup = _index(events, lambda e: " run --rm -T --name order-test-predeploy-backup-" in e)
+    run = events[backup]
+    assert "-l com.centurylinklabs.watchtower.enable=false -e BACKUP_LABEL=pre-deploy db-backup" in run, run
     assert backup < _index(events, lambda e: e == "migrate")
     assert "dump" not in events, "the docker-exec fallback must not run when the service succeeded"
 
@@ -956,3 +1011,97 @@ def test_a_stalled_backup_service_does_not_fall_back(tmp_path: Path) -> None:
     events = _events(log_dir)
     assert "dump" not in events
     assert "migrate" not in events
+
+
+# --- one dump writer at a time (bug report 123) ------------------------------
+#
+# On 2026-09-27 Watchtower's hourly session recreated the running db-backup
+# container while the deploy was dumping: compose reported the run as failed,
+# the fallback dump started, and the recreated container's second
+# tools/db_backup.py wrote into the same file. gzip -t refused the result.
+
+
+def _backup_service_dir(tmp_path: Path) -> Path:
+    """An installed backup compose file, so the deploy tries the db-backup service first."""
+    backup_dir = tmp_path / "muma-backup"
+    backup_dir.mkdir()
+    (backup_dir / "docker-compose.backup.yml").write_text("services: {}\n", encoding="utf-8")
+    (backup_dir / ".env").write_text("DB_DB=x\n", encoding="utf-8")
+    return backup_dir
+
+
+def _kill_leftover_containers(log_dir: Path) -> None:
+    """Stop the fake containers a test left running, so no writer outlives it."""
+    for pid_file in (log_dir / "containers").glob("*") if (log_dir / "containers").is_dir() else []:
+        with contextlib.suppress(ProcessLookupError, ValueError):
+            os.kill(int(pid_file.read_text().strip()), signal.SIGTERM)
+
+
+def test_a_failed_backup_run_is_gone_before_the_fallback_dump_starts(tmp_path: Path) -> None:
+    backups = tmp_path / "backups"
+    backups.mkdir(exist_ok=True)
+    result, log_dir = _run_deploy(
+        tmp_path,
+        BACKUP_COMPOSE_DIR=str(_backup_service_dir(tmp_path)),
+        FAKE_BACKUP_SERVICE_ORPHAN="1",
+        FAKE_BACKUP_DEST=str(backups),
+    )
+    _kill_leftover_containers(log_dir)
+    assert result.returncode == 0, result.stdout + result.stderr
+    events = _events(log_dir)
+    orphan = _index(events, lambda e: e.startswith("orphan order-test-predeploy-backup-"))
+    name = events[orphan].split(" ", 1)[1]
+    removed = _index(events, lambda e: e == f"rm {name}")
+    assert orphan < removed < _index(events, lambda e: e == "dump") < _index(events, lambda e: e == "migrate")
+    assert not (log_dir / "containers" / name).exists()
+    finished = list(backups.glob("muma_db_pre-deploy_*_fallback.sql.gz"))
+    assert len(finished) == 1, list(backups.iterdir())
+    with gzip.open(finished[0], "rt", encoding="utf-8") as dump:
+        assert "-- Dump completed" in dump.read(), "a second writer corrupted the dump"
+
+
+def test_a_backup_container_that_will_not_go_refuses_the_deploy(tmp_path: Path) -> None:
+    backups = tmp_path / "backups"
+    backups.mkdir(exist_ok=True)
+    result, log_dir = _run_deploy(
+        tmp_path,
+        BACKUP_COMPOSE_DIR=str(_backup_service_dir(tmp_path)),
+        FAKE_BACKUP_SERVICE_ORPHAN="1",
+        FAKE_BACKUP_CONTAINER_STUCK="1",
+        FAKE_BACKUP_DEST=str(backups),
+        PREDEPLOY_BACKUP_RM_WAIT_SECONDS="2",
+    )
+    _kill_leftover_containers(log_dir)
+    assert result.returncode != 0
+    assert "would be a second writer" in result.stdout
+    events = _events(log_dir)
+    assert "dump" not in events, "the fallback must never start beside a live backup container"
+    assert "migrate" not in events
+    assert not any(_is_service_up(e) for e in events)
+
+
+def test_another_running_backup_container_refuses_the_fallback(tmp_path: Path) -> None:
+    result, log_dir = _run_deploy(tmp_path, FAKE_OTHER_BACKUP_RUNNING="1")
+    assert result.returncode != 0
+    assert "another db-backup container is still running" in result.stdout
+    events = _events(log_dir)
+    assert "dump" not in events
+    assert "migrate" not in events
+
+
+def test_the_fallback_dump_writes_under_names_of_its_own(tmp_path: Path) -> None:
+    """A db-backup dump taken in the same second can never share the fallback's file."""
+    text = _text(DEPLOY_SH)
+    assert 'FILE=\\"\\$DEST/muma_db_pre-deploy_\\${STAMP}_fallback.sql.gz\\"' in text
+    assert 'PART=\\"\\$DEST/muma_db_pre-deploy_\\${STAMP}_fallback.\\$\\$.sql.gz.partial\\"' in text
+    result, _ = _run_deploy(tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert [p.name for p in (tmp_path / "backups").iterdir()][0].endswith("_fallback.sql.gz")
+
+
+def test_a_slow_but_growing_fallback_dump_is_not_stopped(tmp_path: Path) -> None:
+    """The watchdog measures file growth: a dump that keeps writing is never a stall."""
+    result, log_dir = _run_deploy(tmp_path, FAKE_DUMP_SLOW="5", PREDEPLOY_DUMP_STALL_SECONDS="3")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "wrote nothing" not in result.stdout
+    assert _index(_events(log_dir), lambda e: e == "dump") < _index(_events(log_dir), lambda e: e == "migrate")

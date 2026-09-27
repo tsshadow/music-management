@@ -910,6 +910,8 @@ class ImportConflictsTest(ManagementTestCase):
         statement = self.statements()[0]
         self.assertIn('FROM importer_conflicts', statement)
         self.assertIn('ORDER BY first_seen', statement)
+        # Bug report 119: an extractor row is a file, and its reason is what Beheer shows.
+        self.assertIn('reason', statement)
 
     def test_the_list_needs_an_api_key(self):
         response = self.client.get('/api/import-conflicts')

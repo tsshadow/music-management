@@ -29,3 +29,34 @@ export function groupByLabel(proposals) {
       return a.label.localeCompare(b.label);
     });
 }
+
+/**
+ * The reason codes the importer's extractor files a file under (bug report 119), mirrored
+ * from services/importer/conflict_store.py. Anything else falls back to a generic line.
+ */
+export const IMPORT_FILE_REASONS = [
+  "not-an-archive",
+  "loose-audio",
+  "not-music-video",
+  "not-music-image",
+  "not-music-document",
+  "not-music-other",
+  "unreadable",
+  "extraction-failed",
+  "extraction-empty",
+  "extraction-name-taken",
+];
+
+/**
+ * What one row of /api/import-conflicts is a problem about, as an i18n key under
+ * `management.labelProposals` plus the detail to show beneath it.
+ *
+ * A folder pair from the renamer or mover has no reason: its problem is that the target
+ * name is taken, and the detail is that target. A file from the extractor carries a
+ * reason code, and its target is a detail (a backend error, say) or empty.
+ */
+export function describeImportConflict(conflict) {
+  if (!conflict.reason) return { key: "conflictTaken", detail: conflict.target };
+  const reason = IMPORT_FILE_REASONS.includes(conflict.reason) ? conflict.reason : "unknown";
+  return { key: `conflictReasons.${reason}`, detail: conflict.target || "" };
+}

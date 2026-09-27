@@ -35,12 +35,23 @@ resolved. The importer still never deletes or merges either folder.
 6. Beheer → Labelvoorstellen shows a read-only "Openstaande mapconflicten" section below the proposals:
    the folder that is already there, the folder waiting to move, the step, and since when.
 
+7. Since bug report 119 the extract step files single files in the same list: a file in the import
+   folder that is not an archive (a video, an image, a document, a loose track) or an archive that
+   cannot be extracted. One WARNING the first time, the file is left exactly where it is, and it is
+   not opened again until its size or modification time changes; once removed or renamed it drops
+   off the list after the next cycle. The Beheer section is called "Openstaande importproblemen" and
+   shows for each row what the problem is ("Geen muziek: videobestand", "Archief kon niet uitgepakt
+   worden", "Naam al bezet door <map>").
+
 ## Acceptance Criteria
 - A pair that stands for N cycles produces exactly one WARNING, also across an importer restart.
 - Each cycle with standing conflicts produces one summary line per step, at INFO.
 - A pair whose folder was removed is no longer reported and is gone from the Beheer list after the next
   cycle.
 - No folder is deleted or merged because of a conflict; only an equal pair parks its source, as before.
+- A non-archive file in the import folder is never extracted and produces one WARNING across any
+  number of cycles; an archive that fails to extract produces one WARNING and stays in place; a
+  normal archive still extracts and is quarantined as before.
 - If the database is unreachable, the importer still warns once per pair within the running process,
   and warns once (not every cycle) that it cannot read its memory.
 

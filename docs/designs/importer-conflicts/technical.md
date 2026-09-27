@@ -39,14 +39,35 @@ is asked.
 comparison; `run()` calls `begin()`/`end()`. The comparison itself and the park-on-equal policy are
 unchanged.
 
+## Extractor files (bug report 119)
+`migrate_v46_importer_file_problems.sql` widens `step` to `ENUM('renamer','mover','extractor')` and
+adds `reason VARCHAR(32) NULL`. An extractor row is one file: `pair_key` = sha256 of
+`(extractor, path, '')`, `source` = the file, `target` = a detail (the backend errors, the name that
+is taken) or empty, `reason` = one of the codes in `conflict_store.REASONS` (`not-an-archive`,
+`loose-audio`, `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`,
+`unreadable`, `extraction-failed`, `extraction-empty`, `extraction-name-taken`). `reason` is NULL for
+a folder pair. `fingerprint` is sha256 of the file's size and `st_mtime_ns`; for
+`extraction-name-taken` it also folds in the import folder's own mtime, so the archive is tried again
+once the folder that took the name is gone.
+
+`FileProblemTracker(ConflictTracker)`: `standing(path)` replaces `unchanged`, `problem(path, reason,
+detail)` replaces `differs` (WARNING when new, INFO when it stood and changed), `begin`/`end` are
+inherited. `Extractor.run` calls `standing` before `classify` -- so a standing file is never opened --
+and records every non-archive and every failed extraction. Only `classify(...) == ARCHIVE` (archive
+extension and matching signature) reaches patool.
+
 ## API Contract
 New, additive: `GET /api/import-conflicts` (any authenticated account) →
-`[{step, source, target, first_seen, last_seen}]`, oldest first. No existing contract changes.
+`[{step, source, target, reason, first_seen, last_seen}]`, oldest first. `reason` was added by bug
+report 119 (additive; the only consumer is the frontend, updated in the same change).
 
 ## Cross-App Impact
 - `music-manager`: the endpoint above.
 - `frontend`: a read-only section in `LabelProposalsTab.svelte` using existing table styles (no new
   styles, so no style guide change); `nl`/`en` strings under `management.labelProposals.conflict*`.
+  Since bug report 119 the first column is the problem (`describeImportConflict` in
+  `labelProposals.js`: "name already taken by <target>" for a pair, the translated reason plus detail
+  for a file), the second the folder or file.
 - The importer writes the table; the music-manager only reads it.
 
 ## Technical Acceptance Criteria

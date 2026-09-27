@@ -11,7 +11,9 @@ import patoolib
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
-from services.common.Helpers.ReleaseFolder import is_same_release
+from services.common.Helpers.ReleaseFolder import AUDIO_EXTENSIONS, is_same_release
+from services.importer import conflict_store
+from services.importer.conflict_store import FileProblemTracker
 from services.importer.settle import STAGING_PREFIX, is_staging
 
 # Backends to try when patool's own choice cannot read an archive. patool picks
@@ -51,6 +53,90 @@ _PART_VOLUME = re.compile(r'^(?P<base>.+)\.part(?P<number>\d+)\.rar$', re.IGNORE
 _OLD_STYLE_VOLUME = re.compile(r'^(?P<base>.+)\.[rs]\d{2}$', re.IGNORECASE)
 
 
+# What the extract step opens: a file must carry one of these extensions *and* start with
+# the matching signature. patool identifies by content and by `file`'s mime guess, and
+# answers anything else with "unknown archive mime format" -- after which the step used to
+# retry with every fallback backend and fail again on every cycle, forever. Two browser
+# downloads of `.mp4` videos in the import folder did exactly that on 2026-09-27: two
+# WARNINGs and an ERROR per file per cycle, 218 and 109 of them per file in twelve hours
+# (bug report 119). Longest suffixes first, so `.tar.gz` is not read as `.gz`.
+_TAR_AT_257 = b'ustar'
+_ZIP = (b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08')
+_RAR = (b'Rar!\x1a\x07',)
+_SEVEN_ZIP = (b"7z\xbc\xaf'\x1c",)
+_GZIP = (b'\x1f\x8b',)
+_BZIP2 = (b'BZh',)
+_XZ = (b'\xfd7zXZ\x00',)
+ARCHIVE_SIGNATURES: Final[tuple[tuple[str, tuple[bytes, ...]], ...]] = (
+    ('.tar.gz', _GZIP),
+    ('.tar.bz2', _BZIP2),
+    ('.tar.xz', _XZ),
+    ('.tgz', _GZIP),
+    ('.tbz2', _BZIP2),
+    ('.tbz', _BZIP2),
+    ('.txz', _XZ),
+    ('.tar', ()),
+    ('.zip', _ZIP),
+    ('.rar', _RAR),
+    ('.7z', _SEVEN_ZIP),
+)
+
+# Not archives, sorted by what they are so the operator reads "video file" rather than
+# "unknown". Audio outside a release folder is its own case: nothing in the pipeline places
+# a loose track, so it stands until someone puts it in a folder.
+VIDEO_EXTENSIONS: Final = ('.mp4', '.mkv', '.avi', '.mov', '.webm', '.wmv', '.flv', '.m4v', '.mpg', '.mpeg', '.ts')
+IMAGE_EXTENSIONS: Final = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.heic')
+DOCUMENT_EXTENSIONS: Final = (
+    '.pdf', '.txt', '.nfo', '.doc', '.docx', '.rtf', '.md', '.html', '.htm', '.csv', '.xls', '.xlsx',
+    '.cue', '.m3u', '.m3u8', '.log', '.sfv', '.json', '.xml',
+)  # fmt: skip
+
+# Housekeeping files an OS or the NAS drops into any folder. Never an import, never worth a line.
+IGNORED_NAMES: Final = frozenset({'thumbs.db', 'desktop.ini'})
+
+#: What `classify` returns for a file to extract, and for one to pass over without a word.
+ARCHIVE = 'archive'
+IGNORE = 'ignore'
+
+
+def _signature_matches(path: str, signatures: tuple[bytes, ...]) -> bool:
+    """Whether the file starts with one of `signatures`; for an empty tuple, a POSIX tar header."""
+    with open(path, 'rb') as handle:
+        head = handle.read(262)
+    if not signatures:
+        return head[257:262] == _TAR_AT_257
+    return head.startswith(signatures)
+
+
+def classify(path: str, name: str) -> tuple[str, str]:
+    """What an import-folder file is: (ARCHIVE, ''), (IGNORE, ''), or (reason code, detail).
+
+    Only a file with an archive extension whose first bytes carry that archive's signature
+    is extracted. Everything else is named by kind, so the one warning and the Beheer row
+    say what the file is instead of repeating patool's complaint about it.
+    """
+    lower = name.lower()
+    if lower.startswith('.') or lower in IGNORED_NAMES:
+        return IGNORE, ''
+    for suffix, signatures in ARCHIVE_SIGNATURES:
+        if lower.endswith(suffix):
+            try:
+                if _signature_matches(path, signatures):
+                    return ARCHIVE, ''
+            except OSError as e:
+                return conflict_store.UNREADABLE, str(e)
+            return conflict_store.NOT_AN_ARCHIVE, f'no {suffix} signature at the start of the file'
+    if lower.endswith(AUDIO_EXTENSIONS):
+        return conflict_store.LOOSE_AUDIO, ''
+    if lower.endswith(VIDEO_EXTENSIONS):
+        return conflict_store.NOT_MUSIC_VIDEO, ''
+    if lower.endswith(IMAGE_EXTENSIONS):
+        return conflict_store.NOT_MUSIC_IMAGE, ''
+    if lower.endswith(DOCUMENT_EXTENSIONS):
+        return conflict_store.NOT_MUSIC_DOCUMENT, ''
+    return conflict_store.NOT_MUSIC_OTHER, ''
+
+
 def is_later_volume(name: str) -> bool:
     """Whether `name` is a RAR volume other than the first, which is never opened itself."""
     part = _PART_VOLUME.match(name)
@@ -87,10 +173,17 @@ def sibling_volumes(name: str, entries: list[str]) -> list[str]:
 
 
 class Extractor:
-    """Unpacks every archive in the import folder, and parks each archive once it has been."""
+    """Unpacks every archive in the import folder, and parks each archive once it has been.
+
+    A file it cannot import -- not an archive, or an archive no backend reads -- is left
+    where it is and recorded once in `importer_conflicts` (bug report 119), instead of
+    being tried and warned about again on every cycle.
+    """
 
     def __init__(self):
         self.settings = Settings()
+        #: The files left in place, so each one is warned about once rather than every cycle.
+        self.problems = FileProblemTracker()
 
     def _attempt(self, file_with_path, program):
         """Extract one archive into a fresh staging folder with one backend.
@@ -108,47 +201,49 @@ class Extractor:
             raise
         return staging
 
-    def _extract(self, file_with_path, file):
+    def _extract(self, file_with_path, file) -> tuple[str | None, str, str]:
         """Extract one archive, falling back to another backend when patool's choice fails.
 
         Each backend extracts into its own staging folder, and only a complete extraction
-        is moved into the import folder. Returns the backend that succeeded -- the empty
-        string for patool's own default -- or None when every backend failed, or the
-        result could not be placed, and the archive has to stay on disk.
+        is moved into the import folder. Returns `(program, reason, detail)`: on success
+        the backend that worked -- the empty string for patool's own default -- and an
+        empty reason; otherwise None, the reason code the archive stays on disk for, and
+        what went wrong. Nothing is logged above INFO here: the caller records the failure,
+        which warns once per archive and not once per cycle.
         """
         failures: list[str] = []
         for program in (None, *FALLBACK_PROGRAMS):
             if failures:
-                logging.warning('Extraction of %s failed (%s); retrying with %s', file, failures[-1], program)
+                logging.info('Extraction of %s failed (%s); retrying with %s', file, failures[-1], program)
             try:
                 staging = self._attempt(file_with_path, program)
             except patoolib.util.PatoolError as e:
                 failures.append(f'{program or "default"}: {e}')
                 continue
             try:
-                if not self._move_in(staging, file):
-                    return None
+                reason, detail = self._move_in(staging, file)
             finally:
                 shutil.rmtree(staging, ignore_errors=True)
+            if reason:
+                return None, reason, detail
             if program:
                 logging.info('Extracted %s with %s after the default backend failed', file, program)
-            return program or ''
-        logging.error('Extraction failed for %s with every backend (%s)', file, '; '.join(failures))
-        return None
+            return program or '', '', ''
+        return None, conflict_store.EXTRACTION_FAILED, 'every backend failed: ' + '; '.join(failures)
 
-    def _move_in(self, staging, file) -> bool:
+    def _move_in(self, staging, file) -> tuple[str, str]:
         """Move a complete extraction from its staging folder into the import folder.
 
         Nothing is moved unless everything can be. An entry whose name is already taken
         by the same release -- an earlier extraction of the same archive, say -- is
         dropped from the staging copy; a name taken by anything else leaves the archive
         where it is for a human, rather than merging two releases into one folder.
+        Returns `('', '')` when everything was moved, else the reason code and detail.
         """
         import_folder = self.settings.import_folder_path
         entries = sorted(listdir(staging))
         if not entries:
-            logging.error('Extraction of %s produced nothing; leaving the archive in place', file)
-            return False
+            return conflict_store.EXTRACTION_EMPTY, ''
         to_move = []
         for entry in entries:
             target = join(import_folder, entry)
@@ -157,16 +252,10 @@ class Extractor:
             elif isdir(target) and isdir(join(staging, entry)) and is_same_release(join(staging, entry), target):
                 logging.info('%s from %s is already in the import folder; keeping the copy there', entry, file)
             else:
-                logging.warning(
-                    'Not extracting %s: %s already exists in the import folder and differs from the archive. '
-                    'Leaving the archive in place for manual intervention',
-                    file,
-                    entry,
-                )
-                return False
+                return conflict_store.EXTRACTION_NAME_TAKEN, f'{entry} already exists in the import folder'
         for entry in to_move:
             shutil.move(join(staging, entry), join(import_folder, entry))
-        return True
+        return '', ''
 
     def _sweep_staging(self):
         """Remove staging folders a killed run left behind; none of them is a finished extraction."""
@@ -177,7 +266,12 @@ class Extractor:
                 shutil.rmtree(path, ignore_errors=True)
 
     def run(self, dry_run=False):
-        """Extract every settled archive in the import folder and quarantine it afterwards."""
+        """Extract every archive in the import folder and quarantine it afterwards.
+
+        A file that is not an archive, or an archive that cannot be extracted, stays where
+        it is and is recorded once (bug report 119); on later cycles it is skipped without
+        being opened, until it changes on disk or disappears.
+        """
         logging.info('Starting Extract Step')
         try:
             if not dry_run:
@@ -197,9 +291,18 @@ class Extractor:
             logging.error(f'Failed to list files: {e}')
             return
         arriving = [f[: -len(suffix)] for f in in_flight for suffix in IN_FLIGHT_SUFFIXES if f.endswith(suffix)]
+        self.problems.begin()
         for idx, file in enumerate(only_files, start=1):
             try:
                 file_with_path = join(self.settings.import_folder_path, file)
+                if self.problems.standing(file_with_path):
+                    continue
+                kind, detail = classify(file_with_path, file)
+                if kind == IGNORE:
+                    continue
+                if kind != ARCHIVE:
+                    self.problems.problem(file_with_path, kind, detail, dry_run=dry_run)
+                    continue
                 volumes = sibling_volumes(file, complete)
                 if sibling_volumes(file, arriving):
                     logging.info(f'[{idx}/{len(only_files)}] Waiting for the rest of the volumes of {file}')
@@ -208,7 +311,12 @@ class Extractor:
                     logging.info(f'[{idx}/{len(only_files)}] Dry run - would extract: {file_with_path}')
                     continue
                 logging.info(f'[{idx}/{len(only_files)}] Extracting: {file_with_path}')
-                if self._extract(file_with_path, file) is None:
+                program, reason, detail = self._extract(file_with_path, file)
+                if program is None:
+                    # A taken name is resolved beside the archive, not in it: look again
+                    # once the import folder itself changed.
+                    watch = reason == conflict_store.EXTRACTION_NAME_TAKEN
+                    self.problems.problem(file_with_path, reason, detail, watch_folder=watch)
                     continue
                 # Parked, not removed. Extraction succeeding says nothing about the
                 # release surviving the rest of the pipeline -- the renamer and mover
@@ -219,13 +327,11 @@ class Extractor:
                 Quarantine.put(file_with_path, Quarantine.EXTRACTED_ARCHIVE)
                 for volume in volumes:
                     Quarantine.put(join(self.settings.import_folder_path, volume), Quarantine.EXTRACTED_ARCHIVE)
-            except patoolib.util.PatoolError as e:
-                error_msg = f'Extraction failed for {file}: {e}'
-                logging.error(error_msg)
             except OSError as e:
                 error_msg = f'Failed to move {file} out of the import folder: {e}'
                 logging.error(error_msg)
             except Exception as e:
                 error_msg = f'Unexpected error with {file}: {e}'
                 logging.error(error_msg)
+        self.problems.end(dry_run=dry_run)
         logging.info('Extraction step completed.')

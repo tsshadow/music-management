@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.10.3] - 2026-09-27
+
+### Changed
+- **The bundled web interface starts with less than half the JavaScript it used to** (issue #114).
+  The bundle in the APK was one 1.29 MB file that the WebView parsed in full -- every Beheer tab,
+  the settings pages, the statistics pages and all four translation files -- before the home
+  screen could paint. Pages off the first screen are now separate files in the APK, read when
+  opened; the file the WebView starts with went from 1,289 kB to 370 kB, and everything read
+  before the app appears (that file, what it imports and the one translation in use) is 580 kB.
+  The boot screen stays up until the page the app opens on has loaded, so the app still appears
+  whole; a page opened later shows skeleton rows for the moment it takes to read its file. The
+  files are local to the APK, so nothing here depends on the network.
+
+### Security
+- **The MuMa API key is now stored encrypted** (issue #115). Since #101 it is the one long-lived
+  credential the app keeps -- permanent, a refresh does not rotate it -- and it sat in the plain
+  preferences, which auto-backup copied and a rooted device could read. It and the Subsonic token
+  are now sealed with AES-256-GCM under an Android Keystore key the app cannot read out, in a file
+  excluded from auto-backup and device transfer. The deprecated `androidx.security:security-crypto`
+  library is gone.
+  - **After updating.** On first start -- also when Android Auto starts the app without the UI --
+    the key moves into the encrypted store and the plain copy is removed. The old encrypted file is
+    deleted, and the Subsonic token is fetched again once with the key. Nobody has to sign in again.
+  - **Keystore trouble.** A Keystore key that was lost or invalidated, or a backup restored without
+    the credentials, leaves the app signed out (the sign-in page; in the car "sign in again on your
+    phone") instead of crashing.
+
 ## [7.10.2] - 2026-09-27
 
 ### Security

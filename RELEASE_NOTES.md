@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.3 (2026-09-27)
+
+- The web player starts faster: the first screen loads less than half the code it used to, and
+  pages like Beheer, settings and statistics load when you open them.
+
 ## Global Version 0.81.2 (2026-09-27)
 
 - The web player no longer remembers your password after you sign in. If your account's key is

@@ -28,6 +28,9 @@
 #                         before it errors and the deploy stops (bug report 068)
 #   PREDEPLOY_DUMP_STALL_SECONDS=300  how long the fallback pre-deploy dump may
 #                         produce no output before it is stopped (bug report 068)
+#   PREDEPLOY_BACKUP_RM_WAIT_SECONDS=60  how long a failed db-backup run's
+#                         container may take to disappear before the fallback
+#                         dump is refused rather than started (bug report 123)
 
 set -e
 
@@ -131,6 +134,9 @@ MIGRATION_LOCK_WAIT_SECONDS="${MIGRATION_LOCK_WAIT_SECONDS:-120}"
 # The fallback dump is stopped once its file has not grown for this long; the
 # db-backup service has the same watchdog in tools/db_backup.py (BACKUP_STALL_SECONDS).
 PREDEPLOY_DUMP_STALL_SECONDS="${PREDEPLOY_DUMP_STALL_SECONDS:-300}"
+# The fallback dump starts only once a failed db-backup run's container is gone;
+# this is how long `docker rm -f` gets to make it so (bug report 123).
+PREDEPLOY_BACKUP_RM_WAIT_SECONDS="${PREDEPLOY_BACKUP_RM_WAIT_SECONDS:-60}"
 # The disk pre-check (bug report 094). 8 GB is roughly one release's worth of
 # fresh image layers plus a pre-deploy dump with room to spare; production ran
 # into 95% full with 5.5 GB left after images piled up for months.
@@ -139,8 +145,8 @@ DEPLOY_DISK_CHECK_PATH="${DEPLOY_DISK_CHECK_PATH:-/}"
 # A recreated db on a new major runs mariadb-upgrade (MARIADB_AUTO_UPGRADE) on a
 # temporary server before the real one listens; give that its own, longer wait.
 DB_UPGRADE_WAIT_SECONDS="${DB_UPGRADE_WAIT_SECONDS:-600}"
-case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS$DEPLOY_MIN_FREE_GB$DB_UPGRADE_WAIT_SECONDS" in
-    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS, PREDEPLOY_DUMP_STALL_SECONDS, DEPLOY_MIN_FREE_GB and DB_UPGRADE_WAIT_SECONDS must be numbers."; exit 1 ;;
+case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS$PREDEPLOY_BACKUP_RM_WAIT_SECONDS$DEPLOY_MIN_FREE_GB$DB_UPGRADE_WAIT_SECONDS" in
+    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS, PREDEPLOY_DUMP_STALL_SECONDS, PREDEPLOY_BACKUP_RM_WAIT_SECONDS, DEPLOY_MIN_FREE_GB and DB_UPGRADE_WAIT_SECONDS must be numbers."; exit 1 ;;
 esac
 # Interpolated into the remote shell, so held to plain path characters.
 if ! printf '%s' "$DEPLOY_DISK_CHECK_PATH" | grep -Eq '^/[A-Za-z0-9_./-]*$'; then
@@ -443,14 +449,38 @@ $1" < /dev/null
                 else
                     BACKUP_COMPOSE=\"docker-compose\"
                 fi
-                echo \"Running the db-backup service from \$BACKUP_DIR (tools/db_backup.py)\"
+                # A name of our own, so the container can be found and removed
+                # below whatever happens to it, and the Watchtower opt-out label:
+                # on 2026-09-27 Watchtower's hourly session found a new
+                # muma-tools:latest while this run was dumping, stopped the run's
+                # container and recreated it under the same name -- which started
+                # a second tools/db_backup.py beside the fallback dump below, both
+                # writing one file (bug report 123).
+                RUN_NAME=\"$STACK_NAME-predeploy-backup-\$(date -u +%Y%m%d%H%M%S)-\$\$\"
+                echo \"Running the db-backup service from \$BACKUP_DIR (tools/db_backup.py) as \$RUN_NAME\"
                 BACKUP_RC=0
                 \$BACKUP_COMPOSE --env-file \"\$BACKUP_DIR/.env\" -f \"\$BACKUP_DIR/docker-compose.backup.yml\" -p $STACK_NAME \\
-                        run --rm -T -e BACKUP_LABEL=pre-deploy db-backup < /dev/null || BACKUP_RC=\$?
+                        run --rm -T --name \"\$RUN_NAME\" -l com.centurylinklabs.watchtower.enable=false \\
+                        -e BACKUP_LABEL=pre-deploy db-backup < /dev/null || BACKUP_RC=\$?
                 if [ \"\$BACKUP_RC\" = 0 ]; then
                     echo 'PREDEPLOY_BACKUP_OK (db-backup service)'
                     exit 0
                 fi
+                # One dump writer at a time. A failed run can leave its container
+                # behind -- or, as on 2026-09-27, a recreated copy of it still
+                # dumping -- so it is removed, and its absence confirmed, before
+                # anything else touches the backup directory.
+                docker rm -f \"\$RUN_NAME\" >/dev/null 2>&1 || true
+                GONE_WAIT=0
+                while docker inspect --type container \"\$RUN_NAME\" >/dev/null 2>&1; do
+                    if [ \"\$GONE_WAIT\" -ge $PREDEPLOY_BACKUP_RM_WAIT_SECONDS ]; then
+                        echo \"Error: the db-backup container \$RUN_NAME is still there $PREDEPLOY_BACKUP_RM_WAIT_SECONDS s after docker rm -f; a fallback dump beside it would be a second writer. Refusing to deploy without a backup (bug report 123).\"
+                        exit 1
+                    fi
+                    docker rm -f \"\$RUN_NAME\" >/dev/null 2>&1 || true
+                    sleep 1
+                    GONE_WAIT=\$((GONE_WAIT + 1))
+                done
                 # Exit 3 is tools/db_backup.py's stall watchdog: the dump stopped
                 # producing output, almost certainly waiting on a metadata lock. A
                 # second dump would queue behind the same lock (bug report 068).
@@ -461,6 +491,14 @@ $1" < /dev/null
                 echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
             else
                 echo \"No backup compose file in \$BACKUP_DIR; using mariadb-dump through docker exec.\"
+            fi
+            # Any other db-backup container still running -- the nightly timer's,
+            # an earlier deploy's -- is a dump in progress; a second one beside it
+            # doubles the load and, before bug report 123, could share its file.
+            OTHER_BACKUPS=\$(docker ps -q --filter label=com.docker.compose.service=db-backup 2>/dev/null || true)
+            if [ -n \"\$OTHER_BACKUPS\" ]; then
+                echo \"Error: another db-backup container is still running (\$(echo \$OTHER_BACKUPS)); refusing to start a second dump beside it. Wait for it to finish (docker ps --filter label=com.docker.compose.service=db-backup) and deploy again.\"
+                exit 1
             fi
 
             if [ -z \"\$DUMP_PWD\" ]; then
@@ -473,8 +511,12 @@ $1" < /dev/null
                 exit 1
             fi
             STAMP=\$(date -u +%Y%m%d_%H%M%S)
-            FILE=\"\$DEST/muma_db_pre-deploy_\$STAMP.sql.gz\"
-            PART=\"\$FILE.partial\"
+            # Names of this writer's own: _fallback keeps the finished file apart
+            # from a db-backup dump taken in the same second, and the shell's PID
+            # keeps the temporary one apart from every other writer's. Both still
+            # match the pre-deploy rotation and tools/db_backup.py's partial sweep.
+            FILE=\"\$DEST/muma_db_pre-deploy_\${STAMP}_fallback.sql.gz\"
+            PART=\"\$DEST/muma_db_pre-deploy_\${STAMP}_fallback.\$\$.sql.gz.partial\"
             STATUS_FILE=\$(mktemp)
             PID_FILE=\$(mktemp)
             trap 'rm -f \"\$STATUS_FILE\" \"\$PID_FILE\" \"\$PART\"' EXIT

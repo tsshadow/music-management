@@ -218,16 +218,61 @@ class PruneTest(unittest.TestCase):
         self.assertEqual(removed, [older])
         self.assertTrue(newest.exists())
 
+    def _age(self, path: Path, seconds: float) -> Path:
+        """Set PATH's mtime to SECONDS before self.now."""
+        stamp = self.now.timestamp() - seconds
+        os.utime(path, (stamp, stamp))
+        return path
+
     def test_what_a_killed_run_left_half_written_is_removed(self):
         partials = [
-            self._touch('muma_db_20260830_030000.sql.gz.partial'),
-            self._touch('muma_db_monthly_202608.sql.gz.partial'),
+            self._age(self._touch('muma_db_20260830_030000.sql.gz.partial'), 7200),
+            self._age(self._touch('muma_db_monthly_202608.sql.gz.partial'), 7200),
+            self._age(self._touch('muma_db_pre-deploy_20260830_030000_fallback.4242.sql.gz.partial'), 7200),
         ]
-        others = self._touch('someone-elses.sql.gz.partial')
+        others = self._age(self._touch('someone-elses.sql.gz.partial'), 7200)
         db_backup.prune(self.dest, 14, self.now)
         for path in partials:
             self.assertFalse(path.exists(), f'{path.name} should have been removed')
         self.assertTrue(others.exists())
+
+    def test_a_partial_still_being_written_is_left_alone(self):
+        """Bug report 123: a young partial may be another writer's dump in progress.
+
+        The nightly run used to delete every partial file, so one that started while a
+        pre-deploy dump was writing would have pulled that dump's file out from under it.
+        """
+        live = self._age(self._touch('muma_db_pre-deploy_20260831_025900_fallback.4242.sql.gz.partial'), 60)
+        removed = db_backup.prune(self.dest, 14, self.now)
+        self.assertTrue(live.exists())
+        self.assertEqual(removed, [])
+
+
+class PartialPathTest(unittest.TestCase):
+    """Bug report 123: two writers that start in the same second never share a temporary file."""
+
+    def test_the_partial_name_carries_the_writer(self):
+        target = Path('/backups/muma_db_pre-deploy_20260927_050503.sql.gz')
+        with patch.object(db_backup.socket, 'gethostname', return_value='37061aac71cd'):
+            partial = db_backup.partial_path(target)
+        self.assertEqual(partial.parent, target.parent)
+        self.assertEqual(partial.name, f'muma_db_pre-deploy_20260927_050503.37061aac71cd-{os.getpid()}.sql.gz.partial')
+        self.assertTrue(db_backup._is_partial(partial.name))
+
+    def test_two_containers_get_two_names(self):
+        target = Path('/backups/muma_db_pre-deploy_20260927_050503.sql.gz')
+        with patch.object(db_backup.socket, 'gethostname', return_value='c731a7400d17'):
+            first = db_backup.partial_path(target)
+        with patch.object(db_backup.socket, 'gethostname', return_value='37061aac71cd'):
+            second = db_backup.partial_path(target)
+        self.assertNotEqual(first, second)
+
+    def test_an_odd_host_name_cannot_leave_the_directory(self):
+        target = Path('/backups/muma_db_20260927_031400.sql.gz')
+        with patch.object(db_backup.socket, 'gethostname', return_value='../../etc/x y'):
+            partial = db_backup.partial_path(target)
+        self.assertEqual(partial.parent, target.parent)
+        self.assertNotIn('/', partial.name)
 
 
 class PromoteMonthlyTest(unittest.TestCase):
@@ -422,7 +467,11 @@ class RunBackupTest(unittest.TestCase):
             db_backup.run_backup()
         self.assertTrue(seen['name'].endswith(db_backup.SUFFIX + db_backup.PARTIAL_SUFFIX))
         names = sorted(p.name for p in self.dest.iterdir())
-        self.assertEqual(names, [db_backup.LATEST_NAME, seen['name'][: -len(db_backup.PARTIAL_SUFFIX)]])
+        finished = [name for name in names if name.endswith(db_backup.SUFFIX)]
+        self.assertEqual(names, [db_backup.LATEST_NAME, *finished])
+        self.assertEqual(len(finished), 1)
+        # The temporary name is the finished one plus this writer's identity.
+        self.assertTrue(seen['name'].startswith(finished[0][: -len(db_backup.SUFFIX)] + '.'))
 
     def test_a_dump_that_cannot_fit_is_not_started(self):
         last = write_dump(self.dest / f'muma_db_{datetime.now(UTC) - timedelta(days=1):%Y%m%d_%H%M%S}.sql.gz')

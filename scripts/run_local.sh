@@ -3,23 +3,17 @@
 # run_local.sh - Run music-management services locally with Docker-like environment
 
 # Get the project root directory
+# .env values are read the way docker-compose reads them (a `#` inside a
+# value is not a comment); see scripts/lib/dotenv.sh and bug report 038.
+# shellcheck source=scripts/lib/dotenv.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/dotenv.sh"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
 # Load environment variables from .env if it exists
 if [ -f .env ]; then
     echo "Loading .env file..."
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            # Use 'export' only if it's a valid assignment
-            if [[ "$clean_line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
-                # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
-                export "$clean_line"
-            fi
-        fi
-    done < .env
+    dotenv_load .env
 fi
 
 # Set additional Docker-like environment variables that might be missing from .env

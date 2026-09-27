@@ -185,7 +185,7 @@ e2e_stack_tag_fixture() {
     # The folder name carries a space; the only character in the path that needs
     # encoding, so it is done by hand rather than pulling in a URL library.
     local fixture_path="$MUMA_TEST_FIXTURE_DIR/ci-test-track-001.mp3"
-    curl -sf -X POST -H "x-api-key: $key" \
+    curl -sf -X POST -H @<(printf 'x-api-key: %s\n' "$key") \
         "http://127.0.0.1:$MUMA_TEST_PORT_MANAGER/api/tagger/tag/file?path=${fixture_path// /%20}" \
         >/dev/null
 }

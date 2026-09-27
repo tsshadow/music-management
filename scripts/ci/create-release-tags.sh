@@ -14,6 +14,9 @@
 # Tags are never created manually - only here, only on master, so "what's
 # live" can always be answered by looking at master's latest tags. See
 # docs/release-management.md for the full policy.
+# The token goes to curl through a process substitution (`--header @<(...)`), never as
+# `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
+# shell-executor runner through `ps` (GitLab #40, bug report 038).
 
 set -e
 
@@ -29,14 +32,14 @@ create_tag() {
     local tag_name="$1"
     local message="$2"
 
-    if curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    if curl -sf --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/tags/${tag_name}" >/dev/null 2>&1; then
         echo "Tag $tag_name already exists, skipping."
         return 0
     fi
 
     echo "Creating tag $tag_name at ${CI_COMMIT_SHA}..."
-    curl -sf --request POST --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    curl -sf --request POST --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         --data-urlencode "tag_name=${tag_name}" \
         --data-urlencode "ref=${CI_COMMIT_SHA}" \
         --data-urlencode "message=${message}" \

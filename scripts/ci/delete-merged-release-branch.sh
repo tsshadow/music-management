@@ -29,6 +29,9 @@
 # re-running the old branch's pipeline - see docs/release-management.md.
 #
 # Uses the same TAG_CREATION_TOKEN (Maintainer, api scope) as release:tag.
+# The token goes to curl through a process substitution (`--header @<(...)`), never as
+# `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
+# shell-executor runner through `ps` (GitLab #40, bug report 038).
 
 set -e
 
@@ -40,7 +43,7 @@ fi
 API="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
 echo "Looking up the release/hotfix branch merged into master at ${CI_COMMIT_SHA}..."
-SOURCE_BRANCH=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+SOURCE_BRANCH=$(curl -sf --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
     "${API}/merge_requests?target_branch=master&state=merged&order_by=updated_at&sort=desc&per_page=20" \
     | python3 -c "
 import json, sys
@@ -67,7 +70,7 @@ fi
 echo "Deleting merged branch '${SOURCE_BRANCH}'..."
 ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$SOURCE_BRANCH")
 DELETE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --request DELETE \
-    --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
     "${API}/repository/branches/${ENCODED}")
 
 if [ "$DELETE_STATUS" = "204" ]; then

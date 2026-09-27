@@ -8,6 +8,9 @@
 #
 # Uses the same TAG_CREATION_TOKEN (Maintainer, api scope) already used by
 # release:tag; no new secret needed.
+# The token goes to curl through a process substitution (`--header @<(...)`), never as
+# `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
+# shell-executor runner through `ps` (GitLab #40, bug report 038).
 
 set -e
 
@@ -31,7 +34,7 @@ fi
 
 # Reuse an already-open master -> develop MR if one exists (e.g. a retried
 # pipeline), instead of failing on GitLab's "already open" conflict.
-EXISTING_IID=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+EXISTING_IID=$(curl -sf --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
     "${API}/merge_requests?source_branch=master&target_branch=develop&state=opened" \
     | python3 -c "import json,sys; mrs=json.load(sys.stdin); print(mrs[0]['iid'] if mrs else '')")
 
@@ -40,7 +43,7 @@ if [ -n "$EXISTING_IID" ]; then
     echo "Reusing existing open MR !${MR_IID}."
 else
     echo "Opening master -> develop back-merge MR..."
-    MR_RESPONSE=$(curl -sf --request POST --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    MR_RESPONSE=$(curl -sf --request POST --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         --data-urlencode "source_branch=master" \
         --data-urlencode "target_branch=develop" \
         --data-urlencode "title=Back-merge master into develop (${CI_COMMIT_SHORT_SHA})" \
@@ -70,7 +73,7 @@ is_transient_merge_status() {
 
 MERGE_STATUS=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    MERGE_STATUS=$(curl -sf --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    MERGE_STATUS=$(curl -sf --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         "${API}/merge_requests/${MR_IID}" \
         | python3 -c "import json,sys; print(json.load(sys.stdin).get('detailed_merge_status', ''))")
     if ! is_transient_merge_status "$MERGE_STATUS"; then
@@ -89,7 +92,7 @@ done
 # holding a runner in the meantime.
 if [ "$MERGE_STATUS" = "ci_still_running" ] || [ "$MERGE_STATUS" = "ci_must_pass" ]; then
     echo "!${MR_IID} is waiting on its own pipeline; enabling auto-merge."
-    AUTO_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    AUTO_RESPONSE=$(curl -s --request PUT --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
         --data-urlencode "should_remove_source_branch=false" \
         --data-urlencode "merge_when_pipeline_succeeds=true" \
@@ -122,7 +125,7 @@ echo "Merging..."
 MERGE_RESPONSE=""
 STATE=""
 for _ in 1 2 3; do
-    MERGE_RESPONSE=$(curl -s --request PUT --header "PRIVATE-TOKEN: ${TAG_CREATION_TOKEN}" \
+    MERGE_RESPONSE=$(curl -s --request PUT --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
         --data-urlencode "merge_commit_message=Merge branch 'master' into 'develop'" \
         --data-urlencode "should_remove_source_branch=false" \
         "${API}/merge_requests/${MR_IID}/merge")

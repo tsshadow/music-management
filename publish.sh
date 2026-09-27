@@ -1,4 +1,8 @@
 #!/bin/bash
+# .env values are read the way docker-compose reads them (a `#` inside a
+# value is not a comment); see scripts/lib/dotenv.sh and bug report 038.
+# shellcheck source=scripts/lib/dotenv.sh
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/lib/dotenv.sh"
 set -e
 
 # Check for docker permissions
@@ -32,14 +36,7 @@ fi
 
 # Load environment variables
 if [ -f .env ]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Strip trailing comments and whitespace
-        clean_line=$(echo "$line" | sed 's/[[:space:]]*#.*$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        if [[ -n "$clean_line" && ! "$clean_line" =~ ^# ]]; then
-            # shellcheck disable=SC2163 # exports the KEY=VALUE line itself, not a variable named clean_line
-            export "$clean_line"
-        fi
-    done < .env
+    dotenv_load .env
 fi
 
 # Helper function to run SSH command
@@ -56,7 +53,8 @@ run_ssh() {
     if [ -z "$pass" ]; then
         ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
     elif command -v sshpass >/dev/null 2>&1; then
-        sshpass -p "${pass}" ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
+        # -e reads SSHPASS: -p would put the password on the argv.
+        SSHPASS="${pass}" sshpass -e ssh -o StrictHostKeyChecking=no "${user}@${host}" "${cmd}"
     else
         echo "Error: sshpass not found. Install it or unset password variable."
         exit 1
@@ -88,23 +86,6 @@ if [ "$DEBUG_MODE" = true ]; then
     echo "--- Debug mode enabled ---"
     set -x
 fi
-
-## Create pre-deployment database backup (Release only)
-#if [ "$DEBUG_MODE" = false ] && [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
-#    echo "--- Creating pre-deployment database backup on ${REMOTE_HOST} ---"
-#    BACKUP_CMD="
-#        if docker ps --format '{{.Names}}' | grep -q 'music-management-db-1'; then
-#            mkdir -p /muma/backups
-#            BACKUP_FILE=\"/muma/backups/muma_backup_\$(date +%Y%m%d_%H%M%S).sql\"
-#            docker exec music-management-db-1 /usr/bin/mysqldump --single-transaction --quick -u root --password=\"$MYSQL_ROOT_PASSWORD\" \"$DB_DB\" > \"\$BACKUP_FILE\"
-#            gzip \"\$BACKUP_FILE\"
-#            echo \"Backup saved to \${BACKUP_FILE}.gz\"
-#        else
-#            echo \"Warning: music-management-db-1 container not found, skipping backup.\"
-#        fi
-#    "
-#    run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$BACKUP_CMD" || echo "Warning: Remote backup failed."
-#fi
 
 # Configuration
 DOCKER_USER="${DOCKER_USER}"

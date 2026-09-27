@@ -60,7 +60,7 @@ if [ -n "$APK_HOSTER_URL" ]; then
         echo "Uploading $filename..."
         
         RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$APK_HOSTER_URL/api/add-apk" \
-            -H "X-Upload-Password: $APK_HOSTER_PASSWORD" \
+            -H @<(printf 'X-Upload-Password: %s\n' "$APK_HOSTER_PASSWORD") \
             -F "apk=@$LATEST_APK" \
             -F "release_notes=$release_notes")
         
@@ -110,8 +110,8 @@ if [ "$APK_HOSTER_SUCCESS" = false ]; then
                 ssh -o StrictHostKeyChecking=no "$REMOTE_HOST_ONLY" "mkdir -p $REMOTE_PATH_ONLY"
                 scp -o StrictHostKeyChecking=no "$DIST_DIR/"* "$PUBLISH_REMOTE_PATH/"
             elif command -v sshpass >/dev/null 2>&1; then
-                sshpass -p "${REMOTE_PASS}" ssh -o StrictHostKeyChecking=no "$REMOTE_HOST_ONLY" "mkdir -p $REMOTE_PATH_ONLY"
-                sshpass -p "${REMOTE_PASS}" scp -o StrictHostKeyChecking=no "$DIST_DIR/"* "$PUBLISH_REMOTE_PATH/"
+                SSHPASS="${REMOTE_PASS}" sshpass -e ssh -o StrictHostKeyChecking=no "$REMOTE_HOST_ONLY" "mkdir -p $REMOTE_PATH_ONLY"
+                SSHPASS="${REMOTE_PASS}" sshpass -e scp -o StrictHostKeyChecking=no "$DIST_DIR/"* "$PUBLISH_REMOTE_PATH/"
             else
                 ssh -o StrictHostKeyChecking=no "$REMOTE_HOST_ONLY" "mkdir -p $REMOTE_PATH_ONLY"
                 scp -o StrictHostKeyChecking=no "$DIST_DIR/"* "$PUBLISH_REMOTE_PATH/"

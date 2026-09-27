@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.10.0] - 2026-09-27
+
+### Added
+- **Starting the app shows what it is doing, and artists and albums open at once** (issue #107).
+  The black screen at start-up is now a boot screen that says whether the app is connecting,
+  signing in or restoring the queue. Restoring the queue fills a progress bar, and a retry button
+  appears if nothing happens for 20 seconds. Tapping an artist or album opens its page straight
+  away with the name and picture already there, and the tracks fill in after. Going back to a page
+  seen in the last few minutes is instant.
+
+### Security
+- **The app never puts the password in a Subsonic URL any more, not even before it has a token**
+  (issue #72). Since bug report 103 the native client signed with the Subsonic token but fell back
+  to `p=enc:<hex>` while none was stored, and the web shell to plain `p=` -- which on production
+  was every one of its 664 requests in the measured window. The password interceptors
+  (`PasswordHexInterceptor`, `ProxyPasswordInterceptor`) and the `FORCE_PLAIN_TEXT_PASSWORD` flag
+  are gone; `TokenSigningInterceptor` signs with the stored token or, when none is stored, fetches
+  one first (`SubsonicTokenRecoverer.obtain`, with a 30 s back-off after a failure), and otherwise
+  throws `SubsonicTokenUnavailableException` without sending the request -- stream URLs included.
+  The media session fetches a missing token as it starts, so an Android Auto cold start without
+  the UI has one before its first browse; when none can be had the car shows "Sign in again in the
+  MuMa app on your phone" or "Cannot reach the MuMa server" instead of empty lists. The bridge now
+  hands the native token to the web shell, which signs with it instead of the password.
+
 ## [7.9.0] - 2026-09-27
 
 ### Added

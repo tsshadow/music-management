@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## Global Version 7.10.0 (2026-09-27)
+
+- No more black screen while the app starts: it now tells you it is connecting, signing in or
+  restoring your queue.
+- Artists and albums open instantly; their tracks load in while you look.
+
+- The app no longer sends your password with any request to the music server, not even right after
+  an update. If it cannot fetch its sign-in token, the app and the car say "sign in again" or
+  "server not reachable" instead of showing empty lists.
+
 ## Global Version 7.9.0 (2026-09-27)
 
 - A queue started from any long list, such as "Recent uitgebracht", keeps going past the first page,

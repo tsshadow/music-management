@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.81.0 (2026-09-27)
+
+- Starting the app now shows what it is doing instead of a black screen, and tapping an artist or
+  album opens its page straight away while the tracks load in.
+
+- The web player no longer puts your password in any web address, not even before it has fetched
+  its sign-in token. If the token cannot be fetched you now see "server not reachable" or "sign in
+  again" instead of an empty library.
+
 ## Global Version 0.80.0 (2026-09-27)
 
 - A queue started from any long list keeps going past the first page: "Recent uitgebracht" and the

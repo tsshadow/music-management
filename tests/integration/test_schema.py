@@ -56,6 +56,19 @@ def test_the_importer_conflicts_are_an_expected_table():
     assert 'importer_conflicts' in schema_sources.migration_declared_tables()
 
 
+def test_the_extractor_can_file_a_standing_file(db):
+    """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
+    from services.importer import conflict_store
+
+    row = ('k' * 64, conflict_store.EXTRACTOR, '/import/clip.mp4', '', 'f' * 64, conflict_store.NOT_MUSIC_VIDEO)
+    with db.cursor() as cursor:
+        cursor.execute(conflict_store.RECORD_QUERY, row)
+        cursor.execute(conflict_store.RECORD_QUERY, row)
+        cursor.execute('SELECT step, reason, target FROM importer_conflicts')
+        rows = cursor.fetchall()
+    assert rows == [{'step': 'extractor', 'reason': 'not-music-video', 'target': ''}]
+
+
 def test_the_migrations_are_re_runnable(database):
     """scripts/deploy.sh applies every migrate_*.sql on each deploy, so the
     second run must be a no-op rather than an error."""

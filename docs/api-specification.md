@@ -129,9 +129,13 @@ Removed outright, because every caller already uses the target: `GET|PUT
   (deprecated).
 - **GET `/api/import-conflicts`** (any authenticated account): the folder pairs the importer's renamer or
   mover left in place because the name it wanted is taken by a folder holding a different release
-  (bug report 091). `[{step, source, target, first_seen, last_seen}]`, oldest first; `step` is `renamer`
-  or `mover`, `source`/`target` are full paths. Read-only: a pair disappears on the importer's next cycle
-  once one of the two folders was removed or renamed by hand.
+  (bug report 091), and the single files its extractor left in place (bug report 119).
+  `[{step, source, target, reason, first_seen, last_seen}]`, oldest first. For `step` `renamer` or
+  `mover`, `source`/`target` are the two folders and `reason` is null. For `step` `extractor`, `source`
+  is the file, `target` a detail or empty, and `reason` one of `not-an-archive`, `loose-audio`,
+  `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`, `unreadable`,
+  `extraction-failed`, `extraction-empty`, `extraction-name-taken`. Read-only: a row disappears on the
+  importer's next cycle once the folder or file was removed or renamed by hand.
 - **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
   SoundCloud/YouTube channel to its label or artist on strong name equality.
   - **GET `/proposals?status=new|confirmed|rejected|stale&kind=label|artist`** (any authenticated account):

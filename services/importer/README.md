@@ -26,7 +26,10 @@ The Importer works as a background worker that monitors a specific `__TODO` fold
   (default 5), so a release still being copied in is never renamed or moved half-done.
 
 Archives are extracted into a `.muma-extract-*` staging folder and only a complete extraction is moved
-into the watch folder. See `docs/designs/importer/technical.md` for the settle and duplicate rules.
+into the watch folder. Only a file with an archive extension and the matching archive signature is
+extracted; any other file at the root of the watch folder (a video, an image, a loose track) or an
+archive that cannot be extracted is left in place, warned about once and listed in Beheer under
+"Openstaande importproblemen" until it changes or is removed (bug report 119). See `docs/designs/importer/technical.md` for the settle and duplicate rules.
 
 ## 🚀 Downloaders
 

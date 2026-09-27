@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupByLabel } from "../../src/lib/management/labelProposals";
+import { describeImportConflict, groupByLabel } from "../../src/lib/management/labelProposals";
 
 describe("groupByLabel", () => {
   it("puts every release of one proposed label in a single group", () => {
@@ -33,5 +33,44 @@ describe("groupByLabel", () => {
 
   it("returns nothing for an empty list", () => {
     expect(groupByLabel([])).toEqual([]);
+  });
+});
+
+describe("describeImportConflict", () => {
+  it("names a folder pair by the target that is taken", () => {
+    expect(
+      describeImportConflict({ step: "renamer", source: "/i/a", target: "/i/b", reason: null }),
+    ).toEqual({
+      key: "conflictTaken",
+      detail: "/i/b",
+    });
+  });
+
+  it("names a file the extractor left by its reason", () => {
+    expect(
+      describeImportConflict({
+        step: "extractor",
+        source: "/i/clip.mp4",
+        target: "",
+        reason: "not-music-video",
+      }),
+    ).toEqual({ key: "conflictReasons.not-music-video", detail: "" });
+  });
+
+  it("keeps the detail of a failed extraction", () => {
+    const row = {
+      step: "extractor",
+      source: "/i/a.zip",
+      target: "every backend failed",
+      reason: "extraction-failed",
+    };
+    expect(describeImportConflict(row).detail).toBe("every backend failed");
+  });
+
+  it("falls back to a generic line for a reason it does not know", () => {
+    expect(
+      describeImportConflict({ step: "extractor", source: "/i/x", target: "", reason: "new-code" })
+        .key,
+    ).toBe("conflictReasons.unknown");
   });
 });

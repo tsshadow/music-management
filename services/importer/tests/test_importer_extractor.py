@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from tempfile import TemporaryDirectory
@@ -6,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from services.importer import extractor
+from services.importer.conflict_store import FileProblemTracker
 from services.importer.extractor import Extractor, is_later_volume, sibling_volumes
 from services.importer.settle import STAGING_PREFIX
 
@@ -14,6 +16,41 @@ pytestmark = pytest.mark.mock_base('patoolib')
 # Captured before patoolib is patched away: `except patoolib.util.PatoolError` needs a
 # real exception class, which a bare MagicMock attribute is not.
 PATOOL_ERROR = extractor.patoolib.util.PatoolError
+
+
+def signature_for(name):
+    """The first bytes a real archive of this name starts with, so it passes the content check."""
+    lower = name.lower()
+    if lower.endswith('.zip'):
+        return b'PK\x03\x04'
+    if lower.endswith('.rar'):
+        return b'Rar!\x1a\x07\x00'
+    return b''
+
+
+class FakeProblemStore:
+    """`importer_conflicts` as far as the extractor sees it; outlives an Extractor like the database does."""
+
+    def __init__(self):
+        self.rows: dict[str, dict] = {}
+
+    def snapshot(self, step):
+        return {key: row['fingerprint'] for key, row in self.rows.items() if row['step'] == step}
+
+    def record(self, key, step, source, target, fingerprint, reason=None):
+        self.rows[key] = {
+            'step': step,
+            'source': source,
+            'target': target,
+            'fingerprint': fingerprint,
+            'reason': reason,
+        }
+
+    def touch(self, key):
+        pass
+
+    def forget(self, key):
+        self.rows.pop(key, None)
 
 
 def unpack(archive, outdir, **_kwargs):
@@ -34,12 +71,19 @@ class ExtractorHarness(unittest.TestCase):
         patcher = patch.object(extractor, 'Settings', return_value=settings)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.extractor = Extractor()
+        self.store = FakeProblemStore()
+        self.extractor = self.new_extractor()
 
-    def touch(self, *names):
+    def new_extractor(self):
+        """An extractor as a fresh importer process would build it, sharing the one database."""
+        with patch.object(extractor, 'FileProblemTracker', lambda: FileProblemTracker(self.store)):
+            return Extractor()
+
+    def touch(self, *names, content=None):
+        """Create files in the import folder; an archive name gets its real signature."""
         for name in names:
-            with open(os.path.join(self.root, name), 'w', encoding='utf-8') as handle:
-                handle.write('archive')
+            with open(os.path.join(self.root, name), 'wb') as handle:
+                handle.write(content if content is not None else signature_for(name) + b'archive')
 
     def run_with(self, entries, dry_run=False, extract_side_effect=None, remove_side_effect=None):
         """`remove` is the quarantine call: a successful extract parks the archive.
@@ -170,7 +214,7 @@ class ExtractorTest(ExtractorHarness):
 
     def test_an_archive_no_backend_can_read_is_left_on_disk(self):
         error = PATOOL_ERROR('bad archive')
-        with self.assertLogs(level='ERROR') as logs:
+        with self.assertLogs(level='WARNING') as logs:
             patool, remove = self.run_with(['pack.rar'], extract_side_effect=[error, error, error])
         self.assertEqual(patool.extract_archive.call_count, 3)
         remove.assert_not_called()
@@ -366,6 +410,224 @@ class VolumeNameTest(unittest.TestCase):
         self.assertEqual(sibling_volumes('a.part1.rar', entries), ['a.part2.rar'])
         self.assertEqual(sibling_volumes('a.rar', entries), ['a.r00'])
         self.assertEqual(sibling_volumes('release.zip', entries), [])
+
+
+class NonArchiveTest(ExtractorHarness):
+    """Bug report 119: what is not an archive, or cannot be extracted, is recorded once and left alone.
+
+    On 2026-09-27 two `.mp4` videos a browser download left in the import folder were handed
+    to patool on every cycle -- two WARNINGs and an ERROR per file per cycle, 218 and 109 of
+    them per file in twelve hours.
+    """
+
+    def cycle(self, extract_side_effect=None, instance=None):
+        """One run of the step with patool stubbed; returns (patool, quarantine put, warnings)."""
+        outcomes = list(extract_side_effect) if isinstance(extract_side_effect, list) else None
+
+        def extract(archive, outdir, **kwargs):
+            outcome = outcomes.pop(0) if outcomes is not None else extract_side_effect
+            if isinstance(outcome, BaseException):
+                raise outcome
+            unpack(archive, outdir, **kwargs)
+
+        with (
+            patch.object(extractor, 'patoolib') as patool,
+            patch.object(extractor.Quarantine, 'put') as put,
+            self.assertLogs(level='DEBUG') as logs,
+        ):
+            patool.util.PatoolError = PATOOL_ERROR
+            patool.extract_archive.side_effect = extract
+            (instance or self.extractor).run()
+        warnings = [record.getMessage() for record in logs.records if record.levelno >= logging.WARNING]
+        return patool, put, warnings
+
+    def test_a_video_is_never_extracted_and_warned_about_once_across_two_cycles(self):
+        self.touch('some-download-p1080.mp4', content=b'\x00\x00\x00\x18ftypmp42')
+
+        first, _, first_warnings = self.cycle()
+        second, _, second_warnings = self.cycle()
+
+        first.extract_archive.assert_not_called()
+        second.extract_archive.assert_not_called()
+        self.assertEqual(len(first_warnings), 1)
+        self.assertIn('not music: video file', first_warnings[0])
+        self.assertEqual(second_warnings, [])
+        self.assertEqual(self.entries(), ['some-download-p1080.mp4'])
+        (row,) = self.store.rows.values()
+        self.assertEqual(row['step'], 'extractor')
+        self.assertEqual(row['reason'], 'not-music-video')
+        self.assertEqual(row['source'], os.path.join(self.root, 'some-download-p1080.mp4'))
+
+    def test_a_restart_does_not_warn_about_a_standing_file_again(self):
+        self.touch('clip.mp4', content=b'video')
+        self.cycle()
+
+        _, _, warnings = self.cycle(instance=self.new_extractor())
+
+        self.assertEqual(warnings, [])
+
+    def test_a_corrupt_zip_is_warned_about_once_and_parked(self):
+        error = PATOOL_ERROR('bad archive')
+        self.touch('broken.zip')
+
+        first, first_put, first_warnings = self.cycle(extract_side_effect=[error, error, error])
+        second, second_put, second_warnings = self.cycle(extract_side_effect=[error, error, error])
+
+        self.assertEqual(first.extract_archive.call_count, 3)
+        second.extract_archive.assert_not_called()
+        first_put.assert_not_called()
+        second_put.assert_not_called()
+        self.assertEqual(len(first_warnings), 1)
+        self.assertIn('every backend failed', first_warnings[0])
+        self.assertEqual(second_warnings, [])
+        self.assertEqual(self.entries(), ['broken.zip'])
+        (row,) = self.store.rows.values()
+        self.assertEqual(row['reason'], 'extraction-failed')
+
+    def test_a_parked_archive_is_tried_again_once_it_changes_on_disk(self):
+        error = PATOOL_ERROR('bad archive')
+        self.touch('pack.zip')
+        self.cycle(extract_side_effect=[error, error, error])
+        self.touch('pack.zip', content=b'PK\x03\x04' + b'the full download this time')
+
+        patool, put, _ = self.cycle()
+
+        patool.extract_archive.assert_called_once()
+        put.assert_called_once_with(os.path.join(self.root, 'pack.zip'), 'extracted-archive')
+        self.assertEqual(self.store.rows, {})
+
+    def test_a_normal_zip_still_extracts_and_leaves_nothing_standing(self):
+        self.touch('release.zip')
+
+        patool, put, warnings = self.cycle()
+
+        patool.extract_archive.assert_called_once()
+        put.assert_called_once_with(os.path.join(self.root, 'release.zip'), 'extracted-archive')
+        self.assertEqual(warnings, [])
+        self.assertEqual(self.store.rows, {})
+        self.assertIn('release', self.entries())
+
+    def test_a_file_named_like_an_archive_without_its_signature_is_not_opened(self):
+        self.touch('error-page.zip', content=b'<html>403 Forbidden</html>')
+
+        patool, _, warnings = self.cycle()
+
+        patool.extract_archive.assert_not_called()
+        self.assertEqual(len(warnings), 1)
+        (row,) = self.store.rows.values()
+        self.assertEqual(row['reason'], 'not-an-archive')
+
+    def test_a_file_that_is_removed_is_forgotten(self):
+        self.touch('clip.mp4', content=b'video')
+        self.cycle()
+        os.remove(os.path.join(self.root, 'clip.mp4'))
+
+        self.cycle()
+
+        self.assertEqual(self.store.rows, {})
+
+    def test_hidden_and_housekeeping_files_are_passed_over_silently(self):
+        self.touch('.DS_Store', 'Thumbs.db', content=b'junk')
+
+        patool, _, warnings = self.cycle()
+
+        patool.extract_archive.assert_not_called()
+        self.assertEqual(warnings, [])
+        self.assertEqual(self.store.rows, {})
+
+    def test_an_archive_whose_folder_name_is_taken_is_warned_about_once(self):
+        os.makedirs(os.path.join(self.root, 'a'))
+        with open(os.path.join(self.root, 'a', '01-track.mp3'), 'w', encoding='utf-8') as handle:
+            handle.write('a different recording')
+        self.touch('a.zip')
+
+        _, first_put, first_warnings = self.cycle()
+        second, _, second_warnings = self.cycle()
+
+        first_put.assert_not_called()
+        self.assertEqual(len(first_warnings), 1)
+        second.extract_archive.assert_not_called()
+        self.assertEqual(second_warnings, [])
+        (row,) = self.store.rows.values()
+        self.assertEqual(row['reason'], 'extraction-name-taken')
+
+    def test_an_archive_that_extracts_to_nothing_is_recorded_as_such(self):
+        self.touch('empty.zip')
+
+        with (
+            patch.object(extractor, 'patoolib') as patool,
+            patch.object(extractor.Quarantine, 'put') as put,
+            self.assertLogs(level='WARNING') as logs,
+        ):
+            patool.util.PatoolError = PATOOL_ERROR
+            patool.extract_archive.side_effect = lambda *_args, **_kwargs: None
+            self.extractor.run()
+
+        put.assert_not_called()
+        self.assertEqual(len(logs.records), 1)
+        (row,) = self.store.rows.values()
+        self.assertEqual(row['reason'], 'extraction-empty')
+
+    def test_an_archive_whose_folder_name_is_freed_is_extracted_again(self):
+        taken = os.path.join(self.root, 'a')
+        os.makedirs(taken)
+        with open(os.path.join(taken, '01-track.mp3'), 'w', encoding='utf-8') as handle:
+            handle.write('a different recording')
+        self.touch('a.zip')
+        self.cycle()
+        os.remove(os.path.join(taken, '01-track.mp3'))
+        os.rmdir(taken)
+        # A coarse filesystem clock could leave the folder mtime where it was.
+        stat = os.stat(self.root)
+        os.utime(self.root, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+
+        patool, put, warnings = self.cycle()
+
+        patool.extract_archive.assert_called_once()
+        put.assert_called_once_with(os.path.join(self.root, 'a.zip'), 'extracted-archive')
+        self.assertEqual(warnings, [])
+        self.assertEqual(self.store.rows, {})
+
+    def test_a_dry_run_records_nothing(self):
+        self.touch('clip.mp4', content=b'video')
+
+        with patch.object(extractor, 'patoolib'), self.assertLogs(level='WARNING'):
+            self.extractor.run(dry_run=True)
+
+        self.assertEqual(self.store.rows, {})
+
+
+class ClassifyTest(unittest.TestCase):
+    """Which files the extract step opens: archive extension and archive signature, both."""
+
+    def setUp(self):
+        self.root = self.enterContext(TemporaryDirectory())  # pylint: disable=consider-using-with
+
+    def kind(self, name, content):
+        path = os.path.join(self.root, name)
+        with open(path, 'wb') as handle:
+            handle.write(content)
+        return extractor.classify(path, name)[0]
+
+    def test_real_archives_are_archives(self):
+        self.assertEqual(self.kind('a.zip', b'PK\x03\x04rest'), 'archive')
+        self.assertEqual(self.kind('a.RAR', b'Rar!\x1a\x07\x01\x00'), 'archive')
+        self.assertEqual(self.kind('a.7z', b"7z\xbc\xaf'\x1c"), 'archive')
+        self.assertEqual(self.kind('a.tar.gz', b'\x1f\x8b\x08'), 'archive')
+        self.assertEqual(self.kind('a.tar', b'\x00' * 257 + b'ustar\x0000'), 'archive')
+
+    def test_an_archive_extension_alone_is_not_enough(self):
+        self.assertEqual(self.kind('a.rar', b'PK\x03\x04'), 'not-an-archive')
+        self.assertEqual(self.kind('a.tar', b'plain text'), 'not-an-archive')
+
+    def test_an_archive_signature_alone_is_not_enough(self):
+        self.assertEqual(self.kind('video.mp4', b'PK\x03\x04'), 'not-music-video')
+
+    def test_other_files_are_named_by_kind(self):
+        self.assertEqual(self.kind('track.flac', b'fLaC'), 'loose-audio')
+        self.assertEqual(self.kind('cover.JPG', b'\xff\xd8'), 'not-music-image')
+        self.assertEqual(self.kind('info.nfo', b'text'), 'not-music-document')
+        self.assertEqual(self.kind('setup.exe', b'MZ'), 'not-music-other')
 
 
 if __name__ == '__main__':

@@ -56,6 +56,13 @@ def test_the_importer_conflicts_are_an_expected_table():
     assert 'importer_conflicts' in schema_sources.migration_declared_tables()
 
 
+def test_the_artist_evidence_tables_are_expected_tables():
+    """The scheduled artist evidence run: db_init creates both and migrate_v47 declares them."""
+    for table in ('rules_artist_evidence', 'rules_artist_evidence_runs'):
+        assert table in schema_sources.code_declared_tables()
+        assert table in schema_sources.migration_declared_tables()
+
+
 def test_the_extractor_can_file_a_standing_file(db):
     """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
     from services.importer import conflict_store

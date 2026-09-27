@@ -30,6 +30,8 @@ KINDS = (LABEL, ARTIST)
 NAME = 'name'
 ALIAS = 'alias'
 REDIRECT = 'redirect'
+#: The source of a link a curator made by hand, for a channel the search proposed nothing for.
+MANUAL = 'manual'
 
 #: Platforms whose channels are considered. Telegram is left out: one channel, and a
 #: Telegram channel is a chat, not an artist's or a label's own account.
@@ -191,3 +193,66 @@ def propose_links(channels: Iterable[Channel], indexes: Sequence[CandidateIndex]
             elif ambiguous:
                 run.ambiguous += 1
     return run
+
+
+def like_pattern(query: str, anywhere: bool = True) -> str:
+    """A `LIKE` pattern for `query` -- anywhere in the name, or at its start -- with the query's
+    own wildcards taken literally.
+
+    A channel really called `100%` must not match every name, nor `a_b` every `a?b`.
+    """
+    escaped = query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return f'%{escaped}%' if anywhere else f'{escaped}%'
+
+
+# -- A label page's channels (issue #122) -------------------------------------------------------
+
+#: What the tagger writes as the publisher for a file of each platform; its album is
+#: `<publisher> (<uploader>)` (SoundcloudSong, YoutubeSong, TelegramSong).
+PLATFORM_PUBLISHERS = {'soundcloud': 'Soundcloud', 'youtube': 'Youtube', 'telegram': 'Telegram'}
+
+
+def channel_album(platform: str, name: str) -> str | None:
+    """The album name the tagger gives a channel's files, which is where its track list lives.
+
+    Built from the channel folder, which is the uploader's name in nearly every case; when the
+    platform reported a differently spelled uploader the album carries that spelling instead, and
+    the web UI falls back to the source link.
+    """
+    publisher = PLATFORM_PUBLISHERS.get(platform)
+    return f'{publisher} ({name})' if publisher and name else None
+
+
+def account_key(name: str | None) -> str:
+    """Letters and digits only, lowercased: `@Traxtorm-Records` and `TRAXTORM RECORDS` meet."""
+    return ''.join(ch for ch in (name or '').casefold() if ch.isalnum())
+
+
+def account_index(names: Iterable[str]) -> dict[str, list[str]]:
+    """Followed account names grouped by `account_key`, each name once."""
+    index: dict[str, list[str]] = {}
+    for name in names:
+        key = account_key(name)
+        if key and name not in index.setdefault(key, []):
+            index[key].append(name)
+    return index
+
+
+def source_url(platform: str, channel_name: str, accounts: dict[str, list[str]]) -> str | None:
+    """The platform page of the followed account a channel is named after, or None.
+
+    A channel is the folder a downloader wrote to, and nothing stores which account wrote it
+    without a scan of the whole download archive. The account name is the next best thing: when
+    exactly one followed account has the channel's letters and digits (`@traxtormrecords` for
+    `Traxtorm Records`), its page is the source. Two such accounts, or none, give no URL: a link
+    to the wrong account is worse than none.
+    """
+    matches = accounts.get(account_key(channel_name), [])
+    if len(matches) != 1:
+        return None
+    account = matches[0]
+    if platform == 'soundcloud':
+        return f'https://soundcloud.com/{account}'
+    if platform == 'youtube':
+        return f"https://www.youtube.com/{account if account.startswith('@') else 'channel/' + account}"
+    return None

@@ -77,10 +77,56 @@ x-worker-healthcheck: &worker-healthcheck
   retries: 3
   start_period: 60s
 
+# Container hardening (issue #32; docs/deployment.md, "Container hardening").
+#
+# Every service drops all Linux capabilities and adds back only what it was
+# shown to need. The muma Python images (music-manager, the workers, the tools
+# one-shots) run as root and write to host directories owned by several users
+# -- the music share, LMS's lms.db, the data volumes -- so they keep exactly the
+# capabilities that make root's file access behave as it does today (CHOWN,
+# DAC_OVERRIDE, FOWNER, FSETID; the importer chmods what it moves) and lose the
+# rest: raw sockets (NET_RAW, ARP/DNS spoofing on the bridge), MKNOD, SETUID/
+# SETGID, SETPCAP/SETFCAP, SYS_CHROOT, NET_BIND_SERVICE, KILL, AUDIT_WRITE.
+# None of them calls setuid, binds below 1024, or signals a process of another
+# user: every child process (ffmpeg, yt-dlp) runs as the same root.
+#
+# pids_limit caps threads *and* processes (the pids cgroup counts tasks). Each
+# value is well above what the service was seen using on production
+# (`docker stats`, PIDS column, 2026-09-27) -- a fork bomb or a thread leak
+# stops at the limit instead of exhausting the host's PID space, which would
+# take LMS and the database down with it.
+#
+# Not applied here yet, and why, is listed under "Container hardening" in
+# docs/deployment.md: a read-only root filesystem and a non-root user for the
+# muma images, and any of it for Firefox. tests/ci/test_compose_hardening.py
+# pins what is applied.
+x-root-file-caps: &root-file-caps
+  - CHOWN
+  - DAC_OVERRIDE
+  - FOWNER
+  - FSETID
+
 services:
   db:
     security_opt:
       - no-new-privileges:true
+    # The official entrypoint starts as root: it chowns the data and socket
+    # directories to mysql (CHOWN, and DAC_OVERRIDE/FOWNER to walk a data
+    # directory mysql owns) and then switches to that user with gosu (SETUID,
+    # SETGID). `docker exec ... healthcheck.sh` reads the mysql-owned
+    # .my-healthcheck.cnf, which is DAC_OVERRIDE again. No read_only: MariaDB's
+    # tmpdir is /tmp, and a big filesort or ALTER spilling into a tmpfs there
+    # would be charged to this container's 2g memory limit.
+    # 34 PIDs on production; max_connections is 151, each a thread.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    pids_limit: 1024
     # Pinned by digest (bug report 094): `mariadb:13.0` floats, so the same
     # compose file could start a different server on every DEPLOY_DB=1 deploy.
     # Renovate's pinDigests rule for `mariadb` (renovate.json) moves version and
@@ -146,6 +192,20 @@ services:
   phpmyadmin:
     security_opt:
       - no-new-privileges:true
+    # Apache's parent runs as root, binds :80 (NET_BIND_SERVICE), starts its
+    # children as www-data (SETUID, SETGID) and signals them (KILL); the
+    # entrypoint writes its config as root. 6 PIDs on production.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    pids_limit: 256
     image: phpmyadmin:5.2.3@sha256:9e915766488a0f603183367a4b51f5db6309ea801f3eaa25138a83815772b14f
     container_name: music-management-phpmyadmin-1
     labels:
@@ -173,6 +233,10 @@ services:
   music-manager:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 1024
     image: ${DOCKER_USER}/${IMAGE_CORE}:${IMAGE_TAG:-latest}
     container_name: music-manager
     labels:
@@ -335,6 +399,10 @@ services:
   importer_worker:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_IMPORTER}:${IMAGE_TAG:-latest}
     container_name: muma-importer-worker
     labels:
@@ -374,6 +442,10 @@ services:
   youtube_worker:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-youtube-worker
     labels:
@@ -416,6 +488,10 @@ services:
   soundcloud_worker:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_DOWNLOADER}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-worker
     labels:
@@ -458,6 +534,10 @@ services:
   telegram_worker:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_TELEGRAM}:${IMAGE_TAG:-latest}
     container_name: muma-telegram-worker
     labels:
@@ -556,6 +636,10 @@ services:
   soundcloud-fetcher:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: muma-soundcloud-fetcher
     labels:
@@ -588,6 +672,10 @@ services:
   genre-processor:
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 512
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: genre-processor
     labels:
@@ -709,6 +797,11 @@ services:
   firefox:
     security_opt:
       - no-new-privileges:true
+    # Only a PID ceiling here: the image's s6-overlay init needs root, writes
+    # all over its own filesystem and switches users, so capabilities and a
+    # read-only root are a follow-up that needs the YouTube re-login tried
+    # against it. 326 PIDs on production (a browser is many threads).
+    pids_limit: 2048
     image: jlesage/firefox:v26.09.1@sha256:302aa068dcfa46a2d248771c998f67377383554df8940252caef42b99c13eb65
     container_name: muma-firefox
     labels:

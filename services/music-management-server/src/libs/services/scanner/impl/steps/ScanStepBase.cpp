@@ -33,6 +33,7 @@ namespace lms::scanner
         , _fileScanners(initParams.fileScanners)
         , _cachePath{ initParams.cachePath }
         , _lastScanSettings{ initParams.lastScanSettings }
+        , _priorityYield{ initParams.priorityYield }
     {
     }
 

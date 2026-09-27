@@ -25,6 +25,8 @@
 #include "ScanStepSequence.hpp"
 
 #include <ctime>
+#include <string>
+#include <string_view>
 
 #include <Wt/WDate.h>
 
@@ -151,6 +153,13 @@ namespace lms::scanner
             // TODO add more fields
         }
 
+        // The one line a scan leaves in the log. `what` says which kind: the library-wide scan,
+        // a scoped one, or a priority pass inside a library-wide one.
+        void logScanSummary(std::string_view what, bool aborted, const ScanStats& stats)
+        {
+            LMS_LOG(DBUPDATER, INFO, what << " " << (aborted ? "aborted" : "complete") << ". Changes = " << stats.getChangesCount() << " (added = " << stats.additions << ", removed = " << stats.deletions << ", updated = " << stats.updates << ", failures = " << stats.failures << "), Not changed = " << stats.skips << ", Scanned = " << stats.scans << " (errors = " << stats.errorsCount << (stats.errorsCount > 0 ? ": " + formatErrorBreakdown(stats.errorCountsByKind) : std::string{}) << "), features fetched = " << stats.featuresFetched << ",  duplicates = " << stats.duplicates.size() << (stats.priorityPasses > 0 ? ", priority passes = " + std::to_string(stats.priorityPasses) + " (" + std::to_string(stats.priorityFolders) + " folders)" : std::string{}));
+        }
+
         std::size_t getScannerThreadCount()
         {
             std::size_t threadCount{ core::Service<core::IConfig>::get()->getULong("scanner-thread-count", 0) };
@@ -240,27 +249,19 @@ namespace lms::scanner
 
         LMS_LOG(DBUPDATER, DEBUG, "Waiting for the scan to abort...");
 
-        _interruptReason = InterruptReason::Abort;
         _abortScan = true;
         _scheduleTimer.cancel();
         _ioService.stop();
         LMS_LOG(DBUPDATER, DEBUG, "Scan abort done!");
 
         _abortScan = false;
-        _interruptReason = InterruptReason::None;
-        setPausedScan(std::nullopt); // an aborted run is thrown away, paused or not
         _ioService.start();
+
+        // Announced folders survive an abort: they live in _priorityFolders, not in the run.
+        _ioService.post([this] { armScanRequestTimer(); });
 
         if (isRunning)
             _events.scanAborted.emit();
-    }
-
-    void ScannerService::setPausedScan(std::optional<PausedScan> pausedScan)
-    {
-        _pausedScan = std::move(pausedScan);
-
-        const std::unique_lock lock{ _statusMutex };
-        _libraryScanPaused = _pausedScan.has_value();
     }
 
     void ScannerService::requestImmediateScan(const ScanOptions& scanOptions)
@@ -270,7 +271,7 @@ namespace lms::scanner
         // no longer does that.
         {
             const std::unique_lock lock{ _statusMutex };
-            const RunningScan running{ .inProgress = _scanRunning, .scoped = _scanRunningScoped, .libraryScanPaused = _libraryScanPaused };
+            const RunningScan running{ .inProgress = _scanRunning, .scoped = _scanRunningScoped };
             switch (decideImmediateScan(scanOptions, running))
             {
             case ImmediateScanDecision::Absorb:
@@ -296,16 +297,16 @@ namespace lms::scanner
 
     void ScannerService::requestScopedScan(const std::vector<std::filesystem::path>& directories)
     {
-        // Called from a Wt web thread; everything below runs on the io thread.
-        _ioService.post([this, directories] {
-            _scanRequests.add(directories, ScanRequestCollector::Clock::now());
-            armScanRequestTimer();
-        });
+        // Called from a Wt web thread. The folders go straight into the shared queue: a running
+        // library-wide scan occupies the io thread and looks there itself (runPriorityWork). The
+        // timer below only matters when nothing runs, and only fires then.
+        _priorityFolders.add(directories, PriorityFolderQueue::Clock::now());
+        _ioService.post([this] { armScanRequestTimer(); });
     }
 
     void ScannerService::armScanRequestTimer()
     {
-        const std::optional<ScanRequestCollector::Clock::time_point> deadline{ _scanRequests.deadline() };
+        const std::optional<PriorityFolderQueue::Clock::time_point> deadline{ _priorityFolders.deadline() };
         if (!deadline)
             return;
 
@@ -320,28 +321,16 @@ namespace lms::scanner
 
     void ScannerService::onScanRequestDue()
     {
-        bool scanRunning{};
-        {
-            const std::shared_lock lock{ _statusMutex };
-            scanRunning = _curState == State::InProgress;
-        }
-
-        if (scanRunning)
-        {
-            // Ask the running scan to unwind at its next batch boundary. The steps see the
-            // same bool they always did; only the reason tells scan() what to do next.
-            _interruptReason = InterruptReason::Pause;
-            _abortScan = true;
-            return; // scan() picks the request up when it comes back
-        }
-
+        // This runs on the io thread, and so does scan(): it can only get here when no scan runs.
+        // It used to set a "pause" flag for the running scan at this point, which therefore never
+        // happened -- the timer waited behind the scan it was meant to interrupt (bug report 126).
         runPendingScopedScan();
     }
 
     void ScannerService::runPendingScopedScan()
     {
         ScanOptions options;
-        options.scanDirectories = _scanRequests.take();
+        options.scanDirectories = _priorityFolders.take();
         if (options.scanDirectories.empty())
             return;
 
@@ -369,6 +358,8 @@ namespace lms::scanner
         res.nextScheduledScan = _nextScheduledScan;
         res.lastCompleteScanStats = _lastCompleteScanStats;
         res.currentScanStepStats = _currentScanStepStats;
+        res.priorityPassInProgress = _priorityPassRunning;
+        res.pendingPriorityFolders = _priorityFolders.pendingCount();
 
         return res;
     }
@@ -461,24 +452,15 @@ namespace lms::scanner
         refreshScanSettings();
 
         ScanContext scanContext;
-        std::size_t startIndex{};
-        if (!scanOptions.isScoped() && _pausedScan)
-        {
-            // Resuming the periodic scan that a scoped one interrupted: same context, same
-            // stats, and the interrupted step runs again from its own beginning.
-            scanContext = std::move(_pausedScan->context);
-            startIndex = _pausedScan->stepIndex;
-            setPausedScan(std::nullopt);
-            LMS_LOG(DBUPDATER, INFO, "Resuming the paused scan at step " << startIndex);
-        }
-        else
-        {
-            scanContext.scanOptions = scanOptions;
-            scanContext.stats.startTime = Wt::WDateTime::currentDateTime();
-        }
+        scanContext.scanOptions = scanOptions;
+        scanContext.stats.startTime = Wt::WDateTime::currentDateTime();
         ScanStats& stats{ scanContext.stats };
 
-        const std::size_t stoppedAt{ processScanSteps(scanContext, startIndex) };
+        // Only a library-wide scan makes room for announced folders; a scoped one is seconds of
+        // work and the folders simply go next.
+        _libraryScanContext = scanOptions.isScoped() ? nullptr : &scanContext;
+        processScanSteps(scanContext);
+        _libraryScanContext = nullptr;
 
         {
             std::unique_lock lock{ _statusMutex };
@@ -490,30 +472,12 @@ namespace lms::scanner
         }
 
         refreshTracingLoggerStats();
-        LMS_LOG(DBUPDATER, INFO, "Scan " << (_abortScan ? "aborted" : "complete") << ". Changes = " << stats.getChangesCount() << " (added = " << stats.additions << ", removed = " << stats.deletions << ", updated = " << stats.updates << ", failures = " << stats.failures << "), Not changed = " << stats.skips << ", Scanned = " << stats.scans << " (errors = " << stats.errorsCount << (stats.errorsCount > 0 ? ": " + formatErrorBreakdown(stats.errorCountsByKind) : std::string{}) << "), features fetched = " << stats.featuresFetched << ",  duplicates = " << stats.duplicates.size());
+        logScanSummary("Scan", _abortScan, stats);
 
         {
             auto transaction{ _db.getTLSSession().createReadTransaction() };
             const db::FileStats stats{ _db.getTLSSession().getFileStats() };
             LMS_LOG(DBUPDATER, INFO, stats.getTotalFileCount() << " total files: " << stats.artistInfoCount << " artist info, " << stats.imageCount << " images, " << stats.playListCount << " playlists, " << stats.trackCount << " tracks, " << stats.trackLyricsCount << " lyrics");
-        }
-
-        if (_interruptReason == InterruptReason::Pause)
-        {
-            _interruptReason = InterruptReason::None;
-            _abortScan = false;
-
-            // Only a periodic run is worth coming back to: a scoped one is seconds of work and
-            // its paths are still in the collector if they were not all read.
-            if (!scanOptions.isScoped())
-                setPausedScan(PausedScan{ std::move(scanContext), stoppedAt });
-
-            runPendingScopedScan();
-
-            if (_pausedScan)
-                scheduleScan(ScanOptions{}); // resume now, not at the next scheduled moment
-
-            return;
         }
 
         if (!_abortScan)
@@ -565,12 +529,62 @@ namespace lms::scanner
         {
             LMS_LOG(DBUPDATER, DEBUG, "Scan aborted, not scheduling next scan!");
         }
+
+        // Folders announced after the last point where this scan could take them go next.
+        armScanRequestTimer();
     }
 
-    std::size_t ScannerService::processScanSteps(ScanContext& context, std::size_t startIndex)
+    bool ScannerService::isPriorityWorkDue()
     {
-        return runScanSteps(
-            _scanSteps, context, _abortScan, [this](const ScanStepStats& stats) { notifyInProgress(stats); }, startIndex);
+        if (!_libraryScanContext || _inPriorityPass || _abortScan)
+            return false;
+
+        return _priorityFolders.isDue(PriorityFolderQueue::Clock::now(), PriorityFolderQueue::Moment::DuringLibraryScan);
+    }
+
+    void ScannerService::runPriorityWork()
+    {
+        if (!_libraryScanContext || _inPriorityPass || _abortScan)
+            return;
+
+        // The pass is the ordinary scoped scan -- same steps, same scoped rules for what gets
+        // reported (bug report 121) -- run on this thread from inside the library-wide one. It
+        // publishes nothing: the admin page and <lastScan> describe library-wide scans, and the
+        // progress shown stays that of the library-wide scan (notifyInProgress skips the pass).
+        _inPriorityPass = true;
+        {
+            const std::unique_lock lock{ _statusMutex };
+            _priorityPassRunning = true;
+        }
+
+        const std::optional<ScanContext> pass{ runPriorityPass(_scanSteps, _priorityFolders, PriorityFolderQueue::Clock::now(), _abortScan) };
+
+        _inPriorityPass = false;
+        {
+            const std::unique_lock lock{ _statusMutex };
+            _priorityPassRunning = false;
+        }
+
+        if (!pass)
+            return;
+
+        _priorityFolders.priorityPassFinished(PriorityFolderQueue::Clock::now());
+
+        const std::size_t folderCount{ pass->scanOptions.scanDirectories.size() };
+        logScanSummary("Priority scan of " + std::to_string(folderCount) + " announced folder(s)", _abortScan, pass->stats);
+        if (_abortScan)
+            return; // the folders went back into the queue
+
+        _libraryScanContext->stats.priorityPasses++;
+        _libraryScanContext->stats.priorityFolders += folderCount;
+    }
+
+    void ScannerService::processScanSteps(ScanContext& context)
+    {
+        runScanSteps(
+            _scanSteps, context, _abortScan, [this](const ScanStepStats& stats) { notifyInProgress(stats); }, 0, [this] {
+                if (isPriorityWorkDue())
+                    runPriorityWork(); });
     }
 
     void ScannerService::refreshScanSettings()
@@ -615,7 +629,8 @@ namespace lms::scanner
             .abortScan = _abortScan,
             .db = _db,
             .fileScanners = _fileScanners,
-            .cachePath = _cachePath
+            .cachePath = _cachePath,
+            .priorityYield = this,
         };
 
         // Order is important: steps are sequential
@@ -639,6 +654,11 @@ namespace lms::scanner
 
     void ScannerService::notifyInProgress(const ScanStepStats& stepStats)
     {
+        // A priority pass reports through the same step objects; what the status shows meanwhile
+        // is the library-wide scan it runs inside, plus priorityPassInProgress.
+        if (_inPriorityPass)
+            return;
+
         {
             std::unique_lock lock{ _statusMutex };
 

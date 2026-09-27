@@ -434,6 +434,11 @@ persist("lms_active_settings_tab", activeSettingsTab);
 export const activeManagementTab = writable("overview");
 persist("lms_active_management_tab", activeManagementTab);
 
+// A sub-tab another page asked Beheer -> Downloaders to open on (the label page's "Koppelingen
+// beheren" asks for 'links', issue #122). DownloadersTab takes it once and clears it; not
+// persisted, since it is a one-off request, not a place.
+export const downloaderSubTabRequest = writable(/** @type {string|null} */ (null));
+
 // The settings and management sidebars are the only way to reach their tabs,
 // and the sidebar column is desktop-only. On a narrow screen they are opened
 // as a drawer instead; deliberately not persisted -- an overlay that survives

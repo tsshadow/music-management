@@ -3,6 +3,14 @@ import logging
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 
+#: Every file of every track the scanner filed under one channel (`library_track_channels`).
+CHANNEL_FILES_SQL = '''
+    SELECT DISTINCT mf.file_path
+    FROM library_media_files mf
+    JOIN library_track_channels tc ON tc.track_id = mf.track_id
+    WHERE tc.channel_id = %s
+'''
+
 
 class RescanInvalidator:
     """Turns a changed rule into the set of files that rule touches.
@@ -91,6 +99,15 @@ class RescanInvalidator:
             WHERE a.name = %s
         '''
         return self.invalidate_paths(self._select_paths(query, (name,)), reason)
+
+    def invalidate_by_channel(self, channel_id: int, reason: str) -> int:
+        """Mark every file the scanner filed under this channel (docs/designs/channel-links).
+
+        A link to a label or artist changes what the tagger writes for exactly the files that
+        came through the channel, and `library_track_channels` is where the scanner recorded
+        which those are.
+        """
+        return self.invalidate_paths(self._select_paths(CHANNEL_FILES_SQL, (channel_id,)), reason)
 
     def invalidate_paths(self, paths: list[str], reason: str) -> int:
         """Mark an explicit set of paths. Returns how many were marked."""

@@ -47,6 +47,8 @@ REQUIRED_TABLES = [
     'rules_artists',
     'rules_artist_proposals',
     'rules_artist_legacy_trust',
+    'rules_artist_evidence_runs',
+    'rules_artist_evidence',
     'rules_ignored_genres',
     'rules_subgenre_hierarchy',
     'rules_genre_backlog',
@@ -101,7 +103,7 @@ def ensure_tables_exist() -> None:
         # what keeps a rejected proposal rejected when the search runs again. target_id points
         # into library_labels or library_artists depending on kind, so it carries no foreign key.
         # See docs/designs/channel-links/technical.md and migrate_v41_channel_link_proposals.sql.
-        'channel_link_proposals': "\n            CREATE TABLE IF NOT EXISTS channel_link_proposals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                channel_id INT NOT NULL,\n                kind ENUM('label', 'artist') NOT NULL,\n                target_id INT NOT NULL,\n                target_name VARCHAR(255) NOT NULL,\n                source ENUM('name', 'alias', 'redirect') NOT NULL,\n                status ENUM('new', 'confirmed', 'rejected', 'stale') NOT NULL DEFAULT 'new',\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64) NULL,\n                UNIQUE KEY uq_channel_link (channel_id, kind, target_id),\n                INDEX idx_channel_link_status (status),\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ",
+        'channel_link_proposals': "\n            CREATE TABLE IF NOT EXISTS channel_link_proposals (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                channel_id INT NOT NULL,\n                kind ENUM('label', 'artist') NOT NULL,\n                target_id INT NOT NULL,\n                target_name VARCHAR(255) NOT NULL,\n                source ENUM('name', 'alias', 'redirect', 'manual') NOT NULL,\n                status ENUM('new', 'confirmed', 'rejected', 'stale') NOT NULL DEFAULT 'new',\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                decided_at TIMESTAMP NULL,\n                decided_by VARCHAR(64) NULL,\n                UNIQUE KEY uq_channel_link (channel_id, kind, target_id),\n                INDEX idx_channel_link_status (status),\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ",
         'library_track_channels': '\n            CREATE TABLE IF NOT EXISTS library_track_channels (\n                track_id INT NOT NULL,\n                channel_id INT NOT NULL,\n                PRIMARY KEY (track_id, channel_id),\n                INDEX idx_track_channel_channel (channel_id),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE,\n                FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE\n            )\n        ',
         'rules_artist_genre': '\n            CREATE VIEW IF NOT EXISTS rules_artist_genre AS\n            SELECT r.artist_name AS artist, g.name AS genre\n            FROM rules_artist_genres r\n            JOIN rules_genres g ON r.genre_id = g.id\n        ',
         'rules_catid_label': '\n            CREATE TABLE IF NOT EXISTS rules_catid_label (\n                catid VARCHAR(255) PRIMARY KEY,\n                label VARCHAR(255) NOT NULL\n            )\n        ',
@@ -139,6 +141,13 @@ def ensure_tables_exist() -> None:
         # (services/common/Helpers/TrustedArtistHelper.py). Keyed by name so a library
         # rebuild keeps it.
         'rules_artist_legacy_trust': "\n            CREATE TABLE IF NOT EXISTS rules_artist_legacy_trust (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                trusted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )\n        ",
+        # The scheduled artist evidence run (services/music_manager/artist_auto_approve_worker.py,
+        # docs/designs/artist-curation/technical.md "Scheduled evidence run"): one ledger row per
+        # round, and per name the last verdict the external evidence gave. A verdict is not a
+        # decision -- the decision is rules_artists -- it is what keeps the run from asking the
+        # outside world about the same name every night. Keyed by name, like rules_artists.
+        'rules_artist_evidence_runs': "\n            CREATE TABLE IF NOT EXISTS rules_artist_evidence_runs (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                finished_at TIMESTAMP NULL,\n                dry_run TINYINT(1) NOT NULL DEFAULT 1,\n                new_names INT NOT NULL DEFAULT 0,\n                backlog_names INT NOT NULL DEFAULT 0,\n                approved INT NOT NULL DEFAULT 0,\n                applied INT NOT NULL DEFAULT 0,\n                unresolved INT NOT NULL DEFAULT 0,\n                skipped INT NOT NULL DEFAULT 0,\n                incomplete INT NOT NULL DEFAULT 0,\n                requests INT NOT NULL DEFAULT 0,\n                failed_requests INT NOT NULL DEFAULT 0,\n                stopped_early TINYINT(1) NOT NULL DEFAULT 0,\n                INDEX(started_at)\n            )\n        ",
+        'rules_artist_evidence': "\n            CREATE TABLE IF NOT EXISTS rules_artist_evidence (\n                name VARCHAR(255) NOT NULL PRIMARY KEY,\n                policy VARCHAR(16) NOT NULL,\n                titles_hash CHAR(16) NOT NULL,\n                verdict ENUM('approve', 'unresolved', 'skipped', 'incomplete') NOT NULL,\n                rule VARCHAR(64) NULL,\n                evidence MEDIUMTEXT NULL,\n                run_id INT NULL,\n                checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n                applied_at TIMESTAMP NULL,\n                INDEX(verdict),\n                INDEX(run_id),\n                INDEX(checked_at)\n            )\n        ",
         'rules_ignored_genres': '\n            CREATE TABLE IF NOT EXISTS rules_ignored_genres (\n                name VARCHAR(255) PRIMARY KEY\n            )\n        ',
         # Genre curation advice (routers/genre_curation.py): what the last analysis run
         # proposed for each queued genre. Rewritten whole on every run; the decision

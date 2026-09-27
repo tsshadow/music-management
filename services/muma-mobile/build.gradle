@@ -105,11 +105,15 @@ tasks.register("generateKeystore") {
         def keyPass = System.getenv("SIGNING_KEY_PASSWORD") ?: storePass
         def alias = System.getenv("SIGNING_KEY_ALIAS") ?: "upload"
 
+        // The passwords reach keytool through its environment (`-storepass:env`), not its
+        // argv, where `ps` would show them to every account on the machine (GitLab #40).
         services.get(ExecOperations).exec {
+            environment "MUMA_KEYTOOL_STORE_PASS", storePass
+            environment "MUMA_KEYTOOL_KEY_PASS", keyPass
             commandLine "keytool", "-genkeypair",
                     "-v", "-keystore", keystoreFile.absolutePath,
-                    "-storepass", storePass,
-                    "-keypass", keyPass,
+                    "-storepass:env", "MUMA_KEYTOOL_STORE_PASS",
+                    "-keypass:env", "MUMA_KEYTOOL_KEY_PASS",
                     "-alias", alias,
                     "-keyalg", "RSA", "-keysize", "2048",
                     "-validity", "36500",

@@ -21,6 +21,7 @@
 
 #include <functional>
 
+#include "IPriorityScanYield.hpp"
 #include "IScanStep.hpp"
 #include "ScanErrorLogger.hpp"
 
@@ -56,6 +57,8 @@ namespace lms::scanner
             db::IDb& db;
             const FileScanners& fileScanners;
             const std::filesystem::path& cachePath;
+            // Null outside the service (tests), and never used by a step of a scoped scan.
+            IPriorityScanYield* priorityYield{};
         };
         ScanStepBase(InitParams& initParams);
         ~ScanStepBase() override;
@@ -69,6 +72,15 @@ namespace lms::scanner
         const std::filesystem::path& getCachePath() const { return _cachePath; }
 
         void addError(ScanContext& context, std::shared_ptr<ScanError> error);
+
+        // See IPriorityScanYield for when a step may call these: only with nothing of its own in
+        // flight on the job scheduler and no transaction open.
+        bool isPriorityWorkDue() const { return _priorityYield && _priorityYield->isPriorityWorkDue(); }
+        void runPriorityWork() const
+        {
+            if (_priorityYield)
+                _priorityYield->runPriorityWork();
+        }
 
         template<typename T, typename... CtrArgs>
         void addError(ScanContext& context, CtrArgs&&... args)
@@ -88,6 +100,7 @@ namespace lms::scanner
         const std::filesystem::path& _cachePath;
 
         const ScannerSettings* _lastScanSettings{};
+        IPriorityScanYield* _priorityYield{};
         ScanErrorLogger _scanErrorLogger;
     };
 } // namespace lms::scanner

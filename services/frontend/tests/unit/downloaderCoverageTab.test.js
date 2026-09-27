@@ -171,6 +171,21 @@ describe("DownloaderCoverage", () => {
     expect(onOpenLinks).toHaveBeenCalled();
   });
 
+  it("offers a hand link for a channel with no link and no proposal, passing the channel on", async () => {
+    const unlinked = { id: 7, name: "Dirty Workz", label: null, artist: null, open_proposals: 0 };
+    globalThis.fetch = vi.fn(async () => {
+      const data = body();
+      data.accounts[0].channel = unlinked;
+      return { ok: true, status: 200, json: async () => data };
+    });
+    const onOpenLinks = vi.fn();
+    render(DownloaderCoverage, { ...props(), onOpenLinks });
+    await waitFor(() => expect(screen.getByText("dirty-workz")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: "voorstel" })).toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "koppelen" }));
+    expect(onOpenLinks).toHaveBeenCalledWith(unlinked);
+  });
+
   it("unlinks through the channel-links endpoint and reloads", async () => {
     render(DownloaderCoverage, props());
     await waitFor(() => expect(screen.getByText("Dirty Workz")).toBeTruthy());

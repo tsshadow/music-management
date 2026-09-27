@@ -4,6 +4,7 @@ add_executable(test-scanner
 	ArtistInfo.cpp
 	AudioFileUtils.cpp
 	ImmediateScanPolicy.cpp
+	PriorityFolderQueue.cpp
 	Lyrics.cpp
 	PlayList.cpp
 	Scanner.cpp

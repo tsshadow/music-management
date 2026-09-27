@@ -32,6 +32,17 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
+    # Same hardening as `db` in docker/docker-compose.yml (issue #32), so the
+    # suites that run against this stack prove the entrypoint still starts.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    pids_limit: 1024
     image: mariadb:13.0.2@sha256:d4fdec0510ad498e4f3127da30a99df3745bd6d5e611ae6ac5f76403d9284a8d
     # Same pin as the production compose files: without it CI runs on MariaDB
     # 12's utf8mb4_uca1400_ai_ci default while production runs
@@ -59,6 +70,15 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
+    # Same hardening as music-manager in docker/docker-compose.yml (issue #32).
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - FSETID
+    pids_limit: 1024
     build:
       context: ..
       dockerfile: docker/Dockerfile.music-manager
@@ -132,6 +152,19 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
+    # Same hardening as lms in services/music-management-server/docker-compose.yml
+    # (issue #32), including the read-only root filesystem.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - FSETID
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    pids_limit: 1024
     build:
       context: ..
       dockerfile: services/music-management-server/Dockerfile-release

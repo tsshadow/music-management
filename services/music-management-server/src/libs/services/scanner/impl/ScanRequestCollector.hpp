@@ -20,6 +20,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <set>
@@ -54,6 +55,7 @@ namespace lms::scanner
 
         void add(const std::vector<std::filesystem::path>& paths, Clock::time_point now);
         bool empty() const { return _paths.empty(); }
+        std::size_t size() const { return _paths.size(); }
 
         // When the pending paths should leave, or nothing when there are none.
         std::optional<Clock::time_point> deadline() const;

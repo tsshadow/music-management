@@ -191,6 +191,182 @@ reads `soundcloud_id`, and the archive lookups key on it.
     confirms and rejects through the right endpoints, and runs the search showing its counts; the
     coverage table shows a linked label/artist and a "voorstel" marker.
 
+## Hand-linking and the tagger (issue #58)
+
+Implements the two sections of the same name in [functional.md](functional.md).
+
+### Schema: `source` gains `manual`
+
+`channel_link_proposals.source` becomes `ENUM('name', 'alias', 'redirect', 'manual')`. A hand link
+is recorded as a row like any confirmed proposal, so the history says who linked what, and unlink
+keeps working unchanged (it turns the channel's `confirmed` row of that kind into `rejected`, which
+is also what keeps the search from re-proposing it). Three edits: the `CREATE TABLE` in
+`db_init.py`, `migrate_v48_channel_link_manual_source.sql` (`ALTER TABLE ... MODIFY source ...`,
+re-runnable because a MODIFY to the same definition is a no-op; appending an ENUM value is an
+in-place change in MariaDB), and an integration test that stores a `manual` row.
+
+### API — additive
+
+| Endpoint | Request | Response | Error cases |
+|---|---|---|---|
+| `GET /api/channel-links/channels` (API key) | `q` (substring of the name, optional), `limit` 1–50 (default 20) | `[{id, platform, name, track_count, label: {id, name} \| null, artist: {id, name} \| null, open_proposals}]`, SoundCloud/YouTube only, a name equal to `q` first, then one starting with it, then busiest first | `500` no database |
+| `GET /api/channel-links/targets` (API key) | `kind` ∈ `label`, `artist`; `q`; `limit` 1–50 (default 20) | `[{id, name}]`. Labels: `library_labels` that `channels.is_label` accepts. Artists: `rules_artists.state = 'white'` joined to `library_artists` by name, the same set the proposals use. Blank `q` → `[]`. Same ordering rule. | `400` unknown kind |
+| `PUT /api/channel-links/channels/{channel_id}/{kind}` (`rules.manage`) | `{target_id: int}` | `{status: 'linked', channel_id, kind, target_id, target_name, queued}` | `400` unknown kind; `404` unknown channel or target; `409` channel linked to a different target of that kind, artist not approved, or label is a placeholder |
+
+`PUT` is idempotent: the same link again returns `linked` without writing and without queueing.
+Otherwise, in one transaction: `channels.<kind>_id` is set; the triple is upserted as
+`status = 'confirmed', source = IF(row existed, source, 'manual')` with `decided_at`/`decided_by`
+(so an open or rejected proposal for exactly that link becomes the confirmed one, and a new row is
+`manual`); the channel's other open proposals of that kind turn `stale`, as in confirm.
+
+`confirm` and `unlink` gain `queued` in their response (additive).
+
+The `LIKE` pattern escapes `%`, `_` and `\` — a channel called `100%` must not match every name.
+
+### Tagger
+
+- **`ChannelLinkHelper`** (`services/common/Helpers/ChannelLinkHelper.py`, registry key
+  `channelLinkHelper` in `Cache.databaseHelpers`). One statement loads every linked channel:
+  `(platform, normalized_name) → (label name, artist name)`, where the artist half is only filled
+  when that artist is still `white` in `rules_artists`. `link_for(path)` runs
+  `channels.channel_from_path` + `normalize_channel_name` — the same two functions the scanner files
+  a track under a channel with, so the tagger and `library_track_channels` cannot disagree about
+  which channel a file belongs to. It has `reload()` (called by `Tagger.run` before each round and
+  by the router after every link change) and the same 60-second expiry as `LookupTableHelper`, so
+  the downloader and importer processes catch up on their own. `set_links(rows)` for tests; the
+  `mock_base` Cache stub holds a real, empty one.
+- **`ApplyChannelLinkRule`** (`services/tagger/Song/rules/`), in the SoundCloud (and so Telegram)
+  and YouTube stacks directly after `InferArtistFromTitleRule`: after the title has had its say,
+  before remixer/feature extraction appends to the artist, and before every genre and artist
+  curation rule, so those see the linked values.
+  - Label: `PUBLISHER` is replaced when `channels.is_label(current)` is false (empty, a platform,
+    a placeholder). For these song types that is every time, since `parse()` writes the platform.
+  - Artist: each `ARTIST` value whose `unicode_name_key` equals the key of one of the song's
+    `channel_stand_ins()` is replaced by the linked name; duplicates are dropped, order kept. No
+    `ARTIST` at all → the linked name. `BaseSong.channel_stand_ins()` returns `[]`; SoundCloud
+    returns the channel folder and the uploader, YouTube the folder and the channel name it built
+    the album from. `ALBUM_ARTIST` is not touched: on YouTube it is the key
+    `InferGenreFromAlbumArtistRule` looks the channel up by.
+- **`InferGenreFromLabelRule`** joins both stacks right after `InferGenreFromArtistRule` (the same
+  place it has in the label stack), so the linked label's `rules_label_genre` rows apply. It reads
+  `PUBLISHER`, which without a link is the platform and matches no rule (checked on production).
+- `CheckArtistRule` still runs later, so a correction or rejection recorded for the linked name
+  applies to it like to any other.
+
+### Scanner: a platform file may carry exactly one label
+
+`ScannerManager._resolve_label_id` refused every label for a file under a platform folder
+(`path_can_carry_a_label`), which is right for the platform name itself but would also throw away
+the label the tagger now writes. The refusal stays, with one exception: when the file's channel
+(`channel_from_path` + `normalize_channel_name`, one extra `SELECT` joining `channels` to
+`library_labels`) is linked to a label and the file's publisher is that label's name (case
+insensitive), that label id is used. Any other publisher on a platform file is still refused —
+including a stale one left behind after an unlink, until the retag rewrites it. The label row
+already exists (the link points at it), so nothing is inserted.
+
+### Queueing the retag
+
+`RescanInvalidator.invalidate_by_channel(channel_id, reason)` marks every
+`library_media_files.file_path` whose track is in `library_track_channels` for that channel. The
+router calls it after the transaction commits, for `confirm`, `PUT` and `unlink` (not for an
+idempotent repeat), with reason `channel_link`, and never lets it fail the request (the link is
+committed; the daily walk repairs a missed queue). `channel_link` is added to
+`ProcessedFilesHelper.BULK_REASONS`: it is served after decisions and after new files, because one
+confirm can queue 5.154 files and would otherwise sit in front of a genre decision.
+
+### Cross-app impact
+
+- `music-manager`: three endpoints, two responses extended, helper, rule, stack order.
+- `frontend`: `management/ChannelLinkByHand.svelte` at the top of the Koppelingen tab; the
+  Volledigheid table's "Gekoppeld aan" column gains a **Koppelen** button for a channel with no link
+  and no open proposal, which opens the tab with that channel preselected (`DownloadersTab` passes
+  it through). The pickers reuse the suggestion list of `MultiPicker.svelte`, as a single-value
+  variant (recorded in `docs/styleguide.md`).
+- LMS, MuMa Mobile: none directly. LMS shows the label once it rescans the retagged files; the app
+  gets it through LMS.
+
+### Acceptance criteria (hand-link and tagger)
+
+13. `PUT` links a channel, upserts a `manual` confirmed row, stales rival open proposals, queues the
+    channel's files; repeating it writes and queues nothing; a different existing link, an
+    unapproved artist and a placeholder label are 409; unknown channel/target 404; a plain user 403.
+14. `GET /channels` and `GET /targets` run against MariaDB (integration), escape `LIKE` wildcards,
+    offer only white artists and real labels.
+15. `ApplyChannelLinkRule`: label replaces a platform publisher, never a real label; an artist
+    stand-in (any spelling that keys equal) is replaced, a title-supplied artist is not; an empty
+    artist is filled; an unlinked channel changes nothing.
+16. The SoundCloud and YouTube stacks contain `ApplyChannelLinkRule` directly after
+    `InferArtistFromTitleRule` and `InferGenreFromLabelRule` after `InferGenreFromArtistRule`
+    (`RuleStackTest`), and a SoundCloud song parsed end-to-end through its real stack comes out with
+    the linked label and artist (so the rule is wired, not only tested).
+17. `channel_link` is a bulk reason; `invalidate_by_channel` selects by channel.
+18. Frontend: the hand-link panel searches channels and targets through the right endpoints, links
+    with `PUT` and reports the queued count, shows the 409 message; the coverage table's Koppelen
+    button opens the tab with the channel picked.
+
+## A label page's channels (issue #122)
+
+Implements the section of the same name in [functional.md](functional.md).
+
+### API — additive
+
+`GET /api/channel-links/by-label?name=<label>` (API key, like the other reads). Keyed on the name,
+because that is what the label page's route (`/label/<name>`) carries; `library_labels.name` is
+unique. Response `[{id, platform, name, track_count, artist: {id, name} | null, album, source_url}]`,
+busiest first. An unknown label, a label without channels and a blank name are all `[]`, not `404`:
+every label page asks, and almost none has a channel.
+
+Cost: one statement over indexes -- `library_labels.name` (unique) -> `channels.label_id`
+(`idx_channel_label`) -> a correlated `COUNT(*)` per channel on `library_track_channels.channel_id`
+(`idx_track_channel_channel`) -- plus, only when there are channels, one `SELECT name` per platform
+present from the followed-account tables (a few hundred short rows each). No new index, no schema
+change, no migration.
+
+- `album` = `channel_links.channel_album(platform, name)`: `<publisher> (<channel>)` with the
+  publisher the tagger writes (`Soundcloud`, `Youtube`, `Telegram`), which is the album
+  `SoundcloudSong`/`YoutubeSong` give every download of the channel.
+- `source_url` = `channel_links.source_url(...)`: the followed account whose `account_key` (letters
+  and digits, casefolded, so `@traxtormrecords` meets `Traxtorm Records`) equals the channel's, when
+  exactly one does; SoundCloud `https://soundcloud.com/<slug>`, YouTube `https://www.youtube.com/@handle`
+  or `/channel/<id>` (the same rule as the coverage table). The exact bridge (the archive path, as
+  the coverage page uses) would mean scanning `downloads_soundcloud_archive.filename`, an unindexed
+  `TEXT` column of ~158.000 rows, on every label page; the name match costs nothing and on production
+  finds an account for roughly 40 % of SoundCloud and half of the YouTube channels. A failure to read
+  the account tables costs the link, never the list.
+
+### Frontend
+
+- `src/lib/labelChannels.js`: `fetchLabelChannels` (session cache per label name),
+  `channelAlbumView` (Subsonic `search3`, albums only, exact case-insensitive name match -> `album:<id>`),
+  `channelDestination` (album view, else `source_url` through `platform.system.openUrl`, else
+  `search:<name>`). The album is resolved on tap, not on load: resolving every card up front would put
+  one `search3` per channel through the LMS proxy queue on every label page.
+- `src/lib/LabelChannels.svelte`, rendered by `Dashboard.svelte` between the label header and its
+  track list. `SectionState` for skeleton/error/retry; skeletons only for `rules.manage` (see the
+  functional table). **Koppelingen beheren** sets `downloaderSubTabRequest` (new, unpersisted store)
+  to `links`, `activeManagementTab` to `downloaders` and opens `management`; `DownloadersTab` takes the
+  request once on mount. No new route: the Koppelingen sub-tab has no URL of its own.
+- i18n: `labelChannels.title|manage|none` (nl, en; the dialects fall back).
+
+### Cross-app impact
+
+- `music-manager`: one read endpoint, two pure helpers. `frontend`: one section, one store, one prop-less
+  change to `DownloadersTab`. MuMa Mobile shows the web interface, so it gets the section with no
+  native change. LMS: none.
+
+### Acceptance criteria (label page)
+
+19. `by-label` returns a label's channels busiest first with counts, `album` and `source_url`, runs
+    against MariaDB (`test_router_sql.py`), reads the account tables only for the platforms present,
+    survives an unreadable account table, and returns `[]` for a blank or unknown name.
+20. `source_url` is set only for exactly one matching account; `channel_album` follows the tagger's
+    publisher names.
+21. Frontend (vitest): the section lists cards from a mocked answer, opens the album or the source
+    page, hides for a listener with no channels, shows a curator the skeleton, empty line and the
+    Koppelingen link, retries after an error, and shows the cached answer on a revisit;
+    `DownloadersTab` starts on a requested sub-tab once. Playwright: the section at phone, tablet and
+    desktop widths without widening the page, and the curator's link landing on Koppelingen.
+
 ## Related Docs
 
 - [channel-coverage/technical.md](../channel-coverage/technical.md) — the coverage endpoint.

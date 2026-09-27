@@ -120,7 +120,9 @@
       "other": "{count} tracks"
     },
     "unknownError": "Unknown error",
-    "more": "More"
+    "more": "More",
+    "noResults": "Nothing found.",
+    "pickAnother": "Pick another"
   },
   "dashboard": {
     "addFavorite": "Add to favourites",
@@ -155,6 +157,11 @@
     "tracks": "Tracks",
     "editGenre": "Edit genre",
     "editLabel": "Edit label"
+  },
+  "labelChannels": {
+    "title": "Channels",
+    "manage": "Manage links",
+    "none": "No channel is linked to this label yet."
   },
   "equalizer": {
     "band": "{freq} band",
@@ -447,7 +454,9 @@
         "colLinked": "Linked to",
         "linkProposal": "proposal",
         "unlink": "Unlink {name}",
-        "unlinked": "Link of {channel} removed"
+        "unlinked": "Link of {channel} removed",
+        "linkByHand": "link",
+        "linkByHandTitle": "Link {channel} by hand"
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -540,6 +549,20 @@
           "name": "Same name",
           "alias": "Alias",
           "redirect": "Redirect"
+        },
+        "byHand": {
+          "title": "Link by hand",
+          "help": "For a channel without a proposal: pick the channel and the label or approved artist it belongs to. The channel's tracks then go through the tagger again, which fills in the label and replaces the channel name used as artist.",
+          "channel": "Channel",
+          "channelPlaceholder": "Type part of the channel name...",
+          "kind": "Link as",
+          "target": "Link to",
+          "targetPlaceholderLabel": "Type part of the label name...",
+          "targetPlaceholderArtist": "Type part of the artist name (approved only)...",
+          "submit": "Link",
+          "tracks": "{count} tracks",
+          "linked": "{channel} linked to {target}; {queued} files are queued for the tagger.",
+          "alreadyLinked": "Already linked to {name}. Unlink it in Coverage first."
         }
       }
     },
@@ -1279,6 +1302,9 @@
       "proposalReject": "Advice: remove",
       "proposalRewrite": "Advice: merge",
       "proposalNone": "No advice",
+      "decider": "Decided by",
+      "deciderAny": "Everyone",
+      "deciderAuto": "Automatic (evidence run)",
       "analyse": "Analyse",
       "analysing": "Analysing…",
       "analysedAt": "Last analysis: {when}",

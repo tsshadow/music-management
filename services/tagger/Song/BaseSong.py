@@ -423,6 +423,15 @@ class BaseSong:
     def path(self):
         return self._path
 
+    def channel_stand_ins(self) -> list[str]:
+        """Names that stand in for an artist only because the file came through a channel.
+
+        Empty here; the download song types return the channel folder and the uploader, which
+        they write into ARTIST when the title names nobody. ApplyChannelLinkRule replaces exactly
+        those values with the artist the channel is linked to (docs/designs/channel-links).
+        """
+        return []
+
     def extension(self):
         return self._extension
 

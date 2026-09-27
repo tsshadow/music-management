@@ -66,6 +66,9 @@ READ_ENDPOINTS = [
     ('/api/rules/artists?state=all&q=a&proposal=reject&sort=name', 200),
     ('/api/rules/artists/summary', 200),
     ('/api/rules/artists/redirects/issues', 200),
+    # The scheduled evidence run's review list and ledger (artist_auto_approve_worker).
+    ('/api/rules/artists?state=white&decided_by=auto-external&sort=decided', 200),
+    ('/api/rules/artists/auto-approve/runs', 200),
     ('/api/rules/festivals', 200),
     ('/api/curation/labels', 200),
     ('/api/curation/labels?q=a', 200),
@@ -90,6 +93,11 @@ READ_ENDPOINTS = [
     ('/api/channel-links/proposals', 200),
     ('/api/channel-links/proposals?status=rejected&kind=artist', 200),
     ('/api/channel-links/proposals?status=maybe', 400),
+    ('/api/channel-links/channels?q=x', 200),
+    ('/api/channel-links/targets?kind=label&q=x', 200),
+    ('/api/channel-links/targets?kind=artist&q=x', 200),
+    ('/api/channel-links/targets?kind=genre&q=x', 400),
+    ('/api/channel-links/by-label?name=x', 200),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -1141,7 +1149,7 @@ class ChannelLinksTest:
         ]
 
         unlinked = api.delete(f"/api/channel-links/channels/{channels['TRAXTORM']}/label", headers=headers)
-        assert unlinked.json() == {'status': 'unlinked'}
+        assert unlinked.json()['status'] == 'unlinked'
         api.post('/api/channel-links/proposals/refresh', headers=headers)
         statuses = run_sql(db, "SELECT status FROM channel_link_proposals WHERE kind = 'label'")
         assert statuses == [{'status': 'rejected'}]
@@ -1160,6 +1168,135 @@ class ChannelLinksTest:
         row = body['accounts'][0]
         assert row['last_download_at'] is not None
         assert row['channel']['label'] == {'id': label_id, 'name': 'Traxtorm'}
+
+    def test_a_hand_link_is_a_manual_confirmed_row_and_unlinks_like_a_proposal(self, api, headers, db):
+        """Issue #58: migrate_v48's `manual` source, the upsert, and the rival proposal withdrawn."""
+        _, artist_id, channels = self._library(db)
+        api.post('/api/channel-links/proposals/refresh', headers=headers)
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('D-Sturb Alt')")
+            other_id = cursor.lastrowid
+            cursor.execute("INSERT INTO rules_artists (name, state) VALUES ('D-Sturb Alt', 'white')")
+        db.commit()
+        channel = channels['D-Sturb']
+        linked = api.put(f'/api/channel-links/channels/{channel}/artist', headers=headers, json={'target_id': other_id})
+        assert linked.status_code == 200, linked.text
+        assert linked.json()['target_name'] == 'D-Sturb Alt'
+        rows = run_sql(
+            db,
+            'SELECT target_id, source, status FROM channel_link_proposals WHERE channel_id = %s ORDER BY id',
+            (channel,),
+        )
+        assert rows == [
+            {'target_id': artist_id, 'source': 'name', 'status': 'stale'},
+            {'target_id': other_id, 'source': 'manual', 'status': 'confirmed'},
+        ]
+        assert run_sql(db, 'SELECT artist_id FROM channels WHERE id = %s', (channel,)) == [{'artist_id': other_id}]
+        # Another artist is refused until the link is removed; unlinking rejects the manual row.
+        again = api.put(f'/api/channel-links/channels/{channel}/artist', headers=headers, json={'target_id': artist_id})
+        assert again.status_code == 409
+        api.delete(f'/api/channel-links/channels/{channel}/artist', headers=headers)
+        assert run_sql(db, "SELECT status FROM channel_link_proposals WHERE source = 'manual'") == [
+            {'status': 'rejected'}
+        ]
+
+    def test_the_pickers_search_channels_labels_and_approved_artists_literally(self, api, headers, db):
+        self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Soundcloud'), ('100% Hard')")
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('D-Sturbia')")
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name) VALUES ('soundcloud', '100% Raw', '100% raw')"
+            )
+        db.commit()
+        found = api.get('/api/channel-links/channels?q=traxtorm', headers=headers).json()
+        assert [(c['name'], c['track_count'], c['label'], c['open_proposals']) for c in found] == [
+            ('TRAXTORM', 0, None, 0)
+        ]
+        # `%` in the query is a character, not a wildcard.
+        assert [c['name'] for c in api.get('/api/channel-links/channels?q=100%25', headers=headers).json()] == [
+            '100% Raw'
+        ]
+        labels = api.get('/api/channel-links/targets?kind=label&q=d', headers=headers).json()
+        assert [row['name'] for row in labels] == ['100% Hard']  # Soundcloud matches, but is no label
+        # D-Sturbia is in the library but was never approved.
+        artists = api.get('/api/channel-links/targets?kind=artist&q=d-sturb', headers=headers).json()
+        assert [row['name'] for row in artists] == ['D-Sturb']
+
+    def test_a_label_page_lists_its_linked_channels_busiest_first(self, api, headers, db):
+        """Issue #122: the label by name, its channels with counts, the source link by account."""
+        label_id, artist_id, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name, label_id, artist_id) VALUES "
+                "('youtube', 'Traxtorm Records', 'traxtorm records', %s, %s)",
+                (label_id, artist_id),
+            )
+            busy = cursor.lastrowid
+            cursor.execute('UPDATE channels SET label_id = %s WHERE id = %s', (label_id, channels['TRAXTORM']))
+            for n in range(2):
+                cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES (%s, 't')", (f'uid-l{n}',))
+                cursor.execute(
+                    'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)',
+                    (cursor.lastrowid, busy),
+                )
+            cursor.execute("INSERT INTO downloads_soundcloud_accounts (name, soundcloud_id) VALUES ('traxtorm', '42')")
+            cursor.execute("INSERT INTO downloads_youtube_accounts (name) VALUES ('@traxtormrecords')")
+        db.commit()
+        response = api.get('/api/channel-links/by-label', params={'name': 'traxtorm'}, headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json() == [
+            {
+                'id': busy,
+                'platform': 'youtube',
+                'name': 'Traxtorm Records',
+                'track_count': 2,
+                'artist': {'id': artist_id, 'name': 'D-Sturb'},
+                'album': 'Youtube (Traxtorm Records)',
+                'source_url': 'https://www.youtube.com/@traxtormrecords',
+            },
+            {
+                'id': channels['TRAXTORM'],
+                'platform': 'soundcloud',
+                'name': 'TRAXTORM',
+                'track_count': 0,
+                'artist': None,
+                'album': 'Soundcloud (TRAXTORM)',
+                'source_url': 'https://soundcloud.com/traxtorm',
+            },
+        ]
+        assert api.get('/api/channel-links/by-label?name=Nobody', headers=headers).json() == []
+
+    def test_a_link_change_queues_the_channels_files_for_the_tagger(self, api, headers, db):
+        from services.common import db_init
+
+        label_id, _, channels = self._library(db)
+        # tagger_processed_files' later columns land on a second pass, as on every deploy.
+        db_init.ensure_tables_exist()
+        path = '/mnt/music/Soundcloud/TRAXTORM/a.mp3'
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-t', 'a')")
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id) VALUES (%s, %s, %s)',
+                (path, 'h-t', track_id),
+            )
+            cursor.execute(
+                'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)',
+                (track_id, channels['TRAXTORM']),
+            )
+            cursor.execute(
+                'INSERT INTO tagger_processed_files (filepath, mtime, needs_rescan) VALUES (%s, 1.0, FALSE)', (path,)
+            )
+        db.commit()
+        linked = api.put(
+            f"/api/channel-links/channels/{channels['TRAXTORM']}/label", headers=headers, json={'target_id': label_id}
+        )
+        assert linked.json()['queued'] == 1, linked.text
+        rows = run_sql(
+            db, 'SELECT needs_rescan, rescan_reason FROM tagger_processed_files WHERE filepath = %s', (path,)
+        )
+        assert [(bool(r['needs_rescan']), r['rescan_reason']) for r in rows] == [(True, 'channel_link')]
 
 
 class ScrobblingTest:

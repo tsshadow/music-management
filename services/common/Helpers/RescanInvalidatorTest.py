@@ -106,6 +106,28 @@ class InvalidateByArtistTest(RescanInvalidatorTestCase):
         self.cursor.execute.assert_not_called()
 
 
+class InvalidateByChannelTest(RescanInvalidatorTestCase):
+    def test_the_files_the_scanner_filed_under_the_channel_are_marked(self):
+        self.cursor.fetchall.return_value = [
+            ('/music/Soundcloud/Traxtorm/a.mp3',),
+            ('/music/Soundcloud/Traxtorm/b.mp3',),
+        ]
+        count = self.invalidator.invalidate_by_channel(4, 'channel_link')
+        self.assertEqual(count, 2)
+        query, args = self.cursor.execute.call_args.args
+        self.assertIn('library_track_channels', query)
+        self.assertNotIn('LIKE', query)
+        self.assertEqual(args, (4,))
+        self.processed.mark_paths_for_rescan.assert_called_once_with(
+            ['/music/Soundcloud/Traxtorm/a.mp3', '/music/Soundcloud/Traxtorm/b.mp3'], 'channel_link'
+        )
+
+    def test_a_channel_without_files_marks_nothing(self):
+        self.cursor.fetchall.return_value = []
+        self.assertEqual(self.invalidator.invalidate_by_channel(4, 'channel_link'), 0)
+        self.processed.mark_paths_for_rescan.assert_not_called()
+
+
 class InvalidateQuietlyTest(RescanInvalidatorTestCase):
     def test_exact_goes_to_the_artist_match_and_default_to_the_term_match(self):
         with (

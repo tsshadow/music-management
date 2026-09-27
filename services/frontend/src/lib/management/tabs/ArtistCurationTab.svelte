@@ -1,7 +1,6 @@
 <script>
   import { format, t } from '../../i18n/index.js';
   import { onDestroy, onMount } from 'svelte';
-  import { SvelteURLSearchParams } from 'svelte/reactivity';
   import {
     RefreshCw,
     Search,
@@ -23,7 +22,9 @@
     UNKNOWN,
     STATE_FILTERS,
     PROPOSAL_FILTERS,
+    DECIDER_FILTERS,
     PAGE_SIZE,
+    listParams,
     describeOutcome,
     describeProposal,
     describeDecision,
@@ -48,6 +49,7 @@
   let loading = $state(false);
   let stateFilter = $state(UNKNOWN);
   let proposalFilter = $state(null);
+  let deciderFilter = $state(null);
   let search = $state('');
   let summary = $state(null);
   let selected = $state([]);
@@ -87,6 +89,7 @@
 
   function setStateFilter(id) {
     stateFilter = id;
+    deciderFilter = null;
     offset = 0;
     selected = [];
     fetchRows();
@@ -94,6 +97,14 @@
 
   function setProposalFilter(id) {
     proposalFilter = id;
+    offset = 0;
+    selected = [];
+    fetchRows();
+  }
+
+  /** Narrows the approved list to one decider -- the evidence run's approvals, newest first. */
+  function setDeciderFilter(id) {
+    deciderFilter = id;
     offset = 0;
     selected = [];
     fetchRows();
@@ -116,9 +127,13 @@
     const seq = ++rowsSeq;
     loading = true;
     try {
-      const params = new SvelteURLSearchParams({ state: stateFilter, limit: String(PAGE_SIZE), offset: String(offset) });
-      if (search.trim()) params.set('q', search.trim());
-      if (proposalFilter) params.set('proposal', proposalFilter);
+      const params = listParams({
+        state: stateFilter,
+        offset,
+        search,
+        proposal: proposalFilter,
+        decider: deciderFilter,
+      });
       const res = await fetch(`${API_BASE}/api/rules/artists?${params}`, { headers: getHeaders() });
       if (seq !== rowsSeq) return;
       if (res.ok) {
@@ -396,6 +411,19 @@
                 class="px-3 py-1 rounded-full text-xs font-bold transition-colors {proposalFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
                 aria-pressed={proposalFilter === filter.id}
                 onclick={() => setProposalFilter(filter.id)}
+              >
+                {$t(filter.labelKey)}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        {#if stateFilter === WHITE}
+          <div class="flex bg-muma-spotify-dark p-1 rounded-full border border-white/5" role="group" aria-label={$t('management.artists.decider')}>
+            {#each DECIDER_FILTERS as filter (filter.id ?? 'any')}
+              <button
+                class="px-3 py-1 rounded-full text-xs font-bold transition-colors {deciderFilter === filter.id ? 'bg-white text-black' : 'text-muma-spotify-text hover:text-white'}"
+                aria-pressed={deciderFilter === filter.id}
+                onclick={() => setDeciderFilter(filter.id)}
               >
                 {$t(filter.labelKey)}
               </button>

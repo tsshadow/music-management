@@ -120,7 +120,9 @@
       "other": "{count} nummers"
     },
     "unknownError": "Onbekende fout",
-    "more": "Meer"
+    "more": "Meer",
+    "noResults": "Niets gevonden.",
+    "pickAnother": "Andere kiezen"
   },
   "dashboard": {
     "addFavorite": "Toevoegen aan favorieten",
@@ -155,6 +157,11 @@
     "tracks": "Nummers",
     "editGenre": "Genre bewerken",
     "editLabel": "Label bewerken"
+  },
+  "labelChannels": {
+    "title": "Kanalen",
+    "manage": "Koppelingen beheren",
+    "none": "Nog geen kanaal aan dit label gekoppeld."
   },
   "equalizer": {
     "band": "Band {freq}",
@@ -447,7 +454,9 @@
         "colLinked": "Gekoppeld aan",
         "linkProposal": "voorstel",
         "unlink": "{name} ontkoppelen",
-        "unlinked": "Koppeling van {channel} verwijderd"
+        "unlinked": "Koppeling van {channel} verwijderd",
+        "linkByHand": "koppelen",
+        "linkByHandTitle": "{channel} met de hand koppelen"
       },
       "downloadType": "Type",
       "fetch": "FETCH",
@@ -540,6 +549,20 @@
           "name": "Zelfde naam",
           "alias": "Alias",
           "redirect": "Doorverwijzing"
+        },
+        "byHand": {
+          "title": "Handmatig koppelen",
+          "help": "Voor een kanaal zonder voorstel: kies het kanaal en het label of de goedgekeurde artiest waar het bij hoort. De tracks van het kanaal gaan daarna opnieuw door de tagger, die het label invult en de kanaalnaam als artiest vervangt.",
+          "channel": "Kanaal",
+          "channelPlaceholder": "Typ een deel van de kanaalnaam...",
+          "kind": "Koppelen als",
+          "target": "Koppelen aan",
+          "targetPlaceholderLabel": "Typ een deel van de labelnaam...",
+          "targetPlaceholderArtist": "Typ een deel van de artiestnaam (alleen goedgekeurd)...",
+          "submit": "Koppelen",
+          "tracks": "{count} tracks",
+          "linked": "{channel} gekoppeld aan {target}; {queued} bestanden staan klaar voor de tagger.",
+          "alreadyLinked": "Al gekoppeld aan {name}. Ontkoppel eerst in Volledigheid."
         }
       }
     },
@@ -1279,6 +1302,9 @@
       "proposalReject": "Advies: verwijderen",
       "proposalRewrite": "Advies: samenvoegen",
       "proposalNone": "Geen advies",
+      "decider": "Besloten door",
+      "deciderAny": "Iedereen",
+      "deciderAuto": "Automatisch (bewijsronde)",
       "analyse": "Analyseren",
       "analysing": "Bezig met analyseren…",
       "analysedAt": "Laatste analyse: {when}",

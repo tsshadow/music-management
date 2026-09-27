@@ -189,6 +189,14 @@ What `services/muma-mobile` does with credentials, since bug report 054:
 * **WebView remote debugging is debug-only** (Capacitor's default when the key
   is absent from `capacitor.config.json`).
 
+## Container hardening
+
+Every production container runs with `no-new-privileges`, `cap_drop: [ALL]` plus a minimal
+`cap_add`, and a `pids_limit`; LMS, its nginx proxy and autoheal also have a read-only root
+filesystem. The per-service sets, the reasons, and what is still open (non-root users and
+read-only roots for the muma images, Firefox) are in `docs/deployment.md`, "Container
+hardening"; `tests/ci/test_compose_hardening.py` pins them.
+
 ## Secrets
 
 * `.env` is gitignored and must never be committed; `.env.example` documents the
@@ -205,6 +213,16 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   authentication, which is the better path; when it is set it reaches `sshpass`
   through the environment (`-e`), never through `-p`, which would expose the
   password in the process list to every other user on the machine.
+* **No secret on any command line.** `ps` and `/proc/<pid>/cmdline` show an
+  argv to every account on the machine, including a process inside a container
+  seen from the host. MariaDB clients get `MYSQL_PWD` (to `docker exec` as
+  `-e MYSQL_PWD` without a value), `docker run` gets `-e NAME` without a value,
+  curl gets a header through `-H @<(printf 'X-API-Key: %s\n' "$KEY")` and a
+  body through `--data-binary @-`, values for a remote shell travel on ssh's
+  stdin, `sshpass` uses `-e`. `tests/ci/test_no_secrets_on_command_lines.py`
+  scans every shell script, YAML file, Dockerfile and Gradle file and fails on a
+  new occurrence; throwaway credentials of the disposable test stack are
+  allowlisted there with a reason. See bug reports 038 and 125.
 
 ### Rotating a leaked secret
 

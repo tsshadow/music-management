@@ -54,6 +54,10 @@ The system is split into specialized services, each handling a specific part of 
       records later is pending until decided, so a guessed artist cannot confirm itself.
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
+    - Channel links: a SoundCloud/YouTube download whose channel a curator linked to a label or artist
+      (Beheer → Downloaders → Koppelingen, by proposal or by hand) gets that label as its publisher and
+      the linked artist in place of the channel name standing in for one (`ApplyChannelLinkRule`,
+      [docs/designs/channel-links/](docs/designs/channel-links/functional.md)).
 - **Background Task**: Managed via a background thread in `music-manager`.
 
 ### 4. `scanner` (Integrated in `music-manager`)
@@ -214,11 +218,12 @@ Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the 
   not make the check wait. `/health` therefore always answers within about two seconds.
 - `threads` has one boolean per long-running loop — `tagger`, `scanner`, `radio`, `news`,
   `events-retention`, `scrobble-rematch`, `song-versions`, `feeds-refresh`, `lms-db-sync`,
-  `lms-listen-backfill` — plus `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
+  `lms-listen-backfill`, `artist-auto-approve` — plus `events` for the event worker and writer. A loop is `true` when its thread is alive **and** its
   heartbeat (the last *completed* tick) is younger than its window: three intervals with a one-hour
   floor, except `tagger` 24 h (a round may include the daily walk), `scanner` 12 h, `news` 3 h
-  (it sleeps up to an hour inside its tick) and `lms-listen-backfill` 72 h (its interval is a
-  config key that can be raised at runtime). The window counts from startup, so a fresh process is
+  (it sleeps up to an hour inside its tick), `lms-listen-backfill` 72 h (its interval is a
+  config key that can be raised at runtime) and `artist-auto-approve` 72 h (it checks hourly, but
+  a round of external lookups may take up to three hours). The window counts from startup, so a fresh process is
   green. `heartbeats` carries the detail per loop: `alive`, `stale`, `last_tick_age_seconds`,
   `stale_after_seconds`, `ticks`, `failures`.
 - Every loop runs through `thread_registry.run_forever`: an exception in a tick is logged with

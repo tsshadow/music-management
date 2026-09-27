@@ -32,6 +32,7 @@ from services.common.Helpers import RoundScope
 from services.common.Helpers.Cache import databaseHelpers
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.tagger.Song.rules.AddMissingArtistToDatabaseRule import AddMissingArtistToDatabaseRule
+from services.tagger.Song.rules.ApplyChannelLinkRule import ApplyChannelLinkRule
 from services.tagger.Song.rules.CaptureDisplayArtistRule import CaptureDisplayArtistRule
 from services.tagger.Song.rules.CheckArtistRule import CheckArtistRule
 from services.tagger.Song.rules.CleanTagsRule import CleanTagsRule
@@ -87,6 +88,9 @@ def build_soundcloud_rules() -> list[TagRule]:
     return [
         CleanTitleRule(),
         _infer_artist_rule(),
+        # Right after the title had its say: the channel's link only fills what the title
+        # left to a stand-in, and every genre and artist curation rule below sees the result.
+        ApplyChannelLinkRule(),
         _remixer_rule(),
         InferFeatureFromTitleRule(),
         # SoundCloud is where the warm-up mixes and podcast-length sets land.
@@ -94,6 +98,9 @@ def build_soundcloud_rules() -> list[TagRule]:
         InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']),
         CleanTagsRule(),
         InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']),
+        # The publisher is the platform unless the channel is linked to a label; only then
+        # does this find anything (no rules_label_genre row names a platform).
+        InferGenreFromLabelRule(helper=databaseHelpers['labelGenreHelper']),
         InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']),
         CleanTagsRule(),
         _add_missing_artist_rule(),
@@ -112,12 +119,16 @@ def build_youtube_rules() -> list[TagRule]:
     return [
         CleanTitleRule(),
         _infer_artist_rule(),
+        # As for SoundCloud.
+        ApplyChannelLinkRule(),
         _remixer_rule(),
         InferFeatureFromTitleRule(),
         InferFestivalFromTitleRule(helper=databaseHelpers['festivalHelper']),
         InferPodcastFromTitleRule(helper=databaseHelpers['podcastHelper']),
         CleanTagsRule(),
         InferGenreFromArtistRule(helper=databaseHelpers['artistGenreHelper']),
+        # As for SoundCloud: a linked label's genre rules.
+        InferGenreFromLabelRule(helper=databaseHelpers['labelGenreHelper']),
         InferGenreFromAlbumArtistRule(),
         InferGenreFromSubgenreRule(databaseHelpers['subgenreHelper']),
         CleanTagsRule(),

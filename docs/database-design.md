@@ -86,6 +86,8 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | `rules_label_genres` | Mapping from label name to a default genre. | `label_name`, `genre_id` |
 | `rules_subgenre_hierarchy` | Defines relationships (e.g., Uptempo is a subgenre of Hardcore). | `subgenre`, `genre` |
 | `rules_ignored_artists` | Artists to skip during processing. | `name` |
+| `rules_artist_evidence` | Per artist name, the last verdict of the scheduled external-evidence run (`approve`/`unresolved`/`skipped`/`incomplete`), its rule, evidence JSON, round and when it was applied. Not a decision -- that is `rules_artists`, signed `auto-external` when applied. See [docs/designs/artist-curation/technical.md](designs/artist-curation/technical.md), "Scheduled evidence run". | `name`, `verdict`, `run_id`, `applied_at` |
+| `rules_artist_evidence_runs` | One row per round of the scheduled evidence run: dry run or not, and its counts. | `id`, `started_at` |
 | `rules_artist_legacy_trust` | Artist names already in the library when the curation queue was wired to the tagger (migrate_v40). The tagger trusts an approved name or one of these that is still undecided; every other name is pending. | `name` |
 | `rules_ignored_genres` | (Legacy) Migrated into `rules_genres` as state `black`; no longer read by the tagger. | `name` |
 | `rules_catid_label` | Mapping Catalog IDs to library_labels. | `catid`, `label` |

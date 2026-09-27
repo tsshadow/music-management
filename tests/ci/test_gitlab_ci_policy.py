@@ -279,14 +279,38 @@ def test_credentialed_jobs_never_carry_the_fast_tag():
 
 
 def test_host_pytest_jobs_are_not_handed_to_the_second_runner():
-    """These two start their dependencies in Docker but run the tests from the
-    host, and only the LXC has pytest installed. Tagging them on the strength of
-    the `docker` line in their script failed both jobs in five seconds with
-    `No module named pytest` (pipeline 2618). muma:e2e may carry the tag because
-    core-e2e.sh falls back to its own image when pytest-bdd is missing."""
+    """muma:contracts starts its stack in Docker but runs the tests from the
+    host, and only the LXC has pytest installed. Tagging it (and, back then,
+    backend:integration) on the strength of the `docker` line in its script
+    failed in five seconds with `No module named pytest` (pipeline 2618).
+    muma:e2e may carry the tag because core-e2e.sh falls back to its own image
+    when pytest-bdd is missing."""
     ci = load_ci()
-    for name in ("backend:integration", "muma:contracts"):
-        assert "tags" not in ci[name], f"{name} runs pytest on the host, keep it LXC-only"
+    assert "tags" not in ci["muma:contracts"], "muma:contracts runs pytest on the host, keep it LXC-only"
+
+
+def test_containerised_backend_suites_run_on_either_runner():
+    """backend:unit and backend:integration run pytest inside
+    docker/Dockerfile.python-ci (bug report 050), built on whichever host runs
+    the job, so the runner's own Python no longer decides the result and the
+    workstation may take them (GitLab issue #27). The tag is only safe while
+    that stays true -- test_backend_suites_run_in_the_container_in_ci pins it."""
+    ci = load_ci()
+    for name in ("backend:unit", "backend:integration"):
+        assert ci[name].get("tags") == [".fast_runner", "tags"], f"{name} should reference .fast_runner tags"
+
+
+def test_integration_database_is_per_job_on_a_shared_host():
+    """backend:integration may run twice on one host (two pipelines, either
+    runner). A fixed container name let one job `docker rm -f` the other's
+    database mid-run; a pre-picked port can be taken between picking and
+    `docker run`. The name carries CI_JOB_ID and Docker assigns the port, on
+    loopback only."""
+    text = (REPO_ROOT / "scripts" / "test" / "db-integration.sh").read_text(encoding="utf-8")
+    assert "muma-integration-db${CI_JOB_ID:+-$CI_JOB_ID}" in text
+    assert 'PUBLISH="127.0.0.1::3306"' in text
+    assert 'docker port "$CONTAINER" 3306/tcp' in text
+    assert '-p "$HOST_PORT:3306"' not in text, "a bare host port publishes on every interface"
 
 
 def test_release_rule_covers_release_and_hotfix():

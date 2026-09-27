@@ -117,6 +117,13 @@ namespace lms::scanner
 
         std::size_t featuresFetched{}; // features fetched in DB
 
+        // Priority passes a library-wide scan made room for: the folders MuMa announced while it
+        // ran, read in between instead of after it (bug report 126). Their own changes and errors
+        // are in each pass's log line, not in the counters above -- the walk meets those files
+        // again later and counts them as skips.
+        std::size_t priorityPasses{};
+        std::size_t priorityFolders{};
+
         static constexpr std::size_t maxStoredErrorCount{ 5'000 }; // TODO make this configurable
         std::vector<std::shared_ptr<ScanError>> errors;
         std::size_t errorsCount{};           // maybe bigger than errors.size() if too many errors

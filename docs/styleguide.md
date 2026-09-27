@@ -116,6 +116,16 @@
   with an "Opnieuw proberen" retry) and `signIn` ("Log opnieuw in", with an "Opnieuw inloggen"
   button that ends the session and shows the login page). Their buttons are the outlined pill of
   "Load more" above. The car shows the same two messages as Media3 session errors.
+- **Pickers (search-as-you-type)**: `MultiPicker.svelte` collects several names as chips;
+  `SinglePicker.svelte` picks exactly one *record* (an id, not free text) and is the same control:
+  the uppercase `text-xs` label, the `bg-muma-spotify-light rounded-md` field with the brand focus
+  outline, and the same suggestion list under it (`bg-muma-spotify-light rounded-md shadow-xl
+  border border-white/5`, rows `px-3 py-1.5 text-sm` with `hover:bg-white/10`, a muted second
+  line per row when a suggestion needs context such as platform and track count). Suggestions are
+  asked from the server 200 ms after the last keystroke. Once picked, the field shows the choice as
+  one chip (`bg-white/10 rounded-full`) with an × to pick again; Enter never submits free text.
+  Used by the hand-link panel on Beheer -> Downloaders -> Koppelingen
+  (`docs/designs/channel-links/`).
 - **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --
@@ -421,6 +431,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
   header's shadow) on the left of the title. The daily mixes page shows card-shaped skeletons
   (`h-[150px] rounded-lg`) in its grid, and the track details sheet shows key/value skeleton rows
   for the tags. Daily-mix cards follow the Hover-revealed actions rule under Cards.
+
+- **Done** (2026-09-27, issue #122) — The label page's **Kanalen** section
+  (`LabelChannels.svelte`): a `text-base font-bold` heading, then one sideways-scrolling row
+  (`overflow-x-auto`, never widening the page) of channel cards -- `h-14`, `max-w-64`, `rounded-md`,
+  `bg-muma-spotify-light`, hover `bg-muma-spotify-hover`, a 20px platform icon in secondary text
+  (lucide `Cloud` for SoundCloud, as the downloader tabs already use; `TvMinimalPlay` for YouTube;
+  `Send` for Telegram; no brand logos), the name in bold white and the track count in `text-xs`
+  secondary text. Its skeleton is three card-sized `Skeleton` blocks, shown only where the section is
+  certain to appear (to a curator): a placeholder on every label page that then vanishes would move
+  the track list. The curator's way to Koppelingen is a text button in the heading row (`text-xs
+  font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
+  menu.
 
 - **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new

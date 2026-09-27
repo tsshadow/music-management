@@ -69,7 +69,9 @@ FILTERS = ('unknown', PENDING, WHITE, BLACK, 'all')
 #: The registry key of the tagger's trusted-artist helper (Cache.databaseHelpers).
 TRUSTED_ARTIST_HELPER = 'library_artists'
 PROPOSAL_KINDS = ('keep', 'rewrite', 'split', 'reject', 'unknown')
-SORTS = ('tracks', 'name')
+#: `decided` puts the newest decision first -- how a curator reviews what the scheduled
+#: evidence run approved last night.
+SORTS = ('tracks', 'name', 'decided')
 
 #: One list request never returns more than this. The queue is tens of thousands of
 #: names; the page pages through it, and a bulk decision carries explicit names.
@@ -144,6 +146,7 @@ def list_artists(
     sort: str = 'tracks',
     limit: int = 200,
     offset: int = 0,
+    decided_by: str | None = None,
     _auth: dict = READ,
 ):
     """Artists by curation state, the ones touching most tracks first.
@@ -153,7 +156,9 @@ def list_artists(
     proposed (`reject`, `rewrite`, ...), which is how a curator works through a class
     of names at a time rather than the whole tail. Decided names that have since left
     `library_artists` (a rebuild, a retag that removed them) still list under their
-    state: the decision is the durable thing.
+    state: the decision is the durable thing. `decided_by` narrows a decided list to one
+    decider -- `auto-external` is what the scheduled evidence run signs, so
+    `state=white&decided_by=auto-external&sort=decided` is its review list.
     """
     if state not in FILTERS:
         raise HTTPException(status_code=400, detail=f"state must be one of {', '.join(FILTERS)}")
@@ -196,8 +201,11 @@ def list_artists(
     if proposal:
         where.append('p.kind = %s')
         params.append(proposal)
+    if decided_by:
+        where.append('r.decided_by = %s')
+        params.append(decided_by.strip()[:64])
     where_sql = f" WHERE {' AND '.join(where)}" if where else ''
-    order = 'track_count DESC, name' if sort == 'tracks' else 'name'
+    order = {'tracks': 'track_count DESC, name', 'name': 'name', 'decided': 'r.decided_at DESC, name'}[sort]
 
     conn = _connect()
     try:
@@ -253,6 +261,49 @@ def summary(_auth: dict = READ):
             }
     finally:
         conn.close()
+
+
+#: The scheduled evidence run's ledger, newest first (artist_auto_approve_worker).
+EVIDENCE_RUNS_SQL = """
+    SELECT id, CAST(started_at AS CHAR) AS started_at, CAST(finished_at AS CHAR) AS finished_at,
+           dry_run, new_names, backlog_names, approved, applied, unresolved, skipped, incomplete,
+           requests, failed_requests, stopped_early
+    FROM rules_artist_evidence_runs ORDER BY id DESC LIMIT %s
+"""
+#: What the last runs judged `approve`, whether or not it was applied (a dry run applies nothing).
+EVIDENCE_APPROVALS_SQL = """
+    SELECT e.name, e.rule, e.run_id, CAST(e.checked_at AS CHAR) AS checked_at,
+           CAST(e.applied_at AS CHAR) AS applied_at, r.state, r.decided_by
+    FROM rules_artist_evidence e LEFT JOIN rules_artists r ON r.name = e.name
+    WHERE e.verdict = 'approve' AND e.run_id >= %s
+    ORDER BY e.checked_at DESC, e.name LIMIT %s
+"""
+
+
+@router.get('/auto-approve/runs')
+def evidence_runs(limit: int = 30, _auth: dict = READ):
+    """The scheduled evidence run's recent rounds and what they judged approvable.
+
+    `runs` is one row per round with its counts; `approvals` lists the names those rounds
+    judged `approve`, with `applied_at` (NULL in a dry run) and the name's decision now --
+    so a curator can see what was approved automatically and undo it on the page
+    (`DELETE /api/rules/artists/{name}`), and in a dry run see what would have been.
+    """
+    limit = max(1, min(int(limit), 365))
+    conn = _connect()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(EVIDENCE_RUNS_SQL, (limit,))
+            runs = list(cursor.fetchall())
+            oldest = min((row['id'] for row in runs), default=0)
+            cursor.execute(EVIDENCE_APPROVALS_SQL, (oldest, MAX_LIMIT))
+            approvals = list(cursor.fetchall())
+    finally:
+        conn.close()
+    for row in runs:
+        row['dry_run'] = bool(row['dry_run'])
+        row['stopped_early'] = bool(row['stopped_early'])
+    return {'runs': runs, 'approvals': approvals}
 
 
 # ----------------------------------------------------------------------------- decide
@@ -348,6 +399,25 @@ def _release_redirects_to(cursor, target: str, new_target: str | None) -> list[s
         )
         cursor.execute('DELETE FROM rules_ignored_artists WHERE LOWER(corrected_name) = LOWER(%s)', (target,))
     return dependents
+
+
+def record_approvals(cursor, names: list[str], decided_by: str) -> None:
+    """Approve `names` inside the caller's transaction, exactly as `decide` does for `state=white`.
+
+    For the scheduled evidence run (artist_auto_approve_worker), which approves in batches
+    without an HTTP round trip. An approval has no redirects to settle and no files to
+    retag, so this is the whole of what `decide` writes for it; the caller refreshes the
+    tagger's snapshots once afterwards with `refresh_artist_trust`.
+    """
+    for name in names:
+        _upsert_decision(cursor, name, WHITE, None, decided_by)
+        _mirror_to_tagger(cursor, name, WHITE, None)
+
+
+def refresh_artist_trust() -> None:
+    """Reload the running tagger's redirect and trusted-artist snapshots after a decision."""
+    curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
+    curation_rules.refresh(TRUSTED_ARTIST_HELPER)
 
 
 @router.post('/decide')

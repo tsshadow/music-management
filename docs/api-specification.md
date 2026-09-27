@@ -140,18 +140,40 @@ Removed outright, because every caller already uses the target: `GET|PUT
   SoundCloud/YouTube channel to its label or artist on strong name equality.
   - **GET `/proposals?status=new|confirmed|rejected|stale&kind=label|artist`** (any authenticated account):
     `[{id, channel_id, platform, channel_name, kind, target_id, target_name, source, status, track_count,
-    created_at, decided_at}]`, busiest channel first. `source` is `name`, `alias` or `redirect`. `400` for an
-    unknown status or kind.
+    created_at, decided_at}]`, busiest channel first. `source` is `name`, `alias`, `redirect` or (a hand link,
+    since issue #58) `manual`. `400` for an unknown status or kind.
   - **POST `/proposals/refresh`** (`rules.manage`): runs the search, `{created, open, withdrawn, ambiguous}`.
     Decided rows are never touched; a second run in a row reports `created: 0, withdrawn: 0`.
   - **POST `/proposals/{id}/confirm`** (`rules.manage`): writes `channels.label_id`/`artist_id`,
-    `{status: "confirmed", channel_id, kind, target_id}`, or `status: "stale"` when the target was deleted.
+    `{status: "confirmed", channel_id, kind, target_id, queued}`, or `status: "stale"` when the target was
+    deleted. `queued` (additive, issue #58) is how many of the channel's files were queued for the tagger
+    (reason `channel_link`); `0` on a repeat.
     Idempotent. `404` unknown id, `409` when the proposal is rejected/stale or the channel is linked to
     another target of that kind.
   - **POST `/proposals/{id}/reject`** (`rules.manage`): `{status: "rejected"}`, idempotent; `409` on a
     confirmed proposal.
   - **DELETE `/channels/{channel_id}/{kind}`** (`rules.manage`): clears the link and rejects the proposal
-    behind it, `{status: "unlinked"}`; `400` unknown kind, `404` unknown channel.
+    behind it, `{status: "unlinked", queued}` (`queued` additive since issue #58; `0` when there was no
+    link); `400` unknown kind, `404` unknown channel.
+  - **PUT `/channels/{channel_id}/{kind}`** (`rules.manage`, issue #58): link by hand, body `{target_id}`.
+    `{status: "linked", channel_id, kind, target_id, target_name, queued}`. Stored as a confirmed row with
+    source `manual` (or turns the existing row for exactly this link into the confirmed one) and withdraws
+    the channel's other open proposals of that kind. Idempotent. `400` unknown kind, `404` unknown channel
+    or target, `409` when the channel is linked to another target of that kind, the artist is not approved,
+    or the label is a placeholder or platform.
+  - **GET `/channels?q=&limit=`** (any authenticated account): SoundCloud/YouTube channels whose name
+    contains `q` (wildcards literal), `[{id, platform, name, track_count, label: {id, name}|null,
+    artist: {id, name}|null, open_proposals}]`; an exact name first, then a prefix, then busiest. `limit`
+    1-50, default 20.
+  - **GET `/targets?kind=label|artist&q=&limit=`** (any authenticated account): `[{id, name}]` -- labels
+    that are not placeholders or platforms, or approved (`white`) artists the library has an id for. Blank
+    `q` returns `[]`; `400` for an unknown kind.
+  - **GET `/by-label?name=`** (any authenticated account, issue #122): the channels linked to the label
+    of that name, for the label page. `[{id, platform, name, track_count, artist: {id, name}|null, album,
+    source_url}]`, busiest first. `album` is `<Platform> (<channel>)`, the album the tagger files the
+    channel's downloads under (`null` for an unknown platform); `source_url` is the platform page of the
+    followed account whose letters and digits equal the channel's, when exactly one does, else `null`.
+    An unknown label, a label nothing is linked to, or a blank name return `[]` (never `404`).
 - **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
   `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
   path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).
@@ -181,7 +203,15 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `pending` (added, additive: the part of the queue the tagger does not trust -- undecided names that were
   not in the library when the queue was wired up), `white`, `black`, `all`. Every row carries (added,
   additive) `pending: <bool>`. **GET `/api/rules/artists/summary`** adds `pending`, the count of those names.
-  See docs/designs/artist-curation/technical.md, "Wiring the queue".
+  See docs/designs/artist-curation/technical.md, "Wiring the queue". Added, additive: `decided_by=<name>`
+  narrows a decided list to one decider, and `sort=decided` orders it newest decision first --
+  `?state=white&decided_by=auto-external&sort=decided` is the review list of the scheduled evidence run.
+- **GET `/api/rules/artists/auto-approve/runs`** (added; any authenticated account; `limit` 1-365, default
+  30): the scheduled evidence run's ledger, `{"runs": [{"id", "started_at", "finished_at", "dry_run",
+  "new_names", "backlog_names", "approved", "applied", "unresolved", "skipped", "incomplete", "requests",
+  "failed_requests", "stopped_early"}], "approvals": [{"name", "rule", "run_id", "checked_at", "applied_at",
+  "state", "decided_by"}]}`. `approvals` are the names those rounds judged `approve` (at most 500);
+  `applied_at` is null in a dry run. See docs/designs/artist-curation/technical.md, "Scheduled evidence run".
 - **POST `/api/rules/artists/decide`** (`rules.manage`): body `{"names": [...], "state": "white"|"black",
   "canonical_name": <string|null>}`. Response (fields `repointed` and `returned_to_queue` added, additive):
   `{"status": "ok", "decided": <int>, "canonical_name": ..., "repointed": [<name>], "returned_to_queue": [<name>]}`.
@@ -288,7 +318,7 @@ need `rules.manage`.
 - `image_status` values: `active`, `failed`, `cleared`, or empty (never decided).
 
 ### ❤️ Health
-- **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Response: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "database": "ok"|"unreachable", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}, "lms_listen_outbox": [{"server": <string>, "count": <int|null>, "oldest": <ISO-8601 UTC|null>}] | null}`. `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable or any of those threads has died or gone stale. `lms_listen_outbox` is informational and never affects `status`: per LMS database, how many listens its outbox (`muma_listen_outbox`, LMS db version 125+) still holds for music-manager and when the oldest was queued. `count` is `null` for an LMS without the table; an unreadable file adds an `error` string; the whole field is `null` when the LMS databases cannot be listed (docs/designs/lms-listen-outbox/).
+- **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Response: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "database": "ok"|"unreachable", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "lms-listen-backfill": <bool>, "artist-auto-approve": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}, "lms_listen_outbox": [{"server": <string>, "count": <int|null>, "oldest": <ISO-8601 UTC|null>}] | null}`. `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable or any of those threads has died or gone stale. `lms_listen_outbox` is informational and never affects `status`: per LMS database, how many listens its outbox (`muma_listen_outbox`, LMS db version 125+) still holds for music-manager and when the oldest was queued. `count` is `null` for an LMS without the table; an unreadable file adds an `error` string; the whole field is `null` when the LMS databases cannot be listed (docs/designs/lms-listen-outbox/).
 - **Any endpoint — 503 `{"detail": "No free database connection: the pool is exhausted"}`** with `Retry-After: 5`, when every pooled database connection stayed busy for `DB_POOL_WAIT_SECONDS` (default 5). Before, such a request waited forever.
 - **Any endpoint — 503 `{"detail": "Database unavailable"}`** with `Retry-After: 5`, when the connection pool could not be created at all (MariaDB unreachable at startup). The curation, festival, genre and artist rules, radio, news and songs routers used to answer this with a 500.
 

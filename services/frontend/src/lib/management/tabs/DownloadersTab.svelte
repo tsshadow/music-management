@@ -1,6 +1,8 @@
 <script >
   import { t, format } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
+  import { downloaderSubTabRequest } from '../../store.js';
   import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
   import DownloaderCoverage from '../DownloaderCoverage.svelte';
@@ -14,7 +16,22 @@
   export let onError;
   export let refreshDownloaders;
 
-  let downloaderSubTab = 'soundcloud';
+  // Another page may have asked for a sub-tab (the label page's link to Koppelingen); take it once.
+  let downloaderSubTab = takeSubTabRequest() ?? 'soundcloud';
+
+  function takeSubTabRequest() {
+    const requested = get(downloaderSubTabRequest);
+    if (requested) downloaderSubTabRequest.set(null);
+    return requested;
+  }
+  // The channel a Volledigheid row asked to link by hand; the Koppelingen tab starts from it.
+  let linkChannel = null;
+
+  /** Open the Koppelingen tab, with a channel preselected when a table row passed one. */
+  function openLinks(channel = null) {
+    linkChannel = channel;
+    downloaderSubTab = 'links';
+  }
   let newAccountName = '';
   let newAccountId = '';
   let newYoutubeDownloadType = 'audio';
@@ -266,7 +283,7 @@
       {/if}
     </button>
     <button
-      on:click={() => downloaderSubTab = 'links'}
+      on:click={() => openLinks()}
       class="pb-4 font-bold text-sm transition-colors relative {downloaderSubTab === 'links' ? 'text-white' : 'text-muma-spotify-text hover:text-white'}"
     >
       {$t('management.downloaders.tabLinks')}
@@ -372,9 +389,9 @@
       </div>
     </div>
   {:else if downloaderSubTab === 'coverage'}
-    <DownloaderCoverage {API_BASE} {getHeaders} {onMessage} {onError} onOpenLinks={() => (downloaderSubTab = 'links')} />
+    <DownloaderCoverage {API_BASE} {getHeaders} {onMessage} {onError} onOpenLinks={openLinks} />
   {:else if downloaderSubTab === 'links'}
-    <ChannelLinkProposals {API_BASE} {getHeaders} {onMessage} {onError} />
+    <ChannelLinkProposals {API_BASE} {getHeaders} {onMessage} {onError} initialChannel={linkChannel} />
   {:else if downloaderSubTab === 'timing'}
     <div class="space-y-6 animate-in fade-in duration-300">
       <p class="text-muma-spotify-text text-sm max-w-3xl">

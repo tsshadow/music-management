@@ -103,13 +103,109 @@ Under **Beheer → Downloaders** a new sub-tab **Koppelingen**, next to Volledig
    those spellings is exactly the channel's, capitals aside.
 6. A plain listener sees the proposals but cannot confirm, reject, search or unlink; that takes the
    rule-management permission, as label proposals do.
+7. A channel that got no proposal (`Hysta Official`) can be linked to the approved artist `Hysta`
+   from the Koppelingen tab by typing part of either name; the link shows in the Volledigheid table.
+8. After the tagger's next pass over the channel, a track from a channel linked to a label carries that label, and
+   a track from a channel linked to an artist whose artist was only the channel's own name carries
+   the linked artist instead. A track whose title named its own artist keeps that artist.
+
+## Linking by hand (issue #58)
+
+Measured read-only on production on 2026-09-27: 1.379 channels (1.114 SoundCloud, 264 YouTube,
+1 Telegram), none linked yet; 898 open proposals (149 label, 749 artist) waiting for review. 515
+SoundCloud/YouTube channels got no proposal at all; they hold 77.171 tracks, 8.632 of which credit
+the channel's own name as their artist and 877 no artist at all. Those are the channels only a
+hand link can reach.
+
+On the Koppelingen tab, above the proposal list, a **Handmatig koppelen** panel:
+
+| Element | Content |
+|---|---|
+| Kanaal | A search box over every SoundCloud and YouTube channel (by name). Each suggestion shows platform, track count and what it is already linked to. |
+| Soort | Label or artist. |
+| Koppelen aan | A search box over the labels (placeholders and platform names are not labels) or over the **approved** artists, depending on the kind. Only approved artists are offered, the same rule the proposals follow: linking to a name that is still in the curation queue or was rejected would approve it through the back door. |
+| Koppelen | Links the channel. The panel says how many tracks were queued for the tagger. |
+
+| Situation | Observable outcome |
+|---|---|
+| The channel is not linked for that kind yet | It is linked; the Volledigheid table shows it after a refresh. |
+| The channel is already linked to the same label or artist | Nothing changes, no error. |
+| The channel is already linked to a *different* one of that kind | Refused with a message; unlink first (Volledigheid table). Relinking in one step would make a slip of the mouse undo a confirmed decision. |
+| There was an open proposal for exactly this link | It counts as confirmed. Other open proposals of that kind for the channel are withdrawn. |
+| There was a rejected proposal for exactly this link | The hand link wins: the curator has now said yes. |
+| The artist was rejected or is still in the queue, or the label is a placeholder | Refused. |
+| In the Volledigheid table, a channel without a link and without an open proposal | A **Koppelen** button opens the Koppelingen tab with that channel already picked, so the entry point sits on the row, not in a menu. |
+| A plain listener | Sees the channels, cannot link (same permission as confirming). |
+
+A hand link and a confirmed proposal are the same thing afterwards: both show in the table, both
+are undone with Ontkoppelen, and unlinking either one keeps the search from proposing it again.
+
+## What a link changes in the tags (issue #58)
+
+A link is evidence about every track that came in through that channel. The tagger reads it for
+SoundCloud, YouTube and Telegram files (the song types that know they came from a channel), and
+only ever where the tag is empty or holds something weaker.
+
+| Tag | Before | With a link |
+|---|---|---|
+| Publisher (becomes the track's label) | Always the platform (`Soundcloud`, `Youtube`), which is not a label, so the track had none. | The linked label. |
+| Artist | Whatever the title said; failing that, the uploader's or channel folder's name standing in for an artist. | Where an artist value *is* that stand-in name, the linked artist replaces it. A name the title supplied is never touched. With no artist at all, the linked artist is it. |
+| Genre | The artist's genre rules (and, on YouTube, the channel name looked up as a label). | Also the linked label's genre rules, exactly as a label release gets them. Added to, never replacing. |
+
+The library stores that label for the track: a file under a platform folder still cannot carry
+any other label (the platform itself least of all), only the one its channel is linked to.
+
+The artist is then run through the usual artist curation (corrections and rejections), so a link
+cannot smuggle a spelling past it. A link to an artist who was rejected *after* the link was made is
+ignored by the tagger.
+
+Linking, confirming or unlinking queues the channel's tracks for the tagger. That queue is served
+after decisions (a genre or artist rule) and after newly arrived files, because a link enriches
+tracks that are already correct and can easily cover thousands of them (Monstercat on SoundCloud
+holds 5.154). Unlinking takes the label back off on the next pass (the publisher is recomputed
+every time); an artist the link wrote stays, because by then it is indistinguishable from one the
+file carried — Ontkoppelen is for undoing a wrong decision quickly, before that pass.
+
+What this would add on production, if every open proposal were confirmed as it stands (read-only,
+2026-09-27):
+
+| | Channels | Tracks |
+|---|---|---|
+| Label proposals | 149 | 52.128 tracks, of which 50.449 have no label today and would gain one |
+| … of which the label carries genre rules | 28 | 10.257 would get that genre as extra evidence |
+| Artist proposals | 749 | 84.444 tracks; 45.130 already credit that artist, 777 credit nobody and would gain it, 285 credit the channel name in a different spelling and would get the artist's |
+
+The artist proposals change little because they were made *because* the channel is named after the
+artist, so the stand-in is usually already right. The artist half matters for hand links: the 8.632
+tracks above credit a channel name like `Hysta Official`.
+
+## A label page lists its channels (issue #122)
+
+With the tagger writing the label, a linked channel's tracks already appear under that label
+everywhere the library groups by label. The label page now also names the channels themselves.
+
+Measured read-only on production on 2026-09-27: no channel is linked yet (0 of 1.379), with 898
+proposals waiting for review. So today every label page shows no channels; the section fills as the
+proposals are confirmed.
+
+| Situation | Observable outcome |
+|---|---|
+| A label with linked channels | Under the heading, a **Kanalen** section: one card per channel, busiest first, with the platform's icon (SoundCloud, YouTube, Telegram), the channel's name and its number of tracks. The cards scroll sideways on a narrow screen; the page itself never gets wider than the screen. |
+| Tapping a card | Opens the channel's tracks: the album the downloads are filed under (`Soundcloud (<channel>)`, `Youtube (<channel>)`). When the library has no album of exactly that name (the platform reported the uploader in another spelling), the account's page on the platform opens instead, if a followed account carries the channel's name. Failing both, a library search for the channel's name. |
+| A label nothing is linked to (almost every label today) | No section, for a listener. |
+| The same, for a curator (rule-management permission) | The section with "Nog geen kanaal aan dit label gekoppeld." and a **Koppelingen beheren** link. |
+| A curator, any label | **Koppelingen beheren** next to the heading opens Beheer -> Downloaders on the Koppelingen tab, where channels are linked and (from the Volledigheid table) unlinked. |
+| The first visit to a label page | A curator sees three card-shaped placeholders until the answer arrives. A listener sees nothing until then: a placeholder on every label page that then disappears would move the track list for nothing. |
+| A revisit in the same session | The last answer shows at once and is refreshed behind it. |
+| The channels cannot be loaded | The section says so with **Opnieuw**, for everyone; the track list is unaffected. |
+
+**A channel view showing its label or artist.** There is no channel page in the web interface; the
+only place a channel is shown is the Volledigheid table under Beheer -> Downloaders, which already
+has the "Gekoppeld aan" column. An artist page listing *its* channels would be the mirror of this
+section and is issue #126 (with the label edit page and a per-channel filter).
 
 ## Open Questions / Not Yet Decided
 
-- **Linking by hand.** A channel with no proposal cannot be linked from this page yet. Deferred: the
-  proposals cover most of the value, and a free-text picker is its own design.
-- **What a link changes elsewhere.** A link is shown, not used: the tagger does not yet read it
-  (e.g. to fill the publisher of a label channel's uploads), and browsing by label does not yet
-  include the label's channels. Each is a separate follow-up.
+- Checking on production that a link does put its label on the tracks is issue #123.
 - **Running the search automatically.** It runs when the curator asks. New channels appear only as
   fast as the downloaders follow new accounts, which is a handful a month.

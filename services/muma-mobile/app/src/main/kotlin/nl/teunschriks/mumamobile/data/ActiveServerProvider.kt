@@ -174,8 +174,8 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     }
 
     fun setMumaSettings(apiKey: String, userId: Int?) {
-        // Sync globally
-        Settings.mumaApiKey = apiKey
+        // Sync globally; encrypted (issue #115)
+        SecureSettings.mumaApiKey = apiKey
         // Only update MuMa ID if the stored one cannot be real, and only with one that can. A 0 --
         // Gson's default for an id the response did not carry -- is not the -1 "unknown" sentinel,
         // so it passed every guard and every per-user call went to a user that is not there. Any
@@ -227,7 +227,8 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     /**
      * Records a session the Capacitor shell's web login just started -- with a password or with
      * Google -- so downloads, Android Auto and the rest of the native side see the same session:
-     * the account's name, its MuMa API key and account id, and the signed-in flag. No password: the
+     * the account's name, its MuMa API key (encrypted, [SecureSettings]; issue #115) and account id,
+     * and the signed-in flag -- set only when the key could be stored. No password: the
      * page signed in with it and keeps no copy either, and nothing native needs it (issue #101).
      * The Subsonic token is fetched with the key afterwards
      * ([nl.teunschriks.mumamobile.service.SubsonicTokenRefresher]).
@@ -244,10 +245,11 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
         val server = signInServer()
         SignOutEpoch.signOut {
             Settings.staticUserName = username
-            Settings.mumaApiKey = apiKey
+            val keyStored = SecureSettings.storeMumaApiKey(apiKey)
+            Settings.clearLegacyMumaApiKey()
             Settings.mumaUserId = userId?.takeIf { isUsableMumaUserId(it) } ?: -1
             Settings.clearLegacyStaticPassword()
-            Settings.signedIn = username.isNotEmpty() && apiKey.isNotEmpty()
+            Settings.signedIn = username.isNotEmpty() && apiKey.isNotEmpty() && keyStored
             invalidateCache()
         }
         launch(Dispatchers.Main) { resetMusicService() }
@@ -280,7 +282,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     fun keyRefused(refusedKey: String): Boolean {
         var cleared = false
         SignOutEpoch.signOut {
-            if (refusedKey.isNotEmpty() && Settings.mumaApiKey == refusedKey) {
+            if (refusedKey.isNotEmpty() && SecureSettings.mumaApiKey == refusedKey) {
                 clearCredentials()
                 cleared = true
             }
@@ -301,7 +303,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
     private fun clearCredentials() {
         Settings.signedIn = false
         Settings.clearLegacyStaticPassword()
-        Settings.mumaApiKey = ""
+        Settings.clearLegacyMumaApiKey()
         Settings.mumaUserId = -1
         SecureSettings.clear()
         invalidateCache()
@@ -377,36 +379,56 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
 
         /**
          * Whether someone is signed in (issue #101): the explicit flag a sign-in sets and a
-         * sign-out clears, for a stored name. Migrates an install that still has a password stored
-         * first ([LegacyPasswordMigration]), so a component that starts before the app -- the media
-         * session Android Auto starts without the UI -- reads the same answer.
+         * sign-out clears, for a stored name, and a MuMa API key that can still be read. The key
+         * check is what turns a Keystore key that was lost or invalidated, or a backup restored
+         * without the encrypted store, into "sign in again" (issue #115). Migrates an install that
+         * still keeps a password or a plain key first ([migrateLegacyCredentials]), so a component
+         * that starts before the app -- the media session Android Auto starts without the UI --
+         * reads the same answer.
          */
         fun isSignedIn(): Boolean {
-            migrateLegacyPassword()
-            return Settings.signedIn && Settings.staticUserName.isNotEmpty()
+            migrateLegacyCredentials()
+            return Settings.signedIn && Settings.staticUserName.isNotEmpty() && SecureSettings.mumaApiKey.isNotEmpty()
         }
 
         @Volatile
-        private var legacyPasswordChecked = false
+        private var legacyCredentialsChecked = false
 
         /**
-         * Runs [LegacyPasswordMigration] once per process against the plain preferences. Called
+         * Runs [LegacyPasswordMigration] and then [CredentialMigration] once per process. Called
          * from `UApp.onCreate` and from [isSignedIn], whichever comes first.
          */
-        fun migrateLegacyPassword() {
-            if (legacyPasswordChecked) return
+        fun migrateLegacyCredentials() {
+            if (legacyCredentialsChecked) return
             synchronized(this) {
-                if (legacyPasswordChecked) return
+                if (legacyCredentialsChecked) return
                 if (LegacyPasswordMigration.run(SettingsPasswordStore)) {
                     Timber.i("Removed the stored password; signed in: %s", Settings.signedIn)
                 }
-                legacyPasswordChecked = true
+                if (CredentialMigration.run(SettingsCredentialStore)) {
+                    Timber.i("Moved the MuMa key into encrypted storage; signed in: %s", Settings.signedIn)
+                }
+                legacyCredentialsChecked = true
             }
         }
 
-        /** Resets the once-per-process guard of [migrateLegacyPassword]; tests only. */
-        internal fun resetLegacyPasswordCheck() {
-            legacyPasswordChecked = false
+        /** Resets the once-per-process guard of [migrateLegacyCredentials]; tests only. */
+        internal fun resetLegacyCredentialsCheck() {
+            legacyCredentialsChecked = false
+        }
+
+        /** [CredentialMigration.Store] over [Settings] and [SecureSettings]. */
+        private object SettingsCredentialStore : CredentialMigration.Store {
+            override val plainApiKey: String get() = Settings.legacyMumaApiKey
+            override fun clearPlainApiKey() = Settings.clearLegacyMumaApiKey()
+            override fun storeEncryptedApiKey(key: String): Boolean = SecureSettings.storeMumaApiKey(key)
+            override fun legacyEncryptedFileExists(): Boolean = SecureSettings.legacyFileExists()
+            override fun deleteLegacyEncryptedFile() = SecureSettings.deleteLegacyFile()
+            override var signedIn: Boolean
+                get() = Settings.signedIn
+                set(value) {
+                    Settings.signedIn = value
+                }
         }
 
         /** [LegacyPasswordMigration.Store] over [Settings]. */

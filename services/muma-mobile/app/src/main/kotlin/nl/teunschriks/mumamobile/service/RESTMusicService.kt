@@ -964,7 +964,7 @@ open class RESTMusicService(
      * keeps (issue #101). There is no login here any more: the password it used to log in with is
      * not stored, and the key is permanent, so a missing or refused key means "sign in again".
      *
-     * The key lives in [Settings.mumaApiKey], written by a sign-in
+     * The key lives in [SecureSettings.mumaApiKey] (encrypted, issue #115), written by a sign-in
      * ([ActiveServerProvider.saveSession]); the server entry's own `apiKey` is never filled for
      * the static servers. A key without a usable account id asks MuMa which account it belongs to
      * (`GET /api/auth/verify`, with the key alone) and stores the id.
@@ -978,7 +978,7 @@ open class RESTMusicService(
         val credentials = MumaStoredCredentials.resolve(
             serverApiKey = activeServer.apiKey,
             serverUserId = activeServer.mumaUserId,
-            settingsApiKey = Settings.mumaApiKey,
+            settingsApiKey = SecureSettings.mumaApiKey,
             settingsUserId = Settings.mumaUserId
         )
         if (credentials != null) {
@@ -987,7 +987,7 @@ open class RESTMusicService(
         }
 
         val apiKey = activeServer.apiKey?.takeIf { it.isNotBlank() }
-            ?: Settings.mumaApiKey.takeIf { it.isNotBlank() }
+            ?: SecureSettings.mumaApiKey.takeIf { it.isNotBlank() }
             ?: throw MumaLoginRefusedException(MumaStoredCredentials.HTTP_UNAUTHORIZED)
 
         Timber.i("MuMa account id missing; asking MuMa which account the stored key belongs to")
@@ -1014,7 +1014,7 @@ open class RESTMusicService(
     @Throws(Exception::class)
     private fun <T> signOutWhenKeyRefused(request: () -> retrofit2.Response<T>): retrofit2.Response<T> {
         // Captured before the request: a sign-in that replaces the key meanwhile must survive it.
-        val key = Settings.mumaApiKey
+        val key = SecureSettings.mumaApiKey
         return MumaStoredCredentials.signOutWhenKeyRefused(
             onRefused = { activeServerProvider.keyRefused(key) },
             request = request

@@ -28,7 +28,6 @@ lifecycleLivedataKtx   = "2.11.0"
 media                  = "1.8.0"
 credentials            = "1.6.0"
 googleid               = "1.2.1"
-security               = "1.1.0"
 gradlePlugin           = "9.4.1"
 androidxcar            = "1.7.0"
 appcompat              = "1.8.0"
@@ -103,7 +102,6 @@ capacitorCore           = { module = "com.capacitorjs:core", version.ref = "capa
 credentials            = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid               = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
-securityCrypto         = { module = "androidx.security:security-crypto", version.ref = "security" }
 kotlinStdlib            = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinReflect           = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinxCoroutines       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }

@@ -17,6 +17,7 @@ import nl.teunschriks.mumamobile.api.muma.MumaLibraryGenre
 import nl.teunschriks.mumamobile.coverart.GenreTintCache
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.SignedInFixture
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should not be null`
 import org.junit.Before
@@ -34,6 +35,10 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class GenreCoverArtTest {
+
+    /** Signed in with a token, so the car's token gate lets the browse through (issue #115). */
+    @Before
+    fun signedInWithToken() = SignedInFixture.install()
 
     private val musicService: MusicService = mockk(relaxed = true)
     private val scope = CoroutineScope(Dispatchers.Unconfined)

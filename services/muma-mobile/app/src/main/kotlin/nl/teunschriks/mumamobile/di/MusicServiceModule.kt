@@ -60,7 +60,7 @@ val musicServiceModule = module {
             baseUrl = server.url,
             username = server.userName,
             token = token,
-            apiKey = server.apiKey ?: nl.teunschriks.mumamobile.util.Settings.mumaApiKey.takeIf { it.isNotEmpty() },
+            apiKey = server.apiKey ?: nl.teunschriks.mumamobile.util.SecureSettings.mumaApiKey.takeIf { it.isNotEmpty() },
             mumaUserId = server.mumaUserId ?: nl.teunschriks.mumamobile.util.Settings.mumaUserId.takeIf { it != -1 },
             minimalProtocolVersion = SubsonicAPIVersions.getClosestKnownClientApiVersion(
                 server.minimumApiVersion

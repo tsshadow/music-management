@@ -462,8 +462,20 @@ object Settings {
         0
     )
 
+    /**
+     * The MuMa API key builds before issue #115 kept here in plain text. Nothing writes it any
+     * more: the key lives encrypted in [SecureSettings.mumaApiKey], and
+     * [nl.teunschriks.mumamobile.data.CredentialMigration] moves this copy there once and removes
+     * it with [clearLegacyMumaApiKey].
+     */
     @JvmStatic
-    var mumaApiKey by StringSetting(getKey(R.string.setting_key_muma_api_key), "")
+    val legacyMumaApiKey: String
+        get() = preferences.getString(getKey(R.string.setting_key_muma_api_key), null) ?: ""
+
+    /** Removes the key [legacyMumaApiKey] reads, rather than leaving it behind blank. */
+    fun clearLegacyMumaApiKey() {
+        preferences.edit(commit = true) { remove(getKey(R.string.setting_key_muma_api_key)) }
+    }
 
     @JvmStatic
     var mumaUserId by StringIntSetting(getKey(R.string.setting_key_muma_user_id), -1)

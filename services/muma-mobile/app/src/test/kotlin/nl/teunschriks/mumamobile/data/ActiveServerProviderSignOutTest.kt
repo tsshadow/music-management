@@ -7,22 +7,20 @@
 
 package nl.teunschriks.mumamobile.data
 
-import io.mockk.Runs
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
-import io.mockk.verify
+import android.content.Context
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.util.FakeCredentialCipher
 import nl.teunschriks.mumamobile.util.SecureSettings
 import nl.teunschriks.mumamobile.util.Settings
 import org.amshove.kluent.shouldBeEqualTo
-import org.junit.After
+import org.amshove.kluent.shouldBeNull
+import org.amshove.kluent.shouldNotContain
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 /**
@@ -32,9 +30,9 @@ import org.robolectric.annotation.Config
  * password: a session is a name, a MuMa key and the explicit signed-in flag, and an install that
  * still has a password stored is migrated to that flag and loses the password.
  *
- * [SecureSettings] is object-mocked rather than exercised for real: it wraps
- * `EncryptedSharedPreferences`, which needs a real Android Keystore that Robolectric does not
- * provide, and the point here is only that `signOut()` calls it, not that the encryption works.
+ * Since issue #115 the key lives in [SecureSettings], encrypted with a Keystore key. Robolectric
+ * has no Keystore, so a [FakeCredentialCipher] stands in for it; the store around it -- the file,
+ * the migration out of the plain preferences, a key that stopped working -- is the real one.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = UApp::class)
@@ -47,26 +45,42 @@ class ActiveServerProviderSignOutTest {
     @Before
     fun setUp() {
         provider = ActiveServerProvider()
-        mockkObject(SecureSettings)
-        every { SecureSettings.clear() } just Runs
+        cipher = FakeCredentialCipher()
+        SecureSettings.useCipherForTests(cipher)
+        SecureSettings.clear()
 
         Settings.activeServer = 0
         Settings.staticUserName = "user"
         Settings.clearLegacyStaticPassword()
+        Settings.clearLegacyMumaApiKey()
         Settings.signedIn = true
-        Settings.mumaApiKey = "key-1"
+        SecureSettings.mumaApiKey = "key-1"
+        SecureSettings.subsonicToken = "token-1"
         Settings.mumaUserId = 7
-        ActiveServerProvider.resetLegacyPasswordCheck()
+        ActiveServerProvider.resetLegacyCredentialsCheck()
     }
 
-    @After
-    fun tearDown() {
-        unmockkObject(SecureSettings)
-    }
+    private lateinit var cipher: FakeCredentialCipher
+
+    private val plainKeyName = "mumaApiKey"
 
     private fun storeLegacyPassword(password: String) {
         Settings.preferences.edit().putString(passwordKey, password).commit()
-        ActiveServerProvider.resetLegacyPasswordCheck()
+        ActiveServerProvider.resetLegacyCredentialsCheck()
+    }
+
+    /** What a build from before issue #115 left: the key in the plain preferences only. */
+    private fun storePlainKey(key: String) {
+        SecureSettings.clear()
+        Settings.preferences.edit().putString(plainKeyName, key).commit()
+        ActiveServerProvider.resetLegacyCredentialsCheck()
+    }
+
+    /** Everything on disk that could hold a credential, as text. */
+    private fun everythingOnDisk(): String {
+        val context = RuntimeEnvironment.getApplication()
+        return Settings.preferences.all.toString() +
+            context.getSharedPreferences(SecureSettings.PREFS_FILE, Context.MODE_PRIVATE).all.toString()
     }
 
     @Test
@@ -76,9 +90,9 @@ class ActiveServerProviderSignOutTest {
         Settings.staticUserName shouldBeEqualTo "user"
         Settings.signedIn shouldBeEqualTo false
         ActiveServerProvider.isSignedIn() shouldBeEqualTo false
-        Settings.mumaApiKey shouldBeEqualTo ""
+        SecureSettings.mumaApiKey shouldBeEqualTo ""
+        SecureSettings.subsonicToken.shouldBeNull()
         Settings.mumaUserId shouldBeEqualTo -1
-        verify(exactly = 1) { SecureSettings.clear() }
     }
 
     @Test
@@ -88,7 +102,7 @@ class ActiveServerProviderSignOutTest {
         provider.saveSession("user", "key-2", 9)
 
         Settings.staticUserName shouldBeEqualTo "user"
-        Settings.mumaApiKey shouldBeEqualTo "key-2"
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-2"
         Settings.mumaUserId shouldBeEqualTo 9
         ActiveServerProvider.isSignedIn() shouldBeEqualTo true
         Settings.hasKey(passwordKey) shouldBeEqualTo false
@@ -143,7 +157,7 @@ class ActiveServerProviderSignOutTest {
 
         Settings.hasKey(passwordKey) shouldBeEqualTo false
         Settings.legacyStaticPassword shouldBeEqualTo ""
-        Settings.mumaApiKey shouldBeEqualTo "key-1"
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-1"
         provider.getActiveServer().password shouldBeEqualTo ""
     }
 
@@ -170,9 +184,9 @@ class ActiveServerProviderSignOutTest {
         provider.keyRefused("key-1") shouldBeEqualTo true
 
         ActiveServerProvider.isSignedIn() shouldBeEqualTo false
-        Settings.mumaApiKey shouldBeEqualTo ""
+        SecureSettings.mumaApiKey shouldBeEqualTo ""
+        SecureSettings.subsonicToken.shouldBeNull()
         Settings.staticUserName shouldBeEqualTo "user"
-        verify(exactly = 1) { SecureSettings.clear() }
     }
 
     @Test
@@ -182,7 +196,7 @@ class ActiveServerProviderSignOutTest {
         provider.keyRefused("key-1") shouldBeEqualTo false
 
         ActiveServerProvider.isSignedIn() shouldBeEqualTo true
-        Settings.mumaApiKey shouldBeEqualTo "key-2"
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-2"
     }
 
     @Test
@@ -194,5 +208,94 @@ class ActiveServerProviderSignOutTest {
 
         ActiveServerProvider.isSignedIn() shouldBeEqualTo true
         Settings.hasKey(passwordKey) shouldBeEqualTo false
+    }
+
+    // Issue #115: the key moves out of the plain preferences.
+    @Test
+    fun `saveSession stores the key encrypted and never in the plain preferences`() {
+        provider.saveSession("user", "key-2", 9)
+
+        Settings.hasKey(plainKeyName) shouldBeEqualTo false
+        everythingOnDisk() shouldNotContain "key-2"
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-2"
+    }
+
+    @Test
+    fun `an install with a plain key is migrated on the first read -- as Android Auto does`() {
+        // No UApp.onCreate migration here: isSignedIn is what the media session asks first.
+        storePlainKey("key-plain")
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-plain"
+        Settings.hasKey(plainKeyName) shouldBeEqualTo false
+        everythingOnDisk() shouldNotContain "key-plain"
+    }
+
+    @Test
+    fun `the migration is idempotent`() {
+        storePlainKey("key-plain")
+        ActiveServerProvider.migrateLegacyCredentials()
+        ActiveServerProvider.resetLegacyCredentialsCheck()
+
+        ActiveServerProvider.migrateLegacyCredentials()
+
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-plain"
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+    }
+
+    @Test
+    fun `a keystore that cannot encrypt signs the migrated install out and leaves no plain copy`() {
+        storePlainKey("key-plain")
+        cipher.failEncrypt = true
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+
+        Settings.signedIn shouldBeEqualTo false
+        Settings.hasKey(plainKeyName) shouldBeEqualTo false
+        everythingOnDisk() shouldNotContain "key-plain"
+    }
+
+    @Test
+    fun `the old EncryptedSharedPreferences file is deleted`() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences(SecureSettings.LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
+            .edit().putString("subsonic_token", "ciphertext").commit()
+        ActiveServerProvider.resetLegacyCredentialsCheck()
+
+        ActiveServerProvider.migrateLegacyCredentials()
+
+        SecureSettings.legacyFileExists() shouldBeEqualTo false
+    }
+
+    @Test
+    fun `a keystore key that was invalidated reads as signed out rather than crashing`() {
+        cipher.invalidate()
+        SecureSettings.useCipherForTests(cipher) // a fresh process: nothing cached
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+
+        Settings.signedIn shouldBeEqualTo false
+        Settings.staticUserName shouldBeEqualTo "user"
+        SecureSettings.subsonicToken.shouldBeNull()
+    }
+
+    @Test
+    fun `a backup restored without the key reads as signed out, and a new sign-in works`() {
+        cipher.loseKey()
+        SecureSettings.useCipherForTests(cipher)
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+
+        provider.saveSession("user", "key-5", 7)
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+        SecureSettings.mumaApiKey shouldBeEqualTo "key-5"
+    }
+
+    @Test
+    fun `a signed-in flag without a readable key is not a session`() {
+        SecureSettings.clear()
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
     }
 }

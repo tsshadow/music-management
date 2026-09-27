@@ -37,8 +37,8 @@ one, `secrets.token_urlsafe(32)` is issued. With several server databases, the f
 token wins and it is added to the others that lack it (added, never replacing another token).
 
 Client-side storage:
-- Android: `SecureSettings.subsonicToken` / `subsonicTokenUser` (EncryptedSharedPreferences, next to
-  the MuMa tokens; cleared by `ActiveServerProvider.signOut`).
+- Android: `SecureSettings.subsonicToken` / `subsonicTokenUser` (encrypted with a Keystore key next
+  to the MuMa API key, see "Credentials at rest"; cleared by `ActiveServerProvider.signOut`).
 - Web: store `subsonicToken` (`{username, token}`), persisted like the credentials it sits next to
   (`lms_subsonic_token`), cleared by `endRejectedSession` and by logout's account-store reset.
 
@@ -235,6 +235,77 @@ action trail.
   never reached MuMa) can no longer obtain one without the password. Its first MuMa call reports
   "sign in again", and a sign-in on the phone repairs it.
 
+## Credentials at rest (issue #115)
+
+With the password gone, the MuMa API key is the one long-lived credential the Android app keeps --
+permanent, since a refresh does not rotate it. Until issue #115 it sat in the plain preferences
+(`Settings.mumaApiKey` in `<package>_preferences.xml`), which auto-backup copied and which anything
+reading the app's files (a rooted device, an adb backup) could take as a lasting login. The Subsonic
+token sat in an `EncryptedSharedPreferences` file (`secure_settings`).
+
+**Choice: a small Keystore AES/GCM wrapper.** `androidx.security:security-crypto` is deprecated in
+its entirety (1.1.0 marks every API), so it is not where the key moves to; it is removed instead.
+The alternatives were Jetpack DataStore + Tink, and a hand-rolled wrapper around the platform
+Keystore. DataStore would add two libraries and an asynchronous (Flow) API to a codebase whose
+readers -- the Koin module building the Subsonic client, the OkHttp interceptors, the bridge -- all
+read synchronously; Tink would add a keyset of its own that itself needs wrapping by a Keystore key.
+With minSdk 33, the platform already offers everything needed: `AndroidKeyStore` AES-256 keys with
+GCM and a Keystore-chosen random IV. The wrapper is about a hundred lines, has no dependency, and
+keeps the synchronous, `SharedPreferences`-shaped API the callers already use.
+
+**Shape.**
+- `CredentialCipher` seals/opens one value; `AesGcmCredentialCipher` does AES-256-GCM, sealed form
+  `v1:<base64 iv>:<base64 ciphertext+tag>`, over a `CredentialKeySource`.
+  `KeystoreCredentialKeySource` generates and holds the key (`muma_credentials_aes_v1`) in the
+  Android Keystore, without user authentication: Android Auto starts the media session while the
+  phone is locked in the car and has to read the key then.
+- `CredentialStore` keeps only ciphertext in a private preferences file (`muma_credentials.xml`)
+  and caches opened values in memory, so a per-request read costs no Keystore round trip.
+- `SecureSettings` is the object the app uses: `mumaApiKey` (new), `subsonicToken`,
+  `subsonicTokenUser` and the MuMa tokens, and `clear()`. `Settings.mumaApiKey` is gone; only
+  `legacyMumaApiKey`/`clearLegacyMumaApiKey` remain, for the migration.
+
+**Keystore failures mean "signed out", never a crash.** Every JCA/Keystore failure --
+`KeyPermanentlyInvalidatedException`, `AEADBadTagException`, `UnrecoverableKeyException`, a
+`ProviderException` from the Keystore daemon, no key at all -- becomes one
+`CredentialStorageException`. On a read, the store drops every value and the key, clears
+`Settings.signedIn` and returns nothing. On a write it drops them the same way and retries once with
+a fresh key; a Keystore that cannot encrypt at all makes the write report failure, and
+`saveSession` then leaves the session signed out. `ActiveServerProvider.isSignedIn()` now also
+requires a readable key, so a key lost in any of these ways reads as signed out everywhere: the
+shell gets `signedIn: false` from `MumaSystem.credentials()` and shows its sign-in page, Android
+Auto answers "Sign in again in the MuMa app on your phone" -- the same state a refused key leads to.
+A key without user authentication is not invalidated by a lock-screen change; the handling is for
+vendors that wipe the Keystore anyway and for a restore onto another device.
+
+**Backup.** `muma_credentials.xml` (and the old `secure_settings.xml`) are excluded from cloud
+backup and device transfer (`backup_rules.xml`) and from the pre-Android-12 descriptor
+(`backup_descriptor.xml`). The ordinary preferences are still backed up, flag included, so a
+restored install has `signedIn = true` but no key -- which `isSignedIn()` reads as signed out.
+Were the ciphertext restored anyway, it could not be opened: Keystore keys never leave the device.
+
+**Migration of an existing install.** `CredentialMigration` runs right after
+`LegacyPasswordMigration`, in the same once-per-process `ActiveServerProvider.migrateLegacyCredentials()`
+that `UApp.onCreate` and every `isSignedIn()` call go through -- so also when Android Auto starts the
+service without the UI. It writes a plain key to the encrypted store first and removes the plain
+copy after (a crash in between repeats the same write on the next start), and deletes the old
+`EncryptedSharedPreferences` file and its master key. The Subsonic token in that file is not carried
+over: it is fetched again with the key, by the shell's start (`SubsonicTokenRefresher`) or, in the
+car, before the first request (`prefetchIfMissing`/`recovery`). The MuMa access and refresh tokens it
+had room for are never issued to the app. When the Keystore cannot encrypt, the plain copy is still
+removed and the install is signed out. Idempotent: with nothing left in the old places it does
+nothing.
+
+**The bridge is unchanged.** `MumaSystem.credentials()` still returns `mumaApiKey` (now read from
+`SecureSettings`) and the Subsonic token to the WebView; `saveCredentials` stores the key through
+`saveSession`. The settings dump no longer sees the key at all; `LogRedaction` still masks the name.
+
+**What an existing install does after updating.** First start: the key moves into the encrypted
+store and the plain copy is removed; the old encrypted file is deleted; the first Subsonic request
+(or the shell's start) fetches the token again once with the key. Nobody has to sign in again.
+On a device whose Keystore cannot create a key, the app asks for a sign-in instead -- and keeps
+asking, since no key can be stored there without it.
+
 ## Recovering from a refused token (issue #73)
 
 The refresher above only runs when the web shell starts or signs in. Android Auto runs the media
@@ -336,6 +407,20 @@ answering error 40 until the phone's UI was opened once (bug report
     `loginPage*.test.js`, `management.test.js`, `nativeSession.test.js`,
     `platformCapacitor.test.js`); end to end in a browser against the test stack
     (`tests/browser/stored-password.spec.js`).
+
+12. Credentials at rest (issue #115): AES-GCM round trip, fresh IV per value, a tampered value, one
+    sealed under a replaced key, or with no key at all does not open, and a failing key source
+    becomes a storage exception (`AesGcmCredentialCipherTest`); only ciphertext on disk, an
+    invalidated key or ciphertext without its key drops every value and reports it once, a write
+    under an invalidated key succeeds with a fresh key, a Keystore that cannot encrypt stores
+    nothing (`CredentialStoreTest`); the plain key moves and the plain copy is removed, a second run
+    changes nothing, a failed encryption signs out, the old file is deleted
+    (`CredentialMigrationTest`); a sign-in never writes the key in plain text, a plain key is
+    migrated on the first `isSignedIn()` as the car does it, an invalidated key or a restore without
+    it reads as signed out and a new sign-in works (`ActiveServerProviderSignOutTest`); the
+    credential file is excluded from cloud backup, device transfer and the legacy descriptor
+    (`CredentialBackupRulesTest`). The Keystore itself is not reachable from Robolectric;
+    `FakeCredentialCipher` stands in for it there.
 
 ## Related Docs
 

@@ -344,7 +344,7 @@ class MumaSystemPlugin :
             .put("signedIn", signedIn)
             .put("clientId", Constants.REST_CLIENT_ID)
             .put("serverId", server.id)
-        Settings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
+        SecureSettings.mumaApiKey.takeIf { it.isNotBlank() }?.let { result.put("mumaApiKey", it) }
         val tokenUser = SecureSettings.subsonicTokenUser
         SubsonicSigning.tokenFor(server.userName, SecureSettings.subsonicToken, tokenUser)?.let {
             result.put("subsonicToken", it)
@@ -554,7 +554,7 @@ class MumaSystemPlugin :
         // user edit them. mumaApiKeySet rather than the raw key, same reason updatePreferenceSummaries
         // masks it on the legacy screen instead of showing it back.
         Settings.mumaUserId.takeIf { it > 0 }?.let { result.put("mumaUserId", it) }
-        result.put("mumaApiKeySet", Settings.mumaApiKey.isNotBlank())
+        result.put("mumaApiKeySet", SecureSettings.mumaApiKey.isNotBlank())
         fullScreenIntentGranted()?.let { result.put("carModeFullScreenGranted", it) }
         call.resolve(result)
     }

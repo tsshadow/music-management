@@ -25,6 +25,7 @@ import nl.teunschriks.mumamobile.domain.Tag
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.SignedInFixture
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.`should contain`
 import org.amshove.kluent.`should not be null`
@@ -43,6 +44,10 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class MediaLibraryBrowseTabsTest {
+
+    /** Signed in with a token, so the car's token gate lets the browse through (issue #115). */
+    @Before
+    fun signedInWithToken() = SignedInFixture.install()
 
     private val musicService: MusicService = mockk(relaxed = true)
     private val scope = CoroutineScope(Dispatchers.Unconfined)

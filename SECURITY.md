@@ -167,9 +167,15 @@ What `services/muma-mobile` does with credentials, since bug report 054:
   on the first start. "Signed in" is an explicit flag. A MuMa key the server
   refuses (401) ends the session and shows the sign-in page -- it is not
   silently traded for a new key -- and Android Auto then says to sign in on the
-  phone. The MuMa API key is now the one long-lived credential on the device;
-  on Android it sits in the plain app preferences, not in
-  `EncryptedSharedPreferences` (issue #115 moves it).
+  phone. The MuMa API key is now the one long-lived credential on the device.
+* **Credentials on Android are encrypted at rest** (issue #115). The MuMa API
+  key and the Subsonic token are sealed with AES-256-GCM under a key held by
+  the Android Keystore (hardware-backed where the device has it, never
+  readable by the app), and the file holding the ciphertext is excluded from
+  auto-backup and device transfer. A key the Keystore lost or invalidated, or
+  a backup restored without the credentials, leaves the app signed out rather
+  than crashing. An update moves a key an older build kept in the plain
+  preferences on its first start and removes the plain copy.
 * **Logs are redacted before they leave the phone.** `LogRedaction` masks the
   `u`/`p`/`t`/`s`/`apiKey`/`password` query parameters, credential headers,
   credential-named settings and credential-named JSON members in every

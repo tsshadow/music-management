@@ -61,26 +61,44 @@ PATTERNS = {
     ),
     'curl -u user:password': re.compile(r'\bcurl\b[^|;\n]*\s(?:-u|--user)\s+["\']?[^\s"\']*:\S'),
     'keytool -storepass/-keypass <value>': re.compile(r'["\']?-(?:store|key|src|dest)(?:store)?pass["\']?(?!:)[\s,]'),
-    'secret assigned in a remote command string': re.compile(
-        rf'\bssh\b[^|;\n]*["\']{SECRET_NAME}=["\']?\$'
-    ),
+    'secret assigned in a remote command string': re.compile(rf'\bssh\b[^|;\n]*["\']{SECRET_NAME}=["\']?\$'),
 }
 
 # (path, pattern name, substring of the line, reason). Keep the substring specific enough that a
 # new, real secret on the same file does not ride along.
 ALLOWLIST = [
     # Disposable test containers: fixed, published throwaway credentials, no real secret exists.
-    ('scripts/lib/e2e-stack.sh', 'mariadb/mysql -p<password>', '-ptest-root-password',
-     'root password of the throwaway e2e MariaDB, also in docker/compose.test.yml'),
-    ('scripts/test/db-integration.sh', 'mariadb/mysql -p<password>', '-ptest-root-password',
-     'root password of the throwaway integration MariaDB'),
-    ('scripts/test/db-integration.sh', 'docker -e NAME=<secret>', 'MYSQL_ROOT_PASSWORD=test-root-password',
-     'root password of the throwaway integration MariaDB'),
-    ('scripts/test/db-integration.sh', 'docker -e NAME=<secret>', 'MYSQL_PASSWORD="$DB_PASS"',
-     'app password of the throwaway integration MariaDB, a fixed test value'),
+    (
+        'scripts/lib/e2e-stack.sh',
+        'mariadb/mysql -p<password>',
+        '-ptest-root-password',
+        'root password of the throwaway e2e MariaDB, also in docker/compose.test.yml',
+    ),
+    (
+        'scripts/test/db-integration.sh',
+        'mariadb/mysql -p<password>',
+        '-ptest-root-password',
+        'root password of the throwaway integration MariaDB',
+    ),
+    (
+        'scripts/test/db-integration.sh',
+        'docker -e NAME=<secret>',
+        'MYSQL_ROOT_PASSWORD=test-root-password',
+        'root password of the throwaway integration MariaDB',
+    ),
+    (
+        'scripts/test/db-integration.sh',
+        'docker -e NAME=<secret>',
+        'MYSQL_PASSWORD="$DB_PASS"',
+        'app password of the throwaway integration MariaDB, a fixed test value',
+    ),
     *[
-        (path, 'docker -e NAME=<secret>', value, 'placeholder signing config: Gradle needs the variables set, '
-         'unit/lint builds sign nothing')
+        (
+            path,
+            'docker -e NAME=<secret>',
+            value,
+            'placeholder signing config: Gradle needs the variables set, unit/lint builds sign nothing',
+        )
         for path in (
             'scripts/test/android-unit.sh',
             'scripts/test/muma-mobile-detekt.sh',
@@ -91,8 +109,12 @@ ALLOWLIST = [
         for value in ('SIGNING_STORE_PASSWORD=dummy', 'SIGNING_KEY_PASSWORD=dummy')
     ],
     *[
-        ('scripts/test/muma-mobile-emulator-smoke.sh', 'docker -e NAME=<secret>', value,
-         'placeholder signing config for the emulator smoke build')
+        (
+            'scripts/test/muma-mobile-emulator-smoke.sh',
+            'docker -e NAME=<secret>',
+            value,
+            'placeholder signing config for the emulator smoke build',
+        )
         for value in ('SIGNING_STORE_PASSWORD=dummy-ci-password', 'SIGNING_KEY_PASSWORD=dummy-ci-password')
     ],
 ]

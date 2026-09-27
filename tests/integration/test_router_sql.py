@@ -1169,7 +1169,7 @@ class ChannelLinksTest:
         assert row['channel']['label'] == {'id': label_id, 'name': 'Traxtorm'}
 
     def test_a_hand_link_is_a_manual_confirmed_row_and_unlinks_like_a_proposal(self, api, headers, db):
-        """Issue #58: migrate_v47's `manual` source, the upsert, and the rival proposal withdrawn."""
+        """Issue #58: migrate_v48's `manual` source, the upsert, and the rival proposal withdrawn."""
         _, artist_id, channels = self._library(db)
         api.post('/api/channel-links/proposals/refresh', headers=headers)
         with db.cursor() as cursor:

@@ -15,7 +15,7 @@
   label today; 515 channels with 77.171 tracks got no proposal at all and can only be linked by hand.
   New: `PUT /api/channel-links/channels/{id}/{kind}`, `GET /api/channel-links/channels` and
   `GET /api/channel-links/targets`; `confirm` and `unlink` responses gain `queued` (additive);
-  `channel_link_proposals.source` gains `manual` (`migrate_v47`).
+  `channel_link_proposals.source` gains `manual` (`migrate_v48`).
 <!-- release notes -->
 - A channel linked to its label or artist now puts that label and artist on its downloads, and a
   channel without a proposal can be linked by hand under Beheer -> Downloaders -> Koppelingen.

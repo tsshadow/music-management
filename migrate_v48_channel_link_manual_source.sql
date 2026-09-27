@@ -1,4 +1,4 @@
--- migrate_v47_channel_link_manual_source.sql
+-- migrate_v48_channel_link_manual_source.sql
 --
 -- channel_link_proposals.source gains 'manual': a link the curator made by hand in Beheer ->
 -- Downloaders -> Koppelingen, for a channel the search proposed nothing for. It is stored as a

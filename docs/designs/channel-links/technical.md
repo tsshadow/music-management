@@ -201,7 +201,7 @@ Implements the two sections of the same name in [functional.md](functional.md).
 is recorded as a row like any confirmed proposal, so the history says who linked what, and unlink
 keeps working unchanged (it turns the channel's `confirmed` row of that kind into `rejected`, which
 is also what keeps the search from re-proposing it). Three edits: the `CREATE TABLE` in
-`db_init.py`, `migrate_v47_channel_link_manual_source.sql` (`ALTER TABLE ... MODIFY source ...`,
+`db_init.py`, `migrate_v48_channel_link_manual_source.sql` (`ALTER TABLE ... MODIFY source ...`,
 re-runnable because a MODIFY to the same definition is a no-op; appending an ENUM value is an
 in-place change in MariaDB), and an integration test that stores a `manual` row.
 

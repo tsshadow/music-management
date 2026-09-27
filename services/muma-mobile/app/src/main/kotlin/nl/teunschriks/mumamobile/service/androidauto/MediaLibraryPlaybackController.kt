@@ -120,7 +120,7 @@ class MediaLibraryPlaybackController(
 
     /**
      * The same, with where the feed's next page starts, for a queue that continues past its end
-     * ([FeedQueueContinuation]). Null when there is nothing to play.
+     * ([ListQueueContinuation]). Null when there is nothing to play.
      */
     fun feedPage(slug: String): FeedPage? {
         val page = serviceScope.future { dataProvider.feeds.firstPage(slug) }.get()
@@ -193,14 +193,22 @@ class MediaLibraryPlaybackController(
      * one the row was listed in (cached where the level cached it, refetched where a car that
      * remembered the id comes back after the cache is gone), and a track that is not in it any
      * more answers null so the caller can fall back to playing it alone.
+     *
+     * A row of a `getSongs` list (`MEDIA_SONG_RANDOM_ITEM`: a tab sort, a tag folder, a preset)
+     * and a feed row also say where their list continues, so the queue tops itself up (#103).
      */
     fun queueForTap(mediaId: String): CarQueue? {
         val parts = mediaId.split('|')
+        var continuation: ListQueueContinuation.Start? = null
         val (tracks, songId) = when (parts.first()) {
             MEDIA_PLAYLIST_SONG_ITEM -> playPlaylist(parts[INDEX_ID], parts[INDEX_NAME]) to parts[INDEX_SONG_ID]
             MEDIA_ALBUM_SONG_ITEM -> playAlbum(parts[INDEX_ID], parts[INDEX_NAME]) to parts[INDEX_SONG_ID]
             MEDIA_SONG_STARRED_ITEM -> playStarredSongs() to parts[INDEX_ID]
-            MEDIA_SONG_RANDOM_ITEM -> dataProvider.randomSongsCache to parts[INDEX_ID]
+            MEDIA_SONG_RANDOM_ITEM -> {
+                // Read together: the continuation belongs to exactly this cached list.
+                continuation = dataProvider.randomSongsContinuation
+                dataProvider.randomSongsCache to parts[INDEX_ID]
+            }
             MEDIA_SEARCH_SONG_ITEM -> dataProvider.searchSongsCache to parts[INDEX_ID]
             MEDIA_FEED_ITEM -> return feedQueueForTap(parts[INDEX_ID], parts[INDEX_NAME])
             else -> return null
@@ -208,40 +216,61 @@ class MediaLibraryPlaybackController(
         if (tracks.isNullOrEmpty()) return null
         val index = tracks.indexOfFirst { it.id == songId }
         if (index < 0) return null
-        return CarQueue(tracks, index)
+        return CarQueue(tracks, index, continuation)
     }
 
     /**
-     * "Alles afspelen" in a feed folder (`MEDIA_FEED_ID|<slug>`): the feed's first page from its
-     * start, with where it continues. Null for any other media id and for an empty feed.
+     * A play row that starts a list which can continue past what it loads, from its top:
+     * "Alles afspelen" in a feed folder (`MEDIA_FEED_ID|<slug>`), a tag play row
+     * (`MEDIA_TAG_PLAY|...`: a tab's Random row, a genre/label/festival/podcast/year/lineup/form
+     * folder's "Alles afspelen", "Willekeurig", "Recent toegevoegd"), a preset play row
+     * (`MEDIA_PRESET_PLAY|<id>[|<sort>]`), and the "Alles afspelen" of a tab sort list
+     * (`MEDIA_SONG_RANDOM_ID`, which plays the list just browsed). Null for every other media id
+     * and for an empty list, which then take the legacy path as they always did.
      *
-     * Blocks the calling thread through [feedPage]'s future, exactly like the legacy path it
-     * replaces for this one id; the page is usually cached, because the car listed the folder.
+     * Blocks the calling thread through a future, exactly like the legacy path it replaces for
+     * these ids.
      */
-    fun queueForFeedPlayAll(mediaId: String): CarQueue? {
+    fun queueForPlayAll(mediaId: String): CarQueue? {
         val parts = mediaId.split('|')
-        if (parts.first() != MEDIA_FEED_ID) return null
-        val slug = parts.getOrNull(INDEX_ID) ?: return null
-        val page = feedPage(slug) ?: return null
-        return CarQueue(page.tracks, 0, feedSlug = slug, feedNextOffset = page.nextOffset)
+        val list = when (parts.first()) {
+            MEDIA_FEED_ID -> parts.getOrNull(INDEX_ID)?.let { slug ->
+                feedPage(slug)?.let { MediaLibraryDataProvider.LoadedList(it.tracks, feedContinuation(slug, it.nextOffset)) }
+            }
+            MEDIA_TAG_PLAY -> tagQueryList(parts)
+            MEDIA_PRESET_PLAY -> parts.getOrNull(INDEX_ID)?.let { presetList(it, parts.getOrNull(INDEX_SORT)) }
+            MEDIA_SONG_RANDOM_ID -> {
+                val continuation = dataProvider.randomSongsContinuation
+                dataProvider.randomSongsCache?.let { MediaLibraryDataProvider.LoadedList(it, continuation) }
+            }
+            else -> null
+        } ?: return null
+        if (list.tracks.isEmpty()) return null
+        return CarQueue(list.tracks, 0, list.continuation)
     }
 
     private fun feedQueueForTap(slug: String, songId: String): CarQueue? {
         val page = feedPage(slug) ?: return null
         val index = page.tracks.indexOfFirst { it.id == songId }
         if (index < 0) return null
-        return CarQueue(page.tracks, index, feedSlug = slug, feedNextOffset = page.nextOffset)
+        return CarQueue(page.tracks, index, feedContinuation(slug, page.nextOffset))
+    }
+
+    /** Where feed [slug] continues after its first page; null when that page was all of it. */
+    private fun feedContinuation(slug: String, nextOffset: Int?): ListQueueContinuation.Start? {
+        val next = nextOffset ?: return null
+        return ListQueueContinuation.Start(FeedListSource(slug) { s, offset -> dataProvider.feeds.pageAfter(s, offset) }, next)
     }
 
     /**
-     * A queue and where in it to start, for [queueForTap]. A queue that is a feed also says which
-     * one and where its next page starts, so it can continue past its end.
+     * A queue and where in it to start, for [queueForTap] and [queueForPlayAll]. A queue from a
+     * list that continues past what was loaded -- a feed, a `getSongs` list -- also says where
+     * its next page comes from, so it can grow past its end.
      */
     data class CarQueue(
         val tracks: List<Track>,
         val startIndex: Int,
-        val feedSlug: String? = null,
-        val feedNextOffset: Int? = null
+        val continuation: ListQueueContinuation.Start? = null
     )
 
     fun onAddLegacyAutoItems(
@@ -519,23 +548,33 @@ class MediaLibraryPlaybackController(
      * Nothing here depends on a list having been browsed first, which is what lets the Random
      * row at the top of a tab play without the car ever opening the tracks below it.
      */
-    fun playTagQuery(mediaIdParts: List<String>): List<Track>? {
+    fun playTagQuery(mediaIdParts: List<String>): List<Track>? = tagQueryList(mediaIdParts)?.tracks?.takeIf { it.isNotEmpty() }
+
+    /** [playTagQuery] with where the list continues. */
+    private fun tagQueryList(mediaIdParts: List<String>): MediaLibraryDataProvider.LoadedList? {
         val query = TagQuery.parse(mediaIdParts) ?: return null
         Timber.d("playTagQuery %s", query)
         return serviceScope.future {
-            dataProvider.tracksFor(query.toBrowseQuery(), page = 0, pageSize = DISPLAY_LIMIT)
-        }.get()?.takeIf { it.isNotEmpty() }
+            dataProvider.loadList(query.toBrowseQuery(), page = 0, pageSize = DISPLAY_LIMIT)
+        }.get()
     }
 
     /** A preset, in its saved order or -- when [sortMethod] says so -- shuffled by the server. */
-    fun playPreset(id: String, sortMethod: String?): List<Track>? {
+    fun playPreset(id: String, sortMethod: String?): List<Track>? = presetList(id, sortMethod)?.tracks?.takeIf { it.isNotEmpty() }
+
+    /**
+     * [playPreset] with where the list continues. A shuffled preset gets its seed in
+     * [MediaLibraryDataProvider.loadList], so the pages the queue appends are the rest of the
+     * same shuffle.
+     */
+    private fun presetList(id: String, sortMethod: String?): MediaLibraryDataProvider.LoadedList? {
         Timber.d("playPreset %s %s", id, sortMethod)
         return serviceScope.future {
             val tile = dataProvider.preset(id) ?: return@future null
             var query = BrowseQuery.fromTile(tile)
             if (!sortMethod.isNullOrBlank()) query = query.withSort(sortMethod)
-            dataProvider.tracksFor(query, page = 0, pageSize = DISPLAY_LIMIT)
-        }.get()?.takeIf { it.isNotEmpty() }
+            dataProvider.loadList(query, page = 0, pageSize = DISPLAY_LIMIT)
+        }.get()
     }
 
     fun playBookmark(id: String): List<Track>? {

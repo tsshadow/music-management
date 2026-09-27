@@ -143,4 +143,24 @@ class BrowseQueryTest {
 
         TagQuery.parse(row.mediaId(MediaLibraryBase.MEDIA_TAG_TRACKS).split('|')) `should be equal to` row
     }
+
+    @Test
+    fun `a random query is seeded once and keeps its seed`() {
+        val random = BrowseQuery("short", sortMethod = BrowseQuery.SORT_RANDOM)
+
+        val seeded = random.seeded { 42 }
+
+        seeded.seed `should be equal to` 42
+        seeded.seeded { 7 }.seed `should be equal to` 42
+    }
+
+    @Test
+    fun `a query in a fixed order gets no seed`() {
+        BrowseQuery("short", sortMethod = BrowseQuery.SORT_RELEASE).seeded { 42 }.seed.`should be null`()
+    }
+
+    @Test
+    fun `a preset saved shuffled on the web counts as random whatever its casing`() {
+        BrowseQuery("long", sortMethod = "random").isRandom `should be equal to` true
+    }
 }

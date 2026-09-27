@@ -39,6 +39,16 @@ function openMenu(container) {
   return fireEvent.click(toggle);
 }
 
+/**
+ * The whole logout gesture since issue #80: open the menu, pick "Uitloggen", then confirm it in
+ * the dialog that now always comes first.
+ */
+async function logOut(container, getByText, getByTestId) {
+  await openMenu(container);
+  await fireEvent.click(getByText("Uitloggen"));
+  await fireEvent.click(getByTestId("logout-confirm-button"));
+}
+
 describe("ProfileButton logout", () => {
   let reload;
 
@@ -75,9 +85,8 @@ describe("ProfileButton logout", () => {
       }),
     );
 
-    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-    await openMenu(container);
-    await fireEvent.click(getByText("Uitloggen"));
+    const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+    await logOut(container, getByText, getByTestId);
 
     // The native call went out, but nothing else has happened yet -- the whole point of
     // awaiting it first.
@@ -102,9 +111,8 @@ describe("ProfileButton logout", () => {
     vi.spyOn(platform.system, "signOut").mockRejectedValue(new Error("no bridge"));
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-    await openMenu(container);
-    await fireEvent.click(getByText("Uitloggen"));
+    const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+    await logOut(container, getByText, getByTestId);
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(get(credentials).username).toBe("");
@@ -118,9 +126,8 @@ describe("ProfileButton logout", () => {
       vi.spyOn(platform.system, "signOut").mockReturnValue(new Promise(() => {}));
       vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-      await openMenu(container);
-      await fireEvent.click(getByText("Uitloggen"));
+      const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+      await logOut(container, getByText, getByTestId);
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(reload).toHaveBeenCalledOnce();
@@ -132,9 +139,8 @@ describe("ProfileButton logout", () => {
   });
 
   it("marks the device as signed out, and keeps the mark across the session reset", async () => {
-    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-    await openMenu(container);
-    await fireEvent.click(getByText("Uitloggen"));
+    const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+    await logOut(container, getByText, getByTestId);
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
 
     expect(get(signedOut)).toBe(true);
@@ -142,9 +148,8 @@ describe("ProfileButton logout", () => {
   });
 
   it("a browser tab's no-op sign-out does not block the reload", async () => {
-    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-    await openMenu(container);
-    await fireEvent.click(getByText("Uitloggen"));
+    const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+    await logOut(container, getByText, getByTestId);
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(get(credentials).username).toBe("");
@@ -171,9 +176,8 @@ describe("ProfileButton logout", () => {
     setupStepsSeen.set(["language"]);
     mumaApiUrl.set("https://muma.example");
 
-    const { container, getByText } = render(ProfileButton, { onNavigate: vi.fn() });
-    await openMenu(container);
-    await fireEvent.click(getByText("Uitloggen"));
+    const { container, getByText, getByTestId } = render(ProfileButton, { onNavigate: vi.fn() });
+    await logOut(container, getByText, getByTestId);
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
 
     expect(get(playlist)).toEqual([]);
@@ -199,5 +203,104 @@ describe("ProfileButton logout", () => {
     }
     // Which server this browser talks to is the device's, not the account's.
     expect(get(mumaApiUrl)).toBe("https://muma.example");
+  });
+  // Issue #80 / style guide "Session controls": a logout always confirms first, saying what is
+  // lost and what is kept.
+  describe("confirmation", () => {
+    /**
+     * The shared `setup.js` stub for `element.animate()` never calls `onfinish`, so a modal's
+     * outro never ends and a closed dialog stays in the DOM. Closing is the point of the cancel
+     * test, so this one finishes every animation as soon as Svelte listens for it.
+     */
+    function finishAnimations() {
+      vi.spyOn(Element.prototype, "animate").mockImplementation(() => {
+        const animation = { cancel() {}, currentTime: 0, playState: "finished" };
+        Object.defineProperty(animation, "onfinish", {
+          set(callback) {
+            queueMicrotask(() => callback?.());
+          },
+        });
+        return animation;
+      });
+    }
+
+    it("asks first, and does nothing until the answer", async () => {
+      const signOut = vi.spyOn(platform.system, "signOut").mockResolvedValue();
+
+      const { container, getByText, getByTestId, getByRole } = render(ProfileButton, {
+        onNavigate: vi.fn(),
+      });
+      await openMenu(container);
+      await fireEvent.click(getByText("Uitloggen"));
+
+      const dialog = getByRole("dialog");
+      expect(dialog.getAttribute("aria-label")).toBe("Uitloggen?");
+      expect(getByTestId("logout-confirm").textContent).toContain(
+        "Het afspelen stopt en je wachtrij wordt leeggemaakt.",
+      );
+      // Rendered outside the top bar, whose backdrop blur would otherwise clip the overlay.
+      expect(container.contains(dialog)).toBe(false);
+      expect(signOut).not.toHaveBeenCalled();
+      expect(reload).not.toHaveBeenCalled();
+      expect(get(credentials).username).toBe("user");
+    });
+
+    it("cancel keeps everything as it was", async () => {
+      finishAnimations();
+      const signOut = vi.spyOn(platform.system, "signOut").mockResolvedValue();
+      playlist.set([{ id: "t1" }]);
+
+      const { container, getByText, queryByRole } = render(ProfileButton, {
+        onNavigate: vi.fn(),
+      });
+      await openMenu(container);
+      await fireEvent.click(getByText("Uitloggen"));
+      await fireEvent.click(getByText("Annuleren"));
+
+      await waitFor(() => expect(queryByRole("dialog")).toBeNull());
+      expect(signOut).not.toHaveBeenCalled();
+      expect(reload).not.toHaveBeenCalled();
+      expect(get(credentials).username).toBe("user");
+      expect(get(mumaApiKey)).toBe("key-1");
+      expect(get(playlist)).toEqual([{ id: "t1" }]);
+      expect(get(signedOut)).toBe(false);
+    });
+
+    it("confirm runs the sign-out exactly once, even when tapped twice", async () => {
+      const signOut = vi.spyOn(platform.system, "signOut").mockResolvedValue();
+
+      const { container, getByText, getByTestId } = render(ProfileButton, {
+        onNavigate: vi.fn(),
+      });
+      await openMenu(container);
+      await fireEvent.click(getByText("Uitloggen"));
+      const confirm = getByTestId("logout-confirm-button");
+      await fireEvent.click(confirm);
+      await fireEvent.click(confirm);
+
+      await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+      expect(signOut).toHaveBeenCalledOnce();
+      expect(get(credentials).username).toBe("");
+    });
+
+    it("only the phone promises to keep downloads", async () => {
+      const native = Object.getOwnPropertyDescriptor(platform.system, "isNative");
+      const kept = "Je downloads blijven op dit apparaat staan.";
+      try {
+        const first = render(ProfileButton, { onNavigate: vi.fn() });
+        await openMenu(first.container);
+        await fireEvent.click(first.getByText("Uitloggen"));
+        expect(first.getByTestId("logout-confirm").textContent).not.toContain(kept);
+        first.unmount();
+
+        Object.defineProperty(platform.system, "isNative", { configurable: true, value: true });
+        const second = render(ProfileButton, { onNavigate: vi.fn() });
+        await openMenu(second.container);
+        await fireEvent.click(second.getByText("Uitloggen"));
+        expect(second.getByTestId("logout-confirm").textContent).toContain(kept);
+      } finally {
+        if (native) Object.defineProperty(platform.system, "isNative", native);
+      }
+    });
   });
 });

@@ -70,6 +70,7 @@ the retroactive documentation above):
 | [`ultrasonic-session-and-loading/`](ultrasonic-session-and-loading/) | Android client: per-section skeleton loading on the home screen, a "Log out" entry, and returning to the login screen when the server rejects the stored password (Subsonic error 40). Client-side only. |
 | [`label-catalog-coverage/`](label-catalog-coverage/) | The Catalogus section on the label edit page: catalogue numbers read off the release folders, grouped into series, with the observed range, what is present and which numbers are not, plus "copy as search terms". Computed on demand by `GET /api/curation/labels/{name}/catalog`. |
 | [`universal-ui/`](universal-ui/) | **Proposal.** One Svelte UI for web, phone and PC: the web player in a Capacitor shell over the phone's native playback, offline, Android Auto and voice services (Path A), with restyling the Kotlin app to the web's look worked out as the alternative (Path B). Sets as a first-class mode on every surface. |
+| [`logout-confirmation/`](logout-confirmation/) | The "Log out?" dialog in front of the web and app logout (issue #80): what it says, cancel changes nothing, confirm runs the unchanged sign-out of bug report 106. Frontend only. |
 
 ## Relationship to `.ai/docs` and `.ai/requirements`
 

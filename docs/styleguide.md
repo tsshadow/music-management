@@ -61,6 +61,17 @@
 - **Forms & Inputs**: Dark background (`bg-muma-spotify-light`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
 - **Cards**: Surface gray (`bg-muma-spotify-light`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
+- **Confirmation dialog**: a question that needs a yes before something hard to undo happens is
+  `Modal.svelte`, never the browser's `confirm()` for anything a listener (not only an admin) sees.
+  The title is the question ("Log out?"), the body says in `text-sm` what happens and what does not,
+  and the buttons sit right-aligned: an outlined pill `common.cancel` (`bg-transparent border
+  border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold`, hover `border-white`)
+  followed by a brand pill naming the action (`bg-brand text-black px-6 py-2 rounded-[24px]
+  font-bold`). A short question passes `widthClass="max-w-md"`. Escape, the close button and the
+  backdrop all mean cancel. Examples: the set-size download question (`TrackList.svelte`) and the
+  logout confirmation (`ProfileButton.svelte`, `docs/designs/logout-confirmation/`). A dialog opened
+  from inside a `backdrop-blur` bar is moved to `<body>` with `use:portal` (`src/lib/portal.js`),
+  or the bar clips it.
 - **Navigation**: Persistent sidebar on Web, Bottom Navigation / Drawer on Android. Active items highlighted with white text and/or green accent.
 - **Load more**: a list that continues past what it shows ends in one centred, outlined pill under
   the list (`bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px]
@@ -84,7 +95,9 @@
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
-  screen rather than to an empty app.
+  screen rather than to an empty app. On the web and in the app (the same web UI) that
+  confirmation is a Confirmation dialog, see below; the line about downloads only shows in the app,
+  since a browser tab has none (issue #80).
 - **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --

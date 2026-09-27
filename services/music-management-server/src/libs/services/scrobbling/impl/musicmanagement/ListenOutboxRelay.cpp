@@ -21,8 +21,6 @@
 #include "database/MumaListenOutbox.hpp"
 #include "database/Session.hpp"
 
-#define LOG(sev, message) LMS_LOG(SCROBBLING, sev, "[MuMa listen outbox] " << message)
-
 namespace lms::scrobbling::musicManagement
 {
     namespace
@@ -30,9 +28,16 @@ namespace lms::scrobbling::musicManagement
         // music-manager has the listen. It answers 200 for a listen it already had as well: the
         // relay sends the listen's own start time, and (username, listened_at, track) is unique
         // there. 409 is accepted too, as the other way a server can say "already have it".
+        constexpr int httpOkFirst{ 200 };
+        constexpr int httpOkEnd{ 300 };
+        constexpr int httpBadRequest{ 400 };
+        constexpr int httpConflict{ 409 };
+        constexpr int httpPayloadTooLarge{ 413 };
+        constexpr int httpUnprocessable{ 422 };
+
         bool isDelivered(int status)
         {
-            return (status >= 200 && status < 300) || status == 409;
+            return (status >= httpOkFirst && status < httpOkEnd) || status == httpConflict;
         }
 
         // music-manager read the listen and will never take it: the body itself is wrong. Sending
@@ -41,7 +46,7 @@ namespace lms::scrobbling::musicManagement
         // state of the server that passes, so the listen waits.
         bool isRefusedForGood(int status)
         {
-            return status == 400 || status == 413 || status == 422;
+            return status == httpBadRequest || status == httpPayloadTooLarge || status == httpUnprocessable;
         }
 
         std::chrono::milliseconds retryDelay(const ListenOutboxSettings& settings, std::size_t consecutiveFailures)
@@ -71,13 +76,13 @@ namespace lms::scrobbling::musicManagement
             db::Session& session{ _db.getTLSSession() };
             auto transaction{ session.createReadTransaction() };
             const db::mumaListenOutbox::Status status{ db::mumaListenOutbox::getStatus(session) };
-            if (status.count > 0)
-                LOG(INFO, "Resuming " << status.count << " listen(s) queued since " << status.oldest->toString("yyyy-MM-dd HH:mm:ss").toUTF8() << " UTC");
+            if (status.count > 0 && status.oldest)
+                LMS_LOG(SCROBBLING, INFO, "[MuMa listen outbox] Resuming " << status.count << " listen(s) queued since " << status.oldest->toString("yyyy-MM-dd HH:mm:ss").toUTF8() << " UTC");
         }
         catch (const std::exception& e)
         {
             // Not a reason to keep LMS from starting; sendNext() reports and retries on its own.
-            LOG(ERROR, "Cannot read the outbox: " << e.what());
+            LMS_LOG(SCROBBLING, ERROR, "[MuMa listen outbox] Cannot read the outbox: " << e.what());
         }
         wake();
     }
@@ -90,12 +95,12 @@ namespace lms::scrobbling::musicManagement
             auto transaction{ session.createWriteTransaction() };
             db::mumaListenOutbox::push(session, payload, Wt::WDateTime::currentDateTime());
             if (const std::size_t dropped{ db::mumaListenOutbox::dropOverflow(session, _settings.maxCount) }; dropped > 0)
-                LOG(WARNING, "Outbox full (" << _settings.maxCount << " listens): dropped the " << dropped << " oldest, music-manager will not get them from here");
+                LMS_LOG(SCROBBLING, WARNING, "[MuMa listen outbox] Outbox full (" << _settings.maxCount << " listens): dropped the " << dropped << " oldest, music-manager will not get them from here");
         }
         catch (const std::exception& e)
         {
             // LMS's own listen table still has it, and music-manager's backfill reads that.
-            LOG(ERROR, "Cannot queue a listen for music-manager: " << e.what());
+            LMS_LOG(SCROBBLING, ERROR, "[MuMa listen outbox] Cannot queue a listen for music-manager: " << e.what());
             return;
         }
         wake();
@@ -147,13 +152,13 @@ namespace lms::scrobbling::musicManagement
             {
                 auto transaction{ session.createWriteTransaction() };
                 const std::size_t dropped{ db::mumaListenOutbox::dropOlderThan(session, cutoff) };
-                LOG(WARNING, "Dropped " << dropped << " listen(s) music-manager did not take within " << std::chrono::duration_cast<std::chrono::hours>(_settings.maxAge).count() << " hours");
+                LMS_LOG(SCROBBLING, WARNING, "[MuMa listen outbox] Dropped " << dropped << " listen(s) music-manager did not take within " << std::chrono::duration_cast<std::chrono::hours>(_settings.maxAge).count() << " hours");
                 entry = db::mumaListenOutbox::front(session);
             }
         }
         catch (const std::exception& e)
         {
-            LOG(ERROR, "Cannot read the outbox: " << e.what());
+            LMS_LOG(SCROBBLING, ERROR, "[MuMa listen outbox] Cannot read the outbox: " << e.what());
             retryLater(std::nullopt);
             return;
         }
@@ -175,7 +180,7 @@ namespace lms::scrobbling::musicManagement
         request.onSuccessFunc = [weak, id](const Wt::Http::Message& msg) {
             const int status{ msg.status() };
             if (const auto self{ weak.lock() })
-                boost::asio::post(boost::asio::bind_executor(self->_strand, [self, id, status] { self->onAnswer(id, status); }));
+                boost::asio::post(boost::asio::bind_executor(self->_strand, [self, answer = Answer{ .id = id, .status = status }] { self->onAnswer(answer); }));
         };
         request.onFailureFunc = [weak, id] {
             if (const auto self{ weak.lock() })
@@ -194,17 +199,19 @@ namespace lms::scrobbling::musicManagement
         _client->sendPOSTRequest(std::move(request));
     }
 
-    void ListenOutboxRelay::onAnswer(long long id, int status)
+    void ListenOutboxRelay::onAnswer(const Answer& answer)
     {
         assert(_strand.running_in_this_thread());
+        const long long id{ answer.id };
+        const int status{ answer.status };
         _inFlight = false;
 
         if (isDelivered(status) || isRefusedForGood(status))
         {
             if (!isDelivered(status))
-                LOG(WARNING, "music-manager refused a listen for good (HTTP " << status << "), dropped it");
+                LMS_LOG(SCROBBLING, WARNING, "[MuMa listen outbox] music-manager refused a listen for good (HTTP " << status << "), dropped it");
             else if (_consecutiveFailures > 0)
-                LOG(INFO, "music-manager takes listens again after " << _consecutiveFailures << " failed attempt(s)");
+                LMS_LOG(SCROBBLING, INFO, "[MuMa listen outbox] music-manager takes listens again after " << _consecutiveFailures << " failed attempt(s)");
 
             _consecutiveFailures = 0;
             if (!remove(id))
@@ -218,7 +225,7 @@ namespace lms::scrobbling::musicManagement
             return;
         }
 
-        LOG(DEBUG, "music-manager answered HTTP " << status << ", keeping the listen");
+        LMS_LOG(SCROBBLING, DEBUG, "[MuMa listen outbox] music-manager answered HTTP " << status << ", keeping the listen");
         retryLater(id);
     }
 
@@ -246,14 +253,14 @@ namespace lms::scrobbling::musicManagement
         }
         catch (const std::exception& e)
         {
-            LOG(ERROR, "Cannot record a failed delivery: " << e.what());
+            LMS_LOG(SCROBBLING, ERROR, "[MuMa listen outbox] Cannot record a failed delivery: " << e.what());
         }
 
         const std::chrono::milliseconds delay{ retryDelay(_settings, _consecutiveFailures) };
         // Once per outage, not once per attempt: an outage of an hour is sixty attempts.
         if (_consecutiveFailures == 1)
-            LOG(WARNING, "music-manager did not take a listen, keeping " << waiting << " listen(s) in the outbox and retrying");
-        LOG(DEBUG, "Retry " << _consecutiveFailures << " in " << delay.count() << " ms");
+            LMS_LOG(SCROBBLING, WARNING, "[MuMa listen outbox] music-manager did not take a listen, keeping " << waiting << " listen(s) in the outbox and retrying");
+        LMS_LOG(SCROBBLING, DEBUG, "[MuMa listen outbox] Retry " << _consecutiveFailures << " in " << delay.count() << " ms");
 
         _retryPending = true;
         _retryTimer.expires_after(delay);
@@ -278,7 +285,7 @@ namespace lms::scrobbling::musicManagement
         catch (const std::exception& e)
         {
             // It is sent again later; music-manager deduplicates it on its start time.
-            LOG(ERROR, "Cannot remove a delivered listen from the outbox: " << e.what());
+            LMS_LOG(SCROBBLING, ERROR, "[MuMa listen outbox] Cannot remove a delivered listen from the outbox: " << e.what());
             return false;
         }
     }

@@ -74,7 +74,13 @@ namespace lms::scrobbling::musicManagement
     private:
         void wake();
         void sendNext();
-        void onAnswer(long long id, int status);
+        // What music-manager answered about one outbox row.
+        struct Answer
+        {
+            long long id{};
+            int status{};
+        };
+        void onAnswer(const Answer& answer);
         void onTransportFailure(long long id);
         void retryLater(std::optional<long long> id);
         bool remove(long long id);

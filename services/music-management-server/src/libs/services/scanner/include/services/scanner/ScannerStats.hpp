@@ -21,6 +21,8 @@
 
 #include <Wt/WDateTime.h>
 
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -41,6 +43,27 @@ namespace lms::scanner
         db::TrackId trackId;
         DuplicateReason reason;
     };
+
+    // What went wrong, one value per concrete ScanError type. A bare "errors = 967" in the scan
+    // summary said nothing about whether 967 files were unreadable or 967 scene playlists named
+    // files the tagger had since renamed (bug report 121), so every error is also counted here.
+    enum class ScanErrorKind
+    {
+        IO,
+        AudioFile,
+        EmbeddedImage,
+        NoAudioTrack,
+        BadAudioDuration,
+        ArtistInfoFile,
+        MissingArtistName,
+        ImageFile,
+        LyricsFile,
+        PlayListFile,
+        PlayListEntryMissing,
+        PlayListAllEntriesMissing,
+        Count, // not a kind: the size of ScanErrorCounts
+    };
+    using ScanErrorCounts = std::array<std::size_t, static_cast<std::size_t>(ScanErrorKind::Count)>;
 
     // Alphabetical order
     enum class ScanStep
@@ -96,7 +119,8 @@ namespace lms::scanner
 
         static constexpr std::size_t maxStoredErrorCount{ 5'000 }; // TODO make this configurable
         std::vector<std::shared_ptr<ScanError>> errors;
-        std::size_t errorsCount{}; // maybe bigger than errors.size() if too many errors
+        std::size_t errorsCount{};           // maybe bigger than errors.size() if too many errors
+        ScanErrorCounts errorCountsByKind{}; // sums to errorsCount, indexed by ScanErrorKind
         std::vector<ScanDuplicate> duplicates;
 
         std::size_t getTotalFileCount() const;

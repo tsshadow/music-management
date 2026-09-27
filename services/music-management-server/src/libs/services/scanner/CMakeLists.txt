@@ -34,6 +34,7 @@ add_library(lmsscanner STATIC
 	impl/steps/ScanStepUpdateLibraryFields.cpp
 	impl/FileScanners.cpp
 	impl/ImmediateScanPolicy.cpp
+	impl/PriorityFolderQueue.cpp
 	impl/ScanErrorPolicy.cpp
 	impl/ScanRequestCollector.cpp
 	impl/ScanSchedule.cpp

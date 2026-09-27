@@ -44,8 +44,9 @@ namespace lms::scanner
         virtual void requestImmediateScan(const ScanOptions& options = {}) = 0;
 
         // Asks for one or more subtrees to be re-read. Unlike requestImmediateScan this does
-        // not abort a running scan: the requests are merged and debounced, and a periodic scan
-        // in progress is paused for them and resumed afterwards.
+        // not abort a running scan: the requests are merged and debounced, and a library-wide
+        // scan in progress reads them in a priority pass at its next safe point, then carries on
+        // where it was (bug report 126).
         virtual void requestScopedScan(const std::vector<std::filesystem::path>& directories) = 0;
 
         enum class State
@@ -61,6 +62,10 @@ namespace lms::scanner
             Wt::WDateTime nextScheduledScan;
             std::optional<ScanStats> lastCompleteScanStats;
             std::optional<ScanStepStats> currentScanStepStats;
+            // Announced folders not read yet, and whether a library-wide scan is reading some
+            // right now. currentScanStepStats keeps describing the library-wide scan meanwhile.
+            std::size_t pendingPriorityFolders{};
+            bool priorityPassInProgress{};
         };
 
         virtual Status getStatus() const = 0;

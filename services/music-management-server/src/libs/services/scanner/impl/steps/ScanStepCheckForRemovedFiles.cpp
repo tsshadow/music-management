@@ -290,7 +290,20 @@ namespace lms::scanner
             {
                 ObjectIdType lastCheckedId;
                 while (fetchNextFilesToCheck<Object>(session, getCachePath(), lastCheckedId, scope, filesToCheck))
+                {
                     queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
+
+                    // Second filesystem-bound step of a library-wide scan, and the second
+                    // place announced folders are let through (bug report 126). The keyset
+                    // walk resumes from lastCheckedId, so rows the pass adds or removes are
+                    // simply met, or not, further on.
+                    if (isPriorityWorkDue())
+                    {
+                        queue.finish();
+                        context.stats.deletions += removeObjects<Object>(session, objectIdsToRemove, false);
+                        runPriorityWork();
+                    }
+                }
             }
         }
 

@@ -99,6 +99,12 @@ namespace lms::api::subsonic::Scan
                 }
             }
 
+            // MuMa extension (bug report 126): announced folders not read yet, and whether the
+            // running library-wide scan is reading some right now. `step` and the counts above
+            // keep describing the library-wide scan meanwhile.
+            statusResponse.setAttribute("pendingFolders", scanStatus.pendingPriorityFolders);
+            statusResponse.setAttribute("priorityScan", scanStatus.priorityPassInProgress);
+
             if (scanStatus.lastCompleteScanStats)
             {
                 Response::Node& lastScanNode{ statusResponse.createChild("lastScan") };
@@ -191,7 +197,7 @@ namespace lms::api::subsonic::Scan
             scanOptions.scanDirectories = parseScanDirectories(context);
 
             // A scoped request goes through its own lane: merged with whatever else arrives,
-            // and it pauses a running periodic scan instead of aborting it.
+            // and read in a priority pass by a running library-wide scan instead of aborting it.
             if (scanOptions.isScoped())
                 core::Service<IScannerService>::get()->requestScopedScan(scanOptions.scanDirectories);
             else

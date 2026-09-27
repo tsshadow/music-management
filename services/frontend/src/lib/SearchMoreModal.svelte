@@ -8,6 +8,9 @@
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
   import Modal from './Modal.svelte';
+  import SectionState from './loading/SectionState.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
+  import SkeletonTiles from './loading/SkeletonTiles.svelte';
 
   /**
    * @typedef {Object} Props
@@ -20,9 +23,14 @@
   
   let items = $state([]);
   let loading = $state(true);
+  // The search failed: offer a retry rather than "No results", which would be a claim about
+  // the library the answer never made (issue #112).
+  let failed = $state(false);
 
+  /** Asks `search3` for up to 100 results of the one category this modal lists. */
   async function performSearch() {
     loading = true;
+    failed = false;
     try {
       const durationFilter = $viewMode === 'sets' ? '&minDuration=10' : '&maxDuration=10';
       // Fetch more results for the specific category
@@ -31,6 +39,7 @@
       const songCount = category === 'tracks' ? 100 : 1;
       
       const response = await fetch(restUrl(`/rest/search3?${$authParams}&query=${encodeURIComponent(query)}&artistCount=${artistCount}&albumCount=${albumCount}&songCount=${songCount}${durationFilter}`));
+      if (!response.ok) throw new Error(`search3 answered ${response.status}`);
       const data = await response.json();
       const searchResult = data['subsonic-response']?.searchResult3 || {};
       
@@ -39,6 +48,8 @@
       else if (category === 'albums') items = searchResult.album || [];
     } catch (e) {
       console.error("Search failed:", e);
+      items = [];
+      failed = true;
     } finally {
       loading = false;
     }
@@ -74,9 +85,14 @@
 
 <Modal title={titleText} onclose={close}>
   {#if loading}
-    <div class="flex justify-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-    </div>
+    <!-- The shape of what is coming, per category (styleguide, Loading States). -->
+    {#if category === 'tracks'}
+      <SkeletonRows count={8} />
+    {:else}
+      <SkeletonTiles count={6} round={category === 'artists'} />
+    {/if}
+  {:else if failed}
+    <SectionState status="error" onretry={performSearch} />
   {:else if items.length === 0}
     <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
         <p class="text-xl font-bold mb-2 text-white">{$t('search.noResults')}</p>

@@ -151,6 +151,18 @@
   its data arrives; one slow section never holds up the ones that are ready.
 - **Refresh**: re-loading a screen that already shows content keeps that content on screen —
   skeletons are for the first load, not for every refresh.
+- **New place, new rows**: a list that opens for a different thing (another genre, label,
+  festival, search term) never shows the previous thing's rows, not even for one frame: it clears
+  and shows skeletons, or shows its own cached rows. Only the same list under changed filters keeps
+  its rows, as stale results (below).
+- **Stale results**: rows that belong to the same list under the previous filters stay on screen
+  at `opacity-50` (200 ms `transition-opacity`) until the new answer replaces them, with an inline
+  throbber next to the heading. Never an empty-state message ("Geen resultaten") while an answer is
+  still on its way: "nothing" is only said about an answer.
+- **Search as you type**: from the first keystroke (the debounce included) the results panel shows
+  a "Zoeken…" line with an inline throbber in secondary text. With nothing to show yet, three
+  skeleton rows follow it; with the previous text's results, those stay, dimmed as stale results.
+  A failed search shows the section error with "Opnieuw", never "Geen resultaten gevonden".
 - **Web tokens**: the placeholder colour is the `muma-skeleton` token (`bg-muma-skeleton`) and the
   pulse is the `skeleton-pulse` class in `src/app.css` (it stops under `prefers-reduced-motion`).
   Use `Skeleton.svelte` for a single block, `SkeletonRows.svelte` for track rows (TrackList
@@ -389,3 +401,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
   header's shadow) on the left of the title. The daily mixes page shows card-shaped skeletons
   (`h-[150px] rounded-lg`) in its grid, and the track details sheet shows key/value skeleton rows
   for the tags. Daily-mix cards follow the Hover-revealed actions rule under Cards.
+
+- **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
+  lineup lists and the search results page, dropdown and "more" modal follow Loading States: new
+  place clears to skeletons, same place dims stale results, search says "Zoeken…" until it has an
+  answer, and History, Starred and Memories load as skeleton sections.

@@ -6,6 +6,8 @@
   import { memoriesUrl, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { startQueue } from './queue.js';
   import { arrayContinuation } from './listContinuation.js';
+  import Skeleton from './loading/Skeleton.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
 
   const { year, onnavigate } = $props();
 
@@ -78,11 +80,14 @@
       <p class="text-muma-spotify-text m-0 pb-1">
         {$t(heading.key, heading.vars)} • {$t('common.trackCount', { count: total })}
       </p>
+    {:else if isLoading}
+      <!-- The year is known from the route; only the line under it waits. -->
+      <Skeleton class="h-4 w-48 mb-2" />
     {/if}
   </header>
 
   {#if isLoading}
-    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
+    <SkeletonRows count={10} />
   {:else if songs.length === 0}
     <div class="flex flex-col gap-2">
       <p class="text-white font-bold">{$t('memories.emptyYear', { year })}</p>

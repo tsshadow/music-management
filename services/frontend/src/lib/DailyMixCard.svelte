@@ -2,7 +2,7 @@
   import { t } from './i18n/index.js';
   import { authParams, currentTrack, playerState } from './store.js';
   import { loadFeedDetail } from './feeds.js';
-  import { seedEntity } from './entitySeeds.js';
+  import { pressEntity, seedEntity } from './entitySeeds.js';
   import { entityCache, feedKey } from './entityLoaders.js';
   import Throbber from './loading/Throbber.svelte';
   import { startQueue } from './queue.js';
@@ -60,6 +60,7 @@
     ? `background-image: url("${cover}"); background-size: cover; background-position: center;`
     : `background-color: ${color};`}
   onclick={open}
+  onpointerdown={() => pressEntity('feed', { id: slug, name: title, subtitle })}
   onkeydown={(e) => e.key === 'Enter' && open()}
 >
   <span class="absolute inset-0 {cover ? 'bg-black/45' : 'bg-black/20'}" aria-hidden="true"></span>

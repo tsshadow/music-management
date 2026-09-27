@@ -12,13 +12,16 @@
    *   to `lazyViews`.
    * @property {Record<string, any>} [props] - Passed through to the view.
    * @property {'rows'|'none'} [fallback] - What to show while loading.
+   * @property {import('svelte').Snippet} [placeholder] - Shown while loading instead of
+   *   `fallback`: the artist and album pages pass their seeded header (`EntityPageShell`), so
+   *   the heading is on screen before the page's chunk is (issue #118).
    */
   import { untrack } from 'svelte';
   import { lazyViews } from './lazyViews.js';
   import SectionState from './loading/SectionState.svelte';
   import SkeletonRows from './loading/SkeletonRows.svelte';
 
-  const { name, registry = lazyViews, props = {}, fallback = 'rows' } = $props();
+  const { name, registry = lazyViews, props = {}, fallback = 'rows', placeholder } = $props();
 
   let Component = $state(untrack(() => registry.peek(name)));
   let failed = $state(false);
@@ -56,6 +59,8 @@
   <Component {...props} />
 {:else if failed}
   <SectionState status="error" onretry={() => attempt++} />
+{:else if placeholder}
+  {@render placeholder()}
 {:else if fallback === 'rows'}
   <div data-testid="lazy-view-loading">
     <SkeletonRows count={8} />

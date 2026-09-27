@@ -84,4 +84,25 @@ test("the first screen does not fetch the management or settings code", async ({
     /^(Management|Settings|[A-Za-z]+Tab|ListeningStatsView|SetupWizard)-/.test(file),
   );
   expect(lazy).toEqual([]);
+  // The pages one tap away are not first-screen code either (issue #118): they come with the
+  // idle preload, held back here.
+  const oneTap = scripts.filter((file) =>
+    /^(ArtistView|AlbumView|FeedView|PresetView|PlaylistView|FilterBar|CollectionGrid)-/.test(file),
+  );
+  expect(oneTap).toEqual([]);
+});
+
+test("index.html preloads the listener's locale file together with the entry", async ({ page }) => {
+  const scripts = recordScripts(page);
+  // The browser runs in nl-NL (playwright.config.js), so Dutch is the locale the app starts in.
+  await page.goto("/");
+  await expect(page.locator("#boot-screen")).toHaveCount(0, { timeout: 20_000 });
+
+  const hints = await page
+    .locator('link[rel="modulepreload"]')
+    .evaluateAll((links) => links.map((link) => new URL(link.href).pathname));
+  expect(hints.some((path) => /^\/assets\/nl-[\w-]+\.js$/.test(path))).toBe(true);
+  expect(hints.some((path) => /^\/assets\/en-[\w-]+\.js$/.test(path))).toBe(false);
+  // The hint names the file the app itself imports: it is fetched once, not twice.
+  expect(scripts.filter((file) => /^nl-[\w-]+\.js$/.test(file))).toHaveLength(1);
 });

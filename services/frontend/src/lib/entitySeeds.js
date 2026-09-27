@@ -32,6 +32,9 @@ const seeds = new Map();
 /** @type {Map<string, (id: string) => unknown>} kind -> prefetcher, see `registerPrefetcher`. */
 const prefetchers = new Map();
 
+/** @type {Map<string, () => unknown>} kind -> page chunk loader, see `registerPagePreloader`. */
+const pagePreloaders = new Map();
+
 /**
  * @param {string} kind
  * @param {string|number} id
@@ -140,8 +143,35 @@ export function registerPrefetcher(kind, prefetcher) {
 }
 
 /**
- * A finger (or a mouse button) went down on a link: seed it and start the page's main request,
- * which the page then shares instead of making its own. One request per press, never on hover
+ * Registers how to start fetching a kind's page chunk. `lazyViews.js` does this for the artist,
+ * album and feed pages (issue #118), so a press fetches the page's code together with its data.
+ *
+ * @param {string} kind
+ * @param {() => unknown} preloader
+ */
+export function registerPagePreloader(kind, preloader) {
+  pagePreloaders.set(kind, preloader);
+}
+
+/**
+ * Starts a kind's registered page chunk, swallowing a failure: the page itself retries.
+ *
+ * @param {string} kind
+ */
+function preloadPage(kind) {
+  const preload = pagePreloaders.get(kind);
+  if (!preload) return;
+  try {
+    const result = preload();
+    if (result && typeof result.catch === "function") result.catch(() => {});
+  } catch {
+    // A preload never breaks the tap it rides on.
+  }
+}
+
+/**
+ * A finger (or a mouse button) went down on a link: seed it, start the page's chunk and its
+ * main request, which the page then shares instead of making its own. One request per press, never on hover
  * or scroll -- LMS serves every client from one small thread pool.
  *
  * @param {string} kind
@@ -150,6 +180,7 @@ export function registerPrefetcher(kind, prefetcher) {
 export function pressEntity(kind, entity) {
   if (!entity?.id) return;
   seedEntity(kind, entity.id, entity);
+  preloadPage(kind);
   const prefetch = prefetchers.get(kind);
   if (!prefetch) return;
   try {

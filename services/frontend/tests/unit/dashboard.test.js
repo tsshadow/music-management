@@ -305,7 +305,10 @@ describe("Dashboard", () => {
     render(Dashboard, { activeView: "songs" });
     await waitFor(() => expect(urlsFor("/rest/getSpotifyTracks").length).toBeGreaterThan(0));
 
-    await fireEvent.change(screen.getByLabelText("Kwaliteit"), { target: { value: "lossless" } });
+    // The filter bar is its own chunk (lazyViews.js, issue #118): it renders once that is in.
+    await fireEvent.change(await screen.findByLabelText("Kwaliteit"), {
+      target: { value: "lossless" },
+    });
 
     await waitFor(() =>
       expect(

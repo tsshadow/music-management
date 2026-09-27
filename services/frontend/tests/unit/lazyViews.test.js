@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { createRawSnippet } from "svelte";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import LazyView from "../../src/lib/LazyView.svelte";
 import ListEnd from "../../src/lib/ListEnd.svelte";
@@ -102,7 +103,21 @@ describe("the app's lazy views", () => {
   it("maps a view to the chunks it needs on screen", () => {
     expect(names(chunksForState({ view: "home" }))).toEqual([]);
     expect(names(chunksForState({ view: "login" }))).toEqual([]);
-    expect(names(chunksForState({ view: "artist:12" }))).toEqual([]);
+    // One tap away (issue #118): the page chunks, and the list pages' parts.
+    expect(names(chunksForState({ view: "artist:12" }))).toEqual(["artistPage"]);
+    expect(names(chunksForState({ view: "album:9" }))).toEqual(["albumPage"]);
+    expect(names(chunksForState({ view: "preset:4" }))).toEqual(["presetPage"]);
+    expect(names(chunksForState({ view: "playlist-detail" }))).toEqual(["playlistPage"]);
+    expect(names(chunksForState({ view: "release-radar" }))).toEqual(["feedPage"]);
+    expect(names(chunksForState({ view: "daily-mix" }))).toEqual(["feedPage"]);
+    expect(names(chunksForState({ view: "daily-mix-hard" }))).toEqual(["feedPage"]);
+    expect(names(chunksForState({ view: "songs" }))).toEqual(["filterBar"]);
+    expect(names(chunksForState({ view: "artists" }))).toEqual(["filterBar"]);
+    expect(names(chunksForState({ view: "genre:Hardcore" }))).toEqual(["filterBar"]);
+    expect(names(chunksForState({ view: "lineup:x" }))).toEqual(["filterBar"]);
+    expect(names(chunksForState({ view: "genres" }))).toEqual(["collectionGrid"]);
+    expect(names(chunksForState({ view: "lineups:x" }))).toEqual(["collectionGrid"]);
+    expect(names(chunksForState({ view: "playlists" }))).toEqual(["collectionBar"]);
     expect(names(chunksForState({ view: "settings" }))).toEqual(["settings", "settingsSidebar"]);
     expect(names(chunksForState({ view: "management", managementTab: "users" }))).toEqual([
       "management",
@@ -155,6 +170,8 @@ describe("the app's lazy views", () => {
     expect(loader).toHaveBeenCalledTimes(2);
 
     expect(names(likelyNextChunks())).toContain("settings");
+    // The artist and album pages come first: the most common tap should never wait for a file.
+    expect(names(likelyNextChunks()).slice(0, 2)).toEqual(["artistPage", "albumPage"]);
     expect(names(likelyNextChunks())).not.toContain("management");
     expect(names(adminNextChunks())).toEqual(["management", "managementSidebar", "tab:overview"]);
   });
@@ -187,6 +204,25 @@ describe("LazyView", () => {
 
     expect(screen.getByTestId("lazy-pill")).toBeTruthy();
     expect(screen.queryByTestId("lazy-view-loading")).toBeNull();
+  });
+
+  it("shows the placeholder snippet while loading, then the view (issue #118)", async () => {
+    const held = deferred();
+    const registry = createLazyRegistry({ page: () => held.promise });
+    const placeholder = createRawSnippet(() => ({
+      render: () => '<h1 data-testid="seeded-heading">Angerfist</h1>',
+    }));
+
+    render(LazyView, {
+      props: { name: "page", registry, placeholder, props: { hasMore: true, testid: "lazy-pill" } },
+    });
+
+    expect(screen.getByTestId("seeded-heading")).toBeTruthy();
+    expect(screen.queryByTestId("lazy-view-loading")).toBeNull();
+    held.resolve({ default: ListEnd });
+
+    expect(await screen.findByTestId("lazy-pill")).toBeTruthy();
+    expect(screen.queryByTestId("seeded-heading")).toBeNull();
   });
 
   it("shows nothing while loading when told to, for overlays and sidebars", () => {

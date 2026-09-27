@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-09-27
+
+### Added
+- **Every long list keeps going in the queue, not only the daily mixes** (issue #100,
+  `docs/designs/list-continuation/`). Playing "Nummers · Recent uitgebracht" from its first row
+  queued the 50 tracks on screen and then stopped. The same happened with every other sort and
+  filter of the songs and sets lists, with a genre, label, podcast, festival, year or lineup, with
+  search results, an artist's tracks, a preset, the listen history, a memories year and the car-mode
+  mix. Each of these lists now hands the queue it starts a continuation. The queue tops itself up
+  near its end, as the daily mixes already did, and the queue sheet and side panel end in "Meer
+  laden" while the list has more. Once a list that did continue has nothing more, both the page and
+  the queue end in "Einde van de lijst". A track the queue already holds is never added twice, and
+  a failed page is tried again on the next track or tap. Search results now also get "Meer laden" on
+  the page. The feed-only top-up (`feedQueue.js` `extendFeedQueue`, `QueueFeedLoadMore`) became one
+  source among several (`listContinuation.js`, `trackPages.js`, `QueueLoadMore`, `ListEnd`). Albums
+  and playlists are loaded whole and are unchanged.
+
+- **Logging out asks first** (issue #80). The profile menu's "Log out" logged out on a single tap,
+  stopping playback and emptying the queue, although the style guide's Session controls rule says a
+  logout always confirms first. It now opens a "Log out?" dialog that says playback stops and the
+  queue is cleared -- and, in the app, that downloads stay on the device. Cancel, Escape or a tap
+  beside the dialog changes nothing; confirming runs the existing sign-out unchanged (bug report
+  106), once, however often the button is tapped. The dialog reuses `Modal.svelte`, which gains a
+  `widthClass` prop and dialog semantics; the style guide now describes the Confirmation dialog.
+
+### Fixed
+- **A daily mix keeps going however it was started, and says when it is short** (issue #97, bug
+  report 122). Tapping a track in a daily mix or the release radar, which is how the phone and the
+  tablet start one, began a queue that forgot the feed. The queue stopped after the first 100 tracks
+  instead of topping itself up; only the round play button carried the continuation. A tapped row
+  now carries it too. The queue list (bottom sheet on the phone and the tablet, side panel on the
+  desktop) now ends in "Meer laden" while the feed has more, so the next page can be loaded without
+  waiting for the end. A feed page whose tracks the music server does not all have (for example
+  files it has not scanned yet) says so in its header ("98 nummers • 2 niet gevonden op de server")
+  instead of looking like a 98-track mix for no reason. Paging still follows MuMa's rows, so the
+  gap never skips or repeats a track.
+
+- The pre-deploy database backup can no longer be corrupted by a second writer. On 2026-09-27 a
+  `DEPLOY_DB=1` deploy refused to continue because its dump did not decompress: Watchtower's hourly
+  session had recreated the running `db-backup` container, which started a second dump in the same
+  second as the deploy's fallback, into the same file. The backup run now opts out of Watchtower,
+  a failed run's container is removed before the fallback starts (or the deploy is refused), a
+  running nightly backup refuses the fallback, every writer's temporary file has a name of its own,
+  and the nightly prune leaves a partial file alone until it is an hour old (bug report 123).
+
+- **LMS keeps a listen until music-manager has it** (issue #67, bug report 075). LMS relayed each
+  listen to music-manager with two back-to-back retries and nothing else. Any listen played while
+  music-manager was down or starting up (every deploy) was lost, and so was whatever was still
+  queued when LMS itself restarted. The relay now writes each listen to an outbox in `lms.db`
+  (`muma_listen_outbox`, LMS database version 125) before sending it. It delivers from there in
+  play order, one at a time, retrying after 5 s and backing off to once a minute, and removes a
+  listen only once music-manager has taken it. A retry sends the same start time, so a listen
+  that arrives twice is counted once. The outbox survives restarts. It is bounded at 10,000
+  listens and 14 days, and it logs a WARNING for every listen it drops. Delivery runs on LMS's
+  background threads with its own HTTP queue, never on a request thread or in the `/muma` proxy's
+  queue. music-manager's `/health` now shows, per LMS, how many listens wait and since when
+  (`lms_listen_outbox`); it never turns the check red. The 15-minute `lms-listen-backfill` loop
+  stays as the safety net behind the outbox.
+
 ## [0.79.4] - 2026-09-27
 
 ### Fixed

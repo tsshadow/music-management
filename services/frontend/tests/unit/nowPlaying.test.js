@@ -1,8 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import NowPlaying from "../../src/lib/NowPlaying.svelte";
 import { queueSource, playlist, currentTrack } from "../../src/lib/store.js";
+import { LAZY_HOOK_TIMEOUT_MS, loadLazy } from "./lazyTestUtils.js";
+
+// The views below are separate chunks (lazyViews.js). Loaded before any test renders, they are
+// on the first frame instead of after a compile that can outlast `waitFor`'s second on a busy
+// runner (issue #120).
+beforeAll(() => loadLazy("trackDetails"), LAZY_HOOK_TIMEOUT_MS);
 
 const TRACK = {
   id: "song-1",
@@ -267,8 +273,8 @@ describe("NowPlaying", () => {
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
 
-    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
-    expect(await screen.findByTestId("song-details")).toBeTruthy();
+    // The details sheet is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(screen.getByTestId("song-details")).toBeTruthy();
     expect(screen.getByLabelText("Meer")).toBeTruthy();
   });
 
@@ -277,16 +283,16 @@ describe("NowPlaying", () => {
 
     await fireEvent.click(screen.getByTestId("now-playing-title"));
 
-    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
-    expect(await screen.findByTestId("song-details")).toBeTruthy();
+    // The details sheet is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(screen.getByTestId("song-details")).toBeTruthy();
   });
 
   it("hides the sheet's lyrics row when the player found none for the track", async () => {
     renderNowPlaying({ lyricsLines: [] });
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
-    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
-    await screen.findByTestId("song-details");
+    // The details sheet is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(screen.getByTestId("song-details")).toBeTruthy();
 
     expect(screen.queryByText("Lyrics")).toBeNull();
   });
@@ -295,8 +301,8 @@ describe("NowPlaying", () => {
     renderNowPlaying({ lyricsLines: ["Raise your fist", "in the air"] });
 
     await fireEvent.click(screen.getByTestId("now-playing-details"));
-    // The details sheet is its own chunk (lazyViews.js): it renders once that has loaded.
-    await fireEvent.click(await screen.findByText("Lyrics"));
+    // The details sheet is its own chunk, loaded before the tests (issue #120): no wait.
+    await fireEvent.click(screen.getByText("Lyrics"));
 
     expect(screen.getByText("Raise your fist")).toBeTruthy();
     expect(screen.getByText("in the air")).toBeTruthy();

@@ -12,6 +12,9 @@
 // tight wall-clock budget measures the runner's load rather than the app (issue #116: 118 ms
 // against a 100 ms budget on a busy tablet run).
 //
+// Opening Now Playing from the mini player is held to the same standard (issue #119): its code is
+// a chunk of its own, and the screen must appear at once from what the player already knows.
+//
 // Runs in the `desktop` project only and sets its own viewport per layout, the way
 // feed-load-more.spec.js does; running it in the `phone` project as well would only repeat it.
 import { test, expect } from "@playwright/test";
@@ -79,6 +82,40 @@ async function tapAndTime(page, name) {
         check();
       }),
     [handle, name],
+  );
+}
+
+/** The track the mini player shows: seeded in localStorage, so no list has to be played first. */
+const PLAYING = {
+  id: "tr-now-playing-shell",
+  title: "Seeded Shell Track",
+  artist: "Angerfist",
+  album: "Shell Album",
+  duration: 240,
+};
+
+/** Taps the mini player's title and returns how long Now Playing (shell or real) took to appear. */
+async function tapMiniPlayerAndTime(page) {
+  const title = page
+    .locator('footer [role="button"]')
+    .first()
+    .getByText(PLAYING.title, { exact: true })
+    .last();
+  await expect(title).toBeVisible({ timeout: 15_000 });
+  const handle = await title.elementHandle();
+  return page.evaluate(
+    (element) =>
+      new Promise((resolve) => {
+        const start = performance.now();
+        const found = () =>
+          document.querySelector('[data-testid="now-playing-shell"], [data-testid="now-playing"]');
+        const check = () =>
+          found() ? resolve(performance.now() - start) : requestAnimationFrame(check);
+        element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        element.click();
+        check();
+      }),
+    handle,
   );
 }
 
@@ -159,6 +196,48 @@ for (const layout of [
       await expect(page.getByTestId("artist-page")).toBeVisible({ timeout: 10_000 });
       await expect(page.getByTestId("entity-page-shell")).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
+    });
+
+    test("tapping the mini player opens Now Playing at once, even before its code is in", async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== "desktop", "sets its own viewport per layout");
+      // Now Playing is its own chunk (issue #119). Hold it back -- the idle preload and the
+      // mini player's pointerdown preload included -- so the tap lands without it: the seeded
+      // shell must carry the title, artist and cover on its own.
+      let releaseChunk;
+      const chunkHeld = new Promise((resolve) => {
+        releaseChunk = resolve;
+      });
+      let chunkRequested = false;
+      await page.route(/\/assets\/NowPlaying-[\w-]+\.js$/, async (route) => {
+        chunkRequested = true;
+        await chunkHeld;
+        await route.continue();
+      });
+      await page.addInitScript((track) => {
+        localStorage.setItem("lms_current_track", JSON.stringify(track));
+        localStorage.setItem("lms_playlist", JSON.stringify([track]));
+      }, PLAYING);
+      await page.goto("/");
+
+      const elapsed = await tapMiniPlayerAndTime(page);
+      testInfo.annotations.push({
+        type: "tap-to-now-playing-without-chunk",
+        description: `${Math.round(elapsed)} ms (${layout.name})`,
+      });
+
+      await expect.poll(() => chunkRequested).toBe(true);
+      const shell = page.getByTestId("now-playing-shell");
+      await expect(shell).toBeVisible();
+      await expect(page.getByTestId("now-playing-shell-title")).toHaveText(PLAYING.title);
+      await expect(shell.getByText(PLAYING.artist)).toBeVisible();
+      expect(elapsed).toBeLessThan(LOOSE_GUARD_MS);
+
+      releaseChunk();
+      await expect(page.getByTestId("now-playing")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByTestId("now-playing-shell")).toHaveCount(0);
+      await expect(page.getByTestId("now-playing-title")).toHaveText(PLAYING.title);
     });
   });
 }

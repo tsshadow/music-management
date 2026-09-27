@@ -97,6 +97,8 @@ tapped.
 | Opening the search results page (#112) | "Zoeken…" next to the heading, skeleton rows for tracks and skeleton tiles for artists and albums. Each section fills in, or fails with its own retry, on its own. "Geen resultaten gevonden" only once all three have answered empty. |
 | Typing in the search box (#112) | "Zoeken…" from the first keystroke. With nothing shown yet, skeleton rows; with results for the previous text, those stay dimmed. "Geen resultaten gevonden" only for an answer; a failed search offers "Opnieuw". |
 | Opening the app on a page off the first screen by URL, e.g. Beheer or settings (#114) | The boot screen stays up until that page's code has loaded, then the app appears with the page. |
+| Opening a settings tab for the first time (#119) | The tab's own shape in skeleton blocks for the moment its code takes to load, then the tab; the next tab in the list is fetched in the background, so switching to it rarely waits. |
+| Tapping the mini player before Now Playing's code is in (#119) | Now Playing slides up at once with the cover, title, artist and a working play/pause; the rating, progress bar and other buttons fill in a moment later without anything moving. |
 | Navigating to a page off the first screen for the first time (#114) | Skeleton rows for the moment its code takes to load, then the page. A second visit is instant. A page whose code could not load says so, with "Opnieuw". |
 | Opening History, Starred or Memories (#112) | Header at once, skeleton rows or tiles where the content goes. History and Starred show an error with a retry when loading fails, instead of "nothing here yet". |
 
@@ -140,9 +142,13 @@ tapped.
 
 - **Code splitting by page, not by component (#114).** The pages behind a tap -- Beheer and each
   of its tabs, settings, statistics, the edit pages, the setup tour, the car screen -- load when
-  opened. Home, the track lists, the player and Now Playing, and the artist and album pages stay
-  in the first file: they are what a start shows or what the next tap most often opens, and the
-  optimistic artist/album page (a heading within 100 ms of the tap) must not wait for a file.
+  opened. Home, the track lists and the player stay in the first file: they are what a start
+  shows. The pages one tap away (artist, album, feeds, the filter bar) followed in #118, each with
+  a seeded stand-in so the heading still appears within 100 ms of the tap. Settings loads one tab
+  at a time, and Now Playing is its own file too (#119): the mini player stays in the first file,
+  and opening Now Playing shows the same screen at once from what the mini player knows, while
+  its file is fetched -- in practice it already was, on idle or the moment a finger touched the
+  mini player.
 
 ## Open Questions / Not Yet Decided
 

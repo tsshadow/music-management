@@ -6,7 +6,11 @@
   import { extendQueue } from './listContinuation.js';
   // Opened from its button only: its own chunk (lazyViews.js, issue #114).
   import LazyView from './LazyView.svelte';
-  import NowPlaying from './NowPlaying.svelte';
+  // The full-screen player is its own chunk too (issue #119); the mini player and the seeded
+  // stand-in that covers the moment the chunk takes stay here, in the entry.
+  import NowPlayingShell from './NowPlayingShell.svelte';
+  import { lazyViews } from './lazyViews.js';
+  import { lazyComponent } from './lazyComponent.svelte.js';
   import { fetchLyricsLines } from './lyrics.js';
   import * as equalizer from './equalizer.js';
   // Everything this component does with playback goes through here; the engine
@@ -1240,6 +1244,28 @@
     openNowPlaying();
   }
 
+  // `NowPlaying.svelte`, once its chunk is in. Loaded on idle after the first frame
+  // (`likelyNextChunks`), the moment a finger goes down on the mini player, and at the latest
+  // when the view opens; until then `NowPlayingShell` draws the screen from the same props.
+  // Once loaded it stays mounted, open or not, exactly as it was before it was split off.
+  const nowPlayingView = lazyComponent(lazyViews, 'nowPlaying');
+  const NowPlaying = $derived(nowPlayingView.current);
+
+  $effect(() => {
+    if ($nowPlayingOpen) nowPlayingView.load();
+  });
+
+  /**
+   * Starts fetching the full-screen player the moment a finger goes down on the mini player,
+   * so the chunk is usually in before the click that opens it has even fired.
+   *
+   * @param {PointerEvent} e
+   */
+  function preloadNowPlaying(e) {
+    if (e.target.closest?.('button')) return;
+    nowPlayingView.load();
+  }
+
   const track = $derived($radioChannel && $radioNowPlaying
     ? {
         id: $radioNowPlaying.track_id,
@@ -1733,6 +1759,7 @@
       class="flex flex-1 items-center gap-3 min-w-0 py-2 h-full {track ? 'cursor-pointer' : ''}"
       role="button"
       tabindex="0"
+      onpointerdown={preloadNowPlaying}
       onclick={handleMiniPlayerTap}
       onkeydown={(e) => e.key === 'Enter' && handleMiniPlayerTap(e)}
     >
@@ -1837,6 +1864,7 @@
          state. Its own queue button goes through the same `ontoggleQueue` the
          mini player never exposed a button for, so it opens the one queue view
          App.svelte already renders (a bottom sheet on the phone). -->
+    {#if NowPlaying}
     <NowPlaying
       open={$nowPlayingOpen}
       {track}
@@ -1878,6 +1906,20 @@
       ontoggleNews={toggleNews}
       {onnavigate}
     />
+    {:else if $nowPlayingOpen}
+      <NowPlayingShell
+        {track}
+        {playing}
+        {transportLocked}
+        coverUrl={fullCoverUrl}
+        {artistUrl}
+        {tint}
+        failed={nowPlayingView.failed}
+        onretry={() => nowPlayingView.load()}
+        onclose={closeNowPlaying}
+        ontogglePlay={togglePlay}
+      />
+    {/if}
   {:else}
     <!-- Desktop Player -->
     <div class="w-[30%] hidden md:flex items-center gap-3">

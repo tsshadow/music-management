@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import App from "../../src/App.svelte";
@@ -15,6 +15,15 @@ import {
   sidebarDrawerOpen,
 } from "../../src/lib/store.js";
 import { SETUP_STEPS } from "../../src/lib/setup.js";
+import { LAZY_HOOK_TIMEOUT_MS, loadLazyState } from "./lazyTestUtils.js";
+
+// The views below are separate chunks (lazyViews.js). Loaded before any test renders, they are
+// on the first frame instead of after a compile that can outlast `waitFor`'s second on a busy
+// runner (issue #120).
+beforeAll(async () => {
+  await loadLazyState({ view: "management", managementTab: "overview" });
+  await loadLazyState({ view: "settings", settingsTab: "general" });
+}, LAZY_HOOK_TIMEOUT_MS);
 
 /** Answers everything the shell asks for while the management view boots. */
 function subsonic() {
@@ -129,8 +138,8 @@ describe("mobile sidebar drawer", () => {
     const drawer = await screen.findByRole("dialog");
     // The management pages sit in collapsible groups now, so the drawer shows the
     // group headers until one of them is opened.
-    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
-    await waitFor(() => expect(drawer.textContent).toContain("Curatie"));
+    // The sidebar is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(drawer.textContent).toContain("Curatie");
     await fireEvent.click(groupHeader(drawer, "Curatie"));
 
     expect(drawer.textContent).toContain("Genre Curatie");
@@ -143,8 +152,8 @@ describe("mobile sidebar drawer", () => {
     sidebarDrawerOpen.set(true);
 
     const drawer = await screen.findByRole("dialog");
-    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
-    await waitFor(() => expect(drawer.textContent).toContain("Geavanceerd"));
+    // The sidebar is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(drawer.textContent).toContain("Geavanceerd");
   });
 
   it("picking a tab switches to it and closes the drawer again", async () => {
@@ -152,8 +161,8 @@ describe("mobile sidebar drawer", () => {
     await renderApp();
     sidebarDrawerOpen.set(true);
     const drawer = await screen.findByRole("dialog");
-    // The sidebar is its own chunk (lazyViews.js): it renders once that has loaded.
-    await waitFor(() => expect(drawer.textContent).toContain("Curatie"));
+    // The sidebar is its own chunk, loaded before the tests (issue #120): no wait.
+    expect(drawer.textContent).toContain("Curatie");
 
     await fireEvent.click(groupHeader(drawer, "Curatie"));
     const tab = [...drawer.querySelectorAll("button")].find((b) =>

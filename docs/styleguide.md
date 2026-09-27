@@ -161,6 +161,16 @@
   page's own classes, and 8 `SkeletonRows` below (`EntityPageShell.svelte`), so the heading is
   there at once and nothing moves when the page's code arrives. A grid page (genres, labels ...)
   shows `SkeletonTiles`; the filter and collection bars show nothing for that moment.
+  A settings tab (issue #119: one chunk per tab) shows the tab's own shape in skeleton blocks --
+  a title and subtitle bar, then two panels of label-and-toggle rows, with the settings density
+  classes (`SettingsTabSkeleton.svelte`) -- never skeleton track rows, which are not what a
+  settings page looks like. The full-screen Now Playing (issue #119) never shows a skeleton page:
+  until its code is in, `NowPlayingShell.svelte` draws the same screen from what the mini player
+  knows -- the tinted background, the header with "Afspelen vanuit", the cover, title, artist and
+  album, and a working play/pause button -- with the rating, the progress bar and the other
+  transport buttons as skeleton blocks of the same size. It flies in like the real view; the real
+  view replaces it without a second animation. A chunk that fails shows the section error with
+  "Opnieuw" under the header, which still closes the screen.
 - **New place, new rows**: a list that opens for a different thing (another genre, label,
   festival, search term) never shows the previous thing's rows, not even for one frame: it clears
   and shows skeletons, or shows its own cached rows. Only the same list under changed filters keeps

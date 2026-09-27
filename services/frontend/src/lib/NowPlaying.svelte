@@ -13,8 +13,9 @@
   import TrackRowCompact from './TrackRowCompact.svelte';
   import { genreNames } from './genreSegments.js';
   import { playlist, queueSource } from './store.js';
-  import { placeTitle, PLACE_PREFIXES } from './recentPlaces.js';
-  import { viewLabel, startQueue } from './queue.js';
+  import { PLACE_PREFIXES } from './recentPlaces.js';
+  import { startQueue } from './queue.js';
+  import { nowPlayingBackground, playingFromLabel } from './nowPlayingContext.js';
   import { releaseDateLabel } from './trackDate.js';
   import { describeFilter } from './management/radioChannels.js';
   import { playTrack } from './playTrack.js';
@@ -119,9 +120,7 @@
   // `docs/designs/phone-ui-polish/technical.md`, section E. Falls back to the
   // track's own album, and from there to the generic "Queue" caption, exactly
   // as before this existed.
-  const playingFrom = $derived(
-    $queueSource?.name ?? placeTitle({ view: $queueSource?.view }) ?? viewLabel($queueSource?.view) ?? track?.album ?? $t('queue.title'),
-  );
+  const playingFrom = $derived(playingFromLabel($queueSource, track, $t('queue.title')));
 
   // The header's own tap target: the source's view when it is one of the
   // navigable kinds `recentPlaces.js` tracks (so tapping "Playing from Hardstyle"
@@ -142,11 +141,8 @@
    * has a colour for) is the plain neutral surface, same as before this
    * existed.
    */
-  const backgroundStyle = $derived(
-    tint
-      ? `background: linear-gradient(to bottom, color-mix(in srgb, ${tint} 55%, #121212) 0%, #121212 60%)`
-      : 'background-color: #121212',
-  );
+  const backgroundStyle = $derived(nowPlayingBackground(tint));
+
 
   /**
    * The chip row under the artist: every genre (each its own tap target) and

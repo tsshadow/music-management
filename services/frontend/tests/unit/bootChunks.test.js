@@ -27,6 +27,17 @@ describe("initialState", () => {
       managementTab: "events",
     });
   });
+
+  it("fills in the remembered settings tab when the URL names none (issue #119)", () => {
+    expect(initialState("/settings", { signedIn: true, settingsTab: "about" })).toEqual({
+      view: "settings",
+      settingsTab: "about",
+    });
+    expect(initialState("/settings/help", { signedIn: true, settingsTab: "about" })).toEqual({
+      view: "settings",
+      settingsTab: "help",
+    });
+  });
 });
 
 describe("installChunkReload", () => {

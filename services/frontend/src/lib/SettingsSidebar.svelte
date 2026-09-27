@@ -3,6 +3,7 @@
   import { activeSettingsTab, activeView } from './store.js';
   import { platform } from './platform/index.js';
   import SidebarHeader from './SidebarHeader.svelte';
+  import { settingsTabs } from './lazyViews.js';
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
   // the desktop sidebar it is simply not passed.
@@ -34,6 +35,16 @@
   }
 
   /**
+   * Starts fetching a tab's chunk the moment a finger or button goes down on it (issue #119),
+   * so the tab is usually in by the time the click lands.
+   *
+   * @param {string} id - The tab identifier.
+   */
+  function preloadTab(id) {
+    settingsTabs.load(id).catch(() => {});
+  }
+
+  /**
    * Switches the active settings tab.
    *
    * @param {string} id - The tab identifier.
@@ -51,6 +62,7 @@
     {#each tabs as tab (tab.id)}
       <button
         class="flex items-center gap-4 w-full px-3 py-3 bg-transparent border-none font-bold text-sm cursor-pointer transition-all rounded-md text-left { $activeSettingsTab === tab.id ? 'bg-muma-spotify-light text-white' : 'text-muma-spotify-text hover:text-white hover:bg-[#1a1a1a]' }"
+        onpointerdown={() => preloadTab(tab.id)}
         onclick={() => setTab(tab.id)}
       >
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

@@ -35,8 +35,12 @@ describe("lazyComponent", () => {
     part.load();
     await vi.waitFor(() => expect(error).toHaveBeenCalled());
     expect(part.current).toBeNull();
+    // `failed` is what the Now Playing shell shows its retry for (issue #119).
+    expect(part.failed).toBe(true);
     part.load();
+    expect(part.failed).toBe(false);
     await vi.waitFor(() => expect(part.current).toBe("Grid"));
+    expect(part.failed).toBe(false);
 
     expect(loader).toHaveBeenCalledTimes(2);
     error.mockRestore();

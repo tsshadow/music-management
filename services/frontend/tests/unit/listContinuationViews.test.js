@@ -4,7 +4,7 @@
  * the queue they start a continuation, show the same pill under the queue, top the queue up near
  * its end, and end in "Einde van de lijst" once the source is exhausted.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 
@@ -30,6 +30,12 @@ import {
   viewMode,
   subsonicToken,
 } from "../../src/lib/store.js";
+import { LAZY_HOOK_TIMEOUT_MS, loadLazy } from "./lazyTestUtils.js";
+
+// The views below are separate chunks (lazyViews.js). Loaded before any test renders, they are
+// on the first frame instead of after a compile that can outlast `waitFor`'s second on a busy
+// runner (issue #120).
+beforeAll(() => loadLazy("filterBar"), LAZY_HOOK_TIMEOUT_MS);
 
 const track = (id) => ({
   id,
@@ -155,8 +161,8 @@ describe("a filtered song list", () => {
     render(Dashboard, { activeView: "songs" });
     await waitFor(() => expect(screen.getByText("Title a")).toBeTruthy());
 
-    // The filter bar is its own chunk (lazyViews.js, issue #118): it renders once that is in.
-    await fireEvent.change(await screen.findByLabelText("Kwaliteit"), {
+    // The filter bar is its own chunk, loaded before the tests (issue #118, #120): no wait.
+    await fireEvent.change(screen.getByLabelText("Kwaliteit"), {
       target: { value: "lossless" },
     });
     await waitFor(() =>

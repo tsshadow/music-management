@@ -1,12 +1,16 @@
 <script>
-  import General from './settings/GeneralSettings.svelte';
-  import Advanced from './settings/Advanced.svelte';
-  import About from './settings/About.svelte';
-  import DeviceSettings from './settings/DeviceSettings.svelte';
-  import Help from './settings/Help.svelte';
+  /**
+   * The personal settings page: renders the active tab, each of which is its own chunk
+   * (`settingsTabs` in lazyViews.js, issue #119). Opening settings fetches the tab on screen
+   * only; while it is on its way `SettingsTabSkeleton` stands in with the tab's geometry, and
+   * the next tab in the sidebar is fetched on idle so switching to it rarely waits.
+   */
+  import { untrack } from 'svelte';
   import { activeSettingsTab, activeView } from './store.js';
   import { SETTINGS_TABS } from './router.js';
-  import { platform } from './platform/index.js';
+  import LazyView from './LazyView.svelte';
+  import SettingsTabSkeleton from './settings/SettingsTabSkeleton.svelte';
+  import { nextSettingsTab, preloadOnIdle, settingsTabName, settingsTabs } from './lazyViews.js';
 
   // Only the manual navigates: its "go there" buttons open the view a section is about,
   // and the tour it can start is a view too. Dashboard passes App's own handler.
@@ -20,21 +24,33 @@
   $effect(() => {
     if (!SETTINGS_TABS.includes($activeSettingsTab)) activeSettingsTab.set('general');
   });
+
+  // `device` outside the shell, or a name the effect above has not replaced yet, shows General.
+  const tab = $derived(settingsTabName($activeSettingsTab));
+
+  // Once the tab on screen is in, fetch the one after it in the sidebar when the page is idle:
+  // that is where a listener browsing their settings goes next.
+  $effect(() => {
+    const current = tab;
+    untrack(() => {
+      settingsTabs
+        .load(current)
+        .catch(() => null)
+        .then(() => {
+          const next = nextSettingsTab(current);
+          if (next && !settingsTabs.peek(next)) preloadOnIdle([[settingsTabs, next]]);
+        });
+    });
+  });
 </script>
 
 <div class="flex flex-col h-full overflow-hidden">
   <!-- Content Area -->
   <main class="flex-1 overflow-y-auto">
-    {#if $activeSettingsTab === 'advanced'}
-      <Advanced />
-    {:else if $activeSettingsTab === 'about'}
-      <About />
-    {:else if $activeSettingsTab === 'device' && platform.system.isNative}
-      <DeviceSettings />
-    {:else if $activeSettingsTab === 'help'}
-      <Help {onnavigate} />
-    {:else}
-      <General />
-    {/if}
+    <LazyView registry={settingsTabs} name={tab} props={tab === 'help' ? { onnavigate } : {}}>
+      {#snippet placeholder()}
+        <SettingsTabSkeleton />
+      {/snippet}
+    </LazyView>
   </main>
 </div>

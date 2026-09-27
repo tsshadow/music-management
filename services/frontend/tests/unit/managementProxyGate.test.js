@@ -1,7 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/svelte";
 import Management from "../../src/lib/management/Management.svelte";
 import { credentials, mumaApiKey, mumaUser, userPermissions } from "../../src/lib/store.js";
+import { LAZY_HOOK_TIMEOUT_MS, loadLazy } from "./lazyTestUtils.js";
+import { managementTabs } from "../../src/lib/lazyViews.js";
+
+// The views below are separate chunks (lazyViews.js). Loaded before any test renders, they are
+// on the first frame instead of after a compile that can outlast `waitFor`'s second on a busy
+// runner (issue #120).
+beforeAll(() => loadLazy([managementTabs, "overview"]), LAZY_HOOK_TIMEOUT_MS);
 
 const STATS = {
   total_tracks: 12345,

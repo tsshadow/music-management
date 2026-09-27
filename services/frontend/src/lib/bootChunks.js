@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { pathToState } from "./router.js";
-import { activeManagementTab, isAdmin, signedIn } from "./store.js";
+import { activeManagementTab, activeSettingsTab, isAdmin, signedIn } from "./store.js";
 import { adminNextChunks, likelyNextChunks, preloadOnIdle } from "./lazyViews.js";
 
 /**
@@ -11,20 +11,28 @@ import { adminNextChunks, likelyNextChunks, preloadOnIdle } from "./lazyViews.js
 /**
  * The view state the app will open on, as far as chunks are concerned. Mirrors what
  * `App.svelte` does on mount: signed out is the login page, which is in the main chunk;
- * `/management` without a tab opens the tab the store remembers.
+ * `/management` and `/settings` without a tab open the tab the store remembers.
  *
  * @param {string} pathname
- * @param {{signedIn?: boolean, managementTab?: string}} [current] - Injected by the tests.
- * @returns {{view: string, managementTab?: string}}
+ * @param {{signedIn?: boolean, managementTab?: string, settingsTab?: string}} [current] -
+ *   Injected by the tests.
+ * @returns {{view: string, managementTab?: string, settingsTab?: string}}
  */
 export function initialState(
   pathname,
-  { signedIn: isSignedIn = get(signedIn), managementTab = get(activeManagementTab) } = {},
+  {
+    signedIn: isSignedIn = get(signedIn),
+    managementTab = get(activeManagementTab),
+    settingsTab = get(activeSettingsTab),
+  } = {},
 ) {
   if (!isSignedIn) return { view: "login" };
   const state = pathToState(pathname);
   if (state.view === "management" && !state.managementTab) {
     return { ...state, managementTab };
+  }
+  if (state.view === "settings" && !state.settingsTab) {
+    return { ...state, settingsTab };
   }
   return state;
 }

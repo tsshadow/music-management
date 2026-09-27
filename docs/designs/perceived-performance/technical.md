@@ -306,10 +306,11 @@ measurement needs no network install.
 - `createLazyRegistry(loaders)` wraps a table of `() => import(...)`. `load(name)` memoises the
   promise (a preload racing the real open fetches once) and forgets a failure (the retry fetches
   again); `peek(name)` returns the component once it is in; `has`, `names`.
-- `lazyViews`: `settings`, `settingsSidebar`, `management`, `managementSidebar`, `history`,
+- `lazyViews`: `nowPlaying` (issue #119), `settings`, `settingsSidebar`, `management`, `managementSidebar`, `history`,
   `listening`, `starred`, `memories`, `memoriesYear`, `artistEdit`, `labelEdit`, `genreEdit`,
   `presetBuilder`, `voice`, `downloads`, `song`, `car`, `setup`, `searchMore`, `trackDetails`,
   `equalizer`.
+- `settingsTabs` (issue #119): one chunk per settings tab, see the follow-up below.
 - `managementTabs`: every entry of `MANAGEMENT_TABS` except `scrobble`, which takes two `bind:`
   props a props object cannot carry and stays in the `Management` chunk. A unit test keeps the
   two lists in step.
@@ -326,8 +327,9 @@ measurement needs no network install.
 frame; otherwise `SkeletonRows` (8) for a page, nothing for an overlay or sidebar, and a failure
 is `SectionState` error whose retry fetches again. `Dashboard.svelte`, `App.svelte`,
 `Management.svelte` (`tabProps(tab)` builds each tab's props, read in the template so the tab
-follows the shell's data), `TrackList.svelte`, `NowPlaying.svelte` and `Player.svelte` render
-through it. `Management.svelte` also starts its tab's chunk while its own data is loading.
+follows the shell's data), `Settings.svelte` (its tabs, issue #119), `TrackList.svelte`,
+`NowPlaying.svelte` and `Player.svelte` render through it; `Player.svelte` holds `NowPlaying`
+itself through `lazyComponent` (issue #119). `Management.svelte` also starts its tab's chunk while its own data is loading.
 
 **Boot: `src/lib/bootChunks.js` and `main.js`.**
 
@@ -424,8 +426,72 @@ entry is the first screen itself: `Dashboard` 89 kB, `Player` 70 kB, `TrackList`
   the entry's own `<script>`, which is what LMS (immutable `assets/`, `no-cache` index) and the
   APK's `http://localhost/` both serve. The dev server has no bundle and gets no script. An account
   language that differs from the browser's still switches after sign-in, as before.
-- *Not done.* Splitting `Settings` per tab (its chunk is lazy already, 79 kB) and moving
-  `NowPlaying` out of the entry: issue #119.
+- *Not done here.* Splitting `Settings` per tab and moving `NowPlaying` out of the entry: done
+  in issue #119, below.
+
+**Follow-up: settings tabs and Now Playing (issue #119).**
+
+*Measured before* (develop `061eeb062`): entry 299.94 kB (89.25 kB gzip), initial JS 420.33 kB
+(136.53 kB gzip). The `Settings` chunk was 79.25 kB (17.27 kB gzip) with all five tabs in it
+(`GeneralSettings` 52 kB, `DeviceSettings` 50 kB, `About` 18 kB, `Advanced` 8 kB, `Help` 5 kB
+pre-minify), and the entry still held `NowPlaying` (40 kB pre-minify).
+
+*Measured after*: 120 chunks. Entry 255.22 kB (75.93 kB gzip, -15 % / -15 %); initial JS
+405.04 kB (133.26 kB gzip, -15 kB / -3 kB). The initial figure falls by less than the entry
+because `lazyViews.js`, `router.js` and `collections.js` (29 kB together) left the entry for
+shared chunks that the settings tab chunks import too, which are still static imports of the
+entry; and the entry gained `NowPlayingShell` (8 kB pre-minify). `NowPlaying` is 23.30 kB
+(7.60 kB gzip). `Settings` is now 2.00 kB, and each tab is its own chunk: `GeneralSettings`
+31.75 kB, `DeviceSettings` 29.65 kB, `About` 10.16 kB, `Advanced` 4.92 kB, `Help` 3.57 kB. Opening
+settings on General in a browser fetches `Settings`, `SettingsSidebar` and `GeneralSettings`:
+36.11 kB (9.11 kB gzip) instead of 81.49 kB (18.49 kB gzip); the device tab is never fetched
+outside the shell.
+
+- *Settings tabs.* `settingsTabs` in `lazyViews.js` registers `general`, `advanced`, `about`,
+  `help` and `device` (a unit test keeps it in step with `SETTINGS_TABS`).
+  `visibleSettingsTabs(native)` is the sidebar's list (`device` only in the shell),
+  `settingsTabName(tab)` the tab `Settings.svelte` actually renders (an unknown name, or
+  `device` outside the shell, is `general`), and `nextSettingsTab(tab)` the one after it in the
+  sidebar, wrapping round. `Settings.svelte` renders the tab through `LazyView` with its
+  `placeholder` snippet set to `SettingsTabSkeleton.svelte` (title and subtitle bars, two panels
+  of label-and-toggle rows, the tabs' density classes), and once the tab is in asks
+  `preloadOnIdle` for the next one. `SettingsSidebar` starts a tab's fetch on `pointerdown`.
+  `chunksForState` adds the open tab to settings' chunks, and `initialState` fills it in from
+  `activeSettingsTab` when the path names none, so `/settings` opened by URL still mounts
+  complete behind the boot screen. `likelyNextChunks` preloads `general` after the settings
+  shell and sidebar.
+- *Now Playing.* `lazyViews.nowPlaying` is `NowPlaying.svelte`. `Player.svelte` holds it as
+  `lazyComponent(lazyViews, 'nowPlaying')` rather than through `LazyView`: once loaded it stays
+  mounted open or closed, exactly as before, so its `in:fly` on open and its own state (the
+  details sheet, fetched versions) behave as they did. It loads on idle as the first entry of
+  `likelyNextChunks`, on `pointerdown` on the mini player (not on its buttons), and at the
+  latest when `nowPlayingOpen` turns true. Until it is in, an open Now Playing renders
+  `NowPlayingShell.svelte` from the same props the mini player already has: the tinted
+  background, the header with "Playing from", the cover (`Artwork`), title, artist and album,
+  and a working play/pause; the rating, progress bar and other transport buttons are skeleton
+  blocks of the same geometry. The shell's root carries `in:fly`, so opening animates at once;
+  when the real view arrives, its `{#if open}` block is created together with the component,
+  a local transition does not play, and the swap is a single frame with nothing moving. The
+  "Playing from" line and the tinted background come from `nowPlayingContext.js`
+  (`playingFromLabel`, `nowPlayingBackground`), which both components use, so the two never
+  disagree. `lazyComponent` gained a reactive `failed`; the shell shows the section error with
+  "Opnieuw" under its header when the chunk fails, and the retry calls `load()` again. The mini
+  player and the desktop player bar stay in the entry; phone, tablet (portrait and landscape)
+  and desktop layouts are unchanged.
+- *Deterministic unit tests (issue #120).* "the event log tab is reachable" timed out once on
+  CI (pipeline 4022): the tab is a chunk, and under vitest its first `import()` compiles the
+  component, which on a busy runner can outlast `waitFor`'s default second.
+  `tests/unit/lazyTestUtils.js` has `loadLazy(...entries)`, `loadManagementTab`,
+  `loadSettingsTab` and `loadLazyState(state)` (via `chunksForState`); a test that is about
+  what a view does loads its chunk in a `beforeAll` (with `LAZY_HOOK_TIMEOUT_MS`, 60 s, since a
+  cold compile of several can pass the 10 s hook default), and the view is then on the first
+  frame because `LazyView` and `lazyComponent` `peek` first. This is applied to every test that
+  !1106/!1109 had switched to `findBy`/`waitFor` (management, the proxy gate, the mobile drawer,
+  the details sheet in `nowPlaying` and `trackDetails`, the filter bar in `dashboard` and
+  `listContinuationViews`), which query synchronously again, and to the player tests that open
+  Now Playing. Tests about the loading itself (skeletons, the seeded shell, retries) spy on the
+  registry's `peek`/`load` instead. `LAZY_TIMEOUT_MS`/`lazyWait` (10 s) is there for the rare
+  wait a click decides.
 
 ## Risks
 

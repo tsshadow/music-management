@@ -40,6 +40,7 @@ from services.tagger.constants import (
 from services.tagger.Song.ReleaseDate import completed_date, format_release_date, preferred_release_date
 from services.tagger.Song.rules.AnalyzeBpmRule import AnalyzeBpmRule
 from services.tagger.Song.rules.CleanTitleRule import CleanTitleRule
+from services.tagger.Song.rules.CollapseRepeatedValuesRule import CollapseRepeatedValuesRule
 from services.tagger.Song.rules.NormalizeFlacTagsRule import NormalizeFlacTagsRule
 from services.tagger.Song.rules.TagRule import TagRule
 from services.tagger.Song.Tag import Tag
@@ -142,6 +143,8 @@ class BaseSong:
             # The rule saves the file when it changes a key's case. TagCollection._parse_flac
             # upper-cases on read anyway, so a reader loses nothing by skipping it.
             NormalizeFlacTagsRule().apply(self)
+        # First, so every rule after it reads a title that is one value again (bug report 117).
+        self.rules.append(CollapseRepeatedValuesRule())
         self.rules.append(CleanTitleRule())
         if s.analyze_bpm:
             self.rules.append(AnalyzeBpmRule())

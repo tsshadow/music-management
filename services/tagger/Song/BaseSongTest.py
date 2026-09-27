@@ -298,10 +298,11 @@ class BaseSongLoadingTest(unittest.TestCase):
         normalize.return_value.apply.assert_called_once()
 
     def test_every_song_gets_the_title_cleaning_rule(self):
+        # The repeated-value repair first, so the title cleaning reads one value (bug report 117).
         with patch('services.tagger.Song.BaseSong.OggOpus', return_value=self.opus_file()):
             song = BaseSong('some/path/test.opus')
 
-        self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule'])
+        self.assertEqual([type(rule).__name__ for rule in song.rules], ['CollapseRepeatedValuesRule', 'CleanTitleRule'])
 
     def test_bpm_analysis_is_added_when_it_is_switched_on(self):
         # The setting lives in ConfigStore now, not in a module constant, so it can be
@@ -312,7 +313,10 @@ class BaseSongLoadingTest(unittest.TestCase):
         ):
             song = BaseSong('some/path/test.opus')
 
-        self.assertEqual([type(rule).__name__ for rule in song.rules], ['CleanTitleRule', 'AnalyzeBpmRule'])
+        self.assertEqual(
+            [type(rule).__name__ for rule in song.rules],
+            ['CollapseRepeatedValuesRule', 'CleanTitleRule', 'AnalyzeBpmRule'],
+        )
 
     def test_bpm_analysis_stays_out_of_the_rules_when_it_is_off(self):
         with (

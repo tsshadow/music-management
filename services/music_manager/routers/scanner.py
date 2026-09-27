@@ -18,6 +18,7 @@ from services.common.Helpers.FestivalHelper import FestivalHelper
 from services.common.Helpers.GenreRulesHelper import BLACK, GenreRulesHelper
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import PodcastHelper
+from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.track_form import classify
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.orphan_purge import purge_orphaned_tracks
@@ -35,6 +36,48 @@ from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
+
+#: Character lengths of the columns process_file writes a tag value into (db_init.py).
+#: MariaDB counts VARCHAR length in characters -- code points under utf8mb4 -- and so does
+#: Python's str slicing, so a slice to this length can never split a character.
+TITLE_MAX_CHARS = 512
+DISPLAY_ARTIST_MAX_CHARS = 512
+NAME_MAX_CHARS = 255
+
+#: Why the scanner hands a file back to the tagger when one of its values did not fit.
+OVERLONG_TAG_REASON = 'overlong_tag'
+
+#: Failed scans in a row, of one unchanged file, after which the scanner parks it until the
+#: file changes. Without this a file that fails fails again on every full pass, forever: one
+#: error per file per hour in the event log (bug report 117).
+SCANNER_PARK_AFTER = 3
+
+
+def fit_column(value, max_chars):
+    """`value` cut to at most `max_chars` characters; None and short values pass unchanged.
+
+    A value the column cannot hold used to fail the whole file with MariaDB error 1406, and
+    because the file then had no row the next full scan read it again, and the next -- 10 to
+    30 errors per file per 12 h on production (bug report 117). Cutting at the write boundary
+    keeps the rest of the file's data; the full value stays in the file itself.
+    """
+    if value is None or len(value) <= max_chars:
+        return value
+    return value[:max_chars].rstrip()
+
+
+def request_retag(path):
+    """Put `path` back on the tagger queue: its tags carry a value too long to index.
+
+    On production every such file was an m4a whose title had been multiplied by a since-fixed
+    tagger defect (bug report 117); the tagger's CollapseRepeatedValuesRule repairs it, and the
+    tagger's own write makes the next scan read the file again. Best effort: failing to queue
+    must not fail the scan that already stored the file.
+    """
+    try:
+        ProcessedFilesHelper().mark_for_rescan(path, reason=OVERLONG_TAG_REASON)
+    except Exception as exc:
+        logger.warning('Could not queue %s for a retag: %s', path, exc)
 
 
 class ScannerManager:
@@ -58,6 +101,10 @@ class ScannerManager:
         # services/common/track_form.py). Loaded with the genre rules, for the same reason.
         self.festival_helper = FestivalHelper(preload=False)
         self.podcast_helper = PodcastHelper(preload=False)
+        # path -> (mtime, size, failures in a row) for files whose scan raised. In memory on
+        # purpose: a restart (every deploy) gives each parked file one more try, which is the
+        # moment a code fix for its failure arrives, and no schema is needed for it.
+        self._failures: dict[str, tuple[float, int, int]] = {}
 
     def _reload_rules(self):
         """Re-read the genre, festival and podcast rules this scan resolves against.
@@ -158,14 +205,63 @@ class ScannerManager:
                         logger.info(f'Processed {count} files...')
         return count
 
-    def _process_file_safe(self, conn, full_path, force):
+    @staticmethod
+    def _file_version(full_path):
+        """(mtime, size) of a file, or None when it cannot be stat'ed."""
         try:
-            return self.process_file(conn, full_path, force)
+            stat = os.stat(full_path)
+        except OSError:
+            return None
+        return stat.st_mtime, stat.st_size
+
+    def _is_parked(self, full_path, version) -> bool:
+        """Whether this exact version of the file already failed SCANNER_PARK_AFTER times."""
+        failure = self._failures.get(full_path)
+        if not failure or version is None:
+            return False
+        mtime, size, count = failure
+        if (mtime, size) != version:
+            # The file changed -- a retag, a redownload -- so it gets a fresh start.
+            del self._failures[full_path]
+            return False
+        return count >= SCANNER_PARK_AFTER
+
+    def _record_failure(self, full_path, version, error) -> None:
+        """Count a failed scan; log it, or -- on the one that parks the file -- say so instead."""
+        previous = self._failures.get(full_path)
+        count = 1
+        if previous and version is not None and previous[:2] == version:
+            count = previous[2] + 1
+        if version is not None:
+            self._failures[full_path] = (version[0], version[1], count)
+        if count >= SCANNER_PARK_AFTER:
+            logger.warning(
+                'Parked %s after %d failed scans in a row (last: %s); it is scanned again when the '
+                'file changes or the service restarts',
+                full_path,
+                count,
+                error,
+            )
+        else:
+            logger.error(f'Error processing {full_path}: {error}')
+
+    def _process_file_safe(self, conn, full_path, force):
+        """Scan one file without letting its failure end the walk; park a file that keeps failing.
+
+        A forced scan ignores the parking, as it ignores the up-to-date check.
+        """
+        version = self._file_version(full_path)
+        if not force and self._is_parked(full_path, version):
+            return False
+        try:
+            result = self.process_file(conn, full_path, force)
         except ExtensionNotSupportedException:
-            pass
+            return False
         except Exception as e:
-            logger.error(f'Error processing {full_path}: {e}')
-        return False
+            self._record_failure(full_path, version, e)
+            return False
+        self._failures.pop(full_path, None)
+        return result
 
     def _resolve_genre_ids(self, song):
         """Map a file's genre tags onto rules_genres ids.
@@ -242,6 +338,9 @@ class ScannerManager:
         label_name = song.publisher()
         if not (label_name and is_label(label_name) and path_can_carry_a_label(path, self.music_path)):
             return None
+        # INSERT IGNORE would store a longer name cut short, and the SELECT by the full name
+        # below would then find nothing; cutting it here keeps the two statements agreeing.
+        label_name = fit_column(label_name, NAME_MAX_CHARS)
         cursor.execute('INSERT IGNORE INTO library_labels (name) VALUES (%s)', (label_name,))
         cursor.execute('SELECT id FROM library_labels WHERE name = %s', (label_name,))
         row = cursor.fetchone()
@@ -345,9 +444,13 @@ class ScannerManager:
                 return False
             artist_names = song.library_artists()
             artist_ids = []
+            overlong = []
             for name in artist_names:
                 if not name:
                     continue
+                if len(name) > NAME_MAX_CHARS:
+                    overlong.append('artist')
+                    name = fit_column(name, NAME_MAX_CHARS)
                 # Recording the name is not approving it. A name new to the library enters
                 # the artist curation queue as pending: the tagger's artist rules match
                 # only approved or grandfathered names (TrustedArtistHelper), so a name a
@@ -362,6 +465,16 @@ class ScannerManager:
             duration = song.length()
             primary_artist_id = artist_ids[0] if artist_ids else None
             display_artist = song.original_artist()
+            if title and len(title) > TITLE_MAX_CHARS:
+                overlong.append('title')
+                title = fit_column(title, TITLE_MAX_CHARS)
+            if display_artist and len(display_artist) > DISPLAY_ARTIST_MAX_CHARS:
+                overlong.append('display_artist')
+                display_artist = fit_column(display_artist, DISPLAY_ARTIST_MAX_CHARS)
+            if overlong:
+                # Once per scan of the file, and only until the retag has shortened it.
+                logger.warning('Cut %s of %s to fit the database; queued it for a retag', ', '.join(overlong), path)
+                request_retag(path)
             track_uid = hashlib.sha256(f'{title}-{duration}-{primary_artist_id}'.encode()).hexdigest()
             # What the file is and, for a live set, when it was played -- from the same path,
             # title and duration the hourly pass (track_form_sync) reads, so the two agree.

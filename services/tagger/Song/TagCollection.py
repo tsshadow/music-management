@@ -46,6 +46,19 @@ def _decode_m4a_values(values) -> list[str]:
     return [_decode_m4a_value(value) for value in values]
 
 
+def _id3_frame_text(frame):
+    """An ID3 frame's values as text, the way EasyID3 hands them to _parse_mp3.
+
+    The time frames (TDRC, TDOR, ...) hold ID3TimeStamp objects rather than str. Handed to Tag
+    as they were, the ';' split failed on every one of them -- ~270 "Could not split date value
+    ['2023']" warnings in 2 h on production (bug report 118) -- and the date stayed an object
+    no rule could compare. str() of an ID3TimeStamp is its text, so this is lossless.
+    """
+    if not hasattr(frame, 'text'):
+        return frame
+    return [value if isinstance(value, str) else str(value) for value in frame.text]
+
+
 class UnsupportedExtension(Exception):
     """Raised when an unsupported file extension is encountered."""
 
@@ -119,7 +132,7 @@ class TagCollection:
         for tag in tags:
             try:
                 id3_frame = tags[tag]
-                value = id3_frame.text if hasattr(id3_frame, 'text') else id3_frame
+                value = _id3_frame_text(id3_frame)
                 self.tags[reversed_WAVTags[tag]] = Tag(reversed_WAVTags[tag], value)
             except KeyError:
                 if tag not in missing_tags_wav:

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.8.1] - 2026-09-27
+
+### Changed
+- No app changes of its own: the release build is now started twice on the CI emulator and must show its server address on screen (issue #24), which touched the app's build scripts and README.
+
 ## [7.8.0] - 2026-09-27
 
 ### Added

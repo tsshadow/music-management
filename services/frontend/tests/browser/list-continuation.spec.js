@@ -78,7 +78,13 @@ for (const layout of LAYOUTS) {
 
       // Mini player -> Now Playing -> the queue sheet. The title, not the row's centre: on a
       // 412px phone the centre of the mini player is one of its rating stars.
-      await page.locator('footer [role="button"]').first().getByText("Lijst track 0").tap();
+      // The artwork panel repeats the title; the text line after it is the one to tap.
+      await page
+        .locator('footer [role="button"]')
+        .first()
+        .getByText("Lijst track 0", { exact: true })
+        .last()
+        .tap();
       await page.getByTestId("now-playing").getByRole("button", { name: "Wachtrij" }).tap();
 
       const sheet = page.getByRole("dialog", { name: "Wachtrij" });

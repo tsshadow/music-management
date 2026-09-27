@@ -225,13 +225,17 @@ export async function loadFeed(slug, authParams, limit) {
  * A single `GET /api/feeds/{slug}` carries both -- the tracks and the title/subtitle/hardness
  * numbers -- so this resolves the songs from the same answer rather than asking MuMa twice.
  * `nextOffset` is where "Meer laden" continues (`loadFeedPage`), null when there is no more.
+ * `unresolved` counts the paths LMS did not return a song for (bug report 122): the list is
+ * shorter than MuMa's page by exactly that many, and the page says so rather than letting a
+ * 100-track mix read as a 98-track one for no visible reason. It never shifts the paging --
+ * `nextOffset` counts MuMa's rows, resolved or not.
  *
  * @param {string} slug
  * @param {string} authParams
  * @param {number} [limit]
  * @returns {Promise<{state: string, title: string|null, subtitle: string|null,
  *   hardnessBand: [number, number]|null, relaxedTo: (number|string|null),
- *   filledFromUnknown: number|null, nextOffset: number|null, tracks: Object[]}>}
+ *   filledFromUnknown: number|null, nextOffset: number|null, unresolved: number, tracks: Object[]}>}
  */
 export async function loadFeedDetail(slug, authParams, limit) {
   const feed = await fetchFeed(slug, limit);
@@ -240,6 +244,7 @@ export async function loadFeedDetail(slug, authParams, limit) {
 
   return {
     state: feed.state,
+    unresolved: unresolvedCount(paths, songs),
     title: feed.title ?? null,
     subtitle: feed.subtitle ?? null,
     hardnessBand: feed.hardness_band ?? null,
@@ -248,6 +253,14 @@ export async function loadFeedDetail(slug, authParams, limit) {
     nextOffset: nextOffsetOf(feed),
     tracks: songs,
   };
+}
+
+/**
+ * How many of MuMa's paths LMS left out of its answer: files MuMa has scanned that this server has
+ * not indexed (yet), or no longer has. Zero when nothing was asked.
+ */
+function unresolvedCount(paths, songs) {
+  return Math.max(0, paths.length - songs.length);
 }
 
 /** `next_offset` when MuMa sent a usable one, else null. */
@@ -266,12 +279,18 @@ function nextOffsetOf(feed) {
  * @param {string} slug
  * @param {string} authParams
  * @param {number} offset - The `nextOffset` the previous page carried.
- * @returns {Promise<{tracks: Object[], nextOffset: number|null, failed: boolean}>}
+ * @returns {Promise<{tracks: Object[], nextOffset: number|null, unresolved: number, failed: boolean}>}
  */
 export async function loadFeedPage(slug, authParams, offset) {
   const feed = await fetchFeed(slug, undefined, offset);
-  if (feed.state === "error") return { tracks: [], nextOffset: offset, failed: true };
+  if (feed.state === "error")
+    return { tracks: [], nextOffset: offset, unresolved: 0, failed: true };
   const paths = pathsOf(feed);
   const tracks = authParams && paths.length > 0 ? await resolveSongs(paths, authParams) : [];
-  return { tracks, nextOffset: nextOffsetOf(feed), failed: false };
+  return {
+    tracks,
+    nextOffset: nextOffsetOf(feed),
+    unresolved: unresolvedCount(paths, tracks),
+    failed: false,
+  };
 }

@@ -170,6 +170,10 @@
     "emptyMixHelp": "De mix wordt gebouwd uit je luistergeschiedenis. Draai wat muziek en kom terug.",
     "emptyRadarHelp": "De radar toont releases van de afgelopen week die bij je luistergedrag passen.",
     "filledFromUnknown": "{count} aangevuld",
+    "unresolved": {
+      "one": "{count} niet gevonden op de server",
+      "other": "{count} niet gevonden op de server"
+    },
     "mixSubtitle": "Vandaag voor jou gekozen",
     "radarSubtitle": "Deze week uitgebracht, voor jou gekozen"
   },

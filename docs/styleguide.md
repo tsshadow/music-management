@@ -68,7 +68,12 @@
   and `common.loading` while the next page is on its way. It disappears when there is nothing more;
   it never shows a count or a page number. Used by the song, artist and album lists and, since
   2026-09-26, the feed pages (`FeedView.svelte`, `docs/designs/feed-length/`). A queue started from
-  a paged list tops itself up instead -- there is no button in the player.
+  a feed tops itself up near its end, and since 2026-09-27 the queue list (the bottom sheet on the
+  phone and the tablet, the side panel on the desktop) also ends in the same pill while its feed has
+  a next page (`QueueFeedLoadMore.svelte`, bug report 122). The Now Playing screen itself gets no
+  button. Rows a list could not show, such as feed paths the server has no song for, are
+  mentioned once in the list's header meta line in the muted text colour ("• 2 niet gevonden op de
+  server"). The row count stays the count of what can be played.
 - **Sign in with Google**: in a browser the login page renders Google's own button (Google
   Identity Services, `theme: "outline"`, pill shape). Inside the Android shell Google's web
   sign-in cannot run, so `LoginPage.svelte` draws the same button itself and the shell signs in
@@ -184,6 +189,9 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** — Feed length (2026-09-26, `docs/designs/feed-length/`): no new token or component. The
   existing load-more pill is documented above under Components ("Load more") and reused as-is under
   a feed's track list.
+- **Done** — Feed "Meer laden" in the queue (2026-09-27, bug report 122): no new token. The same
+  load-more pill under the queue list for a feed queue, and a muted "not found on the server" note
+  in the feed header meta line, both documented above under Components ("Load more").
 - **Done** — Versies page in Beheer (2026-09-26, `docs/designs/song-versions/`): built only from
   existing tokens. The list is the curation table surface (`bg-muma-spotify-panel/40`, rows
   `divide-muma-spotify-panel/30`); a row expands in place to the versions table instead of opening

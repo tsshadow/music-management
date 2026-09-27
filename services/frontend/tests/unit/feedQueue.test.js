@@ -25,6 +25,29 @@ describe("extendFeedQueue", () => {
     });
   });
 
+  // The queue's own "Meer laden" (bug report 122): asked for now, wherever the queue is.
+  it("forced, appends the next page even far from the end, or with nothing playing", async () => {
+    currentTrack.set(null);
+    const loadPage = pageOf(["song-100"], 200);
+
+    expect(await extendFeedQueue({ loadPage, force: true })).toBe(true);
+
+    expect(
+      get(playlist)
+        .map((t) => t.id)
+        .at(-1),
+    ).toBe("song-100");
+    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 200 });
+  });
+
+  it("forced, still does nothing for a queue that did not come from a feed", async () => {
+    startQueue(QUEUE, { name: "Album", view: "album:1" });
+    const loadPage = pageOf(["song-100"]);
+
+    expect(await extendFeedQueue({ loadPage, force: true })).toBe(false);
+    expect(loadPage).not.toHaveBeenCalled();
+  });
+
   it("does nothing while the end of the queue is still far away", async () => {
     currentTrack.set(QUEUE[0]);
     const loadPage = pageOf(["song-100"]);

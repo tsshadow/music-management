@@ -27,6 +27,10 @@
     // The name the player header gives this list when a row starts a queue from it ("Nummers ·
     // Recent uitgebracht"); null lets `startQueue` name the current view itself.
     sourceName = null,
+    // For a feed's list: where the feed continues (`{slug, nextOffset}`), handed to `startQueue`
+    // so a queue started by tapping a row tops itself up like one started with the play button
+    // (docs/bug-reports/122-feed-load-more-not-visible.md). Null everywhere else.
+    continuation = null,
     platform = defaultPlatform
   } = $props();
 
@@ -245,7 +249,7 @@
   function playTrack(track) {
     currentTrack.set(track);
     if (!isQueue) {
-        startQueue(tracks, { name: sourceName });
+        startQueue(tracks, { name: sourceName, continuation });
     }
     playerState.update(s => ({ ...s, playing: true }));
   }

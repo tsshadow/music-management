@@ -170,6 +170,10 @@
     "emptyMixHelp": "The mix is built from your listening history. Play some music and come back.",
     "emptyRadarHelp": "The radar shows releases from the past week that fit what you listen to.",
     "filledFromUnknown": "{count} filled in",
+    "unresolved": {
+      "one": "{count} not found on the server",
+      "other": "{count} not found on the server"
+    },
     "mixSubtitle": "Picked for you today",
     "radarSubtitle": "Released this week, picked for you"
   },

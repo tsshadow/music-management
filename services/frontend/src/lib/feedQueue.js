@@ -33,10 +33,14 @@ let pending = null;
  * next track change tries again; a page that says "no more" drops it. A queue
  * replaced while the page was loading is left alone.
  *
- * @param {{loadPage?: typeof loadFeedPage}} [options] - `loadPage` is injected by the tests.
+ * `force` is the queue's own "Meer laden" (bug report 122): the listener asks for the next page
+ * now, wherever the current track is -- or with nothing playing at all.
+ *
+ * @param {{loadPage?: typeof loadFeedPage, force?: boolean}} [options] - `loadPage` is injected
+ *   by the tests; `force` skips the near-the-end check.
  * @returns {Promise<boolean>} Whether anything was appended.
  */
-export async function extendFeedQueue({ loadPage = loadFeedPage } = {}) {
+export async function extendFeedQueue({ loadPage = loadFeedPage, force = false } = {}) {
   const continuation = get(feedContinuation);
   if (!continuation?.nextOffset || pending) return false;
   const auth = get(authParams);
@@ -45,7 +49,7 @@ export async function extendFeedQueue({ loadPage = loadFeedPage } = {}) {
   const queue = get(playlist);
   const current = get(currentTrack);
   const index = queue.findIndex((track) => String(track.id) === String(current?.id));
-  if (index < 0 || queue.length - 1 - index >= EXTEND_WHEN_LEFT) return false;
+  if (!force && (index < 0 || queue.length - 1 - index >= EXTEND_WHEN_LEFT)) return false;
 
   pending = (async () => {
     const page = await loadPage(continuation.slug, auth, continuation.nextOffset);

@@ -37,6 +37,10 @@ class SoundcloudSong(BaseSong):
         self.rules.extend(rule_stack.rules_for(rule_stack.SOUNDCLOUD))
         super().parse()
 
+    def channel_stand_ins(self) -> list[str]:
+        """The channel folder and the uploader: what parse() writes as ARTIST when nothing better is known."""
+        return [self._album_artist_from_path, self._uploader]
+
     def calculate_copyright(self):
         album_artist = self.album_artist()
         date = self.date()

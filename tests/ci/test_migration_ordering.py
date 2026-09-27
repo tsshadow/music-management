@@ -82,6 +82,12 @@ REVIEWED_SAFE = {
         "reads rows by step, so nothing it does changes, and appending an ENUM value is a "
         "metadata-only ALTER that is a no-op when re-run (bug 119)"
     ),
+    "migrate_v47_channel_link_manual_source.sql": (
+        "the MODIFY only appends 'manual' to the end of channel_link_proposals.source's ENUM, "
+        "keeping 'name', 'alias', 'redirect' and NOT NULL; the previous release only ever writes "
+        "those three and lists rows without filtering on source, so nothing it does changes, and "
+        "appending an ENUM value is a metadata-only ALTER that is a no-op when re-run (issue #58)"
+    ),
 }
 
 

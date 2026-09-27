@@ -54,7 +54,11 @@ class ProcessedFilesHelper:
     #: something about these files. They are served after every other reason, so a genre
     #: decision made this morning is not parked behind a month-old "rescan all". A row
     #: without a reason predates reasons being recorded and is treated the same way.
-    BULK_REASONS = ('rescan_all', 'deep_run')
+    #: A channel link (`channel_link`) is a decision, but one that enriches tracks which are
+    #: already correct and can cover thousands of them at once (Monstercat on SoundCloud
+    #: holds 5.154), so it waits behind the corrections too; see docs/designs/channel-links.
+    CHANNEL_LINK = 'channel_link'
+    BULK_REASONS = ('rescan_all', 'deep_run', CHANNEL_LINK)
     #: The reason a file gets when the scanner has indexed it and the tagger has never
     #: seen it -- a file somebody dropped into the library by hand.
     NEW_IN_LIBRARY = 'new_in_library'

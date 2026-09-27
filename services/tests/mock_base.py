@@ -371,6 +371,7 @@ def _build_cache() -> dict:
     cache_mod.databaseHelpers['rules_genres'].exists.return_value = True
     # These must import under the world's stubs, hence inside the function.
     # pylint: disable=import-outside-toplevel
+    from services.common.Helpers.ChannelLinkHelper import ChannelLinkHelper
     from services.common.Helpers.FestivalHelper import FestivalHelper
     from services.common.Helpers.GenreRulesHelper import GenreRulesHelper
     from services.common.Helpers.PodcastHelper import PodcastHelper
@@ -384,6 +385,8 @@ def _build_cache() -> dict:
     cache_mod.databaseHelpers['festivalHelper'] = FestivalHelper(preload=False)
     # Same again for shows: a MagicMock would claim every file is an episode of something.
     cache_mod.databaseHelpers['podcastHelper'] = PodcastHelper(preload=False)
+    # And for channel links: a MagicMock would link every download to a label.
+    cache_mod.databaseHelpers['channelLinkHelper'] = ChannelLinkHelper(preload=False)
     return {'services.common.Helpers.Cache': cache_mod}
 
 
@@ -493,3 +496,4 @@ def reset_database_helpers():
     helpers['genre_rules'].record_unknown.reset_mock()
     helpers['festivalHelper'].set_festivals([])
     helpers['podcastHelper'].set_shows([])
+    helpers['channelLinkHelper'].set_links([])

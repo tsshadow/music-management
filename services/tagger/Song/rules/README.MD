@@ -36,7 +36,14 @@ This folder contains all **tagging rules** used in the `BaseSong` subclasses of 
   Infers genre based on the primary `ARTIST`, using known mappings from a lookup table.
 
 - **`InferGenreFromLabelRule.py`**  
-  Infers genre based on the `PUBLISHER`, typically for label releases.
+  Infers genre based on the `PUBLISHER`, typically for label releases, and for SoundCloud/YouTube downloads whose channel is linked to a label.
+
+---
+
+### 🔗 Channel Links
+
+- **`ApplyChannelLinkRule.py`**  
+  For a SoundCloud/YouTube download whose channel a curator linked to a label or artist: replaces the platform `PUBLISHER` with the linked label, and an `ARTIST` that is only the channel name standing in for one with the linked artist. Never overwrites a real label or an artist the title named (docs/designs/channel-links).
 
 - **`InferGenreFromSubgenreRule.py`**  
   Maps a given `SUBGENRE` tag to a standardized `GENRE`.

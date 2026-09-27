@@ -59,6 +59,7 @@ RULES_ROUTES = [
     ('post', '/api/channel-links/proposals/1/confirm', None),
     ('post', '/api/channel-links/proposals/1/reject', None),
     ('delete', '/api/channel-links/channels/1/label', None),
+    ('put', '/api/channel-links/channels/1/label', {'target_id': 1}),
     ('post', '/api/rules/genres/1/decide', {'state': 'white'}),
     ('post', '/api/rules/podcasts/1/decide', {'state': 'white'}),
     ('post', '/api/rules/podcasts/1/rename', {'name': 'Show'}),
@@ -89,6 +90,8 @@ READ_ROUTES = [
     '/api/labels',
     '/api/label-proposals',
     '/api/channel-links/proposals',
+    '/api/channel-links/channels?q=x',
+    '/api/channel-links/targets?kind=label&q=x',
     '/api/config',
 ]
 
@@ -125,6 +128,10 @@ class RouteAuthTestCase(unittest.TestCase):
             patcher = patch.object(management_router, target)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # A link change queues a retag through the real database helpers; not what is tested here.
+        patcher = patch.object(channel_links_router, 'queue_retag', return_value=0)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         for target in ('download_public_image', '_store_manual_image', 'run_fetch_missing', 'trigger_fetch_by_id'):
             patcher = patch.object(artist_images_router, target, return_value={'status': 'ok'})
             patcher.start()

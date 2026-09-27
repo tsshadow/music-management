@@ -30,6 +30,8 @@ KINDS = (LABEL, ARTIST)
 NAME = 'name'
 ALIAS = 'alias'
 REDIRECT = 'redirect'
+#: The source of a link a curator made by hand, for a channel the search proposed nothing for.
+MANUAL = 'manual'
 
 #: Platforms whose channels are considered. Telegram is left out: one channel, and a
 #: Telegram channel is a chat, not an artist's or a label's own account.
@@ -191,3 +193,13 @@ def propose_links(channels: Iterable[Channel], indexes: Sequence[CandidateIndex]
             elif ambiguous:
                 run.ambiguous += 1
     return run
+
+
+def like_pattern(query: str, anywhere: bool = True) -> str:
+    """A `LIKE` pattern for `query` -- anywhere in the name, or at its start -- with the query's
+    own wildcards taken literally.
+
+    A channel really called `100%` must not match every name, nor `a_b` every `a?b`.
+    """
+    escaped = query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    return f'%{escaped}%' if anywhere else f'{escaped}%'

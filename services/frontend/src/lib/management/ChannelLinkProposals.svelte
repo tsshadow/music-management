@@ -1,15 +1,17 @@
 <!--
   The Koppelingen sub-tab of Beheer -> Downloaders: open proposals that link a
   channel to its label or artist, with confirm and reject per row and a button
-  that runs the search again. See docs/designs/channel-links/functional.md.
+  that runs the search again, under the panel that links a channel by hand. See
+  docs/designs/channel-links/functional.md.
 -->
 <script>
   import { t, locale, formatNumber } from '../i18n/index.js';
   import { onMount } from 'svelte';
   import { Check, X, RotateCcw, Search, Link2, AlertTriangle } from '@lucide/svelte';
   import { filterProposals, countByKind, kindLabel, sourceLabel, refreshMessage, PLATFORMS } from './channelLinks.js';
+  import ChannelLinkByHand from './ChannelLinkByHand.svelte';
 
-  let { API_BASE, getHeaders, onMessage = () => {}, onError = () => {} } = $props();
+  let { API_BASE, getHeaders, onMessage = () => {}, onError = () => {}, initialChannel = null } = $props();
 
   const PLATFORM_LABELS = { soundcloud: 'SoundCloud', youtube: 'YouTube' };
 
@@ -89,6 +91,9 @@
 </script>
 
 <div class="space-y-6 animate-in fade-in duration-300">
+  <!-- A hand link can confirm an open proposal or withdraw its rivals, so the list reloads after one. -->
+  <ChannelLinkByHand {API_BASE} {getHeaders} {onMessage} {onError} {initialChannel} onLinked={load} />
+
   <p class="text-muma-spotify-text text-sm max-w-3xl">{$t('management.downloaders.links.help')}</p>
 
   <div class="flex flex-wrap items-center gap-3">

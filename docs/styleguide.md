@@ -116,6 +116,16 @@
   with an "Opnieuw proberen" retry) and `signIn` ("Log opnieuw in", with an "Opnieuw inloggen"
   button that ends the session and shows the login page). Their buttons are the outlined pill of
   "Load more" above. The car shows the same two messages as Media3 session errors.
+- **Pickers (search-as-you-type)**: `MultiPicker.svelte` collects several names as chips;
+  `SinglePicker.svelte` picks exactly one *record* (an id, not free text) and is the same control:
+  the uppercase `text-xs` label, the `bg-muma-spotify-light rounded-md` field with the brand focus
+  outline, and the same suggestion list under it (`bg-muma-spotify-light rounded-md shadow-xl
+  border border-white/5`, rows `px-3 py-1.5 text-sm` with `hover:bg-white/10`, a muted second
+  line per row when a suggestion needs context such as platform and track count). Suggestions are
+  asked from the server 200 ms after the last keystroke. Once picked, the field shows the choice as
+  one chip (`bg-white/10 rounded-full`) with an × to pick again; Enter never submits free text.
+  Used by the hand-link panel on Beheer -> Downloaders -> Koppelingen
+  (`docs/designs/channel-links/`).
 - **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --

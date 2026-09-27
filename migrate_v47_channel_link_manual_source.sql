@@ -1,0 +1,11 @@
+-- migrate_v47_channel_link_manual_source.sql
+--
+-- channel_link_proposals.source gains 'manual': a link the curator made by hand in Beheer ->
+-- Downloaders -> Koppelingen, for a channel the search proposed nothing for. It is stored as a
+-- confirmed row like any confirmed proposal, so the history says who linked what and unlinking
+-- rejects it the same way. See docs/designs/channel-links/technical.md, "Hand-linking and the
+-- tagger" (issue #58).
+--
+-- Kept identical to the CREATE TABLE in services/common/db_init.py. Re-runnable: a MODIFY to the
+-- definition the column already has is a no-op, and appending an ENUM value changes no stored row.
+ALTER TABLE channel_link_proposals MODIFY source ENUM('name', 'alias', 'redirect', 'manual') NOT NULL;

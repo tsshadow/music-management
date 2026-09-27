@@ -20,6 +20,7 @@
 #include "ScannerService.hpp"
 
 #include "ImmediateScanPolicy.hpp"
+#include "ScanErrorPolicy.hpp"
 #include "ScanSchedule.hpp"
 #include "ScanStepSequence.hpp"
 
@@ -489,7 +490,7 @@ namespace lms::scanner
         }
 
         refreshTracingLoggerStats();
-        LMS_LOG(DBUPDATER, INFO, "Scan " << (_abortScan ? "aborted" : "complete") << ". Changes = " << stats.getChangesCount() << " (added = " << stats.additions << ", removed = " << stats.deletions << ", updated = " << stats.updates << ", failures = " << stats.failures << "), Not changed = " << stats.skips << ", Scanned = " << stats.scans << " (errors = " << stats.errorsCount << "), features fetched = " << stats.featuresFetched << ",  duplicates = " << stats.duplicates.size());
+        LMS_LOG(DBUPDATER, INFO, "Scan " << (_abortScan ? "aborted" : "complete") << ". Changes = " << stats.getChangesCount() << " (added = " << stats.additions << ", removed = " << stats.deletions << ", updated = " << stats.updates << ", failures = " << stats.failures << "), Not changed = " << stats.skips << ", Scanned = " << stats.scans << " (errors = " << stats.errorsCount << (stats.errorsCount > 0 ? ": " + formatErrorBreakdown(stats.errorCountsByKind) : std::string{}) << "), features fetched = " << stats.featuresFetched << ",  duplicates = " << stats.duplicates.size());
 
         {
             auto transaction{ _db.getTLSSession().createReadTransaction() };

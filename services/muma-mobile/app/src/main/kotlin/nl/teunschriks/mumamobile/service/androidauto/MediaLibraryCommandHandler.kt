@@ -46,8 +46,6 @@ class MediaLibraryCommandHandler {
 
     lateinit var allCustomCommands: List<CommandButton>
 
-    lateinit var defaultCustomCommands: List<CommandButton>
-
     // One button per rating the track can currently have, indexed by that rating. Tapping any
     // of them cycles to the next rating, wrapping from the highest back to no rating at all.
     private val ratingButtons: List<CommandButton> =
@@ -160,8 +158,6 @@ class MediaLibraryCommandHandler {
             repeatAllButton,
             newsButton
         )
-
-        defaultCustomCommands = listOf(shuffleButton, repeatOffButton, newsButton)
     }
 
     fun configureRepeatMode(player: Player) {
@@ -200,13 +196,27 @@ class MediaLibraryCommandHandler {
 
     fun updateCustomRatingButton(session: MediaSession, rating: Int) {
         with(session) {
-            setMediaButtonPreferences(
+            publish(
                 buildCustomCommands(
                     rating = rating,
                     canShuffle = canShuffle()
                 )
             )
         }
+    }
+
+    /**
+     * Publishes [buttons] as the session's media button preferences, unless they are already what
+     * the session carries.
+     *
+     * Every caller -- a track change, a rating, the repeat mode, a queue that grew past the shuffle
+     * threshold, a controller that just connected -- publishes through here, so the car and the
+     * notification never keep a list that no longer matches the player. The equality check keeps
+     * the frequent timeline changes from re-sending an identical list to every controller.
+     */
+    private fun MediaSession.publish(buttons: ImmutableList<CommandButton>) {
+        if (buttons == mediaButtonPreferences) return
+        setMediaButtonPreferences(buttons)
     }
 
     private fun MediaSession.canShuffle() = player.mediaItemCount > 2
@@ -291,7 +301,7 @@ class MediaLibraryCommandHandler {
         session.updateCustomCommands()
     }
     private fun MediaSession.updateCustomCommands() {
-        setMediaButtonPreferences(
+        publish(
             buildCustomCommands(
                 currentRating,
                 canShuffle()
@@ -310,7 +320,14 @@ class MediaLibraryCommandHandler {
         private const val MIN_ITEMS_TO_SHUFFLE = 3
 
         /**
-         * The buttons as the session publishes them: action, media3 icon constant, enabled.
+         * The most custom actions Android Auto's media player takes while previous and next stay
+         * in place (its design guidelines: six, or eight without previous/next). The app never
+         * publishes more than four; a test pins that it stays under this.
+         */
+        const val ANDROID_AUTO_MAX_CUSTOM_ACTIONS = 6
+
+        /**
+         * The buttons as the session publishes them: action, media3 icon constant, slot, enabled.
          *
          * Android Auto 17.6 draws a custom button only when its icon constant is one it knows, and
          * says nothing when it drops one. The line this builds is what a diagnostics report needs to
@@ -319,7 +336,22 @@ class MediaLibraryCommandHandler {
         fun describeButtons(buttons: List<CommandButton>): String = buttons.joinToString(", ") {
             val action = it.sessionCommand?.customAction?.substringAfterLast('.') ?: "player:${it.playerCommand}"
             val state = if (it.isEnabled) "" else " disabled"
-            "$action(icon=${it.icon}$state)"
+            "$action(icon=${it.icon}, slot=${describeSlots(it)}$state)"
+        }
+
+        /** The button's slots in preference order, by name: `overflow`, `back`, `forward+overflow`. */
+        fun describeSlots(button: CommandButton): String = (0 until button.slots.length())
+            .joinToString("+") { slotName(button.slots.get(it)) }
+            .ifEmpty { "none" }
+
+        private fun slotName(slot: Int): String = when (slot) {
+            CommandButton.SLOT_CENTRAL -> "central"
+            CommandButton.SLOT_BACK -> "back"
+            CommandButton.SLOT_FORWARD -> "forward"
+            CommandButton.SLOT_BACK_SECONDARY -> "back2"
+            CommandButton.SLOT_FORWARD_SECONDARY -> "forward2"
+            CommandButton.SLOT_OVERFLOW -> "overflow"
+            else -> "slot$slot"
         }
 
         private val ratingIcons = listOf(

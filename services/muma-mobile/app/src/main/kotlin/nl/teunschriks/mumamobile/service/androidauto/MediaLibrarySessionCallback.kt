@@ -203,10 +203,17 @@ class MediaLibrarySessionCallback :
                 commandHandler.canShuffleWrapper(session)
             )
         )
-        if (controller.packageName == CarButtonsDiagnostics.ANDROID_AUTO_PACKAGE) {
-            CarButtonsDiagnostics.logAfterConnect(session)
+        if (session.isAutoCompanionController(controller)) {
+            CarButtonsDiagnostics.logAfterConnect(session) { grantedToCar }
         }
     }
+
+    /**
+     * The session commands last granted to Android Auto, for the `car sees` diagnostics line.
+     * Null until the car has connected in this process.
+     */
+    @Volatile
+    private var grantedToCar: SessionCommands? = null
 
     override fun onCustomCommand(
         session: MediaSession,
@@ -792,8 +799,17 @@ class MediaLibrarySessionCallback :
             playerCommands.contains(Player.COMMAND_CHANGE_MEDIA_ITEMS)
         )
 
+        val sessionCommands = sessionCommandsWithCustomButtons()
+        // Android Auto gets exactly the set every other controller gets -- media3's defaults plus
+        // every car button's command -- but it is remembered separately so the diagnostics line
+        // can prove the car was granted what it is shown. A custom action whose command is not
+        // granted is dropped by media3 before it reaches the platform session.
+        if (session.isAutoCompanionController(controller)) {
+            grantedToCar = sessionCommands
+        }
+
         return MediaSession.ConnectionResult.accept(
-            sessionCommandsWithCustomButtons(),
+            sessionCommands,
             playerCommands
         )
     }
@@ -812,14 +828,7 @@ class MediaLibrarySessionCallback :
      * of who is asking, including the app's own in-process controller
      * ([nl.teunschriks.mumamobile.service.MediaPlayerManager]).
      */
-    private fun sessionCommandsWithCustomButtons(): SessionCommands {
-        val builder = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
-        for (commandButton in commandHandler.allCustomCommands) {
-            commandButton.sessionCommand?.let { builder.add(it) }
-        }
-        builder.add(SessionCommand(PlaybackService.CUSTOM_COMMAND_STOP_RADIO, Bundle.EMPTY))
-        return builder.build()
-    }
+    private fun sessionCommandsWithCustomButtons(): SessionCommands = sessionCommandsFor(commandHandler.allCustomCommands)
 
     /**
      * The player commands a controller is granted: media3's full default set, minus the ones radio
@@ -836,9 +845,13 @@ class MediaLibrarySessionCallback :
         // Same defaults as onConnect, and for the same reason: super.onConnect() hands back an
         // empty set, so pushing that would take every command away from a connected controller.
         for (controller in session.connectedControllers) {
+            val sessionCommands = sessionCommandsWithCustomButtons()
+            if (session.isAutoCompanionController(controller)) {
+                grantedToCar = sessionCommands
+            }
             session.setAvailableCommands(
                 controller,
-                sessionCommandsWithCustomButtons(),
+                sessionCommands,
                 radioAwarePlayerCommands()
             )
         }

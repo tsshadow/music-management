@@ -208,6 +208,70 @@ changes, so a second account on the same device never sees the first one's star 
 
 A link that is not seeded still works: it gets the no-seed skeleton header.
 
+### 6. Tag lists and search (issues #109, #112)
+
+**Tag track lists (`Dashboard.svelte`)**: songs, sets, `genre:`, `label:`, `podcast:`,
+`festival:`, `year:`, `lineup:`.
+
+- The heading is the route argument, so the name is right from the first frame. There is nothing to
+  seed: the link *is* the name.
+- `tracksStatus` (`loading` | `error` | `ready`) drives a `SectionState` with `SkeletonRows`
+  (10). The track list has its own `tracksLoading` flag; the collection grids keep `isLoading`.
+  Sharing one let a finished grid load mark the track list done.
+- `loadAllTracks()` decides what stays on screen before it asks:
+  - a cached copy of the exact query: shown at once (`ready`), refreshed in the background unless
+    fresh;
+  - a different place (`activeView` changed), or nothing on screen: rows cleared, `loading`;
+  - the same place under new filters: rows kept and marked stale (`opacity-50`, `data-stale`), with
+    a `Throbber` next to the heading.
+- A `tracksLoadSeq` counter drops a late answer, and the previous request is aborted. A background
+  refresh never replaces rows once "load more" has added pages to them.
+- Failure: with no cached rows, `error` (offline: `ready` and the offline empty state); a failed
+  refresh leaves the cached rows.
+- **Cache**: `src/lib/trackListCache.js`, a second `createEntityCache` instance (60 entries,
+  `freshMs` 60 s, `maxAgeMs` 5 min), cleared when the signed-in user changes. The key is
+  `listKey("tracks", query + count + dedupe)`, where the query is `trackQueryParams()`, the same
+  object the page and its queue continuation send. The value is the first page with its
+  `nextOffset`, `hasMore` and the version keys folded so far (`seen`, as entries), so "load more"
+  after a cached first page continues exactly as after a fresh one. Only the first page is cached.
+- **Prefetch**: `CollectionGrid` takes `onpress`, called on `pointerdown` (the favourite toggle
+  stops propagation). Dashboard's `prefetchTrackView(view)` builds the query the view will ask,
+  with the filter bar's genre, year and search cleared unless the view is the one it was last reset
+  for (`resetTrackFiltersFor`), and calls `prefetchTrackList`, which goes through
+  `trackListCache.load`: deduplicated with the page's own load, nothing when a fresh copy exists,
+  and nothing offline. One request per press, as for artists.
+
+**Search results page (`search:`)**
+
+- Three sections, each with its own status: tracks through the path above, artists and albums
+  through `loadSearchSection(kind, query)`, which uses `trackListCache.swr` with a
+  `listKey(method, params)` key. Their rows live in `searchArtists`/`searchAlbums`, apart from the
+  Artists and Albums grids, so neither page shows the other's rows.
+- A section renders while `loading` (skeleton: `SkeletonRows` 5, or `SkeletonTiles` 6, round for
+  artists), `error` (its own retry) or with rows. `searchPending` puts "Zoeken…" and a throbber
+  next to the heading; "No results" needs all three `ready`, empty and not pending.
+- A `searchSeq` counter drops answers for an earlier query.
+
+**Search dropdown (`SearchBar.svelte`, `SearchResults.svelte`)**
+
+- `loading` turns true on the input event, before the 300 ms debounce, and `error` is new.
+  `SearchResults` shows the "Zoeken…" line (throbber, `search.searching`) while loading, with three
+  `SkeletonRows` when there is nothing yet and the previous results at `opacity-50`
+  (`data-stale`) when there are. "No results" only when not loading and not failed; a failure
+  clears the results and shows `SectionState` error with `onretry`.
+
+**Search "more" modal, History, Starred, Memories**
+
+- `SearchMoreModal`: `SkeletonRows` (tracks) or `SkeletonTiles` (artists round, albums square)
+  instead of the spinner; a failed or non-OK `search3` is `SectionState` error with retry.
+- `History`: `SkeletonRows` on the first load (`isLoading` starts true), `SectionState` error with
+  retry when the first page fails; the Refresh button keeps the rows and shows a `Throbber`.
+- `StarredView`: header at once; the body is a "Nummers" section with `SkeletonRows` or the error
+  and retry.
+- `MemoriesView`: skeleton year tiles in the real grid (`minmax(220px)`); `MemoriesYearView`:
+  a skeleton line beside the year and `SkeletonRows`. Memories keep their silent empty state on
+  failure (an older server has no memories), as before.
+
 ## Risks
 
 - **Wrong seed.** Seeds are only ever replaced by server data, never merged into it. `ArtistList`
@@ -245,6 +309,21 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
    touch): with `getArtist` and `getSpotifyTracks` held back by `page.route`, clicking an artist
    link shows the artist's name as a heading within 100 ms of the click, while the requests are
    still pending.
+8. Tag lists: skeleton before the first answer, no previous rows after navigating (also across
+   kinds), a late answer dropped, error and retry, a revisit from the cache without a request, a
+   background refresh after `freshMs`, one request for a press and the page together, none for the
+   favourite toggle, stale rows dimmed on a filter change (`tests/unit/tagListLoading.test.js`).
+9. Search page: a skeleton per section and no "No results" until all three answered, sections fill
+   independently, no previous query's rows, a section error with retry, a revisit from the cache
+   (`tests/unit/tagListLoading.test.js`). Dropdown: "searching" from the first keystroke, stale
+   results dimmed, "No results" only after the answer, retry after a failure
+   (`tests/unit/searchBar.test.js`). History, Starred, Memories and the "more" modal: skeletons
+   and error/retry (`tests/unit/loadingSections.test.js`).
+10. Playwright (`tests/browser/list-loading-states.spec.js`, phone, and tablet 1024x1366 with
+   touch): with the second genre's tracks held back, its page shows its name, skeleton rows and
+   none of the first genre's rows; back to the first genre it renders from the cache. With the
+   search requests held back, the search page shows skeleton sections and "No results" only after
+   they are released.
 
 8. Feeds (`tests/unit/feeds.test.js`, `tests/unit/feedView.test.js`): every chunk is requested
    before the first answers and the result keeps MuMa's order; the header comes before any song;

@@ -120,7 +120,9 @@ describe("StarredView", () => {
 
     render(StarredView, { onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Nog geen favorieten")).toBeTruthy());
+    // A failure is not "nothing starred": the body says it could not load, with a retry.
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
+    expect(screen.queryByText("Nog geen favorieten")).toBeNull();
   });
 
   it("survives a server that refuses the request", async () => {
@@ -128,6 +130,6 @@ describe("StarredView", () => {
 
     render(StarredView, { onnavigate: vi.fn() });
 
-    await waitFor(() => expect(screen.getByText("Nog geen favorieten")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("section-error")).toBeTruthy());
   });
 });

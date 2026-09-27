@@ -13,6 +13,7 @@ import PresetView from "../../src/lib/PresetView.svelte";
 import QueueLoadMore from "../../src/lib/QueueLoadMore.svelte";
 import { extendQueue } from "../../src/lib/listContinuation.js";
 import { resetFeedsCache } from "../../src/lib/feeds.js";
+import { trackListCache } from "../../src/lib/trackListCache.js";
 import { normalizePreset } from "../../src/lib/presets.js";
 import { startQueue } from "../../src/lib/queue.js";
 import {
@@ -76,6 +77,8 @@ function spotifyTrackUrls() {
 const queueIds = () => get(playlist).map((t) => t.id);
 
 beforeEach(() => {
+  // Lists are cached per query; every test starts from the network.
+  trackListCache.clear();
   credentials.set({ url: "", username: "user", password: "pw" });
   subsonicToken.set({ username: "user", token: "test-subsonic-token" });
   viewMode.set("songs");

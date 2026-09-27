@@ -13,6 +13,9 @@
  * forgotten so the retry pill can ask again.
  */
 
+import { registerPagePreloader } from "./entitySeeds.js";
+import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from "./feeds.js";
+
 /**
  * Creates a registry over a table of loaders.
  *
@@ -69,6 +72,19 @@ export function createLazyRegistry(loaders) {
 
 /** The pages and overlays rendered by `Dashboard.svelte` and `App.svelte`. */
 export const lazyViews = createLazyRegistry({
+  // One tap from the first screen (issue #118). The artist and album pages render their heading
+  // from the link's seed while their chunk is on its way (`EntityPageShell.svelte`), a press
+  // starts the chunk together with the page's data (`registerPagePreloader` below), and the idle
+  // preload fetches them after the first frame, so a tap rarely waits for one at all.
+  artistPage: () => import("./ArtistView.svelte"),
+  albumPage: () => import("./AlbumView.svelte"),
+  feedPage: () => import("./FeedView.svelte"),
+  presetPage: () => import("./PresetView.svelte"),
+  playlistPage: () => import("./PlaylistView.svelte"),
+  // Parts of the list pages, rendered with `bind:` props through `lazyComponent.svelte.js`.
+  filterBar: () => import("./FilterBar.svelte"),
+  collectionBar: () => import("./CollectionBar.svelte"),
+  collectionGrid: () => import("./CollectionGrid.svelte"),
   settings: () => import("./Settings.svelte"),
   settingsSidebar: () => import("./SettingsSidebar.svelte"),
   management: () => import("./management/Management.svelte"),
@@ -125,6 +141,9 @@ export const managementTabs = createLazyRegistry({
 
 /** `activeView` prefixes whose page is a lazy view, for the "kind:argument" routes. */
 const PREFIXED_VIEWS = [
+  ["artist:", "artistPage"],
+  ["album:", "albumPage"],
+  ["preset:", "presetPage"],
   ["artist-edit:", "artistEdit"],
   ["label-edit:", "labelEdit"],
   ["genre-edit:", "genreEdit"],
@@ -136,7 +155,32 @@ const PREFIXED_VIEWS = [
 /** `activeView` values whose page is a lazy view under a different name. */
 const PLAIN_VIEWS = {
   "new-preset": "presetBuilder",
+  "playlist-detail": "playlistPage",
+  [RELEASE_RADAR]: "feedPage",
+  [DAILY_MIX]: "feedPage",
+  ...Object.fromEntries(DAILY_MIXES.map((slug) => [slug, "feedPage"])),
 };
+
+/** Track list views whose header carries the `FilterBar` (Dashboard's songs branch). */
+const FILTERED_TRACK_PREFIXES = ["genre:", "label:", "podcast:", "festival:", "year:", "lineup:"];
+
+/** Collection pages drawn by `CollectionGrid`. */
+const GRID_VIEWS = ["genres", "podcasts", "labels", "festivals", "years", "lineups"];
+
+/**
+ * The list-page parts a view renders on top of its page chunk: the filter bar of the track,
+ * album and artist lists, the collection grid and the playlists' collection bar.
+ *
+ * @param {string} view - An `activeView` value.
+ * @returns {string[]} Names in `lazyViews`.
+ */
+export function listPartsForView(view) {
+  if (["songs", "sets", "albums", "artists"].includes(view)) return ["filterBar"];
+  if (FILTERED_TRACK_PREFIXES.some((prefix) => view.startsWith(prefix))) return ["filterBar"];
+  if (GRID_VIEWS.includes(view) || view.startsWith("lineups:")) return ["collectionGrid"];
+  if (view === "playlists") return ["collectionBar"];
+  return [];
+}
 
 /**
  * The lazy views a view state needs on screen, in the order they should be fetched: the page,
@@ -161,6 +205,8 @@ export function chunksForState(state) {
     add(managementTabs, state.managementTab);
   } else if (PLAIN_VIEWS[view]) {
     add(lazyViews, PLAIN_VIEWS[view]);
+  } else if (listPartsForView(view).length > 0) {
+    for (const part of listPartsForView(view)) add(lazyViews, part);
   } else if (lazyViews.has(view)) {
     add(lazyViews, view);
   } else {
@@ -185,12 +231,21 @@ export function preloadState(state) {
 
 /**
  * The chunks worth having before they are asked for, fetched once the first screen is up: the
- * pages and sheets one tap away from anywhere.
+ * pages and sheets one tap away from anywhere, in the order they are most likely tapped.
  *
  * @returns {Array<[ReturnType<typeof createLazyRegistry>, string]>}
  */
 export function likelyNextChunks() {
   return [
+    // The pages a tap on the home screen or a list opens, first: an artist or album link is
+    // the most common tap, and its page should not wait for a file (issue #118).
+    [lazyViews, "artistPage"],
+    [lazyViews, "albumPage"],
+    [lazyViews, "feedPage"],
+    [lazyViews, "filterBar"],
+    [lazyViews, "presetPage"],
+    [lazyViews, "collectionGrid"],
+    [lazyViews, "playlistPage"],
     [lazyViews, "settings"],
     [lazyViews, "settingsSidebar"],
     [lazyViews, "song"],
@@ -244,3 +299,9 @@ export function preloadOnIdle(chunks, { requestIdle } = {}) {
     Promise.resolve(),
   );
 }
+
+// A press on an artist, album or feed link starts the page's chunk together with its data
+// (`pressEntity`), so a page not yet preloaded on idle still loads in one round trip, not two.
+registerPagePreloader("artist", () => lazyViews.load("artistPage"));
+registerPagePreloader("album", () => lazyViews.load("albumPage"));
+registerPagePreloader("feed", () => lazyViews.load("feedPage"));

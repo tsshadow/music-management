@@ -121,5 +121,44 @@ for (const layout of [
       await expect.poll(() => server.answered()).toBeGreaterThan(0);
       await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
     });
+
+    test("the heading does not wait for the artist page's code either", async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== "desktop", "sets its own viewport per layout");
+      // The artist page is its own chunk (issue #118). Hold it back -- the idle preload's request
+      // included -- so the tap lands while neither the code nor the data is in: the seeded
+      // stand-in (EntityPageShell) must carry the heading on its own.
+      let releaseChunk;
+      const chunkHeld = new Promise((resolve) => {
+        releaseChunk = resolve;
+      });
+      let chunkRequested = false;
+      await page.route(/\/assets\/ArtistView-[\w-]+\.js$/, async (route) => {
+        chunkRequested = true;
+        await chunkHeld;
+        await route.continue();
+      });
+      const server = await mockSlowArtist(page);
+      await page.goto("/artists");
+
+      const elapsed = await tapAndTime(page, ARTIST.name);
+      testInfo.annotations.push({
+        type: "tap-to-heading-without-chunk",
+        description: `${Math.round(elapsed)} ms (${layout.name})`,
+      });
+
+      await expect.poll(() => chunkRequested).toBe(true);
+      await expect(page.getByTestId("entity-page-shell")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
+      expect(server.answered()).toBe(0);
+      expect(elapsed).toBeLessThan(LOOSE_GUARD_MS);
+
+      releaseChunk();
+      server.release();
+      await expect(page.getByTestId("artist-page")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByTestId("entity-page-shell")).toHaveCount(0);
+      await expect(page.getByRole("heading", { level: 1, name: ARTIST.name })).toBeVisible();
+    });
   });
 }

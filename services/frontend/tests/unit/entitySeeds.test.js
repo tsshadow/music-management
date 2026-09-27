@@ -9,6 +9,7 @@ import {
   openEntity,
   peekSeed,
   pressEntity,
+  registerPagePreloader,
   registerPrefetcher,
   seedEntity,
   seedFromTrack,
@@ -151,5 +152,34 @@ describe("song seeds (issue #111)", () => {
 
     expect(songSeedFromTrack({ title: "Loose file" })).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("a press also starts the kind's page chunk, and a failing one never breaks the press", () => {
+    const preload = vi.fn(() => Promise.resolve({}));
+    registerPagePreloader("chunk-kind", preload);
+    registerPagePreloader("chunk-throws", () => {
+      throw new Error("boom");
+    });
+    registerPagePreloader("chunk-rejects", () => Promise.reject(new Error("offline")));
+
+    pressEntity("chunk-kind", { id: 3, name: "Pressed" });
+
+    expect(preload).toHaveBeenCalledTimes(1);
+    expect(() => pressEntity("chunk-throws", { id: 1 })).not.toThrow();
+    expect(() => pressEntity("chunk-rejects", { id: 1 })).not.toThrow();
+  });
+
+  it("the artist, album and feed pages register their chunks for a press (issue #118)", async () => {
+    const { lazyViews } = await import("../../src/lib/lazyViews.js");
+    const load = vi.spyOn(lazyViews, "load").mockResolvedValue({});
+
+    pressEntity("artist", { id: "ar-1", name: "Angerfist" });
+    pressEntity("album", { id: "al-1", name: "Mutilate" });
+    pressEntity("feed", { id: "release-radar", name: "Release Radar" });
+
+    expect(load.mock.calls.map(([name]) => name)).toEqual(
+      expect.arrayContaining(["artistPage", "albumPage", "feedPage"]),
+    );
+    load.mockRestore();
   });
 });

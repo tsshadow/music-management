@@ -215,14 +215,19 @@ stages:
 # different result depending on which runner happened to poll first. That is a
 # coin flip dressed as a gate, and it is why frontend:* and frontend:e2e
 # (`npx playwright` on the host) stay untagged and LXC-only. backend:unit and
-# backend:integration no longer have that problem -- since bug report 050 they
-# run pytest inside docker/Dockerfile.python-ci -- and could carry the tag; they
-# stay untagged until the container run has been watched on the workstation.
-# Starting containers is not the test: backend:integration and muma:contracts
-# start a database and a compose stack in Docker and then run `python3 -m
-# pytest` against them from the host, so they belong to that group too. Both
-# were tagged on the strength of a `docker` line in their script and failed in
-# 5 seconds on the workstation with `No module named pytest` (pipeline 2618).
+# backend:integration used to be in that group and are not any more: since bug
+# report 050 they run pytest inside docker/Dockerfile.python-ci, an image
+# tooling_use_ci_image builds on whichever host runs the job (tagged with the
+# Dockerfile hash and the runner's uid, never pulled), so the interpreter and
+# the packages are the same on both. The throwaway MariaDB of
+# backend:integration is named after CI_JOB_ID and published on a
+# Docker-assigned loopback port, so two of them on one host never meet
+# (GitLab issue #27; both were watched green on the workstation there).
+# Starting containers is not the test: muma:contracts starts a compose stack
+# in Docker and then runs `python3 -m pytest` against it from the host, so it
+# stays in the untagged group. It and backend:integration were once tagged on
+# the strength of a `docker` line in their script and failed in 5 seconds on
+# the workstation with `No module named pytest` (pipeline 2618).
 # muma:e2e looks identical and is not: core-e2e.sh falls back to running the
 # feature inside its own image when pytest-bdd is missing.
 # The workstation also has an unrelated Qt binary at /usr/bin/vite, which has
@@ -664,6 +669,8 @@ backend:unit:
         - requirements.txt
         - docker/Dockerfile.python-ci
         - .gitlab-ci.yml
+  # Either runner: the suite runs in docker/Dockerfile.python-ci (see .fast_runner).
+  tags: !reference [.fast_runner, tags]
   script:
     - ./scripts/test/music-management-unit.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
@@ -1016,6 +1023,9 @@ backend:integration:
         - scripts/lib/python-tooling-install.sh
         - requirements.txt
         - docker/Dockerfile.python-ci
+  # Either runner: pytest runs in docker/Dockerfile.python-ci and the database
+  # is per job (see .fast_runner).
+  tags: !reference [.fast_runner, tags]
   script:
     - ./scripts/test/db-integration.sh
 

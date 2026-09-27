@@ -34,9 +34,13 @@ cd "$ROOT_DIR"
 # straggler. Locally (no CI_JOB_ID) the old name and port 13306 stay, so
 # KEEP_DB=1 inspection workflows keep working -- but a local run on a machine
 # that is also a CI runner no longer kills a pipeline's database.
-find_free_port() {
-    python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()'
-}
+#
+# In CI the host port is left to Docker (`-p 127.0.0.1::3306`) and read back
+# after the container starts. Picking a free port first and handing it to
+# `docker run` left a window in which a sibling job on the same host could take
+# it; that matters since this job may run on either runner, the workstation
+# included (GitLab issue #27). Loopback only: the workstation is a desktop on
+# the LAN, and nothing but the test container on this host needs the database.
 CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db${CI_JOB_ID:+-$CI_JOB_ID}}"
 # Keep in step with docker/compose.test.yml and production. This read 10.6 for
 # months after both moved to 12.3 (both are on 13.0 now), so every query was proven against a server
@@ -44,13 +48,14 @@ CONTAINER="${DB_INTEGRATION_CONTAINER:-muma-integration-db${CI_JOB_ID:+-$CI_JOB_
 MARIADB_VERSION="${MARIADB_VERSION:-13.0}"
 IMAGE="mariadb:${MARIADB_VERSION}"
 if [ -z "${DB_INTEGRATION_PORT:-}" ] && [ -n "${CI_JOB_ID:-}" ]; then
-    HOST_PORT="$(find_free_port)"
+    HOST_PORT=""
+    PUBLISH="127.0.0.1::3306"
 else
     HOST_PORT="${DB_INTEGRATION_PORT:-13306}"
+    PUBLISH="127.0.0.1:$HOST_PORT:3306"
 fi
 
 export DB_HOST=127.0.0.1
-export DB_PORT="$HOST_PORT"
 export DB_USER=muma_test
 export DB_PASS=muma_test
 export DB_DB=muma_test
@@ -71,16 +76,26 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "--- Starting $IMAGE as $CONTAINER on port $HOST_PORT ---"
+echo "--- Starting $IMAGE as $CONTAINER ---"
 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$CONTAINER" \
     -e MYSQL_ROOT_PASSWORD=test-root-password \
     -e MYSQL_USER="$DB_USER" \
     -e MYSQL_PASSWORD="$DB_PASS" \
     -e MYSQL_DATABASE="$DB_DB" \
-    -p "$HOST_PORT:3306" \
+    -p "$PUBLISH" \
     --tmpfs /var/lib/mysql \
     "$IMAGE" >/dev/null
+if [ -z "$HOST_PORT" ]; then
+    # "127.0.0.1:49153" -> "49153"
+    HOST_PORT="$(docker port "$CONTAINER" 3306/tcp | head -n 1 | sed 's/.*://')"
+fi
+if [ -z "$HOST_PORT" ]; then
+    echo "Could not read the host port Docker assigned to $CONTAINER." >&2
+    exit 1
+fi
+export DB_PORT="$HOST_PORT"
+echo "--- $CONTAINER listens on 127.0.0.1:$HOST_PORT ---"
 
 echo "--- Waiting for the database to accept connections ---"
 for attempt in $(seq 1 60); do

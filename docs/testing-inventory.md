@@ -168,6 +168,11 @@
   `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` for the old server, which is the only one
   that reproduces bug report 039's implicit `ON UPDATE`.
 - With `CI` set, a database the suite cannot reach fails the job; locally it skips, loudly.
+- In CI (`backend:integration`) the container is named `muma-integration-db-$CI_JOB_ID` and
+  published on a loopback port Docker assigns (`-p 127.0.0.1::3306`, read back with `docker port`),
+  so two runs on one host never share or remove each other's database. The job carries the shared
+  `fast` tag and runs on either runner, the workstation included (GitLab issue #27). Locally the
+  name stays `muma-integration-db` on `127.0.0.1:13306`, so `KEEP_DB=1` inspection works as before.
 - Covers 37 read endpoints (every GET that touches the database), the user lifecycle, dynamic
   playlists under all four sort methods, genre curation and expansions, library reads,
   scrobble matching, and the download-account round trips.

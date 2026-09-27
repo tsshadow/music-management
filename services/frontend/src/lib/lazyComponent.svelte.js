@@ -28,7 +28,7 @@ export function lazyComponent(registry, name) {
         },
         (error) => {
           loading = false;
-          console.error(`Could not load the "${name}" part`, error);
+          console.error("Could not load a lazy part:", name, error);
         },
       );
     },

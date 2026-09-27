@@ -167,10 +167,3 @@ Radio also cannot crossfade, run jingles, or carry a live DJ, because each
 listener plays its own file copy. If that is ever wanted, the answer is a real
 broadcast (Icecast/Liquidsoap), which would replace client-side synchronisation
 rather than extend it.
-
-## Known dead code
-
-`services/music-management-server/src/lms/ui/spotify-ui/` still contains an
-older copy of the player with its own boolean `radioMode`. Nothing builds it —
-`Dockerfile-release` copies `services/frontend` — and it is unrelated to this
-feature. It should be deleted wholesale rather than edited.

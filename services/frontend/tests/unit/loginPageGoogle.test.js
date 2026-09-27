@@ -66,7 +66,7 @@ async function renderWithGoogle() {
 describe("LoginPage with Google sign-in", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "client-id-1");
-    credentials.set({ url: "", username: "", password: "" });
+    credentials.set({ url: "", username: "" });
     mumaApiKey.set(null);
     mumaRefreshToken.set(null);
     mumaSessionActive.set(false);
@@ -96,7 +96,9 @@ describe("LoginPage with Google sign-in", () => {
     expect(get(userPermissions)).toEqual(["music.play"]);
   });
 
-  it("the api key doubles as the Subsonic password after a Google sign-in", async () => {
+  // Issue #101: the key used to be stored as a Subsonic password here. It signs nothing and
+  // nothing re-logs in with it: the name is kept, the key stays the MuMa key only.
+  it("keeps the account's name after a Google sign-in, and no password", async () => {
     globalThis.fetch = api({
       google: { status: "ok", api_key: "key-1", refresh_token: "refresh-1", user: MUMA_USER },
     });
@@ -105,7 +107,8 @@ describe("LoginPage with Google sign-in", () => {
     await signIn("an-id-token");
 
     await waitFor(() => expect(get(credentials).username).toBe("user"));
-    expect(get(credentials).password).toBe("key-1");
+    expect(get(credentials)).not.toHaveProperty("password");
+    expect(localStorage.getItem("lms_credentials")).not.toContain("key-1");
   });
 
   it("an unknown Google account is offered the access request", async () => {

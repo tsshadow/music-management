@@ -11,7 +11,8 @@ import androidx.room.PrimaryKey
  * @param name: The user readable Name of the Server
  * @param url: The Url of the server
  * @param userName: The UserName that can be used to connect to the server
- * @param password: The Password of the User
+ * @param password: Always blank: no password is kept after a sign-in (issue #101); the column stays
+ *   only because the Room schema has it
  * @param apiKey: The API Key of the Server
  * @param jukeboxByDefault: True if the JukeBox mode should be turned on for the server
  * @param allowSelfSignedCertificate: True if the server uses self-signed certificate

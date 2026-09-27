@@ -3,16 +3,18 @@ import { platform as defaultPlatform } from "./platform/index.js";
 import {
   credentials,
   currentTrack,
+  hydrateMumaUserFromApiKey,
   mumaApiKey,
   mumaApiUrl,
+  mumaSessionActive,
   ensureSubsonicToken,
   playerState,
   signedOut,
   subsonicToken,
   tokenSignsFor,
+  withoutPassword,
 } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
-import { signIn } from "./login.js";
 import { startQueue } from "./queue.js";
 
 /**
@@ -27,13 +29,14 @@ import { startQueue } from "./queue.js";
  *    into those two stores before the first fetch is all it takes -- and it has
  *    to be before, because `store.js` starts an admin check the moment
  *    credentials appear.
- * 2. **The session.** The phone already holds a username and a password for
- *    that server. They go through exactly the sign-in a typed login uses, so
- *    there is one definition of "signed in" rather than two. A blank password
- *    is how the native app says "logged out": nothing is attempted, whatever
- *    the web session already had is left alone, and the login page appears.
- *    After a deliberate logout (`signedOut` in store.js) nothing is attempted
- *    either, whatever the phone still holds, until someone signs in again.
+ * 2. **The session.** The phone says whether it is signed in (an explicit
+ *    flag) and hands over its MuMa API key and Subsonic token. The web takes
+ *    that session over with the key -- no password is stored on either side
+ *    to sign in again with (issue #101). Signed out on the phone, nothing is
+ *    attempted, whatever the web session already had is left alone, and the
+ *    login page appears when there is none. After a deliberate logout
+ *    (`signedOut` in store.js) nothing is attempted either, whatever the
+ *    phone still holds, until someone signs in again.
  * 3. **The queue.** The WebView is reclaimed whenever Android feels like it,
  *    while `PlaybackService` keeps playing. A rebuilt UI therefore starts by
  *    asking the service what it is holding and rebuilding its own queue around
@@ -108,15 +111,20 @@ export async function applyServerUrls(platform) {
 }
 
 /**
- * Signs in with what the phone stored, unless it is already signed in with it.
+ * Takes over the session the phone holds, unless a deliberate logout came first.
+ *
+ * The phone no longer stores the password, so there is nothing to sign in with again (issue
+ * #101): its session is its name, its MuMa API key and its Subsonic token. The web adopts them,
+ * checks the key when it is not the one it already had (`hydrateMumaUserFromApiKey` -- a key MuMa
+ * refuses ends the session and brings the login page back), and fetches a missing token.
  *
  * @param {object} platform
  * @returns {Promise<boolean>} Whether there is a usable session afterwards.
  */
 export async function restoreSession(platform) {
   // A deliberate logout outranks whatever the phone still holds. Normally the native sign-out has
-  // already emptied it; when that failed or never answered, the password is still there and
-  // signing in with it would undo the logout the user just asked for (bug report 106). Ask the
+  // already emptied it; when that failed or never answered, the phone still counts itself signed
+  // in and adopting that would undo the logout the user just asked for (bug report 106). Ask the
   // phone to forget it once more and show the login page either way.
   if (get(signedOut)) {
     try {
@@ -130,32 +138,29 @@ export async function restoreSession(platform) {
   const stored = await platform.system.credentials();
   const web = get(credentials);
 
-  // Blank means logged out on the phone. It does not mean "log the web out":
-  // somebody may have signed in on this screen, and throwing that away would be
-  // a sign-out nobody asked for.
-  if (!stored.password) return Boolean(web.username && web.password);
+  // Signed out on the phone (or signed in without a key, which cannot be taken over). It does not
+  // mean "log the web out": somebody may have signed in on this screen, and throwing that away
+  // would be a sign-out nobody asked for.
+  if (!stored.signedIn || !stored.username || !stored.mumaApiKey) return Boolean(web.username);
 
-  if (web.username === stored.username && web.password === stored.password) {
-    if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
-    adoptPhoneToken(stored);
-    // No Subsonic request is made without a token (issue #72): a session from a build that signed
-    // with the password, or one whose fetch failed, gets it here, before the queue is rebuilt.
-    // Signed in either way -- without a token the app shows why instead of an empty library.
-    await ensureSubsonicToken();
-    return true;
+  if (web.username !== stored.username) {
+    // Another account than the one this page had: its token signs for nobody here.
+    if (web.username) subsonicToken.set({ username: "", token: "" });
+    credentials.update((current) => ({ ...withoutPassword(current), username: stored.username }));
   }
-
-  const result = await signIn(stored.username, stored.password);
-  if (!result.ok) {
-    console.warn("The phone's credentials were not accepted", result.reason, result.message);
-    // The key the phone holds is worth keeping even so: it is what lets the
-    // management half answer while the login page is up.
-    if (stored.mumaApiKey) mumaApiKey.set(stored.mumaApiKey);
-    return false;
+  if (get(mumaApiKey) !== stored.mumaApiKey) {
+    mumaApiKey.set(stored.mumaApiKey);
+    await hydrateMumaUserFromApiKey();
+    // A refused key ended the session there; the login page takes it from here.
+    if (!get(mumaApiKey)) return false;
   }
-  if (stored.mumaApiKey && !get(mumaApiKey)) mumaApiKey.set(stored.mumaApiKey);
-  await adoptCanonicalUsername(platform, stored, result.username);
-  return true;
+  mumaSessionActive.set(true);
+  adoptPhoneToken(stored);
+  // No Subsonic request is made without a token (issue #72): a session from a build that signed
+  // with the password, or one whose fetch failed, gets it here, before the queue is rebuilt.
+  // Signed in either way -- without a token the app shows why instead of an empty library.
+  await ensureSubsonicToken();
+  return Boolean(get(credentials).username);
 }
 
 /**
@@ -172,27 +177,6 @@ function adoptPhoneToken(stored) {
   const current = get(subsonicToken);
   if (current.username !== phone.username || current.token !== phone.token)
     subsonicToken.set(phone);
-}
-
-/**
- * Writes the account's own spelling of the name back to the phone when what it
- * stored was typed in another case. The phone signs its own Subsonic calls with
- * the stored name, and a case variant made LMS create a second user for the same
- * account (docs/bug-reports/074-login-case-forks-user-identity.md); a phone that
- * signed in before the fix repairs itself on its next boot this way. A bridge
- * failure only means the repair waits for the next boot.
- *
- * @param {object} platform
- * @param {{username?: string, password?: string}} stored
- * @param {string|undefined} canonical
- */
-async function adoptCanonicalUsername(platform, stored, canonical) {
-  if (!canonical || canonical === stored.username) return;
-  try {
-    await platform.system.saveCredentials({ username: canonical, password: stored.password });
-  } catch (error) {
-    console.warn("Could not store the account's own spelling of the name on the phone", error);
-  }
 }
 
 /**

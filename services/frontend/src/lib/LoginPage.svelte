@@ -1,7 +1,7 @@
 <script>
   import { t, locale } from './i18n/index.js';
   import MumaMark from './MumaMark.svelte';
-  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, signedOut } from './store.js';
+  import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, signedOut, ensureSubsonicToken, withoutPassword } from './store.js';
   import { signIn } from './login.js';
   import { platform } from './platform/index.js';
 
@@ -55,34 +55,39 @@
       error = result.reason === 'offline'
         ? $t('login.noServerConnection')
         : `Fout: ${result.message || $t('login.invalidCredentials')}`;
-    } else if (isNative) {
-      // Writes the pair back to Kotlin, so downloads and Android Auto see the
-      // same session -- without this a sign-in typed here only ever lived in the WebView, and
-      // a download right after would still look logged out. The account's own
-      // spelling of the name, not the typed one: the phone signs every Subsonic
-      // call with it (docs/bug-reports/074-login-case-forks-user-identity.md).
-      await saveNativeCredentials(result.username || username, password);
+    } else {
+      // The password has done its job; not even this screen keeps it (issue #101).
+      password = '';
+      if (isNative) {
+        // Hands the session to Kotlin, so downloads and Android Auto see it too -- without this a
+        // sign-in typed here only ever lived in the WebView, and a download right after would
+        // still look logged out. The account's own spelling of the name, not the typed one: the
+        // phone signs every Subsonic call with it
+        // (docs/bug-reports/074-login-case-forks-user-identity.md).
+        await saveNativeSession(result.username || username);
+      }
     }
     isLoading = false;
   }
 
   /**
-   * Persists a verified pair to the phone. Never lets a bridge failure surface as a login error:
-   * the web session is already live at this point, and losing the native copy only degrades the
-   * native-only features, it does not undo the sign-in.
+   * Hands the session just started to the phone: the name, the MuMa API key and the account id --
+   * never the password, which neither side keeps (issue #101). Never lets a bridge failure surface
+   * as a login error: the web session is already live at this point, and losing the native copy
+   * only degrades the native-only features, it does not undo the sign-in.
    *
    * @param {string} verifiedUsername
-   * @param {string} verifiedPassword
    */
-  async function saveNativeCredentials(verifiedUsername, verifiedPassword) {
+  async function saveNativeSession(verifiedUsername) {
     try {
       await platform.system.saveCredentials({
         url: server,
         username: verifiedUsername,
-        password: verifiedPassword,
+        mumaApiKey: $mumaApiKey,
+        mumaUserId: $mumaUser?.id ?? 0,
       });
     } catch (e) {
-      console.warn('Could not save the verified credentials back to the phone', e);
+      console.warn('Could not hand the session to the phone', e);
     }
   }
 
@@ -127,9 +132,8 @@
    * Handles a Google ID token -- from Google Identity Services in a browser, or from the Android
    * shell's native sign-in ({@link nativeGoogleSignIn}).
    *
-   * Inside the shell the account's pair goes back to Kotlin as well, exactly as a password sign-in
-   * does, so downloads and Android Auto see the same session; the api key is the password there,
-   * as it is for the web's own Subsonic calls.
+   * Inside the shell the session goes to Kotlin as well, exactly as a password sign-in's does, so
+   * downloads and Android Auto see the same session.
    */
   async function handleGoogleResponse(response) {
     idToken = response.credential;
@@ -151,17 +155,15 @@
         userPermissions.set(data.user.permissions);
         mumaUser.set(data.user);
         mumaSessionActive.set(true);
-        // A Google sign-in never learns the account's real Subsonic password, but the
-        // `credentials` store (username/password) drives every Subsonic/LMS call (genres,
-        // albums, streaming, ...) and the profile display name -- without this, the user
-        // would appear logged in but see no music and "Gebruiker" instead of their name.
-        // The backend accepts the api_key itself as a valid password for this account (see
-        // `login()` in users.py), so use that as the Subsonic credential.
+        // The name drives every Subsonic call (they are signed with the account's token, fetched
+        // with the key just received) and the profile display name -- without it the user would
+        // appear logged in but see no music and "Gebruiker" instead of their name. No password
+        // is stored: the key used to be kept as one here, and neither side needs it (issue #101).
         username = data.user.username;
-        password = data.api_key;
         save();
         signedOut.set(false);
-        if (isNative) await saveNativeCredentials(data.user.username, data.api_key);
+        ensureSubsonicToken();
+        if (isNative) await saveNativeSession(data.user.username);
       } else if (data.status === 'unknown') {
         requestStatus = 'unknown';
         googleUser = data.google;
@@ -230,17 +232,16 @@
   }
 
   /**
-   * Saves the verified credentials to the global store.
+   * Saves the verified name to the global store -- the name only, never the password (issue #101).
    */
   function save() {
-    credentials.update(c => ({ ...c, username, password }));
+    credentials.update(c => ({ ...withoutPassword(c), username }));
   }
 
   import { onMount } from 'svelte';
   onMount(async () => {
     if ($credentials.username) {
         username = $credentials.username;
-        password = $credentials.password;
     }
     if (isNative) {
         server = platform.system.serverUrl().subsonic || $credentials.url;

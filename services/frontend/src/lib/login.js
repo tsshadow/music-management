@@ -13,6 +13,7 @@ import {
   subsonicTokenProblem,
   subsonicTokenQuery,
   userPermissions,
+  withoutPassword,
 } from "./store.js";
 import { logAction } from "./diagnosticsLog.js";
 
@@ -26,10 +27,10 @@ import { logAction } from "./diagnosticsLog.js";
  * -- so the password never appears in a URL (bug report 103). Without a
  * session or a token there is no sign-in: the password is not a fallback
  * signature any more (issue #72). `LoginPage.svelte` does that when someone
- * types them; the Android shell does it on boot with the pair the phone
- * already had. Making the shell its own path would have meant a second place
- * where "signed in" is decided, and the two would have drifted the first time
- * either changed.
+ * types them. The password is not kept afterwards, by either half of the app
+ * (issue #101): the session lives on as the MuMa key and the Subsonic token,
+ * and the Android shell's boot takes over the phone's session with its key
+ * (`restoreSession` in nativeSession.js) instead of signing in again.
  *
  * Nothing here renders or translates anything: the caller owns the screen, so a
  * failure comes back as a reason rather than as a sentence.
@@ -84,7 +85,9 @@ export async function signIn(username, password) {
   }
 
   publishManagementSession(session);
-  credentials.update((current) => ({ ...current, username: canonical, password }));
+  // The name only: the password has done its job, and keeping it would only keep a copy for
+  // anything that can read this browser's storage (issue #101).
+  credentials.update((current) => ({ ...withoutPassword(current), username: canonical }));
   // A sign-in ends a logout: the shell's boot may sign itself in again from here on.
   signedOut.set(false);
   logAction("auth.login", { ok: true, signed: "token" });

@@ -79,7 +79,7 @@ function api({
 
 describe("Management", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "user" });
     mumaApiKey.set("key-1");
     // The screen is gated on being an administrator; without this it renders the
     // access-denied panel instead of any tab. The verify call overwrites both.
@@ -111,21 +111,16 @@ describe("Management", () => {
     expect(options.headers["X-API-Key"]).toBe("key-1");
   });
 
-  it("logs in with the player credentials when there is no key yet", async () => {
+  // Issue #101: no password is stored, so there is nothing to log in with automatically.
+  it("without a key the screen stays closed and logs in with nothing", async () => {
     mumaApiKey.set("");
-
-    render(Management);
-
-    await waitFor(() => expect(get(mumaApiKey)).toBe("key-from-login"));
-  });
-
-  it("a failed auto-login leaves the management screen closed", async () => {
-    mumaApiKey.set("");
-    globalThis.fetch = api({ loginOk: false });
 
     render(Management);
 
     await waitFor(() => expect(screen.queryByText("1 / 1 Running")).toBeNull());
+    expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/api/auth/login"))).toBe(
+      false,
+    );
   });
 
   it("a key the server rejects leaves the management screen closed", async () => {
@@ -136,17 +131,22 @@ describe("Management", () => {
     await waitFor(() => expect(screen.queryByText("1 / 1 Running")).toBeNull());
   });
 
-  it("trades a stored key the server rejects for a fresh one instead of staying closed", async () => {
-    // Without this the screen wedges permanently: it only ever auto-logs in
-    // when there is no key at all, so a stale-but-present key in localStorage
-    // meant every visit rendered "kan niet verbinden" until the user cleared
-    // their browser storage by hand.
+  // Issue #101: a refused key used to be traded for a fresh one with the stored password. The key
+  // is permanent and no password is stored, so the session ends and the login page comes back.
+  it("a stored key the server refuses ends the session instead of logging in again", async () => {
     globalThis.fetch = api({ rejectKey: "key-1" });
 
     render(Management);
 
-    await waitFor(() => expect(screen.getByText("1 / 1 Running")).toBeTruthy());
-    expect(get(mumaApiKey)).toBe("key-from-login");
+    await waitFor(() => expect(get(mumaApiKey)).toBe(""));
+    expect(get(credentials).username).toBe("");
+    expect(screen.queryByText("1 / 1 Running")).toBeNull();
+    expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/api/auth/login"))).toBe(
+      false,
+    );
+    // Ending the session drops the interface language back to the browser's; later tests read
+    // Dutch text.
+    setLocaleFromAccount("nl");
   });
 
   it("the signed-in user and their permissions are published", async () => {
@@ -168,7 +168,7 @@ describe("Management", () => {
     await waitFor(() => expect(get(mumaApiKey)).toBe(""));
     expect(get(mumaUser)).toBe(null);
     expect(get(userPermissions)).toEqual([]);
-    expect(get(credentials).password).toBe("");
+    expect(get(credentials).username).toBe("");
     expect(screen.queryByText("1 / 1 Running")).toBeNull();
     expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/api/stats"))).toBe(false);
     // Ending the session is a logout, which drops the interface language back to the

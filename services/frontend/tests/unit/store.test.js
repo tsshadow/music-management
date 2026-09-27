@@ -25,6 +25,9 @@ import {
   keepSubsonicTokenFresh,
   subsonicAccess,
   subsonicTokenProblem,
+  mumaSessionActive,
+  signedIn,
+  withoutPassword,
 } from "../../src/lib/store";
 import { md5 } from "../../src/lib/md5.js";
 import { locale } from "../../src/lib/i18n";
@@ -751,6 +754,24 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     expect(get(userPermissions)).toEqual([]);
   });
 
+  // Issue #101: no password is stored to log in again with, so a refused key is the end of the
+  // session and the login page comes back -- not a silent re-login.
+  it("ends the session when MuMa answers 401 to the key, which shows the login page", async () => {
+    credentials.set({ url: "", username: "user" });
+    mumaApiKey.set("revoked-key");
+    mumaSessionActive.set(true);
+    subsonicToken.set({ username: "user", token: "the-token" });
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }));
+
+    await hydrateMumaUserFromApiKey();
+
+    expect(get(mumaApiKey)).toBe("");
+    expect(get(credentials).username).toBe("");
+    expect(get(signedIn)).toBe(false);
+    const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/api/auth/login"))).toBe(false);
+  });
+
   it("keeps the key when the server is merely unreachable", async () => {
     // A network blip or a restarting backend is not evidence that the key is
     // wrong; throwing it away would log the user out of a working session.
@@ -769,7 +790,7 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     // verifies as a system key, and startup then set `is_admin: true` for
     // whoever held it. The login now hands out the user's own key, so a system
     // key in storage is a leftover: the session goes and the user signs in once.
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "user" });
     mumaApiKey.set("lms-shared-key");
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
@@ -782,7 +803,6 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     expect(get(mumaUser)).toBe(null);
     expect(get(userPermissions)).toEqual([]);
     expect(get(credentials).username).toBe("");
-    expect(get(credentials).password).toBe("");
   });
 
   it("keeps the key on a server error", async () => {
@@ -962,5 +982,56 @@ describe("store - account settings write queue", () => {
 
     expect(calls("POST")).toHaveLength(1);
     expect(blob).toMatchObject({ homeShortcutCount: 3, homeListCount: 5, androidOnly: "keep me" });
+  });
+});
+
+/**
+ * Issue #101: builds before it persisted the password in `lms_credentials` after a sign-in. The
+ * store drops it on load, and the explicit `signedIn` state no longer depends on it.
+ */
+describe("store - no stored password", () => {
+  it("drops a password persisted by an older build and keeps the rest", () => {
+    expect(
+      withoutPassword({ url: "https://lms.example", username: "user", password: "hunter2" }),
+    ).toEqual({
+      url: "https://lms.example",
+      username: "user",
+    });
+  });
+
+  it("fills in what a stored value lacks", () => {
+    expect(withoutPassword(null)).toMatchObject({ username: "" });
+    expect(withoutPassword({ username: "user" })).toMatchObject({ username: "user" });
+    expect(withoutPassword({ username: "user" })).not.toHaveProperty("password");
+  });
+
+  it("rewrites localStorage without the password when the store loads", async () => {
+    vi.resetModules();
+    localStorage.setItem(
+      "lms_credentials",
+      JSON.stringify({ url: "https://lms.example", username: "user", password: "hunter2" }),
+    );
+
+    const fresh = await import("../../src/lib/store.js");
+
+    expect(get(fresh.credentials)).toEqual({ url: "https://lms.example", username: "user" });
+    expect(localStorage.getItem("lms_credentials")).not.toContain("hunter2");
+    expect(get(fresh.signedIn)).toBe(true);
+  });
+
+  it("is signed in with a name or a MuMa session, and signed out with neither", () => {
+    credentials.set({ url: "", username: "" });
+    mumaSessionActive.set(false);
+    expect(get(signedIn)).toBe(false);
+
+    mumaSessionActive.set(true);
+    expect(get(signedIn)).toBe(true);
+
+    mumaSessionActive.set(false);
+    credentials.set({ url: "", username: "user" });
+    expect(get(signedIn)).toBe(true);
+
+    endRejectedSession();
+    expect(get(signedIn)).toBe(false);
   });
 });

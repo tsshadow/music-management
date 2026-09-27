@@ -26,11 +26,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * `signOut()` and `saveCredentials()` are the two halves of the Capacitor shell's `MumaSystem`
- * plugin that touch [ActiveServerProvider] rather than the media player: ending a session started
- * on the Svelte login screen, and recording one started there. Both now go through the same code
- * the legacy logout menu and the legacy server-settings screen already used (`update()`), so this
- * is a test of that reuse rather than of new logic.
+ * `signOut()` and `saveSession()` are the two halves of the Capacitor shell's `MumaSystem` plugin
+ * that touch [ActiveServerProvider] rather than the media player: ending a session started on the
+ * Svelte login screen, and recording one started there. Since issue #101 neither involves a
+ * password: a session is a name, a MuMa key and the explicit signed-in flag, and an install that
+ * still has a password stored is migrated to that flag and loses the password.
  *
  * [SecureSettings] is object-mocked rather than exercised for real: it wraps
  * `EncryptedSharedPreferences`, which needs a real Android Keystore that Robolectric does not
@@ -42,6 +42,8 @@ class ActiveServerProviderSignOutTest {
 
     private lateinit var provider: ActiveServerProvider
 
+    private val passwordKey = "staticPassword"
+
     @Before
     fun setUp() {
         provider = ActiveServerProvider()
@@ -50,9 +52,11 @@ class ActiveServerProviderSignOutTest {
 
         Settings.activeServer = 0
         Settings.staticUserName = "user"
-        Settings.staticPassword = "hunter2"
+        Settings.clearLegacyStaticPassword()
+        Settings.signedIn = true
         Settings.mumaApiKey = "key-1"
         Settings.mumaUserId = 7
+        ActiveServerProvider.resetLegacyPasswordCheck()
     }
 
     @After
@@ -60,41 +64,65 @@ class ActiveServerProviderSignOutTest {
         unmockkObject(SecureSettings)
     }
 
+    private fun storeLegacyPassword(password: String) {
+        Settings.preferences.edit().putString(passwordKey, password).commit()
+        ActiveServerProvider.resetLegacyPasswordCheck()
+    }
+
     @Test
     fun `signOut clears everything that can authenticate but keeps the username`() {
         provider.signOut()
 
         Settings.staticUserName shouldBeEqualTo "user"
-        Settings.staticPassword shouldBeEqualTo ""
+        Settings.signedIn shouldBeEqualTo false
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
         Settings.mumaApiKey shouldBeEqualTo ""
         Settings.mumaUserId shouldBeEqualTo -1
         verify(exactly = 1) { SecureSettings.clear() }
     }
 
     @Test
-    fun `saveCredentials writes the pair a shell sign-in just verified`() {
-        Settings.staticUserName = ""
-        Settings.staticPassword = ""
+    fun `saveSession records the name, the key and the flag, and no password`() {
+        provider.signOut()
 
-        provider.saveCredentials("user", "newpass")
+        provider.saveSession("user", "key-2", 9)
 
         Settings.staticUserName shouldBeEqualTo "user"
-        Settings.staticPassword shouldBeEqualTo "newpass"
+        Settings.mumaApiKey shouldBeEqualTo "key-2"
+        Settings.mumaUserId shouldBeEqualTo 9
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+        Settings.hasKey(passwordKey) shouldBeEqualTo false
+        provider.getActiveServer().password shouldBeEqualTo ""
+        provider.signInServer().password shouldBeEqualTo ""
     }
 
     @Test
-    fun `saveCredentials on a fresh install activates the server it signed in to`() {
-        // A fresh install is Offline. `update()` ignores that id, so the pair used to be lost and
-        // the shell rebooted into a login page with the WebView's own origin as its server.
+    fun `saveSession replaces another account's id`() {
+        provider.saveSession("someone", "key-3", 12)
+
+        Settings.mumaUserId shouldBeEqualTo 12
+        Settings.staticUserName shouldBeEqualTo "someone"
+    }
+
+    @Test
+    fun `saveSession without an account id leaves it unknown for the key check to fill`() {
+        provider.saveSession("user", "key-2", null)
+
+        Settings.mumaUserId shouldBeEqualTo -1
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+    }
+
+    @Test
+    fun `saveSession on a fresh install activates the server it signed in to`() {
+        // A fresh install is Offline. `update()` ignores that id, so the session used to be lost
+        // and the shell rebooted into a login page with the WebView's own origin as its server.
         Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
-        Settings.staticUserName = ""
-        Settings.staticPassword = ""
+        provider.signOut()
 
-        provider.saveCredentials("user", "newpass")
+        provider.saveSession("user", "key-2", 7)
 
-        Settings.staticUserName shouldBeEqualTo "user"
-        Settings.staticPassword shouldBeEqualTo "newpass"
         Settings.activeServer shouldBeEqualTo 0
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
     }
 
     @Test
@@ -105,14 +133,66 @@ class ActiveServerProviderSignOutTest {
         provider.getActiveServer().url shouldBeEqualTo SubsonicAPIClient.OFFLINE_DB_URL
     }
 
+    // Issue #101: the first start of the new build turns the old marker into the flag.
     @Test
-    fun `signing out and back in leaves the same pair the shell sign-in used`() {
+    fun `an install with a stored password is signed in and loses the password`() {
+        Settings.signedIn = false
+        storeLegacyPassword("hunter2")
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+
+        Settings.hasKey(passwordKey) shouldBeEqualTo false
+        Settings.legacyStaticPassword shouldBeEqualTo ""
+        Settings.mumaApiKey shouldBeEqualTo "key-1"
+        provider.getActiveServer().password shouldBeEqualTo ""
+    }
+
+    @Test
+    fun `an install with a blank password stays signed out`() {
+        Settings.signedIn = false
+        storeLegacyPassword("")
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+    }
+
+    @Test
+    fun `signOut also removes a password an old build left behind`() {
+        storeLegacyPassword("hunter2")
+
         provider.signOut()
-        Settings.staticPassword shouldBeEqualTo ""
 
-        provider.saveCredentials("user", "hunter3")
+        Settings.hasKey(passwordKey) shouldBeEqualTo false
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+    }
 
+    @Test
+    fun `a refused key ends the session`() {
+        provider.keyRefused("key-1") shouldBeEqualTo true
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+        Settings.mumaApiKey shouldBeEqualTo ""
         Settings.staticUserName shouldBeEqualTo "user"
-        Settings.staticPassword shouldBeEqualTo "hunter3"
+        verify(exactly = 1) { SecureSettings.clear() }
+    }
+
+    @Test
+    fun `a refusal of a key a new sign-in already replaced changes nothing`() {
+        provider.saveSession("user", "key-2", 7)
+
+        provider.keyRefused("key-1") shouldBeEqualTo false
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+        Settings.mumaApiKey shouldBeEqualTo "key-2"
+    }
+
+    @Test
+    fun `signing out and back in leaves a session without a password`() {
+        provider.signOut()
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+
+        provider.saveSession("user", "key-4", 7)
+
+        ActiveServerProvider.isSignedIn() shouldBeEqualTo true
+        Settings.hasKey(passwordKey) shouldBeEqualTo false
     }
 }

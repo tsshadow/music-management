@@ -414,7 +414,7 @@ describe("subsonicJson - failed answers", () => {
 
     // App.svelte renders LoginPage when neither a username nor a MuMa session is left.
     expect(get(credentials).username).toBe("");
-    expect(get(credentials).password).toBe("");
+    expect(get(credentials)).not.toHaveProperty("password");
     expect(get(mumaSessionActive)).toBe(false);
     expect(get(mumaApiKey)).toBe("");
     expect(get(mumaUser)).toBeNull();

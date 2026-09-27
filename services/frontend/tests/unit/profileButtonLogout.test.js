@@ -53,7 +53,7 @@ describe("ProfileButton logout", () => {
   let reload;
 
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    credentials.set({ url: "https://lms.example", username: "user" });
     mumaApiKey.set("key-1");
     mumaRefreshToken.set("refresh-1");
     mumaSessionActive.set(true);
@@ -98,7 +98,7 @@ describe("ProfileButton logout", () => {
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
 
     expect(get(credentials).username).toBe("");
-    expect(get(credentials).password).toBe("");
+    expect(get(credentials)).not.toHaveProperty("password");
     expect(get(mumaApiKey)).toBe("");
     expect(get(mumaRefreshToken)).toBe("");
     expect(get(mumaSessionActive)).toBe(false);
@@ -131,7 +131,7 @@ describe("ProfileButton logout", () => {
       await vi.advanceTimersByTimeAsync(10_000);
 
       expect(reload).toHaveBeenCalledOnce();
-      expect(get(credentials).password).toBe("");
+      expect(get(credentials)).not.toHaveProperty("password");
       expect(get(signedOut)).toBe(true);
     } finally {
       vi.useRealTimers();

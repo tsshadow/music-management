@@ -9,7 +9,7 @@ tokenRetry.delayMs = 0;
 
 /**
  * The other half of the sign-out fix: after a fresh sign-in on this screen inside the Capacitor
- * shell, Kotlin has to learn the pair too, or downloads and Android Auto stay
+ * shell, Kotlin has to learn the session too, or downloads and Android Auto stay
  * signed out with whatever (or nothing) it had before. There is no Capacitor bridge in this test
  * environment, so `platform` resolves to the browser implementation; `isNative` is flipped on
  * that shared singleton for the duration of each test to stand in for the shell, the same way
@@ -41,7 +41,7 @@ function fakeServer({ ping = "ok" } = {}) {
 
 describe("LoginPage native credential save", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "", password: "" });
+    credentials.set({ url: "https://lms.example", username: "" });
     mumaApiUrl.set("https://lms.example/muma");
     platform.system.isNative = true;
     global.fetch = fakeServer();
@@ -52,7 +52,8 @@ describe("LoginPage native credential save", () => {
     vi.restoreAllMocks();
   });
 
-  it("saves a verified pair back to the phone", async () => {
+  // Issue #101: the phone gets the session -- name, MuMa key, account id -- never the password.
+  it("hands the new session to the phone, without the password", async () => {
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
 
     const { getByLabelText, getByText } = render(LoginPage);
@@ -64,7 +65,8 @@ describe("LoginPage native credential save", () => {
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
       username: "user",
-      password: "hunter2",
+      mumaApiKey: "own-key",
+      mumaUserId: 1,
     });
   });
 
@@ -91,7 +93,8 @@ describe("LoginPage native credential save", () => {
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
       username: "user",
-      password: "hunter2",
+      mumaApiKey: "own-key",
+      mumaUserId: 1,
     });
   });
 

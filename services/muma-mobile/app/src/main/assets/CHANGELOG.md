@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.9.0] - 2026-09-27
+
+### Added
+- **Every long list keeps going in the queue** (issue #100; web UI inside the app). A queue started
+  from "Nummers · Recent uitgebracht", or any other sort or filter, a genre, label, search result,
+  artist, preset or the listen history, stopped after the page that was on screen. It now tops
+  itself up near its end, like a daily mix. The queue sheet ends in "Meer laden" while the list has
+  more, and in "Einde van de lijst" once it has not. The native queue follows, as it already did for
+  the daily mixes. Android Auto's own lists are not part of this yet.
+
+- **Logging out asks first** (issue #80). "Log out" in the profile menu now opens a dialog that says
+  playback stops and the queue is cleared, and that downloads stay on this phone. Cancel keeps
+  everything; confirming runs the same sign-out as before.
+
+### Fixed
+- **A daily mix keeps going however it was started** (issue #97, bug report 122; web UI inside the
+  app). Tapping a track in a daily mix started a queue that stopped after the first 100 tracks. It
+  now tops itself up like one started with the play button. The queue sheet ends in "Meer laden"
+  while the mix has more, and a mix page says how many of its tracks the server could not find
+  ("2 niet gevonden op de server").
+
 ## [7.8.1] - 2026-09-27
 
 ### Changed

@@ -11,6 +11,30 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.80.0 (2026-09-27)
+
+- A queue started from any long list keeps going past the first page: "Recent uitgebracht" and the
+  other sorts and filters of the songs and sets lists, genres, labels, search results, artists,
+  presets and the listen history. The queue ends in "Meer laden" while the list has more, and in
+  "Einde van de lijst" when it has not.
+
+- A daily mix started by tapping one of its tracks now keeps going after the first 100, and the
+  queue has a "Meer laden" button while the mix has more. A mix whose tracks the server does not
+  all have yet says how many are missing.
+
+- The pre-deploy database backup can no longer be corrupted by a second writer. On 2026-09-27 a
+  `DEPLOY_DB=1` deploy refused to continue because its dump did not decompress: Watchtower's hourly
+  session had recreated the running `db-backup` container, which started a second dump in the same
+  second as the deploy's fallback, into the same file. The backup run now opts out of Watchtower,
+  a failed run's container is removed before the fallback starts (or the deploy is refused), a
+  running nightly backup refuses the fallback, every writer's temporary file has a name of its own,
+  and the nightly prune leaves a partial file alone until it is an hour old (bug report 123).
+
+- Logging out now asks for confirmation first, so a stray tap no longer stops your music.
+
+- Plays made while the server restarts or updates are no longer lost: the music server now holds
+  each one until the history has it.
+
 ## Global Version 0.79.4 (2026-09-27)
 
 - The music server's scan log now says what kind of problems it found, and no longer repeats the

@@ -5,6 +5,8 @@
   import { credentials, isAdmin, userPermissions, mumaUser, activeSettingsTab, flushFrontendSettings, resetSessionState, signedOut } from './store.js';
   import { platform } from './platform/index.js';
   import { logAction } from './diagnosticsLog.js';
+  import Modal from './Modal.svelte';
+  import { portal } from './portal.js';
 
   const { onNavigate } = $props();
 
@@ -19,6 +21,10 @@
   const NATIVE_SIGN_OUT_TIMEOUT_MS = 5000;
 
   let isOpen = $state(false);
+  /** Whether the "Log out?" confirmation is showing (issue #80, style guide: Session controls). */
+  let confirmingLogout = $state(false);
+  /** Set once the confirmed logout is running, so a second tap cannot start it twice. */
+  let loggingOut = $state(false);
   const displayUsername = $derived($credentials.username || 'Gebruiker');
 
   /**
@@ -84,6 +90,36 @@
 
     isOpen = false;
     window.location.reload();
+  }
+
+  /**
+   * Opens the logout confirmation instead of logging out at once. The style guide's Session
+   * controls rule: a logout always confirms first and says what is lost and what is kept, so a
+   * stray tap on the last menu row can no longer stop the music and empty the queue (issue #80).
+   *
+   * @param {Event} event - The click on the menu's "Log out" row.
+   */
+  function askLogout(event) {
+    event.stopPropagation();
+    isOpen = false;
+    confirmingLogout = true;
+  }
+
+  /** Closes the confirmation and leaves the session exactly as it was. */
+  function cancelLogout() {
+    confirmingLogout = false;
+  }
+
+  /**
+   * The confirmation's "Log out": runs the unchanged {@link handleLogout}. The dialog stays up
+   * while the logout runs, since the page reloads at its end anyway.
+   *
+   * @param {Event} event - The click on the confirm button.
+   */
+  function confirmLogout(event) {
+    if (loggingOut) return;
+    loggingOut = true;
+    handleLogout(event);
   }
 
   // Sluit dropdown bij klikken buiten
@@ -165,10 +201,38 @@
       <div class="h-[1px] bg-muma-spotify-highlight mx-1 my-1"></div>
       <button
         class="w-full text-left px-4 py-3 text-sm hover:bg-muma-spotify-highlight transition-colors border-none bg-transparent text-white cursor-pointer"
-        onclick={handleLogout}
+        onclick={askLogout}
       >
         {$t('common.logout')}
       </button>
     </div>
   {/if}
 </div>
+
+{#if confirmingLogout}
+  <!-- Portalled to <body>: both top bars are backdrop-blur-md, which would otherwise make the
+       bar -- not the screen -- the box this fixed overlay fills. -->
+  <div use:portal>
+    <Modal title={$t('logout.confirmTitle')} onclose={cancelLogout} widthClass="max-w-md">
+      <div class="flex flex-col gap-4" data-testid="logout-confirm">
+        <p class="text-sm text-white m-0">{$t('logout.confirmLost')}</p>
+        {#if platform.system.isNative}
+          <!-- Only the phone keeps downloads; a browser tab has none to promise. -->
+          <p class="text-sm text-muma-spotify-text m-0">{$t('logout.confirmKept')}</p>
+        {/if}
+        <div class="flex flex-wrap gap-3 justify-end">
+          <button
+            class="bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
+            onclick={cancelLogout}
+          >{$t('common.cancel')}</button>
+          <button
+            class="bg-brand text-black px-6 py-2 rounded-[24px] font-bold cursor-pointer"
+            data-testid="logout-confirm-button"
+            disabled={loggingOut}
+            onclick={confirmLogout}
+          >{$t('common.logout')}</button>
+        </div>
+      </div>
+    </Modal>
+  </div>
+{/if}

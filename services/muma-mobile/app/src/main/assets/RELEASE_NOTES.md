@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.10.2 (2026-09-27)
+
+- The app no longer stores your password. After updating you stay signed in. If your account's key
+  is ever revoked, the app asks you to sign in again, and the car says to sign in on your phone.
+
 ## Global Version 7.10.1 (2026-09-27)
 
 - Genres, labels, festivals and other lists no longer flash the previous list when you open them.

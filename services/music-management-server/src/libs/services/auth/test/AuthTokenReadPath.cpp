@@ -64,6 +64,72 @@ namespace lms::auth::tests
         EXPECT_EQ(pending.get().state, IAuthTokenService::AuthTokenProcessResult::State::Denied);
     }
 
+    // A key that *was* issued went the same way: after resolving it under a read transaction, the
+    // service took the write lock unconditionally, to stamp last_used -- and onUserAuthenticated
+    // took it again for last_login. MuMa's scan trigger came every ~5.1 minutes, just past the
+    // subsonic auth cache's five, so each one was resolved here, queued behind a scan batch and
+    // ran out its ten-second client timeout (bug report 120). Those stamps are bookkeeping: with
+    // the lock taken they are skipped, and the request is answered.
+    TEST_F(AuthTokenReadPath, aValidTokenDoesNotQueueBehindAWriterForBookkeeping)
+    {
+        std::unique_ptr<IAuthTokenService> authTokenService{ createAuthTokenService(session.getDb(), 10) };
+        authTokenService->registerDomain("subsonic", IAuthTokenService::DomainParameters{});
+
+        db::tests::ScopedUser user{ session, "MyUser" };
+        // Never used, so its last_used stamp is due: the case that used to wait.
+        authTokenService->createAuthToken("subsonic", user.getId(), "the-token");
+
+        db::IDb& db{ session.getDb() };
+        std::promise<void> writerHoldsTheLock;
+        std::promise<void> releaseTheWriter;
+
+        auto writer{ std::async(std::launch::async, [&] {
+            auto transaction{ db.getTLSSession().createWriteTransaction() };
+
+            writerHoldsTheLock.set_value();
+            releaseTheWriter.get_future().wait();
+        }) };
+
+        writerHoldsTheLock.get_future().wait();
+
+        auto pending{ std::async(std::launch::async, [&] {
+            return authTokenService->processAuthToken("subsonic", boost::asio::ip::make_address("192.0.2.1"), "the-token");
+        }) };
+
+        const auto status{ pending.wait_for(std::chrono::seconds{ 10 }) };
+
+        releaseTheWriter.set_value();
+        writer.wait();
+
+        ASSERT_EQ(status, std::future_status::ready) << "a valid token waited for the write lock to stamp its last use";
+        EXPECT_EQ(pending.get().state, IAuthTokenService::AuthTokenProcessResult::State::Granted);
+
+        authTokenService->clearAuthTokens("subsonic", user.getId());
+    }
+
+    // With the lock free the stamp still lands: skipping it is only for when somebody else holds it.
+    TEST_F(AuthTokenReadPath, aValidTokenIsStampedWhenTheLockIsFree)
+    {
+        std::unique_ptr<IAuthTokenService> authTokenService{ createAuthTokenService(session.getDb(), 10) };
+        authTokenService->registerDomain("subsonic", IAuthTokenService::DomainParameters{});
+
+        db::tests::ScopedUser user{ session, "MyUser" };
+        authTokenService->createAuthToken("subsonic", user.getId(), "the-token");
+
+        ASSERT_EQ(authTokenService->processAuthToken("subsonic", boost::asio::ip::make_address("192.0.2.1"), "the-token").state,
+                  IAuthTokenService::AuthTokenProcessResult::State::Granted);
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const db::AuthToken::pointer token{ db::AuthToken::find(session, "subsonic", "the-token") };
+            ASSERT_TRUE(token);
+            EXPECT_TRUE(token->getLastUsed().isValid());
+            EXPECT_EQ(token->getUseCount(), 1);
+        }
+
+        authTokenService->clearAuthTokens("subsonic", user.getId());
+    }
+
     // Dbo caches objects per session, and Db hands each thread its own session. A thread that
     // resolved a token once keeps that copy; when another thread bumps the row (use count, last
     // used), the copy is a version behind, and the next bump written on top of it is refused as a

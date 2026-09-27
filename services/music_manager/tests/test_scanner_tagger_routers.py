@@ -753,10 +753,12 @@ class RetagEndpointsTest(unittest.TestCase):
 
 
 class LmsTriggerTest(unittest.TestCase):
-    def test_tagging_a_single_file_tells_lms(self):
+    def test_tagging_a_single_file_tells_lms_its_folder(self):
+        """A library-wide scan takes LMS most of an hour; the folder takes seconds (bug 120)."""
         with patch.object(tagger_router, 'lms_scan_trigger') as trigger, patch.object(tagger_router, 'TagSingleFile'):
-            tagger_router.tagger_manager.tag_single('/music/a.mp3')
-        trigger.trigger.assert_called_once()
+            tagger_router.tagger_manager.tag_single('/music/Label/a.mp3')
+        trigger.notify.assert_called_once_with(['/music/Label'])
+        trigger.trigger.assert_not_called()
 
     def test_a_finished_scan_tells_lms_once(self):
         manager = scanner_router.scanner_manager

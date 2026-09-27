@@ -40,6 +40,8 @@ namespace lms::db
     private:
         friend class Session;
         WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session);
+        // Takes a lock the caller already holds (see Session::tryCreateWriteTransaction).
+        WriteTransaction(std::unique_lock<core::RecursiveSharedMutex>&& lock, Wt::Dbo::Session& session);
 
         WriteTransaction(const WriteTransaction&) = delete;
         WriteTransaction& operator=(const WriteTransaction&) = delete;

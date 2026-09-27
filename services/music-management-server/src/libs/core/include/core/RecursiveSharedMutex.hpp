@@ -31,6 +31,10 @@ namespace lms::core
     {
     public:
         void lock();
+        // Takes the unique lock only if nobody else holds it, never waits. For writes that are
+        // bookkeeping (a last-used stamp, a last-login time): skipping one is harmless, queueing
+        // an HTTP thread behind a scanner batch for it is not.
+        bool try_lock();
         void unlock();
 
         void lock_shared();

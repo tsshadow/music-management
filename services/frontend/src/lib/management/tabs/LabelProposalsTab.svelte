@@ -2,12 +2,12 @@
   import { t } from '../../i18n/index.js';
   import { onMount } from 'svelte';
   import { RefreshCw, Check, X, Tags, FolderX } from '@lucide/svelte';
-  import { groupByLabel } from '../labelProposals.js';
+  import { describeImportConflict, groupByLabel } from '../labelProposals.js';
 
   let { API_BASE, getHeaders, onMessage, onError } = $props();
 
   let proposals = $state([]);
-  /** Folder pairs the importer left in place because the name it wanted was taken (bug 091). */
+  /** Folder pairs (bug 091) and single files (bug 119) the importer left in place for a human. */
   let conflicts = $state([]);
   let chosen = $state({});
   let labelOptions = $state([]);
@@ -257,16 +257,22 @@
         <table class="w-full text-left text-sm">
           <thead>
             <tr class="bg-white/5 text-muma-spotify-text text-[10px] uppercase tracking-wider">
-              <th class="p-4">{$t('management.labelProposals.conflictTarget')}</th>
+              <th class="p-4">{$t('management.labelProposals.conflictProblem')}</th>
               <th class="p-4">{$t('management.labelProposals.conflictSource')}</th>
               <th class="p-4">{$t('management.labelProposals.conflictStep')}</th>
               <th class="p-4">{$t('management.labelProposals.conflictSince')}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-muma-spotify-panel/30">
-            {#each conflicts as conflict (conflict.source + conflict.target)}
+            {#each conflicts as conflict (conflict.step + conflict.source + conflict.target)}
+              {@const problem = describeImportConflict(conflict)}
               <tr class="hover:bg-white/5 transition-colors">
-                <td class="p-4 font-medium break-all">{conflict.target}</td>
+                <td class="p-4 break-all">
+                  <span class="font-medium">{$t(`management.labelProposals.${problem.key}`)}</span>
+                  {#if problem.detail}
+                    <span class="block text-muma-spotify-text text-xs mt-1">{problem.detail}</span>
+                  {/if}
+                </td>
                 <td class="p-4 break-all">{conflict.source}</td>
                 <td class="p-4 text-muma-spotify-text text-xs">{conflict.step}</td>
                 <td class="p-4 text-muma-spotify-text text-xs whitespace-nowrap tabular-nums">{conflict.first_seen}</td>

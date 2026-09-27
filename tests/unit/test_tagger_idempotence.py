@@ -225,3 +225,58 @@ def test_legacy_m4a_atoms_migrate_on_the_next_retag_and_then_stay_put():
             ]
         )
     )
+
+
+# Bug report 117: mutagen stores a bare `ORIGINAL_TITLE` key as a 4-byte `ORIG` atom and merges
+# same-named atoms into one list on read, so every save by the pre-0.72.2 tagger added one more
+# copy. The copies reached 3,800 characters on production and the scanner failed those files
+# with MariaDB 1406.
+def test_the_orig_atom_grows_one_copy_per_save():
+    output = run_with_real_mutagen(
+        """
+        path = copy_fixture(M4A_FIXTURE)
+        for _ in range(3):
+            audio = MP4(path)
+            if audio.tags is None:
+                audio.add_tags()
+            # What BaseSong._set_m4a_tag did before 0.72.2 for ORIGINAL_TITLE.
+            audio.tags['ORIGINAL_TITLE'] = ['Crypton - Until It\\'s Gone']
+            audio.save()
+        print(len(MP4(path).tags['ORIG']))
+        """
+    )
+    assert output == '3'
+
+
+def test_a_retag_collapses_the_repeated_title_and_then_writes_nothing():
+    output = run_with_real_mutagen(
+        """
+        from services.tagger.Song.rules.CollapseRepeatedValuesRule import CollapseRepeatedValuesRule
+
+        path = copy_fixture(M4A_FIXTURE)
+        audio = MP4(path)
+        if audio.tags is None:
+            audio.add_tags()
+        # The Crypton file as found on production.
+        audio.tags['\\u00a9nam'] = [';'.join(["UNTIL IT'S GONE"] * 241 + ['Crypton'])]
+        audio.tags['----:com.apple.iTunes:ORIGINAL_TITLE'] = [
+            MP4FreeForm(';'.join(["UNTIL IT'S GONE"] * 241 + ["Crypton - UNTIL IT'S GONE"]).encode())
+        ]
+        audio.save()
+
+        def retag():
+            song = BaseSong(path)
+            CollapseRepeatedValuesRule().apply(song)
+            return song.save_file()
+
+        assert retag(), 'the first retag repairs the tags, so it writes'
+        tags = MP4(path).tags
+        print(tags['\\u00a9nam'][0])
+        print(tags['----:com.apple.iTunes:ORIGINAL_TITLE'][0].decode())
+        print(retag())
+        """
+    )
+    title, original, second = output.splitlines()
+    assert title == "UNTIL IT'S GONE"
+    assert original == "Crypton - UNTIL IT'S GONE"
+    assert second == 'False'

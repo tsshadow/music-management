@@ -114,9 +114,29 @@
   Android Lint (`./scripts/test/muma-mobile-lint.sh`, `:app:lintDebug` with
   `checkDependencies=true` so the core modules are analyzed too; pre-existing findings in
   `app/lint-baseline.xml`)
-- Release-build smoke: `./scripts/test/muma-mobile-emulator-smoke.sh` boots the R8-minified
-  APK on a headless ATD emulator (needs `/dev/kvm`) and fails on a startup crash — the class
-  of defect (bug-report 029) every JVM-side check is structurally blind to
+- Release-build smoke (`mobile:smoke`, stage `e2e`, resource group `muma-mobile`, `fast`
+  runners): `./scripts/test/muma-mobile-emulator-smoke.sh` builds the R8-minified release APK
+  (signed with a throwaway keystore `build.sh` generates; the real key stays in
+  `mobile:build-release` on `release/*`), boots a headless ATD emulator (needs `/dev/kvm`),
+  installs it with every runtime permission granted and launches it twice -- a first start and
+  a cold restart after `am force-stop`, which reads back what the first start persisted (the
+  6.21.0 Gson crash lived in that read-back). Each launch must pass, in order:
+  - the process is alive after 15 s and logcat has no `FATAL EXCEPTION` or `ANR in` for the
+    package;
+  - `CapacitorActivity` is the resumed activity (the launcher trampoline handed over and the Koin
+    graph resolved in `onResume`);
+  - the login page's server field shows `StaticServers.SERVER_URL`, read from the
+    accessibility tree. That value only reaches the page through `MumaSystem.serverUrl`, a
+    Capacitor `@PluginMethod` the bridge finds by name -- R8 stripping it
+    (`minify/proguard-capacitor.pro`) crashes nothing, because `bootstrapShell` swallows the
+    rejection, so this is the check that sees it. An APK without the Svelte bundle (no
+    `frontend:bundle` in the pipeline) only gets the placeholder page checked, and the log
+    says so.
+
+  About 20-30 s over the previous single-launch version; the build and emulator boot dominate.
+  It is the gate `mobile:build-release` waits for, so a release APK that fails it never reaches
+  the hoster. Catches the class of defect (bug-report 029) every JVM-side check is structurally
+  blind to.
 - No instrumentation/Android Auto tests beyond that smoke tripwire (UI flows still uncovered)
 
 ### common

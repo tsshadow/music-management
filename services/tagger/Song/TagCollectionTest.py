@@ -2,11 +2,22 @@ import unittest
 
 from mutagen.easyid3 import EasyID3
 from mutagen.flac import VCFLACDict
-from mutagen.id3 import TPE1
+from mutagen.id3 import TDOR, TDRC, TPE1
+from mutagen.id3._specs import ID3TimeStamp
 from mutagen.mp4 import MP4FreeForm, MP4Tags
 from mutagen.wave import _WaveID3
 
-from services.tagger.constants import ALBUM, ALBUM_ARTIST, ARTIST, FESTIVAL, GENRE, ORIGINAL_TITLE, REMIXER
+from services.tagger.constants import (
+    ALBUM,
+    ALBUM_ARTIST,
+    ARTIST,
+    DATE,
+    FESTIVAL,
+    GENRE,
+    ORIGINAL_DATE,
+    ORIGINAL_TITLE,
+    REMIXER,
+)
 from services.tagger.Song.Tag import Tag
 from services.tagger.Song.TagCollection import TagCollection, UnsupportedExtension
 
@@ -41,6 +52,20 @@ class TagCollectionTest(unittest.TestCase):
         collection = TagCollection(tags)
         self.assertTrue(collection.has_item(ARTIST))
         self.assertEqual(collection.get_item_as_string(ARTIST), 'Test Artist')
+
+    def test_a_wav_date_frame_reads_as_text(self):
+        # Bug report 118: TDRC holds ID3TimeStamp objects, not str. Split as they were, every
+        # WAV date logged "Could not split date value ['2023']" and stayed an object.
+        tags = _WaveID3()
+        tags['TDRC'] = TDRC(encoding=3, text=['2023'])
+        tags['TDOR'] = TDOR(encoding=3, text=['2021-05-04'])
+        self.assertIsInstance(tags['TDRC'].text[0], ID3TimeStamp)
+        with self.assertNoLogs(level='WARNING'):
+            collection = TagCollection(tags)
+        self.assertEqual(collection.get_item_as_array(DATE), ['2023'])
+        self.assertEqual(collection.get_item_as_array(ORIGINAL_DATE), ['2021-05-04'])
+        self.assertTrue(all(isinstance(v, str) for v in collection.get_item_as_array(DATE)))
+        self.assertFalse(collection.get_item(DATE).has_changes())
 
     def test_m4a_standard_tag_mapped_correctly(self):
         tags = MP4Tags()

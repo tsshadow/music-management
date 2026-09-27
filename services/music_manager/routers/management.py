@@ -203,13 +203,15 @@ def get_label_proposals(status: str = 'new', _auth: dict = Depends(verify_api_ke
 @router.get('/import-conflicts')
 def get_import_conflicts(_auth: dict = Depends(verify_api_key)):
     """
-    Folder pairs the importer left in place because the name it wanted was taken.
+    What the importer left in place for a human: folder pairs and single files.
 
     Written by the importer's renamer and mover (services/importer/conflict_store.py,
-    bug report 091), which warn about each pair once and then only count it. Read-only:
-    resolving one means removing or renaming one of the two folders by hand, after which
-    the importer forgets the pair on its next cycle. Oldest first, because those are the
-    ones that have waited longest.
+    bug report 091), which warn about each pair once and then only count it, and by its
+    extractor (bug report 119), which files a single file it will not import -- not an
+    archive, or an archive no backend can extract -- with `reason` set and `target`
+    holding a detail instead of a second folder. Read-only: resolving one means removing,
+    renaming or replacing the folder or file by hand, after which the importer forgets it
+    on its next cycle. Oldest first, because those are the ones that have waited longest.
     """
     conn = get_db_connection()
     if not conn:
@@ -217,7 +219,8 @@ def get_import_conflicts(_auth: dict = Depends(verify_api_key)):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT step, source, target, first_seen, last_seen FROM importer_conflicts ORDER BY first_seen, target'
+                'SELECT step, source, target, reason, first_seen, last_seen FROM importer_conflicts '
+                'ORDER BY first_seen, target'
             )
             return cursor.fetchall()
     finally:

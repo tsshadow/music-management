@@ -15,10 +15,17 @@ again if it ever came back. Nothing here moves, merges or deletes a folder.
 The pairs live in `importer_conflicts`, so a restart or a deploy does not warn about the
 whole list again, and so Beheer can show them next to the label proposals. When that table
 cannot be read the tracker falls back to what this process remembers.
+
+The extractor files its standing problems in the same table (bug report 119): a file in the
+import folder that is not an archive -- a video a browser download left behind, say -- or an
+archive no backend can extract. `FileProblemTracker` keys those on the file alone, with a
+`reason` code saying what is wrong, and looks at the file again only when its size or mtime
+changed.
 """
 
 import hashlib
 import logging
+import os
 from dataclasses import dataclass
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
@@ -28,13 +35,19 @@ from services.importer.settle import folder_signature
 #: the pairs it is responsible for.
 RENAMER = 'renamer'
 MOVER = 'mover'
+#: The extract step, whose rows are single files rather than folder pairs (bug report 119).
+EXTRACTOR = 'extractor'
+
+#: Longest `target` the table holds; an extractor row keeps its detail there.
+TARGET_MAX = 1024
 
 SNAPSHOT_QUERY = 'SELECT pair_key, fingerprint FROM importer_conflicts WHERE step = %s'
 
 RECORD_QUERY = """
-    INSERT INTO importer_conflicts (pair_key, step, source, target, fingerprint)
-    VALUES (%s, %s, %s, %s, %s)
-    ON DUPLICATE KEY UPDATE fingerprint = VALUES(fingerprint), last_seen = CURRENT_TIMESTAMP
+    INSERT INTO importer_conflicts (pair_key, step, source, target, fingerprint, reason)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    ON DUPLICATE KEY UPDATE fingerprint = VALUES(fingerprint), target = VALUES(target),
+        reason = VALUES(reason), last_seen = CURRENT_TIMESTAMP
 """
 
 TOUCH_QUERY = 'UPDATE importer_conflicts SET last_seen = CURRENT_TIMESTAMP WHERE pair_key = %s'
@@ -60,6 +73,15 @@ def pair_fingerprint(source: str, target: str) -> str | None:
     if source_signature is None or target_signature is None:
         return None
     return hashlib.sha256(f'{source_signature}\x1f{target_signature}'.encode()).hexdigest()
+
+
+def file_fingerprint(path: str) -> str | None:
+    """Size and mtime of one file, hashed; None when it cannot be stat'ed. Never opens it."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return hashlib.sha256(f'{stat.st_size}\x1f{stat.st_mtime_ns}'.encode()).hexdigest()
 
 
 class ConflictStore:
@@ -101,9 +123,15 @@ class ConflictStore:
         except Exception as e:  # noqa: BLE001 - see snapshot
             logging.error(f'Could not update the standing import conflicts: {e}')
 
-    def record(self, key: str, step: str, source: str, target: str, fingerprint: str | None) -> None:
-        """Remember a conflict, or refresh the fingerprint of one already remembered."""
-        self._execute(RECORD_QUERY, (key, step, source, target, fingerprint))
+    def record(
+        self, key: str, step: str, source: str, target: str, fingerprint: str | None, reason: str | None = None
+    ) -> None:
+        """Remember a conflict, or refresh the fingerprint of one already remembered.
+
+        `reason` is NULL for a folder conflict and one of the extractor's reason codes for a
+        file it could not import (bug report 119).
+        """
+        self._execute(RECORD_QUERY, (key, step, source, target, fingerprint, reason))
 
     def touch(self, key: str) -> None:
         """Mark a remembered conflict as met again this cycle."""
@@ -128,6 +156,9 @@ class ConflictTracker:
     to learn whether the comparison can be skipped, then `differs(...)` or `same(...)`
     with its outcome; `end()` once the cycle is done.
     """
+
+    #: How the per-cycle summary line names what it counts.
+    summary = 'Standing folder conflicts'
 
     def __init__(self, step: str, store: ConflictStore | None = None):
         self.step = step
@@ -156,7 +187,7 @@ class ConflictTracker:
         repeat is logged at DEBUG, which never reaches the events table.
         """
         key = pair_key(self.step, source, target)
-        fingerprint = pair_fingerprint(source, target)
+        fingerprint = self._fingerprint(source, target)
         self._fingerprints[key] = fingerprint
         known = self._known.get(key)
         if known is None or fingerprint is None or known.fingerprint != fingerprint:
@@ -174,7 +205,7 @@ class ConflictTracker:
         of the folders changed without resolving it.
         """
         key = pair_key(self.step, source, target)
-        fingerprint = self._fingerprints.get(key, pair_fingerprint(source, target))
+        fingerprint = self._fingerprints.get(key, self._fingerprint(source, target))
         self._seen.add(key)
         if key in self._known:
             logging.info(
@@ -191,6 +222,10 @@ class ConflictTracker:
         self._known[key] = _Pair(fingerprint)
         if not dry_run:
             self.store.record(key, self.step, source, target, fingerprint)
+
+    def _fingerprint(self, source: str, target: str) -> str | None:
+        """What decides that nothing changed since the pair was last looked at."""
+        return pair_fingerprint(source, target)
 
     def same(self, source: str, target: str) -> None:
         """A pair that turned out to be a duplicate: the caller parks the source, nothing stands."""
@@ -211,10 +246,118 @@ class ConflictTracker:
         standing = len(self._seen)
         if standing or resolved:
             logging.info(
-                'Standing folder conflicts (%s): %d, %d new this cycle, %d resolved since the last one',
+                '%s (%s): %d, %d new this cycle, %d resolved since the last one',
+                self.summary,
                 self.step,
                 standing,
                 self._new,
                 len(resolved),
             )
         return standing
+
+
+#: Why the extractor left a file in the import folder, as stored in `importer_conflicts.reason`
+#: and translated by Beheer. The text here is what the one WARNING says.
+NOT_AN_ARCHIVE = 'not-an-archive'
+LOOSE_AUDIO = 'loose-audio'
+NOT_MUSIC_VIDEO = 'not-music-video'
+NOT_MUSIC_IMAGE = 'not-music-image'
+NOT_MUSIC_DOCUMENT = 'not-music-document'
+NOT_MUSIC_OTHER = 'not-music-other'
+UNREADABLE = 'unreadable'
+EXTRACTION_FAILED = 'extraction-failed'
+EXTRACTION_EMPTY = 'extraction-empty'
+EXTRACTION_NAME_TAKEN = 'extraction-name-taken'
+
+REASONS: dict[str, str] = {
+    NOT_AN_ARCHIVE: 'named like an archive, but its contents are not one',
+    LOOSE_AUDIO: 'an audio file outside a release folder',
+    NOT_MUSIC_VIDEO: 'not music: video file',
+    NOT_MUSIC_IMAGE: 'not music: image',
+    NOT_MUSIC_DOCUMENT: 'not music: document',
+    NOT_MUSIC_OTHER: 'not music and not an archive',
+    UNREADABLE: 'the file cannot be read',
+    EXTRACTION_FAILED: 'no backend could extract this archive',
+    EXTRACTION_EMPTY: 'this archive extracted to nothing',
+    EXTRACTION_NAME_TAKEN: 'this archive holds a folder whose name is taken by a different release',
+}
+
+
+class FileProblemTracker(ConflictTracker):
+    """Once-per-file logging for what the extract step cannot import (bug report 119).
+
+    Each cycle, `standing(path)` says whether a file already stands and is unchanged -- in
+    which case the step leaves it alone, without opening it -- and `problem(...)` records one
+    it just looked at. A file that is removed, renamed or finally extracted is forgotten at
+    `end()`; one that changes on disk (a re-download over a broken archive, say) is looked at
+    again. Nothing here moves or deletes a file.
+    """
+
+    summary = 'Standing import files'
+
+    def __init__(self, store: ConflictStore | None = None):
+        super().__init__(EXTRACTOR, store)
+
+    def _fingerprint(self, source: str, target: str) -> str | None:
+        """Size and mtime of the file; `target` is always empty for a file."""
+        return file_fingerprint(source)
+
+    def standing(self, path: str) -> bool:
+        """Whether `path` was recorded before and has not changed since: skip it this cycle.
+
+        A row recorded with `watch_folder` also counts as changed once the folder holding
+        the file changed -- an entry added, removed or renamed beside it.
+        """
+        key = pair_key(self.step, path, '')
+        fingerprint = file_fingerprint(path)
+        self._fingerprints[key] = fingerprint
+        known = self._known.get(key)
+        if known is None or fingerprint is None:
+            return False
+        if known.fingerprint not in (fingerprint, _with_folder(fingerprint, path)):
+            return False
+        self._seen.add(key)
+        logging.debug('Still left in place, unchanged: %s', path)
+        if self._from_database:
+            self.store.touch(key)
+        return True
+
+    def problem(
+        self, path: str, reason: str, detail: str = '', dry_run: bool = False, watch_folder: bool = False
+    ) -> None:
+        """Record a file the step left in place, with a WARNING only the first time it is seen.
+
+        `watch_folder` is for a problem that lies beside the file rather than in it: an
+        archive whose release folder name is taken is worth extracting again as soon as the
+        folder that took the name is gone, even though the archive itself never changed.
+        """
+        key = pair_key(self.step, path, '')
+        fingerprint = self._fingerprints.get(key) or file_fingerprint(path)
+        if watch_folder and fingerprint is not None:
+            fingerprint = _with_folder(fingerprint, path)
+        self._seen.add(key)
+        description = REASONS.get(reason, reason)
+        suffix = f' ({detail})' if detail else ''
+        if key in self._known:
+            logging.info('Still left in place after a change on disk, %s: %s%s', description, path, suffix)
+        else:
+            self._new += 1
+            logging.warning(
+                'Left in the import folder, %s: %s%s. Not retried until the file changes; listed in Beheer '
+                'for manual intervention',
+                description,
+                path,
+                suffix,
+            )
+        self._known[key] = _Pair(fingerprint)
+        if not dry_run:
+            self.store.record(key, self.step, path, detail[:TARGET_MAX], fingerprint, reason)
+
+
+def _with_folder(fingerprint: str, path: str) -> str | None:
+    """`fingerprint` combined with the mtime of the folder holding `path`; None if that is unreadable."""
+    try:
+        folder_mtime = os.stat(os.path.dirname(path) or '.').st_mtime_ns
+    except OSError:
+        return None
+    return hashlib.sha256(f'{fingerprint}\x1f{folder_mtime}'.encode()).hexdigest()

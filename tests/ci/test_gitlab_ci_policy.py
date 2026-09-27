@@ -653,6 +653,20 @@ def test_python_unit_job_runs_for_every_directory_it_tests():
 LINT_SOURCES = ["services/", "tools/", "tests/"]
 
 
+def test_the_smoke_apk_always_carries_the_web_bundle():
+    """mobile:smoke proves the Capacitor plugins survived R8 by reading a value
+    off the Svelte login page. Without frontend:bundle in the same pipeline the
+    APK carries the placeholder page instead, and that check silently degrades
+    to "the WebView came up" -- so every path that starts the smoke must also
+    start the bundle (issue #24)."""
+    ci = load_ci()
+    bundle = _changes_globs(ci, "frontend:bundle")
+    missing = [glob for glob in _changes_globs(ci, "mobile:smoke") if glob not in bundle]
+    assert missing == [], f"mobile:smoke runs for these without frontend:bundle: {missing}"
+    needs = [n["job"] if isinstance(n, dict) else n for n in ci["mobile:smoke"]["needs"]]
+    assert "frontend:bundle" in needs
+
+
 def test_lint_job_runs_for_every_directory_it_lints():
     ci = load_ci()
     globs = _changes_globs(ci, "backend:lint")

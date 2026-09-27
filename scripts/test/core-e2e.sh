@@ -29,12 +29,11 @@
 # publishes its ports on the host and the steps reach them over 127.0.0.1. It
 # costs about four seconds over a native run.
 #
-# What it does NOT cover, and it is worth being blunt about it: nothing here
-# runs the Android app. The 6.21.0 startup crash (docs/bug-reports/029) lived
-# only in an R8-minified release build, and no test on this machine can execute
-# one -- the runner LXC has no /dev/kvm, so there is no emulator. Catching that
-# class of bug needs the emulator step, which is the next phase and is a
-# resource decision rather than a code one.
+# What it does NOT cover: nothing here runs the Android app. The 6.21.0 startup
+# crash (docs/bug-reports/029) lived only in an R8-minified release build; that
+# class of bug is mobile:smoke's job (scripts/test/muma-mobile-emulator-smoke.sh),
+# which boots the minified APK on an emulator now that both `fast` runners have
+# /dev/kvm.
 
 set -e
 

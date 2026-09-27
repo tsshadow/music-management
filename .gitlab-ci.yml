@@ -829,6 +829,13 @@ frontend:bundle:
         - services/muma-mobile/**/*
         - scripts/ci/frontend-bundle.sh
         - .gitlab-ci.yml
+        # mobile:smoke's own triggers: without the bundle its APK carries the placeholder page,
+        # and the check that the Capacitor plugins survived R8 has nothing to read.
+        - docker/Dockerfile-android-ci
+        - scripts/ci/android-image.sh
+        - scripts/test/muma-mobile-emulator-smoke.sh
+        - scripts/test/muma-mobile-emulator-smoke-inner.sh
+        - scripts/ci/docker_disk_preflight.py
   script:
     - ./scripts/ci/frontend-bundle.sh
   artifacts:
@@ -1140,8 +1147,13 @@ muma:e2e:
 # verifies the app survives startup. The 6.21.0 crash (docs/bug-reports/029)
 # existed only in the minified build -- a Gson TypeToken R8 had stripped -- so
 # every other Android job was structurally blind to it and the first execution
-# was a user's phone. A tripwire, not a UI suite: install, launch, 15s grace,
-# process alive, no FATAL EXCEPTION.
+# was a user's phone. A tripwire, not a UI suite: install, then launch twice
+# (first start, cold restart after force-stop), and each time: process alive
+# after 15s, no FATAL EXCEPTION/ANR, CapacitorActivity resumed, and the login
+# page showing the static server -- a value that only arrives through a
+# Capacitor plugin call R8 can strip without crashing anything. Signed with a
+# throwaway keystore; the real key never leaves mobile:build-release. Details:
+# docs/testing-inventory.md (muma-mobile).
 #
 # Deliberately not gated on .gitlab-ci.yml (same reasoning as
 # muma:images): an emulator boot is the most expensive thing in the

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.2] - 2026-09-27
+
+### Fixed
+- **The importer no longer tries to extract a video file in the import folder every cycle** (issue
+  #90, bug report 119). The extract step handed every file at the root of the import folder to
+  patool, whatever it was; two `.mp4` downloads left there produced two WARNINGs and an ERROR per
+  file per cycle -- 218 and 109 per file in twelve hours on 2026-09-27. Only a file with an archive
+  extension *and* the matching archive signature is extracted now. Anything else -- video, image,
+  document, a loose track -- and any archive that cannot be extracted is left where it is, warned
+  about once, recorded in `importer_conflicts` with a reason (`migrate_v46` adds the `reason` column
+  and the `extractor` step), and skipped until the file changes or disappears. The fallback retries
+  log at INFO. Nothing is moved or deleted. `GET /api/import-conflicts` returns the reason, and
+  Beheer lists these files next to the folder conflicts as "Openstaande importproblemen".
+
+- **28 m4a files no longer fail every hourly scan with "Data too long for column 'title'"** (issue
+  #91, bug report 117). Their title, original title or display artist held one value repeated up to
+  241 times (3,800+ characters) -- left behind by the m4a `ORIG` atom defect fixed in 0.72.2, where
+  every retag added one more copy. The scanner now cuts a value longer than its column to the
+  column's character length, stores the file, and queues it for the tagger; the new
+  `CollapseRepeatedValuesRule` collapses a repeated title, original title or display artist back to
+  one value (the longest for the original title, the most frequent for the others). About 1,900
+  more titles carry the same repetition at a length that still fitted; the tagger's deep run
+  (every file within 30 days) repairs them. A file whose scan keeps failing is now parked after three failures in a row until it
+  changes or the service restarts, instead of logging one error per file per hour for good.
+
+- **A WAV file's date is read as text again** (issue #92, bug report 118). The ID3 date frames hold
+  mutagen `ID3TimeStamp` objects, which the WAV reader passed on as they were: every WAV with a date
+  logged "Could not split date value ['2023']" (270 warnings in two hours on production) and kept
+  the date as an object.
+
 ## [0.79.1] - 2026-09-27
 
 ### Fixed

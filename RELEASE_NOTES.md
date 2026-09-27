@@ -11,6 +11,16 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.79.2 (2026-09-27)
+
+- A video or other non-music file in the import folder is now reported once and listed in Beheer,
+  instead of raising the same warning and error every five minutes.
+
+- Tracks whose title had been repeated hundreds of times over now appear in the library, and the
+  repeated titles are cleaned up.
+
+- Fixed a flood of date warnings for WAV files.
+
 ## Global Version 0.79.1 (2026-09-27)
 
 - Settings changed on your phone and in the web player at the same time no longer overwrite each

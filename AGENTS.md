@@ -64,6 +64,9 @@ The system is split into specialized services, each handling a specific part of 
         - `POST /api/scanner/scan/all`: Runs a full library scan in background.
         - `POST /api/scanner/scan/file?path=...`: Scans a single file and updates its database record.
         - `GET /api/scanner/health`: Health check and status.
+    - **Failure handling**: a tag value longer than its column is cut to the column's character
+      length and the file is queued for a retag (`overlong_tag`); a file whose scan fails three
+      times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
     - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus

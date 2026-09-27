@@ -19,6 +19,9 @@ This folder contains all **tagging rules** used in the `BaseSong` subclasses of 
 - **`CleanArtistFieldsRule.py`**  
   Trims whitespace, reformats artist names, and applies regex-based cleanup on the `ARTIST` tag.
 
+- **`CollapseRepeatedValuesRule.py`**  
+  Runs first for every song. Collapses an `ORIGINAL_TITLE`, `TITLE` or `ORIGINAL_ARTIST` whose values repeat (left behind by the pre-0.72.2 m4a `ORIG` atom defect, bug report 117) back to one value.
+
 - **`NormalizeFlacTagsRule.py`**  
   Normalizes tag keys and values specifically for FLAC files (e.g., capitalization or uncommon tag formats).
 

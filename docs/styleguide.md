@@ -60,6 +60,12 @@
   - Secondary: Transparent with border or surface gray background (`bg-muma-spotify-light`), white text.
 - **Forms & Inputs**: Dark background (`bg-muma-spotify-light`), subtle border, brand focus ring (`focus:border-brand` on the web, see "Brand token" above), white text.
 - **Cards**: Surface gray (`bg-muma-spotify-light`), rounded corners (`rounded-md` or `rounded-lg`), smooth hover elevation/scaling.
+  - **Hover-revealed actions** (a card's round play button): hidden until hover only with a mouse.
+    On a touchscreen there is no hover, so the action is always visible and at least 48px
+    (`pointer-coarse:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:w-12
+    pointer-coarse:h-12`), and keyboard focus reveals it too (`focus-visible:opacity-100`). Key it
+    on the pointer, not on the layout: a tablet in the desktop layout is still a touchscreen.
+    `DailyMixCard` follows this (issue #99).
 - **Modals**: Centered overlay with backdrop blur or dark translucent background (`bg-black/80`), rounded card container.
 - **Confirmation dialog**: a question that needs a yes before something hard to undo happens is
   `Modal.svelte`, never the browser's `confirm()` for anything a listener (not only an admin) sees.
@@ -145,6 +151,18 @@
   its data arrives; one slow section never holds up the ones that are ready.
 - **Refresh**: re-loading a screen that already shows content keeps that content on screen —
   skeletons are for the first load, not for every refresh.
+- **New place, new rows**: a list that opens for a different thing (another genre, label,
+  festival, search term) never shows the previous thing's rows, not even for one frame: it clears
+  and shows skeletons, or shows its own cached rows. Only the same list under changed filters keeps
+  its rows, as stale results (below).
+- **Stale results**: rows that belong to the same list under the previous filters stay on screen
+  at `opacity-50` (200 ms `transition-opacity`) until the new answer replaces them, with an inline
+  throbber next to the heading. Never an empty-state message ("Geen resultaten") while an answer is
+  still on its way: "nothing" is only said about an answer.
+- **Search as you type**: from the first keystroke (the debounce included) the results panel shows
+  a "Zoeken…" line with an inline throbber in secondary text. With nothing to show yet, three
+  skeleton rows follow it; with the previous text's results, those stay, dimmed as stale results.
+  A failed search shows the section error with "Opnieuw", never "Geen resultaten gevonden".
 - **Web tokens**: the placeholder colour is the `muma-skeleton` token (`bg-muma-skeleton`) and the
   pulse is the `skeleton-pulse` class in `src/app.css` (it stops under `prefers-reduced-motion`).
   Use `Skeleton.svelte` for a single block, `SkeletonRows.svelte` for track rows (TrackList
@@ -158,8 +176,9 @@
   on one stage a muted line (`#727272`, 12px) says it is taking longer than usual. After 20 s
   without the app, an outlined "Opnieuw proberen" pill reloads the page. The screen fades out
   (200 ms) once the app is mounted. It is never shown again during the session.
-- **Optimistic page shell**: a page that opens a thing (artist, album...) renders its header at
-  once from what the tapped link already knew: name, picture and action buttons. Only the sections
+- **Optimistic page shell**: a page that opens a thing (artist, album, feed, a song's versions...)
+  renders its header at once from what the tapped link already knew: name, picture and action
+  buttons. Only the sections
   that still need data show skeletons. Opened by URL with nothing known, the header itself is a
   skeleton, a round or square picture block and a title bar, with the same geometry as the real
   one. Server data always replaces what the link knew.
@@ -374,3 +393,16 @@ To maintain clean design governance and prevent ad-hoc style drift:
   with a retry, and the inline throbber, as described under Loading States above
   (`docs/designs/perceived-performance/`). The other entity pages (genre, label, festival, feeds,
   track versions, search) follow in their own issues and use the same components.
+
+- **Done** (2026-09-27, issues #110, #111, #99) — The feed pages (release radar, daily mixes) and
+  the song versions page use the optimistic page shell: the header from the tapped card or row,
+  skeleton rows under the rows that have already landed, and a section error with "Opnieuw" per
+  failed part. The song page's header gains the cover (`w-28 md:w-40`, `rounded-md`, the album
+  header's shadow) on the left of the title. The daily mixes page shows card-shaped skeletons
+  (`h-[150px] rounded-lg`) in its grid, and the track details sheet shows key/value skeleton rows
+  for the tags. Daily-mix cards follow the Hover-revealed actions rule under Cards.
+
+- **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
+  lineup lists and the search results page, dropdown and "more" modal follow Loading States: new
+  place clears to skeletons, same place dims stale results, search says "Zoeken…" until it has an
+  answer, and History, Starred and Memories load as skeleton sections.

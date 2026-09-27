@@ -43,6 +43,11 @@
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
+  import { fetchFirstTrackPage, fetchListPage, listKey, prefetchTrackList, trackListCache, trackListKey } from './trackListCache.js';
+  import SectionState from './loading/SectionState.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
+  import SkeletonTiles from './loading/SkeletonTiles.svelte';
+  import Throbber from './loading/Throbber.svelte';
   import ListEnd from './ListEnd.svelte';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
@@ -154,8 +159,33 @@
   let currentAlbumGenre = $state('');
   let currentAlbumSearch = $state('');
 
+  // The collection grids' (genres, labels...) own loading flag. The track list has its own
+  // below: one shared flag let a finished grid load mark a still-loading track list as done.
   let isLoading = $state(false);
   let seenKeys = new SvelteMap();
+
+  // What the track list shows while its answer is on its way (issue #109,
+  // docs/designs/perceived-performance/). `loading`: skeleton rows, because nothing on screen
+  // belongs to this place yet. `error`: the section's error line with a retry. `ready`: rows (or
+  // the empty state). `tracksStale` marks rows that belong to the same place under the previous
+  // filters: they stay, dimmed, until the new answer replaces them. A new place never keeps the
+  // previous place's rows -- that was the bug: the old genre's list under the new genre's name.
+  let tracksStatus = $state('ready');
+  let tracksStale = $state(false);
+  // A background refresh of rows that came from the cache, or of dimmed stale rows.
+  let tracksRefreshing = $state(false);
+  let tracksLoading = $state(false);
+  // The view the rows on screen belong to, and a counter that makes a late answer harmless.
+  let tracksPlace = null;
+  let tracksLoadSeq = 0;
+
+  // The search results page's artists and albums, kept apart from the Artists and Albums grids
+  // so neither shows the other's rows while its own answer is on its way (issue #112).
+  let searchArtists = $state([]);
+  let searchAlbums = $state([]);
+  let searchArtistsStatus = $state('ready');
+  let searchAlbumsStatus = $state('ready');
+  let searchSeq = 0;
 
   let tracksController;
   let albumsController;
@@ -189,24 +219,30 @@
    * a genre, label, podcast, festival, year or lineup, search -- without `offset`/`count`, which
    * the pager adds. One function, so the page and the queue it starts ask the same question.
    *
+   * `view` and `filters` exist for the press prefetch, which asks the question of a view that is
+   * not on screen yet, with the filters as they will be once it is.
+   *
+   * @param {string} [view] - Defaults to the view on screen.
+   * @param {{genre: string, year: string, query: string}} [filters] - The filter bar's genre,
+   *   year and search; default to the current ones.
    * @returns {Record<string, unknown>}
    */
-  function trackQueryParams() {
-    const argument = viewArgument(activeView);
+  function trackQueryParams(view = activeView, filters = { genre: currentGenre, year: currentYear, query: currentTrackSearch }) {
+    const argument = viewArgument(view);
     return {
       sort: currentSort,
       seed: currentSort === 'random' ? currentSeed : undefined,
       deduplicate: $deduplicateEnabled ? 'true' : undefined,
-      query: currentTrackSearch || undefined,
-      genre: currentGenre || (activeView.startsWith('genre:') ? argument : undefined),
-      label: activeView.startsWith('label:') ? argument : undefined,
-      podcast: activeView.startsWith('podcast:') ? argument : undefined,
-      festival: activeView.startsWith('festival:') ? argument : undefined,
-      lineup: activeView.startsWith('lineup:') ? argument : undefined,
+      query: filters.query || undefined,
+      genre: filters.genre || (view.startsWith('genre:') ? argument : undefined),
+      label: view.startsWith('label:') ? argument : undefined,
+      podcast: view.startsWith('podcast:') ? argument : undefined,
+      festival: view.startsWith('festival:') ? argument : undefined,
+      lineup: view.startsWith('lineup:') ? argument : undefined,
       // The year view reuses the parameter the filter bar already drives. Seeding
       // `currentYear` from the route instead would not survive: resetTrackFiltersFor
       // clears it on every arrival at a new track view, before the first fetch.
-      year: currentYear || (activeView.startsWith('year:') ? argument : undefined),
+      year: filters.year || (view.startsWith('year:') ? argument : undefined),
       minRating: currentMinRating !== '0' ? currentMinRating : undefined,
       includeUnrated: includeUnrated ? 'true' : undefined,
       minQuality: currentMinQuality || undefined,
@@ -229,56 +265,200 @@
   );
 
   /**
-   * Loads tracks for the 'songs', 'sets', or 'genre' views with pagination.
+   * Puts a first page -- fresh or from the cache -- on screen, with where the list continues and
+   * the version keys it has folded together so far.
    *
-   * @param {boolean} [append=false] - Whether to append new results to the existing tracks.
+   * @param {{tracks: object[], nextOffset: number, hasMore: boolean, seen: Array<[string, object]>|null}} page
+   */
+  function applyFirstPage(page) {
+    tracks = page.tracks;
+    tracksHasMore = page.hasMore;
+    tracksOffset = page.nextOffset;
+    seenKeys = new SvelteMap(page.seen ?? []);
+  }
+
+  /**
+   * Loads the track list of the songs and sets views, a genre, label, podcast, festival, year or
+   * lineup, and the search results page.
+   *
+   * The first page goes through `trackListCache` (stale-while-revalidate): a list seen in the
+   * last few minutes is on screen at once and refreshed in the background, and a press on a card
+   * may already have started the request. Without a cached copy, a new place starts from skeleton
+   * rows and a filter change on the same place dims the rows it replaces (issue #109).
+   *
+   * @param {boolean} [append=false] - Load the next page onto the list instead.
    */
   async function loadAllTracks(append = false) {
     if (!$authParams) return;
-    if (!append) {
+    if (append) return loadMoreTracks();
+
+    const seq = ++tracksLoadSeq;
+    tracksController?.abort();
+    tracksController = new AbortController();
+    const signal = tracksController.signal;
+    tracksPagedMore = false;
+
+    const params = trackQueryParams();
+    const options = { pageSize, dedupe: $deduplicateEnabled };
+    const key = trackListKey(params, options);
+    const place = activeView;
+    const cached = trackListCache.peek(key);
+    if (cached) {
+      applyFirstPage(cached.value);
+      tracksStatus = 'ready';
+      tracksStale = false;
+    } else if (place !== tracksPlace || tracks.length === 0) {
+      tracks = [];
       tracksOffset = 0;
       tracksHasMore = true;
-      tracksPagedMore = false;
       seenKeys = new SvelteMap();
-      if (tracksController) {
-        tracksController.abort();
-      }
-      tracksController = new AbortController();
+      tracksStatus = 'loading';
+      tracksStale = false;
+    } else {
+      tracksStale = true;
+      tracksStatus = 'ready';
     }
-    if (!tracksHasMore) return;
+    tracksPlace = place;
+    if (cached?.fresh) {
+      tracksRefreshing = false;
+      tracksLoading = false;
+      return;
+    }
 
+    // Rows from the cache stay usable while they refresh: "load more" may go on from them.
+    const blocking = !cached;
+    tracksRefreshing = Boolean(cached) || tracksStale;
+    if (blocking) tracksLoading = true;
+    try {
+      const page = await trackListCache.load(
+        key,
+        () => fetchFirstTrackPage(params, { ...options, signal }),
+        { force: true }
+      );
+      // Another load started meanwhile, or the listener has added pages to the cached rows
+      // since: a refresh must not throw those away.
+      if (seq !== tracksLoadSeq || tracksPagedMore) return;
+      applyFirstPage(page);
+      tracksStatus = 'ready';
+    } catch (e) {
+      if (seq !== tracksLoadSeq || e.name === 'AbortError') return;
+      console.error('Failed to load tracks:', e);
+      // A refused call is not more to fetch: stop paging. Rows from the cache may stay, as a
+      // failed refresh never blanks a list; stale rows from other filters may not.
+      tracksHasMore = false;
+      if (!cached) {
+        tracks = [];
+        // Offline, the list is empty because nothing is downloaded, which the empty state
+        // explains; online it is a failure, which gets the section's retry.
+        tracksStatus = $offline ? 'ready' : 'error';
+      }
+    } finally {
+      if (seq === tracksLoadSeq) {
+        tracksStale = false;
+        tracksRefreshing = false;
+        if (blocking) tracksLoading = false;
+      }
+    }
+  }
+
+  /** Appends the next page of the track list on screen ("Meer laden", the scroll sentinel). */
+  async function loadMoreTracks() {
+    if (!tracksHasMore || tracksStatus !== 'ready') return;
+    const seq = tracksLoadSeq;
     const signal = tracksController?.signal;
-
-    console.log(`Loading all tracks, activeView=${activeView}, genre=${currentGenre}, sort=${currentSort}, year=${currentYear}, minRating=${currentMinRating}, offset=${tracksOffset}`);
-    isLoading = true;
-
+    tracksLoading = true;
     try {
       const page = await fetchSpotifyTracksPage(trackQueryParams(), tracksOffset, {
         pageSize,
         seen: $deduplicateEnabled ? seenKeys : null,
         signal
       });
+      if (seq !== tracksLoadSeq) return;
       tracksHasMore = page.hasMore;
       tracksOffset = page.nextOffset;
-      if (append) {
-        tracks = [...tracks, ...page.tracks];
-        tracksPagedMore = true;
-      } else {
-        tracks = page.tracks;
-      }
+      tracks = [...tracks, ...page.tracks];
+      tracksPagedMore = true;
     } catch (e) {
-      if (e.name === 'AbortError') return;
-      console.error("Failed to load tracks:", e);
-      // A refused call is not more to fetch: stop paging, and do not leave the previous
-      // view's list standing as if it were this one's answer.
+      if (seq !== tracksLoadSeq || e.name === 'AbortError') return;
+      console.error('Failed to load more tracks:', e);
       tracksHasMore = false;
-      if (!append) tracks = [];
     } finally {
-      if (!signal || !signal.aborted) {
-        isLoading = false;
-      }
+      if (seq === tracksLoadSeq) tracksLoading = false;
     }
   }
+
+  /**
+   * A finger (or mouse button) went down on a genre, label, podcast, festival, year or lineup
+   * card: start that list's first page, which the page then picks up from the cache. One request
+   * per press, never on hover or scroll (docs/designs/perceived-performance/, "Prefetch on press
+   * only"). The filters are the ones the view will have: arriving at a different list clears the
+   * filter bar's genre, year and search (`resetTrackFiltersFor`), returning to the same one does
+   * not.
+   *
+   * @param {string} view - e.g. `genre:Hardcore`.
+   */
+  function prefetchTrackView(view) {
+    if (!$authParams || $offline) return;
+    const filters = view === lastTrackView ? undefined : { genre: '', year: '', query: '' };
+    prefetchTrackList(trackQueryParams(view, filters), { pageSize, dedupe: $deduplicateEnabled });
+  }
+
+  /**
+   * Loads one section of the search results page -- its artists or its albums -- through the same
+   * cache as the track lists. The section shows skeleton tiles until its answer, and its own
+   * error and retry if that fails; the page's other sections never wait for it (issue #112).
+   *
+   * @param {'artists'|'albums'} kind
+   * @param {string} query
+   * @param {number} [seq] - The search this belongs to; a later search makes the answer moot.
+   */
+  function loadSearchSection(kind, query, seq = searchSeq) {
+    const isAlbums = kind === 'albums';
+    const method = isAlbums ? 'getAlbumList2' : 'getArtistList';
+    const path = isAlbums ? 'albumList2.album' : 'artistList.artist';
+    const params = isAlbums
+      ? { type: currentAlbumSort, size: pageSize, offset: 0, genre: currentAlbumGenre || undefined, query }
+      : { type: currentArtistSort, role: currentArtistRole, size: pageSize, offset: 0, query };
+    const show = (rows, status) => {
+      if (seq !== searchSeq) return;
+      if (isAlbums) {
+        searchAlbums = rows;
+        searchAlbumsStatus = status;
+      } else {
+        searchArtists = rows;
+        searchArtistsStatus = status;
+      }
+    };
+    const { cached, promise } = trackListCache.swr(
+      listKey(method, params),
+      () => fetchListPage(method, params, path),
+      (rows) => show(rows, 'ready')
+    );
+    if (cached === null) show([], 'loading');
+    promise.catch((e) => {
+      console.error(`Failed to search ${kind}:`, e);
+      if (cached === null) show([], $offline ? 'ready' : 'error');
+    });
+  }
+
+  /** Starts every section of the search results page for `query`, dropping any older search. */
+  function loadSearch(query) {
+    const seq = ++searchSeq;
+    loadAllTracks();
+    loadSearchSection('artists', query, seq);
+    loadSearchSection('albums', query, seq);
+  }
+
+  // Whether any section of the search results page is still waiting for its first answer or
+  // refreshing: the heading says "searching" meanwhile, and "No results" waits for all of them.
+  const searchPending = $derived(
+    tracksStatus === 'loading' || tracksRefreshing || searchArtistsStatus === 'loading' || searchAlbumsStatus === 'loading'
+  );
+  const searchEmpty = $derived(
+    !searchPending &&
+      tracksStatus === 'ready' && searchArtistsStatus === 'ready' && searchAlbumsStatus === 'ready' &&
+      tracks.length === 0 && searchArtists.length === 0 && searchAlbums.length === 0
+  );
 
   /**
    * Loads a list of albums with sorting, filtering, and pagination.
@@ -784,16 +964,14 @@
             currentTrackSearch = viewArgument(view);
             currentAlbumSearch = currentTrackSearch;
             currentArtistSearch = currentTrackSearch;
-            loadAllTracks();
-            loadAlbums();
-            loadArtists();
+            loadSearch(currentTrackSearch);
         }
       });
     }
   });
 
   $effect(() => {
-    if (sentinel && tracksHasMore && !isLoading && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:') || activeView.startsWith('search:'))) {
+    if (sentinel && tracksHasMore && !tracksLoading && tracksStatus === 'ready' && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('podcast:') || activeView.startsWith('festival:') || activeView.startsWith('year:') || activeView.startsWith('lineup:') || activeView.startsWith('search:'))) {
       const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
           loadAllTracks(true);
@@ -930,6 +1108,10 @@
                 </button>
               {/if}
             {/if}
+            {#if tracksRefreshing}
+              <!-- The rows below are on screen but a newer answer is on its way. -->
+              <span class="text-muma-spotify-text"><Throbber /></span>
+            {/if}
             {#if $mumaUser && (activeView === 'songs' || activeView === 'sets' || activeView.startsWith('genre:') || activeView.startsWith('label:') || activeView.startsWith('year:'))}
               <!-- Saves this list as a home tile. Only the views whose filters a tile can
                    carry offer it; a podcast or a lineup has no cluster in the tile format. -->
@@ -947,13 +1129,20 @@
         </h2>
         <FilterBar view="songs" bind:genre={currentGenre} bind:sort={currentSort} bind:year={currentYear} bind:search={currentTrackSearch} bind:minRating={currentMinRating} bind:includeUnrated={includeUnrated} bind:minQuality={currentMinQuality} bind:form={currentForm} showForm={$viewMode === 'sets'} showGenre={!activeView.startsWith('genre:') && !activeView.startsWith('label:') && !activeView.startsWith('podcast:')} showYear={!activeView.startsWith('year:')} onchange={handleFilterChange} />
     </div>
-    {#if isLoading && tracks.length === 0}
-        <p>{$t('common.loading')}</p>
-    {:else}
+    <!-- The header above comes from the route, so it names the new place at once; the rows
+         below never belong to the previous place (issue #109). -->
+    <SectionState status={tracksStatus} onretry={() => loadAllTracks()}>
+      {#snippet skeleton()}
+        <SkeletonRows count={10} />
+      {/snippet}
         {#if tracks.length > 0}
-            <TrackList {tracks} sourceName={listSourceName} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
+            <!-- Rows of the same place under the previous filters: kept, dimmed, until the
+                 new answer replaces them (styleguide, Loading States: Stale results). -->
+            <div class="transition-opacity duration-200 {tracksStale ? 'opacity-50' : ''}" aria-busy={tracksStale} data-testid="track-list-rows" data-stale={tracksStale ? 'true' : undefined}>
+                <TrackList {tracks} sourceName={listSourceName} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
+            </div>
             <div bind:this={sentinel}>
-                <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={isLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
+                <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={tracksLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
             </div>
         {:else if $offline}
             <!-- The list is empty and there is no connection, so the reason is
@@ -965,7 +1154,7 @@
                 <p class="text-sm opacity-60">{$viewMode === 'sets' ? $t('dashboard.noSetsHelp') : $t('dashboard.noTracksHelp')}</p>
             </div>
         {/if}
-    {/if}
+    </SectionState>
   {:else if activeView === 'albums'}
     <div class="flex flex-col gap-4 mb-6">
       <h2 class="text-2xl font-bold m-0">{$t('nav.albums')}</h2>
@@ -1020,6 +1209,7 @@
       onfavorite={(value) => toggleFavorite(value)}
       emptyText={$t('dashboard.noGenres')}
       onselect={(item) => (activeView = `genre:${item.value}`)}
+      onpress={(item) => prefetchTrackView(`genre:${item.value}`)}
     />
   {:else if activeView === 'podcasts'}
     <CollectionGrid
@@ -1030,6 +1220,7 @@
       loading={isLoading}
       emptyText={$t('collection.noPodcasts')}
       onselect={(item) => (activeView = `podcast:${item.value}`)}
+      onpress={(item) => prefetchTrackView(`podcast:${item.value}`)}
     />
   {:else if activeView === 'labels'}
     <CollectionGrid
@@ -1043,6 +1234,7 @@
       favoriteAriaLabel={$t('collection.toggleFavoriteLabel')}
       emptyText={$t('dashboard.noLabels')}
       onselect={(item) => (activeView = `label:${item.value}`)}
+      onpress={(item) => prefetchTrackView(`label:${item.value}`)}
     />
   {:else if activeView === 'festivals'}
     <CollectionGrid
@@ -1054,6 +1246,7 @@
       emptyText={$t('collection.noFestivals')}
       emptyHint={tagHint('FESTIVAL')}
       onselect={(item) => (activeView = `festival:${item.value}`)}
+      onpress={(item) => prefetchTrackView(`festival:${item.value}`)}
     />
   {:else if activeView === 'years'}
     <CollectionGrid
@@ -1065,6 +1258,7 @@
       emptyText={$t('collection.noYears')}
       emptyHint={tagHint('YEAR')}
       onselect={(item) => (activeView = `year:${item.value}`)}
+      onpress={(item) => prefetchTrackView(`year:${item.value}`)}
     />
   {:else if activeView === 'lineups' || activeView.startsWith('lineups:')}
     {#if lineupCrumbs.length > 0}
@@ -1093,6 +1287,7 @@
       emptyText={$t('collection.noLineups')}
       emptyHint={$t('collection.noLineupsHelp')}
       onselect={openLineupEntry}
+      onpress={(entry) => { if (!entry.hasChildren) prefetchTrackView(`lineup:${entry.value}`); }}
     />
   {:else if activeView === 'artists'}
     <div class="flex flex-col gap-4 mb-6">
@@ -1242,81 +1437,109 @@
   {:else if activeView.startsWith('song:')}
     <SongView workId={viewArgument(activeView)} onnavigate={(v) => activeView = v} />
   {:else if activeView.startsWith('search:')}
-    <div class="flex flex-col gap-8">
-      <h2 class="text-2xl font-bold m-0">{$viewMode === 'sets' ? $t('dashboard.searchResultsSets', { query: viewArgument(activeView) }) : $t('dashboard.searchResultsTracks', { query: viewArgument(activeView) })}</h2>
-      
-      {#if tracks.length > 0}
+    <!-- Every section loads on its own and says so: skeletons until its first answer, its own
+         error line with a retry, and "No results" only once all three have answered empty
+         (issue #112). Rows of an earlier search never stand under this one's heading. -->
+    <div class="flex flex-col gap-8" aria-busy={searchPending}>
+      <h2 class="text-2xl font-bold m-0 flex items-center gap-3">
+        <span>{$viewMode === 'sets' ? $t('dashboard.searchResultsSets', { query: viewArgument(activeView) }) : $t('dashboard.searchResultsTracks', { query: viewArgument(activeView) })}</span>
+        {#if searchPending}
+          <span class="text-muma-spotify-text text-sm font-normal flex items-center gap-2" data-testid="search-pending">
+            <Throbber label={$t('search.searching')} />
+            <span class="hidden sm:inline">{$t('search.searching')}</span>
+          </span>
+        {/if}
+      </h2>
+
+      {#if tracksStatus !== 'ready' || tracks.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$viewMode === 'sets' ? $t('dashboard.sets') : $t('dashboard.tracks')}</h3>
-          <TrackList {tracks} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
-          <!-- Search results page like any other track list, and continue in the queue the same way
-               (docs/designs/list-continuation/). -->
-          <div bind:this={sentinel}>
-            <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={isLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
-          </div>
+          <SectionState status={tracksStatus} onretry={() => loadAllTracks()}>
+            {#snippet skeleton()}
+              <SkeletonRows count={5} />
+            {/snippet}
+            <div class="transition-opacity duration-200 {tracksStale ? 'opacity-50' : ''}" data-testid="search-track-rows">
+              <TrackList {tracks} continuation={tracksContinuation} onnavigate={(v) => activeView = v} />
+            </div>
+            <!-- Search results page like any other track list, and continue in the queue the same way
+                 (docs/designs/list-continuation/). -->
+            <div bind:this={sentinel}>
+              <ListEnd hasMore={tracksHasMore} ended={tracksPagedMore} loading={tracksLoading} onmore={() => loadAllTracks(true)} testid="tracks-load-more" />
+            </div>
+          </SectionState>
         </section>
       {/if}
 
-      {#if artists.length > 0}
+      {#if searchArtistsStatus !== 'ready' || searchArtists.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.artists')}</h3>
-          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
-            {#each artists as artist (artist.id)}
-              <div
-                role="button"
-                tabindex="0"
-                class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-                onpointerdown={() => pressEntity('artist', artist)}
-              onclick={() => openEntity((v) => activeView = v, 'artist', artist)}
-                onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'artist', artist)}
-              >
-                  <img
-                    src={getArtistImageUrl(artist, $authParams)}
-                    alt={artist.name}
-                    class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                    onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
-                  />
-                  <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
-                  <span class="text-sm text-muma-spotify-text">{$t('common.artist')}</span>
-              </div>
-            {/each}
-          </div>
+          <SectionState status={searchArtistsStatus} onretry={() => loadSearchSection('artists', viewArgument(activeView))}>
+            {#snippet skeleton()}
+              <SkeletonTiles count={6} round />
+            {/snippet}
+            <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
+              {#each searchArtists as artist (artist.id)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
+                  onpointerdown={() => pressEntity('artist', artist)}
+                  onclick={() => openEntity((v) => activeView = v, 'artist', artist)}
+                  onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'artist', artist)}
+                >
+                    <img
+                      src={getArtistImageUrl(artist, $authParams)}
+                      alt={artist.name}
+                      class="w-full aspect-square object-cover rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                      onerror={(e) => e.target.src = '/images/unknown-artist.svg'}
+                    />
+                    <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{artist.name}</span>
+                    <span class="text-sm text-muma-spotify-text">{$t('common.artist')}</span>
+                </div>
+              {/each}
+            </div>
+          </SectionState>
         </section>
       {/if}
 
-      {#if albums.length > 0}
+      {#if searchAlbumsStatus !== 'ready' || searchAlbums.length > 0}
         <section>
           <h3 class="text-xl font-bold mb-4">{$t('nav.albums')}</h3>
-          <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
-            {#each albums as album (album.id)}
-              <div
-                role="button"
-                tabindex="0"
-                class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
-                onpointerdown={() => pressEntity('album', album)}
+          <SectionState status={searchAlbumsStatus} onretry={() => loadSearchSection('albums', viewArgument(activeView))}>
+            {#snippet skeleton()}
+              <SkeletonTiles count={6} />
+            {/snippet}
+            <div class="grid grid-cols-3 gap-3 md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] md:gap-6">
+              {#each searchAlbums as album (album.id)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="bg-muma-spotify-panel p-2 md:p-4 rounded-lg flex flex-col gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light"
+                  onpointerdown={() => pressEntity('album', album)}
                   onclick={() => openEntity((v) => activeView = v, 'album', album)}
-                onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'album', album)}
-              >
-                  <img
-                    src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
-                    alt={album.name}
-                    class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-                    onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
-                  />
-                  <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
-                  <ArtistList
-                    artist={album.artist}
-                    artistId={album.artistId}
-                    artists={album.albumArtists}
-                    onnavigate={(v) => activeView = v}
-                  />
-              </div>
-            {/each}
-          </div>
+                  onkeydown={(e) => e.key === 'Enter' && openEntity((v) => activeView = v, 'album', album)}
+                >
+                    <img
+                      src={album.coverArt ? restUrl(`/rest/getCoverArt?id=${album.coverArt}&size=300&${$authParams}`) : '/images/spotify-fallback.svg'}
+                      alt={album.name}
+                      class="w-full aspect-square object-cover rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+                      onerror={(e) => e.target.src = '/images/spotify-fallback.svg'}
+                    />
+                    <span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis">{album.name}</span>
+                    <ArtistList
+                      artist={album.artist}
+                      artistId={album.artistId}
+                      artists={album.albumArtists}
+                      onnavigate={(v) => activeView = v}
+                    />
+                </div>
+              {/each}
+            </div>
+          </SectionState>
         </section>
       {/if}
 
-      {#if tracks.length === 0 && artists.length === 0 && albums.length === 0}
+      {#if searchEmpty}
         {#if $offline}
           <!-- Search does reach the device; finding nothing there means nothing
                matching is downloaded, which is not "try another term". -->

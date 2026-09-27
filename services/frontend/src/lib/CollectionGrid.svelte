@@ -26,6 +26,9 @@
     emptyText,
     emptyHint = null,
     onselect,
+    // Called on pointerdown with the card's item, so the page it opens can start loading
+    // before the finger lifts (docs/designs/perceived-performance/). Optional.
+    onpress = null,
     context = {}
   } = $props();
 
@@ -95,12 +98,14 @@
         role="button"
         tabindex="0"
         class="bg-muma-spotify-panel p-3 md:p-6 rounded-lg flex flex-col items-center justify-center gap-1.5 md:gap-3 cursor-pointer transition-colors hover:bg-muma-spotify-light aspect-square relative group"
+        onpointerdown={() => onpress?.(item)}
         onclick={() => open(item)}
         onkeydown={(e) => e.key === 'Enter' && open(item)}
       >
         {#if onfavorite}
           <button
             class="absolute top-3 right-3 p-2 bg-black/40 rounded-full text-brand transition-all hover:scale-110 active:scale-95 {favorites.includes(item.value) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
+            onpointerdown={(e) => e.stopPropagation()}
             onclick={(e) => { e.stopPropagation(); onfavorite(item.value); }}
             aria-label={favoriteAriaLabel ?? $t('dashboard.toggleFavorite')}
           >

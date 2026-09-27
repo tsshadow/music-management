@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { resetFeedsCache } from "../../src/lib/feeds.js";
+import { trackListCache } from "../../src/lib/trackListCache.js";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import Dashboard from "../../src/lib/Dashboard.svelte";
@@ -154,6 +155,9 @@ describe("Dashboard", () => {
     // The feed listing is fetched once per session and remembered; a test that counts
     // that request must start without the previous test's answer.
     resetFeedsCache();
+    // A list is cached per query for a few minutes; each test starts without the previous
+    // test's answers.
+    trackListCache.clear();
     globalThis.fetch = subsonic();
   });
 

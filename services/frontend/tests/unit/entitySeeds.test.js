@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  openSong,
+  songSeedFromTrack,
   MAX_SEEDS,
   albumSeedFromTrack,
   artistSeedFromTrack,
@@ -118,5 +120,36 @@ describe("entitySeeds", () => {
 
     expect(() => pressEntity("throws", { id: 1 })).not.toThrow();
     expect(() => pressEntity("rejects", { id: 1 })).not.toThrow();
+  });
+});
+
+describe("song seeds (issue #111)", () => {
+  beforeEach(() => clearSeeds());
+
+  it("seeds the versions page with the row's title, artist and cover, then navigates", () => {
+    const navigate = vi.fn();
+    openSong(navigate, {
+      workId: 7,
+      title: "Raise Your Fist",
+      artist: "Angerfist",
+      artistId: "ar-1",
+      coverArt: "al-1",
+    });
+
+    expect(navigate).toHaveBeenCalledWith("song:7");
+    expect(peekSeed("song", "7")).toEqual({
+      name: "Raise Your Fist",
+      artist: "Angerfist",
+      artistId: "ar-1",
+      coverArt: "al-1",
+    });
+  });
+
+  it("does nothing for a track without a work id", () => {
+    const navigate = vi.fn();
+    openSong(navigate, { title: "Loose file" });
+
+    expect(songSeedFromTrack({ title: "Loose file" })).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

@@ -153,8 +153,15 @@ export const SONGS_BY_PATH_LIMIT = 100;
  * A POST rather than a GET, and not for style: a hundred paths run to several kilobytes, which is
  * well past where a request line starts meeting proxy buffer limits. The credentials stay in the
  * query string; LMS reads its parameters out of both.
+ *
+ * `failed` is true when LMS could not be asked or refused: the page offers a retry for exactly
+ * that chunk, rather than counting its hundred paths as "not on the server".
+ *
+ * @param {string[]} paths - At most `SONGS_BY_PATH_LIMIT`.
+ * @param {string} authParams
+ * @returns {Promise<{songs: Object[], failed: boolean}>}
  */
-async function resolveChunk(paths, authParams) {
+export async function resolveFeedChunk(paths, authParams) {
   const body = new URLSearchParams();
   paths.forEach((path) => body.append("path", path));
 
@@ -167,27 +174,57 @@ async function resolveChunk(paths, authParams) {
 
     const data = await response.json();
     const songs = data["subsonic-response"]?.songsByPath?.song ?? [];
-    return Array.isArray(songs) ? songs : [songs];
+    return { songs: Array.isArray(songs) ? songs : [songs], failed: false };
   } catch (err) {
     console.error("Failed to resolve a feed to songs:", err);
-    return [];
+    return { songs: [], failed: true };
   }
 }
 
 /**
- * Turn paths into songs, `SONGS_BY_PATH_LIMIT` at a time and in the order asked.
+ * The paths cut into `SONGS_BY_PATH_LIMIT`-sized chunks, in order.
  *
- * Sequential rather than parallel: the chunks go through the same serial `/muma` gate anyway,
- * and the order of the answer is the order of the feed.
+ * @param {string[]} paths
+ * @returns {string[][]}
  */
-async function resolveSongs(paths, authParams) {
-  const songs = [];
+export function chunkPaths(paths) {
+  const chunks = [];
   for (let start = 0; start < paths.length; start += SONGS_BY_PATH_LIMIT) {
-    songs.push(
-      ...(await resolveChunk(paths.slice(start, start + SONGS_BY_PATH_LIMIT), authParams)),
-    );
+    chunks.push(paths.slice(start, start + SONGS_BY_PATH_LIMIT));
   }
-  return songs;
+  return chunks;
+}
+
+/**
+ * Turn paths into songs, `SONGS_BY_PATH_LIMIT` at a time, every chunk at once.
+ *
+ * Parallel since issue #110: `/rest` calls do not pass the serial `/muma` gate (`mumaGate.js`),
+ * and a feed is at most two chunks (`feeds_size` tops out at 200), so the cost to LMS is one extra
+ * request in flight, not a burst. The order of the answer is still the order of the feed: each
+ * chunk keeps its index and the songs are joined by it, never by arrival. `onChunk(index, result)`
+ * fires as each chunk lands, for a page that draws the rows before the rest have come back.
+ *
+ * @param {string[]} paths
+ * @param {string} authParams
+ * @param {(index: number, result: {songs: Object[], failed: boolean}) => void} [onChunk]
+ * @returns {Promise<{songs: Object[], unresolved: number, failedChunks: number}>}
+ */
+async function resolveSongs(paths, authParams, onChunk) {
+  const chunks = chunkPaths(paths);
+  const results = await Promise.all(
+    chunks.map(async (chunk, index) => {
+      const result = await resolveFeedChunk(chunk, authParams);
+      onChunk?.(index, result);
+      return result;
+    }),
+  );
+  let unresolved = 0;
+  let failedChunks = 0;
+  results.forEach((result, index) => {
+    if (result.failed) failedChunks += 1;
+    else unresolved += unresolvedCount(chunks[index], result.songs);
+  });
+  return { songs: results.flatMap((result) => result.songs), unresolved, failedChunks };
 }
 
 /** The library-relative paths of a feed answer, in its order, blanks left out. */
@@ -216,7 +253,7 @@ export async function loadFeed(slug, authParams, limit) {
   const paths = await feedPaths(slug, limit);
   if (paths.length === 0) return [];
 
-  return resolveSongs(paths, authParams);
+  return (await resolveSongs(paths, authParams)).songs;
 }
 
 /**
@@ -235,23 +272,56 @@ export async function loadFeed(slug, authParams, limit) {
  * @param {number} [limit]
  * @returns {Promise<{state: string, title: string|null, subtitle: string|null,
  *   hardnessBand: [number, number]|null, relaxedTo: (number|string|null),
- *   filledFromUnknown: number|null, nextOffset: number|null, unresolved: number, tracks: Object[]}>}
+ *   filledFromUnknown: number|null, nextOffset: number|null, unresolved: number,
+ *   failedChunks: number, tracks: Object[]}>}
  */
 export async function loadFeedDetail(slug, authParams, limit) {
-  const feed = await fetchFeed(slug, limit);
-  const paths = pathsOf(feed);
-  const songs = authParams && paths.length > 0 ? await resolveSongs(paths, authParams) : [];
+  return streamFeedDetail(slug, authParams, { limit });
+}
 
-  return {
+/**
+ * `loadFeedDetail`, told as it happens -- the feed page's progressive load (issue #110).
+ *
+ * `onHeader` fires as soon as MuMa's answer is in, before a single song is resolved: the title,
+ * subtitle and band line, and `chunks`, the paths cut the way they will be resolved, so the page
+ * can size its skeleton. Then `onChunk(index, {songs, failed})` fires for each chunk as LMS
+ * answers it, in whatever order that happens; the chunks are all asked at once. The promise
+ * resolves with the same object `loadFeedDetail` returns once every chunk has settled.
+ *
+ * `unresolved` only counts chunks that answered: a chunk that failed is `failedChunks`, which a
+ * page offers to retry (`resolveFeedChunk`) instead of reporting a hundred missing files.
+ *
+ * @param {string} slug
+ * @param {string} authParams
+ * @param {{limit?: number,
+ *   onHeader?: (header: Object) => void,
+ *   onChunk?: (index: number, result: {songs: Object[], failed: boolean}) => void}} [handlers]
+ * @returns {ReturnType<typeof loadFeedDetail>}
+ */
+export async function streamFeedDetail(slug, authParams, { limit, onHeader, onChunk } = {}) {
+  const feed = await fetchFeed(slug, limit);
+  const paths = authParams ? pathsOf(feed) : [];
+  const header = {
     state: feed.state,
-    unresolved: unresolvedCount(paths, songs),
     title: feed.title ?? null,
     subtitle: feed.subtitle ?? null,
     hardnessBand: feed.hardness_band ?? null,
     relaxedTo: feed.relaxed_to ?? null,
     filledFromUnknown: feed.filled_from_unknown ?? null,
     nextOffset: nextOffsetOf(feed),
-    tracks: songs,
+  };
+  onHeader?.({ ...header, chunks: chunkPaths(paths) });
+
+  const resolved =
+    paths.length > 0
+      ? await resolveSongs(paths, authParams, onChunk)
+      : { songs: [], unresolved: 0, failedChunks: 0 };
+
+  return {
+    ...header,
+    unresolved: resolved.unresolved,
+    failedChunks: resolved.failedChunks,
+    tracks: resolved.songs,
   };
 }
 
@@ -285,12 +355,19 @@ export async function loadFeedPage(slug, authParams, offset) {
   const feed = await fetchFeed(slug, undefined, offset);
   if (feed.state === "error")
     return { tracks: [], nextOffset: offset, unresolved: 0, failed: true };
-  const paths = pathsOf(feed);
-  const tracks = authParams && paths.length > 0 ? await resolveSongs(paths, authParams) : [];
+  const paths = authParams ? pathsOf(feed) : [];
+  const resolved =
+    paths.length > 0
+      ? await resolveSongs(paths, authParams)
+      : { songs: [], unresolved: 0, failedChunks: 0 };
+  // LMS failing to answer is a failed page too, not a page of missing files: the caller keeps
+  // its continuation and the next tap asks for the same page again.
+  if (resolved.failedChunks > 0)
+    return { tracks: [], nextOffset: offset, unresolved: 0, failed: true };
   return {
-    tracks,
+    tracks: resolved.songs,
     nextOffset: nextOffsetOf(feed),
-    unresolved: unresolvedCount(paths, tracks),
+    unresolved: resolved.unresolved,
     failed: false,
   };
 }

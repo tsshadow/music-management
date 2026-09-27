@@ -6,12 +6,16 @@
   import TrackList from './TrackList.svelte';
   import { listOf, subsonicJson } from './subsonic.js';
   import { startQueue } from './queue.js';
+  import SectionState from './loading/SectionState.svelte';
+  import SkeletonRows from './loading/SkeletonRows.svelte';
 
   const { onnavigate } = $props();
   let tracks = $state([]);
   let albums = $state([]);
   let artists = $state([]);
   let isLoading = $state(true);
+  // The request failed: the body offers a retry instead of claiming nothing is starred.
+  let failed = $state(false);
 
   /**
    * Loads all starred items from the server.
@@ -19,6 +23,7 @@
   async function loadStarred() {
     if (!$authParams) return;
     isLoading = true;
+    failed = false;
     try {
       const data = await subsonicJson('getStarred2');
       tracks = listOf(data, 'starred2.song');
@@ -26,6 +31,7 @@
       artists = listOf(data, 'starred2.artist');
     } catch (e) {
       console.error("Failed to load starred items:", e);
+      failed = true;
     } finally {
       isLoading = false;
     }
@@ -79,8 +85,17 @@
        {/if}
      </div>
 
-     {#if isLoading}
-        <div class="text-muma-spotify-text p-12 text-center">{$t('common.loading')}</div>
+     <!-- The header above is known without the server; only the body waits for it, as skeleton
+          rows under the songs heading (issue #112, styleguide Loading States). -->
+     {#if isLoading || failed}
+        <section class="mb-12">
+          <h2 class="text-2xl font-bold mb-4">{$t('nav.songs')}</h2>
+          <SectionState status={failed ? 'error' : 'loading'} onretry={loadStarred}>
+            {#snippet skeleton()}
+              <SkeletonRows count={8} />
+            {/snippet}
+          </SectionState>
+        </section>
      {:else}
         {#if tracks.length > 0}
           <section class="mb-12">

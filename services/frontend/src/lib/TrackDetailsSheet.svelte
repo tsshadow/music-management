@@ -1,5 +1,5 @@
 <script>
-  import { openEntity, seedFromTrack } from './entitySeeds.js';
+  import { openEntity, openSong, seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { authParams, restUrl } from './store.js';
   import ArtistList from './ArtistList.svelte';
@@ -12,6 +12,7 @@
   import { fileName, folderOf, formatSummary, hasFileDetails, tagRows } from './trackFile.js';
   import { fetchTrackDetails } from './trackDetails.js';
   import { platform as defaultPlatform } from './platform/index.js';
+  import Skeleton from './loading/Skeleton.svelte';
 
   /**
    * Everything we know about one track, as a bottom sheet -- the web
@@ -131,12 +132,19 @@
    * asked when the sheet opens rather than when the track starts: a listener
    * opens this for a fraction of the tracks they play. `none` (MuMa never
    * scanned the file) renders nothing; `error` says MuMa could not be reached,
-   * because an empty section would read as "this file has no tags".
+   * because an empty section would read as "this file has no tags", and offers
+   * a retry. While it loads, the section is skeleton rows in the shape of the
+   * list that is coming (issue #111); the rest of the sheet never waits for it.
    */
   let tagState = $state('loading');
   let mumaDetails = $state(null);
+  /** Bumped by the retry pill; the effect below re-runs on it. */
+  let tagAttempt = $state(0);
+  // Label widths for the skeleton rows, so they read as a key/value list.
+  const TAG_SKELETON_WIDTHS = [['w-14', 'w-40'], ['w-10', 'w-28'], ['w-16', 'w-48'], ['w-12', 'w-24']];
   $effect(() => {
     const path = track?.path;
+    void tagAttempt;
     let live = true;
     tagState = 'loading';
     mumaDetails = null;
@@ -263,9 +271,21 @@
       <div class="flex flex-col gap-1" data-testid="tag-details">
         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-muma-spotify-muted">{$t('track.tags')}</span>
         {#if tagState === 'loading'}
-          <span class="text-xs text-muma-spotify-muted">{$t('track.tagsLoading')}</span>
+          <div class="flex flex-col gap-2 py-0.5" role="status" aria-label={$t('track.tagsLoading')} data-testid="tags-skeleton">
+            {#each TAG_SKELETON_WIDTHS as [key, value] (key + value)}
+              <div class="flex gap-3"><Skeleton class="h-3 {key}" /><Skeleton class="h-3 {value}" /></div>
+            {/each}
+          </div>
         {:else if tagState === 'error'}
-          <span class="text-xs text-muma-spotify-muted" data-testid="tags-unavailable">{$t('track.tagsUnavailable')}</span>
+          <!-- Styleguide, Loading States: a section error is one muted line and the "Opnieuw" pill. -->
+          <div class="flex flex-col items-start gap-2">
+            <span class="text-xs text-muma-spotify-muted" data-testid="tags-unavailable">{$t('track.tagsUnavailable')}</span>
+            <button
+              class="bg-transparent border border-muma-spotify-muted text-white px-6 py-1.5 rounded-[24px] text-xs font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]"
+              data-testid="tags-retry"
+              onclick={() => tagAttempt++}
+            >{$t('common.retry')}</button>
+          </div>
         {:else}
           <dl class="details-list m-0 text-xs">
             {#each rows as row (row.key + row.value)}
@@ -292,7 +312,7 @@
     </div>
 
     <div class="details-actions flex flex-col">
-      {#if track.workId}<button onclick={() => navigate(`song:${track.workId}`)}>{$t('track.versions')}</button>{/if}
+      {#if track.workId}<button onclick={() => openSong(navigate, track)}>{$t('track.versions')}</button>{/if}
       {#if hasLyrics}<button onclick={() => onlyrics?.()}>{$t('track.lyrics')}</button>{/if}
       <button onclick={() => onplaynext?.()}>{$t('track.playNext')}</button>
       <button onclick={() => onaddqueue?.()}>{$t('track.addToQueue')}</button>

@@ -142,6 +142,62 @@ changes, so a second account on the same device never sees the first one's star 
   `SkeletonRows` while `getAlbum` is pending, with SWR through `albumKey`.
 - `getAlbumInfo2` starts in parallel with `getAlbum` instead of after it.
 
+**Feeds (`FeedView.svelte`, issue #110)**
+
+- `feeds.js` gains `streamFeedDetail(slug, auth, { limit, onHeader, onChunk })`. `onHeader` fires
+  as soon as `GET /api/feeds/{slug}` answers, with the title/subtitle/band numbers,
+  `nextOffset` and `chunks` (the paths cut into `SONGS_BY_PATH_LIMIT` = 100). The chunks are then
+  resolved **in parallel** (they were sequential), each reporting `onChunk(index, {songs, failed})`
+  as it lands; the joined result keeps chunk order, never arrival order. `loadFeedDetail` is
+  `streamFeedDetail` without handlers and gains `failedChunks`. A chunk that fails is no longer
+  counted as `unresolved`; `loadFeedPage` reports a page with a failed chunk as `failed` so its
+  caller keeps the continuation. `resolveFeedChunk(paths, auth)` is exported for a retry.
+- Why parallel is safe: `getSongsByPath` goes to `/rest`, which does not pass the serial MuMa gate,
+  and a feed is at most two chunks (`feeds_size` ≤ 200), so the peak on LMS is two requests.
+- The page holds one entry per chunk (`loading` | `ready` | `error`). The list shows every
+  answered chunk up to the first one still loading (a failed one is skipped, not waited on), with
+  `SkeletonRows` for what is still loading and a `SectionState` error with a per-chunk retry. A
+  failed feed answer (`state: "error"`) is a `SectionState` error with a retry of the whole load,
+  instead of the "nothing here" copy it used to share with an empty feed.
+- Header: `detail.title ?? seed.name ?? fixed copy (radar, classic daily mix)`; with none of those
+  a skeleton bar. The subtitle prefers the fixed copy over the seed, because the Home shelf's
+  radar card carries its own placeholder text. `DailyMixCard` seeds `feed:<slug>` with `name` and
+  `subtitle` (`subtitle` is a new seed field) before it navigates.
+- The unresolved count sums the answered chunks' missing paths plus "Meer laden" pages. "Meer
+  laden" only appears once every chunk has answered. The queue continuation is null until then, so
+  a row tapped mid-load cannot start a queue that skips the chunk still loading. Play pressed while
+  loading shows a `Throbber` and starts once the first page is whole.
+- SWR: a whole first page (no failed chunk) is stored under `feedKey(slug)`. A revisit renders it
+  at once; a stale one refreshes in the background with `loadFeedDetail` and is swapped in only if
+  the listener has not used "Meer laden" meanwhile. `DailyMixCard`'s play button reads and fills
+  the same entry.
+- The daily mixes page shows five card-shaped skeletons instead of "Laden...".
+
+**Song versions (`SongView.svelte`, issue #111)**
+
+- `openSong(navigate, track)` in `entitySeeds.js` seeds `song:<workId>` with the row's title
+  (`name`), `artist`, `artistId` and `coverArt`. TrackList's versions button, the track details
+  sheet's "Versies" and Now Playing's versions button use it.
+- `versions.js` `loadVersions(workId, { max, onPage })` calls `onPage(soFar, done)` after each
+  page. The page draws each page as it lands, with `SkeletonRows` under it while more are coming
+  and a `Throbber` next to the running count.
+- Header: the version marked canonical once seen; before that the seed (the row that was tapped,
+  usually that canonical) rather than whichever version came first; with neither, skeleton cover,
+  title and artist. The header now carries the cover.
+- A failed load keeps the pages that did arrive and shows the error line with "Opnieuw" (a forced
+  reload). A whole list is cached under `songVersionsKey(workId)`; a revisit renders it at once.
+
+**Track details (`TrackDetailsSheet.svelte`, issue #111)**
+
+- The sheet already drew everything from the track at once. The tags section (the one MuMa call)
+  now shows key/value skeleton rows instead of "Tags ophalen…", and its error line gains an
+  "Opnieuw" pill that re-runs the fetch.
+
+**Daily-mix card play button (issue #99)**
+
+- Visible on `pointer-coarse` (always, 48px), revealed on hover or `focus-visible` otherwise. The
+  screenshot projects run without touch emulation, so their references do not change.
+
 **Link sites seeded in this MR:**
 
 - `ArtistList` (every track row's artist, the player and Now Playing) and the TrackList album cells.
@@ -151,6 +207,70 @@ changes, so a second account on the same device never sees the first one's star 
 - Now Playing's and the track sheet's "go to artist/album".
 
 A link that is not seeded still works: it gets the no-seed skeleton header.
+
+### 6. Tag lists and search (issues #109, #112)
+
+**Tag track lists (`Dashboard.svelte`)**: songs, sets, `genre:`, `label:`, `podcast:`,
+`festival:`, `year:`, `lineup:`.
+
+- The heading is the route argument, so the name is right from the first frame. There is nothing to
+  seed: the link *is* the name.
+- `tracksStatus` (`loading` | `error` | `ready`) drives a `SectionState` with `SkeletonRows`
+  (10). The track list has its own `tracksLoading` flag; the collection grids keep `isLoading`.
+  Sharing one let a finished grid load mark the track list done.
+- `loadAllTracks()` decides what stays on screen before it asks:
+  - a cached copy of the exact query: shown at once (`ready`), refreshed in the background unless
+    fresh;
+  - a different place (`activeView` changed), or nothing on screen: rows cleared, `loading`;
+  - the same place under new filters: rows kept and marked stale (`opacity-50`, `data-stale`), with
+    a `Throbber` next to the heading.
+- A `tracksLoadSeq` counter drops a late answer, and the previous request is aborted. A background
+  refresh never replaces rows once "load more" has added pages to them.
+- Failure: with no cached rows, `error` (offline: `ready` and the offline empty state); a failed
+  refresh leaves the cached rows.
+- **Cache**: `src/lib/trackListCache.js`, a second `createEntityCache` instance (60 entries,
+  `freshMs` 60 s, `maxAgeMs` 5 min), cleared when the signed-in user changes. The key is
+  `listKey("tracks", query + count + dedupe)`, where the query is `trackQueryParams()`, the same
+  object the page and its queue continuation send. The value is the first page with its
+  `nextOffset`, `hasMore` and the version keys folded so far (`seen`, as entries), so "load more"
+  after a cached first page continues exactly as after a fresh one. Only the first page is cached.
+- **Prefetch**: `CollectionGrid` takes `onpress`, called on `pointerdown` (the favourite toggle
+  stops propagation). Dashboard's `prefetchTrackView(view)` builds the query the view will ask,
+  with the filter bar's genre, year and search cleared unless the view is the one it was last reset
+  for (`resetTrackFiltersFor`), and calls `prefetchTrackList`, which goes through
+  `trackListCache.load`: deduplicated with the page's own load, nothing when a fresh copy exists,
+  and nothing offline. One request per press, as for artists.
+
+**Search results page (`search:`)**
+
+- Three sections, each with its own status: tracks through the path above, artists and albums
+  through `loadSearchSection(kind, query)`, which uses `trackListCache.swr` with a
+  `listKey(method, params)` key. Their rows live in `searchArtists`/`searchAlbums`, apart from the
+  Artists and Albums grids, so neither page shows the other's rows.
+- A section renders while `loading` (skeleton: `SkeletonRows` 5, or `SkeletonTiles` 6, round for
+  artists), `error` (its own retry) or with rows. `searchPending` puts "Zoeken…" and a throbber
+  next to the heading; "No results" needs all three `ready`, empty and not pending.
+- A `searchSeq` counter drops answers for an earlier query.
+
+**Search dropdown (`SearchBar.svelte`, `SearchResults.svelte`)**
+
+- `loading` turns true on the input event, before the 300 ms debounce, and `error` is new.
+  `SearchResults` shows the "Zoeken…" line (throbber, `search.searching`) while loading, with three
+  `SkeletonRows` when there is nothing yet and the previous results at `opacity-50`
+  (`data-stale`) when there are. "No results" only when not loading and not failed; a failure
+  clears the results and shows `SectionState` error with `onretry`.
+
+**Search "more" modal, History, Starred, Memories**
+
+- `SearchMoreModal`: `SkeletonRows` (tracks) or `SkeletonTiles` (artists round, albums square)
+  instead of the spinner; a failed or non-OK `search3` is `SectionState` error with retry.
+- `History`: `SkeletonRows` on the first load (`isLoading` starts true), `SectionState` error with
+  retry when the first page fails; the Refresh button keeps the rows and shows a `Throbber`.
+- `StarredView`: header at once; the body is a "Nummers" section with `SkeletonRows` or the error
+  and retry.
+- `MemoriesView`: skeleton year tiles in the real grid (`minmax(220px)`); `MemoriesYearView`:
+  a skeleton line beside the year and `SkeletonRows`. Memories keep their silent empty state on
+  failure (an older server has no memories), as before.
 
 ## Risks
 
@@ -189,6 +309,41 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
    touch): with `getArtist` and `getSpotifyTracks` held back by `page.route`, clicking an artist
    link shows the artist's name as a heading within 100 ms of the click, while the requests are
    still pending.
+8. Tag lists: skeleton before the first answer, no previous rows after navigating (also across
+   kinds), a late answer dropped, error and retry, a revisit from the cache without a request, a
+   background refresh after `freshMs`, one request for a press and the page together, none for the
+   favourite toggle, stale rows dimmed on a filter change (`tests/unit/tagListLoading.test.js`).
+9. Search page: a skeleton per section and no "No results" until all three answered, sections fill
+   independently, no previous query's rows, a section error with retry, a revisit from the cache
+   (`tests/unit/tagListLoading.test.js`). Dropdown: "searching" from the first keystroke, stale
+   results dimmed, "No results" only after the answer, retry after a failure
+   (`tests/unit/searchBar.test.js`). History, Starred, Memories and the "more" modal: skeletons
+   and error/retry (`tests/unit/loadingSections.test.js`).
+10. Playwright (`tests/browser/list-loading-states.spec.js`, phone, and tablet 1024x1366 with
+   touch): with the second genre's tracks held back, its page shows its name, skeleton rows and
+   none of the first genre's rows; back to the first genre it renders from the cache. With the
+   search requests held back, the search page shows skeleton sections and "No results" only after
+   they are released.
+
+8. Feeds (`tests/unit/feeds.test.js`, `tests/unit/feedView.test.js`): every chunk is requested
+   before the first answers and the result keeps MuMa's order; the header comes before any song;
+   the page shows the card's title and skeleton rows before MuMa answers, draws a chunk landing
+   out of order only once the one before it is in, retries only a failed chunk, retries a failed
+   feed, starts a pending play once whole, and answers a revisit from the cache. The existing
+   continuation and unresolved tests still pass.
+9. Song versions (`tests/unit/songView.test.js`, `tests/unit/versions.test.js`): the seed header
+   and cover before any answer, a skeleton header without a seed, the first page shown while the
+   second is pending, the seed kept over a non-canonical first version, retry after a failure,
+   the cached revisit, and `onPage` after every page.
+10. Track details (`tests/unit/trackDetailsSheet.test.js`): tag skeleton rows while MuMa is asked,
+    and the retry pill re-fetches.
+11. Mix card (`tests/unit/dailyMixCard.test.js`): the coarse-pointer, hover and focus classes, the
+    seed left on open, and play from the cache.
+12. Playwright (`tests/browser/progressive-feeds.spec.js`, phone and tablet 1024x1366 with touch):
+    the mix card's play button has opacity 1 and is at least 48px wide without hover (and opacity 0
+    until hover with a mouse); tapping a card shows the mix's heading and skeleton rows while the
+    feed is held back, then the rows; `/song/<id>` shows its header skeleton while the versions are
+    held back, then both pages.
 
 ## Related Docs
 

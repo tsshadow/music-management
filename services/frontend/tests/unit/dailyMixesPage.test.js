@@ -64,7 +64,10 @@ describe("DailyMixesPage", () => {
 
     render(DailyMixesPage, { onnavigate: vi.fn() });
 
-    expect(screen.getByText("Laden...")).toBeTruthy();
+    // Card-shaped skeletons (styleguide, Loading States), never a bare "Laden..." line.
+    expect(screen.getByTestId("mix-card-skeletons")).toBeTruthy();
+    expect(screen.getByRole("status", { name: "Laden..." })).toBeTruthy();
+    expect(screen.queryByText("Laden...")).toBeNull();
   });
 
   it("lists all five mixes", async () => {

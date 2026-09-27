@@ -19,7 +19,12 @@
   let allGenres = $state([]);
   let filteredLabels = $state([]);
   let allLabels = $state([]);
+  // True from the first keystroke until the answer for the current text is in -- the 300ms
+  // debounce included, so the panel never says "No results" for a search that has not been
+  // asked yet (issue #112).
   let loading = $state(false);
+  // The last search failed: the panel offers a retry instead of claiming there is nothing.
+  let error = $state(false);
   let debounceTimer;
   let searchController;
 
@@ -38,10 +43,12 @@
       filteredGenres = [];
       filteredLabels = [];
       loading = false;
+      error = false;
       return;
     }
 
     loading = true;
+    error = false;
     try {
       // Search for artists, albums, and songs
       const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
@@ -63,6 +70,11 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error("Search failed:", e);
+      // The previous text's results are not this text's answer.
+      results = {};
+      filteredGenres = [];
+      filteredLabels = [];
+      error = true;
     } finally {
       if (!signal.aborted) {
         loading = false;
@@ -86,9 +98,14 @@
       filteredGenres = [];
       filteredLabels = [];
       loading = false;
+      error = false;
       return;
     }
 
+    // Searching starts now as far as the listener is concerned: what is on screen belongs to
+    // the previous text and is shown dimmed until the answer replaces it.
+    loading = true;
+    error = false;
     debounceTimer = setTimeout(() => {
       performSearch();
     }, 300);
@@ -185,6 +202,8 @@
       genres={filteredGenres}
       labels={filteredLabels}
       {loading}
+      {error}
+      onretry={performSearch}
       onSelect={handleSelect}
       mode={$viewMode}
     />

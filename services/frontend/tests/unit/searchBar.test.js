@@ -307,4 +307,89 @@ describe("SearchBar", () => {
 
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
   });
+
+  // Issue #112: the panel says it is searching from the first keystroke, keeps the previous
+  // results only dimmed, and says "No results" only for an answer.
+  describe("loading states", () => {
+    /** A search3 that answers only when the test says so. */
+    function heldSearch() {
+      const held = [];
+      const facets = subsonicApi();
+      globalThis.fetch = vi.fn((url) => {
+        if (!url.includes("/rest/search3")) return facets(url);
+        return new Promise((resolve, reject) => held.push({ resolve, reject }));
+      });
+      return {
+        answer(searchResult) {
+          held.shift().resolve({
+            ok: true,
+            json: async () => ({
+              "subsonic-response": { status: "ok", searchResult3: searchResult },
+            }),
+          });
+        },
+        fail() {
+          held.shift().reject(new Error("network down"));
+        },
+        count: () => held.length,
+      };
+    }
+
+    it("says it is searching from the first keystroke, never 'No results' during the debounce", async () => {
+      heldSearch();
+      render(SearchBar);
+
+      await fireEvent.input(screen.getByRole("textbox"), { target: { value: "a" } });
+
+      expect(screen.getByTestId("search-searching")).toBeTruthy();
+      expect(screen.getByTestId("skeleton-rows")).toBeTruthy();
+      expect(screen.queryByText("Geen resultaten gevonden.")).toBeNull();
+    });
+
+    it("keeps the previous results dimmed while the next text is answered", async () => {
+      const server = heldSearch();
+      render(SearchBar);
+      await search("anger");
+      server.answer({ song: [TRACK] });
+      await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+      expect(screen.getByTestId("search-dropdown-results").dataset.stale).toBeUndefined();
+
+      await search("angerf");
+
+      expect(screen.getByText("Raise Your Fist")).toBeTruthy();
+      expect(screen.getByTestId("search-dropdown-results").dataset.stale).toBe("true");
+      expect(screen.getByTestId("search-searching")).toBeTruthy();
+
+      server.answer({ song: [{ ...TRACK, id: "song-2", title: "Dance With The Wolves" }] });
+      await waitFor(() => expect(screen.getByText("Dance With The Wolves")).toBeTruthy());
+      expect(screen.queryByTestId("search-searching")).toBeNull();
+    });
+
+    it("says 'No results' only once the answer is in", async () => {
+      const server = heldSearch();
+      render(SearchBar);
+      await search("zzzz");
+      expect(screen.queryByText("Geen resultaten gevonden.")).toBeNull();
+
+      server.answer({});
+
+      await waitFor(() => expect(screen.getByText("Geen resultaten gevonden.")).toBeTruthy());
+      expect(screen.queryByTestId("skeleton-rows")).toBeNull();
+    });
+
+    it("offers a retry instead of 'No results' when the search fails", async () => {
+      const server = heldSearch();
+      render(SearchBar);
+      await search("anger");
+
+      server.fail();
+
+      const retry = await screen.findByRole("button", { name: "Opnieuw" });
+      expect(screen.queryByText("Geen resultaten gevonden.")).toBeNull();
+      await fireEvent.click(retry);
+      await waitFor(() => expect(server.count()).toBe(1));
+      server.answer({ song: [TRACK] });
+      await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
+    });
+  });
 });

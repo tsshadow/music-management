@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { authParams, restUrl } from './store.js';
   import MemoryYearCard from './MemoryYearCard.svelte';
+  import Skeleton from './loading/Skeleton.svelte';
   import { memoriesUrl, parseMemoryGroups, playMemoryYear, yearTiles } from './memories.js';
 
   const { onnavigate } = $props();
@@ -58,7 +59,19 @@
   </header>
 
   {#if isLoading}
-    <p class="text-muma-spotify-text">{$t('common.loading')}</p>
+    <!-- Year tiles in the real grid's geometry: a square cover and the line under it
+         (issue #112, styleguide Loading States). -->
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 md:gap-6" role="status" aria-label={$t('common.loading')} data-testid="skeleton-tiles">
+      {#each [0, 1, 2, 3] as i (i)}
+        <div class="flex flex-col bg-muma-spotify-panel rounded-lg overflow-hidden">
+          <Skeleton class="w-full aspect-square rounded-none" />
+          <div class="p-4 flex flex-col gap-2">
+            <Skeleton class="h-3.5 w-3/4" />
+            <Skeleton class="h-3 w-1/2" />
+          </div>
+        </div>
+      {/each}
+    </div>
   {:else if tiles.length === 0}
     <div class="flex flex-col gap-2">
       <p class="text-white font-bold">{$t('memories.empty')}</p>

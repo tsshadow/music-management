@@ -3,6 +3,7 @@
   import { authParams, currentTrack, playerState } from './store.js';
   import { loadFeedDetail } from './feeds.js';
   import { startQueue } from './queue.js';
+  import { feedContinuation } from './feedQueue.js';
 
   /**
    * One daily mix, as a compact tile: a colour or a cover, the title and subtitle MuMa already
@@ -28,7 +29,7 @@
     try {
       const { tracks, nextOffset } = await loadFeedDetail(slug, $authParams);
       if (tracks.length === 0) return;
-      startQueue(tracks, { name: title, continuation: { slug, nextOffset } });
+      startQueue(tracks, { name: title, continuation: feedContinuation(slug, nextOffset) });
       currentTrack.set(tracks[0]);
       playerState.update((s) => ({ ...s, playing: true }));
     } finally {

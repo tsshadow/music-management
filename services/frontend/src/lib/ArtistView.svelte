@@ -6,9 +6,10 @@
   import { getArtistImageUrl } from './utils.js';
   import { getHeaders } from './mumaApi.js';
   import { Pencil } from '@lucide/svelte';
-  import { deduplicateTracks, getDeduplicateKey } from './deduplicate.js';
+  import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
+  import ListEnd from './ListEnd.svelte';
   import TrackList from './TrackList.svelte';
-  import { listOf, subsonicJson } from './subsonic.js';
+  import { subsonicJson } from './subsonic.js';
   import { recordPlace } from './recentPlaces.js';
   import { startQueue } from './queue.js';
 
@@ -22,6 +23,29 @@
   let allTracksOffset = $state(0);
   let allTracksHasMore = $state(false);
   let seenKeys = new SvelteMap();
+  // Whether "Meer laden" appended anything, so a list that ran out ends in "Einde van de lijst".
+  let allTracksPagedMore = $state(false);
+  let loadingMore = $state(false);
+
+  /** The artist's tracks as `getSpotifyTracks` pages them, newest first, songs or sets. */
+  function artistTrackParams() {
+    return {
+      artistId,
+      sort: 'recent',
+      deduplicate: $deduplicateEnabled ? 'true' : undefined,
+      ...($viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 })
+    };
+  }
+
+  /**
+   * Where the artist's track list continues, for a queue started from it
+   * (docs/designs/list-continuation/). Pages of 100, like "Meer laden" here.
+   */
+  const tracksContinuation = $derived(
+    allTracksHasMore && allTracks.length > 0
+      ? spotifyTracksContinuation(artistTrackParams(), allTracksOffset, { pageSize: 100, dedupe: $deduplicateEnabled, kind: 'artist' })
+      : null
+  );
   let biography = $state("");
   let mbid = $state("");
   let isLoading = $state(true);
@@ -120,49 +144,31 @@
     if (!append) {
         allTracksOffset = 0;
         allTracksHasMore = true;
+        allTracksPagedMore = false;
         seenKeys = new SvelteMap();
     }
     const pageSize = append ? 100 : 25;
-    const durationFilter = $viewMode === 'sets' ? { minDuration: 10 } : { maxDuration: 10 };
-    
-    let currentBatch = [];
+    loadingMore = append;
     try {
-      while (currentBatch.length < pageSize && allTracksHasMore) {
-        const data = await subsonicJson('getSpotifyTracks', {
-          artistId,
-          offset: allTracksOffset,
-          count: pageSize,
-          sort: 'recent',
-          deduplicate: $deduplicateEnabled ? 'true' : undefined,
-          ...durationFilter
-        });
-        if (seq !== loadSeq) return;
-        const tracksNode = data['subsonic-response']?.tracks;
-        const newTracks = listOf(data, 'tracks.track');
-
-        const deduped = $deduplicateEnabled ? deduplicateTracks(newTracks, seenKeys) : newTracks;
-        if ($deduplicateEnabled) {
-          for (const track of deduped) {
-            seenKeys.set(getDeduplicateKey(track), track);
-          }
-        }
-
-        currentBatch.push(...deduped);
-        allTracksHasMore = tracksNode?.moreResults === true || tracksNode?.moreResults === "true";
-        allTracksOffset = tracksNode?.nextOffset !== undefined ? tracksNode.nextOffset : (allTracksOffset + newTracks.length);
-
-        if (!allTracksHasMore || currentBatch.length >= pageSize) break;
-      }
-
+      const page = await fetchSpotifyTracksPage(artistTrackParams(), allTracksOffset, {
+        pageSize,
+        seen: $deduplicateEnabled ? seenKeys : null
+      });
+      if (seq !== loadSeq) return;
+      allTracksHasMore = page.hasMore;
+      allTracksOffset = page.nextOffset;
       if (append) {
-          allTracks = [...allTracks, ...currentBatch];
+          allTracks = [...allTracks, ...page.tracks];
+          allTracksPagedMore = true;
       } else {
-          allTracks = currentBatch;
+          allTracks = page.tracks;
       }
     } catch (e) {
       if (seq !== loadSeq) return;
       console.error(e);
       allTracksHasMore = false;
+    } finally {
+      if (seq === loadSeq) loadingMore = false;
     }
   }
 
@@ -286,7 +292,7 @@
              onclick={() => {
                 if (allTracks.length > 0) {
                   currentTrack.set(allTracks[0]);
-                  startQueue(allTracks, { name: artist.name });
+                  startQueue(allTracks, { name: artist.name, continuation: tracksContinuation });
                   playerState.update(s => ({ ...s, playing: true }));
                 }
              }}
@@ -375,12 +381,8 @@
         <section>
             <h2 class="text-2xl font-bold mb-4">{$viewMode === 'sets' ? $t('artist.allSets') : $t('artist.allTracks')}</h2>
             {#if allTracks.length > 0}
-                <TrackList tracks={allTracks} onnavigate={onnavigate} />
-                {#if allTracksHasMore}
-                    <div class="flex justify-center py-4">
-                        <button class="bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px] font-bold cursor-pointer transition-all hover:border-white hover:scale-[1.04]" onclick={() => loadAllTracks(true)}>{$t('common.loadMore')}</button>
-                    </div>
-                {/if}
+                <TrackList tracks={allTracks} continuation={tracksContinuation} onnavigate={onnavigate} />
+                <ListEnd hasMore={allTracksHasMore} ended={allTracksPagedMore} loading={loadingMore} onmore={() => loadAllTracks(true)} testid="artist-tracks-load-more" />
             {:else}
                 <div class="text-muma-spotify-text p-12 text-center border border-white/5 rounded-xl bg-white/5">
                     <p class="text-xl font-bold mb-2 text-white">{$viewMode === 'sets' ? $t('artist.noSets') : $t('artist.noTracks')}</p>

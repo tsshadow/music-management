@@ -4,7 +4,7 @@
   import Sidebar from './lib/Sidebar.svelte';
   import Player from './lib/Player.svelte';
   import Dashboard from './lib/Dashboard.svelte';
-  import QueueFeedLoadMore from './lib/QueueFeedLoadMore.svelte';
+  import QueueLoadMore from './lib/QueueLoadMore.svelte';
   import LoginPage from './lib/LoginPage.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
@@ -533,7 +533,7 @@
               </div>
           </header>
           <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />
-          <QueueFeedLoadMore />
+          <QueueLoadMore />
       </div>
     </div>
   {/if}
@@ -617,7 +617,7 @@
       </button>
     </div>
     <TrackList tracks={$playlist} isQueue={true} onnavigate={handleNavigate} />
-    <QueueFeedLoadMore />
+    <QueueLoadMore />
   </BottomSheet>
 {/if}
 

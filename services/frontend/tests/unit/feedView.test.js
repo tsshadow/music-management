@@ -14,7 +14,7 @@ import FeedView from "../../src/lib/FeedView.svelte";
 import {
   credentials,
   currentTrack,
-  feedContinuation,
+  queueContinuation,
   isMobile,
   playerState,
   playlist,
@@ -59,7 +59,7 @@ describe("FeedView", () => {
       nextOffset: null,
       failed: false,
     }));
-    feedContinuation.set(null);
+    queueContinuation.set(null);
     isMobile.set(false);
     globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
   });
@@ -202,7 +202,7 @@ describe("FeedView", () => {
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
     await fireEvent.click(screen.getByTitle("Alles afspelen"));
 
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 100 });
+    expect(get(queueContinuation)).toMatchObject({ kind: "feed", slug: "daily-mix", cursor: 100 });
   });
 
   // Bug report 122. A row tap is how most people start a mix; it used to start a queue without
@@ -220,7 +220,11 @@ describe("FeedView", () => {
 
     expect(get(playlist).map((track) => track.id)).toEqual(["song-1", "song-2"]);
     expect(get(currentTrack).id).toBe("song-2");
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix-hard", nextOffset: 100 });
+    expect(get(queueContinuation)).toMatchObject({
+      kind: "feed",
+      slug: "daily-mix-hard",
+      cursor: 100,
+    });
   });
 
   it("a tapped row after the last page starts a queue with nothing to continue", async () => {
@@ -229,7 +233,7 @@ describe("FeedView", () => {
     await waitFor(() => expect(screen.getByText("Second")).toBeTruthy());
     await fireEvent.click(screen.getByText("Second"));
 
-    expect(get(feedContinuation)).toBeNull();
+    expect(get(queueContinuation)).toBeNull();
   });
 
   it("says how many of MuMa's tracks the server could not find, and adds a later page's", async () => {

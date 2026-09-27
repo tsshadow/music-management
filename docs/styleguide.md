@@ -76,12 +76,16 @@
 - **Load more**: a list that continues past what it shows ends in one centred, outlined pill under
   the list (`bg-transparent border border-muma-spotify-muted text-white px-8 py-2 rounded-[24px]
   font-bold`, hover `border-white` and `scale-[1.04]`), labelled `common.loadMore` ("Meer laden")
-  and `common.loading` while the next page is on its way. It disappears when there is nothing more;
-  it never shows a count or a page number. Used by the song, artist and album lists and, since
-  2026-09-26, the feed pages (`FeedView.svelte`, `docs/designs/feed-length/`). A queue started from
-  a feed tops itself up near its end, and since 2026-09-27 the queue list (the bottom sheet on the
-  phone and the tablet, the side panel on the desktop) also ends in the same pill while its feed has
-  a next page (`QueueFeedLoadMore.svelte`, bug report 122). The Now Playing screen itself gets no
+  and `common.loading` while the next page is on its way. It never shows a count or a page number.
+  Once a list that did continue has nothing more, the pill is replaced by one centred line in the
+  muted text colour (`text-muma-spotify-text text-sm py-6`), `common.endOfList` ("Einde van de
+  lijst"); a list that fit on one page shows neither. Pill and end line are one component,
+  `ListEnd.svelte`, so a page and the queue cannot drift apart. Used by the song, artist and album
+  lists, the search results, presets, the listen history and the feed pages
+  (`docs/designs/feed-length/`, `docs/designs/list-continuation/`). A queue started from any of
+  these lists tops itself up near its end, and the queue list (the bottom sheet on the phone and the
+  tablet, the side panel on the desktop) ends in the same pill while its list has a next page and in
+  the end line once it ran out (`QueueLoadMore.svelte`). The Now Playing screen itself gets no
   button. Rows a list could not show, such as feed paths the server has no song for, are
   mentioned once in the list's header meta line in the muted text colour ("• 2 niet gevonden op de
   server"). The row count stays the count of what can be played.
@@ -202,6 +206,10 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** — Feed length (2026-09-26, `docs/designs/feed-length/`): no new token or component. The
   existing load-more pill is documented above under Components ("Load more") and reused as-is under
   a feed's track list.
+- **Done** — List continuation (2026-09-27, `docs/designs/list-continuation/`, issue #100): no new
+  token. Every paged list continues in the queue with the existing load-more pill; the new "Einde
+  van de lijst" end line uses only the muted text colour. Documented above under Components ("Load
+  more").
 - **Done** — Feed "Meer laden" in the queue (2026-09-27, bug report 122): no new token. The same
   load-more pill under the queue list for a feed queue, and a muted "not found on the server" note
   in the feed header meta line, both documented above under Components ("Load more").

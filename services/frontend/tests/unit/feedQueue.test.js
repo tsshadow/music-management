@@ -1,13 +1,14 @@
 /**
- * A queue started from a feed tops itself up before it runs out (docs/designs/feed-length/);
- * a queue started anywhere else never grows with feed tracks.
+ * A feed as a list continuation (docs/designs/list-continuation/): the queue started from a feed
+ * tops itself up through the generic `extendQueue`, with MuMa's `next_offset` as the cursor.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { get } from "svelte/store";
 
-import { EXTEND_WHEN_LEFT, extendFeedQueue } from "../../src/lib/feedQueue.js";
+import { feedContinuation } from "../../src/lib/feedQueue.js";
+import { EXTEND_WHEN_LEFT, extendQueue } from "../../src/lib/listContinuation.js";
 import { startQueue } from "../../src/lib/queue.js";
-import { credentials, currentTrack, feedContinuation, playlist } from "../../src/lib/store.js";
+import { credentials, currentTrack, playlist, queueContinuation } from "../../src/lib/store.js";
 
 const QUEUE = Array.from({ length: 10 }, (_, i) => ({ id: `song-${i}` }));
 
@@ -15,115 +16,74 @@ function pageOf(ids, nextOffset = null, failed = false) {
   return vi.fn(async () => ({ tracks: ids.map((id) => ({ id })), nextOffset, failed }));
 }
 
-describe("extendFeedQueue", () => {
+function start(loadPage, nextOffset = 100) {
+  startQueue(QUEUE, {
+    name: "Klassiek",
+    view: "daily-mix",
+    continuation: feedContinuation("daily-mix", nextOffset, { loadPage }),
+  });
+}
+
+describe("feedContinuation", () => {
   beforeEach(() => {
     credentials.set({ url: "", username: "user", password: "pw" });
-    startQueue(QUEUE, {
-      name: "Klassiek",
-      view: "daily-mix",
-      continuation: { slug: "daily-mix", nextOffset: 100 },
-    });
-  });
-
-  // The queue's own "Meer laden" (bug report 122): asked for now, wherever the queue is.
-  it("forced, appends the next page even far from the end, or with nothing playing", async () => {
     currentTrack.set(null);
-    const loadPage = pageOf(["song-100"], 200);
-
-    expect(await extendFeedQueue({ loadPage, force: true })).toBe(true);
-
-    expect(
-      get(playlist)
-        .map((t) => t.id)
-        .at(-1),
-    ).toBe("song-100");
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 200 });
   });
 
-  it("forced, still does nothing for a queue that did not come from a feed", async () => {
-    startQueue(QUEUE, { name: "Album", view: "album:1" });
-    const loadPage = pageOf(["song-100"]);
-
-    expect(await extendFeedQueue({ loadPage, force: true })).toBe(false);
-    expect(loadPage).not.toHaveBeenCalled();
+  it("is null for a feed with nothing more", () => {
+    expect(feedContinuation("daily-mix", null)).toBeNull();
+    expect(feedContinuation("daily-mix", 0)).toBeNull();
+    expect(feedContinuation("", 100)).toBeNull();
   });
 
-  it("does nothing while the end of the queue is still far away", async () => {
-    currentTrack.set(QUEUE[0]);
-    const loadPage = pageOf(["song-100"]);
-
-    expect(await extendFeedQueue({ loadPage })).toBe(false);
-    expect(loadPage).not.toHaveBeenCalled();
-  });
-
-  it("appends the next page near the end, leaving out what the queue already has", async () => {
-    currentTrack.set(QUEUE[QUEUE.length - EXTEND_WHEN_LEFT]);
+  it("asks MuMa for the page at next_offset near the end, leaving out repeats", async () => {
     const loadPage = pageOf(["song-9", "song-100", "song-101"], 200);
+    start(loadPage);
+    currentTrack.set(QUEUE[QUEUE.length - EXTEND_WHEN_LEFT]);
 
-    expect(await extendFeedQueue({ loadPage })).toBe(true);
+    expect(await extendQueue()).toBe(true);
 
     expect(loadPage).toHaveBeenCalledWith("daily-mix", expect.any(String), 100);
     expect(
       get(playlist)
         .map((t) => t.id)
-        .slice(-3),
-    ).toEqual(["song-9", "song-100", "song-101"]);
+        .slice(-2),
+    ).toEqual(["song-100", "song-101"]);
     expect(get(playlist)).toHaveLength(12);
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 200 });
+    expect(get(queueContinuation)).toMatchObject({ kind: "feed", slug: "daily-mix", cursor: 200 });
   });
 
-  it("stops continuing once the feed says there is no more", async () => {
-    currentTrack.set(QUEUE[9]);
-    await extendFeedQueue({ loadPage: pageOf(["song-100"], null) });
+  it("forced, appends the next page even with nothing playing", async () => {
+    start(pageOf(["song-100"], 200));
 
-    expect(get(feedContinuation)).toBeNull();
-    const again = pageOf(["song-200"]);
-    expect(await extendFeedQueue({ loadPage: again })).toBe(false);
-    expect(again).not.toHaveBeenCalled();
+    expect(await extendQueue({ force: true })).toBe(true);
+    expect(get(playlist).at(-1).id).toBe("song-100");
   });
 
-  it("keeps the continuation after a failed page, so the next track tries again", async () => {
+  it("is exhausted once the feed says there is no more", async () => {
+    start(pageOf(["song-100"], null));
     currentTrack.set(QUEUE[9]);
-    expect(await extendFeedQueue({ loadPage: pageOf([], 100, true) })).toBe(false);
+    await extendQueue();
 
-    expect(get(feedContinuation)).toEqual({ slug: "daily-mix", nextOffset: 100 });
+    expect(get(queueContinuation)).toMatchObject({ exhausted: true, cursor: null });
+  });
+
+  it("keeps its offset after MuMa could not be reached", async () => {
+    start(pageOf([], 100, true));
+    currentTrack.set(QUEUE[9]);
+
+    expect(await extendQueue()).toBe(false);
+    expect(get(queueContinuation)).toMatchObject({ cursor: 100, exhausted: false });
     expect(get(playlist)).toHaveLength(10);
   });
 
-  it("never grows a queue that did not come from a feed", async () => {
-    startQueue(QUEUE, { name: "An album", view: "album:1" });
-    currentTrack.set(QUEUE[9]);
-    const loadPage = pageOf(["song-100"]);
+  it("reports a thrown page as a failure instead of throwing", async () => {
+    const continuation = feedContinuation("daily-mix", 100, {
+      loadPage: vi.fn(async () => {
+        throw new Error("boom");
+      }),
+    });
 
-    expect(await extendFeedQueue({ loadPage })).toBe(false);
-    expect(loadPage).not.toHaveBeenCalled();
-    expect(get(feedContinuation)).toBeNull();
-  });
-
-  it("leaves a queue alone that was replaced while its page was loading", async () => {
-    currentTrack.set(QUEUE[9]);
-    let release;
-    const loadPage = vi.fn(
-      () =>
-        new Promise((resolve) => {
-          release = () => resolve({ tracks: [{ id: "song-100" }], nextOffset: 200, failed: false });
-        }),
-    );
-
-    const running = extendFeedQueue({ loadPage });
-    startQueue([{ id: "other" }], { name: "Something else", view: "album:2" });
-    release();
-
-    expect(await running).toBe(false);
-    expect(get(playlist).map((t) => t.id)).toEqual(["other"]);
-  });
-
-  it("asks once for a burst of track changes", async () => {
-    currentTrack.set(QUEUE[9]);
-    const loadPage = pageOf(["song-100"], 200);
-
-    await Promise.all([extendFeedQueue({ loadPage }), extendFeedQueue({ loadPage })]);
-
-    expect(loadPage).toHaveBeenCalledTimes(1);
+    expect(await continuation.fetchNext(100)).toEqual({ tracks: [], cursor: 100, failed: true });
   });
 });

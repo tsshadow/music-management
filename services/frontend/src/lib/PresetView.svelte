@@ -7,6 +7,8 @@
   import TrackList from './TrackList.svelte';
   import { recordPlace } from './recentPlaces.js';
   import { startQueue } from './queue.js';
+  import { getSongsContinuation } from './trackPages.js';
+  import ListEnd from './ListEnd.svelte';
 
   /**
    * One preset, whole: the tracks its saved query answers with, a play button, and the way to
@@ -15,6 +17,10 @@
    * The list is fetched in pages of `PAGE` until the preset's own size is reached or LMS runs
    * out. A random preset carries one seed for the whole visit, so page two is the rest of the
    * same shuffle and not a fresh one that repeats page one.
+   *
+   * Past its size the preset continues with the same query and the same seed: "Meer laden" under
+   * the list, and a queue started here tops itself up near its end
+   * (docs/designs/list-continuation/).
    */
   const { preset, onnavigate } = $props();
 
@@ -24,6 +30,29 @@
   let isLoading = $state(true);
   let isDeleting = $state(false);
   let menuOpen = $state(false);
+  // The visit's random seed, shared by every page and by the queue's continuation.
+  let seed = $state(0);
+  // Where the query continues past what is shown; null once LMS gave a short page.
+  let nextOffset = $state(null);
+  let loadingMore = $state(false);
+  // Whether "Meer laden" appended anything, so a preset that ran out says "Einde van de lijst".
+  let pagedMore = $state(false);
+
+  /** The preset's query from `offset` on, in pages of `PAGE`, for the queue started here. */
+  const continuation = $derived(
+    preset && nextOffset !== null
+      ? getSongsContinuation(pageQuery(preset, $viewMode, seed), nextOffset, { pageSize: PAGE, kind: 'preset' })
+      : null
+  );
+
+  /**
+   * The `getSongs` question for one page of this preset, with the visit's seed.
+   *
+   * @returns {(offset: number, count: number) => {method: string, params: object}}
+   */
+  function pageQuery(target, mode, visitSeed) {
+    return (offset, count) => presetQuery(target, { viewMode: mode, count, offset, seed: visitSeed });
+  }
 
   const subtitle = $derived(presetSummary(preset, $t));
 
@@ -41,20 +70,24 @@
 
     isLoading = true;
     tracks = [];
+    nextOffset = null;
+    pagedMore = false;
+    const visitSeed = Math.floor(Math.random() * 1_000_000);
+    seed = visitSeed;
     // Pages land as they arrive rather than all at once: a rating floor makes LMS slow, and the
     // play button is usable after the first hundred instead of after the fifth.
-    load(preset, mode, (page) => {
+    load(preset, mode, visitSeed, (page) => {
       if (which === preset?.id) tracks = [...tracks, ...page];
     }).finally(() => {
       if (which === preset?.id) isLoading = false;
     });
   });
 
-  async function load(target, mode, onPage) {
-    const seed = Math.floor(Math.random() * 1_000_000);
+  async function load(target, mode, visitSeed, onPage) {
+    const which = target.id;
     for (let offset = 0; offset < target.size; offset += PAGE) {
       const count = Math.min(PAGE, target.size - offset);
-      const { method, params } = presetQuery(target, { viewMode: mode, count, offset, seed });
+      const { method, params } = presetQuery(target, { viewMode: mode, count, offset, seed: visitSeed });
       let page;
       try {
         page = listOf(await subsonicJson(method, params), 'songs.song');
@@ -65,6 +98,25 @@
       onPage(page);
       if (page.length < count) return;
     }
+    // Every page came back full up to the preset's size, so LMS may well have more.
+    if (which === preset?.id && Number(target.size) > 0) nextOffset = Number(target.size);
+  }
+
+  /** "Meer laden": the next page of the same query past what is shown, leaving out repeats. */
+  async function loadMore() {
+    if (loadingMore || nextOffset === null || !continuation) return;
+    const which = preset.id;
+    loadingMore = true;
+    try {
+      const page = await continuation.fetchNext(nextOffset);
+      if (which !== preset?.id || page.failed) return;
+      const have = new Set(tracks.map((track) => String(track.id)));
+      tracks = [...tracks, ...page.tracks.filter((track) => !have.has(String(track.id)))];
+      nextOffset = page.cursor;
+      pagedMore = true;
+    } finally {
+      loadingMore = false;
+    }
   }
 
   /** Queues the whole list in its order and starts it. */
@@ -72,7 +124,7 @@
     if (tracks.length === 0) return;
     // 'preset:<id>' rather than the current view: that is the navigable string the
     // player header and the Browse "Recent" row both understand.
-    startQueue(tracks, { name: preset.name, view: `preset:${preset.id}` });
+    startQueue(tracks, { name: preset.name, view: `preset:${preset.id}`, continuation });
     currentTrack.set(tracks[0]);
     playerState.update((s) => ({ ...s, playing: true }));
   }
@@ -160,7 +212,10 @@
     {:else if tracks.length === 0}
       <div class="text-muma-spotify-text p-12 text-center">{$t('presets.empty')}</div>
     {:else}
-      <TrackList {tracks} onnavigate={onnavigate} />
+      <TrackList {tracks} {continuation} onnavigate={onnavigate} />
+      {#if !isLoading}
+        <ListEnd hasMore={nextOffset !== null} ended={pagedMore} loading={loadingMore} onmore={loadMore} testid="preset-load-more" />
+      {/if}
     {/if}
   </div>
 </div>

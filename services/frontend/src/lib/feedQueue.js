@@ -1,69 +1,39 @@
 import { get } from "svelte/store";
-import { authParams, currentTrack, feedContinuation, playlist } from "./store.js";
+import { authParams } from "./store.js";
 import { loadFeedPage } from "./feeds.js";
 
 /**
- * A queue started from a feed tops itself up before it runs out.
+ * A feed as a list continuation (docs/designs/list-continuation/).
  *
- * A feed is 100 tracks by default and can continue past that ("Meer laden",
- * docs/designs/feed-length/). On the feed page that is a button; in the player
- * nobody should have to press anything, so once the current track is within
- * `EXTEND_WHEN_LEFT` of the end of a queue that `startQueue` gave a
- * `continuation`, the next page is fetched and appended to `playlist`. The
- * native shell follows `playlist` the same way it follows "add to queue", so the
- * web player and the app both get it from this one place.
+ * A feed is 100 tracks by default and continues past that ("Meer laden",
+ * docs/designs/feed-length/). This used to be the one kind of queue that topped itself up
+ * (`extendFeedQueue`); the top-up is generic now (`listContinuation.js` `extendQueue`), and a feed
+ * is one source of continuation pages among several. The cursor is MuMa's `next_offset`.
  *
- * Only songs not already in the queue are appended (by id): Release Radar is
- * rebuilt hourly, so a continuation across a rebuild could otherwise hand back a
- * track the queue already holds.
+ * Release Radar is rebuilt hourly, so a page asked for across a rebuild can hand back a track the
+ * queue already holds; `extendQueue` leaves those out by id.
+ *
+ * @param {string} slug - The feed's slug.
+ * @param {number|null} nextOffset - Where the feed continues; null or 0 when it does not.
+ * @param {{loadPage?: typeof loadFeedPage}} [options] - `loadPage` is injected by the tests.
+ * @returns {object|null} The continuation, or null when the feed has nothing more.
  */
-
-/** How close to the end of the queue the next page is fetched. */
-export const EXTEND_WHEN_LEFT = 3;
-
-/** The top-up in flight, so a burst of track changes asks MuMa once. */
-let pending = null;
-
-/**
- * Appends the feed's next page when the queue is about to run out.
- *
- * Does nothing -- and costs no request -- when the queue did not come from a
- * feed, the feed has no more, the current track is not near the end, or a
- * top-up is already running. A failed request keeps the continuation, so the
- * next track change tries again; a page that says "no more" drops it. A queue
- * replaced while the page was loading is left alone.
- *
- * `force` is the queue's own "Meer laden" (bug report 122): the listener asks for the next page
- * now, wherever the current track is -- or with nothing playing at all.
- *
- * @param {{loadPage?: typeof loadFeedPage, force?: boolean}} [options] - `loadPage` is injected
- *   by the tests; `force` skips the near-the-end check.
- * @returns {Promise<boolean>} Whether anything was appended.
- */
-export async function extendFeedQueue({ loadPage = loadFeedPage, force = false } = {}) {
-  const continuation = get(feedContinuation);
-  if (!continuation?.nextOffset || pending) return false;
-  const auth = get(authParams);
-  if (!auth) return false;
-
-  const queue = get(playlist);
-  const current = get(currentTrack);
-  const index = queue.findIndex((track) => String(track.id) === String(current?.id));
-  if (!force && (index < 0 || queue.length - 1 - index >= EXTEND_WHEN_LEFT)) return false;
-
-  pending = (async () => {
-    const page = await loadPage(continuation.slug, auth, continuation.nextOffset);
-    if (get(feedContinuation) !== continuation) return false;
-    if (page.failed) return false;
-    const have = new Set(get(playlist).map((track) => String(track.id)));
-    const fresh = page.tracks.filter((track) => !have.has(String(track.id)));
-    feedContinuation.set(page.nextOffset ? { ...continuation, nextOffset: page.nextOffset } : null);
-    if (fresh.length > 0) playlist.update((tracks) => [...tracks, ...fresh]);
-    return fresh.length > 0;
-  })();
-  try {
-    return await pending;
-  } finally {
-    pending = null;
-  }
+export function feedContinuation(slug, nextOffset, { loadPage = loadFeedPage } = {}) {
+  if (!slug || !nextOffset) return null;
+  return {
+    kind: "feed",
+    slug,
+    cursor: nextOffset,
+    async fetchNext(cursor) {
+      let page;
+      try {
+        page = await loadPage(slug, get(authParams), cursor);
+      } catch (error) {
+        console.warn("Could not load the next page of a feed", error);
+        return { tracks: [], cursor, failed: true };
+      }
+      if (page.failed) return { tracks: [], cursor, failed: true };
+      return { tracks: page.tracks, cursor: page.nextOffset || null };
+    },
+  };
 }

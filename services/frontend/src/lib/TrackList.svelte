@@ -27,9 +27,10 @@
     // The name the player header gives this list when a row starts a queue from it ("Nummers ·
     // Recent uitgebracht"); null lets `startQueue` name the current view itself.
     sourceName = null,
-    // For a feed's list: where the feed continues (`{slug, nextOffset}`), handed to `startQueue`
-    // so a queue started by tapping a row tops itself up like one started with the play button
-    // (docs/bug-reports/122-feed-load-more-not-visible.md). Null everywhere else.
+    // For a paged list (a feed, the songs list, a preset, search, ...): where the list continues,
+    // a `{kind, cursor, fetchNext}` continuation (`listContinuation.js`), handed to `startQueue` so
+    // a queue started by tapping a row tops itself up like one started with the play button
+    // (docs/designs/list-continuation/). Null for a list that is whole.
     continuation = null,
     platform = defaultPlatform
   } = $props();

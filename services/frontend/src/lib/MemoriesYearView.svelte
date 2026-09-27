@@ -5,6 +5,7 @@
   import TrackList from './TrackList.svelte';
   import { memoriesUrl, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { startQueue } from './queue.js';
+  import { arrayContinuation } from './listContinuation.js';
 
   const { year, onnavigate } = $props();
 
@@ -17,6 +18,9 @@
 
   const songs = $derived(group?.songs ?? []);
   const visible = $derived(songs.slice(0, shownCount));
+  // A row tap queues what is shown; the rest of the year follows as the queue nears its end
+  // (docs/designs/list-continuation/), instead of the queue stopping at the first 50.
+  const continuation = $derived(arrayContinuation(songs.slice(shownCount), { pageSize: PAGE_SIZE }));
   const heading = $derived(group ? memoryHeading(group) : null);
 
   // The year's own size as the server counts it, which is what the header says out loud.
@@ -98,7 +102,7 @@
       </button>
     </div>
 
-    <TrackList tracks={visible} {onnavigate} />
+    <TrackList tracks={visible} {continuation} {onnavigate} />
 
     {#if shownCount < songs.length}
       <button

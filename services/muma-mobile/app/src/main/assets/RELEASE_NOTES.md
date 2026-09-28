@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.12.1 (2026-09-27)
+
+- Android Auto's extra buttons now keep up with repeat and shuffle changes. The diagnostics report
+  records more about what the car receives, to track down why the car still does not show them.
+
 ## Global Version 7.12.0 (2026-09-27)
 
 - A label page shows the channels linked to that label.

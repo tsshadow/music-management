@@ -99,7 +99,8 @@ class MediaLibraryCommandHandlerCarIconTest {
         val news = button(PlaybackService.CUSTOM_COMMAND_PLAY_NEWS)
 
         MediaLibraryCommandHandler.describeButtons(listOf(shuffle, news)) shouldBeEqualTo
-            "SHUFFLE(icon=${CommandButton.ICON_SHUFFLE_ON}), PLAY_NEWS(icon=${CommandButton.ICON_FEED})"
+            "SHUFFLE(icon=${CommandButton.ICON_SHUFFLE_ON}, slot=overflow), " +
+            "PLAY_NEWS(icon=${CommandButton.ICON_FEED}, slot=overflow)"
     }
 
     // 7.4.1 gave every button an icon constant and the car still drew none of them. The buttons
@@ -153,9 +154,9 @@ class MediaLibraryCommandHandlerCarIconTest {
         }
 
         CarButtonsDiagnostics.describe(state, sessionExtras) shouldBeEqualTo
-            "custom actions: PLAY_NEWS(icon=${CommandButton.ICON_FEED}) | reserve prev=true next=false"
+            "custom actions: PLAY_NEWS(icon=${CommandButton.ICON_FEED}) | reserve prev=true next=false | state=0 actions=0x0"
         CarButtonsDiagnostics.describe(PlaybackState.Builder().build(), null) shouldBeEqualTo
-            "custom actions: none | reserve prev=null next=null"
+            "custom actions: none | reserve prev=null next=null | state=0 actions=0x0"
         CarButtonsDiagnostics.describe(null, null) shouldBeEqualTo "no playback state"
     }
 }

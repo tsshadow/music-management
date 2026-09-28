@@ -1,6 +1,6 @@
 # Android Auto Draws No Custom Buttons: Rating, Shuffle, Repeat And News Are Missing
 
-# status: fixed — not yet confirmed in the car; the first drive on the new build logs what the car received
+# status: fixed — not confirmed in the car; the first report from a drive (40, 7.11.0) showed the platform session carrying the buttons and the car still drawing none, continued in bug report 127
 
 # reported problem
 "Geen icons zoals radio en rating. Laatste versie." (2026-09-24, app 7.4.3). The car's now-playing

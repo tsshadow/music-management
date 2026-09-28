@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.1] - 2026-09-27
+
+### Fixed
+- **MuMa Mobile 7.12.1 resends its Android Auto buttons when repeat or shuffle changes, and logs a fuller diagnostics line for the missing car buttons.** See the muma-mobile changelog (issue #130, bug report 127).
+
 ## [0.82.0] - 2026-09-27
 
 ### Added

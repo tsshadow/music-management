@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.82.1 (2026-09-27)
+
+- **MuMa Mobile 7.12.1 resends its Android Auto buttons when repeat or shuffle changes, and logs a fuller diagnostics line for the missing car buttons.** See the muma-mobile changelog (issue #130, bug report 127).
+
 ## Global Version 0.82.0 (2026-09-27)
 
 - A label page now shows the SoundCloud, YouTube and Telegram channels linked to that label.

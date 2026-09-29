@@ -15,10 +15,11 @@ from services.music_manager.routers.users import verify_api_key
 router = APIRouter(tags=['events'])
 
 LEVELS = ('INFO', 'WARNING', 'ERROR', 'CRITICAL')
-# Drie processen roepen setup_logging aan en dus bestaan er drie bronnen. De
-# tagger- en scannerlussen draaien binnen music-manager; hun events dragen
-# source='music-manager'. Een chip voor 'tagger' zou altijd leeg blijven.
-SOURCES = ('music-manager', 'downloader', 'importer')
+# Four processes call setup_logging, so there are four sources. The tagger and scanner
+# loops run inside music-manager; their events carry source='music-manager', so a chip for
+# 'tagger' would always stay empty. 'bpm-analyzer' is its own container
+# (services/music_manager/bpm/worker.py).
+SOURCES = ('music-manager', 'downloader', 'importer', 'bpm-analyzer')
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 1000
 

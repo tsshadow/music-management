@@ -336,7 +336,32 @@
     "labelsNote": "Een track met twee labels telt voor allebei.",
     "sources": "Waar je luisterde",
     "sourcesNote": "Waar een luisterbeurt vandaan komt; bij een import is dat de import, niet een apparaat.",
-    "unknownArtist": "Onbekende artiest"
+    "unknownArtist": "Onbekende artiest",
+    "emptyFiltered": "Niets geluisterd dat aan dit filter voldoet.",
+    "filter": {
+      "title": "Filters",
+      "genre": "Genre",
+      "genrePlaceholder": "Zoek een genre…",
+      "yearRange": "Releasejaar",
+      "from": "Van",
+      "to": "Tot",
+      "remove": "{name} verwijderen",
+      "clear": "Filters wissen",
+      "excluded": "{count} luisterbeurten zonder gekoppelde track vallen buiten dit filter: genre en releasejaar zijn alleen bekend van een track in de bibliotheek."
+    },
+    "topGenres": "Meest gedraaide genres",
+    "genresNote": "Een track met meerdere genres telt voor elk ervan, dus de balken overlappen en tellen niet op tot de {matched} gekoppelde luisterbeurten. {untagged} daarvan hebben geen genre.",
+    "releaseYears": "Releasejaar",
+    "yearView": {
+      "year": "Jaar",
+      "decade": "Decennium"
+    },
+    "yearsNote": "Het releasejaar van wat je draaide. Alleen gekoppelde luisterbeurten; elke luisterbeurt telt één keer.",
+    "unknownYear": "Onbekend jaar",
+    "yearBar": "{year}: {count} luisterbeurten",
+    "decadeBar": "Jaren {decade}: {count} luisterbeurten",
+    "toggleFilter": "Filter aan of uit",
+    "tapToFilter": "Tik op een balk om erop te filteren; nog een keer tikken haalt het filter weer weg."
   },
   "login": {
     "avatar": "Avatar",

@@ -39,7 +39,8 @@ date-filtered `GROUP BY track_id` cannot use a filtering and a grouping index at
 
 ## Endpoints
 
-All are GET, all authenticate with `X-API-Key`, all accept `from`, `to`, `tz` and `username`.
+All are GET, all authenticate with `X-API-Key`, all accept `from`, `to`, `tz` and `username` -- and,
+since 2026-09-29, the genre and year filter described at the end of this document.
 
 | Path | Population | Returns |
 |---|---|---|
@@ -56,7 +57,8 @@ call to render its own caveat.
 
 ## Scope and authorisation
 
-`parse_scope` is one dependency shared by all seven endpoints.
+`parse_scope` is one dependency shared by every endpoint (seven originally, nine since the genre
+and year breakdowns).
 
 | Credential | No `username` | Explicit `username` |
 |---|---|---|
@@ -154,3 +156,114 @@ path is unchanged apart from two `ADD INDEX IF NOT EXISTS` statements in `init_d
 10. Every new GET endpoint appears in `tests/integration/test_router_sql.py`, and
     `listening` is registered in that suite's `conftest.py` connection patch list.
 11. `init_db` creates both `listened_at` indexes on a database that predates them.
+
+## Genre and release-year breakdowns and filters (2026-09-29)
+
+### Endpoints added
+
+| Path | Population | Returns |
+|---|---|---|
+| `/top-genres?limit=` (1-500) | linked only | genre, listens, distinct tracks; `matched` and `untagged` beside them |
+| `/years` | linked only | listens and distinct tracks per release year, `unknown` separately |
+
+`/top-genres` joins `library_track_genres` (PK `(track_id, genre_id)`) and `rules_genres`, leaving
+out `state = 'black'` as `/api/analytics/genre-distribution` does. A listen counts once per genre
+of its track, so the column overlaps and no share is returned; `matched` (listens in scope) and
+`untagged` (listens whose track has no non-black genre) are returned so the page can say that with
+numbers. The limit goes to 500 because the same endpoint, unfiltered and over all time, is the
+genre picker's option list -- the user's own genres, most played first.
+
+`/years` groups on `release_year_sql('t')`. Every listen has one year or none, so `years` plus
+`unknown` equals `matched`. Decades are folded client-side (`byDecade`): summing distinct-track
+counts across a decade is exact because a track has one year.
+
+### Release year
+
+`release_year_sql(alias)` reads the date the feeds read (`_RELEASE_DATE` in `feeds/queries.py`):
+`library_tracks.release_date`, and only when that is NULL the analyzer's
+`library_track_audio_features.release_date` if all its rows agree; the empty string (the date sync
+could not agree) stays unknown. The feeds get the analyzer value from a grouped derived table; here
+it is a correlated subquery on `idx_af_internal_track_id` inside the CASE, so it is only evaluated
+for the ~400 tracks with a NULL date and is safe inside a per-listen WHERE. The year is the first
+four characters when they are digits. Not `EFFECTIVE_YEAR_SQL` from `analytics_filters.py`: that
+puts a live set's `performance_date` first, which is the year a set *happened*, and the request
+was for the feeds' release date. Worth revisiting if set listening turns out to dominate.
+
+### Filters
+
+`parse_scope` now also reads `genre` (repeatable), `year` (repeatable, a year or `unknown`),
+`year_from`, `year_to`, validated by `parse_track_filter` into a frozen `TrackFilter`:
+
+- Blank and duplicate values are dropped; more than 50 values in one dimension, a non-numeric or
+  out-of-range `year`, or `year_to < year_from` is 400. `year_from`/`year_to` outside 1000-2999 is
+  FastAPI's 422.
+- An unknown genre name is not an error: it matches nothing and every panel answers empty. The
+  getSongs filter trap (one unknown value erroring the whole request) is exactly what this avoids.
+- Semantics: OR inside a dimension, AND across dimensions and with the period. For years the listed
+  years, the range and `unknown` are three alternatives of one dimension ("2012, or 2015-2019"),
+  which is what makes a decade just a range and lets a bar tap and the range inputs coexist.
+
+`TrackFilter.clause(track_col)` produces one `EXISTS` per dimension against the listen's track:
+`library_track_genres ⋈ rules_genres` on `name IN (...)` and `state <> 'black'`, and
+`library_tracks` on the year alternatives. EXISTS rather than a join so a track carrying two
+selected genres still counts once.
+
+`ListeningScope` grows three WHERE builders:
+
+| Method | Used for |
+|---|---|
+| `where()` | who and when only -- counting the unmatched listens a filter excluded |
+| `matched_where(track_col)` | `scrobble_listens`, with the filter |
+| `unmatched_where()` | `scrobble_unmatched_listens`; appends `1=0` under a filter |
+
+The track id has to be qualified (`l.track_id`, or `scrobble_listens.track_id` where the table is
+unaliased) because `library_track_labels`/`library_track_genres`, joined in some rankings, have a
+`track_id` of their own -- the "unqualified columns" rule in *SQL notes* above still holds for
+`username` and `listened_at`. `1=0` rather than skipping the query keeps every caller's shape;
+MariaDB answers an impossible WHERE without touching the table.
+
+### Disclosure
+
+Every response that reported `unmatched` now also reports `excluded_unmatched`, both from the same
+count over `where()`: without a filter the listens are in scope and merely unrankable
+(`unmatched = n`, `excluded_unmatched = 0`); with one they are out of scope (`0`, `n`). `/summary`
+adds `filtered` and zeroes every unmatched figure (including its share of the duration fields)
+under a filter, so no excluded listen leaks into a total.
+
+### Performance
+
+`EXPLAIN` on production for the heaviest combination -- user, all time, two genres and a year
+range, `/top-artists` -- drives from the `username` key on `scrobble_listens` (~26k rows) and does
+only `eq_ref`/`ref` lookups from there: `library_tracks` PK twice, `library_track_genres` PK prefix
+with a FirstMatch semi-join on `rules_genres` PK, and `idx_af_internal_track_id` for the analyzer
+fallback. The unfiltered `/top-genres` over the same history returned immediately. No index
+migration was needed.
+
+### Frontend
+
+- `listeningStats.js`: `NO_FILTERS`, `filtersFromSearch`/`filtersToSearch` (URL <-> state, the
+  default period omitted, malformed values dropped, a backwards range turned round),
+  `filterParams`, the toggles (`toggleGenre`, `toggleYear`, `toggleDecade`, `setYearBound`),
+  `yearSelected`, `byDecade`, `loadGenreOptions`. `listeningUrl` repeats array values.
+  `loadListening(period, filters, fetcher)` sends the same filter to all nine endpoints.
+- The filter lives in the query string of `/listening`, written with `history.replaceState`, so
+  `router.js` and `App.svelte` stay path-only: App's URL effect compares pathnames and leaves the
+  query alone, and navigating away pushes a bare path. Filter changes add no history entries.
+- `ListeningStatsView.svelte`: a filter bar (the existing `MultiPicker` over the user's genres,
+  most played first, plus a from-to year pair) with the active year chips, "Filters wissen", and
+  the exclusion notice under it; a genre panel of horizontal bars and a year panel with a
+  Jaar/Decennium toggle and an "Onbekend jaar" row. Every bar is a `<button aria-pressed>`. Only
+  the first load blanks the page; later ones keep the old numbers until the new ones arrive, and a
+  stale response is dropped by a sequence counter.
+
+### Acceptance criteria (additions)
+
+12. `/top-genres` counts a two-genre track in both genres and returns `matched` and `untagged`.
+13. `/years` returns `unknown` separately and `sum(years) + unknown == matched`.
+14. `genre=A&genre=B` is OR, `genre` with any year parameter is AND; `year`, the range and
+    `unknown` are OR.
+15. Under any filter `unmatched == 0` and `excluded_unmatched` equals the unfiltered unmatched count;
+    without one `excluded_unmatched == 0`.
+16. An unknown genre answers 200 with empty rankings; a malformed year answers 400.
+17. The filtered and new queries run against MariaDB in `tests/integration/test_router_sql.py`,
+    including a seeded `ListeningBreakdownTest`.

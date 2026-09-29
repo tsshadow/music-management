@@ -31,9 +31,17 @@ runs on UTC, so HOUR() reports a UTC hour and DATE() a UTC day -- both wrong for
 "when do I listen" by the reader's offset, which moves an evening listen into the
 small hours. A fixed offset would fix summer and break winter, so the caller names
 a zone instead and the bucketing happens in Python, where DST is a solved problem.
+
+Genre and release year are properties of a *track*, so they can only ever be
+asked of a matched listen. Filtering on either therefore drops every unmatched
+listen, not because they fail the filter but because they cannot be tested
+against it. Every response under such a filter says how many were dropped that
+way (``excluded_unmatched``), so the page can print it next to the filter rather
+than let the totals shrink by 60% without explanation.
 """
 
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -49,6 +57,109 @@ BUCKETS = ('day', 'week', 'month')
 
 MAX_LIMIT = 100
 
+#: /top-genres feeds the page's genre picker as well as its chart, and the picker wants every
+#: genre the listener ever played. 500 is well above the ~200 white genres on production.
+MAX_GENRE_LIMIT = 500
+
+#: How many values one filter dimension may carry. A chip bar never gets near it; a crafted URL
+#: with thousands of `genre=` values would otherwise become an IN list of that length.
+MAX_FILTER_VALUES = 50
+
+#: Bounds a year filter value is validated against -- a sanity check on input, not a claim about
+#: which years exist. Release dates on production run from 1996 to today.
+YEAR_MIN, YEAR_MAX = 1000, 2999
+
+#: The `year=` value that selects tracks without a usable release date.
+UNKNOWN_YEAR = 'unknown'
+
+
+def release_year_sql(track: str) -> str:
+    """The release year of the track aliased ``track``, or NULL when it has none.
+
+    The same source the feeds read (``_RELEASE_DATE`` in feeds/queries.py): the servers' own
+    ``library_tracks.release_date`` first; when that is NULL -- no server holds the file -- the
+    ml-analyzer's date, but only if all its rows agree; and an empty string, which is the sync's
+    decision that no date could be agreed on, stays unknown rather than falling through. The
+    analyzer fallback is a correlated lookup on ``idx_af_internal_track_id`` rather than the
+    feeds' grouped derived table, because here it is evaluated per listen inside a WHERE and the
+    CASE only reaches it for the few hundred tracks whose own date is NULL.
+
+    ``release_date`` is a string ('YYYY-MM-DD' on production), so the year is its first four
+    characters, and only when those are digits.
+    """
+    analyzer = (
+        "(SELECT CASE WHEN COUNT(DISTINCT NULLIF(af.release_date, '')) = 1 "
+        "THEN MIN(NULLIF(af.release_date, '')) END "
+        f'FROM library_track_audio_features af WHERE af.internal_track_id = {track}.id)'
+    )
+    released = f"(CASE WHEN {track}.release_date IS NULL THEN {analyzer} ELSE NULLIF({track}.release_date, '') END)"
+    return f"(CASE WHEN {released} REGEXP '^[0-9]{{4}}' THEN CAST(LEFT({released}, 4) AS UNSIGNED) END)"
+
+
+@dataclass(frozen=True)
+class TrackFilter:
+    """Which *tracks* a request is about: by genre, by release year, or both.
+
+    Within a dimension the values are alternatives (Hardstyle OR Uptempo Hardcore; 2015 OR the
+    range 2018-2020 OR unknown); across dimensions they must all hold. A genre is matched by
+    name against rules_genres, never a blacklisted one, so a name that does not exist simply
+    matches nothing and the answer is empty rather than an error.
+    """
+
+    genres: tuple[str, ...] = ()
+    years: tuple[int, ...] = ()
+    unknown_year: bool = False
+    year_from: int | None = None
+    year_to: int | None = None
+
+    @property
+    def year_active(self) -> bool:
+        """Whether any release-year condition was asked for."""
+        return bool(self.years) or self.unknown_year or self.year_from is not None or self.year_to is not None
+
+    @property
+    def active(self) -> bool:
+        """Whether this filter excludes anything -- and with it every unmatched listen."""
+        return bool(self.genres) or self.year_active
+
+    def clause(self, track_col: str) -> tuple[list[str], list]:
+        """Conditions on the listen whose track id is ``track_col``.
+
+        EXISTS against the track rather than a join, so a listen stays one row whatever the
+        track carries: a track with two of the selected genres must still count once.
+        """
+        clauses: list[str] = []
+        params: list = []
+        if self.genres:
+            marks = ', '.join(['%s'] * len(self.genres))
+            clauses.append(
+                'EXISTS (SELECT 1 FROM library_track_genres fg JOIN rules_genres fr ON fr.id = fg.genre_id'
+                f" WHERE fg.track_id = {track_col} AND fr.state <> 'black' AND fr.name IN ({marks}))"
+            )
+            params.extend(self.genres)
+        if self.year_active:
+            year = release_year_sql('ft')
+            alternatives: list[str] = []
+            if self.years:
+                alternatives.append(f'{year} IN ({", ".join(["%s"] * len(self.years))})')
+                params.extend(self.years)
+            if self.year_from is not None and self.year_to is not None:
+                alternatives.append(f'{year} BETWEEN %s AND %s')
+                params.extend([self.year_from, self.year_to])
+            elif self.year_from is not None:
+                alternatives.append(f'{year} >= %s')
+                params.append(self.year_from)
+            elif self.year_to is not None:
+                alternatives.append(f'{year} <= %s')
+                params.append(self.year_to)
+            if self.unknown_year:
+                alternatives.append(f'{year} IS NULL')
+            clauses.append(
+                f'EXISTS (SELECT 1 FROM library_tracks ft WHERE ft.id = {track_col} AND ({" OR ".join(alternatives)}))'
+            )
+        return clauses, params
+
+
 # One row per hour that saw a listen, rather than one row per listen: the
 # rollup is what makes a Python-side timezone conversion affordable. Whole
 # history is roughly three years, so this is thousands of rows, not 54.000.
@@ -57,12 +168,12 @@ _HOURLY_SQL = """
     FROM (
         SELECT DATE_FORMAT(listened_at, '%%Y-%%m-%%d %%H') AS slot,
                COUNT(*) AS matched, 0 AS unmatched
-        FROM scrobble_listens WHERE {where}
+        FROM scrobble_listens WHERE {matched_where}
         GROUP BY slot
         UNION ALL
         SELECT DATE_FORMAT(listened_at, '%%Y-%%m-%%d %%H') AS slot,
                0 AS matched, COUNT(*) AS unmatched
-        FROM scrobble_unmatched_listens WHERE {where}
+        FROM scrobble_unmatched_listens WHERE {unmatched_where}
         GROUP BY slot
     ) AS listens
     GROUP BY slot
@@ -79,18 +190,35 @@ class ListeningScope:
     here once and travel as UTC instants from then on.
     """
 
-    def __init__(self, username: str | None, date_from: date | None, date_to: date | None, zone: ZoneInfo):
+    def __init__(
+        self,
+        username: str | None,
+        date_from: date | None,
+        date_to: date | None,
+        zone: ZoneInfo,
+        track_filter: TrackFilter | None = None,
+    ):
         self.username = username
         self.date_from = date_from
         self.date_to = date_to
         self.zone = zone
+        self.track_filter = track_filter or TrackFilter()
+
+    @property
+    def filtered(self) -> bool:
+        """Whether a genre or year filter is active, which excludes every unmatched listen."""
+        return self.track_filter.active
 
     def _as_utc(self, day: date, days_after: int = 0) -> datetime:
         local = datetime.combine(day + timedelta(days=days_after), time.min, tzinfo=self.zone)
         return local.astimezone(UTC).replace(tzinfo=None)
 
     def where(self) -> tuple[str, list]:
-        """A WHERE fragment valid against either listens table.
+        """A WHERE fragment on who and when only, valid against either listens table.
+
+        This ignores the genre and year filter on purpose: it is what counts the unmatched
+        listens a filter excluded. Queries that select listens use ``matched_where`` or
+        ``unmatched_where`` instead.
 
         Columns are unqualified on purpose. ``username`` and ``listened_at`` exist
         only on the two listens tables, never on the library tables joined next to
@@ -113,12 +241,42 @@ class ListeningScope:
             return '1=1', []
         return ' AND '.join(clauses), params
 
+    def matched_where(self, track_col: str) -> tuple[str, list]:
+        """``where()`` plus the genre and year filter, for ``scrobble_listens``.
+
+        ``track_col`` names the listen's track id as the query spells it -- ``l.track_id`` where
+        the table is aliased, ``scrobble_listens.track_id`` where it is not. Unlike ``username``
+        it cannot stay unqualified, because library_track_labels and library_track_genres, which
+        some of these queries join, carry a ``track_id`` of their own.
+        """
+        where, params = self.where()
+        clauses, extra = self.track_filter.clause(track_col)
+        if not clauses:
+            return where, params
+        return ' AND '.join([where, *clauses]), [*params, *extra]
+
+    def unmatched_where(self) -> tuple[str, list]:
+        """``where()`` for ``scrobble_unmatched_listens``, empty under a genre or year filter.
+
+        An unmatched listen has no track, so it has no genre and no release year, and a filter
+        on either cannot include it. ``1=0`` rather than skipping the query keeps every caller's
+        shape the same; MariaDB answers an impossible WHERE without reading the table.
+        """
+        where, params = self.where()
+        if self.filtered:
+            return where + ' AND 1=0', params
+        return where, params
+
 
 def parse_scope(
     username: str | None = Query(None),
     date_from: date | None = Query(None, alias='from'),
     date_to: date | None = Query(None, alias='to'),
     tz: str = Query('UTC'),
+    genre: list[str] = Query([]),
+    year: list[str] = Query([]),
+    year_from: int | None = Query(None, ge=YEAR_MIN, le=YEAR_MAX),
+    year_to: int | None = Query(None, ge=YEAR_MIN, le=YEAR_MAX),
     auth: dict = Depends(verify_api_key),
 ) -> ListeningScope:
     """Turn query parameters into a scope, refusing another user's history.
@@ -135,14 +293,51 @@ def parse_scope(
         zone = ZoneInfo(tz)
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(status_code=400, detail=f'Unknown timezone: {tz}') from None
+    track_filter = parse_track_filter(genre, year, year_from, year_to)
 
     if auth.get('type') == 'system':
-        return ListeningScope(username, date_from, date_to, zone)
+        return ListeningScope(username, date_from, date_to, zone, track_filter)
     own = (auth.get('user') or {}).get('username')
     # Account names are case-insensitive (services/music_manager/identity.py).
     if username and not same_username(username, own):
         raise HTTPException(status_code=403, detail="Not allowed to read another user's listening history")
-    return ListeningScope(own, date_from, date_to, zone)
+    return ListeningScope(own, date_from, date_to, zone, track_filter)
+
+
+def parse_track_filter(genres: list[str], years: list[str], year_from: int | None, year_to: int | None) -> TrackFilter:
+    """Validate the genre and year query parameters into a ``TrackFilter``.
+
+    A malformed value is a 400: ``year=abc`` is a broken request. An unknown but well-formed
+    value is not -- ``genre=Polka`` is a question with an empty answer, and answering it with an
+    error would take down every panel of the page at once. Blank and repeated values are
+    dropped, so a stray ``genre=`` means no filter.
+    """
+    names = tuple(dict.fromkeys(g.strip() for g in genres if g and g.strip()))
+    picked: list[int] = []
+    unknown = False
+    for raw in years:
+        value = (raw or '').strip()
+        if not value:
+            continue
+        if value.lower() == UNKNOWN_YEAR:
+            unknown = True
+            continue
+        if not value.isdigit() or not YEAR_MIN <= int(value) <= YEAR_MAX:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid year {raw!r}: expected {YEAR_MIN}-{YEAR_MAX} or '{UNKNOWN_YEAR}'"
+            )
+        picked.append(int(value))
+    if len(names) > MAX_FILTER_VALUES or len(picked) > MAX_FILTER_VALUES:
+        raise HTTPException(status_code=400, detail=f'At most {MAX_FILTER_VALUES} values per filter')
+    if year_from is not None and year_to is not None and year_to < year_from:
+        raise HTTPException(status_code=400, detail="'year_to' is before 'year_from'")
+    return TrackFilter(
+        genres=names,
+        years=tuple(sorted(set(picked))),
+        unknown_year=unknown,
+        year_from=year_from,
+        year_to=year_to,
+    )
 
 
 def _rows(sql: str, params, fetch='all'):
@@ -157,14 +352,23 @@ def _rows(sql: str, params, fetch='all'):
         conn.close()
 
 
-def _unmatched_count(scope: ListeningScope) -> int:
+def _unmatched_disclosure(scope: ListeningScope) -> dict[str, int]:
+    """How many unmatched listens the scope holds, and how many a filter excluded.
+
+    Always counted over who and when only. Without a genre or year filter those listens are in
+    scope and merely unrankable (``unmatched``); with one they are out of scope altogether
+    (``excluded_unmatched``). One of the two is always zero.
+    """
     where, params = scope.where()
     row = _rows(
         'SELECT COUNT(*) AS unmatched FROM scrobble_unmatched_listens WHERE ' + where,
         params,
         fetch='one',
     )
-    return int((row or {}).get('unmatched') or 0)
+    count = int((row or {}).get('unmatched') or 0)
+    if scope.filtered:
+        return {'unmatched': 0, 'excluded_unmatched': count}
+    return {'unmatched': count, 'excluded_unmatched': 0}
 
 
 def _hourly(scope: ListeningScope):
@@ -175,8 +379,10 @@ def _hourly(scope: ListeningScope):
     whole number of hours and is off by at most one bucket for the handful at
     :30 or :45.
     """
-    where, params = scope.where()
-    rows = _rows(_HOURLY_SQL.replace('{where}', where), [*params, *params])
+    matched_where, matched_params = scope.matched_where('scrobble_listens.track_id')
+    unmatched_where, unmatched_params = scope.unmatched_where()
+    sql = _HOURLY_SQL.replace('{matched_where}', matched_where).replace('{unmatched_where}', unmatched_where)
+    rows = _rows(sql, [*matched_params, *unmatched_params])
     out = []
     for row in rows:
         slot = row['slot']
@@ -219,7 +425,11 @@ def summary(scope: ListeningScope = Depends(parse_scope)):
     assumes it ran to the end. An unmatched listen has neither, so it lands in
     ``unknown_duration_listens`` and contributes no seconds at all -- which makes
     ``estimated_secs`` a floor rather than a guess at the whole.
+
+    Under a genre or year filter the unmatched listens are counted but not included: they land
+    in ``excluded_unmatched`` and every other unmatched figure is zero.
     """
+    matched_where, matched_params = scope.matched_where('l.track_id')
     where, params = scope.where()
     matched = (
         _rows(
@@ -237,12 +447,13 @@ def summary(scope: ListeningScope = Depends(parse_scope)):
             FROM scrobble_listens l
             LEFT JOIN library_tracks t ON t.id = l.track_id
             WHERE """
-            + where,
-            params,
+            + matched_where,
+            matched_params,
             fetch='one',
         )
         or {}
     )
+    # Over who and when only, so a filtered request still learns how many it excluded.
     unmatched = (
         _rows(
             """
@@ -261,6 +472,10 @@ def summary(scope: ListeningScope = Depends(parse_scope)):
         or {}
     )
 
+    excluded_unmatched = 0
+    if scope.filtered:
+        excluded_unmatched = int(unmatched.get('listens') or 0)
+        unmatched = {}
     matched_listens = int(matched.get('listens') or 0)
     unmatched_listens = int(unmatched.get('listens') or 0)
     total = matched_listens + unmatched_listens
@@ -277,6 +492,8 @@ def summary(scope: ListeningScope = Depends(parse_scope)):
         'matched': matched_listens,
         'unmatched': unmatched_listens,
         'unmatched_share': _share(unmatched_listens, total),
+        'filtered': scope.filtered,
+        'excluded_unmatched': excluded_unmatched,
         'tracks': int(matched.get('tracks') or 0),
         'artists': int(matched.get('artists') or 0),
         'measured_listens': measured_listens,
@@ -345,27 +562,28 @@ def sources(scope: ListeningScope = Depends(parse_scope)):
     NULL becomes 'unknown' rather than being dropped, so these counts still add up
     to the total /summary reports.
     """
-    where, params = scope.where()
+    matched_where, matched_params = scope.matched_where('scrobble_listens.track_id')
+    unmatched_where, unmatched_params = scope.unmatched_where()
     rows = _rows(
         """
         SELECT source, SUM(matched) AS matched, SUM(unmatched) AS unmatched
         FROM (
             SELECT COALESCE(source, 'unknown') AS source, COUNT(*) AS matched, 0 AS unmatched
             FROM scrobble_listens WHERE """
-        + where
+        + matched_where
         + """
             GROUP BY COALESCE(source, 'unknown')
             UNION ALL
             SELECT COALESCE(source, 'unknown') AS source, 0 AS matched, COUNT(*) AS unmatched
             FROM scrobble_unmatched_listens WHERE """
-        + where
+        + unmatched_where
         + """
             GROUP BY COALESCE(source, 'unknown')
         ) AS listens
         GROUP BY source
         ORDER BY SUM(matched) + SUM(unmatched) DESC
         """,
-        [*params, *params],
+        [*matched_params, *unmatched_params],
     )
     return {
         'sources': [
@@ -381,9 +599,9 @@ def sources(scope: ListeningScope = Depends(parse_scope)):
 
 
 def _ranking(sql: str, scope: ListeningScope, limit: int):
-    where, params = scope.where()
+    where, params = scope.matched_where('l.track_id')
     rows = _rows(sql.replace('{where}', where), [*params, limit])
-    return {'unmatched': _unmatched_count(scope), 'items': rows}
+    return {**_unmatched_disclosure(scope), 'items': rows}
 
 
 @router.get('/top-tracks')
@@ -410,6 +628,7 @@ def top_tracks(limit: int = Query(20, ge=1, le=MAX_LIMIT), scope: ListeningScope
     )
     return {
         'unmatched': result['unmatched'],
+        'excluded_unmatched': result['excluded_unmatched'],
         'tracks': [
             {
                 'track_id': r['track_id'],
@@ -453,6 +672,7 @@ def top_artists(limit: int = Query(20, ge=1, le=MAX_LIMIT), scope: ListeningScop
     )
     return {
         'unmatched': result['unmatched'],
+        'excluded_unmatched': result['excluded_unmatched'],
         'artists': [
             {
                 'artist_id': r['artist_id'],
@@ -496,6 +716,7 @@ def top_labels(limit: int = Query(20, ge=1, le=MAX_LIMIT), scope: ListeningScope
     )
     return {
         'unmatched': result['unmatched'],
+        'excluded_unmatched': result['excluded_unmatched'],
         'labels': [
             {
                 'label_id': r['label_id'],
@@ -505,4 +726,114 @@ def top_labels(limit: int = Query(20, ge=1, le=MAX_LIMIT), scope: ListeningScope
             }
             for r in result['items']
         ],
+    }
+
+
+@router.get('/top-genres')
+def top_genres(limit: int = Query(20, ge=1, le=MAX_GENRE_LIMIT), scope: ListeningScope = Depends(parse_scope)):
+    """Most played genres. Matched listens only, and the column does not add up.
+
+    ``library_track_genres`` is keyed on (track_id, genre_id) and a track routinely carries
+    several -- Hardcore and Uptempo Hardcore, say -- so a listen counts once inside *each* of
+    its genres. The rows overlap and their sum exceeds the matched total; ``matched`` and
+    ``untagged`` come back beside them so the page can say so with numbers. A blacklisted genre
+    is a tag curation rejected and is left out, as in /api/analytics/genre-distribution.
+
+    Under a genre filter this shows the selected genres *and* every genre the selected tracks
+    also carry -- which is what a reader filtering on Hardstyle wants to see: what else those
+    tracks are.
+    """
+    where, params = scope.matched_where('l.track_id')
+    rows = _rows(
+        """
+        SELECT rg.id AS genre_id,
+               rg.name AS genre,
+               COUNT(*) AS listens,
+               COUNT(DISTINCT l.track_id) AS tracks
+        FROM scrobble_listens l
+        JOIN library_track_genres tg ON tg.track_id = l.track_id
+        JOIN rules_genres rg ON rg.id = tg.genre_id AND rg.state <> 'black'
+        WHERE """
+        + where
+        + """
+        GROUP BY rg.id, rg.name
+        ORDER BY listens DESC, rg.name
+        LIMIT %s
+        """,
+        [*params, limit],
+    )
+    totals = (
+        _rows(
+            """
+            SELECT COUNT(*) AS matched,
+                   SUM(NOT EXISTS (
+                       SELECT 1 FROM library_track_genres ug
+                       JOIN rules_genres ur ON ur.id = ug.genre_id AND ur.state <> 'black'
+                       WHERE ug.track_id = l.track_id
+                   )) AS untagged
+            FROM scrobble_listens l
+            WHERE """
+            + where,
+            params,
+            fetch='one',
+        )
+        or {}
+    )
+    return {
+        **_unmatched_disclosure(scope),
+        'matched': int(totals.get('matched') or 0),
+        'untagged': int(totals.get('untagged') or 0),
+        'genres': [
+            {
+                'genre_id': r['genre_id'],
+                'genre': r['genre'],
+                'listens': int(r['listens'] or 0),
+                'tracks': int(r['tracks'] or 0),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get('/years')
+def release_years(scope: ListeningScope = Depends(parse_scope)):
+    """Listens by the release year of what was played. Matched listens only.
+
+    Unlike genres, every listen has exactly one release year or none, so ``years`` plus
+    ``unknown`` adds up to ``matched``. A track without a usable date -- a quarter of the
+    listened-to library on production, mostly the empty string the date sync writes when the
+    servers disagree -- goes to ``unknown`` rather than disappearing. Only the years that occur
+    are returned; decades are the page's arithmetic, not a second endpoint.
+    """
+    where, params = scope.matched_where('l.track_id')
+    rows = _rows(
+        """
+        SELECT y.release_year AS year, COUNT(*) AS listens, COUNT(DISTINCT y.track_id) AS tracks
+        FROM (
+            SELECT l.track_id, """
+        + release_year_sql('t')
+        + """ AS release_year
+            FROM scrobble_listens l
+            JOIN library_tracks t ON t.id = l.track_id
+            WHERE """
+        + where
+        + """
+        ) AS y
+        GROUP BY y.release_year
+        ORDER BY y.release_year
+        """,
+        params,
+    )
+    years, unknown = [], {'listens': 0, 'tracks': 0}
+    for r in rows:
+        entry = {'listens': int(r['listens'] or 0), 'tracks': int(r['tracks'] or 0)}
+        if r['year'] is None:
+            unknown = entry
+        else:
+            years.append({'year': int(r['year']), **entry})
+    return {
+        **_unmatched_disclosure(scope),
+        'matched': sum(y['listens'] for y in years) + unknown['listens'],
+        'unknown': unknown,
+        'years': years,
     }

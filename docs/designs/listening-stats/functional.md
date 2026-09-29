@@ -36,6 +36,10 @@ So this page counts two populations at once and has to say which is which on eve
   history are distinguishable.
 - As the listener, I want my history to be mine, so that another account on the same server cannot
   read it.
+- As the listener, I want to see which genres and which release years I actually listen to, so
+  that "what did I play" can be read along the axes the library is organised by.
+- As the listener, I want to narrow every panel to one or more genres and/or years, so that I can
+  ask "my top artists in Uptempo, in 2019 releases" and bookmark or share the answer.
 
 ## Functional Flows
 
@@ -55,6 +59,18 @@ So this page counts two populations at once and has to say which is which on eve
 | One panel's request fails | The other panels still render; only that panel is missing |
 | The API is unreachable | The page says statistics are unavailable |
 | Another user's name is requested | Refused, unless the caller holds the system key |
+| The page is opened | Also a "most played genres" and a "release year" chart, for the same period |
+| A track carries two genres | Its listens count for both genres, and the genre panel says the bars overlap and do not add up |
+| A played track has no usable release date | It lands in a separate "Onbekend jaar" bar, never dropped |
+| A bar in the genre or year chart is tapped | That genre or year becomes a filter; tapping it again removes it |
+| Decades are chosen in the year chart | Bars per decade; tapping one filters on that ten-year range |
+| Several genres are chosen | A listen matches when its track carries any of them |
+| A genre and a year are both chosen | A listen must match both |
+| Any genre or year filter is active | Every panel -- totals, timeline, clock, sources, rankings, genres, years -- shows only matching listens |
+| A filter is active and the history holds unmatched listens | Right under the filter: "N luisterbeurten zonder gekoppelde track vallen buiten dit filter" |
+| A filter matches nothing | "Niets geluisterd dat aan dit filter voldoet", with the filter still there to change |
+| A filtered view's URL is opened later or by someone else | The same period and filters are applied, always to the reader's own history |
+| A filter is cleared | The chip's ×, a second tap on the bar, or "Filters wissen" for all at once |
 
 ## Out of Scope
 
@@ -68,6 +84,24 @@ So this page counts two populations at once and has to say which is which on eve
 - **Comparing users.** Five accounts is not a social graph.
 - **Importing a Spotify export.** Only ListenBrainz can be imported today. Adding Spotify is a
   separate piece of work with its own parser.
+
+## Genre and release-year breakdowns (2026-09-29)
+
+Genre and release year are properties of a track, and the majority of the history is not linked to
+one. A filter on either therefore cannot include an unmatched listen -- not because it fails the
+filter, but because there is nothing to test. Silently shrinking the totals by 60% would read as
+"I listened to much less Hardstyle than I thought"; the page instead says, next to the filter, how
+many listens fell outside it for that reason.
+
+The genre chart has the same honesty problem as the labels panel, only stronger: most tracks carry
+two or three genres (Hardcore and Uptempo Hardcore), so the bars sum to well over the total. The
+panel says so, and names the matched total and how many of those have no genre at all.
+
+Year means the *release* year of what was played, from the same source the feeds read. A quarter of
+the played tracks have no date the servers agree on; they get their own bar instead of vanishing.
+
+The years chosen one by one and the from-to range are alternatives of one question ("released
+in 2012, or in 2015-2019"); a decade is simply a ten-year range.
 
 ## Acceptance Criteria
 
@@ -84,3 +118,10 @@ So this page counts two populations at once and has to say which is which on eve
 8. An empty history produces an explicit message, not a zero-filled chart.
 9. A failing panel does not blank the page.
 10. A user's API key can read only that user's history.
+11. The genre panel and the year panel are shown for the period, and both state that they cover
+    linked listens only; the genre panel states that its bars overlap.
+12. Tapping a genre or year bar toggles that filter, and every panel reloads for it.
+13. With any genre or year filter active, the number of unmatched listens it excluded is visible
+    next to the filter.
+14. The period and filters are in the address bar and a reload or a shared link restores them.
+15. An unknown genre in the URL gives an empty page, not an error.

@@ -626,6 +626,72 @@ class FeedsSnapshotRouterTest(unittest.TestCase):
         self.assertTrue(grown['exhausted'])
         self.assertIsNone(body['next_offset'])
 
+    def test_a_split_daily_mix_is_built_with_its_reserve_and_never_sends_it(self):
+        """Issue #137: the daily build ranks MAX_FEED_LENGTH places once and stores the rest."""
+        feed = Feed(
+            slug='daily-mix-mid',
+            state='ok',
+            scope='user',
+            tracks=[{'id': n} for n in range(100)],
+            funnel={'allocated': 100},
+            title='Middenin',
+            reserve=[{'id': n} for n in range(100, 150)],
+        )
+        stored = {}
+
+        def serve(conn, username, slug, now, key, build):
+            stored['payload'] = build()
+            return stored['payload'], 'live'
+
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=serve),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=feed) as build,
+        ):
+            body = client.get('/api/feeds/daily-mix-mid?username=user', headers={'X-API-Key': 'k'}).json()
+        self.assertEqual(build.call_args.kwargs['reserve_size'], feeds_router.MAX_FEED_LENGTH)
+        self.assertEqual([track['id'] for track in stored['payload']['reserve']], list(range(100, 150)))
+        self.assertFalse(stored['payload']['exhausted'])
+        self.assertNotIn('reserve', body)
+        self.assertEqual(body['next_offset'], 100)
+
+    def test_release_radar_is_built_without_a_reserve(self):
+        feed = Feed(slug='release-radar', state='ok', scope='user', tracks=[], funnel={}, title='Release Radar')
+        with (
+            patch('services.music_manager.routers.feeds.serve_snapshot', side_effect=_serve_live),
+            patch('services.music_manager.routers.feeds.build_feed', return_value=feed) as build,
+        ):
+            client.get('/api/feeds/release-radar?username=user', headers={'X-API-Key': 'k'})
+        self.assertNotIn('reserve_size', build.call_args.kwargs)
+
+    def test_a_continuation_with_a_reserve_builds_nothing(self):
+        stored = {
+            **self._stored([{'id': n, 'work_id': 1000 + n} for n in range(100)]),
+            # One song of the reserve is already stored under another version's id.
+            'reserve': [{'id': 900, 'work_id': 1005}] + [{'id': n, 'work_id': 1000 + n} for n in range(100, 250)],
+            'exhausted': False,
+        }
+        response, build, grown = self._continue(stored, [], 'offset=100&limit=100')
+        build.assert_not_called()
+        body = response.json()
+        self.assertEqual([track['id'] for track in body['tracks']], list(range(100, 200)))
+        self.assertEqual(body['next_offset'], 200)
+        self.assertNotIn('reserve', body)
+        self.assertEqual([track['id'] for track in grown['reserve']], list(range(200, 250)))
+        self.assertFalse(grown['exhausted'])
+
+    def test_the_last_of_the_reserve_exhausts_the_feed(self):
+        stored = {
+            **self._stored([{'id': n} for n in range(100)]),
+            'reserve': [{'id': n} for n in range(100, 130)],
+            'exhausted': False,
+        }
+        response, build, grown = self._continue(stored, [], 'offset=100')
+        build.assert_not_called()
+        body = response.json()
+        self.assertEqual([track['id'] for track in body['tracks']], list(range(100, 130)))
+        self.assertIsNone(body['next_offset'])
+        self.assertTrue(grown['exhausted'])
+
     def _head_of_a_build(self, count, allocated):
         feed = Feed(
             slug='daily-mix',

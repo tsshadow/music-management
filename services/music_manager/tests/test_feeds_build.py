@@ -937,3 +937,33 @@ class RecentOlderSplitTest(unittest.TestCase):
                 feed = build_feed(conn, 'user', POLICIES[slug], NOW)
                 self.assertEqual(conn.cursor.return_value.statements_matching(_OLDER_SAMPLE_FRAGMENT), [])
                 self.assertIsNone(feed.pool_counts)
+
+
+class ReserveTest(unittest.TestCase):
+    """Issue #137: the continuation's tracks come out of the same build, for no extra query."""
+
+    def _build(self, reserve_size=None, policy=CLASSIC_20):
+        conn = scripted(listens=MANY_LISTENS, candidates=_recent(40), older=_older(40))
+        return conn, build_feed(conn, 'user', policy, NOW, reserve_size=reserve_size)
+
+    def test_the_reserve_is_the_longer_build_without_the_head(self):
+        _, feed = self._build(reserve_size=60)
+        _, longer = self._build(policy=build.resize(CLASSIC_20, 60))
+        head = {build.song_key(track) for track in feed.tracks}
+        self.assertEqual(len(feed.tracks), 20)
+        self.assertEqual(
+            [track['id'] for track in feed.reserve],
+            [track['id'] for track in longer.tracks if build.song_key(track) not in head],
+        )
+        self.assertFalse(head & {build.song_key(track) for track in feed.reserve})
+
+    def test_the_reserve_costs_no_query(self):
+        plain_conn, plain = self._build()
+        reserve_conn, _ = self._build(reserve_size=60)
+        self.assertEqual(len(plain_conn.cursor.return_value.executed), len(reserve_conn.cursor.return_value.executed))
+        self.assertIsNone(plain.reserve)
+
+    def test_the_head_is_the_same_with_or_without_a_reserve(self):
+        _, plain = self._build()
+        _, with_reserve = self._build(reserve_size=60)
+        self.assertEqual([t['id'] for t in plain.tracks], [t['id'] for t in with_reserve.tracks])

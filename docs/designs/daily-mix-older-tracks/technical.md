@@ -49,16 +49,35 @@ the unknown-hardness backfill and the song collapse are unchanged. `Feed.pool_co
 Rotation (`daily-mix-label`): names are counted over one window, `None` (`SPLIT_ROTATION_WINDOWS`),
 because the pool is the whole library; the artist mix keeps the 90/365/none ladder.
 
-**Cost, measured read-only on production (2026-09-29, user user):** each sample is one scan of the
-filtered library, ~9 s for the older half and ~8 s for the recent half; fetching 2000–3000 rows adds a
-few seconds. The old 90-day query was one scan too. Builds run in the background refresh, so this
-lands on `feeds-refresh`, not on Home; a continuation ("Meer laden") pays it live.
+**Cost** (issue #137, measured read-only on production 2026-09-29, user user, server-side time via
+`SYSDATE(6)` around the statement):
+
+| Statement | Before | After |
+|---|---|---|
+| recent-half sample (3000 ids) | 4.84 s | 1.65 s |
+| older-half sample (2000 ids) | 6.05 s | 2.69 s |
+| Release Radar candidate query | 1.50 s | 1.31 s |
+| candidate rows by id (~1900 rows, PK range) | 0.13 s | 0.11 s |
+| "Meer laden" on a split mix | a full build (two samples, ~11 s of SQL) | no build: read + write-back of the row |
+
+The cost was not the scan itself but the audio-features derived table joined into every statement:
+`EXPLAIN` shows it as `LATERAL DERIVED` -- a `GROUP BY` over `idx_af_internal_track_id` for each of
+the ~345k scanned rows, only to supply a release date that `library_tracks.release_date` already
+settles for all but 377 of them. Every read of `library_track_audio_features` in `feeds/queries.py`
+is now a correlated aggregate lookup (`_AF_BPM`, `_AF_RELEASE_YEAR`, `_AF_RELEASE_DATE`), and
+`_RELEASE_DATE` only evaluates its lookup when the track's own date is NULL. Same rows, same values:
+the before/after statements returned identical aggregates. The samples keep their day-stable
+`MD5(seed || track_uid)` order, so a day's mix is unchanged by the rewrite.
+
+The continuation no longer samples at all: the head build also ranks `MAX_FEED_LENGTH` places and
+stores the rest as `reserve` (see docs/designs/feed-length/technical.md, "Continuation").
 
 ## API Contract
 
 `GET /api/feeds/{slug}` gains `pool_counts` (`{"recent": n, "older": m}`, `null` for release-radar and
 the artist mix). `GET /api/feeds` reports `window_days: null` for the split mixes (no window on the
-pool). Additive; no client reads either field. `params_key` covers the three settings.
+pool). Additive; no client reads either field. `params_key` covers the three settings. The stored
+row of a split mix also carries `reserve` (issue #137), which `get_feed` strips like `exhausted`.
 
 ## Cross-App Impact
 

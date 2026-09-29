@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 
 from services.music_manager.feeds.policy import POLICIES
+from services.music_manager.feeds.queries import _RELEASE_DATE as RD
 from services.music_manager.feeds.queries import (
     candidate_rows_query,
     candidates_query,
@@ -53,7 +54,7 @@ class CandidatesQueryTest(unittest.TestCase):
     def test_a_release_window_demands_day_precision(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn(
-            "LENGTH(CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END) = 10",
+            f'LENGTH({RD}) = 10',
             sql,
         )
 
@@ -67,7 +68,7 @@ class CandidatesQueryTest(unittest.TestCase):
         """
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END AS release_date",
+            f'{RD} AS release_date',
             sql,
         )
 
@@ -81,7 +82,7 @@ class CandidatesQueryTest(unittest.TestCase):
         """
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertNotIn("COALESCE(NULLIF(t.release_date", sql)
-        self.assertIn("CASE WHEN t.release_date IS NULL THEN af.release_date", sql)
+        self.assertIn('CASE WHEN t.release_date IS NULL THEN (SELECT', sql)
 
     def test_a_release_dated_in_the_future_is_outside_the_window(self):
         """`release_date` comes out of a file tag, so a track tagged 2027-01-01
@@ -91,9 +92,7 @@ class CandidatesQueryTest(unittest.TestCase):
         long as it exists. The window is closed at `now` for exactly that.
         """
         sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END <= %s", sql
-        )
+        self.assertIn(f'{RD} <= %s', sql)
         self.assertIn(NOW.date().isoformat(), params)
         lower = params.index((NOW.date() - timedelta(days=7)).isoformat())
         upper = params.index(NOW.date().isoformat())
@@ -101,12 +100,8 @@ class CandidatesQueryTest(unittest.TestCase):
 
     def test_the_artist_mix_window_is_bounded_at_both_ends_too(self):
         sql, params = candidates_query('user', POLICIES['daily-mix-artist'], NOW)
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END >= %s", sql
-        )
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END <= %s", sql
-        )
+        self.assertIn(f'{RD} >= %s', sql)
+        self.assertIn(f'{RD} <= %s', sql)
         self.assertIn((NOW.date() - timedelta(days=90)).isoformat(), params)
         self.assertIn(NOW.date().isoformat(), params)
 
@@ -131,8 +126,22 @@ class CandidatesQueryTest(unittest.TestCase):
 
     def test_audio_features_join_on_the_internal_track_id(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn('internal_track_id', sql)
-        self.assertNotIn('af.track_id = t.track_uid', sql)
+        self.assertIn('x.internal_track_id = t.id', sql)
+        self.assertNotIn('track_id = t.track_uid', sql)
+
+    def test_audio_features_are_never_grouped_over_the_whole_table(self):
+        """Issue #137: a derived table grouping all of library_track_audio_features was
+        materialised in full on every statement -- most of a daily-mix sample's cost on
+        production. Every read of it is a per-track correlated lookup now."""
+        for sql in (
+            candidates_query('user', POLICIES['release-radar'], NOW)[0],
+            listens_query('user', 90, NOW)[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'older', 'seed')[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'recent', 'seed')[0],
+            candidate_rows_query('user', [1], 'recent')[0],
+            rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['a'], (90, None))[0],
+        ):
+            self.assertNotIn('GROUP BY internal_track_id', sql)
 
     def test_the_rating_join_carries_all_three_key_columns(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)

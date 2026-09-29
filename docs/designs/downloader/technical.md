@@ -69,6 +69,19 @@ into place with `os.replace`.
   SoundCloud reads the counters per account (`classify_account`: a 403 among readable tracks is a
   track, a blank account is one step towards `block_threshold`). YouTube parks on any 429 and on a
   403 yt-dlp reported as an *error*; a 403 it logged as a warning and then recovered from is ignored.
+  Before forwarding, the report strips the `\r` yt-dlp puts in front of some lines (it split the
+  event title and left `root: ERROR: ` with nothing after it), and logs the lines in
+  `BENIGN_MESSAGES` at INFO instead of WARNING/ERROR: the webm-to-mkv thumbnail notice, a missing
+  SoundCloud stream (`http_mp3 format not found`) and a DRM refusal. That list is explicit on
+  purpose; any other yt-dlp warning still reaches the alerts topic (bug report 130).
+- **DRM-protected tracks are written off.** The report collects the ids of DRM refusals, and
+  SoundCloud's `_settle` remembers them in `downloads_soundcloud_unavailable` with reason `drm`,
+  retried after `unavailable_retry_days` like a 403. The DRM error is raised inside the extraction,
+  before the complete match filter runs, so the SoundCloud match filter also accepts yt-dlp's
+  `incomplete=True` pre-check on each playlist entry; that is where a written-off track is skipped
+  without a request.
+- **YouTube audio channels ask for `bestaudio/best`.** Without a format, yt-dlp's default fetched and
+  merged the whole video before `FFmpegExtractAudio` discarded it again. The m4a is unchanged.
 - **The deep sweep's flat listing** (`deep_sweep.list_flat`) forces `ignoreerrors` off and raises
   `ListingFailed` (carrying the reported HTTP `status`) instead of returning an empty list. A 429
   parks the source; a 403 parks YouTube and counts as one blank account for SoundCloud; anything else

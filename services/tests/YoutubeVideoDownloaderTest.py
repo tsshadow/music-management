@@ -74,13 +74,14 @@ class YoutubeVideoDownloaderTest(unittest.TestCase):
         self.assertTrue(opts['outtmpl'].startswith('/tmp/youtube_video/'))
         self.assertIn('/tmp/archive/video/', opts['download_archive'])
 
-    def test_audio_options_are_unchanged(self):
+    def test_audio_options_ask_for_the_audio_stream_only(self):
         downloader = self._downloader()
         account = YoutubeAccount(name='Noisia')
 
         opts = downloader._prepare_ydl_opts(account, None, False)
 
-        self.assertNotIn('format', opts)
+        # Audio only, not yt-dlp's default video merge (bug report 130).
+        self.assertEqual(opts['format'], 'bestaudio/best')
         self.assertTrue(opts['outtmpl'].startswith('/tmp/youtube/'))
         keys = [pp['key'] for pp in opts['postprocessors']]
         self.assertIn('FFmpegExtractAudio', keys)

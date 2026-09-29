@@ -83,5 +83,24 @@ class YoutubeArtworkTest(unittest.TestCase):
         self.assertIs(True, options.get('writethumbnail'))
 
 
+class YoutubeAudioFormatTest(YoutubeArtworkTest):
+    """An audio channel asks for the audio stream only (bug report 130).
+
+    Without a format, yt-dlp's default fetched and merged the whole video before
+    FFmpegExtractAudio threw it away again, and warned on every download that the
+    webm merge had to become an mkv for the thumbnail.
+    """
+
+    def test_an_audio_channel_downloads_only_the_audio_stream(self):
+        self.assertEqual('bestaudio/best', self.downloader._base_ydl_opts.get('format'))
+
+    def test_a_video_channel_still_merges_video_and_audio(self):
+        self.downloader.downloader_config['video_folder'] = '/music/youtube-video'
+        options = self.downloader._build_video_base_opts()
+
+        self.assertEqual('bestvideo*+bestaudio/best', options['format'])
+        self.assertEqual('mkv', options['merge_output_format'])
+
+
 if __name__ == '__main__':
     unittest.main()

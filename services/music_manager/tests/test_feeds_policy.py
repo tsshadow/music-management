@@ -9,8 +9,12 @@ from services.music_manager.feeds.policy import (
     POLICIES,
     parse_feed_size,
     parse_hardness_edges,
+    parse_older_min_rating,
+    parse_recent_share,
+    parse_recent_window_days,
     parse_starting_genres,
     resize,
+    with_recent_split,
 )
 
 
@@ -45,9 +49,13 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(radar.order, 'release')
         self.assertTrue(radar.heard_rank_penalty)
 
-    def test_the_daily_mix_is_ninety_days_of_unheard_or_loved(self):
+    def test_the_daily_mix_is_half_last_year_and_half_older(self):
+        """Bug report 131: no window on the pool itself, a recent share of it instead."""
         mix = POLICIES['daily-mix']
-        self.assertEqual(mix.release_window_days, 90)
+        self.assertIsNone(mix.release_window_days)
+        self.assertEqual(mix.recent_share, 0.5)
+        self.assertEqual(mix.recent_window_days, 365)
+        self.assertEqual(mix.older_min_rating, 3)
         self.assertEqual(mix.pools, frozenset({'unheard', 'loved'}))
         self.assertEqual(mix.loved_min_rating, 4)
         self.assertEqual(mix.order, 'daily_sample')
@@ -98,7 +106,8 @@ class SpectrumPolicyTest(unittest.TestCase):
             with self.subTest(slug=slug):
                 policy = POLICIES[slug]
                 self.assertEqual(policy.hardness_band, band)
-                self.assertEqual(policy.release_window_days, 90)
+                self.assertIsNone(policy.release_window_days)
+                self.assertEqual(policy.recent_share, 0.5)
                 self.assertEqual(policy.pools, frozenset({'unheard', 'loved'}))
                 self.assertEqual(policy.order, 'daily_sample')
                 self.assertIsNone(policy.rotate)
@@ -184,3 +193,35 @@ class HardnessEdgesSettingTest(unittest.TestCase):
         self.assertEqual(parse_hardness_edges('nope'), (DEFAULT_BAND_EDGES, 'default'))
         self.assertEqual(parse_hardness_edges('50,75,90'), (DEFAULT_BAND_EDGES, 'default'))
         self.assertEqual(parse_hardness_edges('fifty,seventyfive'), (DEFAULT_BAND_EDGES, 'default'))
+
+
+class RecentSplitTest(unittest.TestCase):
+    """Bug report 131: which mixes split recent/older, and the three settings behind it."""
+
+    def test_the_label_mix_splits_and_radar_and_artist_mix_do_not(self):
+        self.assertEqual(POLICIES['daily-mix-label'].recent_share, 0.5)
+        self.assertIsNone(POLICIES['daily-mix-label'].release_window_days)
+        self.assertIsNone(POLICIES['release-radar'].recent_share)
+        self.assertEqual(POLICIES['release-radar'].release_window_days, 7)
+        self.assertIsNone(POLICIES['daily-mix-artist'].recent_share)
+        self.assertEqual(POLICIES['daily-mix-artist'].release_window_days, 90)
+
+    def test_the_percentage_setting_becomes_a_share(self):
+        for raw, expected in ((50, 0.5), ('30', 0.3), (0, 0.0), (100, 1.0), (None, 0.5), ('x', 0.5), (101, 0.5)):
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_recent_share(raw), expected)
+
+    def test_the_window_and_rating_fall_back_on_garbage(self):
+        self.assertEqual(parse_recent_window_days(90), 90)
+        self.assertEqual(parse_recent_window_days('0'), 365)
+        self.assertEqual(parse_recent_window_days(None), 365)
+        self.assertEqual(parse_older_min_rating(4), 4)
+        self.assertEqual(parse_older_min_rating(6), 3)
+        self.assertEqual(parse_older_min_rating(True), 3)
+
+    def test_the_settings_never_switch_the_split_on_for_a_policy_without_one(self):
+        radar = POLICIES['release-radar']
+        self.assertIs(with_recent_split(radar, 0.3, 90, 4), radar)
+        tuned = with_recent_split(POLICIES['daily-mix-hard'], 0.3, 90, 4)
+        self.assertEqual((tuned.recent_share, tuned.recent_window_days, tuned.older_min_rating), (0.3, 90, 4))
+        self.assertEqual(tuned.hardness_band, 'hard')

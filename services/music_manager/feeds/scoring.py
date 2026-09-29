@@ -2,7 +2,7 @@
 
 import hashlib
 import math
-from datetime import date
+from datetime import date, datetime
 
 from services.music_manager.feeds.policy import FeedPolicy
 from services.music_manager.feeds.profile import TasteProfile
@@ -45,7 +45,30 @@ def daily_sample_key(username: str, feed_date: date, track_uid: str, weight: flo
     """
     digest = hashlib.md5(f'{username}|{feed_date.isoformat()}|{track_uid}'.encode()).hexdigest()
     uniform = (int(digest[:16], 16) + 1) / (16**16 + 1)
-    return -math.log(uniform) / max(weight, MIN_SCORE)
+    # Only a non-positive weight is floored: `score` never goes below MIN_SCORE on its own,
+    # and a weight under it is a score scaled down by `rediscovery_factor` on purpose.
+    return -math.log(uniform) / (weight if weight > 0 else MIN_SCORE)
+
+
+#: The older half of a daily mix prefers songs the listener has not played lately (bug
+#: report 131): a song last played today weighs `REDISCOVERY_FLOOR` of its score, rising
+#: linearly to its full score once `REDISCOVERY_DAYS` have passed. Never heard is full.
+REDISCOVERY_DAYS = 180
+REDISCOVERY_FLOOR = 0.2
+
+
+def rediscovery_factor(last_listened_at: datetime | None, now: datetime) -> float:
+    """How much of its score an older song keeps, given when it was last played.
+
+    A multiplier on the daily draw's weight, not a filter: a song played last week can
+    still come up, only less often than one untouched for half a year.
+    """
+    if last_listened_at is None:
+        return 1.0
+    age_days = max(0.0, (now - last_listened_at).total_seconds() / 86400.0)
+    if age_days >= REDISCOVERY_DAYS:
+        return 1.0
+    return REDISCOVERY_FLOOR + (1.0 - REDISCOVERY_FLOOR) * age_days / REDISCOVERY_DAYS
 
 
 def pick_daily_entity(username: str, feed_date: date, ranked_names: list[str]) -> str | None:

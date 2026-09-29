@@ -10,6 +10,7 @@ comma-joined strings a real cursor returns).
 
 import dataclasses
 import unittest
+from collections import Counter
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
@@ -49,6 +50,14 @@ _CANONICAL_ROWS_FRAGMENT = 'AND t.id IN ('
 # rotation_counts_query also carries the media-file EXISTS, so it is told apart by
 # the per-window count columns only it selects.
 _ROTATION_COUNTS_FRAGMENT = 'AS songs_0'
+# The split daily mixes (bug report 131): split_sample_query also carries the media-file
+# EXISTS and candidate_rows_query the canonical fragment, so both are told apart by the
+# half they name. last_listened_query by the column only it selects.
+_RECENT_SAMPLE_FRAGMENT = 'AS recent_id'
+_OLDER_SAMPLE_FRAGMENT = 'AS older_id'
+_RECENT_ROWS_FRAGMENT = "'recent' AS pool"
+_OLDER_ROWS_FRAGMENT = "'older' AS pool"
+_LAST_LISTENED_FRAGMENT = 'AS last_listened_at'
 _HIERARCHY_FRAGMENT = 'FROM rules_subgenre_hierarchy'
 _EXCLUSIONS_FRAGMENT = 'FROM feeds_profile_exclusions'
 _LABEL_DOMINANT_FRAGMENT = 'GROUP BY l.name, rg.name'
@@ -74,10 +83,23 @@ def scripted(
     artist_hardness=(),
     canonicals=(),
     rotation_counts=(),
+    older=(),
+    last_listened=(),
+    recent=None,
 ):
-    """A connection whose cursor answers build_feed's queries from fixed rows."""
+    """A connection whose cursor answers build_feed's queries from fixed rows.
+
+    `recent` is a split daily mix's recent half, `candidates` unless given -- the rows a
+    daily mix drew from before the split, so a test written before it still feeds them.
+    """
+    recent = list(candidates if recent is None else recent)
     rules = (
         (_ROTATION_COUNTS_FRAGMENT, None, list(rotation_counts)),
+        (_RECENT_SAMPLE_FRAGMENT, None, [{'recent_id': row['id']} for row in recent]),
+        (_OLDER_SAMPLE_FRAGMENT, None, [{'older_id': row['id']} for row in older]),
+        (_RECENT_ROWS_FRAGMENT, None, recent),
+        (_OLDER_ROWS_FRAGMENT, None, list(older)),
+        (_LAST_LISTENED_FRAGMENT, None, list(last_listened)),
         # canonical_rows_query shares candidates_query's SELECT, so it has to be matched
         # first, on the one thing only it has.
         (_CANONICAL_ROWS_FRAGMENT, None, list(canonicals)),
@@ -441,6 +463,10 @@ MID_CANDIDATE = _candidate('mid1', None, 'Uptempo', bpm=165)
 HARD_CANDIDATE = _candidate('hard1', None, 'Uptempo', bpm=205)
 SPECTRUM_CANDIDATES = [SOFT_CANDIDATE, MID_CANDIDATE, HARD_CANDIDATE]
 
+# A band mix without the recent/older split (bug report 131): the one shape the
+# 90 -> 365 -> none relaxation ladder still runs for (the dry run's --window).
+LADDER_MID = dataclasses.replace(POLICIES['daily-mix-mid'], release_window_days=90, recent_share=None)
+
 
 class HardnessBandBuildTest(unittest.TestCase):
     """The band edges are fixed at (50, 75) (`hardness.DEFAULT_BAND_EDGES`) by
@@ -526,6 +552,18 @@ class HardnessBandBuildTest(unittest.TestCase):
         self.assertEqual(feed.filled_from_unknown, 0)
         self.assertTrue(all(track['reason'] != 'unknown_hardness' for track in feed.tracks))
 
+    def test_a_thin_split_band_backfills_from_unknown_without_relaxing(self):
+        """Bug report 131: a band with a recent/older split has no ladder -- a short
+        half fills from the other, and only then does the unknown-hardness filler run."""
+        thin_mid = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(5)]
+        unknowns = [_candidate(f'unk{i}', None, 'Uptempo', bpm=None) for i in range(10)]
+        conn = scripted(listens=MANY_LISTENS, candidates=thin_mid + unknowns)
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        self.assertIsNone(feed.relaxed_to)
+        self.assertEqual(feed.filled_from_unknown, 10)
+        self.assertEqual(len(feed.tracks), 15)
+        self.assertEqual(feed.pool_counts, {'recent': 5, 'older': 0})
+
     def test_a_thin_band_relaxes_then_backfills_from_unknown_to_reach_size(self):
         """Both correction pieces at once: the relaxation ladder runs out
 
@@ -535,7 +573,7 @@ class HardnessBandBuildTest(unittest.TestCase):
         thin_mid = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(5)]
         unknowns = [_candidate(f'unk{i}', None, 'Uptempo', bpm=None) for i in range(10)]
         conn = scripted(listens=MANY_LISTENS, candidates=thin_mid + unknowns)
-        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        feed = build_feed(conn, 'user', LADDER_MID, NOW)
         self.assertEqual(feed.relaxed_to, 'none')
         self.assertEqual(feed.filled_from_unknown, 10)
         self.assertEqual(len(feed.tracks), 15)
@@ -549,13 +587,13 @@ class HardnessBandBuildTest(unittest.TestCase):
         no relaxation happened at all).
         """
         conn = scripted(listens=MANY_LISTENS, candidates=SPECTRUM_CANDIDATES)
-        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        feed = build_feed(conn, 'user', LADDER_MID, NOW)
         self.assertEqual(feed.relaxed_to, 'none')
 
     def test_enough_candidates_in_the_band_needs_no_relaxation(self):
         plenty = [_candidate(f'mid{i}', None, 'Uptempo', bpm=165) for i in range(15)]
         conn = scripted(listens=MANY_LISTENS, candidates=plenty)
-        feed = build_feed(conn, 'user', POLICIES['daily-mix-mid'], NOW)
+        feed = build_feed(conn, 'user', LADDER_MID, NOW)
         self.assertIsNone(feed.relaxed_to)
         self.assertEqual(feed.funnel['candidates'], 15)
 
@@ -780,3 +818,122 @@ class CollapseToSongsTest(unittest.TestCase):
         feed = build_feed(conn, 'user', POLICIES['release-radar'], NOW)
         self.assertEqual([track['id'] for track in feed.tracks], [50, 41])
         self.assertTrue(feed.tracks[1]['heard'])
+
+
+def _recent(count, prefix='new', **overrides):
+    """`count` candidates released inside the recent window, one artist each."""
+    return [_candidate(f'{prefix}{i}', f'{prefix} Artist {i}', 'Uptempo', **overrides) for i in range(count)]
+
+
+def _older(count, prefix='old', **overrides):
+    """`count` candidates as older_candidates_query returns them: released years ago."""
+    overrides.setdefault('release_date', '2019-03-01')
+    return [_candidate(f'{prefix}{i}', f'{prefix} Artist {i}', 'Uptempo', **overrides) for i in range(count)]
+
+
+CLASSIC_20 = build.replace(POLICIES['daily-mix'], size=20)
+
+
+class RecentOlderSplitTest(unittest.TestCase):
+    """Bug report 131: a daily mix is half last year, half older, and a short half fills
+    from the other so the size holds."""
+
+    def _build(self, recent, older, policy=CLASSIC_20, **kwargs):
+        conn = scripted(listens=MANY_LISTENS, candidates=recent, older=older, **kwargs)
+        return conn, build_feed(conn, 'user', policy, NOW)
+
+    def test_the_default_share_is_half_and_half(self):
+        _, feed = self._build(_recent(40), _older(40))
+        self.assertEqual(len(feed.tracks), 20)
+        self.assertEqual(feed.pool_counts, {'recent': 10, 'older': 10})
+        years = Counter(track['release_date'][:4] for track in feed.tracks)
+        self.assertEqual(years, Counter({'2026': 10, '2019': 10}))
+
+    def test_the_share_is_a_policy_value(self):
+        _, feed = self._build(_recent(40), _older(40), policy=build.replace(CLASSIC_20, recent_share=0.3))
+        self.assertEqual(feed.pool_counts, {'recent': 6, 'older': 14})
+
+    def test_a_short_older_half_is_filled_from_the_recent_one(self):
+        _, feed = self._build(_recent(40), _older(3))
+        self.assertEqual(len(feed.tracks), 20)
+        self.assertEqual(feed.pool_counts, {'recent': 17, 'older': 3})
+
+    def test_a_short_recent_half_is_filled_from_the_older_one(self):
+        _, feed = self._build(_recent(4), _older(40))
+        self.assertEqual(len(feed.tracks), 20)
+        self.assertEqual(feed.pool_counts, {'recent': 4, 'older': 16})
+
+    def test_both_halves_short_is_everything_there_is(self):
+        _, feed = self._build(_recent(4), _older(5))
+        self.assertEqual(feed.pool_counts, {'recent': 4, 'older': 5})
+
+    def test_a_song_in_both_halves_is_only_recent(self):
+        recent = [_version('r1', 7, 'r1', release_date='2026-09-01')]
+        older = [_version('o1', 7, 'r1', release_date='2012-01-01'), *_older(3)]
+        _, feed = self._build(recent, older)
+        self.assertEqual(sorted(t['id'] for t in feed.tracks), ['old0', 'old1', 'old2', 'r1'])
+
+    def test_the_older_query_is_matched_on_the_profile_and_seeded_per_day(self):
+        conn, _ = self._build(_recent(4), _older(4))
+        ((_, params),) = conn.cursor.return_value.statements_matching(_OLDER_SAMPLE_FRAGMENT)
+        self.assertIn('uptempo', params)
+        self.assertEqual(params[-2:], ['user|2026-09-05|older', CLASSIC_20.older_pool_limit])
+
+    def test_only_heard_older_songs_are_looked_up_for_rediscovery(self):
+        older = [
+            *_older(1, prefix='fresh'),
+            *_older(1, prefix='recentlyplayed', heard=True),
+            *_older(1, prefix='longago', heard=True),
+        ]
+        last = [
+            {'work_id': None, 'track_id': 'recentlyplayed0', 'last_listened_at': NOW - timedelta(days=2)},
+            {'work_id': None, 'track_id': 'longago0', 'last_listened_at': NOW - timedelta(days=400)},
+        ]
+        conn = scripted(listens=MANY_LISTENS, older=older, last_listened=last)
+        candidates = build._load_split_candidates(
+            conn, 'user', CLASSIC_20, NOW, {'entity_filter': None, 'band_edges': None}, build.TasteProfile()
+        )
+        factors = {c['id']: c['rediscovery'] for c in candidates}
+        self.assertEqual(factors['fresh0'], 1.0)
+        self.assertEqual(factors['longago0'], 1.0)
+        self.assertLess(factors['recentlyplayed0'], 0.25)
+        ((_, params),) = conn.cursor.return_value.statements_matching(_LAST_LISTENED_FRAGMENT)
+        self.assertEqual(params, ['user', 'longago0', 'recentlyplayed0'])
+
+    def test_a_recently_played_older_song_is_drawn_later(self):
+        order_key = build._order_key_fn(CLASSIC_20, build.TasteProfile(), 'user', NOW.date())
+        song = _older(1)[0]
+        self.assertGreater(order_key({**song, 'rediscovery': 0.2}), order_key({**song, 'rediscovery': 1.0}))
+
+    def test_a_band_mix_filters_both_halves_on_its_band(self):
+        recent = [_candidate(f'rmid{i}', f'RM {i}', 'Uptempo', bpm=165) for i in range(3)] + [SOFT_CANDIDATE]
+        older = [_candidate(f'omid{i}', f'OM {i}', 'Uptempo', bpm=165, release_date='2015-05-05') for i in range(3)]
+        older.append(_candidate('ohard', 'OH', 'Uptempo', bpm=205, release_date='2015-05-05'))
+        _, feed = self._build(recent, older, policy=build.replace(POLICIES['daily-mix-mid'], size=6))
+        self.assertEqual(sorted(t['id'] for t in feed.tracks), ['omid0', 'omid1', 'omid2', 'rmid0', 'rmid1', 'rmid2'])
+        self.assertEqual(feed.pool_counts, {'recent': 3, 'older': 3})
+        self.assertIsNone(feed.relaxed_to)
+
+    def test_the_label_mix_restricts_its_older_half_to_the_label(self):
+        conn = scripted(
+            listens=SINGLE_ENTITY_LISTENS,
+            candidates=MIXED_CANDIDATES,
+            older=_older(5),
+            rotation_counts=[_songs('Neophyte Records', 15)],
+        )
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-label'], NOW)
+        self.assertEqual(feed.title, 'neophyte records')
+        ((sql, params),) = conn.cursor.return_value.statements_matching(_OLDER_SAMPLE_FRAGMENT)
+        self.assertIn('el.name = %s', sql)
+        self.assertIn('neophyte records', params)
+        self.assertNotIn('a.name IN', sql)
+
+    def test_release_radar_and_the_artist_mix_never_sample_older_songs(self):
+        for slug, counts in (('release-radar', ()), ('daily-mix-artist', ANGERFIST_PLAYABLE)):
+            with self.subTest(slug=slug):
+                conn = scripted(
+                    listens=SINGLE_ENTITY_LISTENS, candidates=MIXED_CANDIDATES, older=_older(5), rotation_counts=counts
+                )
+                feed = build_feed(conn, 'user', POLICIES[slug], NOW)
+                self.assertEqual(conn.cursor.return_value.statements_matching(_OLDER_SAMPLE_FRAGMENT), [])
+                self.assertIsNone(feed.pool_counts)

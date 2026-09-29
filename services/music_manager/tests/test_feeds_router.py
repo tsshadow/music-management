@@ -816,6 +816,33 @@ class ParamsKeyTest(unittest.TestCase):
         database.exclusions.append(('artist', 'angerfist'))
         self.assertNotEqual(feeds_router.params_key(database, 'user', 'daily-mix'), written)
 
+    def test_a_recent_split_change_changes_every_key(self):
+        """Bug report 131: moving the recent share, window or older minimum rating
+        rebuilds today's mixes on their next read."""
+        database = _KeyDatabase()
+        before = feeds_router.params_key(database, 'user', 'daily-mix')
+        for setting, value in (
+            ('feeds_daily_recent_percent', 30),
+            ('feeds_daily_recent_window_days', 90),
+            ('feeds_daily_older_min_rating', 4),
+        ):
+            with self.subTest(setting=setting):
+                with patch.object(
+                    feeds_router.settings,
+                    'get',
+                    side_effect=lambda key, *a, s=setting, v=value: v if key == s else None,
+                ):
+                    after = feeds_router.params_key(database, 'user', 'daily-mix')
+                self.assertNotEqual(before, after)
+
+    def test_the_configured_split_reaches_the_build_policy(self):
+        values = {'feeds_daily_recent_percent': 30, 'feeds_daily_recent_window_days': 90}
+        with patch.object(feeds_router.settings, 'get', side_effect=lambda key, *a: values.get(key)):
+            mix = feeds_router._sized(feeds_router.POLICIES['daily-mix-soft'])
+            radar = feeds_router._sized(feeds_router.POLICIES['release-radar'])
+        self.assertEqual((mix.recent_share, mix.recent_window_days, mix.older_min_rating), (0.3, 90, 3))
+        self.assertIsNone(radar.recent_share)
+
     def test_a_settings_change_still_changes_the_key(self):
         database = _KeyDatabase()
         default = feeds_router.params_key(database, 'user', 'release-radar')

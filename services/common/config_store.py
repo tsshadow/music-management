@@ -571,6 +571,35 @@ def _config_fields() -> list[ConfigField]:
             'laden". 10-200; anything else falls back to 100. A change rebuilds today\'s feeds on their next read.',
         ),
         ConfigField(
+            key='feeds_daily_recent_percent',
+            type='integer',
+            default=50,
+            env='FEEDS_DAILY_RECENT_PERCENT',
+            group='Feeds',
+            description='Percentage of every daily mix (Klassiek, Zachter/Middenin/Harder and the label mix) drawn '
+            'from songs released within the recent window; the rest comes from older songs. 0-100; anything else '
+            'falls back to 50. A half that runs short is filled from the other. Release Radar and the artist mix '
+            'are not affected.',
+        ),
+        ConfigField(
+            key='feeds_daily_recent_window_days',
+            type='integer',
+            default=365,
+            env='FEEDS_DAILY_RECENT_WINDOW_DAYS',
+            group='Feeds',
+            description='How many days back a release still counts as recent for the daily mixes\' recent share. '
+            '7-3650; anything else falls back to 365.',
+        ),
+        ConfigField(
+            key='feeds_daily_older_min_rating',
+            type='integer',
+            default=3,
+            env='FEEDS_DAILY_OLDER_MIN_RATING',
+            group='Feeds',
+            description='The older half of a daily mix only takes songs rated at least this many stars, or not '
+            'rated at all. 1-5; anything else falls back to 3.',
+        ),
+        ConfigField(
             key='lms_listen_backfill_enabled',
             type='boolean',
             default=True,

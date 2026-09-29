@@ -350,6 +350,10 @@ and continuation `docs/designs/feed-length/technical.md`. A user key always read
 system key must pass `?username=`.
 - **GET `/api/feeds`**: every feed slug with `{slug, size, window_days, title, subtitle}`. `size` is
   the configured length (`feeds_size`, Beheer -> Config -> Feeds, 10-200, default 100).
+  `window_days` is `null` for the daily mixes that split recent/older (all but the artist mix,
+  docs/designs/daily-mix-older-tracks/); their balance is `feeds_daily_recent_percent` (50),
+  `feeds_daily_recent_window_days` (365) and `feeds_daily_older_min_rating` (3), and the feed body
+  reports it as `pool_counts: {"recent", "older"}` (`null` for Release Radar and the artist mix).
 - **GET `/api/feeds/{slug}`**: one page of the day's feed, answered from the stored snapshot
   (`X-MuMa-Feed-Source: snapshot|stale|live|extended`). `offset` (>= 0, default 0) and `limit`
   (1-100): without `offset`, `limit` takes the head and no `limit` returns the whole stored list;

@@ -254,6 +254,168 @@ def _release_window_conditions(window_days: int, now: datetime) -> tuple[list[st
     return conditions, [cutoff, now.date().isoformat()]
 
 
+#: How many names of each profile dimension the older half of a daily mix is matched on.
+#: Bounded so the IN lists stay small; the tail of a profile carries almost no weight.
+OLDER_PROFILE_NAMES = 50
+
+
+def split_sample_query(
+    username: str,
+    policy: FeedPolicy,
+    now: datetime,
+    half: str,
+    seed: str,
+    profile_names: dict[str, list[str]] | None = None,
+    entity_filter: tuple[str, str] | None = None,
+) -> tuple[str, list]:
+    """The ids of one half of a split daily mix (bug report 131): a day-stable sample.
+
+    `half='recent'` is what the daily mixes always drew from, only over
+    `policy.recent_window_days`: a day-precision release date inside the window
+    (closed at both ends, as `_release_window_conditions` says why) and the
+    unheard-or-loved pool. `half='older'` is every song with an agreed day-precision
+    release date *before* that window, admitting any song this listener rated
+    `policy.older_min_rating` or higher or has not rated at all -- an old song heard a
+    year ago is exactly the rediscovery this half is for, one rated 1-2 is not. A song
+    with no agreed date is in neither half, as the old window left it out: roughly half
+    of a profile-matched sample on production had none, many of them rips of recent
+    releases, and counting those as "older" would dilute what this half is for.
+
+    The older half is profile-matched in SQL: with `entity_filter` (the label mix) the
+    rows are that artist's or label's -- in both halves -- and otherwise a track
+    qualifies when its primary artist, one of its labels or one of its genres is among
+    `profile_names` (`artists`, `labels`, `genres`, each at most `OLDER_PROFILE_NAMES`).
+    No names at all means no filter. The label and genre matches are uncorrelated `IN`
+    subqueries rather than per-row `EXISTS`, which on production was a third faster.
+
+    Both halves are then a sample of at most `older_pool_limit` / `recent_pool_limit`
+    ids, ordered by `MD5(seed || track_uid)`: the library is ~300k tracks and a year of
+    releases ~17k, and scoring, collapsing and hardness-annotating all of them per
+    build is not an option. Only ids come back -- `candidate_rows_query` fetches the
+    rows, so the select list's correlated subqueries run for the sample alone.
+    """
+    if half not in ('recent', 'older'):
+        raise ValueError(f'unknown split half: {half!r}')
+    rd = _RELEASE_DATE
+    params: list = [username]
+    where = [
+        'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
+        't.duration_secs > 0',
+        't.duration_secs < %s',
+    ]
+    params.append(policy.max_track_seconds)
+    if half == 'recent':
+        window_where, window_params = _release_window_conditions(policy.recent_window_days, now)
+        where.extend(window_where)
+        params.extend(window_params)
+        pool_clause = _pool_clause(username, policy, params)
+        if pool_clause:
+            where.append(pool_clause)
+        limit = policy.recent_pool_limit
+    else:
+        cutoff = (now.date() - timedelta(days=policy.recent_window_days)).isoformat()
+        where.extend([f'LENGTH({rd}) = 10', f'{rd} < %s', f'COALESCE({_SONG_RATING}, %s) >= %s'])
+        params.extend([cutoff, username, username, policy.older_min_rating, policy.older_min_rating])
+        limit = policy.older_pool_limit
+
+    if entity_filter is not None:
+        dimension, name = entity_filter
+        if dimension == 'artist':
+            where.append('a.name = %s')
+        elif dimension == 'label':
+            where.append(
+                'EXISTS (SELECT 1 FROM library_track_labels etl '
+                'JOIN library_labels el ON el.id = etl.label_id '
+                'WHERE etl.track_id = t.id AND el.name = %s)'
+            )
+        else:
+            raise ValueError(f'unknown entity_filter dimension: {dimension!r}')
+        params.append(name)
+    elif half == 'older' and profile_names:
+        matches = []
+        artists = list(profile_names.get('artists') or [])[:OLDER_PROFILE_NAMES]
+        labels = list(profile_names.get('labels') or [])[:OLDER_PROFILE_NAMES]
+        genres = list(profile_names.get('genres') or [])[:OLDER_PROFILE_NAMES]
+        if artists:
+            matches.append(f"a.name IN ({', '.join(['%s'] * len(artists))})")
+            params.extend(artists)
+        if labels:
+            matches.append(
+                't.id IN (SELECT ptl.track_id FROM library_track_labels ptl JOIN library_labels pl ON pl.id = ptl.label_id'
+                f" WHERE pl.name IN ({', '.join(['%s'] * len(labels))}))"
+            )
+            params.extend(labels)
+        if genres:
+            matches.append(
+                't.id IN (SELECT ptg.track_id FROM library_track_genres ptg JOIN rules_genres pg ON pg.id = ptg.genre_id'
+                f" WHERE pg.state <> 'black' AND pg.name IN ({', '.join(['%s'] * len(genres))}))"
+            )
+            params.extend(genres)
+        if matches:
+            where.append('(' + ' OR '.join(matches) + ')')
+
+    params.extend([seed, limit])
+    # The alias names the half, so a statement log (and the scripted test cursor) can
+    # tell the two apart; only one of two fixed strings is ever formatted in.
+    sql = f"""
+        SELECT t.id AS {half}_id
+        FROM library_tracks t
+        LEFT JOIN library_works w ON w.id = t.work_id
+        LEFT JOIN library_artists a ON a.id = t.primary_artist_id
+        {_AUDIO_FEATURES_SUBQUERY}
+        LEFT JOIN rating_tracks r
+            ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
+        WHERE {' AND '.join(where)}
+        ORDER BY MD5(CONCAT(%s, t.track_uid))
+        LIMIT %s
+    """
+    return sql, params
+
+
+def candidate_rows_query(username: str, track_ids: list[int], half: str) -> tuple[str, list]:
+    """The candidate rows of one half's sampled ids (`split_sample_query`).
+
+    The candidate row shape plus a constant `pool` column naming the half, one of two
+    fixed strings. Only the file check is repeated: every other filter already ran in
+    the sample. Empty input is refused rather than rendered as `IN ()`.
+    """
+    if half not in ('recent', 'older'):
+        raise ValueError(f'unknown split half: {half!r}')
+    if not track_ids:
+        raise ValueError('candidate_rows_query needs at least one track id; skip the query instead')
+    placeholders = ', '.join(['%s'] * len(track_ids))
+    where = f'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id) AND t.id IN ({placeholders})'
+    return _candidate_select(where, pool=half), _select_params(username) + list(track_ids)
+
+
+def last_listened_query(username: str, track_ids: list[int], work_ids: list[int]) -> tuple[str, list]:
+    """When this listener last played each of these songs, for the rediscovery weight.
+
+    One row per song key -- the work, or the track (as `-id`) when it has none, the
+    same key `build.song_key` collapses on -- so a listen of any version counts, as it
+    does for `heard`. Bounded to the older half's heard candidates; empty input is
+    refused rather than rendered as `IN ()`.
+    """
+    if not track_ids and not work_ids:
+        raise ValueError('last_listened_query needs at least one id; skip the query instead')
+    matches = []
+    params: list = [username]
+    if track_ids:
+        matches.append(f"lt.id IN ({', '.join(['%s'] * len(track_ids))})")
+        params.extend(track_ids)
+    if work_ids:
+        matches.append(f"lt.work_id IN ({', '.join(['%s'] * len(work_ids))})")
+        params.extend(work_ids)
+    sql = f"""
+        SELECT lt.work_id AS work_id, lt.id AS track_id, MAX(sl.listened_at) AS last_listened_at
+        FROM scrobble_listens sl
+        JOIN library_tracks lt ON lt.id = sl.track_id
+        WHERE sl.username = %s AND ({' OR '.join(matches)})
+        GROUP BY lt.work_id, lt.id
+    """
+    return sql, params
+
+
 #: The column a rotating mix's candidates are counted per. The artist is the track's
 #: primary artist, exactly what `candidates_query`'s `a.name = %s` filters on; the
 #: label comes from its own join, so a track on two labels counts for both, exactly
@@ -347,7 +509,7 @@ def _select_params(username: str) -> list:
     return [username] * 5
 
 
-def _candidate_select(where_sql: str) -> str:
+def _candidate_select(where_sql: str, pool: str | None = None) -> str:
     """The candidate row shape, shared by `candidates_query` and `canonical_rows_query`.
 
     One SELECT for both, because the canonical a work is collapsed onto has to be
@@ -358,10 +520,17 @@ def _candidate_select(where_sql: str) -> str:
     `work_id` and `canonical_track_id` are what `build._collapse_to_songs` groups
     on; `heard` and `rating` are already song-level (see `_SONG_HEARD`,
     `_SONG_RATING`), so every version of one work carries the same two values.
+
+    `pool` adds a constant `pool` column ('recent' or 'older', `candidate_rows_query`).
     """
+    pool_column = ''
+    if pool is not None:
+        if pool not in ('recent', 'older'):
+            raise ValueError(f'unknown pool: {pool!r}')
+        pool_column = f"'{pool}' AS pool, "
     return f"""
         SELECT
-            t.id, t.title, t.track_uid, a.name AS artist, t.duration_secs,
+            {pool_column}t.id, t.title, t.track_uid, a.name AS artist, t.duration_secs,
             t.work_id, w.canonical_track_id,
             {_SONG_HEARD} AS heard,
             (SELECT l.name FROM library_labels l

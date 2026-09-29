@@ -3,13 +3,16 @@ from datetime import datetime, timedelta
 
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.queries import (
+    candidate_rows_query,
     candidates_query,
     canonical_rows_query,
     dominant_genre_query,
     entity_hardness_query,
     genre_hardness_query,
+    last_listened_query,
     listens_query,
     rotation_counts_query,
+    split_sample_query,
 )
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
@@ -96,8 +99,8 @@ class CandidatesQueryTest(unittest.TestCase):
         upper = params.index(NOW.date().isoformat())
         self.assertLess(lower, upper)
 
-    def test_the_daily_mix_window_is_bounded_at_both_ends_too(self):
-        sql, params = candidates_query('user', POLICIES['daily-mix'], NOW)
+    def test_the_artist_mix_window_is_bounded_at_both_ends_too(self):
+        sql, params = candidates_query('user', POLICIES['daily-mix-artist'], NOW)
         self.assertIn(
             "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END >= %s", sql
         )
@@ -424,3 +427,100 @@ class RotationCountsQueryTest(unittest.TestCase):
             self._query(names=())
         with self.assertRaises(ValueError):
             rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['x'], ())
+
+
+class SplitSampleQueryTest(unittest.TestCase):
+    """Bug report 131: the two halves of a split daily mix."""
+
+    POLICY = POLICIES['daily-mix']
+
+    def _query(self, half='older', **kwargs):
+        return split_sample_query('user', self.POLICY, NOW, half, f'user|2026-09-05|{half}', **kwargs)
+
+    def test_placeholders_and_params_agree(self):
+        for half in ('recent', 'older'):
+            for kwargs in (
+                {},
+                {'profile_names': {'artists': ['angerfist'], 'labels': ['neophyte records'], 'genres': ['uptempo']}},
+                {'entity_filter': ('label', 'neophyte records')},
+            ):
+                with self.subTest(half=half, kwargs=kwargs):
+                    sql, params = self._query(half, **kwargs)
+                    self.assertEqual(sql.count('%s'), len(params))
+
+    def test_the_older_half_takes_dated_songs_from_before_the_recent_window(self):
+        sql, params = self._query()
+        self.assertIn("ELSE NULLIF(t.release_date, '') END < %s", sql)
+        self.assertIn('LENGTH(CASE WHEN t.release_date IS NULL', sql)
+        self.assertIn((NOW.date() - timedelta(days=365)).isoformat(), params)
+        self.assertNotIn(NOW.date().isoformat(), params)
+
+    def test_the_recent_half_is_the_window_closed_at_both_ends(self):
+        sql, params = self._query('recent')
+        self.assertIn((NOW.date() - timedelta(days=365)).isoformat(), params)
+        self.assertIn(NOW.date().isoformat(), params)
+        self.assertIn('NOT (EXISTS (SELECT 1 FROM scrobble_listens', sql)
+
+    def test_the_older_half_drops_rated_one_or_two_and_keeps_unrated(self):
+        sql, params = self._query()
+        self.assertIn(', %s) >= %s', sql)
+        self.assertEqual(params.count(3), 2)
+        # No unheard pool: a heard, unrated old song is exactly what this half is for.
+        self.assertNotIn('NOT (EXISTS (SELECT 1 FROM scrobble_listens', sql)
+
+    def test_each_half_is_a_bounded_seeded_sample_of_ids(self):
+        for half, limit in (('recent', self.POLICY.recent_pool_limit), ('older', self.POLICY.older_pool_limit)):
+            with self.subTest(half=half):
+                sql, params = self._query(half)
+                self.assertIn(f'SELECT t.id AS {half}_id', sql)
+                self.assertIn('ORDER BY MD5(CONCAT(%s, t.track_uid))', sql)
+                self.assertEqual(params[-2:], [f'user|2026-09-05|{half}', limit])
+
+    def test_profile_names_match_only_the_older_half(self):
+        names = {'artists': ['angerfist'], 'labels': [], 'genres': ['uptempo']}
+        sql, params = self._query(profile_names=names)
+        self.assertIn('a.name IN (%s)', sql)
+        self.assertIn('pg.name IN (%s)', sql)
+        self.assertNotIn('pl.name IN', sql)
+        self.assertIn('uptempo', params)
+        recent_sql, _ = self._query('recent', profile_names=names)
+        self.assertNotIn('a.name IN', recent_sql)
+
+    def test_an_entity_filter_narrows_both_halves_and_replaces_the_profile_match(self):
+        for half in ('recent', 'older'):
+            with self.subTest(half=half):
+                sql, params = self._query(
+                    half, profile_names={'artists': ['angerfist']}, entity_filter=('label', 'neophyte records')
+                )
+                self.assertIn('el.name = %s', sql)
+                self.assertNotIn('a.name IN', sql)
+                self.assertIn('neophyte records', params)
+
+    def test_an_unknown_half_is_refused(self):
+        with self.assertRaises(ValueError):
+            self._query('middle')
+
+
+class CandidateRowsQueryTest(unittest.TestCase):
+    def test_the_rows_carry_their_half(self):
+        sql, params = candidate_rows_query('user', [4, 5], 'older')
+        self.assertIn("'older' AS pool", sql)
+        self.assertIn('t.id IN (%s, %s)', sql)
+        self.assertEqual(sql.count('%s'), len(params))
+        self.assertEqual(params[-2:], [4, 5])
+
+    def test_nothing_to_fetch_is_refused(self):
+        with self.assertRaises(ValueError):
+            candidate_rows_query('user', [], 'recent')
+
+
+class LastListenedQueryTest(unittest.TestCase):
+    def test_tracks_and_works_are_both_asked_about(self):
+        sql, params = last_listened_query('user', [1, 2], [7])
+        self.assertIn('lt.id IN (%s, %s)', sql)
+        self.assertIn('lt.work_id IN (%s)', sql)
+        self.assertEqual(params, ['user', 1, 2, 7])
+
+    def test_nothing_to_ask_is_refused(self):
+        with self.assertRaises(ValueError):
+            last_listened_query('user', [], [])

@@ -26,12 +26,19 @@ from services.music_manager.feeds.build import (
 from services.music_manager.feeds.policy import (
     FEED_SIZE_SETTING,
     HARDNESS_EDGES_SETTING,
+    OLDER_MIN_RATING_SETTING,
     POLICIES,
+    RECENT_PERCENT_SETTING,
+    RECENT_WINDOW_SETTING,
     STARTING_GENRES_SETTING,
     parse_feed_size,
     parse_hardness_edges,
+    parse_older_min_rating,
+    parse_recent_share,
+    parse_recent_window_days,
     parse_starting_genres,
     resize,
+    with_recent_split,
 )
 from services.music_manager.feeds.queries import exclusions_query, genre_hardness_digest_query
 from services.music_manager.feeds.snapshot import (
@@ -136,10 +143,21 @@ def _feed_size() -> int:
     return parse_feed_size(settings.get(FEED_SIZE_SETTING))
 
 
+def _recent_split() -> tuple[float, int, int]:
+    """The configured recent/older split of the daily mixes (bug report 131): the
+    recent share, the recent window in days and the older half's minimum rating."""
+    return (
+        parse_recent_share(settings.get(RECENT_PERCENT_SETTING)),
+        parse_recent_window_days(settings.get(RECENT_WINDOW_SETTING)),
+        parse_older_min_rating(settings.get(OLDER_MIN_RATING_SETTING)),
+    )
+
+
 def _sized(policy):
-    """`policy` at the configured length -- every build goes through this, so the
-    setting and not `FeedPolicy.size` decides how long a feed is."""
-    return resize(policy, _feed_size())
+    """`policy` at the configured length and, for a daily mix that splits, the configured
+    recent/older split -- every build goes through this, so the settings and not the
+    `FeedPolicy` defaults decide how long a feed is and how much of it is recent."""
+    return with_recent_split(resize(policy, _feed_size()), *_recent_split())
 
 
 #: The longest a feed's stored list grows to through continuations in one day:
@@ -164,8 +182,8 @@ def params_key(conn, username: str, slug: str) -> str:
     """A digest of everything a snapshot of `(username, slug)` is built under.
 
     Stored beside each snapshot; a snapshot whose key differs from the current one is
-    stale whatever its age. It covers the settings (the hardness edges and the starting
-    genres), for the spectrum mixes and the listing the curated per-genre hardness, and
+    stale whatever its age. It covers the settings (the hardness edges, the starting
+    genres, the feed length and the daily mixes' recent/older split), for the spectrum mixes and the listing the curated per-genre hardness, and
     the listener's own exclusions -- so an admin who moves the edges, a curator who
     re-scores a genre and a listener who excludes an artist all see the change on the
     next read, not tomorrow. The exclusions are in here, and not only handled by
@@ -177,7 +195,9 @@ def params_key(conn, username: str, slug: str) -> str:
     edges, edges_source = _hardness_edges()
     exclusions = sorted((row['entity_type'], row['entity_name']) for row in _exclusion_rows(conn, username))
     hardness = _genre_hardness_digest(conn) if slug in _HARDNESS_SLUGS else None
-    material = repr((sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness, _feed_size()))
+    material = repr(
+        (sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness, _feed_size(), _recent_split())
+    )
     return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
 
 
@@ -309,6 +329,9 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         'hardness_percentiles': feed.hardness_percentiles,
         'relaxed_to': feed.relaxed_to,
         'filled_from_unknown': feed.filled_from_unknown,
+        # How many tracks came from the recent and the older half (bug report 131); None
+        # for release-radar and the artist mix, which do not split.
+        'pool_counts': feed.pool_counts,
         # Stored, never sent (`get_feed` strips it): whether a bigger build could find more.
         'exhausted': _ran_out(feed.tracks, feed.funnel, policy.size),
     }

@@ -77,6 +77,21 @@ class FeedPolicy:
     # than build.MIN_ROTATION_CANDIDATES playable songs -- see
     # scoring.pick_playable_entity and build._ranked_names.
     rotate: str | None = None
+    # The recent/older split of the daily mixes (docs/designs/daily-mix-older-tracks/,
+    # bug report 131). None means "no split": the candidate pool is whatever
+    # `release_window_days` admits, as release-radar and the artist mix have always had.
+    # A number is the share of the places drawn from songs released within
+    # `recent_window_days`; the rest comes from everything released before that (or
+    # with no agreed date), restricted to songs rated `older_min_rating` or higher or
+    # not rated at all. Either half short fills from the other, so the size holds.
+    recent_share: float | None = None
+    recent_window_days: int = 365
+    older_min_rating: int = 3
+    # How many songs one build samples per half -- a day-stable random draw in SQL
+    # (queries.split_sample_query), so neither a 300k-track library nor a year of ~17k
+    # releases is scored in Python on every build.
+    older_pool_limit: int = 2000
+    recent_pool_limit: int = 3000
 
 
 def resize(policy: FeedPolicy, size: int) -> FeedPolicy:
@@ -145,7 +160,62 @@ def parse_hardness_edges(raw: str | None) -> tuple[tuple[float, float], str]:
     return DEFAULT_BAND_EDGES, 'default'
 
 
-#: What every daily mix -- spectrum or rotating -- has in common: the 90-day window,
+#: The defaults of the recent/older split (bug report 131): half of a daily mix from the
+#: last twelve months, half from before that, the older half without anything rated 1-2.
+DEFAULT_RECENT_SHARE = 0.5
+DEFAULT_RECENT_WINDOW_DAYS = 365
+DEFAULT_OLDER_MIN_RATING = 3
+
+#: The runtime settings (services/common/config_store.py, group `Feeds`) behind them.
+#: The share is stored as a whole percentage because the config store has no float type.
+RECENT_PERCENT_SETTING = 'feeds_daily_recent_percent'
+RECENT_WINDOW_SETTING = 'feeds_daily_recent_window_days'
+OLDER_MIN_RATING_SETTING = 'feeds_daily_older_min_rating'
+
+MIN_RECENT_WINDOW_DAYS = 7
+MAX_RECENT_WINDOW_DAYS = 3650
+
+
+def _parse_int(raw, low: int, high: int, default: int) -> int:
+    """`raw` as a whole number in `low`..`high`, or `default` for anything unusable."""
+    if raw is None or isinstance(raw, bool):
+        return default
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return default
+    return value if low <= value <= high else default
+
+
+def parse_recent_share(raw) -> float:
+    """`feeds_daily_recent_percent` (0-100) as a share, `DEFAULT_RECENT_SHARE` for garbage."""
+    default = round(DEFAULT_RECENT_SHARE * 100)
+    return _parse_int(raw, 0, 100, default) / 100.0
+
+
+def parse_recent_window_days(raw) -> int:
+    """`feeds_daily_recent_window_days`, or `DEFAULT_RECENT_WINDOW_DAYS` for garbage."""
+    return _parse_int(raw, MIN_RECENT_WINDOW_DAYS, MAX_RECENT_WINDOW_DAYS, DEFAULT_RECENT_WINDOW_DAYS)
+
+
+def parse_older_min_rating(raw) -> int:
+    """`feeds_daily_older_min_rating` (1-5), or `DEFAULT_OLDER_MIN_RATING` for garbage."""
+    return _parse_int(raw, 1, 5, DEFAULT_OLDER_MIN_RATING)
+
+
+def with_recent_split(policy: FeedPolicy, share: float, window_days: int, older_min_rating: int) -> FeedPolicy:
+    """`policy` with the configured recent/older split -- a no-op for a policy without one.
+
+    Only a policy that already splits (`recent_share` not None) is tuned: the settings
+    must never switch the split on for release-radar or the artist mix.
+    """
+    if policy.recent_share is None:
+        return policy
+    return replace(policy, recent_share=share, recent_window_days=window_days, older_min_rating=older_min_rating)
+
+
+#: What every daily mix -- spectrum or rotating -- has in common: the 90-day window
+#: (kept only by the artist mix since bug report 131; the others split recent/older below),
 #: unheard-or-loved pools, the daily-stable sample order, no penalty for a track
 #: already heard (the whole point of `unheard`/`loved` is to pick the pool, not to
 #: additionally punish it). One template instance, `replace()`-d per mix below, so
@@ -159,6 +229,18 @@ _DAILY_MIX_BASE = FeedPolicy(
     heard_rank_penalty=False,
 )
 
+#: The daily mixes that draw from the whole library (bug report 131): no release window
+#: on the pool itself, a recent share instead. Only the artist mix keeps the plain 90-day
+#: window and its widening ladder -- one artist's own catalogue already spans the years
+#: (it was the one mix that measured mostly older tracks), so it is left exactly as it was.
+_SPLIT_DAILY_MIX = replace(
+    _DAILY_MIX_BASE,
+    release_window_days=None,
+    recent_share=DEFAULT_RECENT_SHARE,
+    recent_window_days=DEFAULT_RECENT_WINDOW_DAYS,
+    older_min_rating=DEFAULT_OLDER_MIN_RATING,
+)
+
 POLICIES: dict[str, FeedPolicy] = {
     'release-radar': FeedPolicy(slug='release-radar', release_window_days=7),
     # The classic, unrestricted daily mix -- byte-for-byte the policy this slug has
@@ -168,15 +250,15 @@ POLICIES: dict[str, FeedPolicy] = {
     # pipeline: aliasing it to daily-mix-mid meant a library with thin genre coverage
     # (the integration schema's fixtures, and any real one before the tagger catches
     # up) answered 'no_matches' for a slug that used to always find something.
-    'daily-mix': replace(_DAILY_MIX_BASE, slug='daily-mix'),
-    'daily-mix-soft': replace(_DAILY_MIX_BASE, slug='daily-mix-soft', hardness_band='soft'),
-    'daily-mix-mid': replace(_DAILY_MIX_BASE, slug='daily-mix-mid', hardness_band='mid'),
-    'daily-mix-hard': replace(_DAILY_MIX_BASE, slug='daily-mix-hard', hardness_band='hard'),
+    'daily-mix': replace(_SPLIT_DAILY_MIX, slug='daily-mix'),
+    'daily-mix-soft': replace(_SPLIT_DAILY_MIX, slug='daily-mix-soft', hardness_band='soft'),
+    'daily-mix-mid': replace(_SPLIT_DAILY_MIX, slug='daily-mix-mid', hardness_band='mid'),
+    'daily-mix-hard': replace(_SPLIT_DAILY_MIX, slug='daily-mix-hard', hardness_band='hard'),
     # Every candidate of an artist mix has the same primary artist, so the usual cap of
     # three per artist would cut the whole mix to three tracks (bug report 110): the cap
     # is lifted to the mix's own size. The label mix keeps it -- many artists share a label.
     'daily-mix-artist': replace(
         _DAILY_MIX_BASE, slug='daily-mix-artist', rotate='artist', max_per_artist=_DAILY_MIX_BASE.size
     ),
-    'daily-mix-label': replace(_DAILY_MIX_BASE, slug='daily-mix-label', rotate='label'),
+    'daily-mix-label': replace(_SPLIT_DAILY_MIX, slug='daily-mix-label', rotate='label'),
 }

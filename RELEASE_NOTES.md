@@ -11,6 +11,29 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.83.0 (2026-09-29)
+
+- **Daily mixes mix old and new.** Half of each daily mix is now from the last year, half from older
+  tracks that match your taste, without the ones you rated 1-2 stars. Release Radar and the artist
+  mix stay as they were.
+
+- **"Load more" on a daily mix is instant.** The next page is ready instead of the mix being rebuilt,
+  and building a daily mix is two to three times faster.
+
+- **The music server no longer restarts now and then while new downloads are being scanned in.**
+
+- **The LMS log no longer carries an ERROR every 30 seconds from its own healthcheck.** The probe
+  called `/rest/ping.view` without credentials, which LMS logged as "Required parameter 'c' is
+  missing" 2,880 times a day. It now asks `getOpenSubsonicExtensions`, the one Subsonic call that
+  needs no login, and still only checks that an HTTP thread answers.
+
+- **New feed "Oude hitjes".** Old favourites you have not heard in a while, old songs you used to
+  play a lot, and the well-known old hits of artists you like -- on Home after the daily mixes.
+  Popularity comes from Deezer's top tracks per artist (only artist names are sent); Last.fm is
+  used too once an API key is set.
+
+- **Visual references refreshed for the Oude hitjes card** on the daily mixes page (desktop and phone).
+
 ## Global Version 0.82.2 (2026-09-29)
 
 - **Server images include the latest operating-system security fixes** at every release.

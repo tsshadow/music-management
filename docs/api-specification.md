@@ -350,6 +350,10 @@ and continuation `docs/designs/feed-length/technical.md`. A user key always read
 system key must pass `?username=`.
 - **GET `/api/feeds`**: every feed slug with `{slug, size, window_days, title, subtitle}`. `size` is
   the configured length (`feeds_size`, Beheer -> Config -> Feeds, 10-200, default 100).
+  `window_days` is `null` for the daily mixes that split recent/older (all but the artist mix,
+  docs/designs/daily-mix-older-tracks/); their balance is `feeds_daily_recent_percent` (50),
+  `feeds_daily_recent_window_days` (365) and `feeds_daily_older_min_rating` (3), and the feed body
+  reports it as `pool_counts: {"recent", "older"}` (`null` for Release Radar and the artist mix).
 - **GET `/api/feeds/{slug}`**: one page of the day's feed, answered from the stored snapshot
   (`X-MuMa-Feed-Source: snapshot|stale|live|extended`). `offset` (>= 0, default 0) and `limit`
   (1-100): without `offset`, `limit` takes the head and no `limit` returns the whole stored list;
@@ -359,6 +363,13 @@ system key must pass `?username=`.
   at most 500 tracks per feed per day. The body carries `offset` and `next_offset` (where the next
   page starts, `null` when the feed has nothing more); each track carries `work_id`. `404` unknown
   slug, `422` a bad `offset`/`limit`, `400` the system key without `username`.
+- **`old-hits`** ("Oude hitjes", `docs/designs/old-hits-feed/technical.md`): listed and paged like
+  every feed, but built by its own builder, not the ranker: old songs (released more than
+  `old_hits_min_age_years` ago) the listener rated 4-5, played often but not lately, or that are
+  known hits (Deezer/Last.fm top tracks, many library versions) by artists they like; never rated
+  1-2, never played in the last `old_hits_rest_days`. Each track's `reason` is `favourite:<stars>`,
+  `worn:<plays>`, `hit:<source>:<position>` or `hit:versions:<n>`, its `bucket`
+  `old-hits:<tier>`; the `hardness_*` fields are null.
 - **GET `/api/feeds/profile`**, **PUT `/api/feeds/profile/exclusions`**: the taste profile a feed is
   built from, and the artists/labels/genres excluded from it.
 

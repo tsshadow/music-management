@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -161,6 +162,17 @@ namespace lms::scanner::tests
             Journal& _journal;
             core::LiteralString _name;
             bool* _interruptFlag{};
+        };
+
+        // A step whose write the database refuses, as a lms.db still locked by music-manager
+        // after busy_timeout does (bug report 132).
+        class ThrowingStep : public IScanStep
+        {
+        public:
+            ScanStep getStep() const override { return ScanStep::ComputeClusterStats; }
+            core::LiteralString getStepName() const override { return "throwing"; }
+            bool needProcess(const ScanContext&) const override { return true; }
+            void process(ScanContext&) override { throw std::runtime_error{ "database is locked" }; }
         };
 
         // The part of ScannerService that answers the steps' question, with a hand-driven clock.
@@ -375,6 +387,25 @@ namespace lms::scanner::tests
         const std::optional<ScanContext> pass{ runPriorityPass(passSteps, queue, PriorityFolderQueue::Clock::time_point{} + std::chrono::seconds{ 10 }, interrupted) };
 
         ASSERT_TRUE(pass.has_value());
+        EXPECT_EQ(journal, Journal{ "pass /music/A" });
+        EXPECT_EQ(queue.pendingCount(), 1);
+    }
+
+    // A step that throws ends the pass too; the folders it took must not go down with it.
+    TEST(ScanStepSequence, aPriorityPassEndedByAnExceptionPutsItsFoldersBack)
+    {
+        Journal journal;
+        PriorityFolderQueue queue{ priorityTiming };
+        bool interrupted{};
+
+        std::vector<std::unique_ptr<IScanStep>> passSteps;
+        passSteps.push_back(std::make_unique<JournalStep>(journal, "pass"));
+        passSteps.push_back(std::make_unique<ThrowingStep>());
+        passSteps.push_back(std::make_unique<JournalStep>(journal, "never"));
+
+        queue.add({ "/music/A" }, PriorityFolderQueue::Clock::time_point{});
+        EXPECT_THROW(static_cast<void>(runPriorityPass(passSteps, queue, PriorityFolderQueue::Clock::time_point{} + std::chrono::seconds{ 10 }, interrupted)), std::runtime_error);
+
         EXPECT_EQ(journal, Journal{ "pass /music/A" });
         EXPECT_EQ(queue.pendingCount(), 1);
     }

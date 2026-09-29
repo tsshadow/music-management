@@ -2,14 +2,18 @@ import unittest
 from datetime import datetime, timedelta
 
 from services.music_manager.feeds.policy import POLICIES
+from services.music_manager.feeds.queries import _RELEASE_DATE as RD
 from services.music_manager.feeds.queries import (
+    candidate_rows_query,
     candidates_query,
     canonical_rows_query,
     dominant_genre_query,
     entity_hardness_query,
     genre_hardness_query,
+    last_listened_query,
     listens_query,
     rotation_counts_query,
+    split_sample_query,
 )
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
@@ -50,7 +54,7 @@ class CandidatesQueryTest(unittest.TestCase):
     def test_a_release_window_demands_day_precision(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn(
-            "LENGTH(CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END) = 10",
+            f'LENGTH({RD}) = 10',
             sql,
         )
 
@@ -64,7 +68,7 @@ class CandidatesQueryTest(unittest.TestCase):
         """
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END AS release_date",
+            f'{RD} AS release_date',
             sql,
         )
 
@@ -78,7 +82,7 @@ class CandidatesQueryTest(unittest.TestCase):
         """
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertNotIn("COALESCE(NULLIF(t.release_date", sql)
-        self.assertIn("CASE WHEN t.release_date IS NULL THEN af.release_date", sql)
+        self.assertIn('CASE WHEN t.release_date IS NULL THEN (SELECT', sql)
 
     def test_a_release_dated_in_the_future_is_outside_the_window(self):
         """`release_date` comes out of a file tag, so a track tagged 2027-01-01
@@ -88,22 +92,16 @@ class CandidatesQueryTest(unittest.TestCase):
         long as it exists. The window is closed at `now` for exactly that.
         """
         sql, params = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END <= %s", sql
-        )
+        self.assertIn(f'{RD} <= %s', sql)
         self.assertIn(NOW.date().isoformat(), params)
         lower = params.index((NOW.date() - timedelta(days=7)).isoformat())
         upper = params.index(NOW.date().isoformat())
         self.assertLess(lower, upper)
 
-    def test_the_daily_mix_window_is_bounded_at_both_ends_too(self):
-        sql, params = candidates_query('user', POLICIES['daily-mix'], NOW)
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END >= %s", sql
-        )
-        self.assertIn(
-            "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END <= %s", sql
-        )
+    def test_the_artist_mix_window_is_bounded_at_both_ends_too(self):
+        sql, params = candidates_query('user', POLICIES['daily-mix-artist'], NOW)
+        self.assertIn(f'{RD} >= %s', sql)
+        self.assertIn(f'{RD} <= %s', sql)
         self.assertIn((NOW.date() - timedelta(days=90)).isoformat(), params)
         self.assertIn(NOW.date().isoformat(), params)
 
@@ -128,8 +126,22 @@ class CandidatesQueryTest(unittest.TestCase):
 
     def test_audio_features_join_on_the_internal_track_id(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
-        self.assertIn('internal_track_id', sql)
-        self.assertNotIn('af.track_id = t.track_uid', sql)
+        self.assertIn('x.internal_track_id = t.id', sql)
+        self.assertNotIn('track_id = t.track_uid', sql)
+
+    def test_audio_features_are_never_grouped_over_the_whole_table(self):
+        """Issue #137: a derived table grouping all of library_track_audio_features was
+        materialised in full on every statement -- most of a daily-mix sample's cost on
+        production. Every read of it is a per-track correlated lookup now."""
+        for sql in (
+            candidates_query('user', POLICIES['release-radar'], NOW)[0],
+            listens_query('user', 90, NOW)[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'older', 'seed')[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'recent', 'seed')[0],
+            candidate_rows_query('user', [1], 'recent')[0],
+            rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['a'], (90, None))[0],
+        ):
+            self.assertNotIn('GROUP BY internal_track_id', sql)
 
     def test_the_rating_join_carries_all_three_key_columns(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
@@ -424,3 +436,100 @@ class RotationCountsQueryTest(unittest.TestCase):
             self._query(names=())
         with self.assertRaises(ValueError):
             rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['x'], ())
+
+
+class SplitSampleQueryTest(unittest.TestCase):
+    """Bug report 131: the two halves of a split daily mix."""
+
+    POLICY = POLICIES['daily-mix']
+
+    def _query(self, half='older', **kwargs):
+        return split_sample_query('user', self.POLICY, NOW, half, f'user|2026-09-05|{half}', **kwargs)
+
+    def test_placeholders_and_params_agree(self):
+        for half in ('recent', 'older'):
+            for kwargs in (
+                {},
+                {'profile_names': {'artists': ['angerfist'], 'labels': ['neophyte records'], 'genres': ['uptempo']}},
+                {'entity_filter': ('label', 'neophyte records')},
+            ):
+                with self.subTest(half=half, kwargs=kwargs):
+                    sql, params = self._query(half, **kwargs)
+                    self.assertEqual(sql.count('%s'), len(params))
+
+    def test_the_older_half_takes_dated_songs_from_before_the_recent_window(self):
+        sql, params = self._query()
+        self.assertIn("ELSE NULLIF(t.release_date, '') END < %s", sql)
+        self.assertIn('LENGTH(CASE WHEN t.release_date IS NULL', sql)
+        self.assertIn((NOW.date() - timedelta(days=365)).isoformat(), params)
+        self.assertNotIn(NOW.date().isoformat(), params)
+
+    def test_the_recent_half_is_the_window_closed_at_both_ends(self):
+        sql, params = self._query('recent')
+        self.assertIn((NOW.date() - timedelta(days=365)).isoformat(), params)
+        self.assertIn(NOW.date().isoformat(), params)
+        self.assertIn('NOT (EXISTS (SELECT 1 FROM scrobble_listens', sql)
+
+    def test_the_older_half_drops_rated_one_or_two_and_keeps_unrated(self):
+        sql, params = self._query()
+        self.assertIn(', %s) >= %s', sql)
+        self.assertEqual(params.count(3), 2)
+        # No unheard pool: a heard, unrated old song is exactly what this half is for.
+        self.assertNotIn('NOT (EXISTS (SELECT 1 FROM scrobble_listens', sql)
+
+    def test_each_half_is_a_bounded_seeded_sample_of_ids(self):
+        for half, limit in (('recent', self.POLICY.recent_pool_limit), ('older', self.POLICY.older_pool_limit)):
+            with self.subTest(half=half):
+                sql, params = self._query(half)
+                self.assertIn(f'SELECT t.id AS {half}_id', sql)
+                self.assertIn('ORDER BY MD5(CONCAT(%s, t.track_uid))', sql)
+                self.assertEqual(params[-2:], [f'user|2026-09-05|{half}', limit])
+
+    def test_profile_names_match_only_the_older_half(self):
+        names = {'artists': ['angerfist'], 'labels': [], 'genres': ['uptempo']}
+        sql, params = self._query(profile_names=names)
+        self.assertIn('a.name IN (%s)', sql)
+        self.assertIn('pg.name IN (%s)', sql)
+        self.assertNotIn('pl.name IN', sql)
+        self.assertIn('uptempo', params)
+        recent_sql, _ = self._query('recent', profile_names=names)
+        self.assertNotIn('a.name IN', recent_sql)
+
+    def test_an_entity_filter_narrows_both_halves_and_replaces_the_profile_match(self):
+        for half in ('recent', 'older'):
+            with self.subTest(half=half):
+                sql, params = self._query(
+                    half, profile_names={'artists': ['angerfist']}, entity_filter=('label', 'neophyte records')
+                )
+                self.assertIn('el.name = %s', sql)
+                self.assertNotIn('a.name IN', sql)
+                self.assertIn('neophyte records', params)
+
+    def test_an_unknown_half_is_refused(self):
+        with self.assertRaises(ValueError):
+            self._query('middle')
+
+
+class CandidateRowsQueryTest(unittest.TestCase):
+    def test_the_rows_carry_their_half(self):
+        sql, params = candidate_rows_query('user', [4, 5], 'older')
+        self.assertIn("'older' AS pool", sql)
+        self.assertIn('t.id IN (%s, %s)', sql)
+        self.assertEqual(sql.count('%s'), len(params))
+        self.assertEqual(params[-2:], [4, 5])
+
+    def test_nothing_to_fetch_is_refused(self):
+        with self.assertRaises(ValueError):
+            candidate_rows_query('user', [], 'recent')
+
+
+class LastListenedQueryTest(unittest.TestCase):
+    def test_tracks_and_works_are_both_asked_about(self):
+        sql, params = last_listened_query('user', [1, 2], [7])
+        self.assertIn('lt.id IN (%s, %s)', sql)
+        self.assertIn('lt.work_id IN (%s)', sql)
+        self.assertEqual(params, ['user', 1, 2, 7])
+
+    def test_nothing_to_ask_is_refused(self):
+        with self.assertRaises(ValueError):
+            last_listened_query('user', [], [])

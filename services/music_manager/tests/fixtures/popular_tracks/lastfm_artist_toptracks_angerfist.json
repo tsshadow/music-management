@@ -1,0 +1,34 @@
+{
+  "toptracks": {
+    "track": [
+      {
+        "name": "Pennywise",
+        "playcount": "412345",
+        "listeners": "61234",
+        "mbid": "",
+        "url": "https://www.last.fm/music/Angerfist/_/Pennywise",
+        "artist": {"name": "Angerfist", "mbid": "", "url": "https://www.last.fm/music/Angerfist"},
+        "@attr": {"rank": "1"}
+      },
+      {
+        "name": "Incarnation",
+        "playcount": "301200",
+        "listeners": "52011",
+        "mbid": "",
+        "url": "https://www.last.fm/music/Angerfist/_/Incarnation",
+        "artist": {"name": "Angerfist", "mbid": "", "url": "https://www.last.fm/music/Angerfist"},
+        "@attr": {"rank": "2"}
+      },
+      {
+        "name": "Psycho Killa (Radio Edit)",
+        "playcount": "250004",
+        "listeners": "48000",
+        "mbid": "",
+        "url": "https://www.last.fm/music/Angerfist/_/Psycho+Killa",
+        "artist": {"name": "Angerfist", "mbid": "", "url": "https://www.last.fm/music/Angerfist"},
+        "@attr": {"rank": "3"}
+      }
+    ],
+    "@attr": {"artist": "Angerfist", "page": "1", "perPage": "50", "totalPages": "40", "total": "2000"}
+  }
+}

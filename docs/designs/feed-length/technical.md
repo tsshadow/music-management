@@ -61,6 +61,17 @@ above 100 costs one extra round trip per 100, not an error.
 3. The response is the stored body with `tracks` sliced to the window, plus `offset` and
    `next_offset` (the offset of the next page, or null when the list is exhausted or at 500).
 
+**A split daily mix continues from a stored reserve** (issue #137). Klassiek, Zachter/Middenin/Harder
+and the label mix build from two library samples (docs/designs/daily-mix-older-tracks/) that were
+the expensive part of a build, so their head build also ranks the same candidates for
+`MAX_FEED_LENGTH` places (`build_feed(reserve_size=500)`, steps 6-8 only, no query) and stores what
+that longer list holds beyond the head as `reserve` in the row. A continuation then builds nothing:
+it takes the next `max(size, wanted - stored)` songs off the reserve, skipping any song already
+stored, writes the row back and is `exhausted` once the reserve is empty. Same superset rule as
+below, paid for once in the background; `reserve` is never sent to a client. Release Radar and the
+artist mix still continue with a build; a row stored before this change has no `reserve` and does
+too.
+
 A continuation is a superset build rather than "the rest of the first build" because the quota is
 allocated over the number of places: a 200-place build is not a 100-place build with 100 more
 appended. Filtering by song keeps the first page untouched and the second page free of repeats.
@@ -95,7 +106,9 @@ is Middenin/Harder, which at 100 run short of in-band candidates after the artis
 existing unknown-hardness backfill (`_backfill_from_unknown`): 22 s instead of about 5 s. The nightly
 refresh is a background thread over 3 active listeners, so about +35 s per listener per day, about
 two minutes in total. A continuation is one extra build on demand (4–23 s), at most four per feed
-per day (500 / 100). Response size: about 0.5 KB per track, so a 100-track page is about 50 KB.
+per day (500 / 100). A split daily mix's continuation is a read and a write-back of its own row since
+issue #137 -- no build, milliseconds instead of the two library samples (~11 s before, ~4.5 s after
+that issue's query rewrite). Response size: about 0.5 KB per track, so a 100-track page is about 50 KB.
 
 ## Cross-App Impact
 

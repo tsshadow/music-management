@@ -14,7 +14,7 @@
  */
 
 import { registerPagePreloader } from "./entitySeeds.js";
-import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from "./feeds.js";
+import { DAILY_MIX, DAILY_MIXES, OLD_HITS, RELEASE_RADAR } from "./feeds.js";
 import { platform } from "./platform/index.js";
 import { SETTINGS_TABS } from "./router.js";
 
@@ -215,6 +215,7 @@ const PLAIN_VIEWS = {
   [RELEASE_RADAR]: "feedPage",
   [DAILY_MIX]: "feedPage",
   ...Object.fromEntries(DAILY_MIXES.map((slug) => [slug, "feedPage"])),
+  [OLD_HITS]: "feedPage",
 };
 
 /** Track list views whose header carries the `FilterBar` (Dashboard's songs branch). */

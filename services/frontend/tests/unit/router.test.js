@@ -54,6 +54,7 @@ describe("viewToPath", () => {
     ["daily-mix-hard", "/daily-mix-hard"],
     ["daily-mix-artist", "/daily-mix-artist"],
     ["daily-mix-label", "/daily-mix-label"],
+    ["old-hits", "/old-hits"],
     ["daily-mixes", "/daily-mixes"],
   ])("routes the feed page %s to %s and back", (view, path) => {
     expect(viewToPath(state(view))).toBe(path);

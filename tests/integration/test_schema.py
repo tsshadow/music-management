@@ -63,6 +63,14 @@ def test_the_artist_evidence_tables_are_expected_tables():
         assert table in schema_sources.migration_declared_tables()
 
 
+def test_the_popular_tracks_tables_are_expected_tables():
+    """The "Oude hitjes" feed's external popularity: db_init creates both and migrate_v49 declares them."""
+    for table in ('artist_popularity_fetches', 'artist_popular_tracks'):
+        assert table in EXPECTED_TABLES
+        assert table in schema_sources.code_declared_tables()
+        assert table in schema_sources.migration_declared_tables()
+
+
 def test_the_extractor_can_file_a_standing_file(db):
     """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
     from services.importer import conflict_store

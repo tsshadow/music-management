@@ -91,7 +91,8 @@ class MediaLibraryDailyMixesTest {
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-hard",
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-artist",
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-label",
-            "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix"
+            "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix",
+            "${MediaLibraryBase.MEDIA_FEED_ID}|old-hits"
         )
     }
 
@@ -127,7 +128,8 @@ class MediaLibraryDailyMixesTest {
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-hard",
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-artist",
             "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix-label",
-            "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix"
+            "${MediaLibraryBase.MEDIA_FEED_ID}|daily-mix",
+            "${MediaLibraryBase.MEDIA_FEED_ID}|old-hits"
         )
     }
 
@@ -140,6 +142,8 @@ class MediaLibraryDailyMixesTest {
         val items = children(MediaLibraryBase.MEDIA_DAILY_MIXES_ID)
 
         items[1].mediaMetadata.title.toString() `should be equal to` "daily-mix-mid"
-        items.last().mediaMetadata.title.toString() `should be equal to` "Klassiek"
+        items[5].mediaMetadata.title.toString() `should be equal to` "Klassiek"
+        // "Oude hitjes" comes after the classic mix and, unnamed by this list, shows its slug.
+        items.last().mediaMetadata.title.toString() `should be equal to` "old-hits"
     }
 }

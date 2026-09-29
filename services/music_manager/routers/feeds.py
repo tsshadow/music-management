@@ -23,15 +23,31 @@ from services.music_manager.feeds.build import (
     describe_feed,
     resolve_profile,
 )
+from services.music_manager.feeds.old_hits import (
+    OLD_HITS_POLICY,
+    OLD_HITS_SLUG,
+    OLD_HITS_SUBTITLE,
+    OLD_HITS_TITLE,
+)
+from services.music_manager.feeds.old_hits import SETTINGS as OLD_HITS_SETTINGS
+from services.music_manager.feeds.old_hits import parse_config as parse_old_hits_config
+from services.music_manager.feeds.old_hits_build import build_old_hits
 from services.music_manager.feeds.policy import (
     FEED_SIZE_SETTING,
     HARDNESS_EDGES_SETTING,
+    OLDER_MIN_RATING_SETTING,
     POLICIES,
+    RECENT_PERCENT_SETTING,
+    RECENT_WINDOW_SETTING,
     STARTING_GENRES_SETTING,
     parse_feed_size,
     parse_hardness_edges,
+    parse_older_min_rating,
+    parse_recent_share,
+    parse_recent_window_days,
     parse_starting_genres,
     resize,
+    with_recent_split,
 )
 from services.music_manager.feeds.queries import exclusions_query, genre_hardness_digest_query
 from services.music_manager.feeds.snapshot import (
@@ -136,11 +152,40 @@ def _feed_size() -> int:
     return parse_feed_size(settings.get(FEED_SIZE_SETTING))
 
 
-def _sized(policy):
-    """`policy` at the configured length -- every build goes through this, so the
-    setting and not `FeedPolicy.size` decides how long a feed is."""
-    return resize(policy, _feed_size())
+def _recent_split() -> tuple[float, int, int]:
+    """The configured recent/older split of the daily mixes (bug report 131): the
+    recent share, the recent window in days and the older half's minimum rating."""
+    return (
+        parse_recent_share(settings.get(RECENT_PERCENT_SETTING)),
+        parse_recent_window_days(settings.get(RECENT_WINDOW_SETTING)),
+        parse_older_min_rating(settings.get(OLDER_MIN_RATING_SETTING)),
+    )
 
+
+def _old_hits_config(size: int):
+    """The "Oude hitjes" settings (`old_hits_*`, group Feeds) at `size` places."""
+    return parse_old_hits_config(settings.get, size)
+
+
+#: Feeds that are not a `FeedPolicy` of the daily-mix ranker but are listed, sized, stored and
+#: continued the same way. Each has its own builder, dispatched on in `feed_body`.
+EXTRA_POLICIES = {OLD_HITS_SLUG: OLD_HITS_POLICY}
+
+
+def _policy(slug: str):
+    """The policy for `slug`: a ranker policy, an extra feed's, or None for an unknown slug."""
+    return POLICIES.get(slug) or EXTRA_POLICIES.get(slug)
+
+
+def _sized(policy):
+    """`policy` at the configured length and, for a daily mix that splits, the configured
+    recent/older split -- every build goes through this, so the settings and not the
+    `FeedPolicy` defaults decide how long a feed is and how much of it is recent."""
+    return with_recent_split(resize(policy, _feed_size()), *_recent_split())
+
+
+#: Snapshot fields kept for the continuation and never sent to a client.
+_STORED_ONLY = frozenset({'exhausted', 'reserve'})
 
 #: The longest a feed's stored list grows to through continuations in one day:
 #: five pages at the default length, at most four extra builds per feed per day.
@@ -164,8 +209,8 @@ def params_key(conn, username: str, slug: str) -> str:
     """A digest of everything a snapshot of `(username, slug)` is built under.
 
     Stored beside each snapshot; a snapshot whose key differs from the current one is
-    stale whatever its age. It covers the settings (the hardness edges and the starting
-    genres), for the spectrum mixes and the listing the curated per-genre hardness, and
+    stale whatever its age. It covers the settings (the hardness edges, the starting
+    genres, the feed length and the daily mixes' recent/older split), for the spectrum mixes and the listing the curated per-genre hardness, and
     the listener's own exclusions -- so an admin who moves the edges, a curator who
     re-scores a genre and a listener who excludes an artist all see the change on the
     next read, not tomorrow. The exclusions are in here, and not only handled by
@@ -177,7 +222,19 @@ def params_key(conn, username: str, slug: str) -> str:
     edges, edges_source = _hardness_edges()
     exclusions = sorted((row['entity_type'], row['entity_name']) for row in _exclusion_rows(conn, username))
     hardness = _genre_hardness_digest(conn) if slug in _HARDNESS_SLUGS else None
-    material = repr((sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness, _feed_size()))
+    parts: tuple = (
+        sorted(_starting_genres() or []),
+        edges,
+        edges_source,
+        exclusions,
+        hardness,
+        _feed_size(),
+        _recent_split(),
+    )
+    if slug == OLD_HITS_SLUG:
+        # Only this feed's key moves with its own settings; the daily mixes' keys stay as they were.
+        parts = (*parts, tuple(str(settings.get(key)) for key in OLD_HITS_SETTINGS))
+    material = repr(parts)
     return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
 
 
@@ -216,7 +273,7 @@ def _affinities(values: dict[str, float]) -> list[dict]:
 #: Every policy is listed, including the classic 'daily-mix' -- it is its own
 #: policy now, not a duplicate of daily-mix-mid, so there is nothing to hide it
 #: behind. Clients that already hardcode the slug need not read this list at all.
-_LISTED_SLUGS = list(POLICIES)
+_LISTED_SLUGS = [*POLICIES, *EXTRA_POLICIES]
 
 
 def _fallback_title(policy) -> str:
@@ -237,6 +294,8 @@ def _fallback_title(policy) -> str:
         return 'Release Radar'
     if policy.slug == 'daily-mix':
         return CLASSIC_TITLE
+    if policy.slug == OLD_HITS_SLUG:
+        return OLD_HITS_TITLE
     return policy.slug
 
 
@@ -256,8 +315,11 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
         resolution = resolve_profile(conn, username, PROFILE_WINDOW_DAYS, now, starting_genres)
     feeds = []
     for slug in _LISTED_SLUGS:
-        policy = POLICIES[slug]
-        if resolution is not None:
+        policy = _policy(slug)
+        if slug == OLD_HITS_SLUG:
+            # Static: nothing about this feed's name depends on the listener's profile.
+            info = {'title': OLD_HITS_TITLE, 'subtitle': OLD_HITS_SUBTITLE}
+        elif resolution is not None:
             info = describe_feed(
                 conn,
                 username,
@@ -284,6 +346,9 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
 
 def feed_body(conn, username: str, policy, now: datetime) -> dict:
     """The `GET /api/feeds/{slug}` body for one policy, built live."""
+    if policy.slug == OLD_HITS_SLUG:
+        feed = build_old_hits(conn, username, now, _old_hits_config(policy.size))
+        return _body(feed, policy, now)
     kwargs = {}
     starting_genres = _starting_genres()
     if starting_genres:
@@ -293,8 +358,19 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         kwargs['hardness_edges'] = edges
         kwargs['hardness_edges_source'] = edges_source
 
+    if policy.recent_share is not None:
+        # A split daily mix ranks MAX_FEED_LENGTH places in the same build and stores the
+        # rest as `reserve` (issue #137): its two samples are the expensive part, and
+        # "Meer laden" then serves from the row instead of sampling again.
+        kwargs['reserve_size'] = MAX_FEED_LENGTH
+
     feed = build_feed(conn, username, policy, now, **kwargs)
-    return {
+    return _body(feed, policy, now)
+
+
+def _body(feed, policy, now: datetime) -> dict:
+    """A built `Feed` as the response body (and the snapshot row) of `GET /api/feeds/{slug}`."""
+    body = {
         'slug': feed.slug,
         'state': feed.state,
         'scope': feed.scope,
@@ -309,9 +385,18 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         'hardness_percentiles': feed.hardness_percentiles,
         'relaxed_to': feed.relaxed_to,
         'filled_from_unknown': feed.filled_from_unknown,
+        # How many tracks came from the recent and the older half (bug report 131); None
+        # for release-radar and the artist mix, which do not split.
+        'pool_counts': feed.pool_counts,
         # Stored, never sent (`get_feed` strips it): whether a bigger build could find more.
         'exhausted': _ran_out(feed.tracks, feed.funnel, policy.size),
     }
+    reserve = feed.reserve
+    if reserve is not None:
+        # Stored, never sent either: the continuation's tracks, already ranked.
+        body['reserve'] = [_track_view(track) for track in reserve] if feed.state == 'ok' else []
+        body['exhausted'] = not body['reserve']
+    return body
 
 
 def _ran_out(tracks: list, funnel: dict, size: int) -> bool:
@@ -330,7 +415,7 @@ def snapshot_body(conn, username: str, slug: str) -> dict:
     now = datetime.now()
     if slug == LIST_SLUG:
         return list_body(conn, username, now)
-    return feed_body(conn, username, _sized(POLICIES[slug]), now)
+    return feed_body(conn, username, _sized(_policy(slug)), now)
 
 
 #: Every key the refresh thread keeps warm per listener.
@@ -452,10 +537,17 @@ def continuation(conn, username: str, policy, now: datetime, stored: dict, wante
 
     A build that ran out of candidates (`_ran_out`), or found nothing new, marks the result
     `exhausted`, and nothing will try again today.
+
+    A row that carries a `reserve` (a split daily mix, issue #137) builds nothing: the next
+    places come off the reserve, which the day's build already ranked for
+    `MAX_FEED_LENGTH` places -- the same superset rule, without two library samples on the
+    request path.
     """
     tracks = list(stored.get('tracks') or [])
     if not _can_grow(stored) or len(tracks) >= wanted:
         return None
+    if 'reserve' in stored:
+        return _continue_from_reserve(policy, stored, tracks, wanted)
     target = min(MAX_FEED_LENGTH, len(tracks) + max(policy.size, wanted - len(tracks)))
     built = feed_body(conn, username, resize(policy, target), now)
     # Both the song and the track id: a row stored before `work_id` was part of a track has
@@ -473,6 +565,22 @@ def continuation(conn, username: str, policy, now: datetime, stored: dict, wante
         fresh.append(track)
     exhausted = not fresh or bool(built.get('exhausted'))
     return {**stored, 'tracks': tracks + fresh, 'exhausted': exhausted}
+
+
+def _continue_from_reserve(policy, stored: dict, tracks: list, wanted: int) -> dict:
+    """`stored` grown from its `reserve`: at least one configured length, or up to
+    `wanted`, never past `MAX_FEED_LENGTH`. A song already stored is skipped, as a
+    continuation build would. `exhausted` once the reserve is empty."""
+    count = min(max(policy.size, wanted - len(tracks)), MAX_FEED_LENGTH - len(tracks))
+    seen_ids = {track.get('id') for track in tracks}
+    seen_works = {track['work_id'] for track in tracks if track.get('work_id')}
+    remaining = [
+        track
+        for track in stored.get('reserve') or []
+        if track.get('id') not in seen_ids and not (track.get('work_id') and track['work_id'] in seen_works)
+    ]
+    fresh, rest = remaining[:count], remaining[count:]
+    return {**stored, 'tracks': tracks + fresh, 'reserve': rest, 'exhausted': not rest}
 
 
 @router.get('/{slug}')
@@ -496,7 +604,7 @@ def get_feed(
     one day holds the same tracks and no song repeats. `next_offset` is where the next page
     starts, or null when the feed has nothing more to give.
     """
-    policy = POLICIES.get(slug)
+    policy = _policy(slug)
     if policy is None:
         raise HTTPException(status_code=404, detail='Unknown feed')
     policy = _sized(policy)
@@ -530,7 +638,7 @@ def get_feed(
 
     tracks = body.get('tracks') or []
     more = end < len(tracks) or _can_grow(body)
-    body = {key_: value for key_, value in body.items() if key_ != 'exhausted'}
+    body = {key_: value for key_, value in body.items() if key_ not in _STORED_ONLY}
     body['tracks'] = tracks[offset:end]
     body['offset'] = offset
     body['next_offset'] = end if more else None

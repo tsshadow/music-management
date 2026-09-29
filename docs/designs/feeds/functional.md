@@ -71,7 +71,7 @@ nothing.
 
 | Situation | Observable outcome |
 |---|---|
-| The listener opens the daily mix | It offers tracks released in the last 90 days that they have never played, plus tracks they rated 4 or 5 |
+| The listener opens the daily mix | It offers tracks released in the last 90 days that they have never played, plus tracks they rated 4 or 5 (superseded by bug report 131: half from the last 12 months, half older -- see [daily-mix-older-tracks](../daily-mix-older-tracks/functional.md)) |
 | The listener refreshes it during the day | The order is the same; it changes once per day |
 | The shares are divided | By the same profile, the same way, as the radar |
 
@@ -250,7 +250,9 @@ Feature: The daily mix is the same ranker with a wider window
 7. A radar with no qualifying candidate returns an explicit "no recent release matches" state, which
    the clients render differently from a build failure and from a not-yet-built feed.
 8. The daily mix offers only tracks released in the last 90 days that the listener has either never
-   played or rated 4 or 5, and returns the same order for the whole day.
+   played or rated 4 or 5, and returns the same order for the whole day. *(Superseded by bug report
+   131: every daily mix except the artist mix is now half recent, half older -- see
+   [daily-mix-older-tracks](../daily-mix-older-tracks/functional.md).)*
 9. A listener with no listening history receives a feed built from the server's aggregate profile,
    labelled as popular on this server; a listener with partial history receives a blend that shifts
    towards their own profile as their history grows.
@@ -296,8 +298,9 @@ hardness at all, so they are unaffected either way.
 
 ### Three mixes on the spectrum, two free
 
-`daily-mix-soft`, `-mid` and `-hard` are the existing daily mix — the same 90-day pool of unheard
-and highly-rated tracks, the same genre-share bucketing — with the candidate set additionally
+`daily-mix-soft`, `-mid` and `-hard` are the existing daily mix — the same pool of unheard
+and highly-rated tracks (90 days until bug report 131; now half from the last year and half older,
+see [daily-mix-older-tracks](../daily-mix-older-tracks/functional.md)), the same genre-share bucketing — with the candidate set additionally
 narrowed to one third of the hardness spectrum. The two edges (soft/mid and mid/hard) are **fixed
 on the genre anchors**, the same 50/75 for every listener, not measured from any one listener's own
 history. An earlier version derived them from that listener's own weighted 33rd/67th percentile
@@ -329,7 +332,9 @@ CI test seeds: a band that excludes every unscored track can go empty long befor
 to widen" is the real problem — genre coverage is 28% of the library, so most tracks start with no
 hardness at all.
 
-`daily-mix-artist` and `daily-mix-label` are the two free slots: the same daily-mix pool, restricted
+`daily-mix-artist` and `daily-mix-label` are the two free slots (since bug report 131 the label mix
+splits recent/older like the others and counts its labels over the whole library; the artist mix
+keeps what follows): the same daily-mix pool, restricted
 to one artist or one label chosen from the listener's own top 10 by a hash of their username and
 today's date, so it visibly rotates day to day without needing a job to pick it. Only a name with at
 least 15 playable songs (a file on disk, unheard or loved, one per song) is ever drawn: when the

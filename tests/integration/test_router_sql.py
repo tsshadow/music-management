@@ -161,6 +161,10 @@ READ_ENDPOINTS = [
     # genre-hardness digest (CRC32 over rules_genres) before the snapshot read.
     ('/api/feeds?username=root', 200),
     ('/api/feeds/daily-mix-hard?username=root', 200),
+    # "Oude hitjes" (docs/designs/old-hits-feed/): its own builder and queries, not the ranker's.
+    # OldHitsPipelineTest below seeds enough to run every one of them.
+    ('/api/feeds/old-hits', 400),
+    ('/api/feeds/old-hits?username=root', 200),
     # The Versions page in Beheer (docs/designs/song-versions/): the list, its sorts and
     # filter, the ranking status, and a song that does not exist.
     ('/api/songs/curation', 200),
@@ -1647,6 +1651,38 @@ class FeedsPipelineTest:
         # so only the never-heard candidate should come back.
         assert [track['title'] for track in body['tracks']] == ['Unheard Gem']
 
+    def test_daily_mix_samples_older_songs_that_match_the_profile(self, api, headers, db):
+        """Bug report 131: older_candidates_query and last_listened_query parse on MariaDB,
+        and the older half is profile-matched and drops songs rated 1-2 while keeping
+        unrated ones -- heard or not -- that a 90-day window used to hide."""
+        heard = [self._track(db, f'Angerfist heard {i}', release_date='2014-02-02') for i in range(2)]
+        for track_id in heard:
+            self._listen(db, track_id)
+        # Another artist, so the per-artist cap on the four Angerfist songs cannot drop it.
+        self._track(db, 'New Gem', artist='Fresh Face', release_date=date.today().isoformat())
+        self._track(db, 'Old Gem', release_date='2015-06-01')
+        self._track(db, 'Undated Gem')
+        self._track(db, 'Old Dud', release_date='2015-06-01')
+        self._track(db, 'Stranger Gem', artist='Somebody Else', release_date='2015-06-01')
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES "
+                "('track', 'uid-Old Dud', 'root', 2), ('track', 'uid-Old Gem', 'root', 3)"
+            )
+
+        response = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        titles = {track['title'] for track in body['tracks']}
+        # Three per artist: the cap trims the four Angerfist songs, so ask what may and may not appear.
+        # 'Undated Gem' has no agreed release date: not provably older, so not in the older half.
+        assert titles <= {'New Gem', 'Old Gem', 'Angerfist heard 0', 'Angerfist heard 1'}, titles
+        assert 'New Gem' in titles, titles
+        assert 'Old Dud' not in titles and 'Stranger Gem' not in titles, titles
+        assert body['pool_counts']['recent'] == 1, body['pool_counts']
+        assert body['pool_counts']['older'] >= 1, body['pool_counts']
+
     def _artist_with_history(self, db, artist, playable):
         """Two heard tracks (enough for the profile to know `artist`) plus `playable`
         unheard ones with no release date -- only reachable with no window at all."""
@@ -1684,9 +1720,10 @@ class FeedsPipelineTest:
         UPDATE; once nothing new comes it is marked exhausted, and the next read of
         the head -- served from the row -- no longer offers a next page.
 
-        Twelve unheard tracks by one artist at a length of 10: the quota hands out all
-        ten places, the per-artist cap keeps three, so the head is short without having
-        run out -- the one shape a continuation is attempted for."""
+        Twelve tracks by one artist at a length of 10: the quota hands out all ten places,
+        the per-artist cap keeps three, so the head is short without having run out -- the
+        one shape a continuation build is attempted for. Release Radar, because a split
+        daily mix continues from its stored reserve instead (the test below)."""
         from services.music_manager.routers import feeds as feeds_router
 
         real_get = feeds_router.settings.get
@@ -1698,20 +1735,50 @@ class FeedsPipelineTest:
         for index in range(12):
             self._track(db, f'Unheard {index}', release_date=date.today().isoformat())
 
-        head = api.get('/api/feeds/daily-mix?username=root', headers=headers).json()
+        head = api.get('/api/feeds/release-radar?username=root', headers=headers).json()
         assert head['state'] == 'ok', head
         assert (len(head['tracks']), head['next_offset']) == (3, 3), head['funnel']
         assert 'work_id' in head['tracks'][0]
 
-        response = api.get('/api/feeds/daily-mix?username=root&offset=3', headers=headers)
+        response = api.get('/api/feeds/release-radar?username=root&offset=3', headers=headers)
         assert response.status_code == 200, response.text
         assert response.headers['X-MuMa-Feed-Source'] == 'extended'
         past = response.json()
         assert (past['tracks'], past['next_offset']) == ([], None)
 
-        again = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        again = api.get('/api/feeds/release-radar?username=root', headers=headers)
         assert again.headers['X-MuMa-Feed-Source'] == 'snapshot'
         assert (len(again.json()['tracks']), again.json()['next_offset']) == (3, None)
+
+    def test_a_split_daily_mix_continues_from_its_stored_reserve(self, api, headers, db, monkeypatch):
+        """Issue #137: the head build stores the rest of a MAX_FEED_LENGTH ranking in the
+        row, and the next page comes off it through the same write-back -- no build."""
+        from services.music_manager.routers import feeds as feeds_router
+
+        real_get = feeds_router.settings.get
+        monkeypatch.setattr(
+            feeds_router.settings, 'get', lambda key, *rest: 10 if key == 'feeds_size' else real_get(key, *rest)
+        )
+        heard_id = self._track(db, 'Old Favourite', release_date=date.today().isoformat())
+        self._listen(db, heard_id)
+        for index in range(25):
+            self._track(db, f'Unheard {index}', artist=f'Artist {index}', release_date=date.today().isoformat())
+
+        head = api.get('/api/feeds/daily-mix?username=root', headers=headers).json()
+        assert head['state'] == 'ok', head
+        assert (len(head['tracks']), head['next_offset']) == (10, 10), head['funnel']
+        assert 'reserve' not in head
+
+        monkeypatch.setattr(feeds_router, 'build_feed', lambda *a, **k: pytest.fail('a continuation built a feed'))
+        response = api.get('/api/feeds/daily-mix?username=root&offset=10', headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.headers['X-MuMa-Feed-Source'] == 'extended'
+        page = response.json()
+        assert len(page['tracks']) == 10, page
+        assert not {t['id'] for t in page['tracks']} & {t['id'] for t in head['tracks']}
+
+        rest = api.get('/api/feeds/daily-mix?username=root&offset=20', headers=headers).json()
+        assert (len(rest['tracks']), rest['next_offset']) == (5, None), rest
 
 
 class FeedsProfileAndExclusionsTest:
@@ -2311,3 +2378,92 @@ class EventsRetentionSqlTest:
         )
         assert not older_info
         assert self._levels(db).count('CRITICAL') == 3
+
+
+class OldHitsPipelineTest:
+    """The "Oude hitjes" feed's SQL (feeds/old_hits_queries.py) and the popular-tracks store
+    (popular_tracks/worker.py) against a real schema: ratings, listens, the stored top-list
+    matches joined on track_uid, the version and date aggregates, and the display rows."""
+
+    def _track(self, db, title, artist, release_date=None, work_id=None, duration=300):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT IGNORE INTO library_artists (name, normalized_name) VALUES (%s, %s)',
+                (artist, artist.lower()),
+            )
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', (artist,))
+            artist_id = cursor.fetchone()['id']
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, release_date,'
+                " work_id, form) VALUES (%s, %s, %s, %s, %s, %s, 'track')",
+                (f'uid-{title}', title, duration, artist_id, release_date, work_id),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (f'/mnt/music/{title}.mp3', f'hash-{title}', track_id),
+            )
+        return track_id
+
+    def test_every_tier_runs_against_a_real_schema(self, api, headers, db):
+        favourite = self._track(db, 'Scrap Attack', 'Headhunterz', release_date='2009-06-27')
+        worn = self._track(db, 'Pennywise', 'Angerfist', release_date='2008-01-01')
+        hit = self._track(db, 'World Of Madness', 'Headhunterz', release_date='2012-06-01')
+        run_sql(
+            db,
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', %s, 'root', 5)",
+            ('uid-Scrap Attack',),
+        )
+        for days in (400, 390, 380, 370):
+            run_sql(
+                db,
+                'INSERT INTO scrobble_listens (track_id, listened_at, username, match_method)'
+                " VALUES (%s, NOW() - INTERVAL %s DAY, 'root', 'exact')",
+                (worn, days),
+            )
+        run_sql(
+            db,
+            'INSERT INTO artist_popular_tracks (artist_key, source, external_track_id, title, normalized_title,'
+            " popularity, position, matched_track_uid, fetched_at) VALUES ('headhunterz', 'deezer', '1',"
+            " 'World Of Madness', 'world of madness', 398309, 1, 'uid-World Of Madness', NOW())",
+        )
+
+        response = api.get('/api/feeds/old-hits?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        reasons = {track['id']: track['reason'] for track in body['tracks']}
+        assert reasons == {favourite: 'favourite:5', worn: 'worn:4', hit: 'hit:deezer:1'}, reasons
+        assert body['title'] == 'Oude hitjes'
+
+    def test_the_popular_tracks_store_runs_against_a_real_schema(self, db):
+        from datetime import datetime
+
+        from services.music_manager.popular_tracks.clients import ArtistTopTracks, TopTrack
+        from services.music_manager.popular_tracks.matcher import ArtistIndex
+        from services.music_manager.popular_tracks.worker import PopularTracksStore
+
+        track = self._track(db, 'Pennywise', 'Angerfist', release_date='2008-01-01')
+        run_sql(
+            db,
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', %s, 'root', 4)",
+            ('uid-Pennywise',),
+        )
+        store = PopularTracksStore(connect=_connect)
+        config = {'min_listens': 5, 'refresh_days': 7, 'max_artists': 10}
+        now = datetime.now().replace(microsecond=0)
+        assert store.due_artists('deezer', config, now) == [('angerfist', 'Angerfist')]
+
+        index = ArtistIndex(store.artist_tracks('angerfist'))
+        result = ArtistTopTracks('deezer', '42', [TopTrack('9', 'Pennywise (Radio Edit)', 1, 100)])
+        assert store.save('angerfist', 'Angerfist', result, index, now) == (1, 1)
+        rows = run_sql(db, 'SELECT matched_track_uid FROM artist_popular_tracks')
+        assert rows == [{'matched_track_uid': 'uid-Pennywise'}]
+        # Fresh now: not due again until the refresh window has passed.
+        assert store.due_artists('deezer', config, now) == []
+
+        store.record_failure('angerfist', 'Angerfist', 'deezer', now)
+        fetch = run_sql(db, 'SELECT status, track_count FROM artist_popularity_fetches')
+        assert fetch == [{'status': 'error', 'track_count': 1}]
+        assert track

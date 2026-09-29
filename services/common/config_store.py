@@ -118,6 +118,109 @@ def _artist_auto_approve_fields() -> list[ConfigField]:
     ]
 
 
+def _old_hits_fields() -> list[ConfigField]:
+    """The "Oude hitjes" feed (services/music_manager/feeds/old_hits.py) and the popular-tracks
+    loop that feeds its third tier (services/music_manager/popular_tracks/worker.py)."""
+    group = 'Feeds'
+    return [
+        ConfigField(
+            key='old_hits_min_age_years',
+            type='integer',
+            default=3,
+            env='OLD_HITS_MIN_AGE_YEARS',
+            group=group,
+            description='"Oude hitjes": a song counts as old when released more than this many years ago '
+            '(earliest date over its versions; undated songs by the artist\'s other releases).',
+        ),
+        ConfigField(
+            key='old_hits_rest_days',
+            type='integer',
+            default=90,
+            env='OLD_HITS_REST_DAYS',
+            group=group,
+            description='"Oude hitjes": a song played (any version) within this many days is left out.',
+        ),
+        ConfigField(
+            key='old_hits_stale_days',
+            type='integer',
+            default=180,
+            env='OLD_HITS_STALE_DAYS',
+            group=group,
+            description='"Oude hitjes", tier 2: a much-played song qualifies once it has not been played for '
+            'this many days.',
+        ),
+        ConfigField(
+            key='old_hits_min_plays',
+            type='integer',
+            default=3,
+            env='OLD_HITS_MIN_PLAYS',
+            group=group,
+            description='"Oude hitjes", tier 2: how many plays make a song much-played.',
+        ),
+        ConfigField(
+            key='old_hits_tier_shares',
+            type='string',
+            default='40,30,30',
+            env='OLD_HITS_TIER_SHARES',
+            group=group,
+            description='"Oude hitjes": the share of places for own 4-5 star songs, much-played songs and known '
+            'hits, e.g. "40,30,30". A tier that runs short passes its places on to the next.',
+        ),
+        ConfigField(
+            key='old_hits_max_per_artist',
+            type='integer',
+            default=3,
+            env='OLD_HITS_MAX_PER_ARTIST',
+            group=group,
+            description='"Oude hitjes": at most this many songs per artist.',
+        ),
+        ConfigField(
+            key='old_hits_min_versions',
+            type='integer',
+            default=4,
+            env='OLD_HITS_MIN_VERSIONS',
+            group=group,
+            description='"Oude hitjes", tier 3: a song the library holds at least this many versions of '
+            '(remixes, edits, compilation appearances) counts as a known hit.',
+        ),
+        ConfigField(
+            key='popular_tracks_enabled',
+            type='boolean',
+            default=True,
+            env='POPULAR_TRACKS_ENABLED',
+            group=group,
+            description='Look up the top tracks of the artists you rate or play on Deezer (and on Last.fm when '
+            'a Last.fm API key is set), for the "Oude hitjes" feed. Only artist names are sent.',
+        ),
+        ConfigField(
+            key='popular_tracks_refresh_days',
+            type='integer',
+            default=7,
+            env='POPULAR_TRACKS_REFRESH_DAYS',
+            group=group,
+            description='How many days an artist\'s top list is kept before it is looked up again.',
+        ),
+        ConfigField(
+            key='popular_tracks_max_artists',
+            type='integer',
+            default=150,
+            env='POPULAR_TRACKS_MAX_ARTISTS',
+            group=group,
+            description='Ceiling on the artists looked up per source in one hourly round (about two requests '
+            'per artist, four requests a second).',
+        ),
+        ConfigField(
+            key='popular_tracks_min_listens',
+            type='integer',
+            default=5,
+            env='POPULAR_TRACKS_MIN_LISTENS',
+            group=group,
+            description='Besides every artist with a 4-5 star track, artists with at least this many listens '
+            '(all listeners together) get their top list looked up.',
+        ),
+    ]
+
+
 #: Default age, in days, after which the events-retention loop deletes an event of
 #: each level. Tuned to production volume in bug report 072: INFO, WARNING and the
 #: per-video yt-dlp ERRORs are the bulk, CRITICAL is rare and worth a year.
@@ -569,6 +672,36 @@ def _config_fields() -> list[ConfigField]:
             group='Feeds',
             description='How many tracks every feed (Release Radar and the daily mixes) holds before "Meer '
             'laden". 10-200; anything else falls back to 100. A change rebuilds today\'s feeds on their next read.',
+        ),
+        *_old_hits_fields(),
+        ConfigField(
+            key='feeds_daily_recent_percent',
+            type='integer',
+            default=50,
+            env='FEEDS_DAILY_RECENT_PERCENT',
+            group='Feeds',
+            description='Percentage of every daily mix (Klassiek, Zachter/Middenin/Harder and the label mix) drawn '
+            'from songs released within the recent window; the rest comes from older songs. 0-100; anything else '
+            'falls back to 50. A half that runs short is filled from the other. Release Radar and the artist mix '
+            'are not affected.',
+        ),
+        ConfigField(
+            key='feeds_daily_recent_window_days',
+            type='integer',
+            default=365,
+            env='FEEDS_DAILY_RECENT_WINDOW_DAYS',
+            group='Feeds',
+            description='How many days back a release still counts as recent for the daily mixes\' recent share. '
+            '7-3650; anything else falls back to 365.',
+        ),
+        ConfigField(
+            key='feeds_daily_older_min_rating',
+            type='integer',
+            default=3,
+            env='FEEDS_DAILY_OLDER_MIN_RATING',
+            group='Feeds',
+            description='The older half of a daily mix only takes songs rated at least this many stars, or not '
+            'rated at all. 1-5; anything else falls back to 3.',
         ),
         ConfigField(
             key='lms_listen_backfill_enabled',

@@ -58,7 +58,8 @@ namespace lms::scanner
     // keeps describing the library-wide scan.
     //
     // When `interrupted` goes up during the pass (an admin abort, a shutdown), the folders are
-    // put back in `queue` rather than lost with the scan.
+    // put back in `queue` rather than lost with the scan. The same goes for a step that throws;
+    // the exception is rethrown once the folders are back.
     std::optional<ScanContext> runPriorityPass(std::vector<std::unique_ptr<IScanStep>>& steps,
                                                PriorityFolderQueue& queue,
                                                PriorityFolderQueue::Clock::time_point now,

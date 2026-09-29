@@ -18,6 +18,7 @@ from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager import artist_auto_approve_worker, lms_listen_backfill
+from services.music_manager.bpm import status as bpm_status
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import (
     DatabaseBusyError,
@@ -235,6 +236,11 @@ def health(response: Response):
     threads = thread_status()
     threads['events'] = event_service.is_alive()
 
+    heartbeats = thread_heartbeats()
+    bpm_analysis = bpm_status.read_status()
+    if bpm_analysis is not None:
+        heartbeats['bpm-analyzer'] = bpm_status.heartbeat_entry(bpm_analysis)
+
     healthy = database == 'ok' and all(threads.values())
     if not healthy:
         response.status_code = 503
@@ -244,8 +250,11 @@ def health(response: Response):
         'version': get_version(),
         'database': database,
         'threads': threads,
-        'heartbeats': thread_heartbeats(),
+        'heartbeats': heartbeats,
         'lms_listen_outbox': _lms_listen_outbox_status(),
+        # The bpm-analyzer container's own report; informational, never affects `status`
+        # (services/music_manager/bpm/status.py says why).
+        'bpm_analysis': bpm_analysis,
     }
 
 

@@ -2676,3 +2676,58 @@ class BpmBrowseSqlTest:
             assert histogram['summary']['tracks'] == 4
         finally:
             bpm_router.index_cache.invalidate()
+
+    def test_the_analysis_workers_queue_and_upsert_run_against_a_real_schema(self, db):
+        """bpm/worker.py's DUE_SQL, REMAINING_SQL, genre lookups and UPSERT_SQL: newest first,
+        sets skipped, a current measurement not queued again, a changed file queued again, a
+        failure counted and retried only once due."""
+        from datetime import datetime, timedelta
+
+        from services.music_manager.bpm import estimator, worker
+
+        older = self._track(db, 'Queue Older', genre='Hardstyle')
+        newer = self._track(db, 'Queue Newer')
+        self._track(db, 'Queue Set', form='set')
+        run_sql(db, 'UPDATE library_tracks SET primary_artist_id = 987654 WHERE id IN (%s, %s)', (older, newer))
+        store = worker.BpmStore(connect=_connect)
+        config = worker.read_settings(env={})
+        now = datetime.now().replace(microsecond=0)
+
+        due = [row['track_id'] for row in store.due_tracks(config, now, limit=1000)]
+        assert due.index(newer) < due.index(older)
+        assert 'uid-bpm-Queue Set' not in {row['track_uid'] for row in store.due_tracks(config, now, limit=1000)}
+        before = store.remaining(config, now)
+        assert before >= 2
+
+        genres = store.genres_for([older, newer])
+        assert genres[older] == ['Hardstyle']
+        assert genres.get(newer) == ['Hardstyle']  # the primary artist's other track
+
+        jobs = {row['track_id']: row for row in store.due_tracks(config, now, limit=1000)}
+        store.save(
+            [
+                worker.to_row(jobs[older], {'ok': True, 'raw': 75.0, 'confidence': 0.9}, ['Hardstyle'], now),
+                worker.to_row(jobs[newer], {'ok': False, 'error': 'DecodeError: x'}, [], now),
+            ]
+        )
+        rows = {
+            r['track_uid']: r
+            for r in run_sql(db, 'SELECT * FROM library_track_bpm WHERE track_uid LIKE %s', ('uid-bpm-Queue%',))
+        }
+        assert float(rows['uid-bpm-Queue Older']['bpm']) == 150.0
+        assert rows['uid-bpm-Queue Older']['method'] == estimator.METHOD
+        assert rows['uid-bpm-Queue Newer']['status'] == 'failed'
+        assert store.remaining(config, now) == before - 2
+
+        # A second failure counts up; a retry is due only after RETRY_FAILED_AFTER.
+        store.save([worker.to_row(jobs[newer], {'ok': False, 'error': 'again'}, [], now)])
+        attempts = run_sql(db, "SELECT attempts FROM library_track_bpm WHERE track_uid = 'uid-bpm-Queue Newer'")[0][
+            'attempts'
+        ]
+        assert attempts == 2
+        later = now + worker.RETRY_FAILED_AFTER + timedelta(minutes=1)
+        assert newer in {row['track_id'] for row in store.due_tracks(config, later, limit=1000)}
+
+        # A replaced file is measured again.
+        run_sql(db, 'UPDATE library_media_files SET file_size = 11 WHERE track_id = %s', (older,))
+        assert older in {row['track_id'] for row in store.due_tracks(config, now, limit=1000)}

@@ -45,6 +45,46 @@ class ThreadRegistryTest(unittest.TestCase):
         self.assertFalse(thread_registry.thread_status()['vlieger'])
 
 
+class BpmAnalysisHealthTest(unittest.TestCase):
+    """The bpm-analyzer container's status file is reported, and never turns /health red."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        thread_registry.reset()
+
+    def tearDown(self):
+        thread_registry.reset()
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_a_stale_analyzer_is_reported_but_not_a_failure(self, _db, mock_events):
+        from services.music_manager.bpm import status as bpm_status
+
+        mock_events.is_alive.return_value = True
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'status.json'
+            path.write_text(json.dumps({'heartbeat_at': time.time() - 7200, 'state': 'running', 'analyzed': 5}))
+            with patch.object(bpm_status, 'STATUS_PATH', path):
+                response = self.client.get('/health')
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body['bpm_analysis']['state'], 'running')
+        self.assertTrue(body['bpm_analysis']['stale'])
+        self.assertFalse(body['heartbeats']['bpm-analyzer']['alive'])
+        self.assertNotIn('bpm-analyzer', body['threads'])
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_no_status_file_is_null(self, _db, mock_events):
+        from services.music_manager.bpm import status as bpm_status
+
+        mock_events.is_alive.return_value = True
+        with patch.object(bpm_status, 'STATUS_PATH', Path('/nonexistent/status.json')):
+            body = self.client.get('/health').json()
+        self.assertIsNone(body['bpm_analysis'])
+        self.assertNotIn('bpm-analyzer', body['heartbeats'])
+
+
 class HealthTest(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)

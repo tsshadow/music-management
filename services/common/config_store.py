@@ -243,6 +243,60 @@ def _bpm_fields() -> list[ConfigField]:
             description='Browse by BPM: the estimator confidence (0-100) from which a measured tempo counts '
             'as reliable ("high"); below it a measurement is "medium".',
         ),
+        # Read by the bpm-analyzer container (services/music_manager/bpm/worker.py, SETTINGS)
+        # straight from config.json every round; keys and defaults must match there.
+        ConfigField(
+            key='bpm_analysis_enabled',
+            type='boolean',
+            default=True,
+            env='BPM_ANALYSIS_ENABLED',
+            group=group,
+            description='Measure every track\'s tempo in the background (the bpm-analyzer container), newest '
+            'tracks first. Switching it off stops after the current batch.',
+        ),
+        ConfigField(
+            key='bpm_analysis_paused',
+            type='boolean',
+            default=False,
+            env='BPM_ANALYSIS_PAUSED',
+            group=group,
+            description='Pause the BPM analysis without switching it off, e.g. during a full rescan. It '
+            'resumes where it stopped.',
+        ),
+        ConfigField(
+            key='bpm_analysis_workers',
+            type='integer',
+            default=2,
+            env='BPM_ANALYSIS_WORKERS',
+            group=group,
+            description='How many tracks the BPM analysis decodes and measures at once (1-8), each at the '
+            'lowest CPU and disk priority. The container itself is capped at MUMA_CPUS_BPM cores.',
+        ),
+        ConfigField(
+            key='bpm_analysis_excerpt_seconds',
+            type='integer',
+            default=60,
+            env='BPM_ANALYSIS_EXCERPT_SECONDS',
+            group=group,
+            description='How many seconds of each track the BPM analysis reads, from 30% in (20-180). 60 '
+            'measured best; 30 is a little less accurate, 90 no better.',
+        ),
+        ConfigField(
+            key='bpm_analysis_skip_forms',
+            type='string',
+            default='set,liveset,podcast',
+            env='BPM_ANALYSIS_SKIP_FORMS',
+            group=group,
+            description='Track forms the BPM analysis leaves out, comma-separated: a mix has no one tempo.',
+        ),
+        ConfigField(
+            key='bpm_analysis_max_minutes',
+            type='integer',
+            default=15,
+            env='BPM_ANALYSIS_MAX_MINUTES',
+            group=group,
+            description='Files longer than this many minutes are left out of the BPM analysis (1-60).',
+        ),
     ]
 
 

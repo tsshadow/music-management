@@ -473,7 +473,10 @@ class Worker:
         pool = self._executor(config['bpm_analysis_workers'])
         results = list(pool.map(self.analyze_fn, jobs, [excerpt] * len(jobs)))
         stamp = self.now().replace(microsecond=0)
-        rows = [to_row(job, result, genres.get(job['track_id'], []), stamp) for job, result in zip(jobs, results, strict=True)]
+        rows = [
+            to_row(job, result, genres.get(job['track_id'], []), stamp)
+            for job, result in zip(jobs, results, strict=True)
+        ]
         self.store.save(rows)
         failed = sum(1 for result in results if not result.get('ok'))
         self.progress.analyzed += len(jobs) - failed

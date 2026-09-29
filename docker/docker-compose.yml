@@ -715,6 +715,10 @@ services:
       - ALL
     cap_add: *root-file-caps
     pids_limit: 256
+    # Writes nothing but its status file (a volume below); ffmpeg streams to a pipe.
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
     image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
     container_name: muma-bpm-analyzer
     labels:
@@ -731,6 +735,7 @@ services:
     environment:
       <<: [*environment-db]
       PYTHONPATH: /app
+      PYTHONDONTWRITEBYTECODE: "1"
       CONFIG_PATH: /app/music-manager/config.json
       BPM_ANALYZER_STATUS: /app/state/status.json
     volumes:

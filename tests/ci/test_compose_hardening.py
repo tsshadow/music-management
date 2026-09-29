@@ -44,7 +44,7 @@ EXPECTED_CAPS = {
 # Firefox's s6-overlay init is a follow-up (docs/deployment.md); it only gets a PID ceiling.
 NO_CAP_DROP = {(PROD, 'firefox')}
 
-READ_ONLY = {(LMS, 'lms'), (LMS, 'autoheal'), (LMS, 'reverse-proxy')}
+READ_ONLY = {(LMS, 'lms'), (LMS, 'autoheal'), (LMS, 'reverse-proxy'), (PROD, 'bpm-analyzer')}
 
 # Capabilities no service here needs, whatever else changes.
 NEVER = {'NET_RAW', 'NET_ADMIN', 'SYS_ADMIN', 'SYS_PTRACE', 'SYS_MODULE', 'MKNOD', 'SETFCAP', 'SETPCAP', 'ALL'}

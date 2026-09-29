@@ -1,0 +1,140 @@
+{
+  "data": [
+    {
+      "id": 965505842,
+      "title": "Destiny (Edit)",
+      "title_short": "Destiny",
+      "title_version": "(Edit)",
+      "rank": 481354,
+      "duration": 179,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 149304922,
+        "title": "Destiny"
+      }
+    },
+    {
+      "id": 63046479,
+      "title": "Disrespect (Original Mix)",
+      "title_short": "Disrespect",
+      "title_version": "(Original Mix)",
+      "rank": 288392,
+      "duration": 336,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 6190513,
+        "title": "Headhunterz - Sacrifice"
+      }
+    },
+    {
+      "id": 467291692,
+      "title": "Our Church",
+      "title_short": "Our Church",
+      "rank": 453503,
+      "duration": 268,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 57973962,
+        "title": "The Return Of Headhunterz"
+      }
+    },
+    {
+      "id": 41610271,
+      "title": "Scrap Attack (Defqon.1 2009 anthem) (Original Mix)",
+      "title_short": "Scrap Attack (Defqon.1 2009 anthem)",
+      "title_version": "(Original Mix)",
+      "rank": 437370,
+      "duration": 437,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 4072741,
+        "title": "Scrap Attack (Defqon.1 Anthem 2009)"
+      }
+    },
+    {
+      "id": 70124537,
+      "title": "Colors (feat. Tatu)",
+      "title_short": "Colors (feat. Tatu)",
+      "title_version": "",
+      "rank": 320328,
+      "duration": 202,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 6877929,
+        "title": "Colors (feat. Tatu)"
+      }
+    },
+    {
+      "id": 701889672,
+      "title": "Orange Heart",
+      "title_short": "Orange Heart",
+      "title_version": "",
+      "rank": 351123,
+      "duration": 230,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 101424672,
+        "title": "Orange Heart"
+      }
+    },
+    {
+      "id": 4214623262,
+      "title": "Move With The One",
+      "title_short": "Move With The One",
+      "title_version": "",
+      "rank": 375913,
+      "duration": 173,
+      "type": "track",
+      "artist": {
+        "id": 268644,
+        "name": "Project One"
+      },
+      "album": {
+        "id": 1050691512,
+        "title": "Move With The One"
+      }
+    },
+    {
+      "id": 1014359572,
+      "title": "World Of Madness (Defqon.1 2012 Anthem)",
+      "title_short": "World Of Madness (Defqon.1 2012 Anthem)",
+      "title_version": "",
+      "rank": 398309,
+      "duration": 240,
+      "type": "track",
+      "artist": {
+        "id": 194172,
+        "name": "Headhunterz"
+      },
+      "album": {
+        "id": 159218012,
+        "title": "Hardstyle Hits - The Mixtape Vol. 3"
+      }
+    }
+  ],
+  "total": 100
+}

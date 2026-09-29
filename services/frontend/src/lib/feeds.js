@@ -37,6 +37,16 @@ export const DAILY_MIX_BANDS = [DAILY_MIX_SOFT, DAILY_MIX_MID, DAILY_MIX_HARD];
  */
 export const DAILY_MIXES = [...DAILY_MIX_BANDS, DAILY_MIX_ARTIST, DAILY_MIX_LABEL];
 
+/**
+ * "Oude hitjes": old favourites the listener plays less (docs/designs/old-hits-feed/). Not a
+ * daily mix -- its own builder on the server -- but day-stable like one, so it sits on the same
+ * shelf, after the five mixes.
+ */
+export const OLD_HITS = "old-hits";
+
+/** Every card on the daily-mix shelf and the phone's "Daily mixes" page, in display order. */
+export const SHELF_FEEDS = [...DAILY_MIXES, OLD_HITS];
+
 /** A feed answer shaped like an error, for every kind of nothing this can fail with. */
 function emptyFeed(slug) {
   return {

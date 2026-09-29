@@ -17,7 +17,9 @@ import {
   DAILY_MIX_MID,
   DAILY_MIX_SOFT,
   DAILY_MIXES,
+  OLD_HITS,
   RELEASE_RADAR,
+  SHELF_FEEDS,
   feedPaths,
   fetchFeed,
   listFeeds,
@@ -190,6 +192,11 @@ describe("the five daily mixes are real slugs", () => {
       DAILY_MIX_LABEL,
     ]);
     expect(DAILY_MIXES).not.toContain(DAILY_MIX);
+  });
+
+  it("puts Oude hitjes on the shelf after the mixes, without making it a daily mix", () => {
+    expect(SHELF_FEEDS).toEqual([...DAILY_MIXES, OLD_HITS]);
+    expect(DAILY_MIXES).not.toContain(OLD_HITS);
   });
 });
 

@@ -77,6 +77,8 @@ class BackgroundWorkersEnabledTest(unittest.TestCase):
                 'lms-listen-backfill',
                 # The daily artist evidence run (issue #49).
                 'artist-auto-approve',
+                # Top tracks of the artists listeners like, for the "Oude hitjes" feed.
+                'popular-tracks',
             },
             registered,
         )

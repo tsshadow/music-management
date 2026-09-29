@@ -141,7 +141,7 @@ internal class FeedBrowseArea(context: BrowseContext) : BrowseArea(context) {
         val mediaItems: MutableList<MediaItem> = ArrayList()
         val feeds = dataProvider.feeds.listFeeds().associateBy { it.slug }
 
-        for (slug in FEED_DAILY_MIXES + FEED_DAILY_MIX) {
+        for (slug in FEED_DAILY_MIXES + FEED_DAILY_MIX + FEED_OLD_HITS) {
             mediaItems.add(
                 title = feeds[slug]?.title ?: slug,
                 mediaId = listOf(MEDIA_FEED_ID, slug).joinToString("|"),

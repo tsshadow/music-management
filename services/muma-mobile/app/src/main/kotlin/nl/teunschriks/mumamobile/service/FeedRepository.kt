@@ -147,6 +147,12 @@ class FeedRepository(
         val DAILY_MIXES = listOf(DAILY_MIX_SOFT, DAILY_MIX_MID, DAILY_MIX_HARD, DAILY_MIX_ARTIST, DAILY_MIX_LABEL)
 
         /**
+         * "Oude hitjes": old favourites the listener plays less. Its own builder on the server,
+         * not a daily mix, but day-stable like one -- the car lists it in the same folder, last.
+         */
+        const val OLD_HITS = "old-hits"
+
+        /**
          * The most paths one `getSongsByPath` call accepts (the server's `maxPathCount` in
          * SongsByPath.cpp); a longer feed is resolved in chunks of this size, order kept.
          */

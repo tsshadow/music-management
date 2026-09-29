@@ -363,6 +363,13 @@ system key must pass `?username=`.
   at most 500 tracks per feed per day. The body carries `offset` and `next_offset` (where the next
   page starts, `null` when the feed has nothing more); each track carries `work_id`. `404` unknown
   slug, `422` a bad `offset`/`limit`, `400` the system key without `username`.
+- **`old-hits`** ("Oude hitjes", `docs/designs/old-hits-feed/technical.md`): listed and paged like
+  every feed, but built by its own builder, not the ranker: old songs (released more than
+  `old_hits_min_age_years` ago) the listener rated 4-5, played often but not lately, or that are
+  known hits (Deezer/Last.fm top tracks, many library versions) by artists they like; never rated
+  1-2, never played in the last `old_hits_rest_days`. Each track's `reason` is `favourite:<stars>`,
+  `worn:<plays>`, `hit:<source>:<position>` or `hit:versions:<n>`, its `bucket`
+  `old-hits:<tier>`; the `hardness_*` fields are null.
 - **GET `/api/feeds/profile`**, **PUT `/api/feeds/profile/exclusions`**: the taste profile a feed is
   built from, and the artists/labels/genres excluded from it.
 

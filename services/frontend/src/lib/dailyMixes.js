@@ -10,10 +10,10 @@
  * hex values -- docs/designs/feeds/home-load.md. The ramp is the colour now.
  */
 import {
-  DAILY_MIXES,
   DAILY_MIX_ARTIST,
   DAILY_MIX_BANDS,
   RELEASE_RADAR,
+  SHELF_FEEDS,
   listFeeds,
 } from "./feeds.js";
 import { apiBase } from "./mumaApi.js";
@@ -73,7 +73,7 @@ export async function imageLoads(url) {
 
 /**
  * The cards, in display order: the radar first when asked for, then soft, mid, hard, the day's
- * artist and the day's label. Publish `cards` at once; then call `refine(onRefine)`, which hands
+ * artist, the day's label and "Oude hitjes". Publish `cards` at once; then call `refine(onRefine)`, which hands
  * back a replacement card (keyed by slug) for the one decoration that arrives later.
  *
  * @param {string} authParams - Subsonic credentials, for the artist-image probe.
@@ -83,7 +83,7 @@ export async function imageLoads(url) {
 export async function loadDailyMixCards(authParams, { radar = false } = {}) {
   const feeds = await listFeeds();
   const bySlug = new Map(feeds.map((feed) => [feed.slug, feed]));
-  const slugs = radar ? [RELEASE_RADAR, ...DAILY_MIXES] : DAILY_MIXES;
+  const slugs = radar ? [RELEASE_RADAR, ...SHELF_FEEDS] : SHELF_FEEDS;
   const cards = slugs.map((slug) => {
     const info = bySlug.get(slug) ?? { title: slug, subtitle: null };
     const position = DAILY_MIX_BANDS.indexOf(slug);

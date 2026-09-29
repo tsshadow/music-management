@@ -23,6 +23,15 @@ from services.music_manager.feeds.build import (
     describe_feed,
     resolve_profile,
 )
+from services.music_manager.feeds.old_hits import (
+    OLD_HITS_POLICY,
+    OLD_HITS_SLUG,
+    OLD_HITS_SUBTITLE,
+    OLD_HITS_TITLE,
+)
+from services.music_manager.feeds.old_hits import SETTINGS as OLD_HITS_SETTINGS
+from services.music_manager.feeds.old_hits import parse_config as parse_old_hits_config
+from services.music_manager.feeds.old_hits_build import build_old_hits
 from services.music_manager.feeds.policy import (
     FEED_SIZE_SETTING,
     HARDNESS_EDGES_SETTING,
@@ -153,6 +162,21 @@ def _recent_split() -> tuple[float, int, int]:
     )
 
 
+def _old_hits_config(size: int):
+    """The "Oude hitjes" settings (`old_hits_*`, group Feeds) at `size` places."""
+    return parse_old_hits_config(settings.get, size)
+
+
+#: Feeds that are not a `FeedPolicy` of the daily-mix ranker but are listed, sized, stored and
+#: continued the same way. Each has its own builder, dispatched on in `feed_body`.
+EXTRA_POLICIES = {OLD_HITS_SLUG: OLD_HITS_POLICY}
+
+
+def _policy(slug: str):
+    """The policy for `slug`: a ranker policy, an extra feed's, or None for an unknown slug."""
+    return POLICIES.get(slug) or EXTRA_POLICIES.get(slug)
+
+
 def _sized(policy):
     """`policy` at the configured length and, for a daily mix that splits, the configured
     recent/older split -- every build goes through this, so the settings and not the
@@ -195,9 +219,19 @@ def params_key(conn, username: str, slug: str) -> str:
     edges, edges_source = _hardness_edges()
     exclusions = sorted((row['entity_type'], row['entity_name']) for row in _exclusion_rows(conn, username))
     hardness = _genre_hardness_digest(conn) if slug in _HARDNESS_SLUGS else None
-    material = repr(
-        (sorted(_starting_genres() or []), edges, edges_source, exclusions, hardness, _feed_size(), _recent_split())
+    parts: tuple = (
+        sorted(_starting_genres() or []),
+        edges,
+        edges_source,
+        exclusions,
+        hardness,
+        _feed_size(),
+        _recent_split(),
     )
+    if slug == OLD_HITS_SLUG:
+        # Only this feed's key moves with its own settings; the daily mixes' keys stay as they were.
+        parts = (*parts, tuple(str(settings.get(key)) for key in OLD_HITS_SETTINGS))
+    material = repr(parts)
     return hashlib.sha256(material.encode('utf-8')).hexdigest()[:32]
 
 
@@ -236,7 +270,7 @@ def _affinities(values: dict[str, float]) -> list[dict]:
 #: Every policy is listed, including the classic 'daily-mix' -- it is its own
 #: policy now, not a duplicate of daily-mix-mid, so there is nothing to hide it
 #: behind. Clients that already hardcode the slug need not read this list at all.
-_LISTED_SLUGS = list(POLICIES)
+_LISTED_SLUGS = [*POLICIES, *EXTRA_POLICIES]
 
 
 def _fallback_title(policy) -> str:
@@ -257,6 +291,8 @@ def _fallback_title(policy) -> str:
         return 'Release Radar'
     if policy.slug == 'daily-mix':
         return CLASSIC_TITLE
+    if policy.slug == OLD_HITS_SLUG:
+        return OLD_HITS_TITLE
     return policy.slug
 
 
@@ -276,8 +312,11 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
         resolution = resolve_profile(conn, username, PROFILE_WINDOW_DAYS, now, starting_genres)
     feeds = []
     for slug in _LISTED_SLUGS:
-        policy = POLICIES[slug]
-        if resolution is not None:
+        policy = _policy(slug)
+        if slug == OLD_HITS_SLUG:
+            # Static: nothing about this feed's name depends on the listener's profile.
+            info = {'title': OLD_HITS_TITLE, 'subtitle': OLD_HITS_SUBTITLE}
+        elif resolution is not None:
             info = describe_feed(
                 conn,
                 username,
@@ -304,6 +343,9 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
 
 def feed_body(conn, username: str, policy, now: datetime) -> dict:
     """The `GET /api/feeds/{slug}` body for one policy, built live."""
+    if policy.slug == OLD_HITS_SLUG:
+        feed = build_old_hits(conn, username, now, _old_hits_config(policy.size))
+        return _body(feed, policy, now)
     kwargs = {}
     starting_genres = _starting_genres()
     if starting_genres:
@@ -314,6 +356,11 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         kwargs['hardness_edges_source'] = edges_source
 
     feed = build_feed(conn, username, policy, now, **kwargs)
+    return _body(feed, policy, now)
+
+
+def _body(feed, policy, now: datetime) -> dict:
+    """A built `Feed` as the response body (and the snapshot row) of `GET /api/feeds/{slug}`."""
     return {
         'slug': feed.slug,
         'state': feed.state,
@@ -353,7 +400,7 @@ def snapshot_body(conn, username: str, slug: str) -> dict:
     now = datetime.now()
     if slug == LIST_SLUG:
         return list_body(conn, username, now)
-    return feed_body(conn, username, _sized(POLICIES[slug]), now)
+    return feed_body(conn, username, _sized(_policy(slug)), now)
 
 
 #: Every key the refresh thread keeps warm per listener.
@@ -519,7 +566,7 @@ def get_feed(
     one day holds the same tracks and no song repeats. `next_offset` is where the next page
     starts, or null when the feed has nothing more to give.
     """
-    policy = POLICIES.get(slug)
+    policy = _policy(slug)
     if policy is None:
         raise HTTPException(status_code=404, detail='Unknown feed')
     policy = _sized(policy)

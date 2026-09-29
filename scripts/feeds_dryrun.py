@@ -20,12 +20,19 @@ from datetime import datetime
 from services.music_manager.feeds.build import build_feed, resolve_profile
 from services.music_manager.feeds.policy import (
     HARDNESS_EDGES_SETTING,
+    OLDER_MIN_RATING_SETTING,
     POLICIES,
+    RECENT_PERCENT_SETTING,
+    RECENT_WINDOW_SETTING,
     STARTING_GENRES_SETTING,
     FeedPolicy,
     parse_hardness_edges,
+    parse_older_min_rating,
+    parse_recent_share,
+    parse_recent_window_days,
     parse_starting_genres,
     resize,
+    with_recent_split,
 )
 
 FUNNEL_STAGES = ('candidates', 'bucketed', 'allocated', 'capped', 'emitted')
@@ -40,9 +47,12 @@ def policy_for(slug: str, window: int | None, size: int | None, max_seconds: int
     policy = POLICIES.get(slug)
     if policy is None:
         sys.exit(f"Unknown feed slug {slug!r}. Choose one of: {', '.join(sorted(POLICIES))}.")
-    overrides = {}
+    overrides: dict = {}
     if window is not None:
+        # A window replaces a daily mix's recent/older split: measuring one window is
+        # what the override is for, and the split would ignore it.
         overrides['release_window_days'] = window
+        overrides['recent_share'] = None
     if max_seconds is not None:
         overrides['max_track_seconds'] = max_seconds
     if overrides:
@@ -98,6 +108,13 @@ def print_hardness(feed) -> None:
         print(f'  relaxed release window to: {feed.relaxed_to}')
     if feed.filled_from_unknown:
         print(f'  filled from unknown-hardness candidates: {feed.filled_from_unknown}')
+
+
+def print_pools(feed) -> None:
+    """The recent/older split of a daily mix (bug report 131); silent for a feed without one."""
+    if feed.pool_counts is None:
+        return
+    print(f"-- pools --\n  recent: {feed.pool_counts['recent']}\n   older: {feed.pool_counts['older']}")
 
 
 def _limited(tracks: list[dict], limit: int | None) -> list[dict]:
@@ -156,6 +173,16 @@ def main(argv=None) -> int:
     else:
         edges, edges_source = parse_hardness_edges(ConfigStore().get(HARDNESS_EDGES_SETTING))
 
+    # The configured recent/older split, exactly as the router applies it (a no-op for a
+    # policy without one, and for one whose split --window just switched off).
+    store = ConfigStore()
+    policy = with_recent_split(
+        policy,
+        parse_recent_share(store.get(RECENT_PERCENT_SETTING)),
+        parse_recent_window_days(store.get(RECENT_WINDOW_SETTING)),
+        parse_older_min_rating(store.get(OLDER_MIN_RATING_SETTING)),
+    )
+
     conn = get_db_connection()
     if not conn:
         sys.exit('Could not open a database connection.')
@@ -180,6 +207,7 @@ def main(argv=None) -> int:
     title = f'  title={feed.title!r}' if feed.title else ''
     print(f'{feed.slug}  username={args.username}  state={feed.state}  scope={feed.scope}{title}')
     print_hardness(feed)
+    print_pools(feed)
     print_report(resolution.shares, feed.funnel, _limited(feed.tracks, args.limit))
     return 0
 

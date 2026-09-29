@@ -389,6 +389,11 @@ annotated, reducing to one `(hardness, listen_weight)` pair per *distinct* track
 on the profile view and in the dry run (`Feed.hardness_percentiles`, `None` when nothing resolved a
 hardness at all). Nothing reads it to decide a boundary any more.
 
+*Since bug report 131 the three spectrum mixes (and Klassiek and the label mix) split their pool
+into a recent and an older half and never run the ladder below -- see
+[daily-mix-older-tracks/technical.md](../daily-mix-older-tracks/technical.md). The ladder remains for
+a band policy without a split, which only the dry run's `--window` produces.*
+
 `build._load_band_candidates`, for a `hardness_band` policy, loads candidates, annotates them the
 same way, and keeps only the ones whose `classify_band(hardness, lo, hi)` matches the policy's own
 band — a candidate with no resolvable hardness is dropped at this step, never guessed into a bucket

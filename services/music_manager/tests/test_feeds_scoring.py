@@ -1,5 +1,5 @@
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from services.music_manager.feeds.policy import POLICIES
 from services.music_manager.feeds.profile import TasteProfile
@@ -8,6 +8,7 @@ from services.music_manager.feeds.scoring import (
     daily_sample_key,
     pick_daily_entity,
     pick_playable_entity,
+    rediscovery_factor,
     score,
     taste_score,
 )
@@ -188,3 +189,26 @@ class PickPlayableEntityTest(unittest.TestCase):
 
     def test_no_names_is_none(self):
         self.assertIsNone(pick_playable_entity('user', self.DAY, [], {}, self.WINDOWS, 15))
+
+
+class RediscoveryFactorTest(unittest.TestCase):
+    """Bug report 131: the older half prefers songs not played lately."""
+
+    NOW = datetime(2026, 9, 29, 12, 0, 0)
+
+    def test_never_played_and_long_ago_keep_their_full_score(self):
+        self.assertEqual(rediscovery_factor(None, self.NOW), 1.0)
+        self.assertEqual(rediscovery_factor(self.NOW - timedelta(days=400), self.NOW), 1.0)
+
+    def test_played_today_keeps_the_floor_and_it_rises_with_age(self):
+        today = rediscovery_factor(self.NOW, self.NOW)
+        month = rediscovery_factor(self.NOW - timedelta(days=30), self.NOW)
+        quarter = rediscovery_factor(self.NOW - timedelta(days=90), self.NOW)
+        self.assertAlmostEqual(today, 0.2)
+        self.assertLess(today, month)
+        self.assertLess(month, quarter)
+        self.assertLess(quarter, 1.0)
+
+    def test_a_scaled_down_weight_is_drawn_later_not_floored_away(self):
+        day = date(2026, 9, 29)
+        self.assertGreater(daily_sample_key('user', day, 'uid', 0.002), daily_sample_key('user', day, 'uid', 0.01))

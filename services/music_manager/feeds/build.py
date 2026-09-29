@@ -25,6 +25,8 @@ from services.music_manager.feeds.hierarchy import warn_cycles
 from services.music_manager.feeds.policy import FeedPolicy
 from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares, listen_weight
 from services.music_manager.feeds.queries import (
+    OLDER_PROFILE_NAMES,
+    candidate_rows_query,
     candidates_query,
     canonical_rows_query,
     dominant_genre_query,
@@ -32,11 +34,13 @@ from services.music_manager.feeds.queries import (
     exclusions_query,
     genre_hardness_query,
     hierarchy_query,
+    last_listened_query,
     listens_query,
     rotation_counts_query,
+    split_sample_query,
 )
 from services.music_manager.feeds.quota import allocate, redistribute
-from services.music_manager.feeds.scoring import daily_sample_key, pick_playable_entity, score
+from services.music_manager.feeds.scoring import daily_sample_key, pick_playable_entity, rediscovery_factor, score
 
 EMPTY_FUNNEL = {'candidates': 0, 'bucketed': 0, 'allocated': 0, 'capped': 0, 'emitted': 0}
 
@@ -57,10 +61,10 @@ CLASSIC_TITLE = 'Klassiek'
 
 #: `release_window_days` 90 -> 365 -> None, tried in order until a hardness band
 #: has enough candidates (`MIN_BAND_CANDIDATES`) or there is nothing left to relax.
-#: Fixed rather than derived from the policy's own window because the three band
-#: policies all start at 90 by construction (`policy.py`'s `_DAILY_MIX_BASE`) --
-#: if that ever changes, this sequence has to be revisited by hand, not silently
-#: reinterpreted.
+#: Since bug report 131 the three band policies split recent/older instead and never
+#: reach this ladder; it runs only for a band policy without a split (the dry run's
+#: `--window`), which starts at 90 like `_DAILY_MIX_BASE`. The rotating artist mix
+#: still widens through the same sequence (`ROTATION_RELAXATION_WINDOWS`).
 BAND_RELAXATION_WINDOWS = (90, 365, None)
 MIN_BAND_CANDIDATES = 15
 
@@ -74,6 +78,15 @@ MIN_BAND_CANDIDATES = 15
 #: rather than going out with a handful of tracks.
 MIN_ROTATION_CANDIDATES = MIN_BAND_CANDIDATES
 ROTATION_RELAXATION_WINDOWS = BAND_RELAXATION_WINDOWS
+
+#: What a policy with a recent/older split (bug report 131) counts a rotating mix's
+#: names over: the whole library, since that is what its pool draws from.
+SPLIT_ROTATION_WINDOWS: tuple[int | None, ...] = (None,)
+
+
+def _rotation_windows(policy: FeedPolicy) -> tuple[int | None, ...]:
+    """The windows a rotating mix's names are counted and chosen over."""
+    return SPLIT_ROTATION_WINDOWS if policy.recent_share is not None else ROTATION_RELAXATION_WINDOWS
 
 
 @dataclass
@@ -122,6 +135,9 @@ class Feed:
     # the band filled the mix on its own; `None` for every other policy, which
     # never runs this fallback at all.
     filled_from_unknown: int | None = None
+    # Only set for a policy with a recent/older split (bug report 131): how many of the
+    # emitted tracks came from each half, `{'recent': n, 'older': m}`.
+    pool_counts: dict[str, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -424,14 +440,13 @@ def _rotation_song_counts(
     """
     if not names or policy.rotate is None:
         return {}
-    sql, params = rotation_counts_query(username, policy, now, policy.rotate, names, ROTATION_RELAXATION_WINDOWS)
+    windows = _rotation_windows(policy)
+    sql, params = rotation_counts_query(username, policy, now, policy.rotate, names, windows)
     counts: dict[str, tuple[int, ...]] = {}
     for row in _rows(conn, sql, params):
         if not row.get('name'):
             continue
-        counts[row['name'].lower()] = tuple(
-            int(row.get(f'songs_{index}') or 0) for index in range(len(ROTATION_RELAXATION_WINDOWS))
-        )
+        counts[row['name'].lower()] = tuple(int(row.get(f'songs_{index}') or 0) for index in range(len(windows)))
     return counts
 
 
@@ -487,7 +502,7 @@ def _describe(
         # the build is restricted to.
         song_counts = _rotation_song_counts(conn, username, policy, now, names)
         pick = pick_playable_entity(
-            username, clock.feed_date(now), names, song_counts, ROTATION_RELAXATION_WINDOWS, MIN_ROTATION_CANDIDATES
+            username, clock.feed_date(now), names, song_counts, _rotation_windows(policy), MIN_ROTATION_CANDIDATES
         )
         chosen, window = pick if pick else (None, None)
         noun = 'artiest' if policy.rotate == 'artist' else 'label'
@@ -547,8 +562,99 @@ def describe_feed(
     return {'title': info['title'], 'subtitle': info['subtitle']}
 
 
+def _profile_names(profile: TasteProfile) -> dict[str, list[str]]:
+    """The listener's strongest artists, labels and genres, for the older half's SQL match."""
+    return {
+        'artists': _ranked_names(profile.artists, OLDER_PROFILE_NAMES),
+        'labels': _ranked_names(profile.labels, OLDER_PROFILE_NAMES),
+        'genres': _ranked_names(profile.genres, OLDER_PROFILE_NAMES),
+    }
+
+
+def _annotate_rediscovery(conn, username: str, candidates: list[dict], now: datetime) -> None:
+    """Attach `rediscovery` (see `scoring.rediscovery_factor`) to every candidate, in place.
+
+    Only a heard song can have been played lately, so only those are looked up -- one
+    bounded query, keyed on the song the same way `song_key` is.
+    """
+    heard = [candidate for candidate in candidates if candidate.get('heard')]
+    last_played: dict[tuple, datetime] = {}
+    if heard:
+        work_ids = sorted({c['work_id'] for c in heard if c.get('work_id')})
+        track_ids = sorted({c['id'] for c in heard if not c.get('work_id')})
+        sql, params = last_listened_query(username, track_ids, work_ids)
+        for row in _rows(conn, sql, params):
+            when = row.get('last_listened_at')
+            if when is None:
+                continue
+            keys = [('track', row.get('track_id'))]
+            if row.get('work_id'):
+                keys.append(('work', row['work_id']))
+            for key in keys:
+                if key not in last_played or when > last_played[key]:
+                    last_played[key] = when
+    for candidate in candidates:
+        candidate['rediscovery'] = rediscovery_factor(last_played.get(song_key(candidate)), now)
+
+
+def _load_half(
+    conn, username: str, policy: FeedPolicy, now: datetime, half: str, info: dict, profile: TasteProfile
+) -> list[dict]:
+    """One half of a split daily mix: a day-stable sample of ids, then their rows,
+    collapsed to one per song. Two statements, so the candidate row's correlated
+    subqueries run for the sample only (see `split_sample_query`)."""
+    seed = f'{username}|{clock.feed_date(now).isoformat()}|{half}'
+    names = _profile_names(profile) if half == 'older' and info['entity_filter'] is None else None
+    sql, params = split_sample_query(
+        username, policy, now, half, seed, profile_names=names, entity_filter=info['entity_filter']
+    )
+    ids = [row[f'{half}_id'] for row in _rows(conn, sql, params) if row.get(f'{half}_id') is not None]
+    if not ids:
+        return []
+    sql, params = candidate_rows_query(username, ids, half)
+    rows = [_candidate_row(row) for row in _rows(conn, sql, params)]
+    return _collapse_to_songs(conn, username, rows)
+
+
+def _load_split_candidates(
+    conn, username: str, policy: FeedPolicy, now: datetime, info: dict, profile: TasteProfile
+) -> list[dict]:
+    """Step 4 for a daily mix with a recent/older split (bug report 131).
+
+    Two samples, each tagged with the half it belongs to (`pool`): the recent half is
+    the unheard-or-loved pool over `recent_window_days`, the older half the
+    profile-matched songs released before it that are rated `older_min_rating` or
+    higher, or not at all (`split_sample_query`). A song in both -- one version recent,
+    another old -- is recent only, so it can never take two places. A hardness-band mix
+    filters both halves on its band here; there is no relaxation ladder, because a
+    short half is filled from the other one when the places are handed out.
+    """
+    recent = _load_half(conn, username, policy, now, 'recent', info, profile)
+    older = _load_half(conn, username, policy, now, 'older', info, profile)
+    recent_keys = {song_key(candidate) for candidate in recent}
+    older = [candidate for candidate in older if song_key(candidate) not in recent_keys]
+    # Set again after the collapse: a canonical fetched from outside the sample carries
+    # no `pool` of its own.
+    for candidate in recent:
+        candidate['pool'] = 'recent'
+    for candidate in older:
+        candidate['pool'] = 'older'
+    _annotate_rediscovery(conn, username, older, now)
+    candidates = recent + older
+    if policy.hardness_band:
+        lo, hi = info['band_edges']
+        _annotate_hardness(conn, candidates, id_field='id')
+        candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.get('hardness') is not None
+            and classify_band(candidate['hardness'], lo, hi) == policy.hardness_band
+        ]
+    return candidates
+
+
 def _load_band_candidates(
-    conn, username: str, policy: FeedPolicy, now: datetime, info: dict
+    conn, username: str, policy: FeedPolicy, now: datetime, info: dict, profile: TasteProfile | None = None
 ) -> tuple[list[dict], int | str | None]:
     """Step 4, plus the hardness-band relaxation ladder.
 
@@ -561,7 +667,13 @@ def _load_band_candidates(
     is reached or the ladder runs out -- returning whichever window it stopped at,
     reported back as `relaxed_to` ('none' for "no window at all", never a bare
     `None`, which already means "no relaxation was needed" on that same field).
+
+    A policy with a recent/older split goes through `_load_split_candidates` instead
+    and never relaxes anything.
     """
+    if policy.recent_share is not None:
+        return _load_split_candidates(conn, username, policy, now, info, profile or TasteProfile()), None
+
     if policy.rotate and info['entity_filter'] is not None:
         window = info['rotation_window']
         rotated = policy if window == policy.release_window_days else replace(policy, release_window_days=window)
@@ -692,7 +804,8 @@ def _order_key_fn(policy: FeedPolicy, profile, username: str, feed_date):
     if policy.order == 'daily_sample':
 
         def sample_key(candidate):
-            weight = score(candidate, profile, policy)
+            # `rediscovery` is set only on the older half of a split daily mix.
+            weight = score(candidate, profile, policy) * candidate.get('rediscovery', 1.0)
             return daily_sample_key(username, feed_date, candidate['track_uid'], weight)
 
         return sample_key
@@ -702,6 +815,49 @@ def _order_key_fn(policy: FeedPolicy, profile, username: str, feed_date):
         return (heard_rank, _release_sort_key(candidate), -score(candidate, profile, policy))
 
     return release_key
+
+
+def _select(bucketed: list[dict], shares: dict[str, float], places: int, order_key) -> tuple[list[dict], int]:
+    """Steps 6 and 7 over one pool: `places` divided over the shares, each share's
+    places taken in `order_key` order. Returns the picks and how many places were
+    handed out (never more than the pool can fill)."""
+    if places <= 0 or not bucketed:
+        return [], 0
+    available = Counter(track['bucket'] for track in bucketed)
+    allocation = redistribute(allocate(shares, places), dict(available))
+    by_bucket: dict[str, list[dict]] = defaultdict(list)
+    for track in bucketed:
+        by_bucket[track['bucket']].append(track)
+    selected = []
+    for bucket, count in allocation.items():
+        if count <= 0:
+            continue
+        ordered = sorted(by_bucket.get(bucket, []), key=order_key)
+        selected.extend(ordered[:count])
+    return selected, sum(allocation.values())
+
+
+def _select_split(
+    bucketed: list[dict], shares: dict[str, float], policy: FeedPolicy, order_key
+) -> tuple[list[dict], int]:
+    """Steps 6 and 7 for a daily mix with a recent/older split (bug report 131).
+
+    `round(size * recent_share)` places go to the recent half and the rest to the older
+    half, each divided over the same genre shares, so both halves carry the profile.
+    Whichever half cannot fill its places hands them to the other: an older half that
+    comes up short is topped up from the recent one and vice versa, so the mix only
+    comes out short when both halves together run out.
+    """
+    recent = [track for track in bucketed if track.get('pool') == 'recent']
+    older = [track for track in bucketed if track.get('pool') != 'recent']
+    size = policy.size
+    recent_target = round(size * (policy.recent_share or 0.0))
+    recent_picks, recent_allocated = _select(recent, shares, recent_target, order_key)
+    older_picks, older_allocated = _select(older, shares, size - recent_allocated, order_key)
+    if recent_allocated + older_allocated < size and recent_allocated == recent_target:
+        # The older half came up short: give its leftover places to the recent half.
+        recent_picks, recent_allocated = _select(recent, shares, size - older_allocated, order_key)
+    return recent_picks + older_picks, recent_allocated + older_allocated
 
 
 def _cap_per_artist(tracks: list[dict], max_per_artist: int) -> list[dict]:
@@ -842,7 +998,7 @@ def build_feed(
     # for release-radar or a rotating mix, and an empty result is never backfilled.
     # A hardness-band mix is the one exception: its release window may be relaxed
     # below, in Python, once the band filter has had a chance to run against it.
-    candidates, relaxed_to = _load_band_candidates(conn, username, policy, now, info)
+    candidates, relaxed_to = _load_band_candidates(conn, username, policy, now, info, profile)
     funnel = {'candidates': len(candidates)}
 
     # Step 5: which share each candidate competes in. The two dominant-genre
@@ -861,22 +1017,14 @@ def build_feed(
     order_key = _order_key_fn(policy, profile, username, clock.feed_date(now))
 
     if bucketed:
-        # Step 6: how many places each share gets, capped by what is available.
-        available = Counter(track['bucket'] for track in bucketed)
-        allocation = redistribute(allocate(shares, policy.size), dict(available))
-        funnel['allocated'] = sum(allocation.values())
-
-        # Step 7: order within each share, then take that share's places.
-        by_bucket: dict[str, list[dict]] = defaultdict(list)
-        for track in bucketed:
-            by_bucket[track['bucket']].append(track)
-
-        selected = []
-        for bucket, count in allocation.items():
-            if count <= 0:
-                continue
-            ordered = sorted(by_bucket.get(bucket, []), key=order_key)
-            selected.extend(ordered[:count])
+        # Steps 6 and 7: how many places each share gets, capped by what is available,
+        # then the order within each share -- once over everything, or once per half
+        # for a daily mix with a recent/older split.
+        if policy.recent_share is not None:
+            selected, allocated = _select_split(bucketed, shares, policy, order_key)
+        else:
+            selected, allocated = _select(bucketed, shares, policy.size, order_key)
+        funnel['allocated'] = allocated
         # Sorted twice on purpose. The per-bucket sort decides *which* tracks win
         # their share's places; this one decides what the listener reads first,
         # over the whole list -- newest release first for the radar, the daily
@@ -920,6 +1068,12 @@ def build_feed(
         emitted, filled_from_unknown = _backfill_from_unknown(conn, username, policy, now, info, emitted, order_key)
         funnel['emitted'] = len(emitted)
 
+    pool_counts = None
+    if policy.recent_share is not None:
+        # Unknown-hardness filler carries no `pool`; `filled_from_unknown` counts it.
+        emitted_pools = Counter(track.get('pool') for track in emitted)
+        pool_counts = {'recent': emitted_pools.get('recent', 0), 'older': emitted_pools.get('older', 0)}
+
     if not emitted:
         return Feed(
             slug=policy.slug,
@@ -935,6 +1089,7 @@ def build_feed(
             hardness_percentiles=info['hardness_percentiles'],
             relaxed_to=relaxed_to,
             filled_from_unknown=filled_from_unknown,
+            pool_counts=pool_counts,
         )
 
     return Feed(
@@ -951,4 +1106,5 @@ def build_feed(
         hardness_percentiles=info['hardness_percentiles'],
         relaxed_to=relaxed_to,
         filled_from_unknown=filled_from_unknown,
+        pool_counts=pool_counts,
     )

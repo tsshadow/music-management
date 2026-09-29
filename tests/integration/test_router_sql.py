@@ -1647,6 +1647,38 @@ class FeedsPipelineTest:
         # so only the never-heard candidate should come back.
         assert [track['title'] for track in body['tracks']] == ['Unheard Gem']
 
+    def test_daily_mix_samples_older_songs_that_match_the_profile(self, api, headers, db):
+        """Bug report 131: older_candidates_query and last_listened_query parse on MariaDB,
+        and the older half is profile-matched and drops songs rated 1-2 while keeping
+        unrated ones -- heard or not -- that a 90-day window used to hide."""
+        heard = [self._track(db, f'Angerfist heard {i}', release_date='2014-02-02') for i in range(2)]
+        for track_id in heard:
+            self._listen(db, track_id)
+        # Another artist, so the per-artist cap on the four Angerfist songs cannot drop it.
+        self._track(db, 'New Gem', artist='Fresh Face', release_date=date.today().isoformat())
+        self._track(db, 'Old Gem', release_date='2015-06-01')
+        self._track(db, 'Undated Gem')
+        self._track(db, 'Old Dud', release_date='2015-06-01')
+        self._track(db, 'Stranger Gem', artist='Somebody Else', release_date='2015-06-01')
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES "
+                "('track', 'uid-Old Dud', 'root', 2), ('track', 'uid-Old Gem', 'root', 3)"
+            )
+
+        response = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        titles = {track['title'] for track in body['tracks']}
+        # Three per artist: the cap trims the four Angerfist songs, so ask what may and may not appear.
+        # 'Undated Gem' has no agreed release date: not provably older, so not in the older half.
+        assert titles <= {'New Gem', 'Old Gem', 'Angerfist heard 0', 'Angerfist heard 1'}, titles
+        assert 'New Gem' in titles, titles
+        assert 'Old Dud' not in titles and 'Stranger Gem' not in titles, titles
+        assert body['pool_counts']['recent'] == 1, body['pool_counts']
+        assert body['pool_counts']['older'] >= 1, body['pool_counts']
+
     def _artist_with_history(self, db, artist, playable):
         """Two heard tracks (enough for the profile to know `artist`) plus `playable`
         unheard ones with no release date -- only reachable with no window at all."""

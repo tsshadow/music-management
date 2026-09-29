@@ -14,6 +14,8 @@ export const TILE_COLORS = {
   festivals: "#E1118C",
   years: "#1E3264",
   lineups: "#BC5900",
+  // Browse by BPM (docs/designs/bpm-browse/).
+  bpm: "#006450",
   artists: "#148A08",
   albums: "#7358FF",
   memories: "#503750",

@@ -9,6 +9,7 @@ import {
 } from "../../src/lib/navigation.js";
 import { LIBRARY_TAB_VIEWS, pathToState, viewToPath } from "../../src/lib/router.js";
 import { COLLECTION_MODES } from "../../src/lib/collections.js";
+import { TILE_COLORS } from "../../src/lib/browseColors.js";
 import Sidebar from "../../src/lib/Sidebar.svelte";
 import BrowseGrid from "../../src/lib/BrowseGrid.svelte";
 import { credentials, viewMode } from "../../src/lib/store.js";
@@ -17,6 +18,13 @@ const NATIVE = { storage: { supported: true } };
 const BROWSER = { storage: { supported: false } };
 
 describe("navigation sections", () => {
+  it("every Browse tile has a colour of its own", () => {
+    const ids = [...browseSections("songs", NATIVE), ...browseSections("sets", NATIVE)].map(
+      (s) => s.id,
+    );
+    expect(ids.filter((id) => !TILE_COLORS[id])).toEqual([]);
+  });
+
   it("every section has a route of its own", () => {
     for (const { id } of browseSections("songs", NATIVE)) {
       expect(viewToPath({ view: id })).toBe(`/${id}`);

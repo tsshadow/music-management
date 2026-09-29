@@ -286,6 +286,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
 ### Design Backlog
 
 - **Done** — Browse by BPM (2026-09-29, `docs/designs/bpm-browse/`): no new token or component.
+  Its Bladeren tile takes the fixed tile colour `#006450` (`browseColors.js`, the one new value;
+  the tile table is a set of fixed category colours, not tokens).
   The page (`BpmView.svelte`) is built like the listening statistics page: a `bg-black/40
   rounded-xl border-white/5` filter card, then a chart card, then the list. Tempo chips are the
   neutral chip (`bg-muma-spotify-light text-white`, hover `bg-muma-spotify-hover`, `rounded-full

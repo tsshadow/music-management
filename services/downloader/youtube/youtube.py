@@ -49,6 +49,13 @@ MAX_DURATION = 21600
 # which is exactly how the existing pile of 640x360 files came about.
 VIDEO_FORMAT = 'bestvideo*+bestaudio/best'
 
+# What an audio channel downloads. Left unset, yt-dlp's default is VIDEO_FORMAT:
+# every video was fetched whole, merged into an mkv (webm cannot carry the
+# thumbnail, hence the WARNING per download, bug report 130) and thrown away again
+# once FFmpegExtractAudio had pulled the same audio stream out of it. The audio
+# stream picked here is the one the merge used, so the m4a is unchanged.
+AUDIO_FORMAT = 'bestaudio/best'
+
 # What the one WARNING says when YouTube shows its sign-in wall (bug report 076).
 BOT_CHECK_ADVICE = (
     'YouTube asks to sign in ("confirm you\'re not a bot"): the YouTube session in the muma-firefox '
@@ -167,6 +174,7 @@ class YoutubeDownloader:
             return
         self._base_ydl_opts = {
             'outtmpl': f"{self.downloader_config['output_folder']}/%(uploader)s/%(title)s.%(ext)s",
+            'format': AUDIO_FORMAT,
             'postprocessors': [
                 {'key': 'FFmpegExtractAudio', 'preferredcodec': 'm4a'},
                 {'key': 'EmbedThumbnail'},

@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.2] - 2026-09-29
+
+### Changed
+- **MuMa Mobile 7.12.2 only updates its test and lint tooling.** No change in the app itself.
+
+### Fixed
+- **The downloader filled the event log and the alerts topic with lines that describe nothing
+  wrong.** In 36 hours on production: 320 `This video is DRM protected` ERRORs, 629 `http_mp3`/
+  `hls_mp3 format not found` WARNINGs and 157 `webm doesn't support embedding a thumbnail`
+  WARNINGs. DRM-protected SoundCloud tracks were never written off and were fetched again on
+  every sweep; they are now recorded in `downloads_soundcloud_unavailable` (reason `drm`, retried
+  after 30 days) and skipped before extraction, since yt-dlp fails them before the ordinary match
+  filter runs. YouTube audio channels ask for `bestaudio/best` instead of yt-dlp's default video
+  merge, which downloaded every video whole only to throw it away after extracting the same audio;
+  the m4a files are unchanged. A short explicit allowlist of such yt-dlp lines is logged at INFO;
+  every other yt-dlp warning keeps its level. And five ERRORs a day titled just `root: ERROR: `
+  now carry the failure in the title: yt-dlp's leading `\r` split it off (bug report 130).
+
+- **The hourly lms.db sync no longer raises a WARNING per batch while LMS scans.** LMS's scanner
+  holds its database's write lock for runs of up to twenty seconds, for as long as a scan lasts --
+  and folder scans after downloads arrive up to 180 times an hour. The song-version and track-form
+  pushes waited two seconds, slept a minute, tried three times per batch and then dropped the batch
+  with `gave up on a batch after 3 locked attempts`: 40 WARNINGs a day, one pass parked for eleven
+  minutes, and the track-form push's refusals logged under the song-version logger. Nothing was
+  actually lost (the next pass rewrote the same rows; a production sample of 516 files matched),
+  only delayed. Now each batch takes the lock up front (`BEGIN IMMEDIATE`, 10 s wait, still 100
+  UPDATEs per transaction), the first refusal defers the pass's remaining rows instead of sleeping,
+  and those exact rows are written again five minutes later, up to five times. One WARNING per hour
+  remains, and only when rows are still unwritten after half an hour (bug report 129).
+
+- **One night of YouTube refusing yt-dlp made the nightly production report unusable.** The
+  fingerprint normalisation in `scripts/nightly-prod-check/collect.py` folded a SoundCloud item id
+  away but not a YouTube video id: that only ever happened through the catch-all `\S*_\S*` rule,
+  and a video id is eleven characters of `[A-Za-z0-9_-]`, so roughly one in three. On 2026-09-25
+  that turned 22,170 downloader errors with nineteen causes into 7,638 attention items -- one per
+  video, against a budget of two fix MRs -- and wrote 7,634 dead rows into the ledger. `[youtube]`
+  and `[youtube:tab]` now get the same explicit rule `[soundcloud]` has; the same night folds back
+  to 19 fingerprints. The replacement is `<name>` rather than `<item>:` on purpose, so every
+  fingerprint the catch-all already folded -- and the verdict the ledger holds against it -- keeps
+  its key.
+
+### Security
+- **Release images pick up the day's OS security updates again.** The Dockerfiles' `apt-get
+  upgrade` / `apk upgrade` steps came out of the CI runner's layer cache, so the LMS image shipped
+  with 0.82.1 still carried an upgrade from 2026-09-17 and a libexpat with a fixed HIGH CVE
+  (CVE-2026-93990). A build argument that changes daily now forces that layer to rebuild, and the
+  public base images are pulled fresh (bug report 128).
+
 ## [0.82.1] - 2026-09-27
 
 ### Fixed

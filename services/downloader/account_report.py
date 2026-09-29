@@ -46,6 +46,56 @@ _STATUS = re.compile(
 )
 
 
+# yt-dlp lines that describe an expected outcome, not a fault (bug report 130).
+# Each is logged at the level given here instead of the WARNING/ERROR yt-dlp
+# chose, because every WARNING and up is pushed to the phone's alerts topic.
+# Deliberately a short list of exact phrasings: an unknown yt-dlp warning still
+# arrives as a warning.
+BENIGN_MESSAGES: tuple[tuple[re.Pattern[str], str], ...] = (
+    # EmbedThumbnail on a merged webm: yt-dlp switches the container to mkv.
+    # Says what it did, not that anything failed.
+    (re.compile(r"webm doesn't support embedding a thumbnail, mkv will be used"), 'info'),
+    # SoundCloud answers 404 for a stream it does not offer for this track, and
+    # yt-dlp moves on to the next one. A track with no stream at all still ends in
+    # an ERROR of its own.
+    (re.compile(r'\b(?:http|hls)_(?:mp3|aac|opus) format not found\b'), 'info'),
+    # A verdict about one track, not a fault. The SoundCloud downloader writes it
+    # off (reason `drm`) so it is not asked for again until the retry window
+    # passes; YouTube's deep pass writes it off like any other failed video.
+    (re.compile(r'This video is DRM protected'), 'info'),
+)
+
+# How yt-dlp names the item a DRM refusal is about: "[soundcloud] 2394393894: This video ...".
+_DRM_ITEM = re.compile(r'\[[\w:]+\]\s+([^\s:]+):\s+This video is DRM protected')
+
+
+def clean_message(msg) -> str:
+    """A yt-dlp line with its carriage returns taken out.
+
+    yt-dlp writes a ``\\r`` to return the terminal cursor over a progress line, and
+    passes it on to a logger too: ``report_error(f'\\r[download] Got error: ...')``.
+    The event log splits the title on line breaks, ``\\r`` among them, so every such
+    ERROR arrived titled ``root: ERROR: `` with the actual failure out of sight.
+    """
+    return str(msg).replace('\r\n', '\n').replace('\r', '')
+
+
+def logged_level(level: str, message: str) -> str:
+    """The level a yt-dlp line is logged at: its own, unless it is a known-benign one."""
+    if level not in ('warning', 'error'):
+        return level
+    for pattern, demoted in BENIGN_MESSAGES:
+        if pattern.search(message):
+            return demoted
+    return level
+
+
+def drm_item(message: str) -> str | None:
+    """The id of the item a DRM refusal is about, or None if the line is not one."""
+    match = _DRM_ITEM.search(message)
+    return match.group(1) if match else None
+
+
 def detect_http_status(message: str) -> int | None:
     """The HTTP status a log line is reporting, or None if it reports none."""
     match = _STATUS.search(message or '')
@@ -82,6 +132,7 @@ class AccountReport:
         self.newest_timestamp: int | None = None
         self._current_track: str | None = None
         self._forbidden: list[str] = []
+        self._drm: list[str] = []
 
     def note_extracted(self, track_id: str | None, timestamp: int | None = None) -> None:
         """Register that metadata for a track came back; called from the match filter.
@@ -98,6 +149,20 @@ class AccountReport:
     def forbidden_tracks(self) -> list[str]:
         """The tracks that answered 403, in the order they did."""
         return list(self._forbidden)
+
+    @property
+    def drm_tracks(self) -> list[str]:
+        """The tracks yt-dlp refused because they are DRM protected, in the order it did."""
+        return list(self._drm)
+
+    def note_listed(self, track_id: str | None) -> None:
+        """Register the playlist entry yt-dlp is about to extract; called from the match filter.
+
+        The full extraction of that entry is what fails with a 403, before the
+        filter sees it complete, so this is the track a following 403 belongs to.
+        """
+        if track_id is not None:
+            self._current_track = track_id
 
     @property
     def outcome(self) -> str:
@@ -127,20 +192,26 @@ class AccountReport:
         With a breaker attached, YouTube's sign-in wall is counted instead of logged
         as an ERROR per video: the breaker's single WARNING stands for all of them.
         Raises `BotCheckTripped` once the breaker trips, which ends the download call.
+
+        The lines in `BENIGN_MESSAGES` are logged at the level listed there, and a
+        DRM refusal is remembered in `drm_tracks` for the downloader to write off.
         """
+        text = clean_message(msg)
         if self.breaker is not None and level in ('warning', 'error'):
-            text = str(msg)
             if is_bot_check(text):
                 self.bot_checks += 1
-                logging.debug(msg)
+                logging.debug(text)
                 if self.breaker.record_refusal(text):
                     raise BotCheckTripped(text)
                 return
             if is_bot_check_side_effect(text):
-                logging.debug(msg)
+                logging.debug(text)
                 return
-        getattr(logging, level)(msg)
-        status = detect_http_status(str(msg))
+        getattr(logging, logged_level(level, text))(text)
+        drm = drm_item(text) if level in ('warning', 'error') else None
+        if drm is not None and drm not in self._drm:
+            self._drm.append(drm)
+        status = detect_http_status(text)
         if status == 429:
             self.throttled = True
         elif status == 403:

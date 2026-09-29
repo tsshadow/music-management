@@ -214,6 +214,14 @@ fi
 
 VERSION=$(cat VERSION 2>/dev/null || echo "latest")
 
+# Every image with an OS upgrade step declares ARG SECURITY_REFRESH right above
+# it. A new value per day invalidates that layer (and only what follows it), so
+# a release picks up the security pocket of the day it was built instead of the
+# day the runner first cached the layer. --pull does the same for the public
+# base tag itself. The images built FROM muma-base need neither: the base was
+# rebuilt a moment earlier in this same run.
+SECURITY_REFRESH="$(date -u +%Y-%m-%d)"
+
 # 1. Build + push music-manager -----------------------------------------------
 set -a
 # shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
@@ -225,6 +233,8 @@ scope_image_names
 
 echo "--- Building music-manager image (${DOCKER_USER}/${IMAGE_CORE}:${VERSION}) ---"
 docker build \
+    --pull \
+    --build-arg SECURITY_REFRESH="${SECURITY_REFRESH}" \
     --build-arg DOCKER_USER="${DOCKER_USER}" \
     --build-arg VERSION="${VERSION}" \
     -t "${DOCKER_USER}/${IMAGE_CORE}:rc" \
@@ -249,6 +259,8 @@ LMS_VERSION=$(grep "project(lms VERSION" services/music-management-server/CMakeL
 
 echo "--- Building lms image (${IMAGE_NAME}:${LMS_VERSION}) ---"
 docker build \
+    --pull \
+    --build-arg SECURITY_REFRESH="${SECURITY_REFRESH}" \
     --build-arg VITE_GOOGLE_CLIENT_ID="${VITE_GOOGLE_CLIENT_ID}" \
     -t "${IMAGE_NAME}:rc" \
     -t "${IMAGE_NAME}:${VERSION}" \
@@ -277,6 +289,8 @@ scope_image_names
 
 echo "--- Building muma-base image (${DOCKER_USER}/${IMAGE_BASE}:${VERSION}) ---"
 docker build \
+    --pull \
+    --build-arg SECURITY_REFRESH="${SECURITY_REFRESH}" \
     -t "${DOCKER_USER}/${IMAGE_BASE}:rc" \
     -t "${DOCKER_USER}/${IMAGE_BASE}:${VERSION}" \
     -f docker/Dockerfile.base .
@@ -327,6 +341,8 @@ docker_push "${DOCKER_USER}/${IMAGE_IMPORTER}:${VERSION}"
 # 7. Build + push muma-tools ----------------------------------------------------
 echo "--- Building muma-tools image (${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}) ---"
 docker build \
+    --pull \
+    --build-arg SECURITY_REFRESH="${SECURITY_REFRESH}" \
     -t "${DOCKER_USER}/${IMAGE_TOOLS}:rc" \
     -t "${DOCKER_USER}/${IMAGE_TOOLS}:${VERSION}" \
     -f docker/Dockerfile.tools .

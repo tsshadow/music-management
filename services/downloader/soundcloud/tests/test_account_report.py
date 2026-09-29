@@ -9,7 +9,9 @@ from services.downloader.account_report import (
     UNAVAILABLE_TRACKS,
     AccountReport,
     classify_account,
+    clean_message,
     detect_http_status,
+    logged_level,
 )
 
 pytestmark = pytest.mark.mock_base('yt_dlp')
@@ -132,3 +134,113 @@ class NewestTimestampTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class YtDlpLineCleanupTest(unittest.TestCase):
+    """yt-dlp's ``\\r`` left the event log titled ``root: ERROR: `` (bug report 130)."""
+
+    LINE = "ERROR: \r[download] Got error: 4695519 bytes read, 5740658 more expected"
+
+    def test_the_carriage_return_is_taken_out(self):
+        self.assertEqual(
+            'ERROR: [download] Got error: 4695519 bytes read, 5740658 more expected', clean_message(self.LINE)
+        )
+
+    def test_the_first_line_carries_the_failure(self):
+        self.assertIn('Got error', clean_message(self.LINE).splitlines()[0])
+
+    def test_a_real_line_break_is_kept(self):
+        self.assertEqual('one\ntwo', clean_message('one\r\ntwo'))
+
+    def test_the_logged_line_is_the_cleaned_one(self):
+        with self.assertLogs(level='ERROR') as logs:
+            AccountReport().error(self.LINE)
+
+        self.assertEqual(
+            ['ERROR:root:ERROR: [download] Got error: 4695519 bytes read, 5740658 more expected'], logs.output
+        )
+
+    def test_a_status_behind_a_carriage_return_is_still_counted(self):
+        report = AccountReport()
+        report.error('ERROR: \r[download] Got error: HTTP Error 429: Too Many Requests')
+
+        self.assertTrue(report.throttled)
+
+
+class BenignMessageTest(unittest.TestCase):
+    """A short allowlist of expected yt-dlp lines is logged at INFO, not pushed as an alert."""
+
+    def test_the_webm_to_mkv_notice_is_info(self):
+        self.assertEqual(
+            'info', logged_level('warning', "webm doesn't support embedding a thumbnail, mkv will be used")
+        )
+
+    def test_a_missing_soundcloud_stream_is_info(self):
+        self.assertEqual('info', logged_level('warning', '[soundcloud] 2394393894: http_mp3 format not found'))
+        self.assertEqual('info', logged_level('warning', '[soundcloud] 2394393894: hls_mp3 format not found'))
+
+    def test_a_drm_refusal_is_info(self):
+        self.assertEqual('info', logged_level('error', 'ERROR: [soundcloud] 2394393894: This video is DRM protected'))
+
+    def test_an_unknown_warning_stays_a_warning(self):
+        self.assertEqual('warning', logged_level('warning', 'Unable to download webpage: HTTP Error 404: Not Found'))
+
+    def test_an_unknown_error_stays_an_error(self):
+        self.assertEqual('error', logged_level('error', 'ERROR: [download] Got error: Read timed out.'))
+
+    def test_a_debug_line_is_never_touched(self):
+        self.assertEqual('debug', logged_level('debug', 'http_mp3 format not found'))
+
+    def test_the_report_logs_a_benign_warning_at_info(self):
+        with self.assertLogs(level='INFO') as logs:
+            AccountReport().warning("webm doesn't support embedding a thumbnail, mkv will be used")
+
+        self.assertEqual(["INFO:root:webm doesn't support embedding a thumbnail, mkv will be used"], logs.output)
+
+
+class DrmTracksTest(unittest.TestCase):
+    """A DRM refusal names the track, so the downloader can write it off."""
+
+    def test_the_refused_track_is_recorded(self):
+        report = AccountReport()
+        report.error('ERROR: [soundcloud] 2394393894: This video is DRM protected')
+
+        self.assertEqual(['2394393894'], report.drm_tracks)
+
+    def test_each_track_is_recorded_once(self):
+        report = AccountReport()
+        report.error('ERROR: [soundcloud] 1: This video is DRM protected')
+        report.error('ERROR: [soundcloud] 1: This video is DRM protected')
+        report.error('ERROR: [soundcloud] 2: This video is DRM protected')
+
+        self.assertEqual(['1', '2'], report.drm_tracks)
+
+    def test_a_drm_refusal_is_not_a_forbidden_track(self):
+        report = AccountReport()
+        report.note_extracted('t1')
+        report.error('ERROR: [soundcloud] 2394393894: This video is DRM protected')
+
+        self.assertEqual(CLEAN, report.outcome)
+
+    def test_an_info_line_mentioning_drm_records_nothing(self):
+        report = AccountReport()
+        report.info('[soundcloud] 1: This video is DRM protected')
+
+        self.assertEqual([], report.drm_tracks)
+
+
+class NoteListedTest(unittest.TestCase):
+    def test_a_403_belongs_to_the_entry_being_extracted(self):
+        report = AccountReport()
+        report.note_extracted('t1')
+        report.note_listed('t2')
+        report.error('HTTP Error 403: Forbidden')
+
+        self.assertEqual(['t2'], report.forbidden_tracks)
+
+    def test_listing_an_entry_does_not_count_as_extracting_it(self):
+        report = AccountReport()
+        report.note_listed('t1')
+        report.error('HTTP Error 403: Forbidden')
+
+        self.assertEqual(BLANK, report.outcome)

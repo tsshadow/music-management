@@ -11,9 +11,14 @@ What is pinned here is narrow: it comes back while a database was skipped for th
 reason, and it does not come back for anything else.
 """
 
+import os
+import sqlite3
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+from services.music_manager import lms_writes
+from services.music_manager.lms_writes import PendingWrites
 from services.music_manager.routers import users  # noqa: E402
 
 
@@ -131,6 +136,151 @@ class RetryScopeTest(unittest.TestCase):
             self.assertEqual(users.run_lms_db_sync_with_retry(attempts=6, delay_seconds=1), 5)
 
         self.assertEqual(len(calls), 1, 'nothing was skipped, so nothing is retried')
+
+
+class DeferredWritesRetryTest(unittest.TestCase):
+    """Rows a busy server refused are written a few minutes later, not an hour later or never.
+
+    Bug report 129: an LMS scan holds the server's write lock for hours, and the pass used to
+    sleep through it batch by batch and then drop what it could not write with a WARNING -- 40
+    a day. Now the pass defers those rows and this retry writes exactly them. What is pinned:
+    they land once the server lets go, a server that stays busy costs one WARNING per cycle
+    rather than one per batch, and the pass that follows starts from a clean slate.
+    """
+
+    def setUp(self):
+        users._deferred_writes.clear()
+        self.addCleanup(users._deferred_writes.clear)
+        sleep = patch.object(users.time, 'sleep')
+        self.sleep = sleep.start()
+        self.addCleanup(sleep.stop)
+        directory = tempfile.mkdtemp()
+        self.path = os.path.join(directory, 'lms.db')
+        setup = sqlite3.connect(self.path)
+        setup.execute('PRAGMA journal_mode=WAL')
+        setup.execute("CREATE TABLE track (id INTEGER PRIMARY KEY, form TEXT NOT NULL DEFAULT '')")
+        setup.executemany('INSERT INTO track (id) VALUES (?)', [(1,), (2,)])
+        setup.commit()
+        setup.close()
+        targets = patch.object(users, 'lms_db_targets', return_value=[(self.path, 'server-stable')])
+        self.targets = targets.start()
+        self.addCleanup(targets.stop)
+        # Short, so a test that keeps the lock held does not wait ten seconds per try.
+        timeout = patch.object(lms_writes, 'BUSY_TIMEOUT_STATEMENT', 'PRAGMA busy_timeout = 20')
+        timeout.start()
+        self.addCleanup(timeout.stop)
+
+    def defer(self, *ids):
+        writes = PendingWrites('UPDATE track SET form = ?1 WHERE id = ?2')
+        writes.rows = [(('live_set',), track_id) for track_id in ids]
+        writes.busy = True
+        users._deferred_writes.setdefault('server-stable', []).append(writes)
+        return writes
+
+    def forms(self):
+        conn = sqlite3.connect(self.path)
+        try:
+            return [row[0] for row in conn.execute('SELECT form FROM track ORDER BY id')]
+        finally:
+            conn.close()
+
+    def run_retry(self, attempts=3):
+        with patch.object(users, 'run_lms_db_sync', return_value=0):
+            users.run_lms_db_sync_with_retry(deferred_attempts=attempts, deferred_delay_seconds=1)
+
+    def test_the_deferred_rows_are_written_on_the_next_try(self):
+        self.defer(1, 2)
+
+        with self.assertLogs(level='INFO') as logs:
+            self.run_retry()
+
+        self.assertEqual(self.forms(), ['live_set', 'live_set'])
+        self.assertEqual(self.sleep.call_count, 1)
+        self.assertEqual(users._deferred_writes, {})
+        self.assertTrue(any('wrote the 2 rows' in line for line in logs.output), logs.output)
+        self.assertFalse([line for line in logs.output if line.startswith('WARNING')])
+
+    def test_the_wait_before_a_try_carries_jitter_within_its_bound(self):
+        self.defer(1)
+        self.run_retry()
+        (delay,), _ = self.sleep.call_args
+        self.assertGreaterEqual(delay, 1)
+        self.assertLessEqual(delay, 1 + users.DEFERRED_RETRY_JITTER_SECONDS)
+
+    def test_a_server_that_stays_busy_costs_one_warning_and_keeps_nothing_stale(self):
+        self.defer(1, 2)
+        scanner = sqlite3.connect(self.path, isolation_level=None)
+        self.addCleanup(scanner.close)
+        scanner.execute('BEGIN IMMEDIATE')
+
+        with self.assertLogs(level='WARNING') as logs:
+            self.run_retry(attempts=3)
+        scanner.execute('COMMIT')
+
+        warnings = [line for line in logs.output if line.startswith('WARNING')]
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertIn('2 rows for server-stable', warnings[0])
+        self.assertEqual(self.sleep.call_count, 3)
+        self.assertEqual(self.forms(), ['', ''])
+        self.assertEqual(users._deferred_writes, {}, 'the next hourly pass recomputes them')
+
+    def test_nothing_deferred_means_no_wait(self):
+        self.run_retry()
+        self.sleep.assert_not_called()
+
+    def test_a_server_that_went_away_is_dropped_without_a_warning(self):
+        self.defer(1)
+        self.targets.return_value = []
+
+        with self.assertNoLogs(level='WARNING'):
+            self.run_retry()
+
+        self.assertEqual(users._deferred_writes, {})
+
+    def test_a_new_pass_replaces_what_an_earlier_one_deferred(self):
+        # The pass recomputes every difference, so the old list would only write stale values.
+        # (Called directly: several test modules replace run_lms_db_sync at import time.)
+        self.defer(1)
+        users._deferred_writes['server-alpha'] = []
+        users._discard_deferred_writes([(self.path, 'server-stable')])
+        self.assertEqual(users._deferred_writes, {'server-alpha': []}, 'only the servers being synced')
+
+    def test_both_pushes_hand_their_refusals_to_the_same_list(self):
+        connection = MagicMock()
+        connection.in_transaction = False
+        with (
+            patch.object(users, 'sqlite3') as sqlite,
+            patch('services.music_manager.song_version_sync.sync_song_versions_to_server') as versions,
+            patch('services.music_manager.track_form_sync.push_forms_to_server') as forms,
+            patch('services.music_manager.routers.artist_images.sync_artist_images_to_server'),
+            patch.object(users, '_sync_server_users', return_value=0),
+            patch.object(users, '_sync_server_playlists'),
+        ):
+            sqlite.connect.return_value = connection
+            versions.return_value = {'skipped_no_columns': 0}
+            users.sync_single_server_db(MagicMock(), self.path, 'server-stable')
+
+        collector = users._deferred_writes['server-stable']
+        self.assertIs(versions.call_args.kwargs['deferred'], collector)
+        self.assertIs(forms.call_args.kwargs['deferred'], collector)
+
+    def test_a_transaction_the_image_sync_left_open_is_rolled_back_first(self):
+        # Left open, it would hold the server's write lock through both pushes.
+        connection = MagicMock()
+        connection.in_transaction = True
+        with (
+            patch.object(users, 'sqlite3') as sqlite,
+            patch('services.music_manager.song_version_sync.sync_song_versions_to_server') as versions,
+            patch('services.music_manager.track_form_sync.push_forms_to_server'),
+            patch('services.music_manager.routers.artist_images.sync_artist_images_to_server'),
+            patch.object(users, '_sync_server_users', return_value=0),
+            patch.object(users, '_sync_server_playlists'),
+        ):
+            sqlite.connect.return_value = connection
+            versions.return_value = {'skipped_no_columns': 0}
+            users.sync_single_server_db(MagicMock(), self.path, 'server-stable')
+
+        connection.rollback.assert_called_once()
 
 
 if __name__ == '__main__':

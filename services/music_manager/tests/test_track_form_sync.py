@@ -206,6 +206,39 @@ class PushFormsTest(unittest.TestCase):
         cursor.execute(track_form_sync._SERVER_UPDATE, ('set', '', '/music/EPs/b.flac'))
         self.assertEqual(cursor.rowcount, 1)
 
+    def test_a_busy_server_defers_the_rows_to_the_collector_and_logs_as_track_form(self):
+        # Bug report 129: this push's refusals were logged by song_version_sync's logger, so
+        # the event log blamed the wrong pass. Now they are counted and handed back here.
+        class Busy:
+            """The server connection with a commit that refuses, the way a scanning LMS does."""
+
+            def __init__(self, conn):
+                self.conn = conn
+
+            def cursor(self):
+                return self.conn.cursor()
+
+            def execute(self, *args):
+                return self.conn.execute(*args)
+
+            def commit(self):
+                raise sqlite3.OperationalError('database is locked')
+
+            def rollback(self):
+                self.conn.rollback()
+
+        conn, _cursor = muma_cursor(
+            fetchmany=[{'file_path': '/mnt/music/Livesets/a.mp3', 'form': 'liveset', 'performance_date': '2012-06-23'}]
+        )
+        deferred = []
+        with self.assertLogs(track_form_sync.logger, 'INFO') as logs:
+            stats = track_form_sync.push_forms_to_server(conn, Busy(self.server), 'test', deferred=deferred)
+        self.assertEqual((stats['matched'], stats['deferred']), (0, 1))
+        self.assertEqual(deferred[0].rows, [(('liveset', '2012-06-23'), '/music/Livesets/a.mp3')])
+        self.assertIn('deferred 1', logs.output[-1])
+        self.assertEqual(deferred[0].retry(self.server), 1)
+        self.assertEqual(self.stored()[0], ('/music/Livesets/a.mp3', 'liveset', '2012-06-23'))
+
     def test_a_server_without_the_columns_is_skipped(self):
         server = sqlite3.connect(':memory:')
         server.execute('CREATE TABLE track (id INTEGER PRIMARY KEY, absolute_file_path TEXT)')

@@ -124,7 +124,7 @@ services:
     labels:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
-    image: willfarrell/autoheal:latest@sha256:3d5c946ac4c14612e7e1096137f27f71a7b3d7b6909ee89cc98412df184882e8
+    image: willfarrell/autoheal:latest@sha256:a83ba5a269ddff3bb2a9e0c59de2cfb9993c09d64a8b6584c4607ab5f6a69177
     # A shell loop that talks to the Docker socket with curl: no capability
     # needed (the socket is root's own file), nothing written. 2 PIDs.
     security_opt:
@@ -157,7 +157,7 @@ services:
     labels:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
-    image: nginx:1.31.6-alpine@sha256:d10753d9289b8e3f884386351f73554ce72b631378949deddd75e83ee296c427
+    image: nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
     # nginx's master runs as root, binds :80 (NET_BIND_SERVICE), creates its
     # temp directories for the nginx user (CHOWN), starts workers as that user
     # (SETUID, SETGID) and signals them on reload/stop (KILL). Read-only root:

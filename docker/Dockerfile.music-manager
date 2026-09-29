@@ -17,6 +17,12 @@ ARG VERSION=latest
 FROM python:3.14-slim AS builder
 WORKDIR /app
 
+# SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which
+# is what makes the upgrade below actually run: with an unchanged Dockerfile the
+# layer cache hands back the layer from the first build, upgrade and all. The
+# LMS image deployed with 0.82.1 carried an `apk upgrade` layer from 11 days
+# earlier, and with it a libexpat the repository had already fixed.
+ARG SECURITY_REFRESH=unset
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     gcc \
     libmariadb-dev \
@@ -42,6 +48,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM python:3.14-slim
 WORKDIR /app
 
+# SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which
+# is what makes the upgrade below actually run: with an unchanged Dockerfile the
+# layer cache hands back the layer from the first build, upgrade and all. The
+# LMS image deployed with 0.82.1 carried an `apk upgrade` layer from 11 days
+# earlier, and with it a libexpat the repository had already fixed.
+ARG SECURITY_REFRESH=unset
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libmariadb3 \
     && rm -rf /var/lib/apt/lists/*

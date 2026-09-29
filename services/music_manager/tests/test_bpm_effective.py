@@ -101,7 +101,9 @@ class ResolveTest(unittest.TestCase):
 
     def test_the_analyzer_alone_is_low_and_folded_into_the_band(self):
         found = resolve(tempo=76.0, genres=['Raw Hardstyle'])
-        self.assertEqual((found.bpm, found.source, found.confidence, found.folded), (152.0, SOURCE_ANALYZER, CONFIDENCE_LOW, True))
+        self.assertEqual(
+            (found.bpm, found.source, found.confidence, found.folded), (152.0, SOURCE_ANALYZER, CONFIDENCE_LOW, True)
+        )
 
 
 if __name__ == '__main__':

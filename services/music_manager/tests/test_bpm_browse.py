@@ -173,7 +173,13 @@ class BpmRouterTest(unittest.TestCase):
         self.assertEqual(track['library_path'], 'EPs/Label/1.mp3')
         self.assertEqual(
             {k: track[k] for k in ('bpm', 'bpm_source', 'bpm_confidence', 'bpm_folded', 'bpm_approximate')},
-            {'bpm': 152.0, 'bpm_source': 'tag', 'bpm_confidence': 'medium', 'bpm_folded': False, 'bpm_approximate': True},
+            {
+                'bpm': 152.0,
+                'bpm_source': 'tag',
+                'bpm_confidence': 'medium',
+                'bpm_folded': False,
+                'bpm_approximate': True,
+            },
         )
         self.assertEqual(track['genres'], ['Hardstyle'])
 

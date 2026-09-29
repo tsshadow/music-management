@@ -18,6 +18,12 @@ FROM python:3.14-slim
 # apt-get upgrade: zie de toelichting in Dockerfile.base. De vooraf
 # geinstalleerde openssl van python:3.14-slim beweegt niet mee met een rebuild
 # van deze image.
+# SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which
+# is what makes the upgrade below actually run: with an unchanged Dockerfile the
+# layer cache hands back the layer from the first build, upgrade and all. The
+# LMS image deployed with 0.82.1 carried an `apk upgrade` layer from 11 days
+# earlier, and with it a libexpat the repository had already fixed.
+ARG SECURITY_REFRESH=unset
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \

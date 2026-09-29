@@ -285,6 +285,21 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — Browse by BPM (2026-09-29, `docs/designs/bpm-browse/`): no new token or component.
+  The page (`BpmView.svelte`) is built like the listening statistics page: a `bg-black/40
+  rounded-xl border-white/5` filter card, then a chart card, then the list. Tempo chips are the
+  neutral chip (`bg-muma-spotify-light text-white`, hover `bg-muma-spotify-hover`, `rounded-full
+  text-xs font-bold min-h-9`) and `bg-brand text-black` when picked, with their count in the chip's
+  muted text. The margin selector is the period selector (`bg-black/40 rounded-full p-1`, the picked
+  option `bg-brand text-black`). The from-to range and the genre `<select>` are Forms & Inputs
+  (`bg-muma-spotify-light rounded-md min-h-11`, brand focus outline). "Betrouwbaar" is a chip-shaped
+  `<button aria-pressed>` with the lucide `ShieldCheck` icon. The histogram reuses "a chart bar is
+  its own filter toggle": one `<button aria-pressed>` per whole BPM, `bg-brand/50`, hover
+  `bg-brand/80`, the bars inside the picked window `bg-brand`. A row's BPM is a small pill after the
+  title in `TrackList` (`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded bg-white/10
+  text-muma-spotify-text`), "≈152 BPM" for a coarse value; the one line explaining "≈" sits above
+  the list in `text-xs` muted text with lucide `Info`, never a banner or dialog.
+
 - **Done** — Listening statistics filters and breakdowns (2026-09-29,
   `docs/designs/listening-stats/`): no new token or component. The genre filter is the existing
   `MultiPicker`; the year range is two inputs in the Forms & Inputs style (`bg-muma-spotify-light

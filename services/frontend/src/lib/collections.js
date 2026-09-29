@@ -230,6 +230,8 @@ export const COLLECTION_MODES = {
   lineups: ["songs"],
   podcasts: ["sets"],
   festivals: ["sets"],
+  // A set or a podcast has no one tempo; the BPM browse only lists tracks.
+  bpm: ["songs"],
 };
 
 /**

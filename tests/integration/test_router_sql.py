@@ -56,6 +56,12 @@ READ_ENDPOINTS = [
     ('/api/analytics/summary?form=podcast&year_min=2010', 200),
     ('/api/analytics/year-histogram?form=liveset', 200),
     ('/api/library/genres', 200),
+    # Browse by BPM (docs/designs/bpm-browse/): the index query and the page details.
+    # BpmBrowseSqlTest below seeds every BPM source.
+    ('/api/library/bpm/histogram', 200),
+    ('/api/library/bpm/tracks?bpm=150', 200),
+    ('/api/library/bpm/tracks?bpm_from=140&bpm_to=160&min_confidence=medium&genre=Hardstyle', 200),
+    ('/api/library/bpm/tracks', 400),
     # A file MuMa never scanned is a deliberate 404, never a 500.
     ('/api/library/tracks/by-path?path=nope.mp3', 404),
     ('/api/rules', 200),
@@ -2595,3 +2601,78 @@ class ListeningBreakdownTest:
         assert response.status_code == 200
         assert response.json()['artists'] == []
         assert response.json()['excluded_unmatched'] == 1
+
+
+class BpmBrowseSqlTest:
+    """The BPM browse's index query (bpm/index.py INDEX_SQL) and page details (routers/bpm.py)
+    against a real schema: a measurement joined on track_uid, a tag, an analyzer tempo folded
+    into its genre's band, and a set that must stay out."""
+
+    def _track(self, db, title, genre=None, form='track', tag=None, tempo=None):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES (%s, %s, 240, %s)",
+                (f'uid-bpm-{title}', title, form),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (f'/mnt/music/EPs/{title}.mp3', f'hash-bpm-{title}', track_id),
+            )
+            if tag is not None or tempo is not None:
+                cursor.execute(
+                    'INSERT INTO library_track_audio_features (track_id, internal_track_id, bpm_tag, tempo)'
+                    ' VALUES (%s, %s, %s, %s)',
+                    (f'af-bpm-{title}', track_id, tag, tempo),
+                )
+            if genre:
+                # The migrations may already have seeded the genre; either way it is looked up by name.
+                cursor.execute(
+                    "INSERT IGNORE INTO rules_genres (name, normalized_name, state) VALUES (%s, %s, 'white')",
+                    (genre, genre.lower()),
+                )
+                cursor.execute('SELECT id FROM rules_genres WHERE name = %s ORDER BY id LIMIT 1', (genre,))
+                genre_id = cursor.fetchone()['id']
+                cursor.execute(
+                    'INSERT INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+                )
+        return track_id
+
+    def test_every_source_reaches_the_browse(self, api, headers, db):
+        from services.music_manager.routers import bpm as bpm_router
+
+        measured = self._track(db, 'Measured', genre='Hardstyle', tag=152.0, tempo=152.0)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method, analyzed_at)"
+            " VALUES ('uid-bpm-Measured', 'ok', 150.02, 75.01, 0.910, 'acf-comb-v1', NOW())",
+        )
+        tagged = self._track(db, 'Tagged', genre='Raw Hardstyle', tag=152.0, tempo=151.999)
+        folded = self._track(db, 'Folded', genre='Uptempo Hardcore', tempo=105.469)
+        self._track(db, 'A Set', form='set', tag=150.0)
+        failed = self._track(db, 'Failed', tag=149.0)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm (track_uid, status, method, error, analyzed_at)"
+            " VALUES ('uid-bpm-Failed', 'failed', 'acf-comb-v1', 'decode error', NOW())",
+        )
+        bpm_router.index_cache.invalidate()
+        try:
+            response = api.get('/api/library/bpm/tracks?bpm=150', headers=headers)
+            assert response.status_code == 200, response.text
+            tracks = {t['id']: t for t in response.json()['tracks']}
+            assert set(tracks) == {measured, tagged, failed}, tracks
+            assert (tracks[measured]['bpm'], tracks[measured]['bpm_source']) == (150.02, 'measured')
+            assert tracks[measured]['bpm_confidence'] == 'high'
+            assert (tracks[tagged]['bpm_source'], tracks[tagged]['bpm_confidence']) == ('tag', 'medium')
+            assert tracks[tagged]['library_path'] == 'EPs/Tagged.mp3'
+            assert tracks[failed]['bpm_source'] == 'tag'  # a failed measurement falls back
+
+            uptempo = api.get('/api/library/bpm/tracks?bpm=211&genre=uptempo%20hardcore', headers=headers).json()
+            assert [(t['id'], t['bpm'], t['bpm_folded']) for t in uptempo['tracks']] == [(folded, 210.94, True)]
+
+            histogram = api.get('/api/library/bpm/histogram', headers=headers).json()
+            assert histogram['summary']['tracks'] == 4
+        finally:
+            bpm_router.index_cache.invalidate()

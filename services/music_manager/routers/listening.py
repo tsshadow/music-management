@@ -80,9 +80,10 @@ def release_year_sql(track: str) -> str:
     ``library_tracks.release_date`` first; when that is NULL -- no server holds the file -- the
     ml-analyzer's date, but only if all its rows agree; and an empty string, which is the sync's
     decision that no date could be agreed on, stays unknown rather than falling through. The
-    analyzer fallback is a correlated lookup on ``idx_af_internal_track_id`` rather than the
-    feeds' grouped derived table, because here it is evaluated per listen inside a WHERE and the
-    CASE only reaches it for the few hundred tracks whose own date is NULL.
+    analyzer fallback is the same correlated lookup on ``idx_af_internal_track_id`` the feeds use
+    (``_AF_RELEASE_DATE``), so the CASE only reaches it for the few hundred tracks whose own date
+    is NULL. It is rebuilt here rather than imported because the feeds' fragment is fixed to the
+    alias ``t`` and the year filter needs it on another one.
 
     ``release_date`` is a string ('YYYY-MM-DD' on production), so the year is its first four
     characters, and only when those are digits.

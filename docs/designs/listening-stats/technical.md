@@ -182,9 +182,10 @@ counts across a decade is exact because a track has one year.
 `release_year_sql(alias)` reads the date the feeds read (`_RELEASE_DATE` in `feeds/queries.py`):
 `library_tracks.release_date`, and only when that is NULL the analyzer's
 `library_track_audio_features.release_date` if all its rows agree; the empty string (the date sync
-could not agree) stays unknown. The feeds get the analyzer value from a grouped derived table; here
-it is a correlated subquery on `idx_af_internal_track_id` inside the CASE, so it is only evaluated
-for the ~400 tracks with a NULL date and is safe inside a per-listen WHERE. The year is the first
+could not agree) stays unknown. Like the feeds' `_AF_RELEASE_DATE` (issue #137) the analyzer value
+is a correlated subquery on `idx_af_internal_track_id` inside the CASE, so it is only evaluated for
+the ~400 tracks with a NULL date and is safe inside a per-listen WHERE; it is parametrised on the
+track alias because the year filter needs it on `ft` rather than `t`. The year is the first
 four characters when they are digits. Not `EFFECTIVE_YEAR_SQL` from `analytics_filters.py`: that
 puts a live set's `performance_date` first, which is the year a set *happened*, and the request
 was for the feeds' release date. Worth revisiting if set listening turns out to dominate.

@@ -285,6 +285,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — Listening statistics filters and breakdowns (2026-09-29,
+  `docs/designs/listening-stats/`): no new token or component. The genre filter is the existing
+  `MultiPicker`; the year range is two inputs in the Forms & Inputs style (`bg-muma-spotify-light
+  rounded-md min-h-11`, brand focus outline). New *pattern*, built from existing tokens: **a chart
+  bar is its own filter toggle** -- every bar is a `<button aria-pressed>`, unselected
+  `bg-brand/50` (hover `bg-brand/80`), selected `bg-brand`; a horizontal-bar row also gets
+  `bg-white/5` when selected, and the chart ends in one muted line saying a tap toggles it. Active
+  filters that are not already shown in their own control (single years, "Onbekend jaar", the range)
+  are `bg-brand text-black` chips with an ×, followed by the outlined "Filters wissen" pill of
+  "Load more" in `text-xs`. A notice about what a filter excludes sits directly under the filter in
+  `text-xs` with the yellow `TriangleAlert` of the page's caveat box, not in a footnote. The
+  Jaar/Decennium switch is the page's period selector at `text-[10px]`.
 - **Done** — Feed length (2026-09-26, `docs/designs/feed-length/`): no new token or component. The
   existing load-more pill is documented above under Components ("Load more") and reused as-is under
   a feed's track list.

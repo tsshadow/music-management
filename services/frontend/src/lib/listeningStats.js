@@ -11,6 +11,11 @@
  * the majority of the recorded history is not linked to a library track; a
  * ranking drawn from the minority without saying so is the one way this page can
  * lie outright.
+ *
+ * Genre and release year filter the page down to tracks, which unmatched listens
+ * do not have. Every helper below that touches a filter therefore also carries the
+ * count of listens it excluded that way (`excluded_unmatched` from the server), so
+ * the page can say so next to the filter instead of letting totals shrink silently.
  */
 import { apiBase, getHeaders } from "./mumaApi";
 
@@ -81,6 +86,9 @@ export function bucketFor(periodId) {
 /**
  * Build one /api/listening URL.
  *
+ * An array value becomes a repeated parameter (`genre=A&genre=B`), which is how the
+ * server takes a multi-select.
+ *
  * @param {string} path - Endpoint below /api/listening, e.g. "summary".
  * @param {Object} [params] - Extra query parameters; empty values are dropped.
  * @returns {string}
@@ -88,24 +96,269 @@ export function bucketFor(periodId) {
 export function listeningUrl(path, params = {}) {
   const query = new URLSearchParams({ tz: browserTimeZone() });
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== "") query.set(key, value);
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && item !== null && item !== "") query.append(key, item);
+    }
   }
   return `${apiBase()}/api/listening/${path}?${query.toString()}`;
 }
 
+/** The `year` value that selects tracks without a usable release date. */
+export const UNKNOWN_YEAR = "unknown";
+
+/** Bounds a year from the URL is accepted within; the server checks the same. */
+const YEAR_MIN = 1000;
+const YEAR_MAX = 2999;
+
 /**
- * Fetch every panel for one period at once.
+ * No filter at all. Every filter object on this page has exactly these fields.
+ *
+ * `years` and the `yearFrom`/`yearTo` range are alternatives of one dimension: a
+ * listen matches when its release year is one of `years`, or inside the range, or
+ * unknown while `unknownYear` is set. Genres are alternatives of the other, and the
+ * two dimensions must both hold -- the server's semantics, mirrored here.
+ */
+export const NO_FILTERS = Object.freeze({
+  genres: [],
+  years: [],
+  unknownYear: false,
+  yearFrom: null,
+  yearTo: null,
+});
+
+/** A year from user input as a number, or null when it is not a plausible year. */
+function parseYear(value) {
+  const text = String(value ?? "").trim();
+  if (!/^\d{4}$/.test(text)) return null;
+  const year = Number(text);
+  return year >= YEAR_MIN && year <= YEAR_MAX ? year : null;
+}
+
+/**
+ * Whether any genre or year filter is set.
+ *
+ * @param {Object} filters
+ * @returns {boolean}
+ */
+export function hasFilters(filters) {
+  if (!filters) return false;
+  return (
+    filters.genres.length > 0 ||
+    filters.years.length > 0 ||
+    filters.unknownYear ||
+    filters.yearFrom !== null ||
+    filters.yearTo !== null
+  );
+}
+
+/**
+ * The query parameters a filter sends to the API, in the server's own names.
+ *
+ * @param {Object} filters
+ * @returns {Object}
+ */
+export function filterParams(filters) {
+  const f = filters || NO_FILTERS;
+  const year = [...f.years.map(String), ...(f.unknownYear ? [UNKNOWN_YEAR] : [])];
+  return {
+    genre: [...f.genres],
+    year,
+    year_from: f.yearFrom ?? undefined,
+    year_to: f.yearTo ?? undefined,
+  };
+}
+
+/**
+ * Read the page's period and filters from a location's query string.
+ *
+ * The URL is user input -- a bookmark, a shared link, a hand edit -- so anything
+ * that does not parse is dropped rather than sent on: a malformed year would make
+ * every panel answer 400. A range written backwards is turned round.
+ *
+ * @param {string} search - `window.location.search`, with or without the '?'.
+ * @returns {{period: string, filters: Object}}
+ */
+export function filtersFromSearch(search) {
+  const query = new URLSearchParams(search || "");
+  const periodId = query.get("period");
+  const period = PERIODS.some((p) => p.id === periodId) ? periodId : DEFAULT_PERIOD;
+  const genres = [
+    ...new Set(
+      query
+        .getAll("genre")
+        .map((g) => g.trim())
+        .filter(Boolean),
+    ),
+  ];
+  const years = new Set();
+  let unknownYear = false;
+  for (const raw of query.getAll("year")) {
+    if (raw.trim().toLowerCase() === UNKNOWN_YEAR) unknownYear = true;
+    else {
+      const year = parseYear(raw);
+      if (year !== null) years.add(year);
+    }
+  }
+  let yearFrom = parseYear(query.get("year_from"));
+  let yearTo = parseYear(query.get("year_to"));
+  if (yearFrom !== null && yearTo !== null && yearTo < yearFrom)
+    [yearFrom, yearTo] = [yearTo, yearFrom];
+  return {
+    period,
+    filters: { genres, years: [...years].sort((a, b) => a - b), unknownYear, yearFrom, yearTo },
+  };
+}
+
+/**
+ * The query string that makes a view shareable: the inverse of `filtersFromSearch`.
+ *
+ * The default period is left out, so the plain page stays the bare `/listening`.
+ *
+ * @param {string} period
+ * @param {Object} filters
+ * @returns {string} Without the leading '?', empty when there is nothing to say.
+ */
+export function filtersToSearch(period, filters) {
+  const query = new URLSearchParams();
+  if (period && period !== DEFAULT_PERIOD) query.set("period", period);
+  for (const [key, value] of Object.entries(filterParams(filters))) {
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && item !== null && item !== "") query.append(key, item);
+    }
+  }
+  return query.toString();
+}
+
+/**
+ * Add a genre to the filter, or take it out when it is already there.
+ *
+ * @param {Object} filters
+ * @param {string} genre
+ * @returns {Object} A new filter object.
+ */
+export function toggleGenre(filters, genre) {
+  const genres = filters.genres.includes(genre)
+    ? filters.genres.filter((g) => g !== genre)
+    : [...filters.genres, genre];
+  return { ...filters, genres };
+}
+
+/**
+ * Add a release year (or the unknown bucket) to the filter, or take it out.
+ *
+ * @param {Object} filters
+ * @param {number|string} year - A year, or `UNKNOWN_YEAR`.
+ * @returns {Object} A new filter object.
+ */
+export function toggleYear(filters, year) {
+  if (year === UNKNOWN_YEAR) return { ...filters, unknownYear: !filters.unknownYear };
+  const years = filters.years.includes(year)
+    ? filters.years.filter((y) => y !== year)
+    : [...filters.years, year].sort((a, b) => a - b);
+  return { ...filters, years };
+}
+
+/**
+ * Select a decade as the year range, or clear the range when it is that decade already.
+ *
+ * A decade is a range rather than ten single years so the URL and the chip say
+ * "2010–2019" instead of listing ten numbers.
+ *
+ * @param {Object} filters
+ * @param {number} decade - The decade's first year, e.g. 2010.
+ * @returns {Object} A new filter object.
+ */
+export function toggleDecade(filters, decade) {
+  if (filters.yearFrom === decade && filters.yearTo === decade + 9) {
+    return { ...filters, yearFrom: null, yearTo: null };
+  }
+  return { ...filters, yearFrom: decade, yearTo: decade + 9 };
+}
+
+/**
+ * Set or clear one end of the year range from an input's value.
+ *
+ * @param {Object} filters
+ * @param {"yearFrom"|"yearTo"} end
+ * @param {string|number|null} value - An empty or implausible value clears that end.
+ * @returns {Object} A new filter object.
+ */
+export function setYearBound(filters, end, value) {
+  return { ...filters, [end]: parseYear(value) };
+}
+
+/**
+ * Whether a year is selected, either on its own or through the range.
+ *
+ * @param {Object} filters
+ * @param {number} year
+ * @returns {boolean}
+ */
+export function yearSelected(filters, year) {
+  if (filters.years.includes(year)) return true;
+  if (filters.yearFrom === null && filters.yearTo === null) return false;
+  return (filters.yearFrom ?? -Infinity) <= year && year <= (filters.yearTo ?? Infinity);
+}
+
+/**
+ * Fold the per-year rows into decades.
+ *
+ * Summing the track counts is exact here: a track has one release year, so it
+ * cannot be counted in two years of the same decade.
+ *
+ * @param {Array<{year: number, listens: number, tracks: number}>} years
+ * @returns {Array<{decade: number, listens: number, tracks: number}>}
+ */
+export function byDecade(years) {
+  const decades = new Map();
+  for (const row of years || []) {
+    const decade = Math.floor(row.year / 10) * 10;
+    const entry = decades.get(decade) || { decade, listens: 0, tracks: 0 };
+    entry.listens += row.listens;
+    entry.tracks += row.tracks;
+    decades.set(decade, entry);
+  }
+  return [...decades.values()].sort((a, b) => a.decade - b.decade);
+}
+
+/**
+ * Fetch the listener's genres over their whole history, most played first.
+ *
+ * This is the genre picker's list, so it ignores the period and every filter:
+ * choosing a second genre must not be limited to the genres the first one
+ * already narrowed the page to.
+ *
+ * @param {Function} [fetcher] - Injectable for tests.
+ * @returns {Promise<string[]>}
+ */
+export async function loadGenreOptions(fetcher = fetch) {
+  try {
+    const response = await fetcher(listeningUrl("top-genres", { limit: 500 }), {
+      headers: getHeaders(),
+    });
+    if (!response.ok) return [];
+    const body = await response.json();
+    return (body.genres || []).map((row) => row.genre);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch every panel for one period and one filter at once.
  *
  * One rejected call must not blank the page: a ranking that fails still leaves a
  * usable summary, so each endpoint resolves to null on its own rather than
- * taking the others down with it.
+ * taking the others down with it. The filter goes to every endpoint alike, so
+ * no panel shows a different population than the one next to it.
  *
  * @param {string} periodId
+ * @param {Object} [filters] - Genre and year filter, `NO_FILTERS` when absent.
  * @param {Function} [fetcher] - Injectable for tests.
  * @returns {Promise<Object>}
  */
-export async function loadListening(periodId, fetcher = fetch) {
-  const range = periodRange(periodId);
+export async function loadListening(periodId, filters = NO_FILTERS, fetcher = fetch) {
+  const range = { ...periodRange(periodId), ...filterParams(filters) };
   const bucket = bucketFor(periodId);
 
   const get = async (path, params) => {
@@ -120,17 +373,20 @@ export async function loadListening(periodId, fetcher = fetch) {
     }
   };
 
-  const [summary, timeline, clock, sources, tracks, artists, labels] = await Promise.all([
-    get("summary"),
-    get("timeline", { bucket }),
-    get("clock"),
-    get("sources"),
-    get("top-tracks", { limit: 10 }),
-    get("top-artists", { limit: 10 }),
-    get("top-labels", { limit: 10 }),
-  ]);
+  const [summary, timeline, clock, sources, tracks, artists, labels, genres, years] =
+    await Promise.all([
+      get("summary"),
+      get("timeline", { bucket }),
+      get("clock"),
+      get("sources"),
+      get("top-tracks", { limit: 10 }),
+      get("top-artists", { limit: 10 }),
+      get("top-labels", { limit: 10 }),
+      get("top-genres", { limit: 15 }),
+      get("years"),
+    ]);
 
-  return { summary, timeline, clock, sources, tracks, artists, labels, bucket };
+  return { summary, timeline, clock, sources, tracks, artists, labels, genres, years, bucket };
 }
 
 /**

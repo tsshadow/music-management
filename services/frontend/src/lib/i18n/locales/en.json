@@ -336,7 +336,32 @@
     "labelsNote": "A track with two labels counts for both.",
     "sources": "Where you listened",
     "sourcesNote": "Where a listen came from, which for imports is the import rather than a device.",
-    "unknownArtist": "Unknown artist"
+    "unknownArtist": "Unknown artist",
+    "emptyFiltered": "Nothing played that matches this filter.",
+    "filter": {
+      "title": "Filters",
+      "genre": "Genre",
+      "genrePlaceholder": "Search a genre…",
+      "yearRange": "Release year",
+      "from": "From",
+      "to": "To",
+      "remove": "Remove {name}",
+      "clear": "Clear filters",
+      "excluded": "{count} listens without a linked track fall outside this filter: genre and release year are only known for a track in the library."
+    },
+    "topGenres": "Most played genres",
+    "genresNote": "A track with several genres counts for each of them, so the bars overlap and do not add up to the {matched} linked listens. {untagged} of those have no genre.",
+    "releaseYears": "Release year",
+    "yearView": {
+      "year": "Year",
+      "decade": "Decade"
+    },
+    "yearsNote": "The release year of what you played. Linked listens only; every listen counts once.",
+    "unknownYear": "Unknown year",
+    "yearBar": "{year}: {count} listens",
+    "decadeBar": "The {decade}s: {count} listens",
+    "toggleFilter": "Toggle filter",
+    "tapToFilter": "Tap a bar to filter on it; tap it again to remove the filter."
   },
   "login": {
     "avatar": "Avatar",

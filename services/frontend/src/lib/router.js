@@ -45,6 +45,9 @@ const PLAIN_VIEWS = [
   "playlists",
   "memories",
   "history",
+  // Its genre/year filter and period travel in the query string (`?genre=...&year_from=...`),
+  // owned by `listeningStats.js` and written with replaceState: the path stays `/listening`, so
+  // nothing here needs to know about it -- see docs/designs/listening-stats/technical.md.
   "listening",
   "starred",
   // Reachable everywhere, listed only where it can work: the drawer and the tab

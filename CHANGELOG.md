@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.84.1] - 2026-09-29
+
+### Changed
+- **Visual reference refreshed for the BPM tile** on the phone browse page.
+
+### Fixed
+- **A release that changes the web UI now always ships a new app build.** The app serves the web
+  interface baked into its APK, but the release check only asked for an app version bump when
+  `services/muma-mobile` changed, and compared against develop, where every change merged before the
+  cut is invisible. So 0.84.0's BPM browsing and statistics filters reached the web player but no
+  phone. The check now compares both the app and the frontend against the last release (bug report
+  133).
+
 ## [0.84.0] - 2026-09-29
 
 ### Added

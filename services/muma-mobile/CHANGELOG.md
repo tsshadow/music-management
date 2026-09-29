@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.13.2] - 2026-09-29
+
+### Changed
+- **The event log filter knows the new bpm-analyzer source.**
+
 ## [7.13.1] - 2026-09-29
 
 ### Added

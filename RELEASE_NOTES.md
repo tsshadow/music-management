@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.0 (2026-09-29)
+
+- **Precise BPM.** MuMa now measures each track's tempo itself, newest first, so browsing by BPM gets
+  exact values ("150" instead of "≈152") as the measuring works through the library. The first pass
+  takes a day or two; new tracks are measured within minutes.
+
 ## Global Version 0.84.1 (2026-09-29)
 
 - **A release that changes the web UI now always ships a new app build.** The app serves the web

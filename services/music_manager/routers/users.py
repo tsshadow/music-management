@@ -1567,6 +1567,22 @@ def _sync_server_playlists(cursor, sqlite_cursor, source):
 #: run_lms_db_sync_with_retry to decide whether coming back is worth it.
 _skipped_unmigrated_servers: set[str] = set()
 
+#: Rows a server refused during the last sync because it held its write lock -- LMS scanning,
+#: which it does for hours at a stretch (bug report 129) -- by source name. Kept rather than
+#: dropped, and written again by `_retry_deferred_writes` a few minutes later.
+_deferred_writes: dict[str, list] = {}
+
+#: How often, and how far apart, the rows a busy server deferred are tried again before the
+#: hourly pass takes over. Five tries five to six minutes apart cover half an hour: long enough
+#: for the folder scans the downloader announces (about a minute each), and the library-wide
+#: walk that outlasts them gets one WARNING per hour rather than one per batch.
+DEFERRED_RETRY_ATTEMPTS = 5
+DEFERRED_RETRY_DELAY_SECONDS = 300
+
+#: Up to this much is added to every delay at random, so the retries do not settle into step
+#: with something LMS does on a fixed schedule.
+DEFERRED_RETRY_JITTER_SECONDS = 60
+
 
 def sync_single_server_db(muma_conn, db_path, source):
     print(f'Syncing Music Management Server DB: {db_path} ({source})')
@@ -1595,12 +1611,18 @@ def sync_single_server_db(muma_conn, db_path, source):
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
 
         sync_artist_images_to_server(muma_conn, sqlite_conn)
+        # The image sync reports its own failures and carries on, and a failure halfway through
+        # an artist leaves that artist's transaction open -- holding the server's write lock for
+        # as long as the passes below take. Nothing in it is worth keeping.
+        if sqlite_conn.in_transaction:
+            sqlite_conn.rollback()
         # After the images, and equally best-effort: what muma decided about song versions.
-        # A server that has not migrated to 118 yet is skipped rather than failed, and a
-        # locked database costs this pass and nothing more.
+        # A server that has not migrated to 118 yet is skipped rather than failed, and rows a
+        # busy server refuses are deferred into _deferred_writes rather than lost.
         from services.music_manager.song_version_sync import sync_song_versions_to_server
 
-        versions = sync_song_versions_to_server(muma_conn, sqlite_conn, source)
+        deferred = _deferred_writes.setdefault(source, [])
+        versions = sync_song_versions_to_server(muma_conn, sqlite_conn, source, deferred=deferred)
         if versions.get('skipped_no_columns'):
             # The server is still migrating. Remembered so the caller can come back rather
             # than leaving the columns empty until the next restart.
@@ -1609,7 +1631,7 @@ def sync_single_server_db(muma_conn, db_path, source):
         # from the version push so a server that predates step 122 still gets its versions.
         from services.music_manager.track_form_sync import push_forms_to_server
 
-        push_forms_to_server(muma_conn, sqlite_conn, source)
+        push_forms_to_server(muma_conn, sqlite_conn, source, deferred=deferred)
     except Exception as e:
         print(f'Sync failed for {db_path}: {e}')
     finally:
@@ -1648,25 +1670,40 @@ def run_lms_db_sync_loop(sleeptime: int = 3600, stop: threading.Event | None = N
     run_forever('lms-db-sync', tick, sleeptime, backoff=False, stop=stop)
 
 
-def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> int:
-    """Run the lms.db sync, and try again while a server has not migrated yet.
+def run_lms_db_sync_with_retry(
+    attempts: int = 6,
+    delay_seconds: int = 60,
+    deferred_attempts: int = DEFERRED_RETRY_ATTEMPTS,
+    deferred_delay_seconds: int = DEFERRED_RETRY_DELAY_SECONDS,
+) -> int:
+    """Run the lms.db sync, then come back for what it could not finish.
 
-    A deploy restarts both services at once, and muma usually wins: it syncs before the
-    server has applied its own schema migration, finds no version columns, and skips. That
-    was correct -- writing to a schema that is mid-migration is the one thing not to do --
-    but nothing came back afterwards, so the columns stayed empty until somebody restarted
-    the container by hand. That happened on the 0.54.0 deploy, and without the restart the
-    release would have shipped a feature that silently did nothing.
+    Two reasons to come back, each with its own schedule:
 
-    Retries only while a database was skipped for that reason. Everything else -- a locked
-    database, an unreachable server, no lms.db at all -- is already best-effort inside the
-    sync itself and gets no second pass here.
+    - **A server that has not migrated yet** (`attempts` x `delay_seconds`). A deploy restarts
+      both services at once, and muma usually wins: it syncs before the server has applied its
+      own schema migration, finds no version columns, and skips. That was correct -- writing to
+      a schema that is mid-migration is the one thing not to do -- but nothing came back
+      afterwards, so the columns stayed empty until somebody restarted the container by hand.
+      That happened on the 0.54.0 deploy.
+    - **Rows a busy server deferred** (`deferred_attempts` x `deferred_delay_seconds`, see
+      `_retry_deferred_writes`). Only those rows are written again; nothing is re-read.
+
+    Everything else -- an unreachable server, no lms.db at all -- is already best-effort inside
+    the sync itself and gets no second pass here.
     """
     synced = run_lms_db_sync()
+    _retry_unmigrated_servers(attempts, delay_seconds)
+    _retry_deferred_writes(deferred_attempts, deferred_delay_seconds)
+    return synced
+
+
+def _retry_unmigrated_servers(attempts: int, delay_seconds: int) -> None:
+    """Sync again, only the servers that had no version columns, until they have or time is up."""
     for attempt in range(1, attempts + 1):
         pending = set(_skipped_unmigrated_servers)
         if not pending:
-            return synced
+            return
         if attempt == attempts:
             logging.warning(
                 'lms.db sync: %s still have no version columns after %s attempts; their '
@@ -1674,7 +1711,7 @@ def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> in
                 ', '.join(sorted(pending)),
                 attempts,
             )
-            return synced
+            return
         logging.info(
             'lms.db sync: %s not migrated yet, trying again in %ss',
             ', '.join(sorted(pending)),
@@ -1685,7 +1722,82 @@ def run_lms_db_sync_with_retry(attempts: int = 6, delay_seconds: int = 60) -> in
         # again for a server that had just been written correctly -- six times an hour,
         # because a second instance is parked on an old schema and never becomes ready.
         run_lms_db_sync(only_sources=pending)
-    return synced
+
+
+def _deferred_row_count() -> int:
+    """How many rows are waiting in _deferred_writes, over every server."""
+    return sum(len(writes.rows) for batches in _deferred_writes.values() for writes in batches)
+
+
+def _retry_deferred_writes(attempts: int, delay_seconds: int) -> None:
+    """Write the rows a busy server refused, a few minutes apart, and say once how it ended.
+
+    The server refuses a write while it scans, and a scan outlasts any lock wait a background
+    job can afford (bug report 129). So the pass defers the refused rows instead of sleeping
+    through the scan batch by batch, and they are written here: `attempts` tries,
+    `delay_seconds` plus up to DEFERRED_RETRY_JITTER_SECONDS apart, each opening its own
+    short-lived connection. The rows are written as the pass computed them; anything muma
+    changed since is the next hourly pass's business, as it always is.
+
+    One line per outcome, not per batch: INFO when everything got written, one WARNING when
+    rows are still unsynced after the last try -- the only case in which LMS really is behind,
+    and even then the next hourly pass finds the same difference and writes it.
+    """
+    for source in [source for source, batches in _deferred_writes.items() if not any(w.rows for w in batches)]:
+        del _deferred_writes[source]
+    if not _deferred_writes:
+        return
+    from services.music_manager.lms_writes import BUSY_TIMEOUT_STATEMENT
+
+    deferred_at_start = _deferred_row_count()
+    for attempt in range(1, attempts + 1):
+        delay = delay_seconds + secrets.randbelow(DEFERRED_RETRY_JITTER_SECONDS + 1)
+        logger.info(
+            'lms.db sync: %s rows deferred by a busy server database, trying again in %ss (%s of %s)',
+            _deferred_row_count(),
+            delay,
+            attempt,
+            attempts,
+        )
+        time.sleep(delay)
+        paths = {source: db_path for db_path, source in lms_db_targets()}
+        for source in list(_deferred_writes):
+            db_path = paths.get(source)
+            if db_path is None:
+                # The server went away; there is nothing left to write into.
+                del _deferred_writes[source]
+                continue
+            sqlite_conn = None
+            try:
+                sqlite_conn = sqlite3.connect(db_path)
+                sqlite_conn.execute(BUSY_TIMEOUT_STATEMENT)
+                for writes in _deferred_writes[source]:
+                    writes.retry(sqlite_conn)
+            except Exception as e:  # pylint: disable=broad-except  # the rows stay for the next try
+                logger.error('lms.db sync: retrying deferred rows for %s failed: %s', source, e, exc_info=True)
+            finally:
+                if sqlite_conn is not None:
+                    with contextlib.suppress(Exception):
+                        sqlite_conn.close()
+            if not any(writes.rows for writes in _deferred_writes[source]):
+                del _deferred_writes[source]
+        if not _deferred_writes:
+            logger.info(
+                'lms.db sync: wrote the %s rows a busy server database had deferred, on try %s',
+                deferred_at_start,
+                attempt,
+            )
+            return
+    logger.warning(
+        'lms.db sync: %s rows for %s still not written after %s tries over about %s minutes -- the '
+        'server database stayed busy (an LMS scan holds its write lock); the next hourly pass '
+        'writes them',
+        _deferred_row_count(),
+        ', '.join(sorted(_deferred_writes)),
+        attempts,
+        attempts * delay_seconds // 60,
+    )
+    _deferred_writes.clear()
 
 
 def lms_db_targets() -> list[tuple[str, str]]:
@@ -1724,6 +1836,16 @@ def lms_db_targets() -> list[tuple[str, str]]:
     return usable_lms_targets(targets)
 
 
+def _discard_deferred_writes(targets: list[tuple[str, str]]) -> None:
+    """Forget what an earlier pass deferred for these servers, because a new pass is about to run.
+
+    A pass recomputes every difference, so those rows are either written again now or deferred
+    again, fresh; the old list would only write values that may since have changed.
+    """
+    for _db_path, source in targets:
+        _deferred_writes.pop(source, None)
+
+
 def run_lms_db_sync(only_sources: set[str] | None = None):
     """Sync every server database, or only the ones named in `only_sources`."""
     _skipped_unmigrated_servers.clear()
@@ -1731,6 +1853,7 @@ def run_lms_db_sync(only_sources: set[str] | None = None):
 
     if only_sources is not None:
         targets = [(db_path, source) for db_path, source in targets if source in only_sources]
+    _discard_deferred_writes(targets)
 
     conn = get_db_connection()
     if not conn:

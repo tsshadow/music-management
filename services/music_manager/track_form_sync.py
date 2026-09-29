@@ -12,7 +12,7 @@ Two passes, both run by `routers/users.run_lms_db_sync` every hour:
 
 2. **`push_forms_to_server`** writes both values into each server's `track` table (LMS migration
    step 122), so `getSpotifyTracks` and `getSongs` can filter on them. Same shape as the
-   song-version push and deliberately reusing its lock handling: read every row without a
+   song-version push and deliberately reusing its lock handling (`lms_writes`): read every row without a
    transaction, keep the ones the server disagrees with, write those in batches short enough that
    the player never waits on them. See song_version_sync's module docstring for why.
 
@@ -33,13 +33,8 @@ import time
 
 from services.common.track_form import classify
 from services.music_manager.library_paths import candidate_paths
-from services.music_manager.song_version_sync import (
-    BUSY_TIMEOUT_STATEMENT,
-    CHUNK,
-    WRITE_BATCH,
-    _write_batch,
-    first_per_path,
-)
+from services.music_manager.lms_writes import BUSY_TIMEOUT_STATEMENT, PendingWrites
+from services.music_manager.song_version_sync import CHUNK, first_per_path
 
 logger = logging.getLogger(__name__)
 
@@ -168,14 +163,21 @@ def _rows_to_write(server_cursor, rows) -> list[tuple]:
     return pending
 
 
-def push_forms_to_server(muma_conn, server_conn, source: str = 'unknown') -> dict:
-    """Write form and performance date into one server database. Returns counts."""
-    stats = {'considered': 0, 'matched': 0, 'skipped_no_columns': 0, 'chunks_skipped': 0, 'duplicates_skipped': 0}
+def push_forms_to_server(
+    muma_conn, server_conn, source: str = 'unknown', deferred: list[PendingWrites] | None = None
+) -> dict:
+    """Write form and performance date into one server database. Returns counts.
+
+    Rows a busy server refused are counted in `stats['deferred']` and handed to `deferred` for
+    a later retry, exactly as the song-version push does (`lms_writes`).
+    """
+    stats = {'considered': 0, 'matched': 0, 'skipped_no_columns': 0, 'deferred': 0, 'duplicates_skipped': 0}
     server_cursor = server_conn.cursor()
     if not _server_has_columns(server_cursor):
         logger.info('%s: no form columns yet, skipping the track-form push', source)
         stats['skipped_no_columns'] = 1
         return stats
+    writes = PendingWrites(_SERVER_UPDATE)
     try:
         server_conn.execute(BUSY_TIMEOUT_STATEMENT)
         with muma_conn.cursor() as muma_cursor:
@@ -188,22 +190,19 @@ def push_forms_to_server(muma_conn, server_conn, source: str = 'unknown') -> dic
                 stats['considered'] += len(rows)
                 rows, previous_path = first_per_path(rows, previous_path, stats)
                 pending = _rows_to_write(server_cursor, rows)
-                for start in range(0, len(pending), WRITE_BATCH):
-                    stats['matched'] += _write_batch(
-                        server_conn,
-                        server_cursor,
-                        pending[start : start + WRITE_BATCH],
-                        stats,
-                        source,
-                        update_sql=_SERVER_UPDATE,
-                    )
+                stats['matched'] += writes.write(server_conn, server_cursor, pending)
     except Exception as e:
         logger.error('%s: track-form push failed: %s', source, e, exc_info=True)
+    stats['deferred'] = len(writes.rows)
+    if writes.rows and deferred is not None:
+        deferred.append(writes)
     logger.info(
-        '%s: track-form push considered %s files, wrote %s (%s duplicate rows skipped)',
+        '%s: track-form push considered %s files, wrote %s, deferred %s because the server database '
+        'was busy (%s duplicate rows skipped)',
         source,
         stats['considered'],
         stats['matched'],
+        stats['deferred'],
         stats['duplicates_skipped'],
     )
     return stats

@@ -97,6 +97,8 @@ export const lazyViews = createLazyRegistry({
   managementSidebar: () => import("./management/ManagementSidebar.svelte"),
   history: () => import("./History.svelte"),
   listening: () => import("./ListeningStatsView.svelte"),
+  // Browse by BPM (docs/designs/bpm-browse/): a Bladeren tile and a sidebar entry.
+  bpm: () => import("./BpmView.svelte"),
   starred: () => import("./StarredView.svelte"),
   memories: () => import("./MemoriesView.svelte"),
   memoriesYear: () => import("./MemoriesYearView.svelte"),

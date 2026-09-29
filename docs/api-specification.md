@@ -344,6 +344,27 @@ need `rules.manage`.
   a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
   `release_year` (docs/designs/track-form/).
 
+### 🥁 Browse by BPM (`/api/library/bpm`)
+Design: [docs/designs/bpm-browse/](designs/bpm-browse/technical.md). Any valid API key. Both endpoints
+read an in-memory index of every track's *effective BPM* (a measurement from `library_track_bpm`, else
+the file's BPM tag, else the old analyzer's tempo, the latter two folded by a factor of two into the
+band of the track's genres), rebuilt at most every ten minutes. Sets and podcasts are not listed.
+- **GET `/api/library/bpm/tracks`**: the tracks at `bpm` ± `tol` or from `bpm_from` to `bpm_to`
+  (inclusive; either bound may be left out). `tol` defaults to the `bpm_browse_tolerance` setting
+  (2), at most 10. Optional `min_confidence` (`low` default, `medium`, `high`; anything else 422) and
+  `genre` (one genre name, case-insensitive). Paged with `limit` (default 100, at most 500) and
+  `offset`. A picked tempo sorts nearest first, then the more trusted; a range sorts by tempo.
+  Response: `{bpm_from, bpm_to, center, tolerance, min_confidence, genre, total, offset, next_offset,
+  tracks: [{id, title, artist, duration_secs, work_id, genres, library_path, bpm, bpm_source
+  ("measured"|"tag"|"analyzer"), bpm_confidence ("high"|"medium"|"low"), bpm_folded,
+  bpm_approximate}]}`. `library_path` is what a client hands LMS's `getSongsByPath`. `400` when
+  neither `bpm` nor a range bound is given, or `bpm_from` > `bpm_to`; `422` for a value outside
+  40-500.
+- **GET `/api/library/bpm/histogram`**: `{bins: [{bpm, count, high, medium, low}], genres: [{name,
+  count}], default_tolerance, summary: {tracks, by_source, by_confidence}}` -- track counts per whole
+  BPM from `bpm_from` (default 60) to `bpm_to` (default 300), with the same `min_confidence` and
+  `genre` filters, and the 40 genres with the most tracks for the page's genre picker.
+
 ### 📡 Personalized feeds (`/api/feeds`)
 Release Radar and the daily mixes; the full contract is `docs/designs/feeds/technical.md`, the length
 and continuation `docs/designs/feed-length/technical.md`. A user key always reads its own feeds; the

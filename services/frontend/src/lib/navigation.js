@@ -86,6 +86,12 @@ export const LIBRARY_SECTIONS = [
     icon: "M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z",
   },
   { id: "lineups", labelKey: "nav.lineups", icon: "M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z" },
+  // Browse by BPM (docs/designs/bpm-browse/): a gauge, the tempo dial.
+  {
+    id: "bpm",
+    labelKey: "nav.bpm",
+    icon: "M12 4a10 10 0 0 0-8.66 15h17.32A10 10 0 0 0 12 4zm0 2a8 8 0 0 1 7.43 11H4.57A8 8 0 0 1 12 6zm4.24 2.34-5.66 4.25a2 2 0 1 0 2.83 2.83l2.83-7.08z",
+  },
   // Only inside a shell that can actually keep files. Criterion 13: in a
   // plain browser this entry does not exist at all.
   {

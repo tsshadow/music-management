@@ -137,9 +137,26 @@ class SoundcloudDownloader:
         Reaching this at all means yt-dlp read a track's metadata, which is the
         signal that separates "one track is not for us" from "we are being kept
         out": an account that yields no metadata *and* a 403 gave us nothing.
+
+        yt-dlp also calls the filter with ``incomplete=True`` for each playlist
+        entry before extracting it -- only when the filter accepts that keyword.
+        That is the only point at which a written-off track can be skipped without
+        a request: a DRM-protected track fails inside the extraction, so the
+        complete call never comes and the write-off was never consulted (bug
+        report 130). A skipped entry still counts as extracted, as it did when it
+        was skipped after the extraction, so an account of written-off tracks
+        plus one new 403 is still read as "one track", not as a blank account.
         """
 
-        def _filter(info):
+        def _filter(info, *, incomplete: bool = False):
+            if incomplete:
+                track_id = info.get('id')
+                report.note_listed(track_id)
+                if self.unavailable.should_skip(account, track_id, DURATION_BOUNDS):
+                    report.note_extracted(track_id)
+                    logging.info("Skipping track '%s' (written off before)", info.get('title') or track_id)
+                    return 'Known to be unavailable'
+                return None
             report.note_extracted(info.get('id'), info.get('timestamp'))
             if self.unavailable.should_skip(account, info.get('id'), DURATION_BOUNDS):
                 logging.info("Skipping track '%s' (written off before)", info.get('title', 'unknown'))
@@ -490,6 +507,10 @@ class SoundcloudDownloader:
         enough accounts in a row that gave nothing back.
         """
         self._record_upload_date(account, report)
+        # Before anything can raise: a DRM track is a verdict about that track,
+        # whatever else the run ran into (bug report 130).
+        for track_id in report.drm_tracks:
+            self.unavailable.remember(account, track_id, reason='drm')
         outcome = report.outcome
         if outcome == THROTTLED:
             raise self.policy.park('429', url)

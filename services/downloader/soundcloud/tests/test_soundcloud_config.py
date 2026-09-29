@@ -141,6 +141,28 @@ class MatchFilterTest(unittest.TestCase):
 
         self.assertEqual(result, 'Known to be unavailable')
 
+    def test_a_written_off_entry_is_skipped_before_it_is_extracted(self):
+        """A DRM track fails inside the extraction, so only the incomplete call can skip it."""
+        self.downloader.unavailable.should_skip.return_value = True
+        report = MagicMock()
+
+        result = self.downloader._make_match_filter('angerfist', report)(
+            {'id': 'track-1', 'title': 'Locked'}, incomplete=True
+        )
+
+        self.assertEqual(result, 'Known to be unavailable')
+        self.downloader.unavailable.should_skip.assert_called_once_with('angerfist', 'track-1', (60, 21600))
+        report.note_extracted.assert_called_once_with('track-1')
+
+    def test_a_new_entry_passes_the_incomplete_check_without_counting_as_extracted(self):
+        report = MagicMock()
+
+        result = self.downloader._make_match_filter('angerfist', report)({'id': 'track-1'}, incomplete=True)
+
+        self.assertIsNone(result)
+        report.note_listed.assert_called_once_with('track-1')
+        report.note_extracted.assert_not_called()
+
 
 class PrepareYdlOptsTest(unittest.TestCase):
     def downloader(self, **config):

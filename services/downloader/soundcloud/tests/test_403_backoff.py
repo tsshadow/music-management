@@ -164,6 +164,42 @@ class TestSoundcloud403Backoff(unittest.TestCase):
         downloader.download_url('http://soundcloud.com/d/tracks')
         self.assertEqual(self._rate_state().cooldown_remaining(), 0)
 
+    def _refuse_one_track_for_drm(self, mock_ytdlp):
+        """What yt-dlp does with a DRM-protected track: an ERROR, and no complete entry."""
+
+        def _download(urls):
+            opts = mock_ytdlp.call_args[0][0]
+            opts['match_filter']({'id': 't1', 'title': 'fine', 'duration': 300, 'channel_id': 'test_account'})
+            if opts['match_filter']({'id': 't2'}, incomplete=True) is None:
+                opts['logger'].warning('[soundcloud] t2: http_mp3 format not found')
+                opts['logger'].error('ERROR: [soundcloud] t2: This video is DRM protected')
+            return 1
+
+        mock_ytdlp.return_value.__enter__.return_value.download.side_effect = _download
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_a_drm_track_is_written_off(self, mock_ytdlp):
+        """Bug report 130: it was retried, and logged as an ERROR, on every sweep."""
+        self._refuse_one_track_for_drm(mock_ytdlp)
+        downloader = self._downloader()
+        downloader.download_url('http://soundcloud.com/test_account/tracks')
+
+        self.assertTrue(downloader.unavailable.should_skip('test_account', 't2'))
+        self.assertEqual('drm', self.unavailable_store.rows[('soundcloud', 'test_account', 't2')].reason)
+        self.assertEqual(self._rate_state().cooldown_remaining(), 0)
+
+    @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
+    def test_a_written_off_drm_track_is_not_asked_for_again(self, mock_ytdlp):
+        self._refuse_one_track_for_drm(mock_ytdlp)
+        downloader = self._downloader()
+        downloader.download_url('http://soundcloud.com/test_account/tracks')
+
+        with self.assertLogs(level='INFO') as logs:
+            downloader.download_url('http://soundcloud.com/test_account/tracks')
+
+        self.assertFalse([line for line in logs.output if 'DRM' in line or 'format not found' in line])
+        self.assertTrue([line for line in logs.output if 'written off before' in line])
+
     @patch('services.downloader.soundcloud.soundcloud.YoutubeDL')
     def test_a_429_does_not_block_the_thread(self, mock_ytdlp):
         self._fail_with_429(mock_ytdlp)

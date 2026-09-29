@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-09-29
+
+### Added
+- **Browse by BPM.** A new BPM page under Bladeren (phone) and in the sidebar (web), songs mode only:
+  tap a tempo chip (128 ... 230) or a bar of the tracks-per-BPM chart, or type a from-to range, pick
+  a margin (±0.5 to ±5, default ±2 from the new `bpm_browse_tolerance` setting), narrow to one genre,
+  and switch on "Betrouwbaar" to keep only trusted tempos. The list plays as a queue that continues
+  with the next page, and every row shows its BPM. The tempos come from one rule
+  (`services/music_manager/bpm/effective.py`): a precise measurement from the new
+  `library_track_bpm` table when there is one (nothing fills it yet; a background analysis follows
+  in a separate change), else the file's BPM tag, else the old ml-analyzer tempo -- the last two
+  folded by a factor of two into the tempo band of the track's genres, because the old analyzer
+  often read a hardstyle track at half speed. Those old values sit on librosa's coarse lag grid
+  (152.0, 156.6, 161.5 ...: a 150 and a 155 BPM track both read 152), so they show as "≈152" with
+  one quiet line explaining it, and the ±2 default is what lets "150" find them. About 88,000 of
+  the 267,000 tracks have a tempo today. API: `GET /api/library/bpm/tracks` and
+  `GET /api/library/bpm/histogram` (docs/designs/bpm-browse/). New table `library_track_bpm`
+  (migrate_v50), new settings `bpm_browse_tolerance` and `bpm_reliable_confidence` (Beheer →
+  Config → BPM).
+
+- **Listening statistics by genre and release year, with filters.** The statistics page now shows
+  your most played genres and a release-year chart (per year or per decade, tracks without a usable
+  date in their own "Onbekend jaar" bar), and every panel -- totals, timeline, clock, sources, top
+  tracks/artists/labels and the two new ones -- can be narrowed to one or more genres and/or years:
+  pick genres in the filter bar (your own genres, most played first), type a from-to year range, or
+  tap a bar in either chart to toggle it. Several genres mean any of them; a genre and a year must
+  both hold. The filter is in the URL, so a view can be bookmarked or shared. A track with several
+  genres counts for each, and the genre panel says the bars overlap. Genre and year are only known
+  for a linked track, so a filter excludes every listen that was never matched to the library; the
+  page says how many right under the filter instead of silently shrinking the totals. API:
+  `GET /api/listening/top-genres`, `GET /api/listening/years`, and the parameters `genre`, `year`
+  (a year or `unknown`), `year_from`, `year_to` on every `/api/listening/*` endpoint, which also
+  report `excluded_unmatched` (docs/designs/listening-stats/). No schema change.
+
 ## [0.83.0] - 2026-09-29
 
 ### Added

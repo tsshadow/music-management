@@ -208,6 +208,12 @@ ARG	MUMA_SERVER_GROUP=muma-server
 #   line below and was simply built before 3.53.4-r0 existed.
 #
 # The upgrade covers both, and keeps covering them without anyone watching.
+# SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which
+# is what makes the upgrade below actually run: with an unchanged Dockerfile the
+# layer cache hands back the layer from the first build, upgrade and all. The
+# LMS image deployed with 0.82.1 carried an `apk upgrade` layer from 11 days
+# earlier, and with it a libexpat the repository had already fixed.
+ARG SECURITY_REFRESH=unset
 RUN	apk upgrade --no-cache --update && \
 	apk add --no-cache --update ${RUNTIME_PACKAGES}
 

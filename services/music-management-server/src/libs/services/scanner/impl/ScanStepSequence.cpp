@@ -92,7 +92,18 @@ namespace lms::scanner
         context.scanOptions.scanDirectories = std::move(folders);
         context.stats.startTime = Wt::WDateTime::currentDateTime();
 
-        runScanSteps(steps, context, interrupted, [](const ScanStepStats&) {});
+        try
+        {
+            runScanSteps(steps, context, interrupted, [](const ScanStepStats&) {});
+        }
+        catch (...)
+        {
+            // A step that throws -- a database still locked past busy_timeout (bug report
+            // 132) -- ends the pass as surely as an interruption, and the folders were
+            // taken off the queue already. The caller decides what the exception means.
+            queue.add(context.scanOptions.scanDirectories, now);
+            throw;
+        }
 
         if (interrupted)
             queue.add(context.scanOptions.scanDirectories, now);

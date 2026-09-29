@@ -28,6 +28,7 @@
 #include <string>
 #include <string_view>
 
+#include <Wt/Dbo/Exception.h>
 #include <Wt/WDate.h>
 
 #include "core/IConfig.hpp"
@@ -459,7 +460,7 @@ namespace lms::scanner
         // Only a library-wide scan makes room for announced folders; a scoped one is seconds of
         // work and the folders simply go next.
         _libraryScanContext = scanOptions.isScoped() ? nullptr : &scanContext;
-        processScanSteps(scanContext);
+        const bool databaseFailure{ !runScanStepsGuarded(scanContext) };
         _libraryScanContext = nullptr;
 
         {
@@ -472,7 +473,7 @@ namespace lms::scanner
         }
 
         refreshTracingLoggerStats();
-        logScanSummary("Scan", _abortScan, stats);
+        logScanSummary("Scan", _abortScan || databaseFailure, stats);
 
         {
             auto transaction{ _db.getTLSSession().createReadTransaction() };
@@ -480,7 +481,7 @@ namespace lms::scanner
             LMS_LOG(DBUPDATER, INFO, stats.getTotalFileCount() << " total files: " << stats.artistInfoCount << " artist info, " << stats.imageCount << " images, " << stats.playListCount << " playlists, " << stats.trackCount << " tracks, " << stats.trackLyricsCount << " lyrics");
         }
 
-        if (!_abortScan)
+        if (!_abortScan && !databaseFailure)
         {
             stats.stopTime = Wt::WDateTime::currentDateTime();
 
@@ -525,6 +526,17 @@ namespace lms::scanner
 
             _events.scanComplete.emit(stats);
         }
+        else if (!_abortScan)
+        {
+            // Nothing asked for this scan to stop, so nothing else will start the next one:
+            // announced folders go back in the queue (armed again below), a library-wide scan
+            // is tried again shortly. Its settings are not saved as the last scan's, so the
+            // retry still sees whatever change made this scan necessary.
+            if (scanOptions.isScoped())
+                _priorityFolders.add(scanOptions.scanDirectories, PriorityFolderQueue::Clock::now());
+            else
+                scheduleScanRetry(scanOptions);
+        }
         else
         {
             LMS_LOG(DBUPDATER, DEBUG, "Scan aborted, not scheduling next scan!");
@@ -532,6 +544,41 @@ namespace lms::scanner
 
         // Folders announced after the last point where this scan could take them go next.
         armScanRequestTimer();
+    }
+
+    bool ScannerService::runScanStepsGuarded(ScanContext& context)
+    {
+        // This runs on the scanner's Wt::WIOService thread, which has no catch: an exception
+        // leaving a step used to end the whole process in std::terminate. A write the database
+        // refuses -- still locked by music-manager after busy_timeout -- is a reason to try
+        // again later, not to take playback down with it (bug report 132).
+        try
+        {
+            processScanSteps(context);
+            return true;
+        }
+        catch (const Wt::Dbo::Exception& e)
+        {
+            // A failed flush leaves its objects dirty in this thread's session, and the next
+            // write transaction on this thread -- the retry -- would flush them again.
+            _db.getTLSSession().getDboSession()->discardUnflushed();
+            LMS_LOG(DBUPDATER, WARNING, "Scan stopped by a database error, retrying later: " << e.what());
+            return false;
+        }
+    }
+
+    void ScannerService::scheduleScanRetry(const ScanOptions& scanOptions)
+    {
+        const Wt::WDateTime retryAt{ Wt::WDateTime::currentDateTime().addSecs(static_cast<int>(scanRetryDelay.count())) };
+        scheduleScan(scanOptions, retryAt);
+
+        {
+            const std::unique_lock lock{ _statusMutex };
+            _curState = State::Scheduled;
+            _nextScheduledScan = retryAt;
+        }
+
+        _events.scanScheduled.emit(_nextScheduledScan);
     }
 
     bool ScannerService::isPriorityWorkDue()
@@ -557,13 +604,25 @@ namespace lms::scanner
             _priorityPassRunning = true;
         }
 
-        const std::optional<ScanContext> pass{ runPriorityPass(_scanSteps, _priorityFolders, PriorityFolderQueue::Clock::now(), _abortScan) };
-
-        _inPriorityPass = false;
-        {
+        const auto endPass{ [this] {
+            _inPriorityPass = false;
             const std::unique_lock lock{ _statusMutex };
             _priorityPassRunning = false;
+        } };
+
+        std::optional<ScanContext> pass;
+        try
+        {
+            pass = runPriorityPass(_scanSteps, _priorityFolders, PriorityFolderQueue::Clock::now(), _abortScan);
         }
+        catch (...)
+        {
+            // Left set, the flags would keep every later pass from running (isPriorityWorkDue).
+            // The library-wide scan above decides what the exception means (runScanStepsGuarded).
+            endPass();
+            throw;
+        }
+        endPass();
 
         if (!pass)
             return;

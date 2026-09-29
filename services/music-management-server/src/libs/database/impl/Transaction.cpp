@@ -24,14 +24,58 @@
 #include "core/RecursiveSharedMutex.hpp"
 
 #include "TransactionChecker.hpp"
+#include "WriteTransactionBegin.hpp"
 
 namespace lms::db
 {
+    namespace
+    {
+        bool& openingWriteTransaction()
+        {
+            thread_local bool opening{};
+            return opening;
+        }
+
+        // Opens the SQLite transaction now, as BEGIN IMMEDIATE (see WriteTransactionBegin.hpp),
+        // rather than letting Wt open it lazily, as a deferred BEGIN, on the first statement.
+        // When this write transaction is nested in one already open on the session, Wt's open()
+        // is a no-op and the outer transaction keeps the mode it was opened with.
+        //
+        // If the write lock stays taken past busy_timeout, BEGIN IMMEDIATE throws from here, i.e.
+        // from the WriteTransaction constructor, before anything was read or written. Wt then
+        // rolls back a transaction it regards as open and logs the "no transaction is active"
+        // error that rollback gets; the exception reaches the caller unchanged.
+        void beginImmediately(Wt::Dbo::Transaction& transaction)
+        {
+            struct Scope
+            {
+                Scope() { openingWriteTransaction() = true; }
+                ~Scope() { openingWriteTransaction() = false; }
+                Scope(const Scope&) = delete;
+                Scope& operator=(const Scope&) = delete;
+                Scope(Scope&&) = delete;
+                Scope& operator=(Scope&&) = delete;
+            };
+
+            const Scope scope;
+            transaction.connection(); // opens the transaction if it is not open yet
+        }
+    } // namespace
+
+    namespace detail
+    {
+        bool isOpeningWriteTransaction()
+        {
+            return openingWriteTransaction();
+        }
+    } // namespace detail
+
     WriteTransaction::WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session)
         : _lock{ mutex }
         , _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }
         , _transaction{ session }
     {
+        beginImmediately(_transaction);
 #if LMS_CHECK_TRANSACTION_ACCESSES
         TransactionChecker::pushWriteTransaction(_transaction.session());
 #endif
@@ -43,6 +87,7 @@ namespace lms::db
         , _transaction{ session }
     {
         assert(_lock.owns_lock());
+        beginImmediately(_transaction);
 #if LMS_CHECK_TRANSACTION_ACCESSES
         TransactionChecker::pushWriteTransaction(_transaction.session());
 #endif

@@ -32,6 +32,7 @@
 #include "database/objects/User.hpp"
 
 #include "Db.hpp"
+#include "WriteTransactionBegin.hpp"
 
 namespace lms::db
 {
@@ -55,6 +56,18 @@ namespace lms::db
             }
             ~Connection() override = default;
 
+            // A write transaction takes the write lock up front, so that it waits for another
+            // writer (busy_timeout below) instead of failing at its first write -- see
+            // WriteTransactionBegin.hpp. Read transactions keep Wt's deferred BEGIN: under WAL
+            // they never take the write lock and must not queue behind one.
+            void startTransaction() override
+            {
+                if (detail::isOpeningWriteTransaction())
+                    executeSql("BEGIN IMMEDIATE");
+                else
+                    Wt::Dbo::backend::Sqlite3::startTransaction();
+            }
+
         private:
             Connection& operator=(const Connection&) = delete;
             Connection(Connection&&) = delete;
@@ -77,6 +90,9 @@ namespace lms::db
                 // song versions) in transactions of a few seconds, and two such writes cost
                 // this server 102 and 43 restarts in one day. Waiting is the whole fix: WAL
                 // already lets readers through, so this only ever serialises two writers.
+                // It covers write transactions only because they begin with BEGIN IMMEDIATE
+                // (startTransaction above): a deferred transaction that has already read is
+                // refused at once on its first write, whatever the timeout (bug report 132).
                 executeSql("PRAGMA busy_timeout=15000");
                 executeSql("PRAGMA uri=ON");
                 executeSql("ATTACH DATABASE 'file::memory:?cache=shared' AS volatile");

@@ -33,5 +33,9 @@ namespace lms::scanner
         core::LiteralString getStepName() const override { return "Compute cluster stats"; }
         bool needProcess(const ScanContext& context) const override;
         void process(ScanContext& context) override;
+
+        // Set when a batch of counts could not be written (the database stayed locked past
+        // busy_timeout): the next scan then runs this step even without changes of its own.
+        bool _retryPending{};
     };
 } // namespace lms::scanner

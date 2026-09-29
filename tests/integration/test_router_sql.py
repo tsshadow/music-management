@@ -56,6 +56,12 @@ READ_ENDPOINTS = [
     ('/api/analytics/summary?form=podcast&year_min=2010', 200),
     ('/api/analytics/year-histogram?form=liveset', 200),
     ('/api/library/genres', 200),
+    # Browse by BPM (docs/designs/bpm-browse/): the index query and the page details.
+    # BpmBrowseSqlTest below seeds every BPM source.
+    ('/api/library/bpm/histogram', 200),
+    ('/api/library/bpm/tracks?bpm=150', 200),
+    ('/api/library/bpm/tracks?bpm_from=140&bpm_to=160&min_confidence=medium&genre=Hardstyle', 200),
+    ('/api/library/bpm/tracks', 400),
     # A file MuMa never scanned is a deliberate 404, never a 500.
     ('/api/library/tracks/by-path?path=nope.mp3', 404),
     ('/api/rules', 200),
@@ -124,6 +130,18 @@ READ_ENDPOINTS = [
     ('/api/listening/top-tracks', 200),
     ('/api/listening/top-artists', 200),
     ('/api/listening/top-labels', 200),
+    ('/api/listening/top-genres', 200),
+    ('/api/listening/top-genres?limit=500&genre=Hardstyle', 200),
+    ('/api/listening/years', 200),
+    ('/api/listening/years?year=unknown&year=2015&year_from=2018&year_to=2020', 200),
+    ('/api/listening/summary?genre=Hardstyle&genre=Uptempo+Hardcore&year_from=2015&year_to=2019', 200),
+    ('/api/listening/timeline?bucket=week&genre=Hardstyle&year=unknown', 200),
+    ('/api/listening/clock?year_from=2015', 200),
+    ('/api/listening/sources?year_to=2019&genre=Hardstyle', 200),
+    ('/api/listening/top-tracks?genre=Hardstyle&year=2019', 200),
+    ('/api/listening/top-artists?genre=Hardstyle&year_from=2015&year_to=2019', 200),
+    ('/api/listening/top-labels?genre=Hardstyle&year=unknown', 200),
+    ('/api/listening/summary?year=abc', 400),
     ('/api/user-requests', 200),
     # News bulletins. Nothing recorded yet is a deliberate 404 for the latest and
     # for a stream, never a 500.
@@ -2467,3 +2485,194 @@ class OldHitsPipelineTest:
         fetch = run_sql(db, 'SELECT status, track_count FROM artist_popularity_fetches')
         assert fetch == [{'status': 'error', 'track_count': 1}]
         assert track
+
+
+class ListeningBreakdownTest:
+    """/api/listening under a genre and a release-year filter, against real rows.
+
+    READ_ENDPOINTS above proves the filtered SQL parses on an empty schema. These seed a small
+    history -- two genres on one track, a dated and an undated track, an analyzer-only date, an
+    unmatched listen -- and check the numbers: that the genre column overlaps, that the years add
+    up, that a filter excludes the unmatched listen and says how many it excluded, and that a
+    genre which does not exist is an empty answer rather than a 500.
+    """
+
+    def _genre(self, db, name, state='white'):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO rules_genres (name, normalized_name, state) VALUES (%s, %s, %s)',
+                (name, name.lower(), state),
+            )
+            return cursor.lastrowid
+
+    def _track(self, db, title, genres=(), release_date=None, analyzer_date=None):
+        with db.cursor() as cursor:
+            cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', ('Angerfist',))
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', ('Angerfist',))
+            artist_id = cursor.fetchone()['id']
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, release_date)'
+                ' VALUES (%s, %s, 300, %s, %s)',
+                (f'uid-{title}', title, artist_id, release_date),
+            )
+            track_id = cursor.lastrowid
+            for genre_id in genres:
+                cursor.execute(
+                    'INSERT INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+                )
+            if analyzer_date:
+                cursor.execute(
+                    'INSERT INTO library_track_audio_features (track_id, internal_track_id, release_date)'
+                    ' VALUES (%s, %s, %s)',
+                    (f'af-{track_id}', track_id, analyzer_date),
+                )
+        return track_id
+
+    def _listens(self, db, track_id, count):
+        with db.cursor() as cursor:
+            for i in range(count):
+                cursor.execute(
+                    'INSERT INTO scrobble_listens (track_id, listened_at, username, match_method)'
+                    " VALUES (%s, NOW() - INTERVAL %s MINUTE, 'root', 'exact')",
+                    (track_id, i + 1 + track_id * 100),
+                )
+
+    def _seed(self, db):
+        hardcore = self._genre(db, 'Hardcore')
+        uptempo = self._genre(db, 'Uptempo Hardcore')
+        rejected = self._genre(db, 'Hardcore Music', state='black')
+        both = self._track(db, 'Both', genres=(hardcore, uptempo, rejected), release_date='2019-05-01')
+        undated = self._track(db, 'Undated', genres=(hardcore,), release_date='')
+        analyzed = self._track(db, 'Analyzed', release_date=None, analyzer_date='2015-02-02')
+        self._listens(db, both, 3)
+        self._listens(db, undated, 2)
+        self._listens(db, analyzed, 1)
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO scrobble_unmatched_listens (artist_name, track_title, listened_at, username)'
+                " VALUES ('Nobody', 'Nothing', NOW() - INTERVAL 1 MINUTE, 'root')"
+            )
+
+    def test_genres_overlap_and_the_rejected_one_is_left_out(self, api, headers, db):
+        self._seed(db)
+        body = api.get('/api/listening/top-genres?username=root', headers=headers).json()
+        assert {g['genre']: g['listens'] for g in body['genres']} == {'Hardcore': 5, 'Uptempo Hardcore': 3}
+        assert body['matched'] == 6
+        assert body['untagged'] == 1
+        assert body['unmatched'] == 1
+        assert body['excluded_unmatched'] == 0
+
+    def test_years_use_the_feeds_release_date_and_add_up(self, api, headers, db):
+        self._seed(db)
+        body = api.get('/api/listening/years?username=root', headers=headers).json()
+        assert {y['year']: y['listens'] for y in body['years']} == {2015: 1, 2019: 3}
+        assert body['unknown'] == {'listens': 2, 'tracks': 1}
+        assert body['matched'] == 6
+
+    def test_a_genre_filter_excludes_the_unmatched_listen_and_counts_it(self, api, headers, db):
+        self._seed(db)
+        body = api.get('/api/listening/summary?username=root&genre=Uptempo+Hardcore', headers=headers).json()
+        assert body['listens'] == 3
+        assert body['unmatched'] == 0
+        assert body['excluded_unmatched'] == 1
+        assert body['filtered'] is True
+
+    def test_genres_are_alternatives_and_years_narrow_them(self, api, headers, db):
+        self._seed(db)
+        query = 'username=root&genre=Hardcore&genre=Uptempo+Hardcore'
+        tracks = api.get(f'/api/listening/top-tracks?{query}', headers=headers).json()['tracks']
+        # 'Both' carries two selected genres and still counts its three listens once.
+        assert {t['title']: t['listens'] for t in tracks} == {'Both': 3, 'Undated': 2}
+        narrowed = api.get(f'/api/listening/top-tracks?{query}&year=unknown', headers=headers).json()['tracks']
+        assert [t['title'] for t in narrowed] == ['Undated']
+        ranged = api.get('/api/listening/top-tracks?username=root&year_from=2010&year_to=2016', headers=headers)
+        assert [t['title'] for t in ranged.json()['tracks']] == ['Analyzed']
+
+    def test_the_filter_reaches_the_hourly_rollup(self, api, headers, db):
+        self._seed(db)
+        body = api.get('/api/listening/clock?username=root&year=2019', headers=headers).json()
+        assert sum(body['hours']) == 3
+        sources = api.get('/api/listening/sources?username=root&year=2019', headers=headers).json()
+        assert sum(row['listens'] for row in sources['sources']) == 3
+
+    def test_an_unknown_genre_is_an_empty_answer_not_an_error(self, api, headers, db):
+        self._seed(db)
+        response = api.get('/api/listening/top-artists?username=root&genre=Polka', headers=headers)
+        assert response.status_code == 200
+        assert response.json()['artists'] == []
+        assert response.json()['excluded_unmatched'] == 1
+
+
+class BpmBrowseSqlTest:
+    """The BPM browse's index query (bpm/index.py INDEX_SQL) and page details (routers/bpm.py)
+    against a real schema: a measurement joined on track_uid, a tag, an analyzer tempo folded
+    into its genre's band, and a set that must stay out."""
+
+    def _track(self, db, title, genre=None, form='track', tag=None, tempo=None):
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES (%s, %s, 240, %s)",
+                (f'uid-bpm-{title}', title, form),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (f'/mnt/music/EPs/{title}.mp3', f'hash-bpm-{title}', track_id),
+            )
+            if tag is not None or tempo is not None:
+                cursor.execute(
+                    'INSERT INTO library_track_audio_features (track_id, internal_track_id, bpm_tag, tempo)'
+                    ' VALUES (%s, %s, %s, %s)',
+                    (f'af-bpm-{title}', track_id, tag, tempo),
+                )
+            if genre:
+                # The migrations may already have seeded the genre; either way it is looked up by name.
+                cursor.execute(
+                    "INSERT IGNORE INTO rules_genres (name, normalized_name, state) VALUES (%s, %s, 'white')",
+                    (genre, genre.lower()),
+                )
+                cursor.execute('SELECT id FROM rules_genres WHERE name = %s ORDER BY id LIMIT 1', (genre,))
+                genre_id = cursor.fetchone()['id']
+                cursor.execute(
+                    'INSERT INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+                )
+        return track_id
+
+    def test_every_source_reaches_the_browse(self, api, headers, db):
+        from services.music_manager.routers import bpm as bpm_router
+
+        measured = self._track(db, 'Measured', genre='Hardstyle', tag=152.0, tempo=152.0)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method, analyzed_at)"
+            " VALUES ('uid-bpm-Measured', 'ok', 150.02, 75.01, 0.910, 'acf-comb-v1', NOW())",
+        )
+        tagged = self._track(db, 'Tagged', genre='Raw Hardstyle', tag=152.0, tempo=151.999)
+        folded = self._track(db, 'Folded', genre='Uptempo Hardcore', tempo=105.469)
+        self._track(db, 'A Set', form='set', tag=150.0)
+        failed = self._track(db, 'Failed', tag=149.0)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm (track_uid, status, method, error, analyzed_at)"
+            " VALUES ('uid-bpm-Failed', 'failed', 'acf-comb-v1', 'decode error', NOW())",
+        )
+        bpm_router.index_cache.invalidate()
+        try:
+            response = api.get('/api/library/bpm/tracks?bpm=150', headers=headers)
+            assert response.status_code == 200, response.text
+            tracks = {t['id']: t for t in response.json()['tracks']}
+            assert set(tracks) == {measured, tagged, failed}, tracks
+            assert (tracks[measured]['bpm'], tracks[measured]['bpm_source']) == (150.02, 'measured')
+            assert tracks[measured]['bpm_confidence'] == 'high'
+            assert (tracks[tagged]['bpm_source'], tracks[tagged]['bpm_confidence']) == ('tag', 'medium')
+            assert tracks[tagged]['library_path'] == 'EPs/Tagged.mp3'
+            assert tracks[failed]['bpm_source'] == 'tag'  # a failed measurement falls back
+
+            uptempo = api.get('/api/library/bpm/tracks?bpm=211&genre=uptempo%20hardcore', headers=headers).json()
+            assert [(t['id'], t['bpm'], t['bpm_folded']) for t in uptempo['tracks']] == [(folded, 210.94, True)]
+
+            histogram = api.get('/api/library/bpm/histogram', headers=headers).json()
+            assert histogram['summary']['tracks'] == 4
+        finally:
+            bpm_router.index_cache.invalidate()

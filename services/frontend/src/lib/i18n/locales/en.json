@@ -336,7 +336,32 @@
     "labelsNote": "A track with two labels counts for both.",
     "sources": "Where you listened",
     "sourcesNote": "Where a listen came from, which for imports is the import rather than a device.",
-    "unknownArtist": "Unknown artist"
+    "unknownArtist": "Unknown artist",
+    "emptyFiltered": "Nothing played that matches this filter.",
+    "filter": {
+      "title": "Filters",
+      "genre": "Genre",
+      "genrePlaceholder": "Search a genre…",
+      "yearRange": "Release year",
+      "from": "From",
+      "to": "To",
+      "remove": "Remove {name}",
+      "clear": "Clear filters",
+      "excluded": "{count} listens without a linked track fall outside this filter: genre and release year are only known for a track in the library."
+    },
+    "topGenres": "Most played genres",
+    "genresNote": "A track with several genres counts for each of them, so the bars overlap and do not add up to the {matched} linked listens. {untagged} of those have no genre.",
+    "releaseYears": "Release year",
+    "yearView": {
+      "year": "Year",
+      "decade": "Decade"
+    },
+    "yearsNote": "The release year of what you played. Linked listens only; every listen counts once.",
+    "unknownYear": "Unknown year",
+    "yearBar": "{year}: {count} listens",
+    "decadeBar": "The {decade}s: {count} listens",
+    "toggleFilter": "Toggle filter",
+    "tapToFilter": "Tap a bar to filter on it; tap it again to remove the filter."
   },
   "login": {
     "avatar": "Avatar",
@@ -1594,7 +1619,8 @@
     "years": "Years",
     "browse": "Browse",
     "favorites": "Favorites",
-    "help": "Manual"
+    "help": "Manual",
+    "bpm": "BPM"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -2173,7 +2199,7 @@
     },
     "browse": {
       "title": "Browse",
-      "body": "The library can be browsed by artist, album, genre, label, podcast, festival, year and lineup. On the website those sit in the sidebar under Library; on the phone as tiles under Browse. The two lists are the same.\n\nA genre or label page shows everything carrying that tag, with filters and sorting at the top. The sidebar also lists your favourite genres, or — until you have picked any — the biggest ones."
+      "body": "The library can be browsed by artist, album, genre, label, podcast, festival, year, lineup and BPM (tempo). On the website those sit in the sidebar under Library; on the phone as tiles under Browse. The two lists are the same.\n\nA genre or label page shows everything carrying that tag, with filters and sorting at the top. The sidebar also lists your favourite genres, or — until you have picked any — the biggest ones."
     },
     "search": {
       "title": "Search and presets",
@@ -2311,5 +2337,35 @@
     "catidExists": "That prefix is already there.",
     "prefixAdded": "Prefix added.",
     "prefixRemoved": "Prefix removed."
+  },
+  "bpm": {
+    "subtitle": "Everything at one tempo. Pick a tempo, a bar or a range.",
+    "filters": "BPM filters",
+    "tempo": "Tempo",
+    "tolerance": "Margin",
+    "range": "Range (BPM)",
+    "from": "from",
+    "to": "to",
+    "genre": "Genre",
+    "allGenres": "All genres",
+    "reliability": "Certainty",
+    "reliable": "Reliable",
+    "reliableHelp": "Only tempos that were measured, or a tag the analysis agrees with inside the genre's tempo.",
+    "histogram": "Tracks per BPM",
+    "histogramHint": "Tap a bar to pick that tempo.",
+    "bar": "{bpm} BPM: {count} tracks",
+    "pickPrompt": "Pick a tempo or a range to see the tracks.",
+    "queueName": "{bpm} BPM",
+    "rangeName": "{from}–{to} BPM",
+    "coarseNote": "≈ means roughly measured: the old analysis could only produce steps of about 4 to 9 BPM (152, 156, 161 ...). Precise measurements are on their way; until then the margin absorbs the rounding.",
+    "empty": "No tracks at this tempo.",
+    "emptyReliable": "No reliable tempos here. Switch off Reliable to see the rough values too.",
+    "pill": "{bpm} BPM",
+    "source": {
+      "measured": "Measured",
+      "tag": "From the file's BPM tag",
+      "analyzer": "From the old analysis",
+      "folded": "Doubled or halved into the genre's tempo"
+    }
   }
 }

@@ -33,6 +33,7 @@ from services.music_manager.routers import (
     analytics,
     artist_curation,
     artist_images,
+    bpm,
     channel_links,
     config,
     curation,
@@ -88,6 +89,8 @@ app.include_router(stats.router, prefix="/api/stats")
 app.include_router(management.router, prefix="/api")
 app.include_router(artist_images.router, prefix="/api/artists")
 app.include_router(library.router, prefix="/api/library")
+# Browse by BPM (docs/designs/bpm-browse/): /api/library/bpm/tracks and /histogram.
+app.include_router(bpm.router, prefix="/api/library/bpm")
 app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(listening.router, prefix="/api/listening")
 app.include_router(tagger.router, prefix="/api/tagger")

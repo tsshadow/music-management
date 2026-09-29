@@ -336,7 +336,32 @@
     "labelsNote": "Een track met twee labels telt voor allebei.",
     "sources": "Waar je luisterde",
     "sourcesNote": "Waar een luisterbeurt vandaan komt; bij een import is dat de import, niet een apparaat.",
-    "unknownArtist": "Onbekende artiest"
+    "unknownArtist": "Onbekende artiest",
+    "emptyFiltered": "Niets geluisterd dat aan dit filter voldoet.",
+    "filter": {
+      "title": "Filters",
+      "genre": "Genre",
+      "genrePlaceholder": "Zoek een genre…",
+      "yearRange": "Releasejaar",
+      "from": "Van",
+      "to": "Tot",
+      "remove": "{name} verwijderen",
+      "clear": "Filters wissen",
+      "excluded": "{count} luisterbeurten zonder gekoppelde track vallen buiten dit filter: genre en releasejaar zijn alleen bekend van een track in de bibliotheek."
+    },
+    "topGenres": "Meest gedraaide genres",
+    "genresNote": "Een track met meerdere genres telt voor elk ervan, dus de balken overlappen en tellen niet op tot de {matched} gekoppelde luisterbeurten. {untagged} daarvan hebben geen genre.",
+    "releaseYears": "Releasejaar",
+    "yearView": {
+      "year": "Jaar",
+      "decade": "Decennium"
+    },
+    "yearsNote": "Het releasejaar van wat je draaide. Alleen gekoppelde luisterbeurten; elke luisterbeurt telt één keer.",
+    "unknownYear": "Onbekend jaar",
+    "yearBar": "{year}: {count} luisterbeurten",
+    "decadeBar": "Jaren {decade}: {count} luisterbeurten",
+    "toggleFilter": "Filter aan of uit",
+    "tapToFilter": "Tik op een balk om erop te filteren; nog een keer tikken haalt het filter weer weg."
   },
   "login": {
     "avatar": "Avatar",
@@ -1594,7 +1619,8 @@
     "years": "Jaren",
     "browse": "Bladeren",
     "favorites": "Favorieten",
-    "help": "Handleiding"
+    "help": "Handleiding",
+    "bpm": "BPM"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -2173,7 +2199,7 @@
     },
     "browse": {
       "title": "Bladeren",
-      "body": "De bibliotheek is te doorbladeren op artiest, album, genre, label, podcast, festival, jaar en lineup. Op de website staan die in de zijbalk onder Bibliotheek; op de telefoon als tegels onder Bladeren. Beide lijsten zijn hetzelfde.\n\nEen genre- of labelpagina toont alles wat die tag draagt, met filters en sorteringen bovenaan. De zijbalk toont daarnaast je favoriete genres, of — zolang je er geen hebt gekozen — de grootste."
+      "body": "De bibliotheek is te doorbladeren op artiest, album, genre, label, podcast, festival, jaar, lineup en BPM (tempo). Op de website staan die in de zijbalk onder Bibliotheek; op de telefoon als tegels onder Bladeren. Beide lijsten zijn hetzelfde.\n\nEen genre- of labelpagina toont alles wat die tag draagt, met filters en sorteringen bovenaan. De zijbalk toont daarnaast je favoriete genres, of — zolang je er geen hebt gekozen — de grootste."
     },
     "search": {
       "title": "Zoeken en presets",
@@ -2311,5 +2337,35 @@
     "catidExists": "Dat prefix staat er al.",
     "prefixAdded": "Prefix toegevoegd.",
     "prefixRemoved": "Prefix verwijderd."
+  },
+  "bpm": {
+    "subtitle": "Alles op één tempo. Kies een tempo, een staaf of een bereik.",
+    "filters": "BPM-filters",
+    "tempo": "Tempo",
+    "tolerance": "Marge",
+    "range": "Bereik (BPM)",
+    "from": "van",
+    "to": "tot",
+    "genre": "Genre",
+    "allGenres": "Alle genres",
+    "reliability": "Zekerheid",
+    "reliable": "Betrouwbaar",
+    "reliableHelp": "Alleen tempo's die gemeten zijn, of een tag waar de analyse het mee eens is binnen het tempo van het genre.",
+    "histogram": "Nummers per BPM",
+    "histogramHint": "Tik op een staaf om dat tempo te kiezen.",
+    "bar": "{bpm} BPM: {count} nummers",
+    "pickPrompt": "Kies een tempo of een bereik om de nummers te zien.",
+    "queueName": "{bpm} BPM",
+    "rangeName": "{from}–{to} BPM",
+    "coarseNote": "≈ betekent grof gemeten: de oude analyse kon alleen stappen van zo'n 4 tot 9 BPM (152, 156, 161 ...). Nauwkeurige metingen komen er nog aan; tot dan vangt de marge de afronding op.",
+    "empty": "Geen nummers op dit tempo.",
+    "emptyReliable": "Geen betrouwbare tempo's hier. Zet Betrouwbaar uit om ook de grove waarden te zien.",
+    "pill": "{bpm} BPM",
+    "source": {
+      "measured": "Gemeten",
+      "tag": "Uit de BPM-tag van het bestand",
+      "analyzer": "Uit de oude analyse",
+      "folded": "Verdubbeld of gehalveerd naar het tempo van het genre"
+    }
   }
 }

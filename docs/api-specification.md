@@ -344,6 +344,27 @@ need `rules.manage`.
   a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
   `release_year` (docs/designs/track-form/).
 
+### 🥁 Browse by BPM (`/api/library/bpm`)
+Design: [docs/designs/bpm-browse/](designs/bpm-browse/technical.md). Any valid API key. Both endpoints
+read an in-memory index of every track's *effective BPM* (a measurement from `library_track_bpm`, else
+the file's BPM tag, else the old analyzer's tempo, the latter two folded by a factor of two into the
+band of the track's genres), rebuilt at most every ten minutes. Sets and podcasts are not listed.
+- **GET `/api/library/bpm/tracks`**: the tracks at `bpm` ± `tol` or from `bpm_from` to `bpm_to`
+  (inclusive; either bound may be left out). `tol` defaults to the `bpm_browse_tolerance` setting
+  (2), at most 10. Optional `min_confidence` (`low` default, `medium`, `high`; anything else 422) and
+  `genre` (one genre name, case-insensitive). Paged with `limit` (default 100, at most 500) and
+  `offset`. A picked tempo sorts nearest first, then the more trusted; a range sorts by tempo.
+  Response: `{bpm_from, bpm_to, center, tolerance, min_confidence, genre, total, offset, next_offset,
+  tracks: [{id, title, artist, duration_secs, work_id, genres, library_path, bpm, bpm_source
+  ("measured"|"tag"|"analyzer"), bpm_confidence ("high"|"medium"|"low"), bpm_folded,
+  bpm_approximate}]}`. `library_path` is what a client hands LMS's `getSongsByPath`. `400` when
+  neither `bpm` nor a range bound is given, or `bpm_from` > `bpm_to`; `422` for a value outside
+  40-500.
+- **GET `/api/library/bpm/histogram`**: `{bins: [{bpm, count, high, medium, low}], genres: [{name,
+  count}], default_tolerance, summary: {tracks, by_source, by_confidence}}` -- track counts per whole
+  BPM from `bpm_from` (default 60) to `bpm_to` (default 300), with the same `min_confidence` and
+  `genre` filters, and the 40 genres with the most tracks for the page's genre picker.
+
 ### 📡 Personalized feeds (`/api/feeds`)
 Release Radar and the daily mixes; the full contract is `docs/designs/feeds/technical.md`, the length
 and continuation `docs/designs/feed-length/technical.md`. A user key always reads its own feeds; the
@@ -372,6 +393,42 @@ system key must pass `?username=`.
   `old-hits:<tier>`; the `hardness_*` fields are null.
 - **GET `/api/feeds/profile`**, **PUT `/api/feeds/profile/exclusions`**: the taste profile a feed is
   built from, and the artists/labels/genres excluded from it.
+
+### 🎧 Listening statistics (`/api/listening`)
+What was played, when and how often; the design is `docs/designs/listening-stats/`. Every endpoint
+is GET, authenticates with `X-API-Key` and shares one set of scope parameters:
+- `from`, `to` (ISO dates in the caller's zone, `to` inclusive), `tz` (IANA zone, default `UTC`,
+  400 when unknown), `username` (a user key may only name itself, 403 otherwise; the system key
+  naming nobody reads every user).
+- `genre` (repeatable, OR): the listen's track carries one of these genres by `rules_genres.name`,
+  never a blacklisted one. An unknown name matches nothing -- an empty answer, not an error.
+- `year` (repeatable, OR; a year `1000`-`2999` or `unknown`), `year_from`, `year_to` (inclusive,
+  either end optional): the track's release year -- `library_tracks.release_date`, the analyzer's
+  date when that is NULL, as in the feeds -- is one of `year`, or inside the range, or missing when
+  `year=unknown`. The listed years and the range are alternatives. A malformed `year` or a range
+  whose `year_to` precedes `year_from` is 400; a `year_from`/`year_to` outside the bounds is 422.
+- Across `genre` and the year parameters the conditions must all hold, and with the period.
+
+A genre or year filter can only test a track, so it excludes every unmatched listen. Under a filter
+`unmatched` is 0 everywhere and `excluded_unmatched` counts what the filter dropped; without one,
+`excluded_unmatched` is 0.
+
+- **GET `/summary`**: `listens`, `matched`, `unmatched`, `unmatched_share`, `filtered`,
+  `excluded_unmatched`, `tracks`, `artists`, the duration breakdown (`measured_*`, `imputed_*`,
+  `estimated_secs`, `unknown_duration_listens`, `measured_share`), `first_listen`, `last_listen`.
+- **GET `/timeline?bucket=day|week|month`**: `{bucket, timezone, buckets: [{bucket, matched,
+  unmatched, listens}]}`.
+- **GET `/clock`**: `{timezone, hours[24], weekdays[7]}` (Monday first).
+- **GET `/sources`**: `{sources: [{source, matched, unmatched, listens}]}`.
+- **GET `/top-tracks`**, **`/top-artists`**, **`/top-labels`** (`limit` 1-100, default 20): matched
+  listens only, each with `unmatched` and `excluded_unmatched`.
+- **GET `/top-genres`** (`limit` 1-500, default 20): `{unmatched, excluded_unmatched, matched,
+  untagged, genres: [{genre_id, genre, listens, tracks}]}`. A listen counts once in *each* genre of
+  its track, so the rows overlap and their sum exceeds `matched`; `untagged` is how many matched
+  listens have no (non-blacklisted) genre at all.
+- **GET `/years`**: `{unmatched, excluded_unmatched, matched, unknown: {listens, tracks}, years:
+  [{year, listens, tracks}]}`, only the years that occur, oldest first. `years` plus `unknown` adds
+  up to `matched`.
 
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path

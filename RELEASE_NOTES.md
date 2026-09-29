@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.84.0 (2026-09-29)
+
+- **Browse by BPM.** A new BPM page under Bladeren: pick a tempo or a range, narrow it to a genre,
+  and play everything at that tempo. Most tempos are still rough ("≈152"); precise measurements
+  follow in a later update.
+
+- **Listening statistics by genre and year.** New charts for your most played genres and the
+  release years of what you played, and filters for genre and year that apply to the whole page --
+  tap a bar to filter on it. Listens that were never linked to a track cannot have a genre or year,
+  so the page tells you how many fall outside a filter.
+
 ## Global Version 0.83.0 (2026-09-29)
 
 - **Daily mixes mix old and new.** Half of each daily mix is now from the last year, half from older

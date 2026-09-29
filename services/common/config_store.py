@@ -221,6 +221,31 @@ def _old_hits_fields() -> list[ConfigField]:
     ]
 
 
+def _bpm_fields() -> list[ConfigField]:
+    """Browse by BPM (services/music_manager/bpm/, docs/designs/bpm-browse/)."""
+    group = 'BPM'
+    return [
+        ConfigField(
+            key='bpm_browse_tolerance',
+            type='integer',
+            default=2,
+            env='BPM_BROWSE_TOLERANCE',
+            group=group,
+            description='Browse by BPM: how many BPM either side of a picked tempo still counts, when the '
+            'request names none. 2 lets "150" find the tracks the old analyzer rounded to 152. 0-10.',
+        ),
+        ConfigField(
+            key='bpm_reliable_confidence',
+            type='integer',
+            default=75,
+            env='BPM_RELIABLE_CONFIDENCE',
+            group=group,
+            description='Browse by BPM: the estimator confidence (0-100) from which a measured tempo counts '
+            'as reliable ("high"); below it a measurement is "medium".',
+        ),
+    ]
+
+
 #: Default age, in days, after which the events-retention loop deletes an event of
 #: each level. Tuned to production volume in bug report 072: INFO, WARNING and the
 #: per-video yt-dlp ERRORs are the bulk, CRITICAL is rare and worth a year.
@@ -674,6 +699,7 @@ def _config_fields() -> list[ConfigField]:
             'laden". 10-200; anything else falls back to 100. A change rebuilds today\'s feeds on their next read.',
         ),
         *_old_hits_fields(),
+        *_bpm_fields(),
         ConfigField(
             key='feeds_daily_recent_percent',
             type='integer',

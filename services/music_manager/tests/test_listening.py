@@ -29,6 +29,8 @@ ALL_PATHS = (
     '/api/listening/top-tracks',
     '/api/listening/top-artists',
     '/api/listening/top-labels',
+    '/api/listening/top-genres',
+    '/api/listening/years',
 )
 
 
@@ -251,6 +253,179 @@ class ListeningTest(unittest.TestCase):
         # before in the UTC column the query compares against.
         self.assertEqual(params[0], datetime(2025, 12, 31, 23, 0))
         self.assertEqual(params[1], datetime(2026, 1, 31, 23, 0))
+
+    # --- genre and release-year breakdowns and filters ---------------------------
+
+    def test_a_malformed_year_is_refused(self):
+        for query in ('year=abc', 'year=12', 'year=20155', 'year_from=99'):
+            res = self.client.get(f'/api/listening/summary?{query}', headers=self.headers)
+            self.assertEqual(res.status_code, 400 if query.startswith('year=') else 422, query)
+
+    def test_a_backwards_year_range_is_refused(self):
+        res = self.client.get('/api/listening/summary?year_from=2020&year_to=2010', headers=self.headers)
+        self.assertEqual(res.status_code, 400)
+
+    def test_too_many_filter_values_are_refused(self):
+        query = '&'.join(f'genre=g{i}' for i in range(listening.MAX_FILTER_VALUES + 1))
+        res = self.client.get(f'/api/listening/summary?{query}', headers=self.headers)
+        self.assertEqual(res.status_code, 400)
+
+    def test_filter_values_are_trimmed_deduplicated_and_blank_ones_dropped(self):
+        parsed = listening.parse_track_filter(
+            [' Hardstyle ', 'Hardstyle', '', '  '], ['2019', 'UNKNOWN', '2015', '2019', ''], None, None
+        )
+        self.assertEqual(parsed.genres, ('Hardstyle',))
+        self.assertEqual(parsed.years, (2015, 2019))
+        self.assertTrue(parsed.unknown_year)
+        self.assertFalse(listening.parse_track_filter(['', ' '], [''], None, None).active)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_genres_are_alternatives_and_years_are_a_second_condition(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchall.return_value = []
+        cursor.fetchone.return_value = {'unmatched': 0}
+        self.client.get(
+            '/api/listening/top-artists?genre=Hardstyle&genre=Uptempo+Hardcore&year=2012&year_from=2015&year_to=2019',
+            headers=self.headers,
+        )
+        sql, params = cursor.execute.call_args_list[0][0]
+        # One EXISTS per dimension, joined by AND; OR only inside each.
+        self.assertIn('fr.name IN (%s, %s)', sql)
+        self.assertIn("fr.state <> 'black'", sql)
+        self.assertIn('BETWEEN %s AND %s', sql)
+        self.assertIn(' OR ', sql)
+        self.assertEqual(sql.count('EXISTS (SELECT 1 FROM library_track_genres fg'), 1)
+        self.assertEqual(sql.count('EXISTS (SELECT 1 FROM library_tracks ft'), 1)
+        self.assertEqual(list(params), ['Hardstyle', 'Uptempo Hardcore', 2012, 2015, 2019, 20])
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_the_unknown_year_is_selectable(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchall.return_value = []
+        self.client.get('/api/listening/clock?year=unknown', headers=self.headers)
+        sql, _params = cursor.execute.call_args[0]
+        self.assertIn('IS NULL', sql)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_a_filter_excludes_the_unmatched_listens_and_says_how_many(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchone.side_effect = [
+            {
+                'listens': 40,
+                'tracks': 10,
+                'artists': 4,
+                'measured_listens': 2,
+                'imputed_listens': 38,
+                'measured_secs': 400,
+                'imputed_secs': 9000,
+                'first_listen': None,
+                'last_listen': None,
+            },
+            # The unmatched query runs over who and when only, so it still sees them.
+            {'listens': 300, 'measured_listens': 5, 'measured_secs': 900, 'first_listen': None, 'last_listen': None},
+        ]
+        body = self.client.get('/api/listening/summary?genre=Hardstyle', headers=self.headers).json()
+
+        self.assertTrue(body['filtered'])
+        self.assertEqual(body['excluded_unmatched'], 300)
+        # Nothing of the excluded listens leaks into the totals.
+        self.assertEqual(body['listens'], 40)
+        self.assertEqual(body['unmatched'], 0)
+        self.assertEqual(body['unmatched_share'], 0)
+        self.assertEqual(body['measured_secs'], 400)
+        self.assertEqual(body['unknown_duration_listens'], 0)
+        matched_sql = cursor.execute.call_args_list[0][0][0]
+        unmatched_sql = cursor.execute.call_args_list[1][0][0]
+        self.assertIn('library_track_genres', matched_sql)
+        self.assertNotIn('library_track_genres', unmatched_sql)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_without_a_filter_nothing_is_reported_excluded(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchone.side_effect = [
+            {'listens': 40, 'tracks': 10, 'artists': 4},
+            {'listens': 60},
+        ]
+        body = self.client.get('/api/listening/summary', headers=self.headers).json()
+        self.assertFalse(body['filtered'])
+        self.assertEqual(body['excluded_unmatched'], 0)
+        self.assertEqual(body['unmatched'], 60)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_a_filtered_timeline_reads_no_unmatched_listens(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchall.return_value = []
+        self.client.get('/api/listening/timeline?year_from=2015', headers=self.headers)
+        sql, _params = cursor.execute.call_args[0]
+        unmatched_part = sql.split('FROM scrobble_unmatched_listens')[1]
+        self.assertIn('1=0', unmatched_part)
+        self.assertIn('scrobble_listens.track_id', sql.split('FROM scrobble_unmatched_listens')[0])
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_a_filtered_ranking_moves_the_unmatched_count_to_excluded(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchall.return_value = []
+        cursor.fetchone.return_value = {'unmatched': 33461}
+        body = self.client.get('/api/listening/top-labels?year=2019', headers=self.headers).json()
+        self.assertEqual(body['unmatched'], 0)
+        self.assertEqual(body['excluded_unmatched'], 33461)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_top_genres_overlap_and_say_so_with_numbers(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        # One track tagged Hardcore and Uptempo Hardcore, played ten times, counts ten in each.
+        cursor.fetchall.return_value = [
+            {'genre_id': 1, 'genre': 'Hardcore', 'listens': 10, 'tracks': 1},
+            {'genre_id': 2, 'genre': 'Uptempo Hardcore', 'listens': 10, 'tracks': 1},
+        ]
+        cursor.fetchone.side_effect = [{'matched': 12, 'untagged': 2}, {'unmatched': 50}]
+        body = self.client.get('/api/listening/top-genres', headers=self.headers).json()
+
+        self.assertEqual(body['matched'], 12)
+        self.assertEqual(body['untagged'], 2)
+        self.assertEqual(body['unmatched'], 50)
+        self.assertEqual(body['excluded_unmatched'], 0)
+        self.assertGreater(sum(g['listens'] for g in body['genres']), body['matched'])
+        sql = cursor.execute.call_args_list[0][0][0]
+        self.assertIn("rg.state <> 'black'", sql)
+
+    def test_top_genres_allows_a_limit_large_enough_for_the_picker(self):
+        res = self.client.get(f'/api/listening/top-genres?limit={listening.MAX_GENRE_LIMIT + 1}', headers=self.headers)
+        self.assertEqual(res.status_code, 422)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_years_put_undated_tracks_in_unknown_and_add_up(self, mock_get_db):
+        cursor = mocked_db(mock_get_db)
+        cursor.fetchall.return_value = [
+            {'year': None, 'listens': 7, 'tracks': 3},
+            {'year': 2015, 'listens': 20, 'tracks': 5},
+            {'year': 2019, 'listens': 13, 'tracks': 4},
+        ]
+        cursor.fetchone.return_value = {'unmatched': 99}
+        body = self.client.get('/api/listening/years?genre=Hardstyle', headers=self.headers).json()
+
+        self.assertEqual(body['unknown'], {'listens': 7, 'tracks': 3})
+        self.assertEqual([y['year'] for y in body['years']], [2015, 2019])
+        self.assertEqual(body['matched'], 40)
+        self.assertEqual(body['excluded_unmatched'], 99)
+        sql = cursor.execute.call_args_list[0][0][0]
+        # The feeds' release-date source: the servers' date, the analyzer's only when it is NULL.
+        self.assertIn('t.release_date IS NULL', sql)
+        self.assertIn('library_track_audio_features', sql)
+
+    @patch('services.music_manager.routers.listening.get_db_connection')
+    def test_a_user_key_may_not_read_another_history_through_the_new_endpoints(self, mock_get_db):
+        mocked_db(mock_get_db)
+        as_user()
+        for path in ('/api/listening/top-genres', '/api/listening/years'):
+            res = self.client.get(f'{path}?username=someone_else&genre=Hardstyle', headers=self.headers)
+            self.assertEqual(res.status_code, 403, path)
+
+    def test_release_year_sql_prefers_the_servers_date_over_the_analyzers(self):
+        sql = listening.release_year_sql('t')
+        self.assertIn("CASE WHEN t.release_date IS NULL THEN (SELECT", sql)
+        self.assertIn("ELSE NULLIF(t.release_date, '')", sql)
+        self.assertIn("REGEXP '^[0-9]{4}'", sql)
 
 
 if __name__ == '__main__':

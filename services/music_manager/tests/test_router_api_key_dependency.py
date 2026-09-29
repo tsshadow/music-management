@@ -29,6 +29,7 @@ from services.music_manager.main import app
 from services.music_manager.routers import (
     analytics,
     artist_images,
+    bpm,
     downloaders,
     feeds,
     library,
@@ -51,6 +52,7 @@ ROUTERS_DIR = Path(users_router.__file__).parent
 PROTECTED_ROUTES = [
     ('get', '/api/stats/'),
     ('get', '/api/library/genres'),
+    ('get', '/api/library/bpm/histogram'),
     ('get', '/api/analytics/summary'),
     ('post', '/api/scanner/scan/file'),
     ('get', '/api/artists/search'),
@@ -137,6 +139,7 @@ class NoPrivateCopyTest(unittest.TestCase):
         for module in (
             analytics,
             artist_images,
+            bpm,
             downloaders,
             feeds,
             library,

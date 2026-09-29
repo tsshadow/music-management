@@ -19,6 +19,7 @@
   import { formatHoursMinutes } from './playerProgress.js';
   import { logAction } from './diagnosticsLog.js';
   import { ratings, ratingOf as ratingFor, tapStar } from './ratings.js';
+  import { formatBpm } from './bpmFormat.js';
 
   const {
     tracks = [],
@@ -493,6 +494,15 @@
                       <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class={state === 'running' ? 'animate-pulse' : ''}><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>
                     {/if}
                   </span>
+                {/if}
+                {#if track.mumaBpm}
+                  <!-- Only the BPM browse sets `mumaBpm` (bpm.js): the tempo the row was found by,
+                       "≈152" when it is one of the old analyzer's coarse values. -->
+                  <span
+                    class="inline-block align-middle ml-1.5 text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded bg-white/10 text-muma-spotify-text"
+                    title={[$t(`bpm.source.${track.mumaBpm.source}`), track.mumaBpm.folded ? $t('bpm.source.folded') : ''].filter(Boolean).join(' · ')}
+                    data-testid="bpm-pill"
+                  >{$t('bpm.pill', { bpm: formatBpm(track.mumaBpm) })}</span>
                 {/if}
               </span>
               <!-- `truncate` on a wrapper: the names are inline text, and one long

@@ -1720,9 +1720,10 @@ class FeedsPipelineTest:
         UPDATE; once nothing new comes it is marked exhausted, and the next read of
         the head -- served from the row -- no longer offers a next page.
 
-        Twelve unheard tracks by one artist at a length of 10: the quota hands out all
-        ten places, the per-artist cap keeps three, so the head is short without having
-        run out -- the one shape a continuation is attempted for."""
+        Twelve tracks by one artist at a length of 10: the quota hands out all ten places,
+        the per-artist cap keeps three, so the head is short without having run out -- the
+        one shape a continuation build is attempted for. Release Radar, because a split
+        daily mix continues from its stored reserve instead (the test below)."""
         from services.music_manager.routers import feeds as feeds_router
 
         real_get = feeds_router.settings.get
@@ -1734,20 +1735,50 @@ class FeedsPipelineTest:
         for index in range(12):
             self._track(db, f'Unheard {index}', release_date=date.today().isoformat())
 
-        head = api.get('/api/feeds/daily-mix?username=root', headers=headers).json()
+        head = api.get('/api/feeds/release-radar?username=root', headers=headers).json()
         assert head['state'] == 'ok', head
         assert (len(head['tracks']), head['next_offset']) == (3, 3), head['funnel']
         assert 'work_id' in head['tracks'][0]
 
-        response = api.get('/api/feeds/daily-mix?username=root&offset=3', headers=headers)
+        response = api.get('/api/feeds/release-radar?username=root&offset=3', headers=headers)
         assert response.status_code == 200, response.text
         assert response.headers['X-MuMa-Feed-Source'] == 'extended'
         past = response.json()
         assert (past['tracks'], past['next_offset']) == ([], None)
 
-        again = api.get('/api/feeds/daily-mix?username=root', headers=headers)
+        again = api.get('/api/feeds/release-radar?username=root', headers=headers)
         assert again.headers['X-MuMa-Feed-Source'] == 'snapshot'
         assert (len(again.json()['tracks']), again.json()['next_offset']) == (3, None)
+
+    def test_a_split_daily_mix_continues_from_its_stored_reserve(self, api, headers, db, monkeypatch):
+        """Issue #137: the head build stores the rest of a MAX_FEED_LENGTH ranking in the
+        row, and the next page comes off it through the same write-back -- no build."""
+        from services.music_manager.routers import feeds as feeds_router
+
+        real_get = feeds_router.settings.get
+        monkeypatch.setattr(
+            feeds_router.settings, 'get', lambda key, *rest: 10 if key == 'feeds_size' else real_get(key, *rest)
+        )
+        heard_id = self._track(db, 'Old Favourite', release_date=date.today().isoformat())
+        self._listen(db, heard_id)
+        for index in range(25):
+            self._track(db, f'Unheard {index}', artist=f'Artist {index}', release_date=date.today().isoformat())
+
+        head = api.get('/api/feeds/daily-mix?username=root', headers=headers).json()
+        assert head['state'] == 'ok', head
+        assert (len(head['tracks']), head['next_offset']) == (10, 10), head['funnel']
+        assert 'reserve' not in head
+
+        monkeypatch.setattr(feeds_router, 'build_feed', lambda *a, **k: pytest.fail('a continuation built a feed'))
+        response = api.get('/api/feeds/daily-mix?username=root&offset=10', headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.headers['X-MuMa-Feed-Source'] == 'extended'
+        page = response.json()
+        assert len(page['tracks']) == 10, page
+        assert not {t['id'] for t in page['tracks']} & {t['id'] for t in head['tracks']}
+
+        rest = api.get('/api/feeds/daily-mix?username=root&offset=20', headers=headers).json()
+        assert (len(rest['tracks']), rest['next_offset']) == (5, None), rest
 
 
 class FeedsProfileAndExclusionsTest:

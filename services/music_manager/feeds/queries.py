@@ -14,8 +14,10 @@ docs/designs/feeds/technical.md, Invariants):
 
 - `library_track_audio_features.internal_track_id` is not unique, so a plain
   join into it multiplies candidate rows and, with them, every score. Every
-  query here reduces it to one row per track in a grouped subquery first.
-- `af.track_id` is a file-path hash, not `library_tracks.track_uid` -- the join
+  query here reads it through an aggregate scalar subquery per track instead
+  (`_AF_BPM`, `_AF_RELEASE_YEAR`, `_AF_RELEASE_DATE`), which can never return
+  more than one row.
+- `library_track_audio_features.track_id` is a file-path hash, not `library_tracks.track_uid` -- the join
   back to a track always goes through `internal_track_id`.
 """
 
@@ -33,19 +35,20 @@ from services.music_manager.feeds.policy import FeedPolicy
 # carried but read by nothing, so an arbitrary-but-stable pick cannot change
 # which tracks a feed contains or in what order. Anything that starts selecting
 # on either of them has to revisit this.
-_AUDIO_FEATURES_SUBQUERY = """
-    LEFT JOIN (
-        SELECT internal_track_id,
-               MIN(tempo) AS tempo,
-               MIN(bpm_tag) AS bpm_tag,
-               MIN(release_year) AS release_year,
-               CASE WHEN COUNT(DISTINCT NULLIF(release_date, '')) = 1
-                    THEN MIN(NULLIF(release_date, '')) END AS release_date
-        FROM library_track_audio_features
-        WHERE internal_track_id IS NOT NULL
-        GROUP BY internal_track_id
-    ) af ON af.internal_track_id = t.id
-"""
+_AF_LOOKUP = 'FROM library_track_audio_features x WHERE x.internal_track_id = t.id'
+
+#: Per-track scalar lookups, correlated on `idx_af_internal_track_id` (bug report 131
+#: follow-up, issue #137). They replace a derived table that grouped the *whole*
+#: audio-features table on every statement: MariaDB materialised it in full before any
+#: filter applied, and on production that alone was most of a daily-mix sample's six
+#: seconds. A correlated lookup costs one index probe per row that actually reads it --
+#: and `_RELEASE_DATE` only reads it for the few hundred tracks with a NULL date.
+_AF_BPM = f'(SELECT COALESCE(MIN(x.tempo), MIN(x.bpm_tag)) {_AF_LOOKUP})'
+_AF_RELEASE_YEAR = f'(SELECT MIN(x.release_year) {_AF_LOOKUP})'
+_AF_RELEASE_DATE = (
+    "(SELECT CASE WHEN COUNT(DISTINCT NULLIF(x.release_date, '')) = 1"
+    f" THEN MIN(NULLIF(x.release_date, '')) END {_AF_LOOKUP})"
+)
 
 #: The release date a feed filters and sorts on. `library_tracks.release_date` is the servers'
 #: own reading of the file tag, settled hourly by release_date_sync, and it is preferred
@@ -58,7 +61,7 @@ _AUDIO_FEATURES_SUBQUERY = """
 #: made after weighing every file on every server, and falling through it would resurrect
 #: exactly the date that was just rejected. COALESCE cannot tell those apart and would treat
 #: both as a gap.
-_RELEASE_DATE = "CASE WHEN t.release_date IS NULL THEN af.release_date ELSE NULLIF(t.release_date, '') END"
+_RELEASE_DATE = f"CASE WHEN t.release_date IS NULL THEN {_AF_RELEASE_DATE} ELSE NULLIF(t.release_date, '') END"
 
 #: Whether this listener has played the *song*, not just this file: a listen of any version of
 #: the track's work counts (docs/bug-reports/096). Two EXISTS rather than one with an OR, so the
@@ -123,7 +126,7 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
             s.match_method,
             s.played_secs,
             a.name AS artist,
-            COALESCE(af.tempo, af.bpm_tag) AS bpm,
+            {_AF_BPM} AS bpm,
             (SELECT GROUP_CONCAT(l.name ORDER BY l.name SEPARATOR ',')
              FROM library_track_labels tl
              JOIN library_labels l ON l.id = tl.label_id
@@ -135,7 +138,6 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
         FROM scrobble_listens s
         JOIN library_tracks t ON t.id = s.track_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
-        {_AUDIO_FEATURES_SUBQUERY}
         WHERE {' AND '.join(where)}
     """
     return sql, params
@@ -362,7 +364,6 @@ def split_sample_query(
         FROM library_tracks t
         LEFT JOIN library_works w ON w.id = t.work_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
-        {_AUDIO_FEATURES_SUBQUERY}
         LEFT JOIN rating_tracks r
             ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
         WHERE {' AND '.join(where)}
@@ -494,7 +495,6 @@ def rotation_counts_query(
         LEFT JOIN library_works w ON w.id = t.work_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
         {join}
-        {_AUDIO_FEATURES_SUBQUERY}
         LEFT JOIN rating_tracks r
             ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
         WHERE {' AND '.join(where)}
@@ -543,8 +543,8 @@ def _candidate_select(where_sql: str, pool: str | None = None) -> str:
              WHERE tg.track_id = t.id AND rg.state <> 'black') AS genres,
             (SELECT mf.file_path FROM library_media_files mf
              WHERE mf.track_id = t.id LIMIT 1) AS file_path,
-            COALESCE(af.tempo, af.bpm_tag) AS bpm,
-            af.release_year,
+            {_AF_BPM} AS bpm,
+            {_AF_RELEASE_YEAR} AS release_year,
             {_RELEASE_DATE} AS release_date,
             EXISTS (SELECT 1 FROM library_track_channels ltc
                     JOIN channels c ON c.id = ltc.channel_id
@@ -553,7 +553,6 @@ def _candidate_select(where_sql: str, pool: str | None = None) -> str:
         FROM library_tracks t
         LEFT JOIN library_works w ON w.id = t.work_id
         LEFT JOIN library_artists a ON a.id = t.primary_artist_id
-        {_AUDIO_FEATURES_SUBQUERY}
         LEFT JOIN rating_tracks r
             ON r.entity_type = 'track' AND r.entity_id = t.track_uid AND r.username = %s
         WHERE {where_sql}

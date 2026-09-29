@@ -184,6 +184,9 @@ def _sized(policy):
     return with_recent_split(resize(policy, _feed_size()), *_recent_split())
 
 
+#: Snapshot fields kept for the continuation and never sent to a client.
+_STORED_ONLY = frozenset({'exhausted', 'reserve'})
+
 #: The longest a feed's stored list grows to through continuations in one day:
 #: five pages at the default length, at most four extra builds per feed per day.
 MAX_FEED_LENGTH = 500
@@ -355,13 +358,19 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
         kwargs['hardness_edges'] = edges
         kwargs['hardness_edges_source'] = edges_source
 
+    if policy.recent_share is not None:
+        # A split daily mix ranks MAX_FEED_LENGTH places in the same build and stores the
+        # rest as `reserve` (issue #137): its two samples are the expensive part, and
+        # "Meer laden" then serves from the row instead of sampling again.
+        kwargs['reserve_size'] = MAX_FEED_LENGTH
+
     feed = build_feed(conn, username, policy, now, **kwargs)
     return _body(feed, policy, now)
 
 
 def _body(feed, policy, now: datetime) -> dict:
     """A built `Feed` as the response body (and the snapshot row) of `GET /api/feeds/{slug}`."""
-    return {
+    body = {
         'slug': feed.slug,
         'state': feed.state,
         'scope': feed.scope,
@@ -382,6 +391,12 @@ def _body(feed, policy, now: datetime) -> dict:
         # Stored, never sent (`get_feed` strips it): whether a bigger build could find more.
         'exhausted': _ran_out(feed.tracks, feed.funnel, policy.size),
     }
+    reserve = feed.reserve
+    if reserve is not None:
+        # Stored, never sent either: the continuation's tracks, already ranked.
+        body['reserve'] = [_track_view(track) for track in reserve] if feed.state == 'ok' else []
+        body['exhausted'] = not body['reserve']
+    return body
 
 
 def _ran_out(tracks: list, funnel: dict, size: int) -> bool:
@@ -522,10 +537,17 @@ def continuation(conn, username: str, policy, now: datetime, stored: dict, wante
 
     A build that ran out of candidates (`_ran_out`), or found nothing new, marks the result
     `exhausted`, and nothing will try again today.
+
+    A row that carries a `reserve` (a split daily mix, issue #137) builds nothing: the next
+    places come off the reserve, which the day's build already ranked for
+    `MAX_FEED_LENGTH` places -- the same superset rule, without two library samples on the
+    request path.
     """
     tracks = list(stored.get('tracks') or [])
     if not _can_grow(stored) or len(tracks) >= wanted:
         return None
+    if 'reserve' in stored:
+        return _continue_from_reserve(policy, stored, tracks, wanted)
     target = min(MAX_FEED_LENGTH, len(tracks) + max(policy.size, wanted - len(tracks)))
     built = feed_body(conn, username, resize(policy, target), now)
     # Both the song and the track id: a row stored before `work_id` was part of a track has
@@ -543,6 +565,22 @@ def continuation(conn, username: str, policy, now: datetime, stored: dict, wante
         fresh.append(track)
     exhausted = not fresh or bool(built.get('exhausted'))
     return {**stored, 'tracks': tracks + fresh, 'exhausted': exhausted}
+
+
+def _continue_from_reserve(policy, stored: dict, tracks: list, wanted: int) -> dict:
+    """`stored` grown from its `reserve`: at least one configured length, or up to
+    `wanted`, never past `MAX_FEED_LENGTH`. A song already stored is skipped, as a
+    continuation build would. `exhausted` once the reserve is empty."""
+    count = min(max(policy.size, wanted - len(tracks)), MAX_FEED_LENGTH - len(tracks))
+    seen_ids = {track.get('id') for track in tracks}
+    seen_works = {track['work_id'] for track in tracks if track.get('work_id')}
+    remaining = [
+        track
+        for track in stored.get('reserve') or []
+        if track.get('id') not in seen_ids and not (track.get('work_id') and track['work_id'] in seen_works)
+    ]
+    fresh, rest = remaining[:count], remaining[count:]
+    return {**stored, 'tracks': tracks + fresh, 'reserve': rest, 'exhausted': not rest}
 
 
 @router.get('/{slug}')
@@ -600,7 +638,7 @@ def get_feed(
 
     tracks = body.get('tracks') or []
     more = end < len(tracks) or _can_grow(body)
-    body = {key_: value for key_, value in body.items() if key_ != 'exhausted'}
+    body = {key_: value for key_, value in body.items() if key_ not in _STORED_ONLY}
     body['tracks'] = tracks[offset:end]
     body['offset'] = offset
     body['next_offset'] = end if more else None

@@ -22,7 +22,7 @@ from services.music_manager.feeds.hardness import (
     track_hardness,
 )
 from services.music_manager.feeds.hierarchy import warn_cycles
-from services.music_manager.feeds.policy import FeedPolicy
+from services.music_manager.feeds.policy import FeedPolicy, resize
 from services.music_manager.feeds.profile import TasteProfile, blend, build_profile, genre_shares, listen_weight
 from services.music_manager.feeds.queries import (
     OLDER_PROFILE_NAMES,
@@ -138,6 +138,10 @@ class Feed:
     # Only set for a policy with a recent/older split (bug report 131): how many of the
     # emitted tracks came from each half, `{'recent': n, 'older': m}`.
     pool_counts: dict[str, int] | None = None
+    # Only set when `build_feed` was asked for a `reserve_size` (issue #137): the rest of a
+    # `reserve_size`-place build of the same candidates, in its order, with every song of
+    # `tracks` left out -- what "Meer laden" serves without building anything.
+    reserve: list[dict] | None = None
 
 
 @dataclass(frozen=True)
@@ -860,6 +864,33 @@ def _select_split(
     return recent_picks + older_picks, recent_allocated + older_allocated
 
 
+def _rank(bucketed: list[dict], shares: dict[str, float], policy: FeedPolicy, order_key) -> tuple[list[dict], int, int]:
+    """Steps 6-8 for `policy.size` places: the emitted list, the places handed out and
+    how many survived the per-artist cap.
+
+    Steps 6 and 7: how many places each share gets, capped by what is available, then the
+    order within each share -- once over everything, or once per half for a daily mix
+    with a recent/older split. Sorted twice on purpose: the per-bucket sort decides
+    *which* tracks win their share's places, the second what the listener reads first --
+    newest release first for the radar, the daily draw for the mix. Without it the feed
+    comes out grouped by bucket.
+
+    Step 8: cap per artist, then the global size. The cap *removes* tracks after their
+    share was filled and the freed places are not handed back -- so a feed can come out
+    shorter than `policy.size`, and `capped` below `allocated` in the funnel is exactly
+    that. The final slice is a guard, not a working limit: nothing above can exceed
+    `policy.size`, and it keeps "the API never returns more than it asked for"
+    independent of the quota's arithmetic.
+    """
+    if policy.recent_share is not None:
+        selected, allocated = _select_split(bucketed, shares, policy, order_key)
+    else:
+        selected, allocated = _select(bucketed, shares, policy.size, order_key)
+    selected.sort(key=order_key)
+    capped = _cap_per_artist(selected, policy.max_per_artist)
+    return capped[: policy.size], allocated, len(capped)
+
+
 def _cap_per_artist(tracks: list[dict], max_per_artist: int) -> list[dict]:
     """At most `max_per_artist` per primary artist.
 
@@ -939,8 +970,14 @@ def build_feed(
     starting_genres: list[str] | None = None,
     hardness_edges: tuple[float, float] | None = None,
     hardness_edges_source: str = 'default',
+    reserve_size: int | None = None,
 ) -> Feed:
     """The eight steps of technical.md's algorithm, in order.
+
+    `reserve_size` (issue #137) also ranks the same candidates for that many places and
+    returns what that longer feed holds beyond `tracks` as `Feed.reserve`. The same
+    superset rule a continuation build follows (docs/designs/feed-length/), paid for once:
+    steps 6-8 are Python over candidates already loaded, so the reserve costs no query.
 
     On exclusions: an exclusion removes an entity from the *profile* only. An
     excluded artist stops contributing weight, stops earning a share and stops
@@ -1017,40 +1054,9 @@ def build_feed(
     order_key = _order_key_fn(policy, profile, username, clock.feed_date(now))
 
     if bucketed:
-        # Steps 6 and 7: how many places each share gets, capped by what is available,
-        # then the order within each share -- once over everything, or once per half
-        # for a daily mix with a recent/older split.
-        if policy.recent_share is not None:
-            selected, allocated = _select_split(bucketed, shares, policy, order_key)
-        else:
-            selected, allocated = _select(bucketed, shares, policy.size, order_key)
+        emitted, allocated, capped_count = _rank(bucketed, shares, policy, order_key)
         funnel['allocated'] = allocated
-        # Sorted twice on purpose. The per-bucket sort decides *which* tracks win
-        # their share's places; this one decides what the listener reads first,
-        # over the whole list -- newest release first for the radar, the daily
-        # draw for the mix. Without it the feed comes out grouped by bucket, in
-        # the arbitrary order the allocation dict happens to have.
-        selected.sort(key=order_key)
-
-        # Step 8: cap per artist, then the global size. The cap *removes*
-        # tracks after their share was already allocated and filled, and the
-        # freed places are not handed back to anyone -- so a feed can
-        # legitimately come out shorter than policy.size. For release-radar and
-        # the two rotating mixes that is the honest final answer: `capped`
-        # below `allocated` in the funnel is exactly this, and nothing here is
-        # backfilled with an unrelated track to hide it. A hardness_band policy
-        # gets one more chance below, from candidates this pipeline never
-        # considered at all.
-        capped = _cap_per_artist(selected, policy.max_per_artist)
-        funnel['capped'] = len(capped)
-        # A guard, not a working limit: `allocate` hands out at most
-        # policy.size places, `redistribute` never raises that total, the
-        # per-bucket take is bounded by it and the artist cap only shrinks the
-        # list, so `capped` is already no longer than policy.size. Kept
-        # because it is the one line that makes "the API never returns more
-        # than it asked for" independent of the quota's arithmetic staying
-        # correct.
-        emitted = capped[: policy.size]
+        funnel['capped'] = capped_count
     else:
         funnel.update(allocated=0, capped=0)
         emitted = []
@@ -1067,6 +1073,14 @@ def build_feed(
     if policy.hardness_band:
         emitted, filled_from_unknown = _backfill_from_unknown(conn, username, policy, now, info, emitted, order_key)
         funnel['emitted'] = len(emitted)
+
+    reserve = None
+    if reserve_size is not None:
+        reserve = []
+        if bucketed and reserve_size > policy.size:
+            longer, _, _ = _rank(bucketed, shares, resize(policy, reserve_size), order_key)
+            shown = {song_key(track) for track in emitted}
+            reserve = [track for track in longer if song_key(track) not in shown]
 
     pool_counts = None
     if policy.recent_share is not None:
@@ -1090,6 +1104,7 @@ def build_feed(
             relaxed_to=relaxed_to,
             filled_from_unknown=filled_from_unknown,
             pool_counts=pool_counts,
+            reserve=reserve,
         )
 
     return Feed(
@@ -1107,4 +1122,5 @@ def build_feed(
         relaxed_to=relaxed_to,
         filled_from_unknown=filled_from_unknown,
         pool_counts=pool_counts,
+        reserve=reserve,
     )

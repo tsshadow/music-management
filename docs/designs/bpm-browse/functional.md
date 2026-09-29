@@ -75,6 +75,12 @@ changes:
 6. The play button queues the list in its shown order, and the queue continues with the next page.
 7. Sets and podcasts never appear in the list.
 8. The default margin (±2) can be changed on Beheer → Config → BPM (`bpm_browse_tolerance`).
+9. (Second change) Newly downloaded tracks get a measured tempo within minutes; the backlog is worked
+   through newest first. Beheer → Config → BPM can switch the measuring off, pause it, and set how
+   many tracks it measures at once and how much of each track it listens to. A measured tempo shows
+   without "≈" and counts as reliable when the measurement is confident.
+10. (Second change) The measuring never rewrites a file and keeps the server responsive: it runs
+    apart from the rest, on at most two cores by default, at the lowest priority.
 
 ## Open Questions / Not Yet Decided
 

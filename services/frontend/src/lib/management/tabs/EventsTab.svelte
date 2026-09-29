@@ -12,7 +12,7 @@
   const LEVELS = ['INFO', 'WARNING', 'ERROR', 'CRITICAL'];
   // Alleen deze drie processen roepen setup_logging aan; de tagger- en scanner-
   // lussen draaien binnen music-manager en schrijven dus source='music-manager'.
-  const SOURCES = ['music-manager', 'downloader', 'importer'];
+  const SOURCES = ['music-manager', 'downloader', 'importer', 'bpm-analyzer'];
   const WINDOWS = [
     { value: '-1h', labelKey: 'management.events.windowHour' },
     { value: '-24h', labelKey: 'management.events.windowDay' },

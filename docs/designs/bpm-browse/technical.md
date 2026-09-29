@@ -116,11 +116,11 @@ Styling follows docs/styleguide.md with existing tokens only (Design Backlog ent
 
 ## Measurement (second merge request)
 
-Not in the first merge request; recorded here so the schema above is justified.
+The estimator and the worker that fill `library_track_bpm`; they ship in the second merge request.
 
 ### Choosing the estimator
 
-Measured with `tools/bpm_eval.py` (second merge request) on 399 production files copied read-only to
+Measured with `tools/bpm_eval.py` on 399 production files copied read-only to
 the workstation: every track whose file tag is a whole number that the old analyzer cannot produce
 (150, 155, 160, 200, 210, 130, 175, ...), so the tag cannot be the analyzer's own. Every method got the
 same 60 s excerpt from 30% into the track. "Oracle octave" is the accuracy if the octave were always
@@ -152,17 +152,54 @@ becomes twelve frames at the twelfth multiple. Confidence is the pulse strength,
 halves of the excerpt disagree; on the evaluation set 89% of estimates with confidence ≥ 0.75 were
 right against the raw tags.
 
-### Worker (planned, second merge request)
+### Worker (`services/music_manager/bpm/worker.py`, container `muma-bpm-analyzer`)
 
-A small separate service from the tools image (which already has ffmpeg; music-manager's image has
-none and 74,568 library files are `.m4a`, which libsndfile cannot decode), with a hard CPU and memory
-ceiling from compose, `nice`/`ionice`, default 2 decode/analysis workers. It decodes a 60 s excerpt
-per track with `ffmpeg -ss` (a seek, so a 10 MB file on the CIFS mount costs a fraction of its
-size), newest tracks first, skips sets, podcasts and anything over 15 minutes, folds with the genre
-band, and writes `library_track_bpm`. Settings on Beheer → Config → BPM: enabled, workers, excerpt
-seconds, skipped forms, pause. Progress: a periodic INFO summary (analysed/failed/remaining) and a
-heartbeat that music-manager's `/health` reports. The second merge request's own design update
-fills in the measured backlog duration.
+**Where it runs.** Its own long-running service in docker/docker-compose.yml, from the tools image,
+with `python -m services.music_manager.bpm.worker`. Not a thread in music-manager, for two reasons:
+music-manager's image has no ffmpeg, and 74,568 library files are `.m4a`, which libsndfile cannot
+decode; and CPU-heavy work in the API process has starved the API before (the tagger and scan-lock
+incidents). The container has `cpus: 2` (`MUMA_CPUS_BPM`) and `mem_limit: 768m`
+(`MUMA_MEM_LIMIT_BPM`), the usual hardening (all capabilities dropped but the four file ones,
+`pids_limit: 256`), and every analysis process runs at nice 19 and in the idle I/O class. The music
+share is mounted read-only; nothing writes tags.
+
+**Settings** (Beheer → Config → BPM, all re-read every round from music-manager's `config.json`,
+which the container mounts read-only -- ConfigStore reads its file once per process, which is
+wrong for a process that lives for weeks): `bpm_analysis_enabled` (default on),
+`bpm_analysis_paused`, `bpm_analysis_workers` (2, 1-8), `bpm_analysis_excerpt_seconds` (60, 20-180),
+`bpm_analysis_skip_forms` (`set,liveset,podcast`), `bpm_analysis_max_minutes` (15).
+
+**A round.** `DUE_SQL` picks up to 48 tracks with no current `library_track_bpm` row, highest
+`library_tracks.id` first: new downloads and imports get the highest ids, so they are measured in
+the next round (at most `IDLE_SECONDS` = 5 minutes after the scanner indexed them once the backlog is
+done) without a separate announce path. A row is current while `method` equals `estimator.METHOD`
+and the file's `file_mtime`/`file_size` match what was measured; a failure is retried after seven
+days, at most three times, or at once when the file changed. For each track the pool decodes
+`ffmpeg -ss <30% in> -t 60 -i <file> -ac 1 -ar 11025 -f f32le` (a container seek: only the excerpt
+crosses the CIFS mount) and runs the estimator. The main process folds each estimate into the band
+of the track's genres, or of its primary artist's commonest genre when it has none (154k tracks have
+no genre of their own), halves the confidence when no octave fits the band, and upserts the batch.
+Resumable by construction: the queue is whatever has no current row, so a restart, pause or crash
+continues where it stopped.
+
+**Progress.** An INFO summary every ten minutes ("analysed N, failed M since start, R remaining,
+X/h") under source `bpm-analyzer`, and a JSON status file (`/app/state/status.json` in the worker,
+`/app/data/bpm-analyzer/status.json` in music-manager) with state, counters, rate and ETA. `/health`
+reports it as `bpm_analysis` and as a `bpm-analyzer` entry in `heartbeats`, but **not** in
+`threads`: `threads` decides the status code, which is also music-manager's own container
+healthcheck, and another container being down must not make music-manager look unhealthy (or get
+it restarted).
+
+**Expected duration** (measured 2026-09-29, read-only). The queue on production is about 267,000
+tracks (form `track`, at most 15 minutes). Reading a 60 s excerpt over the CIFS mount took 0.06 s
+median (0.09 s p90, 55 random files, from the music-manager container). The estimator took 0.15-0.30 s
+per excerpt on the production CPU at nice 19 (0.08 s on the workstation). ffmpeg's decode of a 60 s
+MP3 excerpt with resampling measured 0.4 s on a heavily loaded workstation; call it 0.3-0.8 s on the
+production host. So one worker needs roughly 0.5-1.2 s per track, two workers 1.7-4 tracks a second:
+**the whole backlog takes roughly one to two days** (18-44 hours) with the defaults, after which only
+new tracks are measured, within minutes of arriving. The status file's `rate_per_hour`/`eta_hours`
+give the real number after the first hour. Doubling `bpm_analysis_workers` roughly halves it, at the
+cost of a second core that the overcommitted host may not have to spare.
 
 ## Cross-App Impact
 
@@ -170,6 +207,8 @@ fills in the measured backlog duration.
 - frontend (the web player, and the phone app, which renders the same web UI): the BPM page and the
   pill in `TrackList`.
 - LMS: none (`getSongsByPath` already exists).
+- Deployment: a new `bpm-analyzer` service in docker/docker-compose.yml (tools image), started by the
+  normal deploy; `MUMA_CPUS_BPM` / `MUMA_MEM_LIMIT_BPM` override its ceilings (docs/deployment.md).
 - MuMa Mobile native (Android Auto browse tree): none in this change; a BPM folder is a follow-up.
 
 ## Technical Acceptance Criteria
@@ -190,6 +229,16 @@ fills in the measured backlog duration.
 6. The page sends the right request for a chip, a bar, the tolerance, the range, the genre and the
    reliability switch, shows "≈" for coarse values and the note once, and queues the list in order
    (`bpmView.test.js`, `bpm.test.js`).
+7. The estimator measures synthetic click tracks at 150.0, 155.0, 172.5 and 210.0 BPM within
+   0.1-0.15 BPM, a 75 BPM track folds to 150 in the hardstyle band, noise gets low confidence, and
+   too little audio or the wrong sample rate is refused (`test_bpm_estimator.py`).
+8. The worker reads its settings from the config file over the environment and clamps them; skips
+   the configured forms and long files; queues newest first; does nothing while paused or off and
+   resumes where it stopped; resizes its pool when the worker count changes; survives a failed
+   round; writes a status file /health reports without changing the status code
+   (`test_bpm_worker.py`, `test_health.py`); and its queue, counts, genre fallback and upsert run on
+   a real MariaDB, including the retry of a failure and the re-measurement of a replaced file
+   (`BpmBrowseSqlTest`).
 
 ## Related Docs
 

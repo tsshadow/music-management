@@ -700,6 +700,48 @@ services:
     networks:
       - music-management_db
 
+  # Measures every track's tempo in the background, newest first, for browse by BPM
+  # (docs/designs/bpm-browse/technical.md, "Worker"). Its own container rather than a thread in
+  # music-manager: it needs ffmpeg (74k library files are .m4a, which libsndfile cannot decode),
+  # which only the tools image carries, and its CPU and memory get a hard ceiling here instead of
+  # competing with the API. The host is memory-overcommitted, so the ceilings are small: 2 cores
+  # (MUMA_CPUS_BPM) and 768 MB; each analysis process also runs at nice 19 / idle I/O. Settings
+  # (on/off, pause, workers, excerpt) come from music-manager's config.json, mounted read-only
+  # and re-read every round; progress goes to a status file music-manager's /health reports.
+  bpm-analyzer:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add: *root-file-caps
+    pids_limit: 256
+    image: ${DOCKER_USER}/${IMAGE_TOOLS}:${IMAGE_TAG:-latest}
+    container_name: muma-bpm-analyzer
+    labels:
+      # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *default-logging
+    restart: unless-stopped
+    healthcheck: *worker-healthcheck
+    mem_limit: ${MUMA_MEM_LIMIT_BPM:-768m}
+    cpus: ${MUMA_CPUS_BPM:-2}
+    depends_on:
+      - db
+    command: ["python", "-m", "services.music_manager.bpm.worker"]
+    environment:
+      <<: [*environment-db]
+      PYTHONPATH: /app
+      CONFIG_PATH: /app/music-manager/config.json
+      BPM_ANALYZER_STATUS: /app/state/status.json
+    volumes:
+      - ${HOST_MUSIC_PATH}:/mnt/music:ro
+      # music-manager's data directory, for config.json only; read-only.
+      - ${HOST_DATA_PATH}/music-manager:/app/music-manager:ro
+      # music-manager sees this directory as /app/data/bpm-analyzer (bpm/status.py).
+      - ${HOST_DATA_PATH}/music-manager/bpm-analyzer:/app/state
+    networks:
+      - music-management_db
+
   # Deprecated and disabled since 2026-09-25, kept commented: see services/ml-analyzer/DEPRECATED.md
 #  ml-analyzer:
 #    image: ${DOCKER_USER}/${IMAGE_ML}:latest

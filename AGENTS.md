@@ -101,6 +101,13 @@ The system is split into specialized services, each handling a specific part of 
     - **Integrated Services**: Hosts the `tagger` and `scanner` logic to enforce library standards.
 - **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
 
+### 7. `bpm-analyzer` (`services/music_manager/bpm/worker.py`, container `muma-bpm-analyzer`)
+- **Purpose**: Measures every track's tempo (0.01 BPM) from a 60 s excerpt, newest tracks first, into
+  `library_track_bpm`, for browse by BPM (`/api/library/bpm`, docs/designs/bpm-browse/).
+- **Runs**: its own container from the tools image (needs ffmpeg), capped at 2 cores / 768 MB, analysis
+  processes at nice 19 / idle I/O. Settings on Beheer → Config → BPM (on/off, pause, workers,
+  excerpt), read from music-manager's `config.json` every round.
+
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
   Disabled since 2026-09-25 with the code kept: it was never deployed, has no owner time, and
@@ -166,7 +173,7 @@ on the list too, for the modules that name their logger after themselves (`getLo
 the song-version sync, the track-form push, the release-date sync, the feeds); their hourly
 summaries used to exist only in `docker logs` (bug report 105). `QUIET_PREFIXES` keeps
 `services.music_manager.artist_image_fetcher` at `WARNING`, because it logs per artist. Filtering `/api/events` by
-source therefore offers exactly three values: `music-manager`, `downloader`, `importer`. The tagger
+source therefore offers four values: `music-manager`, `downloader`, `importer`, `bpm-analyzer`. The tagger
 and scanner loops run as threads inside the music-manager process and emit under its source.
 
 ### Retention: how long an event stays
@@ -212,6 +219,9 @@ drive automations off the event count. Separately, `GET /health` reports `status
 `version`, `database` (`ok`/`unreachable`), `threads` and `heartbeats`, and returns HTTP 503 when
 any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
 Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
+It also carries `bpm_analysis`, the bpm-analyzer container's own status file (state, analysed,
+failed, remaining, rate, ETA), mirrored as a `bpm-analyzer` entry in `heartbeats`; that one never
+affects the status code, because /health is also music-manager's own container healthcheck.
 
 - `database` is `SELECT 1` on its own short-lived connection (1 s timeouts, 2 s deadline), never a
   pooled one: the pool only pings a cached connection when a query runs, and an exhausted pool must

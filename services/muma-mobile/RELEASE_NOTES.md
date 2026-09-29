@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.13.1 (2026-09-29)
+
+- **Browse by BPM and the listening statistics filters (genre, release year) are now in the app.** Server 0.84.0 shipped them to the web player only; this build carries the same web interface.
+
 ## Global Version 7.13.0 (2026-09-29)
 
 - **Android Auto: "Oude hitjes" in the "Daily mixes" folder.** The new server feed of old

@@ -12,8 +12,9 @@
 #     [Unreleased] itself is expected to be empty again afterwards, ready for
 #     the next cycle).
 #   - RELEASE_NOTES.md must have been touched.
-#   - if anything under services/muma-mobile/ changed, build.gradle's
-#     versionCode/versionName must also have been bumped.
+#   - if the app changed since the last release (anything under
+#     services/muma-mobile/ or services/frontend/, compared to master), its
+#     versionCode must differ from master's.
 
 set -e
 
@@ -93,12 +94,28 @@ if git diff --quiet "$BASE" -- RELEASE_NOTES.md; then
 fi
 echo "OK: RELEASE_NOTES.md updated."
 
-# 4. If MuMa Mobile changed, its own version must have been bumped too.
-if ! git diff --quiet "$BASE" -- services/muma-mobile/ 2>/dev/null; then
-    if git diff --quiet "$BASE" -- services/muma-mobile/app/build.gradle 2>/dev/null; then
-        fail "services/muma-mobile changed on this branch, but versionCode/versionName in build.gradle wasn't bumped."
+# 4. If the app changed since the last release, its versionCode must move too.
+#
+# Measured against master (the last release), not against develop: a release
+# branch is cut from develop, so everything merged there before the cut is
+# invisible in a diff against develop -- which is how 0.84.0 shipped a new web
+# UI while the APK kept versionCode 352 and no phone was offered the update.
+# services/frontend/ counts because the Capacitor shell serves the web bundle
+# baked into the APK (build.gradle's prepareWebBundle), not one from the server.
+SHIPPED="${APP_CHECK_BASE:-origin/master}"
+if [ "$BASE_BRANCH" != "master" ]; then
+    git fetch origin master >/dev/null 2>&1 || git fetch origin master
+fi
+version_code() {
+    grep -oE 'versionCode[[:space:]]+[0-9]+' | head -1 | grep -oE '[0-9]+$'
+}
+if ! git diff --quiet "$SHIPPED" -- services/muma-mobile/ services/frontend/ 2>/dev/null; then
+    SHIPPED_CODE=$(git show "${SHIPPED}:services/muma-mobile/app/build.gradle" 2>/dev/null | version_code || true)
+    CURRENT_CODE=$(version_code < services/muma-mobile/app/build.gradle || true)
+    if [ -n "$SHIPPED_CODE" ] && [ "$SHIPPED_CODE" = "$CURRENT_CODE" ]; then
+        fail "the app (services/muma-mobile or services/frontend) changed since ${SHIPPED}, but versionCode is still ${CURRENT_CODE}: bump versionCode/versionName in services/muma-mobile/app/build.gradle, or no phone is offered the new build."
     fi
-    echo "OK: MuMa Mobile changed and its versionCode/versionName was bumped."
+    echo "OK: the app changed since ${SHIPPED} and versionCode moved (${SHIPPED_CODE:-none} -> ${CURRENT_CODE})."
 fi
 
 echo "release:version-check passed."

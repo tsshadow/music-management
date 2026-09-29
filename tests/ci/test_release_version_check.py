@@ -198,3 +198,51 @@ def test_the_comparison_base_can_be_overridden(repo: Path):
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _merge_to_develop_then_cut(repo: Path, path: str, version: str) -> None:
+    """Land an app change on develop, then cut release/<version> from it.
+
+    This is the normal order: the change is merged before the release is cut, so
+    a diff against develop shows nothing -- only a diff against master does.
+    """
+    _git(repo, "checkout", "develop", "--quiet")
+    target = repo / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("// merged into develop before the cut\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "feat: an app change", "--quiet")
+    _git(repo, "push", "origin", "develop", "--quiet")
+    _git(repo, "checkout", "-b", f"release/{version}", "--quiet")
+
+
+def _bump_app(repo: Path, code: int, name: str) -> None:
+    gradle = repo / "services" / "muma-mobile" / "app" / "build.gradle"
+    gradle.write_text(f'android {{ defaultConfig {{ versionCode {code}\nversionName "{name}" }} }}\n', encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["services/frontend/src/lib/BpmView.svelte", "services/muma-mobile/app/src/Feature.kt"],
+)
+def test_an_app_change_merged_before_the_cut_requires_a_version_code_bump(repo: Path, path: str):
+    """0.84.0 shipped a new web UI with the APK still at versionCode 352.
+
+    The Capacitor shell serves the web bundle baked into the APK, so a frontend
+    change is an app change; and both kinds reach the release branch through
+    develop, where a diff against develop cannot see them.
+    """
+    _merge_to_develop_then_cut(repo, path, "0.1.0")
+    _stabilise(repo, "0.1.0", "\n### Added\n- A feature.\n")
+    result = _run(repo, "release/0.1.0")
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "versionCode is still 1" in result.stdout
+
+
+def test_an_app_change_passes_once_the_version_code_moved(repo: Path):
+    _merge_to_develop_then_cut(repo, "services/frontend/src/lib/BpmView.svelte", "0.1.0")
+    _bump_app(repo, 2, "0.0.2")
+    _stabilise(repo, "0.1.0", "\n### Added\n- A feature.\n")
+    result = _run(repo, "release/0.1.0")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "versionCode moved (1 -> 2)" in result.stdout

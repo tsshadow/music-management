@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.13.1] - 2026-09-29
+
+### Added
+- **Browse by BPM and the listening statistics filters (genre, release year) are now in the app.** Server 0.84.0 shipped them to the web player only; this build carries the same web interface.
+
 ## [7.13.0] - 2026-09-29
 
 ### Added

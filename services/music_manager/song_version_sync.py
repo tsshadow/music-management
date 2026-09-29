@@ -38,50 +38,29 @@ job held that lock, a rating from the app was a 500 and a scrobble was lost. Thi
 therefore reads every chunk without a transaction (reads take no write lock in WAL mode),
 keeps only the rows the server disagrees with, and writes those in transactions short
 enough to be gone before anyone notices. After the first pass almost nothing disagrees and
-almost nothing is written. An UPDATE of four columns keyed on
-an indexed path is a different class of operation from the DROP TABLE that once took
-production down (docs/bug-reports/005), but the same care applies: short statements, no
-schema changes, and a busy timeout so a locked database is a skipped batch instead of a
-failed sync.
+almost nothing is written. An UPDATE of four columns keyed on an indexed path is a
+different class of operation from the DROP TABLE that once took production down
+(docs/bug-reports/005), but the same care applies: short statements, no schema changes.
+
+The other direction -- LMS holding the lock while this job wants it -- is `lms_writes`: the
+scanner holds it for hours at a stretch, so a busy server defers the rows rather than
+losing them, and the hourly loop writes exactly those rows again a few minutes later
+(bug report 129).
 """
 
-import contextlib
 import logging
-import sqlite3
-import time
 from typing import NamedTuple
 
 from services.common.config_store import ConfigStore
 from services.music_manager.library_paths import candidate_paths
+from services.music_manager.lms_writes import BUSY_TIMEOUT_STATEMENT, PendingWrites
 from services.music_manager.song_versions import derived_bitrate, format_tier
 
 logger = logging.getLogger(__name__)
 
 #: How many tracks to read from muma at a time. The join is cheap; the chunk bounds how
-#: much sits in memory, not how long a write transaction lasts -- WRITE_BATCH does that.
+#: much sits in memory, not how long a write transaction lasts -- lms_writes.WRITE_BATCH does that.
 CHUNK = 2000
-
-#: How long a statement waits for the server to let go of its write lock -- deliberately
-#: short. This is a background job and LMS is the player: when the two want the same lock,
-#: the one nobody is listening to has to yield. Thirty seconds did the opposite, and LMS
-#: does not wait at all -- it dies on a locked database with an uncaught exception, which
-#: cost 102 restarts and the whole library being unreachable.
-#:
-#: Spelled out as a literal statement rather than built from the number. PRAGMA takes no
-#: bound parameter, so any computed form is a formatted SQL string -- a shape worth not
-#: having at all here, rather than one to explain away in the security baseline.
-#: SongVersionSyncTest keeps the two in step.
-BUSY_TIMEOUT_MS = 2000
-BUSY_TIMEOUT_STATEMENT = 'PRAGMA busy_timeout = 2000'
-
-#: How often a chunk may find the database locked before the pass gives up on it. Few, and
-#: far apart: retrying hard is what turned a busy server into a crashing one. What is left
-#: undone costs nothing -- the next hourly pass writes the same rows.
-LOCK_RETRIES = 3
-
-#: How long to wait after a locked chunk before trying it again. Long enough for a scan
-#: step to finish rather than to fight it.
-LOCK_BACKOFF_SECONDS = 60
 
 #: What muma knows about every media file, one row per `library_media_files` row. Which LMS
 #: row of a work is canonical is decided per work in Python (`_settle_work`), not here: the
@@ -127,13 +106,6 @@ _UPDATE = (
 _CURRENT = (
     'SELECT id, work_id, is_canonical, version_kind, version_score FROM track WHERE absolute_file_path = ? LIMIT 1'
 )
-
-#: How many UPDATEs share one write transaction. The player aborts a request -- a rating,
-#: a scrobble, a token bump -- the instant it meets this job's lock (see the module
-#: docstring), so every transaction this job opens has to be a blink. A hundred indexed
-#: UPDATEs commit in milliseconds; the first pass over the whole library is a few thousand
-#: of those blinks rather than one ten-minute hold.
-WRITE_BATCH = 100
 
 
 class _ServerFile(NamedTuple):
@@ -262,49 +234,6 @@ def _settle_work(files: list[_ServerFile], stats: dict) -> list[tuple]:
     return pending
 
 
-def _write_batch(server_conn, server_cursor, batch, stats: dict, source: str, update_sql: str = _UPDATE) -> int:
-    """Write one batch, waiting out the server's write lock rather than giving up on it.
-
-    A locked database is LMS doing its own work -- a scan step, a playlist write -- and it
-    lets go again. The first version of this treated the lock as the end of the whole pass,
-    which is how a deploy that restarted both services wrote one track out of 285.332 and
-    left the columns a day stale. A batch that stays locked is skipped, not fatal: the next
-    pass rewrites the same rows.
-
-    `update_sql` takes `values + (key,)` -- the server row id here, the path in
-    track_form_sync, which pushes its own columns through the same lock handling rather than
-    copying it.
-    """
-    for attempt in range(1, LOCK_RETRIES + 1):
-        matched = 0
-        try:
-            for values, key in batch:
-                server_cursor.execute(update_sql, values + (key,))
-                matched += server_cursor.rowcount
-            server_conn.commit()
-            return matched
-        except sqlite3.OperationalError as e:
-            if 'locked' not in str(e).lower() and 'busy' not in str(e).lower():
-                raise
-            with contextlib.suppress(Exception):
-                server_conn.rollback()
-            if attempt == LOCK_RETRIES:
-                stats['chunks_skipped'] = stats.get('chunks_skipped', 0) + 1
-                logger.warning('%s: gave up on a batch after %s locked attempts', source, attempt)
-                return 0
-            logger.info('%s: server database locked, waiting %ss', source, LOCK_BACKOFF_SECONDS)
-            time.sleep(LOCK_BACKOFF_SECONDS)
-    return 0
-
-
-def _write(server_conn, server_cursor, pending, stats: dict, source: str) -> int:
-    """Write the pending rows in batches of WRITE_BATCH; nothing pending means no transaction."""
-    matched = 0
-    for start in range(0, len(pending), WRITE_BATCH):
-        matched += _write_batch(server_conn, server_cursor, pending[start : start + WRITE_BATCH], stats, source)
-    return matched
-
-
 def _read_chunk(server_cursor, rows, works: dict, seen: set, stats: dict, prefer_lossless: bool = True) -> list[tuple]:
     """Look one chunk up in the server. Ungrouped files are settled at once and returned as
     pending writes; files of a work are parked in `works` until the whole library is read,
@@ -344,7 +273,11 @@ def _read_chunk(server_cursor, rows, works: dict, seen: set, stats: dict, prefer
 
 
 def sync_song_versions_to_server(
-    muma_conn, server_conn, source: str = 'unknown', prefer_lossless: bool | None = None
+    muma_conn,
+    server_conn,
+    source: str = 'unknown',
+    prefer_lossless: bool | None = None,
+    deferred: list[PendingWrites] | None = None,
 ) -> dict:
     """Write muma's version model into the server database. Returns what it did.
 
@@ -359,6 +292,10 @@ def sync_song_versions_to_server(
     time to go and find out.
 
     `prefer_lossless` defaults to the configured setting, read once per pass.
+
+    A server busy scanning defers what it refused (`lms_writes`); `deferred` receives those rows
+    as a `PendingWrites` so the caller can write them again later, and `stats['deferred']`
+    counts them. Nothing refused is dropped: the next pass would find the same difference.
     """
     if prefer_lossless is None:
         prefer_lossless = getattr(ConfigStore(), 'prefer_lossless', True) is not False
@@ -366,7 +303,7 @@ def sync_song_versions_to_server(
         'considered': 0,
         'matched': 0,
         'skipped_no_columns': 0,
-        'chunks_skipped': 0,
+        'deferred': 0,
         'duplicates_skipped': 0,
         'works': 0,
         'canonical_fallbacks': 0,
@@ -377,6 +314,7 @@ def sync_song_versions_to_server(
         stats['skipped_no_columns'] = 1
         return stats
 
+    writes = PendingWrites(_UPDATE)
     try:
         server_conn.execute(BUSY_TIMEOUT_STATEMENT)
         works: dict[int, list[_ServerFile]] = {}
@@ -391,22 +329,27 @@ def sync_song_versions_to_server(
                 stats['considered'] += len(rows)
                 rows, previous_path = first_per_path(rows, previous_path, stats)
                 pending = _read_chunk(server_cursor, rows, works, seen, stats, prefer_lossless)
-                stats['matched'] += _write(server_conn, server_cursor, pending, stats, source)
+                stats['matched'] += writes.write(server_conn, server_cursor, pending)
         stats['works'] = len(works)
         pending = []
         for files in works.values():
             pending.extend(_settle_work(files, stats))
-        stats['matched'] += _write(server_conn, server_cursor, pending, stats, source)
+        stats['matched'] += writes.write(server_conn, server_cursor, pending)
     except Exception as e:
         logger.error('%s: song-version sync failed: %s', source, e, exc_info=True)
 
+    stats['deferred'] = len(writes.rows)
+    if writes.rows and deferred is not None:
+        deferred.append(writes)
     logger.info(
-        '%s: song-version sync considered %s files (%s duplicate rows skipped), wrote %s; '
+        '%s: song-version sync considered %s files (%s duplicate rows skipped), wrote %s, '
+        'deferred %s because the server database was busy; '
         '%s works, %s of them canonical through a fallback because the server lacks the chosen file',
         source,
         stats['considered'],
         stats['duplicates_skipped'],
         stats['matched'],
+        stats['deferred'],
         stats['works'],
         stats['canonical_fallbacks'],
     )

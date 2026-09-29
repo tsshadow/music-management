@@ -13,6 +13,7 @@ import sqlite3
 import unittest
 from unittest.mock import MagicMock, patch
 
+from services.music_manager import lms_writes
 from services.music_manager import song_version_sync as sync_module
 from services.music_manager.song_version_sync import sync_song_versions_to_server
 
@@ -228,71 +229,85 @@ class FlakyServer:
 
 
 class LockedServerDatabaseTest(SongVersionSyncTest):
-    """A locked database is the server working, not a failure.
+    """A locked database is the server working, not a failure -- and not a reason to lose rows.
 
-    The first version treated it as the end of the pass. On the 0.56.0 deploy LMS was
-    running its own startup scan, the sync met a locked database, and it wrote one track out
-    of 285.332 -- leaving the server's copy of the version model a day stale. Nothing came
-    back either, because the sync only ran at startup.
+    The first version treated it as the end of the pass: on the 0.56.0 deploy it wrote one
+    track out of 285.332. The second waited a minute and tried three times per batch, then
+    dropped the batch with a WARNING -- 40 a day on production, because an LMS scan holds the
+    write lock for far longer than that (bug report 129). Now the first refusal ends the
+    writing for the pass and every row not written is handed back for a retry.
     """
 
-    def test_a_chunk_that_is_locked_once_is_written_after_the_wait(self):
+    def two_versions(self):
+        """A work of two files on the server, both still canonical there; one must lose."""
         self.add_track(1, '/mnt/music/Soundcloud/rip.mp3')
         self.add_track(2, '/mnt/music/EPs/Texcore/01.mp3', work_id=42)
-        server = FlakyServer(self.server, failures=1)
-
-        with patch.object(sync_module, 'time') as clock:
-            stats = sync_song_versions_to_server(
-                muma_with(
-                    [
-                        row('/mnt/music/EPs/Texcore/01.mp3', work_id=42, track_id=10, canonical_track_id=10),
-                        row('/mnt/music/Soundcloud/rip.mp3', work_id=42, track_id=11, canonical_track_id=10),
-                    ]
-                ),
-                server,
-            )
-
-        clock.sleep.assert_called_once()
-        self.assertEqual(stats['matched'], 1)
-        self.assertEqual(self.stored(1)[1], 0)
-
-    def test_a_chunk_that_stays_locked_is_skipped_rather_than_ending_the_pass(self):
-        self.add_track(1, '/mnt/music/EPs/Texcore/01.mp3')
-        server = FlakyServer(self.server, failures=99)
-
-        with patch.object(sync_module, 'time'), patch.object(sync_module, 'LOCK_RETRIES', 3):
-            stats = sync_song_versions_to_server(
-                muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=42)]),
-                server,
-            )
-
-        self.assertEqual(stats['chunks_skipped'], 1)
-        self.assertEqual(stats['matched'], 0)
-        self.assertEqual(server.commits, 3, 'every retry has to reach the database')
-
-    def test_an_error_that_is_not_a_lock_is_not_waited_out(self):
-        # Waiting on a broken schema helps nobody and buries the real message.
-        self.add_track(1, '/mnt/music/EPs/Texcore/01.mp3')
-        server = FlakyServer(self.server, failures=99, error='no such table: track')
-
-        with patch.object(sync_module, 'time') as clock:
-            sync_song_versions_to_server(muma_with([row('/mnt/music/EPs/Texcore/01.mp3', work_id=42)]), server)
-
-        clock.sleep.assert_not_called()
-
-    def test_it_yields_quickly_rather_than_holding_the_player_up(self):
-        # This pinned the opposite yesterday, and the opposite was wrong. LMS dies on a
-        # locked database with an uncaught exception -- 102 restarts and no music -- so the
-        # background job has to let go long before the player asks twice.
-        self.assertLessEqual(sync_module.BUSY_TIMEOUT_MS, 5000)
-
-    def test_the_timeout_statement_says_what_the_constant_says(self):
-        # The statement is a literal because PRAGMA takes no bound parameter, so nothing but
-        # this test stops the two from drifting apart.
-        self.assertEqual(
-            sync_module.BUSY_TIMEOUT_STATEMENT,
-            f'PRAGMA busy_timeout = {sync_module.BUSY_TIMEOUT_MS}',
+        return muma_with(
+            [
+                row('/mnt/music/EPs/Texcore/01.mp3', work_id=42, track_id=10, canonical_track_id=10),
+                row('/mnt/music/Soundcloud/rip.mp3', work_id=42, track_id=11, canonical_track_id=10),
+            ]
         )
+
+    def test_a_refused_batch_is_deferred_rather_than_dropped(self):
+        muma = self.two_versions()
+        deferred = []
+
+        stats = sync_song_versions_to_server(muma, FlakyServer(self.server, failures=99), deferred=deferred)
+
+        self.assertEqual(stats['matched'], 0)
+        self.assertEqual(stats['deferred'], 1)
+        self.assertEqual(len(deferred), 1)
+        self.assertEqual(deferred[0].rows, [((42, 0, '', 0), 1)])
+        self.assertEqual(self.stored(1)[1], 1, 'nothing was written while the server was busy')
+
+    def test_the_deferred_rows_are_written_when_the_server_is_free_again(self):
+        muma = self.two_versions()
+        deferred = []
+        sync_song_versions_to_server(muma, FlakyServer(self.server, failures=99), deferred=deferred)
+
+        self.assertEqual(deferred[0].retry(self.server), 1)
+
+        self.assertEqual(deferred[0].rows, [])
+        self.assertEqual(self.stored(1), (42, 0, '', 0))
+
+    def test_after_one_refusal_the_pass_stops_asking(self):
+        # Every further batch would wait out the same scan. Asking once is the whole cost.
+        for i in range(3):
+            self.add_track(i, f'/mnt/music/Soundcloud/{i}.mp3', work_id=7)
+        server = FlakyServer(self.server, failures=99)
+        deferred = []
+
+        with patch.object(lms_writes, 'WRITE_BATCH', 1):
+            stats = sync_song_versions_to_server(
+                muma_with([row(f'/mnt/music/Soundcloud/{i}.mp3', work_id=None) for i in range(3)]),
+                server,
+                deferred=deferred,
+            )
+
+        self.assertEqual(server.commits, 1)
+        self.assertEqual(stats['deferred'], 3)
+
+    def test_without_a_collector_the_count_still_says_what_was_left(self):
+        stats = sync_song_versions_to_server(self.two_versions(), FlakyServer(self.server, failures=99))
+        self.assertEqual(stats['deferred'], 1)
+
+    def test_an_error_that_is_not_a_lock_is_not_deferred(self):
+        # Retrying a broken schema helps nobody and buries the real message.
+        muma = self.two_versions()
+        deferred = []
+
+        with self.assertLogs(sync_module.logger, 'ERROR'):
+            stats = sync_song_versions_to_server(
+                muma, FlakyServer(self.server, failures=99, error='no such table: track'), deferred=deferred
+            )
+
+        self.assertEqual((stats['deferred'], deferred), (0, []))
+
+    def test_a_busy_pass_logs_no_warning(self):
+        # The rows are kept and retried; a WARNING per batch was 40 alerts a day about nothing.
+        with self.assertNoLogs(sync_module.logger, 'WARNING'):
+            sync_song_versions_to_server(self.two_versions(), FlakyServer(self.server, failures=99))
 
 
 class OnlyChangedRowsTest(SongVersionSyncTest):
@@ -360,7 +375,7 @@ class OnlyChangedRowsTest(SongVersionSyncTest):
             self.add_track(i, f'/mnt/music/Soundcloud/{i}.mp3', work_id=42, is_canonical=1)
         self.add_track(9, '/mnt/music/EPs/Texcore/01.mp3', work_id=42, is_canonical=1)
         server = FlakyServer(self.server, failures=0)
-        with patch.object(sync_module, 'WRITE_BATCH', 2):
+        with patch.object(lms_writes, 'WRITE_BATCH', 2):
             stats = sync_song_versions_to_server(
                 muma_with(
                     [row('/mnt/music/EPs/Texcore/01.mp3', work_id=42, track_id=10, canonical_track_id=10)]

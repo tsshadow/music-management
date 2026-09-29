@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.12.2 (2026-09-29)
+
+- **Test and lint tooling updated** (Renovate). No change in the app itself.
+
 ## Global Version 7.12.1 (2026-09-27)
 
 - Android Auto's extra buttons now keep up with repeat and shuffle changes. The diagnostics report

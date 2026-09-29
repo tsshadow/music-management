@@ -11,6 +11,22 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.82.2 (2026-09-29)
+
+- **Server images include the latest operating-system security fixes** at every release.
+
+- **Fewer false alarms from the downloader.** DRM-protected SoundCloud tracks are no longer
+  retried every sweep, YouTube audio downloads no longer fetch the whole video, and download
+  errors show their cause in the notification title.
+
+- **Grouped song versions reach the player within minutes even while it scans**, and the alerts
+  topic no longer fires dozens of times a day about it.
+
+- **MuMa Mobile 7.12.2 only updates its test and lint tooling.** No change in the app itself.
+
+- **The nightly production check summarises YouTube download failures by cause again** instead of
+  by video.
+
 ## Global Version 0.82.1 (2026-09-27)
 
 - **MuMa Mobile 7.12.1 resends its Android Auto buttons when repeat or shuffle changes, and logs a fuller diagnostics line for the missing car buttons.** See the muma-mobile changelog (issue #130, bug report 127).

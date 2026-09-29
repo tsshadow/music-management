@@ -83,6 +83,11 @@ DETAILS_SQL = """
 """
 
 
+def _details_sql(ids: list[int]) -> str:
+    """DETAILS_SQL with one `%s` per id; the ids themselves stay bound parameters."""
+    return DETAILS_SQL.format(placeholders=', '.join(['%s'] * len(ids)))
+
+
 def _details(ids: list[int]) -> dict[int, dict]:
     """Title, artist, duration and file per track id."""
     if not ids:
@@ -90,7 +95,7 @@ def _details(ids: list[int]) -> dict[int, dict]:
     conn = require_connection(get_db_connection())
     try:
         with conn.cursor() as cursor:
-            cursor.execute(DETAILS_SQL.format(placeholders=', '.join(['%s'] * len(ids))), ids)
+            cursor.execute(_details_sql(ids), ids)
             return {int(row['id']): row for row in cursor.fetchall()}
     finally:
         conn.close()

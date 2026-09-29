@@ -87,16 +87,18 @@ services:
       # Watched by the "autoheal" service below.
       autoheal: "true"
     # Asks LMS a question over its own HTTP port and only cares that it answers
-    # at all. Without credentials /rest/ping.view is a 400, which is a perfectly
-    # good answer for this purpose -- the point is not what LMS says but whether
-    # it still has a thread free to say anything. When its HTTP threads were all
-    # parked waiting on MuMa, the process stayed up, kept its port open, and
-    # answered nothing; that is precisely the state this catches.
+    # at all -- the point is not what LMS says but whether it still has a thread
+    # free to say anything. getOpenSubsonicExtensions is the one Subsonic call that
+    # needs no credentials, so it answers 200 without writing a line to the log;
+    # the credential-less /rest/ping.view used before logged an ERROR ("Required
+    # parameter 'c' is missing") every 30 seconds, 2,880 a day. When its HTTP
+    # threads were all parked waiting on MuMa, the process stayed up, kept its
+    # port open, and answered nothing; that is precisely the state this catches.
     #
     # -S prints the status line to stderr, so grepping for it distinguishes "LMS
-    # replied 400" from "wget gave up after 4 seconds".
+    # replied" (whatever the status) from "wget gave up after 4 seconds".
     healthcheck:
-      test: ["CMD-SHELL", "wget -S -q -O /dev/null -T 4 http://127.0.0.1:5082/rest/ping.view 2>&1 | grep -q 'HTTP/1'"]
+      test: ["CMD-SHELL", "wget -S -q -O /dev/null -T 4 'http://127.0.0.1:5082/rest/getOpenSubsonicExtensions.view?c=healthcheck&v=1.16.1&f=json' 2>&1 | grep -q 'HTTP/1'"]
       interval: 30s
       timeout: 10s
       start_period: 180s

@@ -151,6 +151,8 @@ class FeedsRouterTest(_FeedsAuthTestCase):
                 'daily-mix-hard',
                 'daily-mix-artist',
                 'daily-mix-label',
+                # Not a ranker policy: its own builder (feeds/old_hits_build.py), listed alike.
+                'old-hits',
             },
         )
 
@@ -189,7 +191,8 @@ class FeedsRouterTest(_FeedsAuthTestCase):
         ):
             response = client.get('/api/feeds?username=user', headers={'X-API-Key': 'k'})
         self.assertEqual(response.status_code, 200)
-        feeds = response.json()['feeds']
+        # Every ranker policy is described; "Oude hitjes" has a static name of its own.
+        feeds = [feed for feed in response.json()['feeds'] if feed['slug'] != 'old-hits']
         self.assertTrue(feeds)
         self.assertTrue(all(feed['title'] == 'Aangepast' for feed in feeds))
         self.assertEqual(describe.call_count, len(feeds))

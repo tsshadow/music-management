@@ -137,6 +137,7 @@ describe("the app's lazy views", () => {
     expect(names(chunksForState({ view: "release-radar" }))).toEqual(["feedPage"]);
     expect(names(chunksForState({ view: "daily-mix" }))).toEqual(["feedPage"]);
     expect(names(chunksForState({ view: "daily-mix-hard" }))).toEqual(["feedPage"]);
+    expect(names(chunksForState({ view: "old-hits" }))).toEqual(["feedPage"]);
     expect(names(chunksForState({ view: "songs" }))).toEqual(["filterBar"]);
     expect(names(chunksForState({ view: "artists" }))).toEqual(["filterBar"]);
     expect(names(chunksForState({ view: "genre:Hardcore" }))).toEqual(["filterBar"]);

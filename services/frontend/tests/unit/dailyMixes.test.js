@@ -15,6 +15,7 @@ import {
   DAILY_MIX_LABEL,
   DAILY_MIX_MID,
   DAILY_MIX_SOFT,
+  OLD_HITS,
   RELEASE_RADAR,
 } from "../../src/lib/feeds.js";
 
@@ -79,12 +80,13 @@ describe("loadDailyMixCards", () => {
       { slug: DAILY_MIX_HARD, title: "Harder", subtitle: "≥ 70 hardheid" },
       { slug: DAILY_MIX_ARTIST, title: "Angerfist", subtitle: "Een artiest uit jouw top 10" },
       { slug: DAILY_MIX_LABEL, title: "Neophyte Records", subtitle: "Een label uit jouw top 10" },
+      { slug: OLD_HITS, title: "Oude hitjes", subtitle: "Oude favorieten die je minder draait" },
     ]);
     globalThis.__fetchFeed = vi.fn(async () => ({ tracks: [] }));
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404 }));
   });
 
-  it("builds one card per mix, in soft/mid/hard/artist/label order", async () => {
+  it("builds one card per mix, in soft/mid/hard/artist/label order, then Oude hitjes", async () => {
     const { cards } = await loadDailyMixCards(AUTH);
 
     expect(cards.map((c) => c.slug)).toEqual([
@@ -93,6 +95,7 @@ describe("loadDailyMixCards", () => {
       DAILY_MIX_HARD,
       DAILY_MIX_ARTIST,
       DAILY_MIX_LABEL,
+      OLD_HITS,
     ]);
     expect(cards.map((c) => c.title)).toEqual([
       "Zachter",
@@ -100,7 +103,10 @@ describe("loadDailyMixCards", () => {
       "Harder",
       "Angerfist",
       "Neophyte Records",
+      "Oude hitjes",
     ]);
+    // Coloured from its name like the rotating mixes: stable, from the fixed palette.
+    expect(cards[5].color).toBe(hashColor("Oude hitjes"));
   });
 
   it("colours a band by the ramp when its tracks carry no genre a tint answers for", async () => {
@@ -119,7 +125,7 @@ describe("loadDailyMixCards", () => {
   it("never fetches a feed for a card -- Home does not read tracks", async () => {
     const { cards, refine } = await loadDailyMixCards(AUTH);
     await refine(vi.fn());
-    expect(cards).toHaveLength(5);
+    expect(cards).toHaveLength(6);
     expect(globalThis.__fetchFeed).not.toHaveBeenCalled();
   });
 
@@ -136,6 +142,7 @@ describe("loadDailyMixCards", () => {
       DAILY_MIX_HARD,
       DAILY_MIX_ARTIST,
       DAILY_MIX_LABEL,
+      OLD_HITS,
     ]);
     expect(cards[0]).toMatchObject({
       title: "Release Radar",
@@ -186,7 +193,7 @@ describe("loadDailyMixCards", () => {
 
     const { cards } = await loadDailyMixCards(AUTH);
 
-    expect(cards).toHaveLength(5);
+    expect(cards).toHaveLength(6);
     expect(cards.every((c) => typeof c.color === "string")).toBe(true);
   });
 

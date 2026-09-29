@@ -161,6 +161,10 @@ READ_ENDPOINTS = [
     # genre-hardness digest (CRC32 over rules_genres) before the snapshot read.
     ('/api/feeds?username=root', 200),
     ('/api/feeds/daily-mix-hard?username=root', 200),
+    # "Oude hitjes" (docs/designs/old-hits-feed/): its own builder and queries, not the ranker's.
+    # OldHitsPipelineTest below seeds enough to run every one of them.
+    ('/api/feeds/old-hits', 400),
+    ('/api/feeds/old-hits?username=root', 200),
     # The Versions page in Beheer (docs/designs/song-versions/): the list, its sorts and
     # filter, the ranking status, and a song that does not exist.
     ('/api/songs/curation', 200),
@@ -2343,3 +2347,92 @@ class EventsRetentionSqlTest:
         )
         assert not older_info
         assert self._levels(db).count('CRITICAL') == 3
+
+
+class OldHitsPipelineTest:
+    """The "Oude hitjes" feed's SQL (feeds/old_hits_queries.py) and the popular-tracks store
+    (popular_tracks/worker.py) against a real schema: ratings, listens, the stored top-list
+    matches joined on track_uid, the version and date aggregates, and the display rows."""
+
+    def _track(self, db, title, artist, release_date=None, work_id=None, duration=300):
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT IGNORE INTO library_artists (name, normalized_name) VALUES (%s, %s)',
+                (artist, artist.lower()),
+            )
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', (artist,))
+            artist_id = cursor.fetchone()['id']
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, release_date,'
+                " work_id, form) VALUES (%s, %s, %s, %s, %s, %s, 'track')",
+                (f'uid-{title}', title, duration, artist_id, release_date, work_id),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, 1.0, 10)',
+                (f'/mnt/music/{title}.mp3', f'hash-{title}', track_id),
+            )
+        return track_id
+
+    def test_every_tier_runs_against_a_real_schema(self, api, headers, db):
+        favourite = self._track(db, 'Scrap Attack', 'Headhunterz', release_date='2009-06-27')
+        worn = self._track(db, 'Pennywise', 'Angerfist', release_date='2008-01-01')
+        hit = self._track(db, 'World Of Madness', 'Headhunterz', release_date='2012-06-01')
+        run_sql(
+            db,
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', %s, 'root', 5)",
+            ('uid-Scrap Attack',),
+        )
+        for days in (400, 390, 380, 370):
+            run_sql(
+                db,
+                'INSERT INTO scrobble_listens (track_id, listened_at, username, match_method)'
+                " VALUES (%s, NOW() - INTERVAL %s DAY, 'root', 'exact')",
+                (worn, days),
+            )
+        run_sql(
+            db,
+            'INSERT INTO artist_popular_tracks (artist_key, source, external_track_id, title, normalized_title,'
+            " popularity, position, matched_track_uid, fetched_at) VALUES ('headhunterz', 'deezer', '1',"
+            " 'World Of Madness', 'world of madness', 398309, 1, 'uid-World Of Madness', NOW())",
+        )
+
+        response = api.get('/api/feeds/old-hits?username=root', headers=headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body['state'] == 'ok', body
+        reasons = {track['id']: track['reason'] for track in body['tracks']}
+        assert reasons == {favourite: 'favourite:5', worn: 'worn:4', hit: 'hit:deezer:1'}, reasons
+        assert body['title'] == 'Oude hitjes'
+
+    def test_the_popular_tracks_store_runs_against_a_real_schema(self, db):
+        from datetime import datetime
+
+        from services.music_manager.popular_tracks.clients import ArtistTopTracks, TopTrack
+        from services.music_manager.popular_tracks.matcher import ArtistIndex
+        from services.music_manager.popular_tracks.worker import PopularTracksStore
+
+        track = self._track(db, 'Pennywise', 'Angerfist', release_date='2008-01-01')
+        run_sql(
+            db,
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', %s, 'root', 4)",
+            ('uid-Pennywise',),
+        )
+        store = PopularTracksStore(connect=_connect)
+        config = {'min_listens': 5, 'refresh_days': 7, 'max_artists': 10}
+        now = datetime.now().replace(microsecond=0)
+        assert store.due_artists('deezer', config, now) == [('angerfist', 'Angerfist')]
+
+        index = ArtistIndex(store.artist_tracks('angerfist'))
+        result = ArtistTopTracks('deezer', '42', [TopTrack('9', 'Pennywise (Radio Edit)', 1, 100)])
+        assert store.save('angerfist', 'Angerfist', result, index, now) == (1, 1)
+        rows = run_sql(db, 'SELECT matched_track_uid FROM artist_popular_tracks')
+        assert rows == [{'matched_track_uid': 'uid-Pennywise'}]
+        # Fresh now: not due again until the refresh window has passed.
+        assert store.due_artists('deezer', config, now) == []
+
+        store.record_failure('angerfist', 'Angerfist', 'deezer', now)
+        fetch = run_sql(db, 'SELECT status, track_count FROM artist_popularity_fetches')
+        assert fetch == [{'status': 'error', 'track_count': 1}]
+        assert track

@@ -28,6 +28,7 @@ from services.music_manager.database import (
 from services.music_manager.events_retention import run_events_retention
 from services.music_manager.feeds import snapshot as feeds_snapshot
 from services.music_manager.feeds.hardness import seed_genre_hardness
+from services.music_manager.popular_tracks import worker as popular_tracks_worker
 from services.music_manager.routers import (
     analytics,
     artist_curation,
@@ -172,6 +173,9 @@ def startup_event():
         # Judges the artist curation queue on external recording evidence once a day
         # (docs/designs/artist-curation/technical.md, "Scheduled evidence run").
         start_thread(artist_auto_approve_worker.THREAD_NAME, artist_auto_approve_worker.run_artist_auto_approve)
+        # Fetches the top tracks of the artists listeners rate or play, for the "Oude hitjes"
+        # feed's known-hits tier (docs/designs/old-hits-feed/technical.md, "Popularity crawl").
+        start_thread(popular_tracks_worker.THREAD_NAME, popular_tracks_worker.run_popular_tracks)
         # Keeps every active listener's feeds built ahead of the read, so opening
         # Home reads rows instead of running four profile builds. See
         # docs/designs/feeds/home-load.md.

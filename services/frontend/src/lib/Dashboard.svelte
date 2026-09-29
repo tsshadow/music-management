@@ -35,7 +35,7 @@
   import ListEnd from './ListEnd.svelte';
   import { defaultCollectionState, durationParts, lineupLevel, queryCollection, PLAYLIST_VISIBILITY } from './collections.js';
   import { loadIndexedTags } from './scanTags.js';
-  import { DAILY_MIX, DAILY_MIXES, RELEASE_RADAR } from './feeds.js';
+  import { DAILY_MIX, DAILY_MIXES, OLD_HITS, RELEASE_RADAR } from './feeds.js';
   import { activeManagementTab, downloaderSubTabRequest, userPermissions } from './store.js';
   import { allSortOptions, authParams, credentials, currentPlaylist, viewMode, favoriteGenres, favoriteLabels, favoritePlaylists, deduplicateEnabled, memoriesOnHomeEnabled, trackPageSize, hasPermission, isMobile, restUrl, mumaUser } from './store.js';
 
@@ -1633,7 +1633,7 @@
     <LazyView name="feedPage" props={{ slug: RELEASE_RADAR, onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'daily-mix'}
     <LazyView name="feedPage" props={{ slug: DAILY_MIX, onnavigate: (v) => onnavigate(v) }} />
-  {:else if DAILY_MIXES.includes(activeView)}
+  {:else if DAILY_MIXES.includes(activeView) || activeView === OLD_HITS}
     {#key activeView}
       <LazyView name="feedPage" props={{ slug: activeView, onnavigate: (v) => onnavigate(v) }} />
     {/key}

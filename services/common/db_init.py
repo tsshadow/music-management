@@ -62,6 +62,10 @@ REQUIRED_TABLES = [
     'library_track_audio_features',
     'library_track_ml_labels',
     'library_ingestion_records',
+    # The "Oude hitjes" feed's external popularity: which of an artist's tracks Deezer / Last.fm
+    # report as its top tracks, matched to the library. See migrate_v49_artist_popular_tracks.sql.
+    'artist_popularity_fetches',
+    'artist_popular_tracks',
     # The deploy's migration ledger: which migrate_*.sql applied, with the sha256 of its
     # content (tools/apply_migrations.py, bug report 068).
     'schema_migrations',
@@ -181,6 +185,13 @@ def ensure_tables_exist() -> None:
         # already rewrote, so its idea of "arrival" is worth less than the first one's.
         # See services/tagger/ingestion.py and migrate_v22_ingestion_records.sql.
         'library_ingestion_records': '\n            CREATE TABLE IF NOT EXISTS library_ingestion_records (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                file_path TEXT NOT NULL,\n                file_path_hash VARCHAR(64) NOT NULL UNIQUE,\n                file_size BIGINT NULL,\n                source VARCHAR(32) NOT NULL,\n                tags_json LONGTEXT NOT NULL,\n                code_version VARCHAR(32) NULL,\n                rules_fingerprint VARCHAR(32) NULL,\n                recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                INDEX idx_ingestion_recorded_at (recorded_at)\n            )\n        ',
+        # Per artist (normalized name, stable across a library rebuild) and source: when the
+        # popular-tracks loop last fetched its top list and whether the artist was found.
+        # See services/music_manager/popular_tracks/worker.py and migrate_v49_artist_popular_tracks.sql.
+        'artist_popularity_fetches': "\n            CREATE TABLE IF NOT EXISTS artist_popularity_fetches (\n                artist_key VARCHAR(191) NOT NULL,\n                source VARCHAR(16) NOT NULL,\n                artist_name VARCHAR(255) NULL,\n                external_artist_id VARCHAR(64) NULL,\n                status ENUM('ok', 'not_found', 'error') NOT NULL,\n                track_count INT NOT NULL DEFAULT 0,\n                matched_count INT NOT NULL DEFAULT 0,\n                fetched_at DATETIME NOT NULL,\n                PRIMARY KEY (artist_key, source),\n                INDEX idx_popularity_fetches_fetched_at (fetched_at)\n            )\n        ",
+        # The top list itself, each entry with the library track it matched. matched_track_uid is
+        # what the feed joins on: track_uid survives a rebuild, track and work ids do not.
+        'artist_popular_tracks': '\n            CREATE TABLE IF NOT EXISTS artist_popular_tracks (\n                id INT AUTO_INCREMENT PRIMARY KEY,\n                artist_key VARCHAR(191) NOT NULL,\n                source VARCHAR(16) NOT NULL,\n                external_track_id VARCHAR(64) NOT NULL,\n                title VARCHAR(512) NULL,\n                normalized_title VARCHAR(191) NULL,\n                popularity INT NULL,\n                position INT NOT NULL,\n                matched_track_uid VARCHAR(255) NULL,\n                matched_work_id INT NULL,\n                fetched_at DATETIME NOT NULL,\n                UNIQUE KEY uniq_popular_track (artist_key, source, external_track_id),\n                INDEX idx_popular_tracks_matched (matched_track_uid)\n            )\n        ',
         # One row per migrate_*.sql the deploy applied, keyed by file name, with the sha256
         # of the content it applied. scripts/deploy.sh skips a file whose name and hash are
         # recorded here; a changed file runs again. Kept identical to LEDGER_DDL in

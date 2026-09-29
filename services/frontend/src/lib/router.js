@@ -27,6 +27,8 @@ const PLAIN_VIEWS = [
   "daily-mix-hard",
   "daily-mix-artist",
   "daily-mix-label",
+  // "Oude hitjes" -- its own builder on the server, a feed page like the mixes here.
+  "old-hits",
   // The phone's own page listing the five mixes above as cards; the classic 'daily-mix' stays
   // reachable only at its own route, not as a sixth card here -- see docs/designs/feeds/functional.md.
   "daily-mixes",

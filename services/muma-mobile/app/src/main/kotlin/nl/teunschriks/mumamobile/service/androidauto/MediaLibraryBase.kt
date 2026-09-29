@@ -170,6 +170,7 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val FEED_RELEASE_RADAR = FeedRepository.RELEASE_RADAR
         internal const val FEED_DAILY_MIX = FeedRepository.DAILY_MIX
         internal val FEED_DAILY_MIXES = FeedRepository.DAILY_MIXES
+        internal const val FEED_OLD_HITS = FeedRepository.OLD_HITS
 
         // Tag browsing, one shape for every kind of tag. See [TagQuery] for the id grammar:
         // "<action>|<length>|<type>|<value>|<year>|<sort>".

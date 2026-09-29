@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-09-29
+
+### Added
+- **New feed "Oude hitjes": old favourites you play less.** The daily mixes lean on recent
+  releases, so an old anthem rated five stars never came back without a search -- on production
+  702 old tracks carry 4-5 stars and 584 old tracks played three or more times had not been played
+  in six months. The new feed (100 tracks, stable for a day, "Meer laden" like the others) fills
+  about 40% with your own old 4-5 star songs, 30% with old songs you played at least three times
+  but not in six months, and 30% with known hits by artists you rate or play: an artist's top
+  tracks on Deezer (and Last.fm when `lastfm_api_key` is set), or songs the library holds four or
+  more versions of. "Old" is released more than three years ago by the earliest date of any version;
+  anything rated 1-2 or played in the last 90 days is left out, one version per song, at most three
+  per artist. It shows after the daily mixes on Home and the phone's "Daily mixes" page, at
+  `/old-hits`, and via `GET /api/feeds/old-hits`. A new hourly `popular-tracks` loop fetches the
+  top lists for the ~940 artists that matter (a 4-5 star track or five listens), weekly per artist,
+  at most four requests a second, sending only artist names, into the new tables
+  `artist_popular_tracks` and `artist_popularity_fetches` (migrate_v49). Every threshold is a
+  setting in the "Feeds" group (`old_hits_*`, `popular_tracks_*`).
+
+### Changed
+- **The daily mixes are no longer only this year's releases.** Klassiek, Zachter, Middenin, Harder
+  and the label mix drew only from the last 90 days, so on 2026-09-29 they were 96-100 % tracks from
+  2026. Now half of each comes from the last 12 months and half from older songs that fit the
+  listener's artists, labels and genres -- leaving out what they rated 1-2 stars and preferring what
+  they have not played lately. A short half is filled from the other. Tunable in Beheer -> Config ->
+  Feeds (`feeds_daily_recent_percent` 50, `feeds_daily_recent_window_days` 365,
+  `feeds_daily_older_min_rating` 3). Release Radar and the artist mix are unchanged (bug report 131).
+
+- **"Meer laden" on a daily mix no longer rebuilds the mix, and building one is 2-3x cheaper.**
+  Klassiek, Zachter, Middenin, Harder and the label mix now rank 500 places in the same build and
+  store everything past the first page, so the next page is read from the stored row instead of
+  sampling the library twice again (about 11 s of queries on production). The samples themselves
+  were slow because every feeds query grouped the whole audio-features table per scanned track to
+  find a release date that `library_tracks` already had; they read it per track only when needed
+  now -- recent half 4.8 s to 1.7 s, older half 6.1 s to 2.7 s, measured on production (issue #137).
+
+- **Visual references refreshed for the Oude hitjes card** on the daily mixes page (desktop and phone).
+
+### Fixed
+- **LMS no longer crashes when music-manager's hourly lms.db sync runs during a scan.** The scan
+  step that updates the genre, mood and festival track counts opened a separate write transaction
+  for every cluster and rewrote each one, changed or not. That meant thousands of trips for the
+  write lock on every folder scan. When one of those trips landed inside a music-manager sync
+  batch, SQLite refused the UPDATE at once, even though LMS is configured to wait 15 s for the
+  lock. The error `update "cluster" ...: database is locked` escaped the scanner thread and took
+  the whole server down with `std::terminate`. It happened twice in 72 hours, both times inside
+  the sync pass. The configured wait was ignored because Wt starts transactions as deferred, and
+  SQLite does not wait when a transaction that has already read tries to write. Now every LMS
+  write transaction starts with `BEGIN IMMEDIATE`, so it waits for the lock. The step writes only
+  the clusters whose counts changed, in one transaction per 100 clusters. A write the database
+  still refuses is logged as a WARNING and retried on the next scan; the process keeps running
+  (bug report 132).
+
+- **The LMS log no longer carries an ERROR every 30 seconds from its own healthcheck.** The probe
+  called `/rest/ping.view` without credentials, which LMS logged as "Required parameter 'c' is
+  missing" 2,880 times a day. It now asks `getOpenSubsonicExtensions`, the one Subsonic call that
+  needs no login, and still only checks that an HTTP thread answers.
+
 ## [0.82.2] - 2026-09-29
 
 ### Changed

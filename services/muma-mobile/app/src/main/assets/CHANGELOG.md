@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.13.0] - 2026-09-29
+
+### Added
+- **Android Auto: "Oude hitjes" in the "Daily mixes" folder.** The new server feed of old
+  favourites you play less is listed last in the folder, after the classic daily mix, and plays
+  like every other feed row. On the phone it appears on Home through the web UI.
+
 ## [7.12.2] - 2026-09-29
 
 ### Changed

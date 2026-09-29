@@ -93,6 +93,11 @@ namespace lms::scanner
         // Update database (scheduled callback)
         void scan(const ScanOptions& scanOptions);
         void processScanSteps(ScanContext& context);
+        // processScanSteps, with a database error caught and logged: false when one stopped the scan.
+        bool runScanStepsGuarded(ScanContext& context);
+        // Schedules a library-wide scan that a database error stopped again, scanRetryDelay from now.
+        void scheduleScanRetry(const ScanOptions& scanOptions);
+        static constexpr std::chrono::minutes scanRetryDelay{ 5 };
 
         void scanMediaDirectory(const std::filesystem::path& mediaDirectory, bool forceScan, ScanStats& stats);
 

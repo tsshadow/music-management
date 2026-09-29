@@ -150,6 +150,7 @@ namespace lms::db::tests
         TmpDatabase();
 
         IDb& getDb();
+        const std::filesystem::path& getPath() const { return _tmpFile; }
 
     private:
         const std::filesystem::path _tmpFile;

@@ -37,11 +37,13 @@ add_executable(test-database
 	TrackList.cpp
 	TrackLyrics.cpp
 	User.cpp
+	WriteTransactionLock.cpp
 	)
 
 target_link_libraries(test-database PRIVATE
 	lmsdatabase
 	GTest::GTest
+	Wt::DboSqlite3
 	)
 
 if (NOT CMAKE_CROSSCOMPILING)

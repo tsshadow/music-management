@@ -78,6 +78,13 @@ def test_the_track_bpm_table_is_an_expected_table():
     assert 'library_track_bpm' in schema_sources.migration_declared_tables()
 
 
+def test_the_effective_bpm_table_is_an_expected_table():
+    """Issue #141: db_init creates library_track_effective_bpm and migrate_v51 declares it."""
+    assert 'library_track_effective_bpm' in EXPECTED_TABLES
+    assert 'library_track_effective_bpm' in schema_sources.code_declared_tables()
+    assert 'library_track_effective_bpm' in schema_sources.migration_declared_tables()
+
+
 def test_the_extractor_can_file_a_standing_file(db):
     """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
     from services.importer import conflict_store

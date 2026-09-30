@@ -70,6 +70,15 @@ describe("bpm.js", () => {
     expect(formatBpm(null)).toBe("");
   });
 
+  it("reads the API's numeric strings and 0/1 flags, and prints nothing for no BPM", () => {
+    // /api/library/advanced sends `bpm_approximate` as the database's 0/1 (issue #141).
+    expect(formatBpm({ bpm: "152.00", approximate: 1 })).toBe("≈152");
+    expect(formatBpm({ bpm: 150, approximate: 0 })).toBe("150");
+    expect(formatBpm({ bpm: null, approximate: null })).toBe("");
+    expect(formatBpm({ bpm: "", approximate: 1 })).toBe("");
+    expect(formatBpm({ bpm: 0 })).toBe("");
+  });
+
   it("attaches the BPM to the songs by path and leaves strangers alone", () => {
     const songs = withBpm(
       [

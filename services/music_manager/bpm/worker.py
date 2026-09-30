@@ -19,6 +19,12 @@ One round:
    and I/O priority.
 3. Fold each estimate into the band of the track's genres -- or, without any, of its primary
    artist's commonest genre -- and store it in `library_track_bpm`.
+4. Bring those tracks' rows in `library_track_effective_bpm` up to date (`effective_table.sync`),
+   so the library table and the analytics see a new measurement within the round.
+
+Besides the rounds, every `EFFECTIVE_SYNC_SECONDS` -- also while the analysis is paused or off --
+the whole `library_track_effective_bpm` table is synced, which picks up changed genres, a changed
+`bpm_reliable_confidence` and deleted tracks (issue #141).
 
 Resumable by construction: the queue is whatever has no current row, so a restart, a pause or a
 crash simply continues. Settings are re-read from music-manager's config file every round
@@ -46,7 +52,7 @@ from typing import Any
 
 import numpy as np
 
-from services.music_manager.bpm import estimator
+from services.music_manager.bpm import effective_table, estimator
 from services.music_manager.bpm.bands import band_for_genres, fold_into_band
 
 logger = logging.getLogger('music-manager.bpm')
@@ -57,6 +63,8 @@ IDLE_SECONDS = 300.0
 #: Sleep while switched off or paused.
 OFF_SECONDS = 60.0
 SUMMARY_SECONDS = 600.0
+#: How often the whole effective-BPM table is synced; a failed sync is retried after IDLE_SECONDS.
+EFFECTIVE_SYNC_SECONDS = 1800.0
 RETRY_FAILED_AFTER = timedelta(days=7)
 MAX_ATTEMPTS = 3
 DECODE_TIMEOUT_SECONDS = 120
@@ -80,11 +88,14 @@ SETTINGS: tuple[tuple[str, str, Any], ...] = (
     ('bpm_analysis_excerpt_seconds', 'integer', 60),
     ('bpm_analysis_skip_forms', 'string', 'set,liveset,podcast'),
     ('bpm_analysis_max_minutes', 'integer', 15),
+    # Not an analysis setting, but it decides the stored effective confidence (effective.py).
+    ('bpm_reliable_confidence', 'integer', 75),
 )
 _BOUNDS = {
     'bpm_analysis_workers': (1, 8),
     'bpm_analysis_excerpt_seconds': (20, 180),
     'bpm_analysis_max_minutes': (1, 60),
+    'bpm_reliable_confidence': (0, 100),
 }
 
 
@@ -275,6 +286,10 @@ class BpmStore:
                 genres[track_id] = [name]
         return genres
 
+    def sync_effective(self, track_ids: list[int] | None, reliable_confidence: float) -> effective_table.SyncResult:
+        """Sync `library_track_effective_bpm`, for every track (None) or the given ones."""
+        return effective_table.sync(self._connect_fn, track_ids=track_ids, reliable_confidence=reliable_confidence)
+
     def save(self, rows: list[tuple]) -> None:
         """Upsert one batch of UPSERT_SQL rows."""
         if not rows:
@@ -381,6 +396,9 @@ class Progress:
     remaining: int | None = None
     state: str = 'starting'
     last_summary: float = 0.0
+    #: When the last full effective-BPM sync ran (clock time), 0 before the first.
+    effective_synced_at: float = 0.0
+    effective_tracks: int | None = None
     window: list[tuple[float, int]] = field(default_factory=list)
 
     def rate_per_hour(self, now: float) -> float | None:
@@ -409,6 +427,8 @@ def write_status(progress: Progress, config: dict, path: Path = STATUS_PATH, now
         'workers': config.get('bpm_analysis_workers'),
         'method': estimator.METHOD,
         'started_at': progress.started,
+        'effective_synced_at': progress.effective_synced_at or None,
+        'effective_tracks': progress.effective_tracks,
     }
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -447,6 +467,7 @@ class Worker:
         self.progress = Progress(started=clock())
         self._pool: Executor | None = None
         self._pool_size = 0
+        self._next_full_sync = 0.0
 
     def _executor(self, workers: int) -> Executor:
         """The pool, recreated when the configured size changed."""
@@ -478,11 +499,42 @@ class Worker:
             for job, result in zip(jobs, results, strict=True)
         ]
         self.store.save(rows)
+        self._sync_effective(config, [job['track_id'] for job in jobs])
         failed = sum(1 for result in results if not result.get('ok'))
         self.progress.analyzed += len(jobs) - failed
         self.progress.failed += failed
         self.progress.window.append((self.clock(), len(jobs)))
         return len(jobs)
+
+    def _sync_effective(self, config: dict, track_ids: list[int] | None = None) -> None:
+        """Sync the effective-BPM table: in full when due (`track_ids` None), else for those tracks.
+
+        A failure is logged and never ends the round: the measurements are stored either way, and
+        the next full sync repairs whatever a failed partial one missed.
+        """
+        now = self.clock()
+        if track_ids is None and now < self._next_full_sync:
+            return
+        reliable = config.get('bpm_reliable_confidence', 75) / 100.0
+        try:
+            result = self.store.sync_effective(track_ids, reliable)
+        except Exception:  # pylint: disable=broad-except  # the table is derived; the next sync repairs it
+            logger.exception('bpm: syncing the effective BPM table failed')
+            if track_ids is None:
+                self._next_full_sync = now + IDLE_SECONDS
+            return
+        if track_ids is not None:
+            return
+        self._next_full_sync = now + EFFECTIVE_SYNC_SECONDS
+        self.progress.effective_synced_at = now
+        self.progress.effective_tracks = result.resolved
+        if result.upserted or result.deleted:
+            logger.info(
+                'bpm: effective BPM synced for %d tracks (%d updated, %d removed)',
+                result.resolved,
+                result.upserted,
+                result.deleted,
+            )
 
     def _summary(self, config: dict, force: bool = False) -> None:
         """Count the queue and log one INFO line, at most every SUMMARY_SECONDS."""
@@ -503,6 +555,7 @@ class Worker:
     def tick(self) -> float:
         """One step of the loop; returns how long to wait before the next."""
         config = self.settings()
+        self._sync_effective(config)
         if not config['bpm_analysis_enabled'] or config['bpm_analysis_paused']:
             self.progress.state = 'disabled' if not config['bpm_analysis_enabled'] else 'paused'
             self.status(self.progress, config)

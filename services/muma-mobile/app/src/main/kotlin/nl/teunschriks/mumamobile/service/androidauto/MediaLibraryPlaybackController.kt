@@ -57,6 +57,9 @@ class MediaLibraryPlaybackController(
     val musicService: MusicService get() = musicServiceProvider()
     lateinit var dataProvider: MediaLibraryDataProvider
 
+    /** What a BPM row plays (issue #140), through the data provider's shared repository. */
+    internal val bpm = BpmPlayback(serviceScope) { dataProvider.bpm }
+
     fun playRandomSongs(): List<Track>? {
         if (dataProvider.randomSongsCache == null) {
             // This can only happen if Android Auto cached items, but Ultrasonic has forgot them
@@ -211,6 +214,13 @@ class MediaLibraryPlaybackController(
             }
             MEDIA_SEARCH_SONG_ITEM -> dataProvider.searchSongsCache to parts[INDEX_ID]
             MEDIA_FEED_ITEM -> return feedQueueForTap(parts[INDEX_ID], parts[INDEX_NAME])
+            MEDIA_BPM_ITEM -> {
+                // Refetched through the shared repository, like a feed; the row says itself
+                // where it continues.
+                val list = bpm.playAll(parts[INDEX_ID])
+                continuation = list?.continuation
+                list?.tracks to parts[INDEX_NAME]
+            }
             else -> return null
         }
         if (tracks.isNullOrEmpty()) return null
@@ -237,6 +247,7 @@ class MediaLibraryPlaybackController(
             MEDIA_FEED_ID -> parts.getOrNull(INDEX_ID)?.let { slug ->
                 feedPage(slug)?.let { MediaLibraryDataProvider.LoadedList(it.tracks, feedContinuation(slug, it.nextOffset)) }
             }
+            MEDIA_BPM_TRACKS -> parts.getOrNull(INDEX_ID)?.let { bpm.playAll(it) }
             MEDIA_TAG_PLAY -> tagQueryList(parts)
             MEDIA_PRESET_PLAY -> parts.getOrNull(INDEX_ID)?.let { presetList(it, parts.getOrNull(INDEX_SORT)) }
             MEDIA_SONG_RANDOM_ID -> {
@@ -313,6 +324,8 @@ class MediaLibraryPlaybackController(
             MEDIA_SEARCH_SONG_ITEM -> playSearch(mediaIdParts[INDEX_ID])
             MEDIA_FEED_ID -> playFeed(mediaIdParts[INDEX_ID])
             MEDIA_FEED_ITEM -> playFeedSong(mediaIdParts[INDEX_ID], mediaIdParts[INDEX_NAME])
+            MEDIA_BPM_TRACKS -> bpm.tracks(mediaIdParts[INDEX_ID])
+            MEDIA_BPM_ITEM -> bpm.song(mediaIdParts[INDEX_ID], mediaIdParts[INDEX_NAME])
             else -> null
         }
 

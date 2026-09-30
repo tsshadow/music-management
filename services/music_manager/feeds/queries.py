@@ -15,7 +15,7 @@ docs/designs/feeds/technical.md, Invariants):
 - `library_track_audio_features.internal_track_id` is not unique, so a plain
   join into it multiplies candidate rows and, with them, every score. Every
   query here reads it through an aggregate scalar subquery per track instead
-  (`_AF_BPM`, `_AF_RELEASE_YEAR`, `_AF_RELEASE_DATE`), which can never return
+  (`_AF_RELEASE_YEAR`, `_AF_RELEASE_DATE`), which can never return
   more than one row.
 - `library_track_audio_features.track_id` is a file-path hash, not `library_tracks.track_uid` -- the join
   back to a track always goes through `internal_track_id`.
@@ -28,13 +28,11 @@ from services.music_manager.feeds.policy import FeedPolicy
 # One row per track: a disagreeing release_date across several files sharing a
 # track counts as unknown rather than picking one of them arbitrarily.
 #
-# That agreement rule is the release date's alone. `MIN(tempo)`, `MIN(bpm_tag)`
-# and `MIN(release_year)` do *not* follow it: they pick the smallest value of
-# however many rows the track has, disagreement and all. That is deliberate --
-# `bpm` is displayed and never filtered or ranked on, and `release_year` is
-# carried but read by nothing, so an arbitrary-but-stable pick cannot change
-# which tracks a feed contains or in what order. Anything that starts selecting
-# on either of them has to revisit this.
+# That agreement rule is the release date's alone. `MIN(release_year)` does *not*
+# follow it: it picks the smallest value of however many rows the track has,
+# disagreement and all. That is deliberate -- `release_year` is carried but read by
+# nothing, so an arbitrary-but-stable pick cannot change which tracks a feed contains
+# or in what order. Anything that starts selecting on it has to revisit this.
 _AF_LOOKUP = 'FROM library_track_audio_features x WHERE x.internal_track_id = t.id'
 
 #: Per-track scalar lookups, correlated on `idx_af_internal_track_id` (bug report 131
@@ -43,7 +41,14 @@ _AF_LOOKUP = 'FROM library_track_audio_features x WHERE x.internal_track_id = t.
 #: filter applied, and on production that alone was most of a daily-mix sample's six
 #: seconds. A correlated lookup costs one index probe per row that actually reads it --
 #: and `_RELEASE_DATE` only reads it for the few hundred tracks with a NULL date.
-_AF_BPM = f'(SELECT COALESCE(MIN(x.tempo), MIN(x.bpm_tag)) {_AF_LOOKUP})'
+
+#: The effective BPM (issue #141): the tempo bpm/effective.py resolves, as the bpm-analyzer
+#: materialises it -- one primary-key probe, at most one row. It is displayed, and it is the
+#: last fallback of a track's hardness (`hardness.tempo_hardness`) when neither genre, label
+#: nor artist gives one, so it does reach ranking through that; the folded, measured value is
+#: what that fallback should see rather than the old analyzer's half-time readings.
+_EFFECTIVE_BPM = '(SELECT eb.bpm FROM library_track_effective_bpm eb WHERE eb.track_id = t.id)'
+_EFFECTIVE_BPM_APPROXIMATE = '(SELECT eb.approximate FROM library_track_effective_bpm eb WHERE eb.track_id = t.id)'
 _AF_RELEASE_YEAR = f'(SELECT MIN(x.release_year) {_AF_LOOKUP})'
 _AF_RELEASE_DATE = (
     "(SELECT CASE WHEN COUNT(DISTINCT NULLIF(x.release_date, '')) = 1"
@@ -126,7 +131,7 @@ def listens_query(username: str | None, window_days: int, now: datetime) -> tupl
             s.match_method,
             s.played_secs,
             a.name AS artist,
-            {_AF_BPM} AS bpm,
+            {_EFFECTIVE_BPM} AS bpm,
             (SELECT GROUP_CONCAT(l.name ORDER BY l.name SEPARATOR ',')
              FROM library_track_labels tl
              JOIN library_labels l ON l.id = tl.label_id
@@ -543,7 +548,8 @@ def _candidate_select(where_sql: str, pool: str | None = None) -> str:
              WHERE tg.track_id = t.id AND rg.state <> 'black') AS genres,
             (SELECT mf.file_path FROM library_media_files mf
              WHERE mf.track_id = t.id LIMIT 1) AS file_path,
-            {_AF_BPM} AS bpm,
+            {_EFFECTIVE_BPM} AS bpm,
+            {_EFFECTIVE_BPM_APPROXIMATE} AS bpm_approximate,
             {_AF_RELEASE_YEAR} AS release_year,
             {_RELEASE_DATE} AS release_date,
             EXISTS (SELECT 1 FROM library_track_channels ltc

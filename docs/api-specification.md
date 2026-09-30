@@ -329,6 +329,11 @@ need `rules.manage`.
   `yt_url`: those were two correlated `LIKE '%<basename>%'` scans of the download archives per row, and
   no client read them. `GET /api/library/tracks/by-path` and `POST /api/library/tracks/{id}/redownload`
   still resolve a track's source URL.
+- **GET `/api/library/tracks/by-path?path=`**: what MuMa knows about one file for the player's details
+  sheet (channels, source URL, ingestion tags, ML genre). Its BPM is the effective BPM resolved live by
+  `bpm/effective.py` (issue #141): `bpm`, `bpm_source` (`measured`/`tag`/`analyzer`), `bpm_confidence`
+  (`high`/`medium`/`low`), `bpm_approximate` and `bpm_folded`, all null when the track has no tempo.
+  `404` for a file MuMa never scanned.
 - **POST `/api/library/tracks/{id}/redownload`**: fetches the track again from the archive's source URL
   and replaces the file in place, atomically (a failed download leaves the old file). The source is
   found by the exact stored path (SoundCloud archive `filename`, YouTube archive `path`) over every
@@ -343,6 +348,13 @@ need `rules.manage`.
   classified matches none) and `year_min`/`year_max`, which compare the year a track files under --
   a live set's `performance_date` first, then `library_tracks.release_date`, then the analyzer's
   `release_year` (docs/designs/track-form/).
+  BPM (issue #141): each track's `bpm` is its *effective BPM* -- the one the BPM browse shows, read
+  from `library_track_effective_bpm`, which the bpm-analyzer keeps in sync -- with `bpm_approximate`
+  (1 when it is not a measurement, clients print "≈152"; null without a BPM). `bpm_min`/`bpm_max`
+  and a bare number in `q` (50-300, ±2) filter on it, and `sort=bpm` sorts on it with tracks
+  without a BPM last in both directions, ties broken by id. The `/api/analytics/*` BPM filters,
+  `summary.coverage.bpm` and `bpm-histogram` read the same value, and so does `GET
+  /api/library/tracks` (`bpm`, `bpm_approximate`).
 
 ### 🥁 Browse by BPM (`/api/library/bpm`)
 Design: [docs/designs/bpm-browse/](designs/bpm-browse/technical.md). Any valid API key. Both endpoints

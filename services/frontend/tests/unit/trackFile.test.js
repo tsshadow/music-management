@@ -123,6 +123,13 @@ describe("tagRows", () => {
     for (const shown of ["title", "artist", "publisher"]) expect(keys).not.toContain(shown);
   });
 
+  it("shows MuMa's effective BPM with ≈ when it is not measured (issue #141)", () => {
+    const coarse = tagRows({ bpm: 152, bpm_approximate: true, tags: { bpm: ["76"] } }, {});
+    expect(coarse).toEqual([{ key: "bpm", value: "≈152" }]);
+    const measured = tagRows({ bpm: 150.02, bpm_approximate: false }, {});
+    expect(measured).toEqual([{ key: "bpm", value: "150" }]);
+  });
+
   it("falls back to the tagged bpm and the LMS comment when MuMa has neither", () => {
     const rows = tagRows({ tags: { bpm: ["150"] } }, { comment: " hello " });
     expect(rows).toEqual([

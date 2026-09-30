@@ -262,7 +262,7 @@
   "library": {
     "addedOn": "Added: {date}",
     "analysedOnly": "Analysed only",
-    "bpmCaveat": "Raw detection. The analyser sometimes reads tempo at half or double speed, so the peaks around 150-160 and 190-200 are partly artefacts.",
+    "bpmCaveat": "The same tempo as Browse by BPM: measured where the BPM analysis has done the track, otherwise the file's BPM tag or the old analysis, moved into the genre's tempo range. Those older values are rough (steps of about 4 to 9 BPM), so a bar can hold a neighbour's tracks.",
     "bpmDistribution": "BPM distribution",
     "duration": "Duration",
     "from": "from",

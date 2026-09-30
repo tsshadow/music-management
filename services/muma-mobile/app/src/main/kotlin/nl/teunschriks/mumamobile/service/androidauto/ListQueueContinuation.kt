@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.service.BpmBucket
+import nl.teunschriks.mumamobile.service.BpmPage
 import nl.teunschriks.mumamobile.service.FeedPage
 import nl.teunschriks.mumamobile.util.toMediaItem
 import timber.log.Timber
@@ -196,6 +198,19 @@ class FeedListSource(
     override val label: String get() = "feed $slug"
 
     override fun pageAt(offset: Int): ListQueueContinuation.Page? = loadPage(slug, offset)?.let { ListQueueContinuation.Page(it.tracks, it.nextOffset) }
+}
+
+/**
+ * A BPM row as a [ListQueueContinuation.Source]: `GET /api/library/bpm/tracks?offset=`, which
+ * says itself where the next page starts (`next_offset`), like a feed.
+ */
+class BpmListSource(
+    val bucket: BpmBucket,
+    private val loadPage: (bucket: BpmBucket, offset: Int) -> BpmPage?
+) : ListQueueContinuation.Source {
+    override val label: String get() = "bpm ${bucket.key}"
+
+    override fun pageAt(offset: Int): ListQueueContinuation.Page? = loadPage(bucket, offset)?.let { ListQueueContinuation.Page(it.tracks, it.nextOffset) }
 }
 
 /**

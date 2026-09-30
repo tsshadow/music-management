@@ -705,9 +705,11 @@ def trigger_fetch_by_id(artist_id: int, force: bool = False):
         print(f'Background fetch failed for artist ID {artist_id}: {e}')
 
 
-def sync_artist_images_to_server(muma_conn, server_conn):
+def sync_artist_images_to_server(muma_conn, server_conn, source: str = 'unknown'):
     """
     Syncs primary artist images from MuMa MariaDB to Music Management Server SQLite DB.
+
+    `source` names the server (e.g. `server-stable`) in the log lines of the path repair.
 
     Reads first and writes only what differs, one short transaction per artist that needs
     one. The first version wrote every artist's preferred_artwork_id unconditionally inside
@@ -724,7 +726,7 @@ def sync_artist_images_to_server(muma_conn, server_conn):
         # the server's spelling, so the lookups below find them (bug report 138).
         from services.music_manager.lms_portrait_paths import repair_portrait_paths
 
-        repair_portrait_paths(server_conn)
+        repair_portrait_paths(server_conn, source)
     except Exception as e:
         print(f'Portrait path repair failed on Music Management Server: {e}')
     try:

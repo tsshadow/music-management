@@ -838,6 +838,8 @@ class SyncSingleServerDbTest(unittest.TestCase):
             ):
                 users_router.sync_single_server_db(muma_conn, db_path, 'lms')
             sync_images.assert_called_once()
+            # The server's name reaches the image sync, so its log lines say which server.
+            self.assertEqual(sync_images.call_args.args[2], 'lms')
         self.assertEqual(muma_conn.commit.call_count, 2)
 
     def test_an_unreadable_database_does_not_raise(self):

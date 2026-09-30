@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.6 (2026-09-30)
+
+- **Artist portraits no longer flip back to album covers.** Other apps than the web player
+  showed a release cover, or no picture, for most artists within minutes of every portrait sync.
+
 ## Global Version 0.85.5 (2026-09-30)
 
 - **MuMa Mobile 7.15.0 checks the server at start-up** and offers Opnieuw proberen / Wachten op server / Offline verder when it is unreachable. See the muma-mobile changelog.

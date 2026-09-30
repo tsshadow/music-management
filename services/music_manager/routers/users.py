@@ -1610,7 +1610,7 @@ def sync_single_server_db(muma_conn, db_path, source):
             muma_conn.commit()
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
 
-        sync_artist_images_to_server(muma_conn, sqlite_conn)
+        sync_artist_images_to_server(muma_conn, sqlite_conn, source)
         # The image sync reports its own failures and carries on, and a failure halfway through
         # an artist leaves that artist's transaction open -- holding the server's write lock for
         # as long as the passes below take. Nothing in it is worth keeping.

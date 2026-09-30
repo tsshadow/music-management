@@ -66,6 +66,13 @@ class RepairPortraitPathsTest(unittest.TestCase):
         self.assertEqual(stats['renamed'], 1)
         self.assertEqual(stats['left_for_lms'], 0)
 
+    def test_the_log_line_names_the_server(self):
+        # It read "unknown: portrait path repair ..." on production (issue #146).
+        self.given("INSERT INTO image VALUES (1, 1, '/mnt/music/artists/9/spotify-abc.jpg', 'spotify-abc');")
+        with self.assertLogs(lms_portrait_paths.logger, level='INFO') as logs:
+            repair_portrait_paths(self.ours, 'server-stable')
+        self.assertTrue(logs.records[0].getMessage().startswith('server-stable: portrait path repair'))
+
     def test_an_artist_on_a_file_lms_indexed_itself_is_moved_onto_lms_row(self):
         # Renaming would give one path two rows; LMS's Image::find(path) expects one.
         self.given(

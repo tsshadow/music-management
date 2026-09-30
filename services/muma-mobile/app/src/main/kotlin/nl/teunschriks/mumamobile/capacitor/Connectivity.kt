@@ -22,8 +22,14 @@ import android.net.NetworkCapabilities
  * @param activeServerIsOfflineDb the listener chose the offline library
  *   (`ActiveServerProvider.isOffline()`).
  * @param networkHasInternet a network with [NetworkCapabilities.NET_CAPABILITY_INTERNET] is up.
+ * @param offlineChosen the listener picked "Offline verder" on the start-up check
+ *   ([ServerReachability.offlineChosen]): the network may be fine, the server is not.
  */
-fun hasRouteToServer(activeServerIsOfflineDb: Boolean, networkHasInternet: Boolean): Boolean = !activeServerIsOfflineDb && networkHasInternet
+fun hasRouteToServer(
+    activeServerIsOfflineDb: Boolean,
+    networkHasInternet: Boolean,
+    offlineChosen: Boolean = false
+): Boolean = !activeServerIsOfflineDb && networkHasInternet && !offlineChosen
 
 /** Whether any network claiming internet access is up. Does not prove the server answers. */
 fun ConnectivityManager.hasInternetCapability(): Boolean {

@@ -32,6 +32,20 @@
   },
   "boot": {
     "connecting": "Verbinden met de server…",
+    "offlineStart": "Offline starten…",
+    "reachability": {
+      "checking": "Verbinding controleren…",
+      "continueOffline": "Offline verder",
+      "nextAttempt": "Volgende poging over {seconds} s",
+      "noNetworkBody": "Je telefoon heeft geen netwerk. Je kunt verder met de muziek die op dit toestel staat.",
+      "noNetworkTitle": "Geen netwerkverbinding",
+      "retry": "Opnieuw proberen",
+      "unreachableBody": "De MuMa-server reageert niet. Je kunt wachten tot hij terug is, of verder met de muziek die op dit toestel staat.",
+      "unreachableTitle": "Server niet bereikbaar",
+      "wait": "Wachten op server",
+      "waitingSince": "Wachten sinds {time}",
+      "waitingTitle": "Wachten op de server"
+    },
     "restoringQueue": "Wachtrij herstellen…",
     "retry": "Opnieuw proberen",
     "signingIn": "Inloggen…",
@@ -2062,6 +2076,19 @@
     "signInTitle": "Log opnieuw in",
     "unavailableHelp": "Dit scherm heeft de server nodig. Zodra er verbinding is werkt het weer.",
     "unavailableTitle": "Niet beschikbaar zonder verbinding"
+  },
+  "offlineMode": {
+    "back": "Weer verbonden met de server",
+    "backRestored": {
+      "one": "Weer verbonden: wachtrij hersteld (1 nummer)",
+      "other": "Weer verbonden: wachtrij hersteld ({count} nummers)"
+    },
+    "banner": "Offline: alleen muziek op dit toestel",
+    "reconnect": "Opnieuw verbinden",
+    "skipped": {
+      "one": "1 nummer niet beschikbaar offline",
+      "other": "{count} nummers niet beschikbaar offline"
+    }
   },
   "presetBuilder": {
     "kicker": "Geavanceerd zoeken",

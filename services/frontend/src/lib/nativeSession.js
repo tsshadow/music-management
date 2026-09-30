@@ -16,6 +16,17 @@ import {
 } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
 import { startQueue } from "./queue.js";
+import { checkServer, isUnreachable } from "./serverReachability.js";
+import {
+  clearStash,
+  enterOfflineMode,
+  leaveOfflineMode,
+  planOfflineQueue,
+  readStash,
+  reconcileQueue,
+  setOfflineCounts,
+  stashOnlineQueue,
+} from "./offlineMode.js";
 
 /**
  * What the web player has to do before it renders anything, but only inside the
@@ -44,6 +55,12 @@ import { startQueue } from "./queue.js";
  *    the WebView, reopen, and the mini player is where the music is.
  *
  * In a browser tab every one of these is skipped and nothing changes.
+ *
+ * Before the session and the queue, the server is asked once whether it answers at all
+ * (docs/designs/app-start-reachability/). The check leaves at the same moment as step 1 and is
+ * only waited for after it, so a reachable server costs one ping round trip. When a signed-in
+ * phone cannot reach its server, the start pauses on the boot screen's choice -- try again, wait
+ * for the server, or continue offline -- and "offline" restores only the tracks on the device.
  */
 
 /** How many tracks a rehydrate will fetch. A longer queue is truncated. */
@@ -61,15 +78,23 @@ export const MAX_REHYDRATED_TRACKS = 200;
  * @param {object} [platform] - Injected by the tests.
  * @param {typeof fetch} [fetchImpl] - Injected by the tests.
  * @param {(stage: string, progress?: {done: number, total: number}) => void} [onStage] - Told
- *   `connecting`, `signingIn` and `restoringQueue` (with a count as the tracks come back).
- * @returns {Promise<{native: boolean, signedIn: boolean, restored: number}>}
+ *   `connecting`, `offlineStart` (after "Offline verder"), `signingIn` and `restoringQueue` (with
+ *   a count as the tracks come back).
+ * @param {object} [options]
+ * @param {function({state: string}): Promise<'online'|'offline'>} [options.decide] - Asked when a
+ *   signed-in phone cannot reach its server; `bootUnreachable.js` in the app. Without one the
+ *   start goes on as it always did.
+ * @returns {Promise<{native: boolean, signedIn: boolean, restored: number, offline: boolean}>}
  */
 export async function bootstrapShell(
   platform = defaultPlatform,
   fetchImpl = undefined,
   onStage = () => {},
+  { decide = async () => "online" } = {},
 ) {
-  if (!platform?.system?.isNative) return { native: false, signedIn: false, restored: 0 };
+  if (!platform?.system?.isNative) {
+    return { native: false, signedIn: false, restored: 0, offline: false };
+  }
 
   const report = (stage, progress) => {
     // The boot screen is decoration: a failure there must never stop the boot itself.
@@ -82,19 +107,172 @@ export async function bootstrapShell(
 
   try {
     report("connecting");
+    // Leaves now and is waited for after the server URLs: the native side pings with its own
+    // client and settings, so it needs nothing from the stores below.
+    const reachability = checkServer(platform);
     await applyServerUrls(platform);
+    const offlineStart = await decideStart(platform, reachability, decide);
+    if (offlineStart) report("offlineStart");
     report("signingIn");
     const signedIn = await restoreSession(platform);
     if (signedIn) report("restoringQueue");
-    const restored = signedIn
-      ? await rehydrateQueue(platform, fetchImpl, (progress) => report("restoringQueue", progress))
-      : 0;
-    platform.diagnostics.log("shell:boot", { signedIn, restored });
-    return { native: true, signedIn, restored };
+    const onProgress = (progress) => report("restoringQueue", progress);
+    let restored = 0;
+    if (signedIn && offlineStart) {
+      restored = await rehydrateOfflineQueue(platform, fetchImpl, onProgress);
+    } else if (signedIn) {
+      restored = await rehydrateQueue(platform, fetchImpl, onProgress);
+      restored = await putBackStashedQueue(fetchImpl, restored);
+    }
+    platform.diagnostics.log("shell:boot", { signedIn, restored, offline: offlineStart });
+    return { native: true, signedIn, restored, offline: offlineStart };
   } catch (error) {
     console.error("The shell could not be bootstrapped", error);
-    return { native: true, signedIn: false, restored: 0 };
+    return { native: true, signedIn: false, restored: 0, offline: false };
   }
+}
+
+/**
+ * What the start-up check means for this start: online (false) or offline (true).
+ *
+ * Only a phone with a session to restore waits for the check at all: signed out, the login page
+ * appears at once and says for itself when it cannot reach the server. A process that is still in
+ * offline mode from before (the WebView was reclaimed and rebuilt) stays offline without asking
+ * again while the server is away, and leaves offline mode when it is back.
+ *
+ * @param {object} platform
+ * @param {Promise<{state: string, elapsedMs: number, offlineChosen: boolean, skipped: boolean}>}
+ *   pending - The check, already on its way.
+ * @param {function({state: string}): Promise<'online'|'offline'>} decide
+ * @returns {Promise<boolean>}
+ */
+async function decideStart(platform, pending, decide) {
+  if (!(await phoneHasSession(platform))) {
+    // Nothing to be offline with: a flag left from an earlier offline start must not make the
+    // login page believe there is no route.
+    pending.then((check) => {
+      logCheck(platform, check);
+      if (check.offlineChosen) leaveOfflineMode(platform);
+    });
+    return false;
+  }
+  const check = await pending;
+  logCheck(platform, check);
+  if (!isUnreachable(check.state)) {
+    if (check.offlineChosen) await leaveOfflineMode(platform);
+    return false;
+  }
+  const offline = check.offlineChosen || (await decide(check)) === "offline";
+  if (offline) await enterOfflineMode(platform);
+  return offline;
+}
+
+/**
+ * Writes the check into the diagnostics trail: the answer, how long the ping took (the number
+ * that shows whether the check slows a normal start down) and whether it ran at all.
+ *
+ * @param {object} platform
+ * @param {{state: string, elapsedMs: number, skipped: boolean}} check
+ */
+function logCheck(platform, check) {
+  try {
+    platform.diagnostics.log("shell:reachability", {
+      state: check.state,
+      elapsedMs: check.elapsedMs,
+      skipped: check.skipped,
+    });
+  } catch (error) {
+    console.warn("Could not log the start-up check", error);
+  }
+}
+
+/**
+ * Whether the phone holds a session this start would restore -- the same test `restoreSession`
+ * makes, without taking anything over.
+ *
+ * @param {object} platform
+ * @returns {Promise<boolean>}
+ */
+async function phoneHasSession(platform) {
+  if (get(signedOut)) return false;
+  try {
+    const stored = await platform.system.credentials();
+    return Boolean(stored?.signedIn && stored.username && stored.mumaApiKey);
+  } catch (error) {
+    console.warn("Could not read the phone's session", error);
+    return false;
+  }
+}
+
+/**
+ * The offline twin of `rehydrateQueue`: the same read of the native queue, answered from the
+ * downloaded library (offline mode is on, so `subsonicJson` never tries the server), then cut down
+ * to what can play by `planOfflineQueue`. The tracks left out are counted for the banner, and the
+ * full queue is kept for the way back online.
+ *
+ * @param {object} platform
+ * @param {typeof fetch} [fetchImpl]
+ * @param {(progress: {done: number, total: number}) => void} [onProgress]
+ * @returns {Promise<number>} How many tracks were restored.
+ */
+export async function rehydrateOfflineQueue(
+  platform,
+  fetchImpl = undefined,
+  onProgress = () => {},
+) {
+  const [state, queue] = await Promise.all([
+    platform.player.refresh(),
+    platform.player.queueState(),
+  ]);
+  const ids = queue.trackIds.slice(0, MAX_REHYDRATED_TRACKS).map(String);
+  if (!ids.length) return 0;
+
+  const found = await fetchTracks(ids, fetchImpl, onProgress, platform);
+  const plan = planOfflineQueue({
+    ids,
+    tracks: found,
+    playingId: state.trackId,
+    index: queue.index,
+  });
+  setOfflineCounts({ skipped: plan.skipped, restored: plan.tracks.length });
+  if (plan.skipped > 0) {
+    stashOnlineQueue({
+      ids,
+      playingId: state.trackId == null ? null : String(state.trackId),
+      index: queue.index,
+      offlineIds: plan.tracks.map((track) => String(track.id)),
+    });
+  } else {
+    clearStash();
+  }
+  if (!plan.tracks.length) return 0;
+
+  startQueue(plan.tracks, { view: null });
+  currentTrack.set(plan.tracks[plan.index]);
+  // A different track than the one the player had is loaded paused, from its start.
+  playerState.update((current) => ({
+    ...current,
+    playing: plan.playingKept && state.status === "playing",
+    progress: plan.playingKept ? state.position : 0,
+    duration: (plan.playingKept && state.duration) || plan.tracks[plan.index]?.duration || 0,
+    volume: Math.round(state.volume * 100),
+  }));
+  return plan.tracks.length;
+}
+
+/**
+ * An online start after an offline one -- the app was closed or its WebView rebuilt while offline
+ * -- finds the native queue cut down to the downloaded tracks. The full queue was kept; put it
+ * back, on the same terms as the background reconnect (`reconcileQueue`).
+ *
+ * @param {typeof fetch} [fetchImpl]
+ * @param {number} restored - What the ordinary restore brought back.
+ * @returns {Promise<number>} How many tracks the queue holds now.
+ */
+async function putBackStashedQueue(fetchImpl, restored) {
+  if (!readStash()) return restored;
+  const outcome = await reconcileQueue({ fetchImpl });
+  return outcome.restored || restored;
 }
 
 /**
@@ -200,7 +378,7 @@ export async function rehydrateQueue(platform, fetchImpl = undefined, onProgress
   const ids = queue.trackIds.slice(0, MAX_REHYDRATED_TRACKS);
   if (!ids.length) return 0;
 
-  const tracks = await fetchTracks(ids, fetchImpl, onProgress);
+  const tracks = await fetchTracks(ids, fetchImpl, onProgress, platform);
   if (!tracks.length) return 0;
 
   // Matched on the id rather than on the queue index: a track the server no
@@ -239,9 +417,15 @@ export async function rehydrateQueue(platform, fetchImpl = undefined, onProgress
  * @param {string[]} ids
  * @param {typeof fetch} [fetchImpl]
  * @param {(progress: {done: number, total: number}) => void} [onProgress]
+ * @param {object} [platform] - The shell whose downloaded library answers when offline.
  * @returns {Promise<Array<object>>} In queue order, without the failures.
  */
-async function fetchTracks(ids, fetchImpl = undefined, onProgress = () => {}) {
+async function fetchTracks(
+  ids,
+  fetchImpl = undefined,
+  onProgress = () => {},
+  platform = undefined,
+) {
   const call = fetchImpl ?? fetch;
   const total = ids.length;
   let done = 0;
@@ -249,7 +433,11 @@ async function fetchTracks(ids, fetchImpl = undefined, onProgress = () => {}) {
   const answers = await Promise.all(
     ids.map(async (id) => {
       try {
-        const body = await subsonicJson("getSong", { id }, { fetchImpl: call });
+        const body = await subsonicJson(
+          "getSong",
+          { id },
+          platform ? { fetchImpl: call, platform } : { fetchImpl: call },
+        );
         return body?.["subsonic-response"]?.song ?? null;
       } catch (error) {
         console.warn("Could not look up a queued track", id, error);

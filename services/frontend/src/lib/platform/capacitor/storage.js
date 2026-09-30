@@ -125,6 +125,35 @@ export function createCapacitorStorage(plugin) {
     },
 
     /**
+     * The start-up check: one Subsonic `ping`, signed by the app's own client, within `timeoutMs`,
+     * classified together with Android's network state (`ServerReachability.kt`).
+     *
+     * @param {{timeoutMs?: number}} [options]
+     * @returns {Promise<{state: string, elapsedMs: number, offlineChosen: boolean}>} `state` is
+     *   `reachable`, `noNetwork`, `unreachable` or `authFailed`.
+     */
+    async checkServer(options = {}) {
+      const request = typeof options.timeoutMs === "number" ? { timeoutMs: options.timeoutMs } : {};
+      const answer = await plugin.checkServer(request);
+      return {
+        state: typeof answer?.state === "string" ? answer.state : "reachable",
+        elapsedMs: typeof answer?.elapsedMs === "number" ? answer.elapsedMs : 0,
+        offlineChosen: answer?.offlineChosen === true,
+      };
+    },
+
+    /**
+     * "Offline verder" on or off. While on, `isOffline()` answers true whatever the network does,
+     * and the native services -- Android Auto included -- use the downloaded library.
+     *
+     * @param {boolean} enabled
+     * @returns {Promise<void>}
+     */
+    async setOfflineMode(enabled) {
+      await plugin.setOfflineMode({ enabled: enabled === true });
+    },
+
+    /**
      * @param {function({online: boolean}): void} handler
      * @returns {function(): void} Unsubscribes.
      */

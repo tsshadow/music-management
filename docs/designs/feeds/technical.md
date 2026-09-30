@@ -499,8 +499,9 @@ too when nothing in the listener's history resolved a hardness at all — it nev
 
 `state` is `ok`, `no_matches` (nothing survived the filters) or `not_enough_data` (no profile could
 be built at all). A track object is the shape `/api/library/advanced` already returns — `id`, `title`,
-`artist`, `label`, `genres`, `duration_secs`, `bpm`, `release_date`, `file_path` — plus `bucket` and
-`reason`. `tracks` is `[]` for both non-`ok` states, and the state is what the caller renders on;
+`artist`, `label`, `genres`, `duration_secs`, `bpm`, `bpm_approximate`, `release_date`, `file_path` —
+plus `bucket` and `reason`. `bpm` is the effective BPM (docs/designs/bpm-browse/technical.md, "Effective
+BPM in SQL", issue #141), which is also what a track's tempo-only hardness fallback reads. `tracks` is `[]` for both non-`ok` states, and the state is what the caller renders on;
 an empty list is never returned with `state = "ok"`.
 
 ## Cross-App Impact

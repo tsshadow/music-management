@@ -231,7 +231,7 @@ class TrackByPathTest(RouterTestCase):
         ]
         self.answer(
             self.MEDIA,
-            {'bpm': 103.0},
+            {'track_id': 7, 'bpm_tag': None, 'tempo': 103.0, 'measured': None, 'genres': None},
             {'ml_genre': 'hardstyle'},
             {
                 'source': 'LABEL',
@@ -248,11 +248,53 @@ class TrackByPathTest(RouterTestCase):
         )
         self.assertEqual(body['tags'], {'catalognumber': ['Q404PRO'], 'publisher': ['QDance']})
         self.assertEqual(body['bpm'], 103.0)
+        self.assertEqual(body['bpm_source'], 'analyzer')
+        self.assertTrue(body['bpm_approximate'])
         self.assertEqual(body['ml_genre'], 'hardstyle')
         self.assertEqual(body['source'], 'LABEL')
         self.assertEqual(body['source_url'], 'https://soundcloud.com/complex/x')
         self.assertEqual(body['source_platform'], 'soundcloud')
         self.assertEqual(body['added_at'], '2026-09-02 10:00:00')
+
+    def _bpm_of(self, inputs):
+        """The by-path answer's BPM fields for one track whose BPM inputs are `inputs`."""
+        self.cursor.fetchall.return_value = []
+        self.answer(self.MEDIA, inputs, None, None, None, None)
+        body = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers).json()
+        return {key: body[key] for key in ('bpm', 'bpm_source', 'bpm_confidence', 'bpm_approximate', 'bpm_folded')}
+
+    def test_the_bpm_is_the_effective_one_a_measurement_first(self):
+        """Issue #141: the details sheet shows the tempo the BPM browse shows, not the analyzer's."""
+        found = self._bpm_of(
+            {
+                'track_id': 7,
+                'bpm_tag': 152.0,
+                'tempo': 161.5,
+                'measured': 150.0,
+                'measured_confidence': 0.9,
+                'measured_folded': 0,
+                'genres': 'Hardstyle',
+            }
+        )
+        self.assertEqual(
+            found,
+            {'bpm': 150.0, 'bpm_source': 'measured', 'bpm_confidence': 'high', 'bpm_approximate': False,
+             'bpm_folded': False},
+        )  # fmt: skip
+        sql = self.statements()[2]
+        self.assertIn('library_track_bpm', sql)
+        self.assertIn('t.id = %s', sql)
+
+    def test_a_tag_is_folded_into_the_genre_band_and_marked_approximate(self):
+        found = self._bpm_of({'track_id': 7, 'bpm_tag': 76.0, 'tempo': None, 'measured': None, 'genres': 'Hardstyle'})
+        self.assertEqual(found['bpm'], 152.0)
+        self.assertEqual(found['bpm_source'], 'tag')
+        self.assertTrue(found['bpm_approximate'])
+        self.assertTrue(found['bpm_folded'])
+
+    def test_a_track_without_any_bpm_source_has_none(self):
+        found = self._bpm_of(None)
+        self.assertEqual(set(found.values()), {None})
 
     def test_the_archive_is_matched_on_the_whole_filename(self):
         self.cursor.fetchall.return_value = []

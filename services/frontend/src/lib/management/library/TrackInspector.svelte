@@ -1,6 +1,7 @@
 <script>
   import { t, format } from '../../i18n/index.js';
   import { Info, Music, RefreshCw, Download, Calendar, Hash, FileAudio } from '@lucide/svelte';
+  import { formatBpm } from '../../bpmFormat.js';
 
   export let track = null;
   export let onRerunParse;
@@ -28,10 +29,10 @@
       </div>
 
       <div class="grid grid-cols-2 gap-3">
-        {#if track.bpm}
+        {#if formatBpm({ bpm: track.bpm })}
           <div class="bg-white/5 p-3 rounded-lg border border-white/5">
             <span class="text-[9px] uppercase tracking-widest text-muma-spotify-text block mb-1">BPM</span>
-            <span class="text-lg font-black font-mono tabular-nums">{Math.round(track.bpm)}</span>
+            <span class="text-lg font-black font-mono tabular-nums">{formatBpm({ bpm: track.bpm, approximate: track.bpm_approximate })}</span>
           </div>
         {/if}
         {#if track.release_date || track.release_year}

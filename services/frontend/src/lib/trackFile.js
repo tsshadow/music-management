@@ -8,6 +8,7 @@
  * is testable without rendering the sheet.
  */
 import { formatBytes } from "./downloads.js";
+import { formatBpm } from "./bpmFormat.js";
 
 /** The last segment of a library path: what a listener recognises as "the file". */
 export function fileName(path) {
@@ -134,8 +135,12 @@ export function tagRows(details, track) {
   }
   if (details?.source) rows.push({ key: "origin", value: titleCase(details.source) });
 
-  const bpm = details?.bpm ?? joined(tags, "bpm");
-  if (bpm) rows.push({ key: "bpm", value: String(Math.round(Number(bpm)) || bpm) });
+  // MuMa's effective BPM (a measurement, else the tag or old analyzer value folded into the
+  // genre's band, marked "≈"), the file's own tag only when MuMa has none.
+  const effective = formatBpm({ bpm: details?.bpm, approximate: details?.bpm_approximate });
+  const tagged = joined(tags, "bpm");
+  const bpm = effective || (tagged ? String(Math.round(Number(tagged)) || tagged) : "");
+  if (bpm) rows.push({ key: "bpm", value: bpm });
   const named = [
     ["catalogNumber", "catalognumber"],
     ["copyright", "copyright"],

@@ -69,6 +69,9 @@ REQUIRED_TABLES = [
     # Browse by BPM: the measured tempo per track, keyed on track_uid. See
     # migrate_v50_track_bpm.sql and docs/designs/bpm-browse/technical.md.
     'library_track_bpm',
+    # Browse by BPM, the effective BPM per track (measurement > tag > tempo, folded) materialised
+    # for SQL readers by the bpm-analyzer. See migrate_v51_track_effective_bpm.sql.
+    'library_track_effective_bpm',
     # The deploy's migration ledger: which migrate_*.sql applied, with the sha256 of its
     # content (tools/apply_migrations.py, bug report 068).
     'schema_migrations',
@@ -199,6 +202,7 @@ def ensure_tables_exist() -> None:
         # move keeps it. Filled by the BPM analysis worker; read by services/music_manager/bpm/.
         # See migrate_v50_track_bpm.sql.
         'library_track_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                status ENUM('ok', 'failed') NOT NULL DEFAULT 'ok',\n                bpm DECIMAL(5,2) NULL,\n                raw_bpm DECIMAL(5,2) NULL,\n                confidence DECIMAL(4,3) NULL,\n                method VARCHAR(32) NOT NULL,\n                octave_corrected TINYINT(1) NOT NULL DEFAULT 0,\n                file_mtime DOUBLE NULL,\n                file_size BIGINT NULL,\n                attempts INT NOT NULL DEFAULT 1,\n                error VARCHAR(255) NULL,\n                analyzed_at DATETIME NOT NULL,\n                INDEX idx_track_bpm_bpm (bpm),\n                INDEX idx_track_bpm_status (status, analyzed_at)\n            )\n        ",
+        'library_track_effective_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_effective_bpm (\n                track_id INT NOT NULL PRIMARY KEY,\n                bpm DECIMAL(5,2) NOT NULL,\n                source ENUM('measured', 'tag', 'analyzer') NOT NULL,\n                confidence ENUM('low', 'medium', 'high') NOT NULL,\n                approximate TINYINT(1) NOT NULL DEFAULT 0,\n                folded TINYINT(1) NOT NULL DEFAULT 0,\n                updated_at DATETIME NOT NULL,\n                INDEX idx_effective_bpm_bpm (bpm),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE\n            )\n        ",
         # One row per migrate_*.sql the deploy applied, keyed by file name, with the sha256
         # of the content it applied. scripts/deploy.sh skips a file whose name and hash are
         # recorded here; a changed file runs again. Kept identical to LEDGER_DDL in

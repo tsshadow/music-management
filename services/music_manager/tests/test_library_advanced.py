@@ -148,6 +148,35 @@ class LibraryAdvancedTest(unittest.TestCase):
         self.assertIn('af.release_date DESC', sql)
 
     @patch('services.music_manager.routers.library.get_db_connection')
+    def test_sorting_by_bpm_uses_the_effective_bpm_with_missing_last(self, mock_get_db):
+        """Issue #141: the BPM column sorts on the tempo it shows, tracks without one last in
+        both directions, ties broken on the id so paging is stable."""
+        cursor = self._mock(mock_get_db)
+        for direction in ('asc', 'desc'):
+            cursor.execute.reset_mock()
+            self.client.get(f'/api/library/advanced?sort=bpm&direction={direction}', headers=self.headers)
+            sql = cursor.execute.call_args_list[0].args[0]
+            d = direction.upper()
+            self.assertIn(f'ORDER BY eb.bpm IS NULL, eb.bpm {d}, t.id {d}', sql)
+            self.assertIn(f'ORDER BY page.bpm IS NULL, page.bpm {d}, page.id {d}', sql)
+            self.assertNotIn('af.tempo', sql)
+            self.assertNotIn('af.bpm_tag', sql)
+
+    @patch('services.music_manager.routers.library.get_db_connection')
+    def test_the_page_is_picked_before_the_per_track_subqueries_run(self, mock_get_db):
+        """The label/genre/file subqueries sit in the outer query over the paged ids only; in the
+        sorting query MariaDB evaluated them for every track (7.5 s for the BPM sort)."""
+        cursor = self._mock(mock_get_db)
+        self.client.get('/api/library/advanced?sort=bpm', headers=self.headers)
+        sql = cursor.execute.call_args_list[0].args[0]
+        inner = sql[sql.index('FROM (') : sql.index(') page')]
+        self.assertIn('LIMIT %s OFFSET %s', inner)
+        self.assertNotIn('library_media_files', inner)
+        self.assertNotIn('library_track_labels', inner)
+        self.assertIn('eb.approximate AS bpm_approximate', inner)
+        self.assertIn('JOIN library_tracks t ON t.id = page.id', sql)
+
+    @patch('services.music_manager.routers.library.get_db_connection')
     def test_an_unknown_sort_key_falls_back_to_the_default(self, mock_get_db):
         """The sort key reaches the SQL as an expression, so only a whitelist may decide it."""
         cursor = self._mock(mock_get_db)

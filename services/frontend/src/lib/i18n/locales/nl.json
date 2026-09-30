@@ -262,7 +262,7 @@
   "library": {
     "addedOn": "Toegevoegd: {date}",
     "analysedOnly": "Alleen geanalyseerd",
-    "bpmCaveat": "Ruwe detectie. De analyzer leest tempo soms op halve of dubbele snelheid, dus pieken rond 150-160 en 190-200 zijn deels artefacten.",
+    "bpmCaveat": "Hetzelfde tempo als Bladeren op BPM: gemeten waar de BPM-analyse het nummer al heeft gedaan, anders de BPM-tag van het bestand of de oude analyse, verschoven naar het tempobereik van het genre. Die oudere waarden zijn grof (stappen van zo'n 4 tot 9 BPM), dus een staaf kan nummers van de buren bevatten.",
     "bpmDistribution": "BPM-verdeling",
     "duration": "Duur",
     "from": "van",

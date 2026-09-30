@@ -76,13 +76,20 @@ REASONS = {
         'Audited 2026-09-22. events_retention.py (2026-09-25) formats only a '
         'join of %s placeholders, one per id it selected itself, and an integer '
         'module constant for max_statement_time into its DELETE; the ids go in '
-        'as bound parameters.'
+        'as bound parameters. bpm/effective_table.py (2026-09-30, issue #141) '
+        'formats its own table-name constant and a join of %s placeholders, one '
+        'per track id the worker measured or read itself, into its SELECT and '
+        'DELETE; the ids are bound. routers/library.py _effective_bpm executes '
+        'index.INPUTS_SQL with a fixed WHERE literal formatted in at import '
+        'time; the track id is bound.'
     ),
     'avoid-sqlalchemy-text': 'Same as sqlalchemy-execute-raw-query.',
     'formatted-sql-query': (
         'Table-name interpolation in the helper layer and in one-off scripts '
         'under tools/ and scripts/, which take their arguments from the person '
-        'running them. Values still go through placeholders.'
+        'running them. Values still go through placeholders. '
+        'bpm/effective_table.py (2026-09-30) formats its table-name constant and '
+        'a run of %s placeholders for its own track ids; the ids are bound.'
     ),
     'github-actions-mutable-action-tag': (
         'services/muma-mobile/.github/ is dead weight inherited from Ultrasonic '

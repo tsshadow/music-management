@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from services.music_manager.database import get_db_connection
 from services.music_manager.routers.analytics_filters import (
+    EFFECTIVE_BPM_SQL,
     FROM_CLAUSE,
     LibraryFilter,
     build_filter,
@@ -57,7 +58,7 @@ def summary(f: LibraryFilter = Depends(parse_filter), _auth: dict = Depends(veri
                 COUNT(*) AS tracks,
                 COUNT(DISTINCT a.id) AS artists,
                 COALESCE(SUM(t.duration_secs), 0) AS total_duration_secs,
-                SUM(COALESCE(af.tempo, af.bpm_tag) IS NOT NULL) AS with_bpm,
+                SUM({EFFECTIVE_BPM_SQL} IS NOT NULL) AS with_bpm,
                 SUM(EXISTS (SELECT 1 FROM library_track_genres tg
                             WHERE tg.track_id = t.id)) AS with_genre,
                 SUM(t.primary_artist_id IS NOT NULL) AS with_artist,
@@ -132,19 +133,22 @@ def genre_distribution(
 def bpm_histogram(
     bucket: int = Query(5, ge=1, le=50), f: LibraryFilter = Depends(parse_filter), _auth: dict = Depends(verify_api_key)
 ):
-    """Raw detected tempo.
+    """Tracks per BPM bucket, on the effective BPM (issue #141).
 
-    Librosa misreports half and double time, which is a data-quality problem to
-    fix in the analyzer rather than hide behind a correction here.
+    The same tempo the BPM browse, the library table and the track details show: a
+    measurement where the bpm-analyzer has one, else the file tag or the old analyzer's
+    tempo folded into the genre's band (analytics_filters.EFFECTIVE_BPM_SQL). It used to
+    read the old analyzer first, whose half- and double-time readings made the peaks
+    around 75-80 and 300 partly artefacts.
     """
 
     def sql(where):
         return (
             f"""
-            SELECT FLOOR(COALESCE(af.tempo, af.bpm_tag) / %s) * %s AS bucket_start,
+            SELECT FLOOR({EFFECTIVE_BPM_SQL} / %s) * %s AS bucket_start,
                    COUNT(*) AS count
             {FROM_CLAUSE}
-            WHERE {where} AND COALESCE(af.tempo, af.bpm_tag) BETWEEN 20 AND 400
+            WHERE {where} AND {EFFECTIVE_BPM_SQL} BETWEEN 20 AND 400
             GROUP BY bucket_start
             ORDER BY bucket_start
         """,

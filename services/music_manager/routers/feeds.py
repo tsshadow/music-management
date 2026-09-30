@@ -89,6 +89,7 @@ _TRACK_FIELDS = (
     'genres',
     'duration_secs',
     'bpm',
+    'bpm_approximate',
     'release_date',
     'file_path',
 )

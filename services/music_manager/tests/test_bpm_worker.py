@@ -206,6 +206,15 @@ class FakeStore:
     def __init__(self, jobs):
         self.jobs = list(jobs)
         self.saved = []
+        #: (track_ids or None for a full sync, reliable_confidence) per effective-BPM sync.
+        self.synced = []
+        self.sync_error = None
+
+    def sync_effective(self, track_ids, reliable_confidence):
+        self.synced.append((track_ids, reliable_confidence))
+        if self.sync_error:
+            raise self.sync_error
+        return worker.effective_table.SyncResult(resolved=5, upserted=1, deleted=0)
 
     def due_tracks(self, _config, _now, limit=worker.BATCH_SIZE):
         return self.jobs[:limit]
@@ -223,7 +232,7 @@ class FakeStore:
 
 
 class WorkerTest(unittest.TestCase):
-    def make(self, store, settings, analyze=None):
+    def make(self, store, settings, analyze=None, clock=None):
         statuses = []
         pools = []
 
@@ -239,7 +248,7 @@ class WorkerTest(unittest.TestCase):
             or (lambda j, _e: {'track_id': j['track_id'], 'ok': True, 'raw': 76.0, 'confidence': 0.8}),
             pool_factory=pool_factory,
             status=lambda progress, _config: statuses.append(progress.state),
-            clock=lambda: 1000.0,
+            clock=clock or (lambda: 1000.0),
             now=lambda: NOW,
             stop=threading.Event(),
         )
@@ -253,6 +262,38 @@ class WorkerTest(unittest.TestCase):
         self.assertEqual({row[2] for row in store.saved}, {152.0})
         self.assertEqual(statuses, ['running'])
         self.assertEqual(w.progress.analyzed, 3)
+
+    def test_a_round_syncs_the_effective_bpm_of_what_it_measured(self):
+        """Issue #141: a new measurement reaches library_track_effective_bpm within the round."""
+        store = FakeStore([job(3), job(2), job(1)])
+        w, _, _ = self.make(store, config(bpm_reliable_confidence=80))
+        w.tick()
+        self.assertEqual(store.synced, [(None, 0.8), ([3, 2, 1], 0.8)])
+        self.assertEqual(w.progress.effective_tracks, 5)
+
+    def test_the_full_sync_runs_every_interval_even_while_paused(self):
+        store = FakeStore([])
+        now = [1000.0]
+        w, _, _ = self.make(store, config(bpm_analysis_paused=True), clock=lambda: now[0])
+        w.tick()
+        w.tick()
+        self.assertEqual(store.synced, [(None, 0.75)])
+        now[0] += worker.EFFECTIVE_SYNC_SECONDS
+        w.tick()
+        self.assertEqual(store.synced, [(None, 0.75), (None, 0.75)])
+
+    def test_a_failed_sync_neither_stops_the_round_nor_waits_the_full_interval(self):
+        store = FakeStore([job(1)])
+        store.sync_error = RuntimeError('database gone')
+        now = [1000.0]
+        w, _, _ = self.make(store, config(), clock=lambda: now[0])
+        with self.assertLogs('music-manager.bpm', level='ERROR'):
+            w.tick()
+        self.assertEqual(len(store.saved), 1)
+        store.sync_error = None
+        now[0] += worker.IDLE_SECONDS
+        w.tick()
+        self.assertEqual(store.synced[-1], (None, 0.75))
 
     def test_failures_are_counted_and_stored(self):
         store = FakeStore([job(2), job(1)])

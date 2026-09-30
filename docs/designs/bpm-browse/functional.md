@@ -81,6 +81,13 @@ changes:
    without "≈" and counts as reliable when the measurement is confident.
 10. (Second change) The measuring never rewrites a file and keeps the server responsive: it runs
     apart from the rest, on at most two cores by default, at the lowest priority.
+11. (Issue #141) A track shows one tempo everywhere: the track details sheet, the library table's BPM
+    column (and its sort, where tracks without a BPM come last whichever way it sorts), the BPM
+    filter and the search box's "type a number to search a tempo", and the BPM chart under Beheer →
+    Bibliotheek all use the tempo the BPM browse shows (so do the daily mixes, where a track with no
+    genre, label or artist to go by is placed by its tempo), and every place that prints it marks a
+    value that is not measured with "≈". A new measurement appears in the library table within
+    minutes of being made.
 
 ## Open Questions / Not Yet Decided
 
@@ -89,6 +96,3 @@ changes:
   change) and is a separate decision.
 - **The same browse in Android Auto.** The car's browse tree is native (MediaLibrary), not this web
   page; a BPM folder there is a follow-up, not part of this change.
-- **The BPM in other places** (the track details sheet, the library table's BPM column and sort, the
-  search box's "type a number to search a tempo"). These still read the old analyzer value first, as
-  before. Moving them onto the same effective BPM is a small follow-up.

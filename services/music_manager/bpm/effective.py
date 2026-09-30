@@ -115,3 +115,29 @@ def resolve(
         folded=folded.octave_corrected,
         approximate=True,
     )
+
+
+#: Separator for the genre names GROUP_CONCAT joins; no curated genre name holds one.
+GENRE_SEPARATOR = '|'
+
+
+def split_genres(joined: str | None) -> tuple[str, ...]:
+    """The genre names of a `GROUP_CONCAT(... SEPARATOR '|')` column, empty ones left out."""
+    return tuple(g for g in (joined or '').split(GENRE_SEPARATOR) if g)
+
+
+def resolve_row(row: dict, reliable_confidence: float = DEFAULT_RELIABLE_CONFIDENCE) -> EffectiveBpm | None:
+    """`resolve()` for one row shaped like `index.INPUTS_SQL` (measured, bpm_tag, tempo, genres).
+
+    The browse index, the materialised `library_track_effective_bpm` table and the track details
+    all read their inputs in that shape, so the column-to-argument mapping lives here once.
+    """
+    return resolve(
+        measured=row.get('measured'),
+        measured_confidence=row.get('measured_confidence'),
+        measured_folded=bool(row.get('measured_folded')),
+        tag=row.get('bpm_tag'),
+        tempo=row.get('tempo'),
+        genres=split_genres(row.get('genres')),
+        reliable_confidence=reliable_confidence,
+    )

@@ -37,6 +37,7 @@ add_executable(test-database
 	TrackList.cpp
 	TrackLyrics.cpp
 	User.cpp
+	WritePacer.cpp
 	WriteTransactionLock.cpp
 	)
 

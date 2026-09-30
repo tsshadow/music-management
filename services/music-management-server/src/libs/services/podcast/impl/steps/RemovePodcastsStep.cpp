@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "core/ILogger.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -84,10 +85,20 @@ namespace lms::podcast
         if (!podcastsToRemove.empty() || !imagesToRemove.empty())
         {
             auto& session{ getDb().getTLSSession() };
-            auto transaction{ session.createWriteTransaction() };
+            const bool removed{ db::writeGuarded(
+                session, [&] {
+                    session.destroy<db::Podcast>(podcastsToRemove); // will propagate to episodes
+                    session.destroy<db::Image>(imagesToRemove);     // will propagate to artworks
+                },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot remove " << podcastsToRemove.size() << " podcast(s), retrying on the next refresh: " << e.what()); }) };
 
-            session.destroy<db::Podcast>(podcastsToRemove); // will propagate to episodes
-            session.destroy<db::Image>(imagesToRemove);     // will propagate to artworks
+            // The rows stay marked as delete-requested, so the next refresh removes them. Their
+            // files are already gone; removing a missing file again is only a warning.
+            if (!removed)
+            {
+                onAbort();
+                return;
+            }
         }
 
         onDone();

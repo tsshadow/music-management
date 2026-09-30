@@ -24,6 +24,8 @@
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
 
+#include "database/WritePacer.hpp"
+
 #include "database/objects/Artist.hpp"
 #include "database/objects/ArtistInfo.hpp"
 #include "database/objects/Artwork.hpp"
@@ -115,6 +117,8 @@ namespace lms::db
         _session.mapClass<VersionInfo>("version_info");
     }
 
+    Session::~Session() = default; // here, where WritePacer is a complete type
+
     core::RecursiveSharedMutex& Session::getWriteMutex()
     {
         return static_cast<Db&>(_db).getMutex();
@@ -122,7 +126,12 @@ namespace lms::db
 
     WriteTransaction Session::createWriteTransaction()
     {
-        return WriteTransaction{ getWriteMutex(), _session };
+        return WriteTransaction{ getWriteMutex(), _session, _writePacer.get() };
+    }
+
+    void Session::setWritePacer(std::unique_ptr<WritePacer> pacer)
+    {
+        _writePacer = std::move(pacer);
     }
 
     std::unique_ptr<WriteTransaction> Session::tryCreateWriteTransaction()

@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "core/ILogger.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -62,13 +63,17 @@ namespace lms::podcast
 
     void CheckForMissingFilesStep::run()
     {
-        checkMissingImages();
-        checkMissingEpisodes();
+        // A refused write ends this refresh; the next one tries again (bug report 135).
+        if (!checkMissingImages() || !checkMissingEpisodes())
+        {
+            onAbort();
+            return;
+        }
 
         onDone();
     }
 
-    void CheckForMissingFilesStep::checkMissingImages()
+    bool CheckForMissingFilesStep::checkMissingImages()
     {
         std::vector<db::ImageId> missingImages;
 
@@ -99,16 +104,16 @@ namespace lms::podcast
             });
         }
 
-        if (!missingImages.empty())
-        {
-            auto& session{ getDb().getTLSSession() };
-            auto transaction{ session.createWriteTransaction() };
+        if (missingImages.empty())
+            return true;
 
-            session.destroy<db::Image>(missingImages); // will propagate to artworks and podcasts/episodes
-        }
+        auto& session{ getDb().getTLSSession() };
+        return db::writeGuarded(
+            session, [&] { session.destroy<db::Image>(missingImages); }, // will propagate to artworks and podcasts/episodes
+            [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot remove " << missingImages.size() << " missing podcast artwork(s), retrying on the next refresh: " << e.what()); });
     }
 
-    void CheckForMissingFilesStep::checkMissingEpisodes()
+    bool CheckForMissingFilesStep::checkMissingEpisodes()
     {
         std::vector<db::PodcastEpisodeId> missingEpisodes;
 
@@ -129,16 +134,17 @@ namespace lms::podcast
             });
         }
 
-        if (!missingEpisodes.empty())
-        {
-            auto& session{ getDb().getTLSSession() };
-            auto transaction{ session.createWriteTransaction() };
+        if (missingEpisodes.empty())
+            return true;
 
-            for (const auto& episodeId : missingEpisodes)
-            {
-                db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) };
-                episode.modify()->setAudioRelativeFilePath({});
-            }
-        }
+        auto& session{ getDb().getTLSSession() };
+        return db::writeGuarded(
+            session, [&] {
+                for (const auto& episodeId : missingEpisodes)
+                {
+                    if (db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) })
+                        episode.modify()->setAudioRelativeFilePath({});
+                } },
+            [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot clear " << missingEpisodes.size() << " missing podcast episode file(s), retrying on the next refresh: " << e.what()); });
     }
 } // namespace lms::podcast

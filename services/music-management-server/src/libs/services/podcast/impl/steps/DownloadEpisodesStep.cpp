@@ -30,6 +30,7 @@
 #include "audio/Exception.hpp"
 #include "audio/IAudioFileInfo.hpp"
 #include "audio/IAudioFileInfoParser.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Podcast.hpp"
@@ -42,10 +43,8 @@ namespace lms::podcast
 {
     namespace
     {
-        void updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
+        void writeEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
         {
-            auto transaction{ session.createWriteTransaction() };
-
             db::PodcastEpisode::pointer dbEpisode{ db::PodcastEpisode::find(session, episodeId) };
             if (!dbEpisode)
                 return; // may have been deleted by admin
@@ -59,6 +58,15 @@ namespace lms::podcast
             dbEpisode.modify()->setChannelCount(audioProperties.channelCount);
             dbEpisode.modify()->setSampleRate(audioProperties.sampleRate);
             dbEpisode.modify()->setBitsPerSample(audioProperties.bitsPerSample);
+        }
+
+        // False when the database refused the write (bug report 135): the caller removes the
+        // downloaded file, and the episode is still "not downloaded" for the next refresh.
+        bool updateEpisode(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& relativeFilePath, const audio::AudioProperties& audioProperties)
+        {
+            return db::writeGuarded(
+                session, [&] { writeEpisode(session, episodeId, relativeFilePath, audioProperties); },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot store downloaded episode " << relativeFilePath << ", retrying on the next refresh: " << e.what()); });
         }
     } // namespace
 
@@ -203,10 +211,13 @@ namespace lms::podcast
                         {
                             LMS_LOG(PODCAST, ERROR, "Failed to rename temp file " << tmpFilePath << " to " << finalFilePath << ": " << ec.message());
                         }
+                        else if (updateEpisode(getDb().getTLSSession(), episodeId, randomName, *audioProperties))
+                        {
+                            LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
+                        }
                         else
                         {
-                            updateEpisode(getDb().getTLSSession(), episodeId, randomName, *audioProperties);
-                            LMS_LOG(PODCAST, INFO, "Downloaded episode '" << episode->getTitle() << "'");
+                            utils::removeFile(finalFilePath);
                         }
                     }
                     else

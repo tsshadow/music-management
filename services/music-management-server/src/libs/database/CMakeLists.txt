@@ -44,6 +44,7 @@ add_library(lmsdatabase STATIC
 	impl/SqlQuery.cpp
 	impl/Transaction.cpp
 	impl/Utils.cpp
+	impl/WritePacer.cpp
 	)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")

@@ -25,6 +25,7 @@
 
 #include "core/ILogger.hpp"
 #include "core/http/IClient.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -38,16 +39,19 @@ namespace lms::podcast
 {
     namespace
     {
-        void createEpisodeArtwork(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& filePath, std::string_view contentType)
+        // False when the database refused the write (bug report 135): the caller removes the
+        // downloaded file, and the next refresh downloads the artwork again.
+        bool createEpisodeArtwork(db::Session& session, db::PodcastEpisodeId episodeId, const std::filesystem::path& filePath, std::string_view contentType)
         {
-            auto transaction{ session.createWriteTransaction() };
+            return db::writeGuarded(
+                session, [&] {
+                    db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) };
+                    if (!episode)
+                        return;
 
-            db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) };
-            if (!episode)
-                return;
-
-            if (db::Artwork::pointer artwork{ utils::createArtworkFromImage(session, filePath, contentType) })
-                episode.modify()->setArtwork(artwork);
+                    if (db::Artwork::pointer artwork{ utils::createArtworkFromImage(session, filePath, contentType) })
+                        episode.modify()->setArtwork(artwork); },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot store episode artwork " << filePath << ", retrying on the next refresh: " << e.what()); });
         }
     } // namespace
 
@@ -143,7 +147,8 @@ namespace lms::podcast
 
                 LMS_LOG(PODCAST, INFO, "Downloaded episode artwork for episode '" << episode->getTitle() << "'");
                 const std::string* contentType{ msg.getHeader("Content-Type") };
-                createEpisodeArtwork(getDb().getTLSSession(), episodeId, finalFilePath, contentType ? *contentType : "application/octet-stream");
+                if (!createEpisodeArtwork(getDb().getTLSSession(), episodeId, finalFilePath, contentType ? *contentType : "application/octet-stream"))
+                    utils::removeFile(finalFilePath);
 
                 processNext();
             });

@@ -21,6 +21,7 @@
 
 #include "core/ILogger.hpp"
 #include "core/http/IClient.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -50,10 +51,8 @@ namespace lms::podcast
             session.destroy<db::Image>(*imageId);
         }
 
-        void updatePodcast(db::Session& session, db::PodcastId podcastId, const Podcast& podcast)
+        void writePodcast(db::Session& session, db::PodcastId podcastId, const Podcast& podcast)
         {
-            auto transaction{ session.createWriteTransaction() };
-
             db::Podcast::pointer dbPodcast{ db::Podcast::find(session, podcastId) };
             if (!dbPodcast)
                 return; // may have been deleted by admin
@@ -117,6 +116,15 @@ namespace lms::podcast
                 dbEpisode.modify()->setImageUrl(episode.imageUrl);
                 dbEpisode.modify()->setDuration(episode.duration);
             }
+        }
+
+        // False when the database refused the write; the podcast is refreshed again next time
+        // (bug report 135).
+        bool updatePodcast(db::Session& session, db::PodcastId podcastId, const Podcast& podcast)
+        {
+            return db::writeGuarded(
+                session, [&] { writePodcast(session, podcastId, podcast); },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot store the refreshed podcast '" << podcast.title << "', retrying on the next refresh: " << e.what()); });
         }
     } // namespace
 

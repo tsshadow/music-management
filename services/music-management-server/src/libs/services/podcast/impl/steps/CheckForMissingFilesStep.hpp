@@ -31,7 +31,8 @@ namespace lms::podcast
         core::LiteralString getName() const override;
         void run() override;
 
-        void checkMissingImages();
-        void checkMissingEpisodes();
+        // Both return false when the database refused the write (bug report 135).
+        bool checkMissingImages();
+        bool checkMissingEpisodes();
     };
 } // namespace lms::podcast

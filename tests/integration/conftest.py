@@ -247,6 +247,21 @@ def _reset_auth_rate_limiter():
     reset_limiters()
 
 
+@pytest.fixture(autouse=True)
+def _reset_feed_sample_memo():
+    """Same reason as in services/conftest.py: every test truncates and reseeds the
+    library under the same user and day, so a memoised split-mix sample must not
+    survive into the next one."""
+    try:
+        from services.music_manager.feeds.build import clear_sample_memo
+    except Exception:
+        yield
+        return
+    clear_sample_memo()
+    yield
+    clear_sample_memo()
+
+
 @pytest.fixture
 def api_key():
     # The resolver is what the app actually checks X-API-Key against, so asking it

@@ -60,7 +60,7 @@ namespace lms::db::tests
         };
 
         // One write transaction as the pacer sees it: `hold` with the lock, then `gap` without.
-        void write(FakeTime& time, WritePacer& pacer, WritePacer::Clock::duration hold, WritePacer::Clock::duration gap)
+        void simulateWrite(FakeTime& time, WritePacer& pacer, WritePacer::Clock::duration hold, WritePacer::Clock::duration gap)
         {
             pacer.onWriteBegin();
             time.now += hold;
@@ -68,7 +68,7 @@ namespace lms::db::tests
             time.now += gap;
         }
 
-        ClusterId createCluster(Session& session)
+        ClusterId createPacingTestCluster(Session& session)
         {
             auto transaction{ session.createWriteTransaction() };
             const ClusterType::pointer type{ session.create<ClusterType>("Genre") };
@@ -101,7 +101,7 @@ namespace lms::db::tests
         WritePacer pacer{ time.makePacer() };
 
         for (int i{}; i < 9; ++i)
-            write(time, pacer, 50ms, 1ms); // 459 ms of back-to-back writing
+            simulateWrite(time, pacer, 50ms, 1ms); // 459 ms of back-to-back writing
 
         EXPECT_TRUE(time.sleeps.empty());
         EXPECT_EQ(pacer.getPauseCount(), 0);
@@ -113,7 +113,7 @@ namespace lms::db::tests
         WritePacer pacer{ time.makePacer() };
 
         for (int i{}; i < 11; ++i)
-            write(time, pacer, 50ms, 1ms); // the 11th begins 510 ms into the stretch
+            simulateWrite(time, pacer, 50ms, 1ms); // the 11th begins 510 ms into the stretch
 
         ASSERT_EQ(time.sleeps.size(), 1);
         EXPECT_EQ(time.sleeps.front(), 120ms);
@@ -128,7 +128,7 @@ namespace lms::db::tests
 
         // 5 s of writing: one pause after each ~0.5 s stretch.
         for (int i{}; i < 100; ++i)
-            write(time, pacer, 49ms, 1ms);
+            simulateWrite(time, pacer, 49ms, 1ms);
 
         EXPECT_GE(pacer.getPauseCount(), 8);
         EXPECT_LE(pacer.getPauseCount(), 10);
@@ -141,7 +141,7 @@ namespace lms::db::tests
 
         // Each write is followed by a gap as long as a pause: other writers had their turn.
         for (int i{}; i < 20; ++i)
-            write(time, pacer, 100ms, 120ms);
+            simulateWrite(time, pacer, 100ms, 120ms);
 
         EXPECT_TRUE(time.sleeps.empty());
     }
@@ -174,7 +174,7 @@ namespace lms::db::tests
         TmpDatabase tmpDb;
         Session session{ tmpDb.getDb() };
         session.prepareTablesIfNeeded();
-        const ClusterId clusterId{ createCluster(session) };
+        const ClusterId clusterId{ createPacingTestCluster(session) };
 
         std::atomic<bool> started{};
         std::thread bulkWriter{ [&] {
@@ -206,7 +206,7 @@ namespace lms::db::tests
         TmpDatabase tmpDb;
         Session session{ tmpDb.getDb() };
         session.prepareTablesIfNeeded();
-        const ClusterId clusterId{ createCluster(session) };
+        const ClusterId clusterId{ createPacingTestCluster(session) };
 
         std::atomic<bool> started{};
         std::thread bulkWriter{ [&] {
@@ -234,7 +234,7 @@ namespace lms::db::tests
         TmpDatabase tmpDb;
         Session session{ tmpDb.getDb() };
         session.prepareTablesIfNeeded();
-        const ClusterId clusterId{ createCluster(session) };
+        const ClusterId clusterId{ createPacingTestCluster(session) };
 
         bool failed{};
         EXPECT_TRUE(writeGuarded(session, [&] { Cluster::find(session, clusterId).modify()->setTrackCount(5); }, [&](const Wt::Dbo::Exception&) { failed = true; }));
@@ -251,7 +251,7 @@ namespace lms::db::tests
         TmpDatabase tmpDb;
         Session session{ tmpDb.getDb() };
         session.prepareTablesIfNeeded();
-        const ClusterId clusterId{ createCluster(session) };
+        const ClusterId clusterId{ createPacingTestCluster(session) };
 
         std::size_t failures{};
         bool written{ true };

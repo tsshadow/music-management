@@ -11,6 +11,17 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.3 (2026-09-30)
+
+- **New tracks get their scrobble-matching keys the moment they are scanned.** `normalized_title` and `normalized_base_title` were never written by the scanner; a background pass filled 500 rows an hour, and after the 67,331-row label-tree rescan of 2026-09-26 every track added since sat without them, so a listen spelled slightly differently from the tag (case, accents, a "(Radio Edit)") waited in the retry queue instead of linking. The scanner now writes both keys with the row, and the background pass drains whatever other writers leave behind in one go (up to five minutes, `SCROBBLE_BACKFILL_BUDGET`). The ~16,000 rows still missing them on production are filled by the first pass after the deploy. Bug report 137.
+
+- Internal: Klassiek, Zachter, Middenin and Harder now share one pair of day-stable library
+  samples per listener instead of each drawing the same two (issue #138). The nightly
+  feeds-refresh spent ~24 s of SQL per listener sampling the library four times for one answer;
+  it now spends ~6 s. The mixes themselves are unchanged -- the same ids in the same order, reused
+  in-process for up to ten minutes. The label mix keeps its own samples, since it filters on its
+  label.
+
 ## Global Version 0.85.2 (2026-09-30)
 
 - **Ratings and the hourly sync no longer wait for a big library scan to finish.**

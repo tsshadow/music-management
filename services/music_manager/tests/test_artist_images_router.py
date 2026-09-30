@@ -682,7 +682,16 @@ class SyncImagesToServerTest(unittest.TestCase):
         with patch('services.music_manager.lms_portrait_paths.repair_portrait_paths') as repair:
             self.muma_cursor.fetchall.return_value = []
             self.sync()
-        repair.assert_called_once_with(self.server_conn)
+        repair.assert_called_once_with(self.server_conn, 'unknown')
+
+    def test_the_repair_log_names_the_server(self):
+        # Its log line read "unknown: portrait path repair ..." because the server's name was
+        # never handed down (issue #146).
+        with patch('services.music_manager.lms_portrait_paths.repair_portrait_paths') as repair:
+            self.muma_cursor.fetchall.return_value = []
+            with patch('builtins.print'):
+                artist_images_router.sync_artist_images_to_server(self.muma_conn, self.server_conn, 'server-stable')
+        repair.assert_called_once_with(self.server_conn, 'server-stable')
 
     def test_a_failing_repair_does_not_stop_the_sync(self):
         self.muma_cursor.fetchall.return_value = [self.image_row()]

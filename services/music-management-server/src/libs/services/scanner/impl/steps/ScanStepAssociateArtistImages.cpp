@@ -22,6 +22,7 @@
 #include <array>
 #include <cassert>
 #include <deque>
+#include <filesystem>
 #include <set>
 #include <span>
 
@@ -60,8 +61,24 @@ namespace lms::scanner
         {
             std::span<const std::string> artistFileNames;
             std::span<const std::string> artistInfoFileNames;
+            std::filesystem::path managedPortraitDirectory;
             const ScannerSettings& settings;
         };
+
+        // True when `artwork` is a standalone image under `managedPortraitDirectory`: a portrait
+        // music-manager chose for this artist and pointed `preferred_artwork_id` at itself
+        // (bug report 139). An empty directory means no such folder is configured.
+        bool isManagedPortrait(const db::Artwork::pointer& artwork, const std::filesystem::path& managedPortraitDirectory)
+        {
+            if (!artwork || managedPortraitDirectory.empty())
+                return false;
+
+            const db::Image::pointer image{ artwork->getImage() };
+            if (!image)
+                return false; // an embedded track image is never a managed portrait
+
+            return core::pathUtils::isPathInRootPath(image->getAbsoluteFilePath(), managedPortraitDirectory);
+        }
 
         db::Image::pointer findImageInDirectory(db::Session& session, const std::filesystem::path& directoryPath, std::span<const std::string> fileStemsToSearch)
         {
@@ -267,6 +284,22 @@ namespace lms::scanner
             return res;
         }
 
+        // The folder music-manager stores artist portraits in, as LMS sees it (e.g. /music/artists).
+        // Set through `artist-image-managed-directory` in lms.conf or the
+        // LMS_ARTIST_IMAGE_MANAGED_DIRECTORY environment variable; empty (the default) turns the
+        // "keep music-manager's portrait" rule off. See docs/deployment.md.
+        std::filesystem::path constructManagedPortraitDirectory()
+        {
+            const std::filesystem::path directory{ core::Service<core::IConfig>::get()->getPath("artist-image-managed-directory", std::filesystem::path{}) };
+            if (!directory.empty() && !directory.is_absolute())
+            {
+                LMS_LOG(DBUPDATER, ERROR, "Ignoring artist-image-managed-directory '" << directory.string() << "': not an absolute path");
+                return std::filesystem::path{};
+            }
+
+            return directory.lexically_normal();
+        }
+
         bool fetchNextArtistIdRange(db::Session& session, db::ArtistId& lastRetrievedId, db::IdRange<db::ArtistId>& idRange)
         {
             constexpr std::size_t readBatchSize{ 100 };
@@ -303,9 +336,21 @@ namespace lms::scanner
                 auto transaction{ session.createReadTransaction() };
 
                 db::Artist::find(session, _artistIdRange, [this, &session](const db::Artist::pointer& artist) {
+                    _processedArtistCount++;
+
+                    const db::Artwork::pointer currentArtwork{ artist->getPreferredArtwork() };
+
+                    // music-manager's portrait wins over anything found here. Recomputing it on
+                    // every scan with changes replaced it with a release cover or with nothing
+                    // until the next hourly portrait sync put it back (bug report 139). Once its
+                    // image row is gone (the removed-files check deleted it), the pointer is NULL
+                    // and the artist gets this step's own choice again.
+                    if (isManagedPortrait(currentArtwork, _searchParams.managedPortraitDirectory))
+                        return;
+
                     const db::Artwork::pointer preferredArtwork{ computePreferredArtistArtwork(session, _searchParams, artist) };
 
-                    if (artist->getPreferredArtwork() != preferredArtwork)
+                    if (currentArtwork != preferredArtwork)
                     {
                         _associations.push_back(ArtistArtworkAssociation{ artist->getId(), preferredArtwork ? preferredArtwork->getId() : db::ArtworkId{} });
 
@@ -314,8 +359,6 @@ namespace lms::scanner
                         else
                             LMS_LOG(DBUPDATER, DEBUG, "Removing preferred artwork from artist '" << artist->getName() << "'");
                     }
-
-                    _processedArtistCount++;
                 });
             }
 
@@ -332,6 +375,7 @@ namespace lms::scanner
         : ScanStepBase{ initParams }
         , _artistFileNames{ constructArtistFileNames() }
         , _artistInfoFileNames{ constructArtistInfoFileNames() }
+        , _managedPortraitDirectory{ constructManagedPortraitDirectory() }
     {
     }
 
@@ -358,6 +402,7 @@ namespace lms::scanner
         const SearchArtistArtworkParams searchParams{
             .artistFileNames = _artistFileNames,
             .artistInfoFileNames = _artistInfoFileNames,
+            .managedPortraitDirectory = _managedPortraitDirectory,
             .settings = _settings,
         };
 

@@ -67,6 +67,9 @@ Ours inside upstream files (modified, not new) -- the places a port most often l
 - `src/lms/main.cpp` -- wiring of the MuMa services, the `/muma` resource and the user sync.
 - `src/libs/services/scrobbling/impl/ScrobblingService.cpp`, `feedback/impl/FeedbackService.cpp`
   -- the always-on MuMa relay next to the configured backend.
+- `src/libs/services/scanner/impl/steps/ScanStepAssociateArtistImages.cpp` -- keeps an artist's
+  artwork when it is an image under `artist-image-managed-directory` (music-manager's portraits,
+  bug report 139).
 
 ## Database version policy
 

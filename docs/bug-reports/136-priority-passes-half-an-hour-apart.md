@@ -72,7 +72,7 @@ LMS (`services/music-management-server/src/libs/services/scanner/impl/`):
 - No yield point inside the DB-only steps, for the reason measured above; revisit if one of them
   shows up as a gap between `Priority scan` lines.
 
-Not fixed here, filed separately: the artist-portrait rows music-manager writes under
+Not fixed here, filed as GitLab issue #145: the artist-portrait rows music-manager writes under
 `/mnt/music/artists` are removed on every library scan and, judging by the `image` id counter
 (4.7 million for 512,000 rows), written again afterwards; and none of the `preferred_artwork_id`
 columns has an index. Either fix would make this removal take seconds instead of an hour.
@@ -84,6 +84,6 @@ in order), `idsAddedBetweenBatchesAreRemovedInTheSameCall`, `fullBatchesOnlyLeav
 `PriorityFolderQueue.aBoundedTakeLeavesTheRestForTheNextPass`;
 `ScanRequestCollector.aBoundedTakeLeavesTheRestDue`. Design: `docs/designs/lms-scan-trigger/`.
 
-To verify after deploy: during a library-wide scan, `docker logs lms` shows no gap longer than
+To verify after deploy (GitLab issue #144): during a library-wide scan, `docker logs lms` shows no gap longer than
 about four minutes between `Priority scan of N announced folder(s) complete` lines while folders
 are being announced, including while `SELECT count(*) FROM image` is dropping.

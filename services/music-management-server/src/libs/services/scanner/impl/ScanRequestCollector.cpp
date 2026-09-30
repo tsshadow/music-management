@@ -61,4 +61,17 @@ namespace lms::scanner
         _paths.clear();
         return res;
     }
+
+    std::vector<std::filesystem::path> ScanRequestCollector::take(std::size_t maxCount)
+    {
+        if (maxCount >= _paths.size())
+            return take();
+
+        std::vector<std::filesystem::path> res;
+        res.reserve(maxCount);
+        auto it{ std::begin(_paths) };
+        for (std::size_t i{}; i < maxCount; ++i)
+            res.push_back(std::move(_paths.extract(it++).value()));
+        return res;
+    }
 } // namespace lms::scanner

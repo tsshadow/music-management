@@ -35,6 +35,7 @@
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackLyrics.hpp"
 
+#include "BatchedRemoval.hpp"
 #include "FileScanners.hpp"
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
@@ -135,33 +136,6 @@ namespace lms::scanner
             std::size_t _processedCount{};
         };
 
-        template<typename Object>
-        std::size_t removeObjects(db::Session& session, std::deque<typename Object::IdType>& objectIdsToRemove, bool forceFullBatch)
-        {
-            std::size_t removedObjectCount{};
-            constexpr std::size_t writeBatchSize{ 50 };
-
-            std::vector<typename Object::IdType> ids;
-            while ((forceFullBatch && objectIdsToRemove.size() >= writeBatchSize) || !objectIdsToRemove.empty())
-            {
-                for (std::size_t i{}; !objectIdsToRemove.empty() && i < writeBatchSize; ++i)
-                {
-                    ids.push_back(objectIdsToRemove.front());
-                    objectIdsToRemove.pop_front();
-                }
-
-                {
-                    auto transaction{ session.createWriteTransaction() };
-                    session.destroy<Object>(ids);
-                }
-
-                removedObjectCount += ids.size();
-                ids.clear();
-            }
-
-            return removedObjectCount;
-        }
-
         // `directory` empty means the whole table, which is what a normal scan asks for.
         //
         // `cachepath` and `directory` are both paths and were adjacent, so the call that means
@@ -254,6 +228,9 @@ namespace lms::scanner
 
         std::deque<ObjectIdType> objectIdsToRemove;
 
+        // Only collects: the removal happens below, one write batch at a time, so that
+        // finishing the queue for a priority pass costs the file checks in flight and not the
+        // writes they lead to (bug report 136).
         auto processJobsDone = [&](std::span<std::unique_ptr<core::IJob>> jobs) {
             if (_abortScan)
                 return;
@@ -268,46 +245,62 @@ namespace lms::scanner
                 context.currentStepStats.processedElems += checkJob.getProcessedCount();
             }
 
-            if (!objectIdsToRemove.empty())
-                context.stats.deletions += removeObjects<Object>(session, objectIdsToRemove, true);
-
             _progressCallback(context.currentStepStats);
         };
 
+        JobQueue queue{ getJobScheduler(), 50, processJobsDone, 1, 0.85F };
+
+        // Second filesystem-bound step of a library-wide scan, and the second place announced
+        // folders are let through (bug report 126). The pass needs the job scheduler to itself,
+        // so what is in flight is finished first. The keyset walk resumes from lastCheckedId,
+        // so rows the pass adds or removes are simply met, or not, further on; an id the pass
+        // already removed and that is still pending here is deleted a second time, which is a
+        // no-op.
+        const auto letPriorityWorkThrough{ [&] {
+            if (!isPriorityWorkDue())
+                return;
+
+            queue.finish();
+            runPriorityWork();
+        } };
+
+        const auto removePending{ [&](bool fullBatchesOnly) {
+            constexpr std::size_t writeBatchSize{ 50 };
+            context.stats.deletions += removeInWriteBatches(
+                objectIdsToRemove, writeBatchSize, fullBatchesOnly,
+                [&](std::span<const ObjectIdType> ids) {
+                    auto transaction{ session.createWriteTransaction() };
+                    session.destroy<Object>(ids);
+                },
+                // Between two write batches, with no transaction open: the removal of thousands
+                // of rows no longer holds a priority pass back until it is all done.
+                letPriorityWorkThrough);
+        } };
+
+        std::vector<FileToCheck<ObjectIdType>> filesToCheck;
+
+        // One keyset walk per scope rather than a dynamic multi-prefix OR: a scoped scan
+        // carries two paths per moved release, and hand-built SQL in five call sites would
+        // buy nothing measurable at this size.
+        std::vector<std::filesystem::path> scopes{ context.scanOptions.scanDirectories };
+        if (scopes.empty())
+            scopes.emplace_back(); // the whole table
+
+        for (const std::filesystem::path& scope : scopes)
         {
-            JobQueue queue{ getJobScheduler(), 50, processJobsDone, 1, 0.85F };
-
-            std::vector<FileToCheck<ObjectIdType>> filesToCheck;
-
-            // One keyset walk per scope rather than a dynamic multi-prefix OR: a scoped scan
-            // carries two paths per moved release, and hand-built SQL in five call sites would
-            // buy nothing measurable at this size.
-            std::vector<std::filesystem::path> scopes{ context.scanOptions.scanDirectories };
-            if (scopes.empty())
-                scopes.emplace_back(); // the whole table
-
-            for (const std::filesystem::path& scope : scopes)
+            ObjectIdType lastCheckedId;
+            while (fetchNextFilesToCheck<Object>(session, getCachePath(), lastCheckedId, scope, filesToCheck))
             {
-                ObjectIdType lastCheckedId;
-                while (fetchNextFilesToCheck<Object>(session, getCachePath(), lastCheckedId, scope, filesToCheck))
-                {
-                    queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
+                queue.push(std::make_unique<CheckForRemovedFilesJob<ObjectIdType>>(_settings, getFileScanners(), filesToCheck));
 
-                    // Second filesystem-bound step of a library-wide scan, and the second
-                    // place announced folders are let through (bug report 126). The keyset
-                    // walk resumes from lastCheckedId, so rows the pass adds or removes are
-                    // simply met, or not, further on.
-                    if (isPriorityWorkDue())
-                    {
-                        queue.finish();
-                        context.stats.deletions += removeObjects<Object>(session, objectIdsToRemove, false);
-                        runPriorityWork();
-                    }
-                }
+                letPriorityWorkThrough();
+                if (!_abortScan)
+                    removePending(true /* full batches only */);
             }
         }
 
         // process all remaining objects
-        context.stats.deletions += removeObjects<Object>(session, objectIdsToRemove, false);
+        queue.finish();
+        removePending(false /* full batches only */);
     }
 } // namespace lms::scanner

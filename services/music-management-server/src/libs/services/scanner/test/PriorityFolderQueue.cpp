@@ -146,4 +146,22 @@ namespace lms::scanner::tests
 
         EXPECT_EQ(takenCount, folderCount);
     }
+    // Bug report 136: one pass takes a bounded number of folders; the rest wait for the next pass,
+    // and are due as soon as the gap after this one has passed.
+    TEST(PriorityFolderQueue, aBoundedTakeLeavesTheRestForTheNextPass)
+    {
+        PriorityFolderQueue queue{ timing };
+        const Clock::time_point start{};
+
+        queue.add({ "/music/A", "/music/B", "/music/C" }, start);
+
+        EXPECT_EQ(queue.takeDue(start + seconds{ 10 }, Moment::DuringLibraryScan, 2).size(), 2);
+        queue.priorityPassFinished(start + seconds{ 40 });
+        EXPECT_EQ(queue.pendingCount(), 1);
+
+        EXPECT_FALSE(queue.isDue(start + seconds{ 100 }, Moment::DuringLibraryScan));
+        EXPECT_TRUE(queue.isDue(start + seconds{ 160 }, Moment::DuringLibraryScan));
+        EXPECT_EQ(queue.takeDue(start + seconds{ 160 }, Moment::DuringLibraryScan, 2), std::vector<std::filesystem::path>{ "/music/C" });
+    }
+
 } // namespace lms::scanner::tests

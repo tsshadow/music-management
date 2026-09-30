@@ -51,13 +51,13 @@ namespace lms::scanner
         return isDueLocked(now, moment);
     }
 
-    std::vector<std::filesystem::path> PriorityFolderQueue::takeDue(Clock::time_point now, Moment moment)
+    std::vector<std::filesystem::path> PriorityFolderQueue::takeDue(Clock::time_point now, Moment moment, std::size_t maxCount)
     {
         const std::scoped_lock lock{ _mutex };
         if (!isDueLocked(now, moment))
             return {};
 
-        return _collector.take();
+        return _collector.take(maxCount);
     }
 
     std::vector<std::filesystem::path> PriorityFolderQueue::take()

@@ -24,7 +24,9 @@
 #include "ScanSchedule.hpp"
 #include "ScanStepSequence.hpp"
 
+#include <chrono>
 #include <ctime>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -37,6 +39,7 @@
 #include "core/ITraceLogger.hpp"
 
 #include "database/Session.hpp"
+#include "database/WritePacer.hpp"
 #include "database/objects/MediaLibrary.hpp"
 #include "database/objects/ScanSettings.hpp"
 
@@ -139,6 +142,26 @@ namespace lms::scanner
             settings->skipDuplicateTrackMBID = core::Service<core::IConfig>::get()->getBool("scanner-skip-duplicate-mbid", false);
 
             return settings;
+        }
+
+        // The scanner is the one bulk writer in this process: left alone, it keeps the write lock
+        // for as long as a scan has something to write, and music-manager's hourly sync and LMS's
+        // own rating/scrobble requests wait or give up (bug report 134). The values bound what
+        // any other writer waits for a scan: up to ~0.5 s of writing, then 120 ms without the
+        // lock -- more than the 100 ms SQLite's busy handler sleeps between two attempts, so a
+        // waiting connection always gets a try inside the gap. On a write-bound stretch that costs
+        // the scanner at most a fifth of its time; file parsing carries on during the pause.
+        constexpr db::WritePacer::Settings scannerWritePacing{
+            .maxStretch = std::chrono::milliseconds{ 500 },
+            .pause = std::chrono::milliseconds{ 120 },
+        };
+
+        db::WritePacer& getScannerWritePacer(db::Session& session)
+        {
+            if (!session.getWritePacer())
+                session.setWritePacer(std::make_unique<db::WritePacer>(scannerWritePacing));
+
+            return *session.getWritePacer();
         }
 
         void writeScannerSettings(db::Session& session, std::string_view name, const ScannerSettings& settings)
@@ -452,6 +475,11 @@ namespace lms::scanner
 
         refreshScanSettings();
 
+        // The scanner's own thread, so this is the session every scan step writes through.
+        const db::WritePacer& writePacer{ getScannerWritePacer(_db.getTLSSession()) };
+        const std::size_t pauseCountBefore{ writePacer.getPauseCount() };
+        const auto pauseTimeBefore{ writePacer.getTotalPause() };
+
         ScanContext scanContext;
         scanContext.scanOptions = scanOptions;
         scanContext.stats.startTime = Wt::WDateTime::currentDateTime();
@@ -474,6 +502,11 @@ namespace lms::scanner
 
         refreshTracingLoggerStats();
         logScanSummary("Scan", _abortScan || databaseFailure, stats);
+        if (const std::size_t pauses{ writePacer.getPauseCount() - pauseCountBefore }; pauses > 0)
+        {
+            const auto pausedFor{ std::chrono::duration_cast<std::chrono::milliseconds>(writePacer.getTotalPause() - pauseTimeBefore) };
+            LMS_LOG(DBUPDATER, INFO, "Scan released the write lock to other writers " << pauses << " time(s), " << pausedFor.count() << " ms in total");
+        }
 
         {
             auto transaction{ _db.getTLSSession().createReadTransaction() };

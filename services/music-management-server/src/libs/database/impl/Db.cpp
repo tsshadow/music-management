@@ -83,6 +83,14 @@ namespace lms::db
                 LMS_LOG(DB, DEBUG, "Setting per-connection settings...");
                 executeSql("PRAGMA journal_mode=WAL");
                 executeSql("PRAGMA synchronous=normal");
+                // SQLite never shrinks the WAL file by itself: it rewinds to the start after a
+                // checkpoint, but the file keeps the size of the longest stretch the log ever
+                // had to hold without a checkpoint getting through -- 1.09 GB on production,
+                // more than the 807 MB database. With a limit, the file is truncated back to it
+                // whenever the log is reset. Only the file size changes: checkpoints run as
+                // before (wal_autocheckpoint, 1000 pages) and no reader waits for anything
+                // (bug report 134).
+                executeSql("PRAGMA journal_size_limit=67108864");
                 // Without this SQLite answers a held write lock with SQLITE_BUSY at once, and
                 // at startup that surfaces as an uncaught exception from ANALYZE -- the process
                 // dies, autoheal restarts it, and the next startup meets the same lock. muma

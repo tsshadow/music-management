@@ -33,11 +33,12 @@
 namespace lms::db
 {
     class IDb;
+    class WritePacer;
     class Session
     {
     public:
         Session(IDb& db);
-        ~Session() = default;
+        ~Session();
         Session(const Session&) = delete;
         Session& operator=(const Session&) = delete;
 
@@ -47,6 +48,12 @@ namespace lms::db
         // queue behind a scanner batch that holds the lock for seconds at a time.
         [[nodiscard]] std::unique_ptr<WriteTransaction> tryCreateWriteTransaction();
         [[nodiscard]] ReadTransaction createReadTransaction();
+
+        // Paces every write transaction this session opens from now on, see WritePacer. For a
+        // bulk writer (the scanner) that would otherwise keep the write lock to itself. Null
+        // turns pacing off. tryCreateWriteTransaction is never paced: it does not wait at all.
+        void setWritePacer(std::unique_ptr<WritePacer> pacer);
+        WritePacer* getWritePacer() { return _writePacer.get(); }
 
         void checkWriteTransaction() const;
         void checkReadTransaction() const;
@@ -107,5 +114,6 @@ namespace lms::db
 
         IDb& _db;
         Wt::Dbo::Session _session;
+        std::unique_ptr<WritePacer> _writePacer;
     };
 } // namespace lms::db

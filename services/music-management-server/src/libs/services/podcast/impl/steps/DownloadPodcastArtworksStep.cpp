@@ -25,6 +25,7 @@
 
 #include "core/ILogger.hpp"
 #include "core/http/IClient.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -37,16 +38,19 @@ namespace lms::podcast
 {
     namespace
     {
-        void createPodcastArtwork(db::Session& session, db::PodcastId podcastId, const std::filesystem::path& filePath, std::string_view contentType)
+        // False when the database refused the write (bug report 135): the caller removes the
+        // downloaded file, and the next refresh downloads the artwork again.
+        bool createPodcastArtwork(db::Session& session, db::PodcastId podcastId, const std::filesystem::path& filePath, std::string_view contentType)
         {
-            auto transaction{ session.createWriteTransaction() };
+            return db::writeGuarded(
+                session, [&] {
+                    db::Podcast::pointer dbPodcast{ db::Podcast::find(session, podcastId) };
+                    if (!dbPodcast)
+                        return; // may have been deleted by admin
 
-            db::Podcast::pointer dbPodcast{ db::Podcast::find(session, podcastId) };
-            if (!dbPodcast)
-                return; // may have been deleted by admin
-
-            if (db::Artwork::pointer artwork{ utils::createArtworkFromImage(session, filePath, contentType) })
-                dbPodcast.modify()->setArtwork(artwork);
+                    if (db::Artwork::pointer artwork{ utils::createArtworkFromImage(session, filePath, contentType) })
+                        dbPodcast.modify()->setArtwork(artwork); },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot store podcast artwork " << filePath << ", retrying on the next refresh: " << e.what()); });
         }
     } // namespace
 
@@ -143,7 +147,8 @@ namespace lms::podcast
 
                 LMS_LOG(PODCAST, INFO, "Downloaded podcast artwork for podcast '" << podcast->getTitle());
                 const std::string* contentType{ msg.getHeader("Content-Type") };
-                createPodcastArtwork(getDb().getTLSSession(), podcastId, finalFilePath, contentType ? *contentType : "application/octet-stream");
+                if (!createPodcastArtwork(getDb().getTLSSession(), podcastId, finalFilePath, contentType ? *contentType : "application/octet-stream"))
+                    utils::removeFile(finalFilePath);
 
                 processNext();
             });

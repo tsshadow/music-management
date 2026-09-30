@@ -30,6 +30,7 @@
 #include "core/IConfig.hpp"
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
@@ -307,34 +308,48 @@ namespace lms::scrobbling::listenBrainz
     bool ListensSynchronizer::saveListen(const TimedListen& listen, db::SyncState scrobblingState)
     {
         db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createWriteTransaction() }; // TODO: unique only if needed
 
-        db::Listen::pointer dbListen{ db::Listen::find(session, listen.userId, listen.trackId, db::ScrobblingBackend::ListenBrainz, listen.listenedAt) };
-        if (!dbListen)
-        {
-            const db::User::pointer user{ db::User::find(session, listen.userId) };
-            if (!user)
-                return false;
+        // Reached from the strand and straight from a send-queue callback, both on the "Misc"
+        // IOContextRunner, which aborts the process on an exception (bug report 135). A refused
+        // write loses nothing that matters: a listen not saved as PendingAdd is not sent again
+        // on the next sync, but one not marked Synchronized is, and ListenBrainz ignores the
+        // duplicate.
+        bool changed{};
+        db::writeGuarded(
+            session, [&] {
+                db::Listen::pointer dbListen{ db::Listen::find(session, listen.userId, listen.trackId, db::ScrobblingBackend::ListenBrainz, listen.listenedAt) };
+                if (!dbListen)
+                {
+                    const db::User::pointer user{ db::User::find(session, listen.userId) };
+                    if (!user)
+                        return;
 
-            const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
-            if (!track)
-                return false;
+                    const db::Track::pointer track{ db::Track::find(session, listen.trackId) };
+                    if (!track)
+                        return;
 
-            dbListen = session.create<db::Listen>(user, track, db::ScrobblingBackend::ListenBrainz, listen.listenedAt);
-            dbListen.modify()->setSyncState(scrobblingState);
+                    dbListen = session.create<db::Listen>(user, track, db::ScrobblingBackend::ListenBrainz, listen.listenedAt);
+                    dbListen.modify()->setSyncState(scrobblingState);
 
-            db::Track::registerListen(session, listen.trackId, listen.listenedAt);
+                    db::Track::registerListen(session, listen.trackId, listen.listenedAt);
 
-            LOG(DEBUG, "LISTEN CREATED for user " << user->getLoginName() << ", track '" << track->getName() << "' AT " << listen.listenedAt.toString());
+                    LOG(DEBUG, "LISTEN CREATED for user " << user->getLoginName() << ", track '" << track->getName() << "' AT " << listen.listenedAt.toString());
 
-            return true;
-        }
+                    changed = true;
+                    return;
+                }
 
-        if (dbListen->getSyncState() == scrobblingState)
-            return false;
+                if (dbListen->getSyncState() == scrobblingState)
+                    return;
 
-        dbListen.modify()->setSyncState(scrobblingState);
-        return true;
+                dbListen.modify()->setSyncState(scrobblingState);
+                changed = true; },
+            [&](const Wt::Dbo::Exception& e) {
+                LOG(WARNING, "Cannot save listen of track " << listen.trackId.toString() << " for user " << listen.userId.toString() << ", retrying on the next sync: " << e.what());
+                changed = false;
+            });
+
+        return changed;
     }
 
     void ListensSynchronizer::enquePendingListens()
@@ -344,7 +359,9 @@ namespace lms::scrobbling::listenBrainz
         {
             db::Session& session{ _db.getTLSSession() };
 
-            auto transaction{ session.createWriteTransaction() };
+            // Only reads: a write transaction here took the write lock for nothing, and could be
+            // refused like any write (bug report 135).
+            auto transaction{ session.createReadTransaction() };
 
             db::Listen::FindParameters params;
             params.setScrobblingBackend(db::ScrobblingBackend::ListenBrainz)

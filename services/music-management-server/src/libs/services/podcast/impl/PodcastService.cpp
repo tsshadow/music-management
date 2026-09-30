@@ -21,6 +21,8 @@
 
 #include <filesystem>
 
+#include <Wt/Dbo/Exception.h>
+
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/ITraceLogger.hpp"
@@ -309,9 +311,22 @@ namespace lms::podcast
             RefreshStep& step{ *_refreshSteps[stepIndex] };
 
             LMS_LOG(PODCAST, DEBUG, "Running step '" << step.getName() << "'");
+            try
             {
                 LMS_SCOPED_TRACE_OVERVIEW("Podcast", step.getName());
                 step.run();
+            }
+            catch (const Wt::Dbo::Exception& e)
+            {
+                // The steps guard their own writes (db::writeGuarded); this is the net for a
+                // database error anywhere else in a step's synchronous part. This runs on the
+                // "Misc" IOContextRunner, which aborts the process on an exception, and an
+                // unfinished refresh would also leave _refreshInProgress set, so that no refresh
+                // ever ran again (bug report 135). The refresh ends here, and the next one is
+                // scheduled as usual.
+                _refreshContext.db.getTLSSession().getDboSession()->discardUnflushed();
+                LMS_LOG(PODCAST, WARNING, "Podcast refresh step '" << step.getName() << "' stopped by a database error, retrying on the next refresh: " << e.what());
+                onRefreshDone();
             }
         });
     }

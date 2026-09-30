@@ -20,6 +20,7 @@
 #include "ScanStepScanFiles.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <deque>
 #include <filesystem>
 
@@ -293,6 +294,11 @@ namespace lms::scanner
     {
         std::size_t count{};
         constexpr std::size_t writeBatchSize{ 10 };
+        // A file is usually a few milliseconds of writes, but one with dozens of artists, genres
+        // and embedded images is not, and ten of those in one transaction kept every other writer
+        // out for as long. The batch ends at whichever comes first; the session's WritePacer then
+        // decides when the lock is handed over (bug report 134).
+        constexpr std::chrono::milliseconds maxWriteTransactionDuration{ 250 };
 
         LMS_SCOPED_TRACE_OVERVIEW("Scanner", "ProcessScanResults");
 
@@ -301,11 +307,15 @@ namespace lms::scanner
             db::Session& dbSession{ _db.getTLSSession() };
             auto transaction{ dbSession.createWriteTransaction() };
 
+            const auto transactionStart{ std::chrono::steady_clock::now() };
             for (std::size_t i{}; !scanOperations.empty() && i < writeBatchSize; ++i)
             {
                 processFileScanOperation(context, *scanOperations.front());
                 scanOperations.pop_front();
                 count++;
+
+                if (std::chrono::steady_clock::now() - transactionStart >= maxWriteTransactionDuration)
+                    break;
             }
         }
 

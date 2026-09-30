@@ -22,6 +22,7 @@
 #include <cassert>
 
 #include "core/RecursiveSharedMutex.hpp"
+#include "database/WritePacer.hpp"
 
 #include "TransactionChecker.hpp"
 #include "WriteTransactionBegin.hpp"
@@ -70,8 +71,25 @@ namespace lms::db
         }
     } // namespace detail
 
-    WriteTransaction::WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session)
-        : _lock{ mutex }
+    namespace detail
+    {
+        WritePacingScope::WritePacingScope(WritePacer* pacer)
+            : _pacer{ pacer }
+        {
+            if (_pacer)
+                _pacer->onWriteBegin();
+        }
+
+        WritePacingScope::~WritePacingScope()
+        {
+            if (_pacer)
+                _pacer->onWriteEnd();
+        }
+    } // namespace detail
+
+    WriteTransaction::WriteTransaction(core::RecursiveSharedMutex& mutex, Wt::Dbo::Session& session, WritePacer* pacer)
+        : _pacing{ pacer }
+        , _lock{ mutex }
         , _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }
         , _transaction{ session }
     {
@@ -82,7 +100,8 @@ namespace lms::db
     }
 
     WriteTransaction::WriteTransaction(std::unique_lock<core::RecursiveSharedMutex>&& lock, Wt::Dbo::Session& session)
-        : _lock{ std::move(lock) }
+        : _pacing{ nullptr } // the lock is already taken: too late to pace
+        , _lock{ std::move(lock) }
         , _trace{ "Database", core::tracing::Level::Detailed, "WriteTransaction" }
         , _transaction{ session }
     {

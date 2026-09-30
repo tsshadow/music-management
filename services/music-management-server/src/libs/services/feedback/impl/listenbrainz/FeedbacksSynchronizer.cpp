@@ -30,6 +30,7 @@
 #include "core/IConfig.hpp"
 #include "core/Service.hpp"
 #include "core/http/IClient.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/StarredTrack.hpp"
@@ -79,51 +80,60 @@ namespace lms::feedback::listenBrainz
         {
             db::Session& session{ _db.getTLSSession() };
 
-            auto transaction{ session.createWriteTransaction() };
+            // Filled in by the write below; the request goes out after it committed, so that the
+            // write lock is not held across building and queueing an HTTP request.
+            std::optional<core::UUID> recordingMBID;
+            std::string listenBrainzToken;
 
-            db::StarredTrack::pointer starredTrack{ db::StarredTrack::find(session, starredTrackId) };
-            if (!starredTrack)
-                return;
+            // The state is saved before the request is sent. A refused write sends nothing: the
+            // star keeps its previous state, and the next sync compares it with ListenBrainz
+            // again (bug report 135).
+            const bool written{ db::writeGuarded(
+                session, [&] {
+                    db::StarredTrack::pointer starredTrack{ db::StarredTrack::find(session, starredTrackId) };
+                    if (!starredTrack)
+                        return;
 
-            std::optional<core::UUID> recordingMBID{ starredTrack->getTrack()->getRecordingMBID() };
+                    recordingMBID = starredTrack->getTrack()->getRecordingMBID();
 
-            switch (type)
-            {
-            case FeedbackType::Love:
-                if (starredTrack->getSyncState() != db::SyncState::PendingAdd)
-                    starredTrack.modify()->setSyncState(db::SyncState::PendingAdd);
-                break;
+                    switch (type)
+                    {
+                    case FeedbackType::Love:
+                        if (starredTrack->getSyncState() != db::SyncState::PendingAdd)
+                            starredTrack.modify()->setSyncState(db::SyncState::PendingAdd);
+                        break;
 
-            case FeedbackType::Erase:
-                if (!recordingMBID)
-                {
-                    LOG(DEBUG, "Track has no recording MBID: erasing star");
-                    starredTrack.remove();
-                }
-                else
-                {
-                    // Send the erase order even if it is not on the remote LB server (it may be
-                    // queued for add, or not)
-                    starredTrack.modify()->setSyncState(db::SyncState::PendingRemove);
-                }
-                break;
+                    case FeedbackType::Erase:
+                        if (!recordingMBID)
+                        {
+                            LOG(DEBUG, "Track has no recording MBID: erasing star");
+                            starredTrack.remove();
+                        }
+                        else
+                        {
+                            // Send the erase order even if it is not on the remote LB server (it may be
+                            // queued for add, or not)
+                            starredTrack.modify()->setSyncState(db::SyncState::PendingRemove);
+                        }
+                        break;
 
-            default:
-                throw Exception{ "Unhandled feedback type" };
-            }
+                    default:
+                        throw Exception{ "Unhandled feedback type" };
+                    }
 
-            if (!recordingMBID)
-            {
-                LOG(DEBUG, "Track has no recording MBID: skipping");
-                return;
-            }
+                    if (!recordingMBID)
+                    {
+                        LOG(DEBUG, "Track has no recording MBID: skipping");
+                        return;
+                    }
 
-            db::User::pointer user{ db::User::find(session, starredTrack->getUserId()) };
-            if (!user)
-                return;
+                    if (const db::User::pointer user{ db::User::find(session, starredTrack->getUserId()) })
+                        listenBrainzToken = user->getListenBrainzToken(); },
+                [&](const Wt::Dbo::Exception& e) {
+                    LOG(WARNING, "Cannot save feedback for starred track " << starredTrackId.toString() << ", retrying on the next sync: " << e.what());
+                }) };
 
-            const std::string listenBrainzToken{ user->getListenBrainzToken() };
-            if (listenBrainzToken.empty())
+            if (!written || !recordingMBID || listenBrainzToken.empty())
                 return;
 
             core::http::ClientPOSTRequestParameters request;
@@ -155,44 +165,54 @@ namespace lms::feedback::listenBrainz
         assert(_strand.running_in_this_thread());
 
         db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createWriteTransaction() };
 
-        db::StarredTrack::pointer starredTrack{ db::StarredTrack::find(session, starredTrackId) };
-        if (!starredTrack)
-        {
-            LOG(DEBUG, "Starred track not found. deleted?");
+        // A refused write leaves the star pending: the next sync sends it again, which
+        // ListenBrainz treats as the same feedback (bug report 135).
+        std::optional<db::UserId> userId;
+        const bool written{ db::writeGuarded(
+            session, [&] {
+                db::StarredTrack::pointer starredTrack{ db::StarredTrack::find(session, starredTrackId) };
+                if (!starredTrack)
+                {
+                    LOG(DEBUG, "Starred track not found. deleted?");
+                    return;
+                }
+
+                userId = starredTrack->getUserId();
+
+                switch (type)
+                {
+                case FeedbackType::Love:
+                    starredTrack.modify()->setSyncState(db::SyncState::Synchronized);
+                    LOG(DEBUG, "State set to synchronized");
+                    break;
+
+                case FeedbackType::Erase:
+                    starredTrack.remove();
+                    LOG(DEBUG, "Removed starred track");
+                    break;
+
+                default:
+                    throw Exception{ "Unhandled feedback type" };
+                } },
+            [&](const Wt::Dbo::Exception& e) {
+                LOG(WARNING, "Cannot mark feedback for starred track " << starredTrackId.toString() << " as sent, retrying on the next sync: " << e.what());
+            }) };
+
+        // The cached count follows the database, so only a committed write moves it.
+        if (!written || !userId)
             return;
-        }
 
-        UserContext& userContext{ getUserContext(starredTrack->getUserId()) };
+        UserContext& userContext{ getUserContext(*userId) };
+        if (!userContext.feedbackCount)
+            return;
 
-        switch (type)
-        {
-        case FeedbackType::Love:
-            starredTrack.modify()->setSyncState(db::SyncState::Synchronized);
-            LOG(DEBUG, "State set to synchronized");
+        if (type == FeedbackType::Love)
+            (*userContext.feedbackCount)++;
+        else if (*userContext.feedbackCount > 0)
+            (*userContext.feedbackCount)--;
 
-            if (userContext.feedbackCount)
-            {
-                (*userContext.feedbackCount)++;
-                LOG(DEBUG, "Feedback count set to " << *userContext.feedbackCount << " for user '" << userContext.listenBrainzUserName << "'");
-            }
-            break;
-
-        case FeedbackType::Erase:
-            starredTrack.remove();
-            LOG(DEBUG, "Removed starred track");
-
-            if (userContext.feedbackCount && *userContext.feedbackCount > 0)
-            {
-                (*userContext.feedbackCount)--;
-                LOG(DEBUG, "Feedback count set to " << *userContext.feedbackCount << " for user '" << userContext.listenBrainzUserName << "'");
-            }
-            break;
-
-        default:
-            throw Exception{ "Unhandled feedback type" };
-        }
+        LOG(DEBUG, "Feedback count set to " << *userContext.feedbackCount << " for user '" << userContext.listenBrainzUserName << "'");
     }
 
     void FeedbacksSynchronizer::enquePendingFeedbacks()
@@ -455,21 +475,30 @@ namespace lms::feedback::listenBrainz
         {
             LOG(DEBUG, "Importing feedback '" << feedback << "'");
 
-            auto transaction{ session.createWriteTransaction() };
+            // A refused write skips this feedback; the next sync fetches and imports it again
+            // (bug report 135).
+            bool imported{};
+            db::writeGuarded(
+                session, [&] {
+                    const Track::pointer track{ Track::find(session, trackId) };
+                    if (!track)
+                        return;
 
-            const Track::pointer track{ Track::find(session, trackId) };
-            if (!track)
-                return;
+                    const User::pointer user{ User::find(session, context.userId) };
+                    if (!user)
+                        return;
 
-            const User::pointer user{ User::find(session, context.userId) };
-            if (!user)
-                return;
+                    StarredTrack::pointer starredTrack{ session.create<StarredTrack>(track, user, db::FeedbackBackend::ListenBrainz) };
+                    starredTrack.modify()->setSyncState(SyncState::Synchronized);
+                    starredTrack.modify()->setDateTime(feedback.created);
+                    imported = true; },
+                [&](const Wt::Dbo::Exception& e) {
+                    LOG(WARNING, "Cannot import feedback '" << feedback << "', retrying on the next sync: " << e.what());
+                    imported = false;
+                });
 
-            StarredTrack::pointer starredTrack{ session.create<StarredTrack>(track, user, db::FeedbackBackend::ListenBrainz) };
-            starredTrack.modify()->setSyncState(SyncState::Synchronized);
-            starredTrack.modify()->setDateTime(feedback.created);
-
-            context.importedFeedbackCount++;
+            if (imported)
+                context.importedFeedbackCount++;
         }
         else
         {

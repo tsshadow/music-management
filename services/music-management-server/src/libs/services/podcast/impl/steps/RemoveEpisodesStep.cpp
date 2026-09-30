@@ -25,6 +25,7 @@
 #include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
 #include "core/Service.hpp"
+#include "database/GuardedWrite.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artwork.hpp"
@@ -94,12 +95,20 @@ namespace lms::podcast
         if (!episodesToRemove.empty())
         {
             auto& session{ getDb().getTLSSession() };
-            auto transaction{ session.createWriteTransaction() };
+            const bool cleared{ db::writeGuarded(
+                session, [&] {
+                    for (db::PodcastEpisodeId episodeId : episodesToRemove)
+                    {
+                        if (db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) })
+                            episode.modify()->setAudioRelativeFilePath(std::filesystem::path{});
+                    } },
+                [&](const Wt::Dbo::Exception& e) { LMS_LOG(PODCAST, WARNING, "Cannot clear " << episodesToRemove.size() << " removed episode file(s), retrying on the next refresh: " << e.what()); }) };
 
-            for (db::PodcastEpisodeId episodeId : episodesToRemove)
+            // The files are gone already; CheckForMissingFilesStep clears the paths next time.
+            if (!cleared)
             {
-                if (db::PodcastEpisode::pointer episode{ db::PodcastEpisode::find(session, episodeId) })
-                    episode.modify()->setAudioRelativeFilePath(std::filesystem::path{});
+                onAbort();
+                return;
             }
         }
 

@@ -88,7 +88,8 @@ class ProcessFileOverlongTest(unittest.TestCase):
         self.assertTrue(stored)
         params = self.params_of('INSERT INTO library_tracks')
         self.assertEqual(params[1], CRYPTON_TITLE[:512].rstrip())
-        self.assertEqual(params[1], params[7])
+        # The title again, for ON DUPLICATE KEY UPDATE, after the two matching keys.
+        self.assertEqual(params[1], params[9])
         retag.assert_called_once_with('/music/Soundcloud/Crypton/a.m4a')
         self.assertEqual(len(logs.records), 1)
         self.assertIn('title', logs.output[0])

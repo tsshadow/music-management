@@ -54,8 +54,9 @@ _ORPHANS = """
 """
 
 # Tracks that do have a file and could be the one an orphan became. Narrowed in SQL on duration
-# and artist; the title comparison happens in Python, because `normalized_title` is filled by a
-# background worker and is NULL on a row the scanner inserted minutes ago.
+# and artist; the title comparison happens in Python, because `normalized_title` can still be NULL
+# on a row another writer inserted minutes ago (the scanner writes it since bug report 137, the
+# ml-analyzer leaves it to the backfill).
 _CANDIDATES = """
     SELECT t.id, t.title, t.primary_artist_id
     FROM library_tracks t

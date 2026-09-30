@@ -7,10 +7,12 @@ so scrobble_rematch.py only has to be right about SQL.
 import unittest
 
 from services.music_manager.scrobble_matching import (
+    KEY_MAX_CHARS,
     MatchTier,
     base_title,
     enabled_tiers,
     normalize,
+    normalized_title_keys,
     similarity,
 )
 
@@ -71,6 +73,23 @@ class BaseTitleTest(unittest.TestCase):
 
     def test_only_the_trailing_group_is_removed(self):
         self.assertEqual(base_title('(Intro) Track (VIP Mix)'), '(Intro) Track')
+
+
+class NormalizedTitleKeysTest(unittest.TestCase):
+    def test_the_title_key_and_the_base_title_key(self):
+        self.assertEqual(
+            normalized_title_keys('Raise Your Fist (Radio Edit)'),
+            ('raise your fist radio edit', 'raise your fist'),
+        )
+
+    def test_keys_fit_their_columns(self):
+        title_key, base_key = normalized_title_keys('x' * 400)
+        self.assertEqual(len(title_key), KEY_MAX_CHARS)
+        self.assertEqual(len(base_key), KEY_MAX_CHARS)
+
+    def test_a_missing_title_gets_empty_keys_not_none(self):
+        # Empty rather than NULL, or the backfill would pick the row up again every pass.
+        self.assertEqual(normalized_title_keys(None), ('', ''))
 
 
 class SimilarityTest(unittest.TestCase):

@@ -24,6 +24,7 @@ from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.orphan_purge import purge_orphaned_tracks
 from services.music_manager.rbac import require_admin
 from services.music_manager.routers.users import verify_api_key
+from services.music_manager.scrobble_matching import normalized_title_keys
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.music_manager.track_relink import (
     RELINK_KEYS,
@@ -36,6 +37,20 @@ from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
 router = APIRouter(tags=['scanner'])
 logger = logging.getLogger('music-manager.scanner')
+
+# The scrobble matcher's keys are written with the row, from the same function it looks
+# listens up with. They used to be left NULL for the scrobble-rematch thread to fill at 500
+# rows an hour, and the label-tree rescan of 2026-09-26 queued 67,331 rows in front of every
+# track scanned after it (bug report 137). A re-scan refreshes them together with the title.
+_UPSERT_TRACK = """
+    INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist,
+        form, performance_date, normalized_title, normalized_base_title)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,
+        display_artist=COALESCE(%s, display_artist), form=%s, performance_date=%s,
+        normalized_title=VALUES(normalized_title), normalized_base_title=VALUES(normalized_base_title)
+"""
+
 
 #: Character lengths of the columns process_file writes a tag value into (db_init.py).
 #: MariaDB counts VARCHAR length in characters -- code points under utf8mb4 -- and so does
@@ -505,7 +520,7 @@ class ScannerManager:
                 path, self.music_path, duration, title, self.festival_helper, self.podcast_helper
             )
             cursor.execute(
-                '\n                INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist,\n                    form, performance_date)\n                VALUES (%s, %s, %s, %s, %s, %s, %s)\n                ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,\n                    display_artist=COALESCE(%s, display_artist), form=%s, performance_date=%s\n            ',
+                _UPSERT_TRACK,
                 (
                     track_uid,
                     title,
@@ -514,6 +529,7 @@ class ScannerManager:
                     display_artist,
                     form,
                     performance_date,
+                    *normalized_title_keys(title),
                     title,
                     duration,
                     primary_artist_id,

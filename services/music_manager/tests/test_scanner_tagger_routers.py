@@ -396,6 +396,31 @@ class ProcessFileTest(unittest.TestCase):
         )
         self.assertIsNone(params[4])
 
+    def test_the_track_row_is_written_with_both_matching_keys(self):
+        # Bug report 137: the scanner left normalized_title and normalized_base_title NULL for
+        # the scrobble-rematch thread, which filled 500 rows an hour -- after the 67,331-row
+        # rescan of 2026-09-26 every new track sat for days without them.
+        song = self.song()
+        song.title.return_value = 'Raise Your Fist (Radio Edit)'
+        self.cursor.fetchone.side_effect = [None, {'id': 3}, {'id': 4}, {'id': 5}]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=song),
+            patch.object(self.manager, '_resolve_genre_ids', return_value=[]),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        sql, params = next(
+            (call.args[0], call.args[1])
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT INTO library_tracks' in call.args[0]
+        )
+        columns = sql.split('VALUES')[0]
+        self.assertIn('normalized_title', columns)
+        self.assertIn('normalized_base_title', columns)
+        self.assertEqual(params[7:9], ('raise your fist radio edit', 'raise your fist'))
+        # A re-scan of an existing row refreshes them with the title.
+        self.assertIn('normalized_title=VALUES(normalized_title)', sql)
+        self.assertIn('normalized_base_title=VALUES(normalized_base_title)', sql)
+
     def _track_row_params(self):
         return next(
             call.args[1] for call in self.cursor.execute.call_args_list if 'INSERT INTO library_tracks' in call.args[0]

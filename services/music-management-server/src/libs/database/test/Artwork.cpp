@@ -15,6 +15,8 @@
  * along with LMS.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <Wt/Dbo/Dbo.h>
+
 #include "Common.hpp"
 
 #include "database/objects/Artwork.hpp"
@@ -27,6 +29,50 @@ namespace lms::db::tests
     using ScopedArtwork = ScopedEntity<db::Artwork>;
     using ScopedImage = ScopedEntity<db::Image>;
     using ScopedTrackEmbeddedImage = ScopedEntity<db::TrackEmbeddedImage>;
+
+    // Removing an image removes its artwork, and SQLite then sets every column that references
+    // that artwork to NULL. Each of those columns needs an index whose first column it is, or every
+    // single removal scans the table: 0.2 s a row on production, 20,000 portrait rows each library
+    // scan (bug report 138). Checked on the columns themselves rather than by index name, so a
+    // renamed index still passes and a dropped one does not; and after dropping them, because an
+    // existing database gets them from the next start, not from a migration step.
+    TEST_F(DatabaseFixture, Artwork_everyReferenceToAnArtworkIsIndexed)
+    {
+        const std::vector<std::pair<std::string, std::string>> references{
+            { "artist", "preferred_artwork_id" },
+            { "medium", "preferred_artwork_id" },
+            { "podcast", "artwork_id" },
+            { "podcast_episode", "artwork_id" },
+            { "release", "preferred_artwork_id" },
+            { "track", "preferred_artwork_id" },
+            { "track", "preferred_media_artwork_id" },
+            { "artwork", "image_id" },
+            { "artwork", "track_embedded_image_id" },
+        };
+
+        const auto leadingIndexCount{ [&](const std::string& table, const std::string& column) {
+            auto transaction{ session.createReadTransaction() };
+            return session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_index_list(?) il JOIN pragma_index_info(il.name) ii WHERE ii.seqno = 0 AND ii.name = ?").bind(table).bind(column).resultValue();
+        } };
+
+        for (const auto& [table, column] : references)
+            EXPECT_GE(leadingIndexCount(table, column), 1) << table << "." << column;
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            for (const auto& [table, column] : references)
+            {
+                // Only the ones this change added; the artwork ones predate it and stay.
+                if (table != "artwork")
+                    session.execute("DROP INDEX IF EXISTS " + table + "_" + column.substr(0, column.size() - 3) + "_idx");
+            }
+        }
+        EXPECT_EQ(leadingIndexCount("track", "preferred_artwork_id"), 0) << "the drop above should have removed it";
+
+        session.createIndexesIfNeeded();
+        for (const auto& [table, column] : references)
+            EXPECT_GE(leadingIndexCount(table, column), 1) << table << "." << column << " after a restart";
+    }
 
     TEST_F(DatabaseFixture, Artwork_image)
     {

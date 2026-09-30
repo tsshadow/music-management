@@ -129,6 +129,7 @@ module = [
     "services.music_manager.orphan_purge",
     # New code (bug report 129), so it starts strict.
     "services.music_manager.lms_writes",
+    "services.music_manager.lms_portrait_paths",
     "services.tagger.constants",
     "services.tagger.Song.rules.TagResult",
     "services.tagger.Song.rules.TagRule",

@@ -60,6 +60,12 @@ namespace lms::scanner
     // When `interrupted` goes up during the pass (an admin abort, a shutdown), the folders are
     // put back in `queue` rather than lost with the scan. The same goes for a step that throws;
     // the exception is rethrown once the folders are back.
+    //
+    // A pass reads at most `maxFoldersPerPriorityPass` folders (bug report 136). Its cost is mostly the
+    // library-wide steps after the walk, the same for one folder as for fifty, but a tagger round
+    // that announced hundreds would otherwise turn one pass into a small library scan of its own.
+    // The rest stay queued, still due, for the next pass.
+    inline constexpr std::size_t maxFoldersPerPriorityPass{ 50 };
     std::optional<ScanContext> runPriorityPass(std::vector<std::unique_ptr<IScanStep>>& steps,
                                                PriorityFolderQueue& queue,
                                                PriorityFolderQueue::Clock::time_point now,

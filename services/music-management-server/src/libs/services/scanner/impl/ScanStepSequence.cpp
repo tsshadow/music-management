@@ -84,7 +84,7 @@ namespace lms::scanner
                                                PriorityFolderQueue::Clock::time_point now,
                                                const bool& interrupted)
     {
-        std::vector<std::filesystem::path> folders{ queue.takeDue(now, PriorityFolderQueue::Moment::DuringLibraryScan) };
+        std::vector<std::filesystem::path> folders{ queue.takeDue(now, PriorityFolderQueue::Moment::DuringLibraryScan, maxFoldersPerPriorityPass) };
         if (folders.empty())
             return std::nullopt;
 

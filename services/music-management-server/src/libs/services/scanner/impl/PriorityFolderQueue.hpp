@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -77,8 +78,9 @@ namespace lms::scanner
 
         bool isDue(Clock::time_point now, Moment moment) const;
 
-        // Hands out the pending folders if they are due at `moment`, otherwise nothing.
-        std::vector<std::filesystem::path> takeDue(Clock::time_point now, Moment moment);
+        // Hands out the pending folders if they are due at `moment`, otherwise nothing. At most
+        // `maxCount` of them: the rest stay pending, and due (bug report 136).
+        std::vector<std::filesystem::path> takeDue(Clock::time_point now, Moment moment, std::size_t maxCount = std::numeric_limits<std::size_t>::max());
         // Hands out whatever is pending, due or not: the idle timer fired.
         std::vector<std::filesystem::path> take();
 

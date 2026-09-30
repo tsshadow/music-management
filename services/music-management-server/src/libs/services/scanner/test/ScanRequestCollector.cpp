@@ -111,4 +111,22 @@ namespace lms::scanner::tests
         collector.add({ "/music/B" }, start + std::chrono::seconds{ 58 });
         EXPECT_EQ(*collector.deadline(), start + std::chrono::seconds{ 60 });
     }
+    // Bug report 136: a bounded take leaves the rest pending and still due, without restarting
+    // their debounce.
+    TEST(ScanRequestCollector, aBoundedTakeLeavesTheRestDue)
+    {
+        ScanRequestCollector collector{ timing };
+        const Clock::time_point start{};
+
+        collector.add({ "/music/A", "/music/B", "/music/C" }, start);
+
+        const std::vector<std::filesystem::path> first{ collector.take(2) };
+        EXPECT_EQ(first, (std::vector<std::filesystem::path>{ "/music/A", "/music/B" }));
+        EXPECT_EQ(collector.size(), 1);
+        EXPECT_TRUE(collector.isDue(start + quietPeriod));
+
+        EXPECT_EQ(collector.take(2), std::vector<std::filesystem::path>{ "/music/C" });
+        EXPECT_TRUE(collector.empty());
+    }
+
 } // namespace lms::scanner::tests

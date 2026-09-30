@@ -2,6 +2,7 @@ include(GoogleTest)
 
 add_executable(test-scanner
 	ArtistInfo.cpp
+	BatchedRemoval.cpp
 	AudioFileUtils.cpp
 	ImmediateScanPolicy.cpp
 	PriorityFolderQueue.cpp

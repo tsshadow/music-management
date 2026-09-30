@@ -39,8 +39,10 @@ ninety warnings a night on the alerts topic.
    checks for removed files, and between its steps -- it reads the announced folders first (a
    "priority pass", the same work as a scoped scan) and then carries on where it was. Folders
    announced within a few seconds of each other, or twice, are read together, once. After a pass the
-   library scan gets at least two minutes to itself before the next one, so a busy tagger cannot
-   stall it. Scan status shows how many announced folders are waiting and whether a pass is running;
+   library scan gets at least two minutes to itself before the next one, and one pass reads at most
+   50 folders (the rest go in the next pass), so a busy tagger cannot stall it. Removing rows for
+   files that are gone does not hold a pass back either: it happens 50 rows at a time, with a look
+   at the announced folders in between. Scan status shows how many announced folders are waiting and whether a pass is running;
    the progress shown stays that of the library scan.
 5. LMS does not answer: MuMa tries once more two seconds later. If that fails too, the folders are
    sent along with the next notification, and a failed library-wide request is sent again as soon
@@ -53,7 +55,8 @@ ninety warnings a night on the alerts topic.
 - LMS logs "Scan complete" for a library-wide scan again (it only ever logged "Scan aborted").
 - An LMS outage produces one WARNING, INFO for the rest of it, and an INFO when it recovers.
 - During a library-wide scan, a downloaded folder is readable in LMS within a few minutes (quiet
-  period + at most the two-minute gap + the pass itself), and LMS logs
+  period + at most the two-minute gap + the pass itself; no gap of half an hour while the scan
+  removes thousands of rows, bug report 136), and LMS logs
   `Priority scan of N announced folder(s) complete`; the library scan still ends with
   `Scan complete ... priority passes = N (M folders)`.
 

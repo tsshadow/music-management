@@ -63,6 +63,10 @@ namespace lms::scanner
 
         // Hands out the pending paths and resets the cycle.
         std::vector<std::filesystem::path> take();
+        // Hands out at most `maxCount` of the pending paths. What is left keeps its timestamps,
+        // so it stays due: a bounded priority pass (bug report 136) leaves the rest for the next
+        // one instead of restarting their debounce.
+        std::vector<std::filesystem::path> take(std::size_t maxCount);
 
     private:
         const Clock::duration _quietPeriod;

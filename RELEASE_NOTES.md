@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.5 (2026-09-30)
+
+- **MuMa Mobile 7.15.0 checks the server at start-up** and offers Opnieuw proberen / Wachten op server / Offline verder when it is unreachable. See the muma-mobile changelog.
+
 ## Global Version 0.85.4 (2026-09-30)
 
 - **Artist portraits stay put during a library scan.** Most artists lost their portrait while

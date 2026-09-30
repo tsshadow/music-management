@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## Global Version 7.15.0 (2026-09-30)
+
+- **Starting without the server.** When the app cannot reach the MuMa server at start-up it now says
+  so, and you can try again, wait until the server is back (the app then continues by itself), or
+  continue offline with the music on your phone. The full queue comes back once the server does.
+
 ## Global Version 7.14.0 (2026-09-30)
 
 - **BPM in Android Auto.** Under Nummers → Bladeren → BPM, pick a tempo (140 up to 210+) and play

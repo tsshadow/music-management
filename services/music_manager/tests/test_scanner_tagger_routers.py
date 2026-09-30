@@ -567,6 +567,7 @@ class TaggerManagerTest(unittest.TestCase):
     def setUp(self):
         with patch.object(tagger_router, 'Tagger'):
             self.manager = tagger_router.TaggerManager()
+        self.manager.bpm_tags = MagicMock()
         self.schedule = MagicMock()
         self.schedule.due.return_value = False
         patcher = patch.object(tagger_router, 'WalkSchedule', return_value=self.schedule)
@@ -602,6 +603,37 @@ class TaggerManagerTest(unittest.TestCase):
         self.schedule.due.return_value = True
         self.manager.run_full(walk=False)
         self.manager.tagger.run.assert_called_once_with(walk=False)
+
+    def test_a_round_ends_with_a_capped_slice_of_bpm_tags(self):
+        """Issue #139: after the queue (and the walk), inside the lock, honouring a stop."""
+        self.manager.tagger.stop_requested = False
+        order = []
+        self.manager.tagger.run.side_effect = lambda **_: order.append('tagger')
+        self.manager.bpm_tags.run_round.side_effect = lambda should_stop: order.append(
+            ('bpm', self.manager._lock.locked(), should_stop())
+        )
+        self.manager.run_full()
+        self.assertEqual(order, ['tagger', ('bpm', True, False)])
+
+    def test_an_interrupted_round_writes_no_bpm_tags(self):
+        self.manager.tagger.stop_requested = True
+        self.manager.run_full()
+        self.manager.bpm_tags.run_round.assert_not_called()
+
+    def test_a_failing_bpm_step_does_not_end_the_round(self):
+        self.manager.tagger.stop_requested = False
+        self.manager.bpm_tags.run_round.side_effect = RuntimeError('database gone')
+        with self.assertLogs('music-manager.tagger', level='ERROR'):
+            self.manager.run_full()
+        self.assertFalse(self.manager._lock.locked())
+
+    def test_the_bpm_step_is_built_on_first_use_with_the_taggers_pause(self):
+        self.manager.tagger.stop_requested = False
+        self.manager.bpm_tags = None
+        with patch.object(tagger_router, 'BpmTagWriteback') as writeback:
+            self.manager.run_full()
+        writeback.assert_called_once_with(pause_seconds=tagger_router.TAGGER_BATCH_PAUSE)
+        writeback.return_value.run_round.assert_called_once()
 
     def test_a_full_run_is_skipped_while_another_one_holds_the_lock(self):
         with patch.object(self.manager, '_lock', MagicMock(locked=lambda: True)):
@@ -717,6 +749,7 @@ class RetagEndpointsTest(unittest.TestCase):
     def test_a_restart_cuts_the_round_short_and_starts_over(self):
         manager = tagger_router.TaggerManager.__new__(tagger_router.TaggerManager)
         manager.tagger = MagicMock(stop_requested=False)
+        manager.bpm_tags = MagicMock()
         manager._lock = threading.Lock()
         rounds = []
         schedule = patch.object(tagger_router, 'WalkSchedule', return_value=MagicMock(**{'due.return_value': False}))

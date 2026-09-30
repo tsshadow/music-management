@@ -201,7 +201,7 @@ def ensure_tables_exist() -> None:
         # The measured tempo per track (BPM browse), keyed on track_uid so a rebuild or a file
         # move keeps it. Filled by the BPM analysis worker; read by services/music_manager/bpm/.
         # See migrate_v50_track_bpm.sql.
-        'library_track_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                status ENUM('ok', 'failed') NOT NULL DEFAULT 'ok',\n                bpm DECIMAL(5,2) NULL,\n                raw_bpm DECIMAL(5,2) NULL,\n                confidence DECIMAL(4,3) NULL,\n                method VARCHAR(32) NOT NULL,\n                octave_corrected TINYINT(1) NOT NULL DEFAULT 0,\n                file_mtime DOUBLE NULL,\n                file_size BIGINT NULL,\n                attempts INT NOT NULL DEFAULT 1,\n                error VARCHAR(255) NULL,\n                analyzed_at DATETIME NOT NULL,\n                INDEX idx_track_bpm_bpm (bpm),\n                INDEX idx_track_bpm_status (status, analyzed_at)\n            )\n        ",
+        'library_track_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                status ENUM('ok', 'failed') NOT NULL DEFAULT 'ok',\n                bpm DECIMAL(5,2) NULL,\n                raw_bpm DECIMAL(5,2) NULL,\n                confidence DECIMAL(4,3) NULL,\n                method VARCHAR(32) NOT NULL,\n                octave_corrected TINYINT(1) NOT NULL DEFAULT 0,\n                file_mtime DOUBLE NULL,\n                file_size BIGINT NULL,\n                attempts INT NOT NULL DEFAULT 1,\n                error VARCHAR(255) NULL,\n                analyzed_at DATETIME NOT NULL,\n                tag_bpm DECIMAL(5,2) NULL,\n                tag_action VARCHAR(16) NULL,\n                tag_checked_at DATETIME NULL,\n                INDEX idx_track_bpm_bpm (bpm),\n                INDEX idx_track_bpm_status (status, analyzed_at)\n            )\n        ",
         'library_track_effective_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_effective_bpm (\n                track_id INT NOT NULL PRIMARY KEY,\n                bpm DECIMAL(5,2) NOT NULL,\n                source ENUM('measured', 'tag', 'analyzer') NOT NULL,\n                confidence ENUM('low', 'medium', 'high') NOT NULL,\n                approximate TINYINT(1) NOT NULL DEFAULT 0,\n                folded TINYINT(1) NOT NULL DEFAULT 0,\n                updated_at DATETIME NOT NULL,\n                INDEX idx_effective_bpm_bpm (bpm),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE\n            )\n        ",
         # One row per migrate_*.sql the deploy applied, keyed by file name, with the sha256
         # of the content it applied. scripts/deploy.sh skips a file whose name and hash are
@@ -310,6 +310,13 @@ def ensure_tables_exist() -> None:
                     # See migrate_v42_track_form.sql and docs/designs/track-form/.
                     'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS form VARCHAR(16) NULL',
                     'ALTER TABLE library_tracks ADD COLUMN IF NOT EXISTS performance_date VARCHAR(10) NULL',
+                    # Which measured tempo the file's own BPM tag was last reconciled with, and
+                    # how (written, matches, kept, ...). The BPM tag writeback's queue is every
+                    # confident measurement where this differs from bpm. See
+                    # migrate_v52_track_bpm_tag_writeback.sql and docs/designs/bpm-tag-writeback/.
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_bpm DECIMAL(5,2) NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_action VARCHAR(16) NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_checked_at DATETIME NULL',
                 ):
                     try:
                         cursor.execute(column_sql)

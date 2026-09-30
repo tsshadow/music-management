@@ -107,6 +107,11 @@ The system is split into specialized services, each handling a specific part of 
 - **Runs**: its own container from the tools image (needs ffmpeg), capped at 2 cores / 768 MB, analysis
   processes at nice 19 / idle I/O. Settings on Beheer → Config → BPM (on/off, pause, workers,
   excerpt), read from music-manager's `config.json` every round.
+- **Tag writeback**: the analyzer never writes files (its share mount is read-only). The tagger round in
+  music-manager ends with a capped step (`services/music_manager/bpm/tag_writeback.py`, default 300 files
+  per round, after the retag queue) that writes confident measurements into the files' own BPM tag
+  (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
+  (docs/designs/bpm-tag-writeback/).
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**

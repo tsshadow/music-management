@@ -316,6 +316,34 @@ interface MumaAPIDefinition {
         @Query("limit") limit: Int? = null,
         @Query("offset") offset: Int? = null
     ): Call<MumaFeed>
+
+    // --- Browse by BPM (docs/designs/bpm-browse/). The effective tempo is the server's. ---
+
+    /**
+     * The tracks at a tempo ([bpm] +- [tol], nearest first, then the more trusted) or in a range
+     * ([bpmFrom]..[bpmTo], by tempo), one page of them. Leave [tol] out for the server's own
+     * default (`bpm_browse_tolerance`). [MumaBpmTracks.nextOffset] says where the next page starts.
+     */
+    @GET("api/library/bpm/tracks")
+    fun getBpmTracks(
+        @Query("bpm") bpm: Double? = null,
+        @Query("tol") tol: Double? = null,
+        @Query("bpm_from") bpmFrom: Double? = null,
+        @Query("bpm_to") bpmTo: Double? = null,
+        @Query("min_confidence") minConfidence: String? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null
+    ): Call<MumaBpmTracks>
+
+    /**
+     * Track counts per whole BPM from [bpmFrom] to [bpmTo], and the tolerance a picked tempo gets
+     * by default -- what the car's tempo list shows its counts from.
+     */
+    @GET("api/library/bpm/histogram")
+    fun getBpmHistogram(
+        @Query("bpm_from") bpmFrom: Double? = null,
+        @Query("bpm_to") bpmTo: Double? = null
+    ): Call<MumaBpmHistogram>
 }
 
 /**
@@ -360,6 +388,42 @@ data class MumaFeedInfo(
     @SerializedName("window_days") val windowDays: Int? = null,
     @SerializedName("title") val title: String? = null,
     @SerializedName("subtitle") val subtitle: String? = null
+)
+
+/**
+ * One page of `GET /api/library/bpm/tracks`. Only what a client that plays the list needs is
+ * read: the path `getSongsByPath` resolves, the tempo, and where the next page starts.
+ */
+data class MumaBpmTracks(
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("offset") val offset: Int = 0,
+    // Null when this page is the last one.
+    @SerializedName("next_offset") val nextOffset: Int? = null,
+    @SerializedName("tracks") val tracks: List<MumaBpmTrack> = emptyList()
+)
+
+/** One track of [MumaBpmTracks]. */
+data class MumaBpmTrack(
+    @SerializedName("id") val id: Int? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("artist") val artist: String? = null,
+    // Library-relative, like a feed track's: what getSongsByPath resolves.
+    @SerializedName("library_path") val libraryPath: String? = null,
+    @SerializedName("bpm") val bpm: Double? = null,
+    @SerializedName("bpm_confidence") val bpmConfidence: String? = null
+)
+
+/** `GET /api/library/bpm/histogram`, as far as the car reads it. */
+data class MumaBpmHistogram(
+    @SerializedName("bins") val bins: List<MumaBpmBin> = emptyList(),
+    // The tolerance a picked tempo gets when none is sent (`bpm_browse_tolerance`).
+    @SerializedName("default_tolerance") val defaultTolerance: Double? = null
+)
+
+/** One whole BPM of [MumaBpmHistogram] and how many tracks sit on it. */
+data class MumaBpmBin(
+    @SerializedName("bpm") val bpm: Int = 0,
+    @SerializedName("count") val count: Int = 0
 )
 
 data class MumaTile(

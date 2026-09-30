@@ -10,6 +10,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicClientConfiguration
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.log.TimberOkHttpLogger
+import nl.teunschriks.mumamobile.service.BpmRepository
 import nl.teunschriks.mumamobile.service.CachedMusicService
 import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
@@ -96,6 +97,15 @@ val musicServiceModule = module {
     // network comes back.
     single {
         FeedRepository(
+            mumaApiProvider = { get<SubsonicAPIClient>().mumaApi.api },
+            musicServiceProvider = { MusicServiceFactory.getMusicService() }
+        )
+    }
+
+    // The car's BPM folder (issue #140): one instance, so the list a row showed is the list a tap
+    // plays. Same providers as the feeds, for the same reasons.
+    single {
+        BpmRepository(
             mumaApiProvider = { get<SubsonicAPIClient>().mumaApi.api },
             musicServiceProvider = { MusicServiceFactory.getMusicService() }
         )

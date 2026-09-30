@@ -130,6 +130,13 @@
     <string name="auto.podcasts">Podcasts</string>
     <string name="auto.festivals">Festivals</string>
     <string name="auto.lineups">Lineups</string>
+    <string name="auto.bpm">BPM</string>
+    <string name="auto.bpm_bucket">%1$d BPM</string>
+    <string name="auto.bpm_bucket_up">%1$d+ BPM</string>
+    <plurals name="auto.bpm_tracks">
+        <item quantity="one">%1$d nummer</item>
+        <item quantity="other">%1$d nummers</item>
+    </plurals>
     <string name="auto.forms">Soort</string>
     <string name="auto.form_set">Sets &amp; mixes</string>
     <string name="auto.form_liveset">Livesets</string>

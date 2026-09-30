@@ -150,6 +150,9 @@ internal class BrowseTabsArea(context: BrowseContext) : BrowseArea(context) {
         mediaItems.add(R.string.main_years_title, tagListId(length, BrowseQuery.CLUSTER_YEAR), browse)
         if (length == "short") {
             mediaItems.add(R.string.auto_lineups, "$MEDIA_LINEUP_LIST|$length", browse)
+            // Songs only, like the web's BPM page: a set has no one tempo, and the server's BPM
+            // index holds tracks only (docs/designs/android-auto-bpm/).
+            mediaItems.add(R.string.auto_bpm, MEDIA_BPM_LIST, browse)
         }
 
         val play = R.string.auto_group_play

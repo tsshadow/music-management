@@ -209,7 +209,8 @@ cost of a second core that the overcommitted host may not have to spare.
 - LMS: none (`getSongsByPath` already exists).
 - Deployment: a new `bpm-analyzer` service in docker/docker-compose.yml (tools image), started by the
   normal deploy; `MUMA_CPUS_BPM` / `MUMA_MEM_LIMIT_BPM` override its ceilings (docs/deployment.md).
-- MuMa Mobile native (Android Auto browse tree): none in this change; a BPM folder is a follow-up.
+- MuMa Mobile native (Android Auto browse tree): none in this change; the BPM folder followed in
+  issue #140 ([android-auto-bpm](../android-auto-bpm/technical.md)), on these two endpoints unchanged.
 
 ## Technical Acceptance Criteria
 

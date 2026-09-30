@@ -189,6 +189,8 @@ services:
       # this base URL.
       LMS_MUSIC_MANAGEMENT_URL: http://music-manager:8000/api
       LMS_MUSIC_MANAGEMENT_API_KEY: test-api-key
+      # As in the lms stack: music-manager's portrait folder, kept on every scan (bug report 139).
+      LMS_ARTIST_IMAGE_MANAGED_DIRECTORY: /music/artists
     ports:
       - "${MUMA_TEST_PORT_LMS:-15082}:5082"
     healthcheck:

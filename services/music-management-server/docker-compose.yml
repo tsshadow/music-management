@@ -69,6 +69,10 @@ services:
       - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
       - LMS_MUSIC_MANAGEMENT_URL=${MUSIC_MANAGEMENT_URL}
       - LMS_MUSIC_MANAGEMENT_API_KEY=${MUSIC_MANAGEMENT_API_KEY}
+      # music-manager's portrait folder (its STORAGE_PATH) as seen through LMS's /music mount.
+      # An artist pointing at a portrait there keeps it on every scan (bug report 139).
+      # tests/ci/test_managed_portrait_directory.py keeps the two in step.
+      - LMS_ARTIST_IMAGE_MANAGED_DIRECTORY=${LMS_ARTIST_IMAGE_MANAGED_DIRECTORY:-/music/artists}
     networks:
       - default
       - music-management_db

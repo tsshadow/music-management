@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -42,5 +43,6 @@ namespace lms::scanner
 
         const std::vector<std::string> _artistFileNames;
         const std::vector<std::string> _artistInfoFileNames;
+        const std::filesystem::path _managedPortraitDirectory;
     };
 } // namespace lms::scanner

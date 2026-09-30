@@ -64,9 +64,9 @@ correct a track by hand: halve it, double it, or type the tempo.
 - **External lookups.** GetSongBPM (free key, attribution) covers mainstream pop well and could be a
   strong prior for tracks without a label or artist prior; Deezer's `bpm` is always 0, Beatport has
   no public API, Spotify's audio features are closed to new apps and AcousticBrainz is gone. Left
-  for a follow-up (GitLab issue), behind an optional `getsongbpm_api_key`.
+  for a follow-up (GitLab issue #152), behind an optional `getsongbpm_api_key`.
 - **A folder prior.** Soundcloud and YouTube files sit in a folder per uploader, which is often a
-  better tempo predictor than the credited artist; not built, measured first in the follow-up.
+  better tempo predictor than the credited artist; not built, measured first (issue #153).
 - **Genre-less uptempo in Soundcloud.** Without a label, artist or clearly fast pulse such a track is
   now halved (not reliable, not written). The re-measure adds the audio evidence; the manual override
-  fixes the rest. Whether more is needed is decided after a week of data.
+  fixes the rest. Whether more is needed is decided after a week of data (issue #153).

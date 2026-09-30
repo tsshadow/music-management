@@ -959,6 +959,7 @@ class ReserveTest(unittest.TestCase):
 
     def test_the_reserve_costs_no_query(self):
         plain_conn, plain = self._build()
+        build.clear_sample_memo()  # both builds must run their own samples to be compared
         reserve_conn, _ = self._build(reserve_size=60)
         self.assertEqual(len(plain_conn.cursor.return_value.executed), len(reserve_conn.cursor.return_value.executed))
         self.assertIsNone(plain.reserve)
@@ -967,3 +968,120 @@ class ReserveTest(unittest.TestCase):
         _, plain = self._build()
         _, with_reserve = self._build(reserve_size=60)
         self.assertEqual([t['id'] for t in plain.tracks], [t['id'] for t in with_reserve.tracks])
+
+
+# Issue #138: the four hardness-family mixes share one pair of samples. A spread of bpm puts
+# tracks in every band, so each of the four builds has something of its own to emit.
+_SPREAD_BPMS = (150, 160, 170, 180, 190, 200, 210)
+SHARED_RECENT = [
+    _candidate(f'sr{i}', f'SR Artist {i}', 'Uptempo', bpm=_SPREAD_BPMS[i % len(_SPREAD_BPMS)]) for i in range(35)
+]
+SHARED_OLDER = [
+    _candidate(f'so{i}', f'SO Artist {i}', 'Raw', bpm=_SPREAD_BPMS[i % len(_SPREAD_BPMS)], release_date='2016-04-04')
+    for i in range(35)
+]
+HARDNESS_FAMILY = ('daily-mix', 'daily-mix-soft', 'daily-mix-mid', 'daily-mix-hard')
+
+
+def _sample_statements(conn) -> int:
+    cursor = conn.cursor.return_value
+    return len(cursor.statements_matching(_RECENT_SAMPLE_FRAGMENT)) + len(
+        cursor.statements_matching(_OLDER_SAMPLE_FRAGMENT)
+    )
+
+
+class SharedSampleTest(unittest.TestCase):
+    """Issue #138: Klassiek, Zachter, Middenin and Harder ask the same two sample
+    questions; the library is sampled once per listener and day, not four times."""
+
+    def _conn(self, **kwargs):
+        kwargs.setdefault('candidates', SHARED_RECENT)
+        kwargs.setdefault('older', SHARED_OLDER)
+        return scripted(listens=MANY_LISTENS, **kwargs)
+
+    def _build(self, slug, now=NOW, conn=None):
+        conn = conn or self._conn()
+        return conn, build_feed(conn, 'user', build.replace(POLICIES[slug], size=20), now, reserve_size=60)
+
+    def test_sharing_changes_nothing_in_any_of_the_four_builds(self):
+        unshared = {}
+        for slug in HARDNESS_FAMILY:
+            build.clear_sample_memo()
+            conn, feed = self._build(slug)
+            self.assertEqual(_sample_statements(conn), 2, slug)
+            unshared[slug] = dataclasses.asdict(feed)
+        build.clear_sample_memo()
+        shared, statements = {}, 0
+        for slug in HARDNESS_FAMILY:
+            conn, feed = self._build(slug)
+            statements += _sample_statements(conn)
+            shared[slug] = dataclasses.asdict(feed)
+        self.assertEqual(statements, 2)
+        for slug in HARDNESS_FAMILY:
+            with self.subTest(slug=slug):
+                self.assertTrue(shared[slug]['tracks'], 'every mix must emit something to compare')
+                self.assertEqual(shared[slug], unshared[slug])
+
+    def test_one_connection_for_the_whole_refresh_samples_once(self):
+        conn = self._conn()
+        for slug in HARDNESS_FAMILY:
+            self._build(slug, conn=conn)
+        cursor = conn.cursor.return_value
+        self.assertEqual(len(cursor.statements_matching(_RECENT_SAMPLE_FRAGMENT)), 1)
+        self.assertEqual(len(cursor.statements_matching(_OLDER_SAMPLE_FRAGMENT)), 1)
+
+    def test_the_label_mix_keeps_its_own_samples(self):
+        self._build('daily-mix', conn=scripted(listens=SINGLE_ENTITY_LISTENS, candidates=SHARED_RECENT))
+        conn = scripted(
+            listens=SINGLE_ENTITY_LISTENS,
+            candidates=SHARED_RECENT,
+            older=SHARED_OLDER,
+            rotation_counts=[_songs('Neophyte Records', 15)],
+        )
+        feed = build_feed(conn, 'user', POLICIES['daily-mix-label'], NOW)
+        self.assertEqual(feed.title, 'neophyte records')
+        self.assertEqual(_sample_statements(conn), 2)
+
+    def test_another_day_is_a_new_sample(self):
+        self._build('daily-mix')
+        conn, _ = self._build('daily-mix-soft', now=NOW + timedelta(days=1))
+        self.assertEqual(_sample_statements(conn), 2)
+
+    def test_another_listener_is_a_new_sample(self):
+        self._build('daily-mix')
+        conn = self._conn()
+        build_feed(conn, 'someone-else', POLICIES['daily-mix-soft'], NOW)
+        self.assertEqual(_sample_statements(conn), 2)
+
+    def test_a_sample_expires_after_the_ttl(self):
+        clock = [1000.0]
+        original = build._memo_clock
+        build._memo_clock = lambda: clock[0]
+        try:
+            self._build('daily-mix')
+            clock[0] += build.SAMPLE_MEMO_TTL_SECONDS - 1
+            conn, _ = self._build('daily-mix-soft')
+            self.assertEqual(_sample_statements(conn), 0)
+            clock[0] += 2
+            conn, _ = self._build('daily-mix-mid')
+            self.assertEqual(_sample_statements(conn), 2)
+        finally:
+            build._memo_clock = original
+
+    def test_the_memo_is_bounded_and_holds_ids_only(self):
+        conn = self._conn()
+        for i in range(build.SAMPLE_MEMO_MAX_ENTRIES + 5):
+            build._sample_ids(conn, 'SELECT 1 AS recent_id', [f'seed-{i}'], 'recent')
+        self.assertEqual(len(build._sample_memo), build.SAMPLE_MEMO_MAX_ENTRIES)
+        self.assertNotIn(('SELECT 1 AS recent_id', ('seed-0',)), build._sample_memo)
+        _, ids = next(iter(build._sample_memo.values()))
+        self.assertEqual(ids, tuple(row['id'] for row in SHARED_RECENT))
+
+    def test_a_reused_sample_is_a_copy(self):
+        conn = self._conn()
+        first = build._sample_ids(conn, 'SELECT t.id AS recent_id', ['x'], 'recent')
+        first.clear()
+        self.assertEqual(
+            build._sample_ids(conn, 'SELECT t.id AS recent_id', ['x'], 'recent'),
+            [row['id'] for row in SHARED_RECENT],
+        )

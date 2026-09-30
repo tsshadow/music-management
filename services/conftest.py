@@ -32,3 +32,21 @@ def _reset_auth_rate_limiter():
     reset_limiters()
     yield
     reset_limiters()
+
+
+@pytest.fixture(autouse=True)
+def _reset_feed_sample_memo():
+    """Give every test an empty split-mix sample memo (issue #138).
+
+    `feeds.build` reuses a day's sample for ten minutes, keyed on the statement. Tests
+    script different libraries under the same user and day, so without this a sample
+    drawn in one test would answer the next one's.
+    """
+    try:
+        from services.music_manager.feeds.build import clear_sample_memo
+    except Exception:  # only once music_manager is importable
+        yield
+        return
+    clear_sample_memo()
+    yield
+    clear_sample_memo()

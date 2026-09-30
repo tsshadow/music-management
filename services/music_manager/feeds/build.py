@@ -8,6 +8,8 @@ it", in order, recording the funnel after each stage that can shrink the set:
 `candidates`, `bucketed`, `allocated`, `capped`, `emitted`.
 """
 
+import threading
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -43,6 +45,25 @@ from services.music_manager.feeds.quota import allocate, redistribute
 from services.music_manager.feeds.scoring import daily_sample_key, pick_playable_entity, rediscovery_factor, score
 
 EMPTY_FUNNEL = {'candidates': 0, 'bucketed': 0, 'allocated': 0, 'capped': 0, 'emitted': 0}
+
+#: How long one split-mix sample (`split_sample_query`'s ids) is reused, in seconds (issue #138).
+#: Klassiek and the three hardness mixes draw the very same two samples -- same user, day,
+#: settings and profile match; the band filter runs afterwards in Python -- so the nightly
+#: refresh, which builds them one after the other, used to sample the library four times for
+#: one answer. Long enough to cover one listener's refresh and the on-demand builds of the
+#: other mixes right after a settings change; short enough that a rebuild later in the day
+#: (a settings change, a `no_matches` retry) still sees a newly scanned track or a new rating.
+SAMPLE_MEMO_TTL_SECONDS = 600
+
+#: At most this many samples are kept: two per listener with a split mix built lately, plus
+#: the label mix's own two. Ids only -- a full recent sample of 3000 is ~110 kB -- so the
+#: whole memo stays under ~4 MB even when every slot holds one.
+SAMPLE_MEMO_MAX_ENTRIES = 32
+
+_sample_memo: dict[tuple, tuple[float, tuple]] = {}
+_sample_memo_lock = threading.Lock()
+#: Monotonic clock of the memo; a module attribute so a test can move time forward.
+_memo_clock = time.monotonic
 
 # Mirrors blend()'s own default. Kept as one constant and passed explicitly to
 # blend() below so the pre-check that decides whether to bother querying the
@@ -601,18 +622,52 @@ def _annotate_rediscovery(conn, username: str, candidates: list[dict], now: date
         candidate['rediscovery'] = rediscovery_factor(last_played.get(song_key(candidate)), now)
 
 
+def clear_sample_memo() -> None:
+    """Forget every memoised split-mix sample (tests; see `_sample_ids`)."""
+    with _sample_memo_lock:
+        _sample_memo.clear()
+
+
+def _sample_ids(conn, sql: str, params: list, half: str) -> list[int]:
+    """The ids `split_sample_query` returns, shared between builds for `SAMPLE_MEMO_TTL_SECONDS`.
+
+    Keyed on the rendered statement and its parameters, so everything that can change the
+    answer -- user, day (the seed and both date bounds), the split settings, the profile
+    names of the older half, the label mix's own filter -- is in the key by construction,
+    and a key that differs in any of them is a fresh sample. Only the ids are kept, in
+    their `MD5(seed || track_uid)` order, so a build that reuses them fetches, scores and
+    orders exactly what it would have fetched itself. Two threads missing at once both
+    run the statement; the second write wins with the same ids.
+    """
+    key = (sql, tuple(params))
+    stamp = _memo_clock()
+    with _sample_memo_lock:
+        hit = _sample_memo.get(key)
+        if hit is not None and stamp - hit[0] < SAMPLE_MEMO_TTL_SECONDS:
+            return list(hit[1])
+    ids = [row[f'{half}_id'] for row in _rows(conn, sql, params) if row.get(f'{half}_id') is not None]
+    with _sample_memo_lock:
+        for stale in [k for k, (at, _) in _sample_memo.items() if stamp - at >= SAMPLE_MEMO_TTL_SECONDS]:
+            del _sample_memo[stale]
+        while len(_sample_memo) >= SAMPLE_MEMO_MAX_ENTRIES:
+            del _sample_memo[min(_sample_memo, key=lambda k: _sample_memo[k][0])]
+        _sample_memo[key] = (stamp, tuple(ids))
+    return ids
+
+
 def _load_half(
     conn, username: str, policy: FeedPolicy, now: datetime, half: str, info: dict, profile: TasteProfile
 ) -> list[dict]:
     """One half of a split daily mix: a day-stable sample of ids, then their rows,
     collapsed to one per song. Two statements, so the candidate row's correlated
-    subqueries run for the sample only (see `split_sample_query`)."""
+    subqueries run for the sample only (see `split_sample_query`). The sample itself is
+    shared by the mixes that ask the same question (`_sample_ids`, issue #138)."""
     seed = f'{username}|{clock.feed_date(now).isoformat()}|{half}'
     names = _profile_names(profile) if half == 'older' and info['entity_filter'] is None else None
     sql, params = split_sample_query(
         username, policy, now, half, seed, profile_names=names, entity_filter=info['entity_filter']
     )
-    ids = [row[f'{half}_id'] for row in _rows(conn, sql, params) if row.get(f'{half}_id') is not None]
+    ids = _sample_ids(conn, sql, params, half)
     if not ids:
         return []
     sql, params = candidate_rows_query(username, ids, half)

@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.4 (2026-09-30)
+
+- **Artist portraits stay put during a library scan.** Most artists lost their portrait while
+  LMS scanned the library, and the scan spent more than an hour removing them.
+
+- **A new download shows up in LMS within minutes again while a library scan runs.** It could take
+  half an hour, while the scan was cleaning up thousands of removed images.
+
 ## Global Version 0.85.3 (2026-09-30)
 
 - **New tracks get their scrobble-matching keys the moment they are scanned.** `normalized_title` and `normalized_base_title` were never written by the scanner; a background pass filled 500 rows an hour, and after the 67,331-row label-tree rescan of 2026-09-26 every track added since sat without them, so a listen spelled slightly differently from the tag (case, accents, a "(Radio Edit)") waited in the retry queue instead of linking. The scanner now writes both keys with the row, and the background pass drains whatever other writers leave behind in one go (up to five minutes, `SCROBBLE_BACKFILL_BUDGET`). The ~16,000 rows still missing them on production are filled by the first pass after the deploy. Bug report 137.

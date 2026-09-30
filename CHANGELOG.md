@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.4] - 2026-09-30
+
+### Fixed
+- **Artist portraits are no longer removed from LMS and written back on every library scan.**
+  music-manager wrote each portrait into LMS's database under its own mount (`/mnt/music/...`).
+  Inside the LMS container that path does not exist, so every library scan removed about 20,000
+  portrait rows at 0.2 s each, more than an hour per scan, and most artists had no portrait until
+  the hourly sync wrote the rows back. The sync now uses the path LMS sees (`/music/...`), which
+  is usually a row LMS's own scanner already made for the same file. A repair pass moves the rows
+  written earlier. LMS also gets indexes on the seven columns that point at an artwork, so
+  removing an image now takes microseconds instead of 0.2 s, whatever the reason for the removal
+  (bug report 138).
+
+- **A new download shows up in LMS within minutes again while a library scan runs.** Priority
+  passes for announced folders came about 30 minutes apart on production. The walk was not the
+  cause, it checks every 10 files. The check for removed files was: before a pass it finished every
+  job in flight and first deleted everything they had found. On production that meant up to 10,000
+  image rows at 0.2 s each (the artist portraits under `/mnt/music/artists`, outside LMS's
+  library). The deletion now runs 50 rows at a time with a check in between, so a due pass waits
+  about 10 s instead of half an hour. One pass also reads at most 50 folders; the rest go in the
+  next one (bug report 136).
+
 ## [0.85.3] - 2026-09-30
 
 ### Changed

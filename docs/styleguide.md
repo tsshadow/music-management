@@ -303,6 +303,17 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — Correct a BPM by hand (2026-09-30, `BpmOverride.svelte`): no new token or component
+  style. Shown only with the `bpm.override` permission, under the BPM tile of the management
+  library's track inspector and under the tag list of the player's details sheet. A small uppercase
+  caption like the inspector's tile labels, then "½×" and "2×" -- and "Gemeten" only when the tempo
+  is manual -- as the inspector's secondary pills (`text-xs font-bold bg-white/5 hover:bg-white/10
+  border border-white/10 rounded-full px-3 min-h-8`, `disabled:opacity-50` while a request runs),
+  then a Forms & Inputs field (`w-20 bg-muma-spotify-light rounded`, `focus:border-brand`) with a
+  "Zet" pill. A refusal is one `text-xs text-red-400` line under it. A manual tempo is marked with
+  the BPM pill of the BPM browse list (`text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10
+  text-muma-spotify-text`) reading "handmatig".
+
 - **Done** — Browse by BPM in Android Auto (2026-09-30, issue #140, `docs/designs/android-auto-bpm/`):
   no new style. One more text row ("BPM") in the Nummers tab's Bladeren group, after Lineups,
   leading to ten plain folder rows ("150 BPM", "210+ BPM") with the track count as the row's

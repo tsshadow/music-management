@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/svelte";
 import TrackDetailsSheet from "../../src/lib/TrackDetailsSheet.svelte";
 
@@ -330,5 +330,47 @@ describe("TrackDetailsSheet rating and actions", () => {
 
     await screen.getByText("Naar artiest: Angerfist").click();
     expect(onnavigate).toHaveBeenCalledWith("artist:ar1");
+  });
+});
+
+describe("TrackDetailsSheet tempo correction", () => {
+  afterEach(async () => {
+    const { userPermissions } = await import("../../src/lib/store.js");
+    userPermissions.set([]);
+  });
+
+  it("marks a manual tempo and lets a permitted user correct it by MuMa's track id", async () => {
+    const { userPermissions, mumaApiUrl } = await import("../../src/lib/store.js");
+    userPermissions.set(["bpm.override"]);
+    mumaApiUrl.set("http://muma");
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ track_id: 7, bpm: 300, bpm_source: "manual", bpm_approximate: false }),
+    }));
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: { track_id: 7, bpm: 150, bpm_source: "measured", tags: {} },
+    });
+    renderSheet({ track: track({ path: "EPs/a.mp3" }) });
+
+    await waitFor(() => expect(screen.getByTestId("bpm-override")).toBeTruthy());
+    expect(screen.queryByTestId("bpm-manual-marker")).toBeNull();
+    await fireEvent.click(screen.getByLabelText("Tempo verdubbelen"));
+
+    await waitFor(() => expect(screen.getByTestId("bpm-manual-marker")).toBeTruthy());
+    expect(globalThis.fetch.mock.calls[0][0]).toBe("http://muma/api/library/bpm/tracks/7/manual");
+    expect(screen.getByTestId("tag-details").textContent).toContain("300");
+  });
+
+  it("offers no correction without the permission", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: { track_id: 7, bpm: 150, bpm_source: "manual", tags: {} },
+    });
+    renderSheet({ track: track({ path: "EPs/a.mp3" }) });
+
+    await waitFor(() => expect(screen.getByTestId("bpm-manual-marker")).toBeTruthy());
+    expect(screen.queryByTestId("bpm-override")).toBeNull();
   });
 });

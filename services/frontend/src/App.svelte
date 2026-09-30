@@ -7,6 +7,7 @@
   import QueueLoadMore from './lib/QueueLoadMore.svelte';
   import LoginPage from './lib/LoginPage.svelte';
   import OfflineNotice from './lib/OfflineNotice.svelte';
+  import OfflineModeBanner from './lib/OfflineModeBanner.svelte';
   import TopBar from './lib/TopBar.svelte';
   import TrackList from './lib/TrackList.svelte';
   import MobileNav from './lib/MobileNav.svelte';
@@ -498,6 +499,8 @@
            so on that view this renders nothing and never fights MobileSearchView. -->
       <!-- Signed in without a Subsonic token nothing is requested at all (issue #72): say why,
            instead of a library that silently stays empty. -->
+      <!-- "Offline verder" on the start-up check: marks every page below as the device's copy. -->
+      <OfflineModeBanner />
       {#if $subsonicAccess === 'offline'}
         <div class="mb-6"><OfflineNotice kind="server" onretry={() => ensureSubsonicToken()} /></div>
       {:else if $subsonicAccess === 'rejected'}

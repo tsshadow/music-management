@@ -14,6 +14,8 @@ import {
   authParams,
 } from "../../src/lib/store.js";
 import { get } from "svelte/store";
+import { offline } from "../../src/lib/subsonic.js";
+import { offlineMode, QUEUE_STASH_KEY } from "../../src/lib/offlineMode.js";
 
 /**
  * The shell's boot sequence: server, session, queue.
@@ -123,6 +125,7 @@ describe("bootstrapShell", () => {
       native: false,
       signedIn: false,
       restored: 0,
+      offline: false,
     });
     expect(get(credentials).url).toBe("https://localhost");
   });
@@ -152,7 +155,12 @@ describe("bootstrapShell", () => {
       throw new Error("no bridge");
     });
 
-    expect(await bootstrapShell(broken)).toEqual({ native: true, signedIn: false, restored: 0 });
+    expect(await bootstrapShell(broken)).toEqual({
+      native: true,
+      signedIn: false,
+      restored: 0,
+      offline: false,
+    });
   });
 });
 
@@ -464,6 +472,192 @@ describe("bootstrapShell - boot stages", () => {
 
     const result = await bootstrapShell(shell({ stored: { signedIn: false } }), undefined, onStage);
 
-    expect(result).toEqual({ native: true, signedIn: true, restored: 0 });
+    expect(result).toEqual({ native: true, signedIn: true, restored: 0, offline: false });
+  });
+});
+
+/**
+ * The start-up check in the boot sequence (docs/designs/app-start-reachability/): asked before
+ * the session and the queue, and only a signed-in phone that cannot reach its server stops there.
+ */
+describe("bootstrapShell - start-up check", () => {
+  const songs = {
+    1: { id: "1", title: "One", duration: 100 },
+    2: { id: "2", title: "Two", duration: 200 },
+    3: { id: "3", title: "Three", duration: 300 },
+  };
+  const signedInPhone = {
+    username: "user",
+    signedIn: true,
+    mumaApiKey: "key-1",
+    subsonicToken: "tok",
+    subsonicTokenUser: "user",
+  };
+
+  /**
+   * A shell whose storage answers the start-up check with `state`, and whose downloaded library
+   * holds `downloaded` -- the offline side of `subsonicJson` reads `query`.
+   */
+  function shellWithStorage({
+    check = "reachable",
+    offlineChosen = false,
+    downloaded = [],
+    ...rest
+  }) {
+    const platform = shell(rest);
+    let chosen = offlineChosen;
+    platform.storage = {
+      supported: true,
+      checkServer: vi.fn(async () => ({ state: check, elapsedMs: 12, offlineChosen: chosen })),
+      setOfflineMode: vi.fn(async (enabled) => {
+        chosen = enabled;
+      }),
+      isOffline: vi.fn(async () => chosen),
+      onConnectivity: () => () => {},
+      query: vi.fn(async ({ method, params }) => {
+        const song =
+          method === "getSong" && downloaded.includes(params.id) ? songs[params.id] : null;
+        return { "subsonic-response": song ? { status: "ok", song } : { status: "ok" } };
+      }),
+    };
+    return platform;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    offline.set(false);
+    mumaApiKey.set("key-1");
+    subsonicToken.set({ username: "user", token: "tok" });
+    credentials.set({ url: "https://lms.example", username: "user" });
+  });
+
+  it("asks nobody anything when the server answers", async () => {
+    const decide = vi.fn();
+    const platform = shellWithStorage({
+      check: "reachable",
+      stored: signedInPhone,
+      queue: { index: 0, trackIds: ["1", "2"] },
+    });
+
+    const result = await bootstrapShell(platform, fakeLibrary(songs), undefined, { decide });
+
+    expect(decide).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ signedIn: true, restored: 2, offline: false });
+    expect(platform.diagnostics.log).toHaveBeenCalledWith(
+      "shell:reachability",
+      expect.objectContaining({ state: "reachable", elapsedMs: 12 }),
+    );
+  });
+
+  it("goes the normal way when the server refuses the credentials", async () => {
+    const decide = vi.fn();
+    const platform = shellWithStorage({ check: "authFailed", stored: signedInPhone });
+
+    const result = await bootstrapShell(platform, fakeLibrary(songs), undefined, { decide });
+
+    expect(decide).not.toHaveBeenCalled();
+    expect(result.offline).toBe(false);
+  });
+
+  it("does not ask a signed-out phone: the login page follows either way", async () => {
+    const decide = vi.fn();
+    const platform = shellWithStorage({ check: "unreachable", stored: { signedIn: false } });
+
+    await bootstrapShell(platform, fakeLibrary(songs), undefined, { decide });
+
+    expect(decide).not.toHaveBeenCalled();
+  });
+
+  it("continues online when the listener waited and the server came back", async () => {
+    const platform = shellWithStorage({
+      check: "unreachable",
+      stored: signedInPhone,
+      queue: { index: 0, trackIds: ["1", "2", "3"] },
+    });
+    const decide = vi.fn(async () => "online");
+
+    const result = await bootstrapShell(platform, fakeLibrary(songs), undefined, { decide });
+
+    expect(decide).toHaveBeenCalledWith(expect.objectContaining({ state: "unreachable" }));
+    expect(result).toMatchObject({ restored: 3, offline: false });
+    expect(platform.storage.setOfflineMode).not.toHaveBeenCalled();
+  });
+
+  it("restores only the downloaded tracks after Offline verder, and counts the rest", async () => {
+    const platform = shellWithStorage({
+      check: "unreachable",
+      stored: signedInPhone,
+      downloaded: ["1", "3"],
+      queue: { index: 1, trackIds: ["1", "2", "3"] },
+    });
+    platform.player.refresh = vi.fn(async () => ({
+      status: "paused",
+      position: 42,
+      duration: 200,
+      trackId: "2",
+      volume: 1,
+    }));
+    const fetchImpl = fakeLibrary(songs);
+    const onStage = vi.fn();
+
+    const result = await bootstrapShell(platform, fetchImpl, onStage, {
+      decide: async () => "offline",
+    });
+
+    expect(result).toMatchObject({ signedIn: true, restored: 2, offline: true });
+    expect(platform.storage.setOfflineMode).toHaveBeenCalledWith(true);
+    expect(get(offline)).toBe(true);
+    expect(get(playlist).map((track) => track.id)).toEqual(["1", "3"]);
+    // Two was playing and is not on the device: the next downloaded track, from its start.
+    expect(get(currentTrack).id).toBe("3");
+    expect(get(playerState).progress).toBe(0);
+    expect(get(offlineMode)).toMatchObject({ active: true, skipped: 1, restored: 2 });
+    expect(JSON.parse(localStorage.getItem(QUEUE_STASH_KEY))).toMatchObject({
+      ids: ["1", "2", "3"],
+      offlineIds: ["1", "3"],
+    });
+    // Nothing went to the server that is not there.
+    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes("/rest/getSong"))).toBe(false);
+    expect(onStage.mock.calls.map(([stage]) => stage)).toContain("offlineStart");
+  });
+
+  it("stays offline without asking again when the process already chose it", async () => {
+    const decide = vi.fn();
+    const platform = shellWithStorage({
+      check: "noNetwork",
+      offlineChosen: true,
+      stored: signedInPhone,
+    });
+
+    const result = await bootstrapShell(platform, fakeLibrary(songs), undefined, { decide });
+
+    expect(decide).not.toHaveBeenCalled();
+    expect(result.offline).toBe(true);
+  });
+
+  it("leaves offline mode and puts the full queue back once the server is there again", async () => {
+    localStorage.setItem(
+      QUEUE_STASH_KEY,
+      JSON.stringify({ ids: ["1", "2", "3"], playingId: "3", index: 2, offlineIds: ["1", "3"] }),
+    );
+    const platform = shellWithStorage({
+      check: "reachable",
+      offlineChosen: true,
+      stored: signedInPhone,
+      queue: { index: 1, trackIds: ["1", "3"] },
+      state: { status: "paused", trackId: "3" },
+    });
+    platform.storage.checkServer = vi.fn(async () => ({
+      state: "reachable",
+      elapsedMs: 5,
+      offlineChosen: true,
+    }));
+
+    const result = await bootstrapShell(platform, fakeLibrary(songs));
+
+    expect(platform.storage.setOfflineMode).toHaveBeenCalledWith(false);
+    expect(result).toMatchObject({ restored: 3, offline: false });
+    expect(get(playlist).map((track) => track.id)).toEqual(["1", "2", "3"]);
+    expect(localStorage.getItem(QUEUE_STASH_KEY)).toBeNull();
   });
 });

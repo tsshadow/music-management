@@ -206,6 +206,24 @@
   on one stage a muted line (`#727272`, 12px) says it is taking longer than usual. After 20 s
   without the app, an outlined "Opnieuw proberen" pill reloads the page. The screen fades out
   (200 ms) once the app is mounted. It is never shown again during the session.
+- **Boot screen: server unreachable** (app only, docs/designs/app-start-reachability/): when a
+  signed-in phone cannot reach its server, the stage line, bar and hints make way for a panel on the
+  same `#191414` screen, centred under the mark, at most 320px wide. A white 18px bold title names the
+  problem ("Geen netwerkverbinding" / "Server niet bereikbaar"), a 14px secondary line (`#B3B3B3`)
+  says what can be done, and a muted 12px status line (`#727272`) says what is happening ("Verbinding
+  controleren…"). Under it, three full-width pills stacked 12px apart, each at least 48px high: the
+  primary white-filled "Opnieuw proberen", then the outlined "Wachten op server" and "Offline verder"
+  (1px `#727272` border, white text). While a check runs the first two are disabled at 50% opacity.
+  Waiting swaps the title to "Wachten op de server", the secondary line to "Wachten sinds 14:03" and the
+  status line to "Volgende poging over 5 s", and hides the "Wachten" pill; there is no spinner and no
+  error text in this state.
+- **Offline mode banner** (app only): after "Offline verder", a strip at the top of the content area on
+  every page, `bg-muma-spotify-light`, `rounded-md`, `px-4 py-3`, 14px. The offline icon (20px,
+  secondary text colour) on the left; a bold white line "Offline: alleen muziek op dit toestel" and,
+  when queued tracks were left out, a secondary line "12 nummers niet beschikbaar offline"; on the right
+  an outlined `rounded-full` "Opnieuw verbinden" pill (48px touch target) that shows the inline
+  throbber while it checks. It disappears by itself when the server answers, and a success toast says
+  "Weer verbonden".
 - **Optimistic page shell**: a page that opens a thing (artist, album, feed, a song's versions...)
   renders its header at once from what the tapped link already knew: name, picture and action
   buttons. Only the sections

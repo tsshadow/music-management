@@ -90,6 +90,26 @@ const storage = {
   },
 
   /**
+   * The start-up check (docs/designs/app-start-reachability/). A browser tab has no start-up
+   * sequence to pause and no offline library to continue with, so it never runs one: the answer
+   * is always "reachable", and a failing request says the rest.
+   *
+   * @param {{timeoutMs?: number}} [_options]
+   * @returns {Promise<{state: string, elapsedMs: number, offlineChosen: boolean}>}
+   */
+  async checkServer(_options) {
+    return { state: "reachable", elapsedMs: 0, offlineChosen: false };
+  },
+
+  /**
+   * "Offline verder" on or off. Nothing to switch in a browser tab.
+   *
+   * @param {boolean} _enabled
+   * @returns {Promise<void>}
+   */
+  async setOfflineMode(_enabled) {},
+
+  /**
    * @param {function({online: boolean}): void} _handler
    * @returns {function(): void} Unsubscribes. Never fires here.
    */

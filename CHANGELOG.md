@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.5] - 2026-09-30
+
+### Changed
+- **MuMa Mobile 7.15.0 checks the server at start-up** and offers Opnieuw proberen / Wachten op server / Offline verder when it is unreachable. See the muma-mobile changelog.
+
 ## [0.85.4] - 2026-09-30
 
 ### Fixed

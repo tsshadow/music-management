@@ -6,7 +6,7 @@ knows only one of them silently matches nothing.
 
 import unittest
 
-from services.music_manager.library_paths import candidate_paths
+from services.music_manager.library_paths import candidate_paths, server_path
 
 
 class CandidatePathsTest(unittest.TestCase):
@@ -33,3 +33,19 @@ class CandidatePathsTest(unittest.TestCase):
     def test_a_path_under_neither_root_is_left_alone(self):
         result = candidate_paths('/elsewhere/Raise.mp3')
         self.assertEqual(result[0], '/elsewhere/Raise.mp3')
+
+
+class ServerPathTest(unittest.TestCase):
+    """What muma writes into lms.db must be the file as LMS sees it (bug report 138)."""
+
+    def test_a_muma_path_is_written_under_the_server_root(self):
+        self.assertEqual(server_path('/mnt/music/artists/9/spotify-abc.jpg'), '/music/artists/9/spotify-abc.jpg')
+
+    def test_a_server_path_is_left_alone(self):
+        self.assertEqual(server_path('/music/artists/9/spotify-abc.jpg'), '/music/artists/9/spotify-abc.jpg')
+
+    def test_a_path_under_neither_root_is_left_alone(self):
+        self.assertEqual(server_path('/elsewhere/a.jpg'), '/elsewhere/a.jpg')
+
+    def test_a_sibling_directory_sharing_the_prefix_is_not_rewritten(self):
+        self.assertEqual(server_path('/mnt/music2/a.jpg'), '/mnt/music2/a.jpg')

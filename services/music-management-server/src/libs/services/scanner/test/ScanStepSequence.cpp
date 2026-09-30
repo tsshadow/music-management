@@ -425,4 +425,27 @@ namespace lms::scanner::tests
         EXPECT_TRUE(journal.empty());
         EXPECT_EQ(queue.pendingCount(), 1);
     }
+    // Bug report 136: a tagger round that announced a hundred folders does not turn one pass into
+    // a small library scan; the pass reads its share and leaves the rest queued.
+    TEST(ScanStepSequence, aPriorityPassReadsAtMostItsShareOfFolders)
+    {
+        Journal journal;
+        PriorityFolderQueue queue{ priorityTiming };
+        bool interrupted{};
+        std::vector<std::unique_ptr<IScanStep>> passSteps;
+        passSteps.push_back(std::make_unique<JournalStep>(journal, "pass"));
+
+        const PriorityFolderQueue::Clock::time_point start{};
+        std::vector<std::filesystem::path> folders;
+        for (std::size_t i{}; i < maxFoldersPerPriorityPass + 7; ++i)
+            folders.emplace_back("/music/EPs/Label/CAT" + std::to_string(1000 + i));
+        queue.add(folders, start);
+
+        const std::optional<ScanContext> pass{ runPriorityPass(passSteps, queue, start + std::chrono::seconds{ 10 }, interrupted) };
+
+        ASSERT_TRUE(pass.has_value());
+        EXPECT_EQ(pass->scanOptions.scanDirectories.size(), maxFoldersPerPriorityPass);
+        EXPECT_EQ(queue.pendingCount(), 7);
+    }
+
 } // namespace lms::scanner::tests

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from services.music_manager.artist_image_fetcher import safe_fetch
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.library_paths import server_path
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
 
@@ -719,6 +720,14 @@ def sync_artist_images_to_server(muma_conn, server_conn):
     """
     print('Syncing artist images to Music Management Server...')
     try:
+        # First, and apart: rows an older version wrote under muma's own mount are moved onto
+        # the server's spelling, so the lookups below find them (bug report 138).
+        from services.music_manager.lms_portrait_paths import repair_portrait_paths
+
+        repair_portrait_paths(server_conn)
+    except Exception as e:
+        print(f'Portrait path repair failed on Music Management Server: {e}')
+    try:
         with muma_conn.cursor() as muma_cursor:
             muma_cursor.execute(
                 '\n                SELECT a.name as artist_name, i.cached_path, i.width, i.height, i.mime_type, i.file_size\n                FROM library_artists a\n                JOIN library_artist_images i ON a.primary_image_id = i.id\n                WHERE i.cached_path IS NOT NULL\n            '
@@ -727,7 +736,11 @@ def sync_artist_images_to_server(muma_conn, server_conn):
             server_cursor = server_conn.cursor()
             for img in images:
                 artist_name = img['artist_name']
-                abs_path = img['cached_path']
+                # The file as LMS sees it. Under muma's own mount LMS found no such file and
+                # removed the row on every library scan, 0.2 s each, only for this loop to
+                # write it back an hour later (bug report 138). Under LMS's spelling the row is
+                # usually the one LMS's scanner already made for the same file.
+                abs_path = server_path(img['cached_path'])
                 server_cursor.execute('SELECT id, preferred_artwork_id FROM artist WHERE name = ?', (artist_name,))
                 artist_row = server_cursor.fetchone()
                 if not artist_row:
@@ -791,7 +804,9 @@ def _unset_cleared_artwork_on_server(muma_conn, server_conn):
         )
         stored: dict = {}
         for row in muma_cursor.fetchall():
-            stored.setdefault(row['artist_name'], set()).add(row['cached_path'])
+            # Both spellings: the sync writes the server's, rows from before bug report 138
+            # still carry muma's own until the repair or LMS's scan has dealt with them.
+            stored.setdefault(row['artist_name'], set()).update({row['cached_path'], server_path(row['cached_path'])})
     server_cursor = server_conn.cursor()
     unset = 0
     for artist_name, paths in stored.items():

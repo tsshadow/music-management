@@ -1,7 +1,8 @@
 # LMS scan trigger — Technical Design
 
 Status: implemented with bug report 120 (GitLab issue #93); priority passes with bug report 126
-(GitLab issue #125). See the [functional design](functional.md) for the behaviour.
+(GitLab issue #125); bounded waits inside the removed-files check with bug report 136 (GitLab issue
+#132). See the [functional design](functional.md) for the behaviour.
 
 ## Data Model
 
@@ -48,9 +49,10 @@ Two ways the folders leave the queue:
   runs (`_libraryScanContext`), no pass runs, no abort is pending, and
   `PriorityFolderQueue::isDue(now, DuringLibraryScan)`: the collector's deadline has passed **and**
   at least `minGapDuringLibraryScan` (2 min) has passed since the previous pass ended.
-  `runPriorityWork()` calls `runPriorityPass()` (`ScanStepSequence.cpp`): take the due folders,
-  build a scoped `ScanContext`, `runScanSteps(_scanSteps, ...)` over it, put the folders back if
-  `_abortScan` went up.
+  `runPriorityWork()` calls `runPriorityPass()` (`ScanStepSequence.cpp`): take the due folders --
+  at most `maxFoldersPerPriorityPass` (50); the rest stay queued and due, for the next pass after
+  the gap -- build a scoped `ScanContext`, `runScanSteps(_scanSteps, ...)` over it, put the folders
+  back if `_abortScan` went up.
 
 Where a step may yield -- the contract in `IPriorityScanYield`: nothing of the step's own may be
 queued on the job scheduler (`JobQueue` asserts it owns the scheduler: `getJobsDoneCount() == 0` on
@@ -61,7 +63,11 @@ construction) and no transaction may be open.
   the current file. The walk's position is simply the stack frame of `exploreFilesRecursive`, so
   nothing needs a cursor.
 - `ScanStepCheckForRemovedFiles`: after each batch push, same pattern; the keyset walk resumes from
-  `lastCheckedId`.
+  `lastCheckedId`. The done-callback only collects the ids to remove; the removal runs in the
+  step's loop through `removeInWriteBatches` (`steps/BatchedRemoval.hpp`), 50 rows per write
+  transaction, and asks again after every committed batch (bug report 136). Before that the
+  callback removed everything the finished jobs had found, so the `queue.finish()` in front of a
+  pass could mean 10,000 removals at 0.2 s each on production -- half an hour between passes.
 - Between steps: `runScanSteps(..., betweenSteps)` calls it after each completed step except the
   last. The DB-only steps (artist reconciliation, image/lyrics association, orphan removal, cluster
   stats, duplicates) yield only there.
@@ -91,8 +97,17 @@ Status and summary:
 - Bug 121's scoped error policy applies unchanged: the pass context is scoped, so
   `decidePlayListErrorReporting` returns `SkipOutOfScope` for playlists outside its folders.
 
-Not done: a yield point inside the DB-only steps. If one of them turns out to take long enough to
-matter on production, adding one is the same five lines as in `ScanStepCheckForRemovedFiles`.
+How often a step asks: at every safe point -- after each queued job and after each write batch.
+Asking is a mutex and a clock read; how often a pass actually runs is decided by the collector's
+debounce and the two-minute gap, not by the step. So the longest a due pass waits is the work
+between two safe points: one drain of the job queue (at most 50 jobs: 500 files to write in
+`ScanStepScanFiles`, 10,000 file checks and no writes in `ScanStepCheckForRemovedFiles`) plus one
+write batch. A wall-clock interval inside the step would add a second timer without shortening that.
+
+Not done: a yield point inside the DB-only steps. Measured on production (bug report 136), an idle
+scoped scan runs every one of them library-wide in 48-56 s, so between-steps is enough. If one of
+them ever shows up as a gap between `Priority scan` lines, adding one is the same pattern as in
+`ScanStepCheckForRemovedFiles`.
 
 Authentication (`AuthTokenService::processAuthToken`, `AuthServiceBase::onUserAuthenticated`)
 takes the process-wide write lock only when there is something to write. A use-limited token
@@ -119,7 +134,9 @@ read only `scanning`, `lastScan` and `scanSettings`.
 
 ## Technical Acceptance Criteria
 
-- `test-scanner`: `ImmediateScanPolicy.*`, `PriorityFolderQueue.*`, `ScanStepSequence.*`
+- `test-scanner`: `ImmediateScanPolicy.*`, `PriorityFolderQueue.*`, `ScanStepSequence.*`,
+  `BatchedRemoval.*` (a folder announced during a 20,000-row removal is read within one write
+  batch of being due; every row is removed once)
   (including `aFolderAnnouncedDuringALibraryScanIsReadBeforeItFinishes`: read mid-walk, the walk
   runs once and is never interrupted, a folder announced twice is read once).
 - `test-auth`: `AuthTokenReadPath.aValidTokenDoesNotQueueBehindAWriterForBookkeeping`,

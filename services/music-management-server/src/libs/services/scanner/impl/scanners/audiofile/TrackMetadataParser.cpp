@@ -410,6 +410,8 @@ namespace lms::scanner
         track.copyright = getTagValueAs<std::string>(tagReader, TagType::Copyright).value_or("");
         track.copyrightURL = getTagValueAs<std::string>(tagReader, TagType::CopyrightURL).value_or("");
         track.replayGain = getTagValueAs<float>(tagReader, TagType::ReplayGainTrackGain);
+        if (const auto bpmStr{ getTagValueAs<std::string>(tagReader, TagType::BPM) })
+            track.bpm = utils::parseBpm(*bpmStr);
 
         for (const std::string& userExtraTag : _params.userExtraTags)
         {

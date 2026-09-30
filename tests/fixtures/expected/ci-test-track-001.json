@@ -6,6 +6,7 @@
   "artist": "CI Test Artist",
   "album": "CI Test Album",
   "genre": "Electronic",
+  "bpm": 174,
   "year": 2026,
   "duration_seconds_min": 4,
   "duration_seconds_max": 6,

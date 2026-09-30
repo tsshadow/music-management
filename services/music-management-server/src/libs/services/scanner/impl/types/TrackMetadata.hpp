@@ -124,6 +124,7 @@ namespace lms::scanner
         std::vector<std::string> comments;
         std::vector<Lyrics> lyrics;
         std::optional<float> replayGain;
+        std::optional<int> bpm;
         std::string artistDisplayName;
         std::vector<Artist> artists;
         std::vector<Artist> conductorArtists;

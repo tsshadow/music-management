@@ -229,6 +229,28 @@ def test_song_carries_an_original_date_attribute(admin_credentials):
         assert song["originalDate"].startswith(str(song["year"]))
 
 
+def test_song_carries_the_bpm_tag(admin_credentials, expected_track):
+    """OpenSubsonic's `bpm` on the song object, read from the file's BPM tag (issue #150).
+
+    The fixture carries TBPM 174. getSong and search3 build the song through the same serializer,
+    so both must carry it; OpenSubsonic wants it as an integer, 0 when the file has no tempo.
+    """
+    username, password = admin_credentials
+    song_id = getattr(pytest, "song_id", None)
+    assert song_id, "test_fixture_track_is_findable_with_correct_metadata must run first"
+
+    resp = _subsonic_get("getSong.view", username, password, id=song_id)
+    assert resp.status_code == 200, resp.text[:500]
+    song = resp.json()["subsonic-response"]["song"]
+    assert song.get("bpm") == expected_track["bpm"], song.get("bpm")
+    assert isinstance(song["bpm"], int)
+
+    resp = _subsonic_get("search3.view", username, password, query=expected_track["title"])
+    assert resp.status_code == 200, resp.text[:500]
+    songs = resp.json()["subsonic-response"]["searchResult3"].get("song", [])
+    assert [s.get("bpm") for s in songs if s.get("id") == song_id] == [expected_track["bpm"]]
+
+
 def test_song_carries_the_version_fields_the_web_ui_reads(admin_credentials):
     """The browser collapses versions of one song on these, so they have to be on the wire.
 

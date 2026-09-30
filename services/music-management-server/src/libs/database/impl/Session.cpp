@@ -254,6 +254,10 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS artist_name_mbid_idx ON artist(name, mbid)");
             tryExecute("CREATE INDEX IF NOT EXISTS artist_sort_name_nocase_idx ON artist(sort_name COLLATE NOCASE)");
             tryExecute("CREATE INDEX IF NOT EXISTS artist_mbid_idx ON artist(mbid)");
+            // Every column the artwork delete cascade sets to NULL (bug report 138): without an
+            // index each removed image scanned artist, medium, podcast, podcast_episode, release
+            // and track twice over, 0.2 s a row on production.
+            tryExecute("CREATE INDEX IF NOT EXISTS artist_preferred_artwork_idx ON artist(preferred_artwork_id)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS artist_info_path_idx ON artist_info(absolute_file_path)");
             tryExecute("CREATE INDEX IF NOT EXISTS artist_info_directory_id_idx ON artist_info(directory_id)");
@@ -309,6 +313,10 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS media_library_id_idx ON media_library(id)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS medium_release_position_idx ON medium(release_id, position)");
+            tryExecute("CREATE INDEX IF NOT EXISTS medium_preferred_artwork_idx ON medium(preferred_artwork_id)");
+
+            tryExecute("CREATE INDEX IF NOT EXISTS podcast_artwork_idx ON podcast(artwork_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS podcast_episode_artwork_idx ON podcast_episode(artwork_id)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS playlist_file_id_idx ON playlist_file(id)");
             tryExecute("CREATE INDEX IF NOT EXISTS playlist_file_directory_idx ON playlist_file(directory_id)");
@@ -325,6 +333,7 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS release_name_nocase_idx ON release(name COLLATE NOCASE)");
             tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_idx ON release(sort_name)");
             tryExecute("CREATE INDEX IF NOT EXISTS release_sort_name_nocase_idx ON release(sort_name COLLATE NOCASE)");
+            tryExecute("CREATE INDEX IF NOT EXISTS release_preferred_artwork_idx ON release(preferred_artwork_id)");
 
             try
             {
@@ -362,6 +371,8 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS track_release_date_idx ON track(release_id, date)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_release_file_last_write_idx ON track(release_id, file_last_write)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_release_file_added_idx ON track(release_id, file_added)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_preferred_artwork_idx ON track(preferred_artwork_id)");
+            tryExecute("CREATE INDEX IF NOT EXISTS track_preferred_media_artwork_idx ON track(preferred_media_artwork_id)");
 
             tryExecute("CREATE INDEX IF NOT EXISTS tracklist_id_idx ON tracklist(id)");
             tryExecute("CREATE INDEX IF NOT EXISTS tracklist_name_idx ON tracklist(name)");

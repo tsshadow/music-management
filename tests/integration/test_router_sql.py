@@ -1563,6 +1563,54 @@ class ArtistImagesTest:
         finally:
             server.close()
 
+    def test_the_portrait_sync_writes_the_path_the_server_sees(self, db):
+        """Bug 138: rows under muma's /mnt/music were removed by every LMS library scan.
+
+        The server already indexed the portrait file itself under /music (the artists folder is
+        inside its library root), and still holds a row an older sync wrote under /mnt/music.
+        After the sync the artist points at the server's own row and nothing new is written
+        under muma's mount.
+        """
+        import sqlite3
+
+        from services.music_manager.routers import artist_images
+
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name) VALUES ('Angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO library_artist_images (artist_id, source, cached_path, width, height, mime_type, file_size) "
+                "VALUES (%s, 'spotify', '/mnt/music/artists/9/spotify-abc.jpg', 640, 640, 'image/jpeg', 1000)",
+                (artist_id,),
+            )
+            cursor.execute(
+                'UPDATE library_artists SET primary_image_id = %s WHERE id = %s', (cursor.lastrowid, artist_id)
+            )
+        db.commit()
+        server = sqlite3.connect(':memory:')
+        server.executescript(
+            """
+            CREATE TABLE image (id INTEGER PRIMARY KEY, version INTEGER, absolute_file_path TEXT, stem TEXT,
+                                file_size INTEGER, width INTEGER, height INTEGER, mime_type TEXT);
+            CREATE TABLE artwork (id INTEGER PRIMARY KEY, version INTEGER, image_id INTEGER);
+            CREATE TABLE artist (id INTEGER PRIMARY KEY, name TEXT, preferred_artwork_id INTEGER);
+            INSERT INTO image (id, absolute_file_path) VALUES (1, '/mnt/music/artists/9/spotify-abc.jpg'),
+                                                              (2, '/music/artists/9/spotify-abc.jpg');
+            INSERT INTO artwork (id, image_id) VALUES (10, 1), (20, 2);
+            INSERT INTO artist VALUES (100, 'Angerfist', 10);
+            """
+        )
+        try:
+            with patch('builtins.print'):
+                artist_images.sync_artist_images_to_server(db, server)
+            assert server.execute('SELECT preferred_artwork_id FROM artist').fetchone()[0] == 20
+            assert server.execute('SELECT count(*) FROM image').fetchone()[0] == 2
+            with patch('builtins.print'):
+                artist_images.sync_artist_images_to_server(db, server)
+            assert server.execute('SELECT count(*) FROM image').fetchone()[0] == 2, 'a second sync writes nothing new'
+        finally:
+            server.close()
+
 
 class FeedsPipelineTest:
     """The candidate query, its grouped audio-features subquery, the two

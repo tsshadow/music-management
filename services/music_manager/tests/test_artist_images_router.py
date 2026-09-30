@@ -665,6 +665,33 @@ class SyncImagesToServerTest(unittest.TestCase):
         self.muma_conn.cursor.side_effect = RuntimeError('database gone')
         self.sync()  # must not raise
 
+    def test_the_portrait_is_written_under_the_path_the_server_sees(self):
+        # Under muma's own mount LMS found no such file and removed the row on every library
+        # scan, only for this sync to write it back (bug report 138).
+        row = dict(self.image_row(), cached_path='/mnt/music/artists/9/spotify-abc.jpg')
+        self.muma_cursor.fetchall.return_value = [row]
+        self.server_cursor.fetchone.side_effect = [(3, None), None, None]
+        self.server_cursor.lastrowid = 11
+        self.sync()
+        lookup = next(c for c in self.server_cursor.execute.call_args_list if 'SELECT id FROM image' in c.args[0])
+        self.assertEqual(lookup.args[1], ('/music/artists/9/spotify-abc.jpg',))
+        insert = next(c for c in self.server_cursor.execute.call_args_list if 'INSERT INTO image' in c.args[0])
+        self.assertEqual(insert.args[1][1:3], ('/music/artists/9/spotify-abc.jpg', 'spotify-abc'))
+
+    def test_old_rows_are_repaired_before_the_sync_looks_anything_up(self):
+        with patch('services.music_manager.lms_portrait_paths.repair_portrait_paths') as repair:
+            self.muma_cursor.fetchall.return_value = []
+            self.sync()
+        repair.assert_called_once_with(self.server_conn)
+
+    def test_a_failing_repair_does_not_stop_the_sync(self):
+        self.muma_cursor.fetchall.return_value = [self.image_row()]
+        self.server_cursor.fetchone.side_effect = [(3, None), (11,), (12,)]
+        with patch('services.music_manager.lms_portrait_paths.repair_portrait_paths', side_effect=RuntimeError('x')):
+            self.sync()
+        statements = [call.args[0] for call in self.server_cursor.execute.call_args_list]
+        self.assertTrue(any('UPDATE artist' in s for s in statements))
+
 
 class UnsetClearedArtworkTest(unittest.TestCase):
     """Bug 080: a cleared portrait stayed the server's artist artwork, so the player kept it."""
@@ -712,6 +739,17 @@ class UnsetClearedArtworkTest(unittest.TestCase):
         self.muma_cursor.fetchall.return_value = [{'artist_name': 'Miss K8', 'cached_path': '/mnt/artists/3/x.jpg'}]
         self.assertEqual(self.unset(), 0)
         self.assertEqual(self.artwork_of(200), 20)
+
+    def test_a_cleared_portrait_is_found_under_the_server_spelling_too(self):
+        # The sync now writes /music/..., muma still stores /mnt/music/... (bug report 138).
+        self.server_conn.execute(
+            "UPDATE image SET absolute_file_path = '/music/artists/9/spotify-abc.jpg' WHERE id = 1"
+        )
+        self.muma_cursor.fetchall.return_value = [
+            {'artist_name': 'Angerfist', 'cached_path': '/mnt/music/artists/9/spotify-abc.jpg'}
+        ]
+        self.assertEqual(self.unset(), 1)
+        self.assertIsNone(self.artwork_of(100))
 
     def test_nothing_cleared_means_nothing_written(self):
         self.muma_cursor.fetchall.return_value = []

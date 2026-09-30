@@ -62,3 +62,19 @@ def relative_path(path: str | None) -> str | None:
         if path.startswith(root + '/'):
             return path[len(root) + 1 :]
     return path
+
+
+def server_path(path: str) -> str:
+    """`path` as the server spells it, for a row muma writes into the server's own database.
+
+    The reverse of reading: `candidate_paths` guesses because a path from LMS may come in any
+    spelling, but a path muma *writes* into lms.db has to be the one LMS will look for -- the
+    file seen through LMS's own mount. A portrait stored as /mnt/music/artists/... named a file
+    LMS does not have, so every library scan removed it as missing and the hourly sync wrote it
+    back: about 20,000 rows, 0.2 s each, every scan (bug report 138).
+
+    A path under neither root is returned unchanged; one already under LMS's root is too.
+    """
+    if path.startswith(MUMA_MUSIC_ROOT + '/'):
+        return f'{LMS_MUSIC_ROOT}/{path[len(MUMA_MUSIC_ROOT) + 1 :]}'
+    return path

@@ -1,7 +1,10 @@
 import unittest
 
 from services.music_manager.routers.analytics_filters import (
+    EFFECTIVE_BPM_JOIN,
+    EFFECTIVE_BPM_SQL,
     EFFECTIVE_YEAR_SQL,
+    FROM_CLAUSE,
     LibraryFilter,
     build_filter,
     parse_filter,
@@ -36,8 +39,21 @@ class BuildFilterTest(unittest.TestCase):
 
     def test_bare_number_in_range_is_read_as_bpm(self):
         where, params = build_filter(LibraryFilter(q='150'))
-        self.assertIn('BETWEEN %s AND %s', where)
+        self.assertEqual(where, '(eb.bpm BETWEEN %s AND %s)')
         self.assertEqual(params, [148.0, 152.0])
+
+    def test_no_bpm_reader_chooses_between_the_sources_itself(self):
+        """Issue #141: the search term and the range read the effective BPM, never the old
+        analyzer's tempo or tag directly."""
+        for f in (LibraryFilter(q='150'), LibraryFilter(bpm_min=140, bpm_max=180)):
+            where, _ = build_filter(f)
+            self.assertNotIn('af.tempo', where)
+            self.assertNotIn('af.bpm_tag', where)
+
+    def test_the_shared_from_clause_joins_the_effective_bpm(self):
+        self.assertEqual(EFFECTIVE_BPM_SQL, 'eb.bpm')
+        self.assertIn(EFFECTIVE_BPM_JOIN, FROM_CLAUSE)
+        self.assertIn('library_track_effective_bpm eb ON eb.track_id = t.id', FROM_CLAUSE)
 
     def test_number_outside_bpm_range_is_treated_as_text(self):
         where, params = build_filter(LibraryFilter(q='2024'))
@@ -64,10 +80,10 @@ class BuildFilterTest(unittest.TestCase):
         self.assertIn('l.name IN (%s)', where)
         self.assertEqual(params, ['Footworxx'])
 
-    def test_bpm_range_uses_tempo_with_bpm_tag_fallback(self):
+    def test_bpm_range_uses_the_effective_bpm(self):
         where, params = build_filter(LibraryFilter(bpm_min=140, bpm_max=180))
-        self.assertIn('COALESCE(af.tempo, af.bpm_tag) >= %s', where)
-        self.assertIn('COALESCE(af.tempo, af.bpm_tag) <= %s', where)
+        self.assertIn('eb.bpm >= %s', where)
+        self.assertIn('eb.bpm <= %s', where)
         self.assertEqual(params, [140, 180])
 
     def test_year_range_uses_the_effective_year(self):
@@ -108,16 +124,14 @@ class BuildFilterTest(unittest.TestCase):
         does not get mistaken for a top-level one."""
         where, params = build_filter(LibraryFilter(bpm_min=190, year_min=2020, analyzed=True))
         self.assertEqual(where.count(' AND '), 2)
-        self.assertEqual(
-            where, f'COALESCE(af.tempo, af.bpm_tag) >= %s AND {EFFECTIVE_YEAR_SQL} >= %s AND af.track_id IS NOT NULL'
-        )
+        self.assertEqual(where, f'eb.bpm >= %s AND {EFFECTIVE_YEAR_SQL} >= %s AND af.track_id IS NOT NULL')
         self.assertEqual(params, [190, 2020])
 
     def test_subquery_parameters_appear_in_declaration_order(self):
         where, params = build_filter(LibraryFilter(genre=['Hardcore'], label=['Footworxx'], bpm_min=190))
         self.assertIn('rg.name IN (%s)', where)
         self.assertIn('l.name IN (%s)', where)
-        self.assertIn('COALESCE(af.tempo, af.bpm_tag) >= %s', where)
+        self.assertIn('eb.bpm >= %s', where)
         self.assertEqual(params, ['Hardcore', 'Footworxx', 190])
 
     def test_empty_strings_are_ignored(self):

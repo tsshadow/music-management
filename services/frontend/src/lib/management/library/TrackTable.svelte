@@ -1,6 +1,7 @@
 <script>
   import { t, format } from '../../i18n/index.js';
   import { Disc, Clock, RefreshCw, ChevronLeft, ChevronRight } from '@lucide/svelte';
+  import { formatBpm } from '../../bpmFormat.js';
 
   export let tracks = [];
   export let total = 0;
@@ -108,7 +109,7 @@
                   {/each}
                 </div>
               </td>
-              <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{track.bpm ? Math.round(track.bpm) : '-'}</td>
+              <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{formatBpm({ bpm: track.bpm, approximate: track.bpm_approximate }) || '-'}</td>
               <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{track.release_date || track.release_year || '-'}</td>
               <td class="px-4 py-3 text-right text-muma-spotify-text font-mono tabular-nums">{duration(track.duration_secs)}</td>
             </tr>

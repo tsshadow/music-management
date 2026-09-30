@@ -41,6 +41,12 @@ describe("TrackInspector", () => {
     expect(screen.getByText("175")).toBeTruthy();
   });
 
+  it("marks a BPM that is not measured with ≈", () => {
+    render(TrackInspector, props({ track: { ...TRACK, bpm: 151.999, bpm_approximate: 1 } }));
+
+    expect(screen.getByText("≈152")).toBeTruthy();
+  });
+
   it("shows the duration as minutes and padded seconds", () => {
     render(TrackInspector, props());
 

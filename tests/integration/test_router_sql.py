@@ -2731,3 +2731,83 @@ class BpmBrowseSqlTest:
         # A replaced file is measured again.
         run_sql(db, 'UPDATE library_media_files SET file_size = 11 WHERE track_id = %s', (older,))
         assert older in {row['track_id'] for row in store.due_tracks(config, now, limit=1000)}
+
+    def test_the_effective_bpm_table_feeds_every_sql_reader(self, api, headers, db):
+        """Issue #141: bpm/effective_table.py materialises what effective.py resolves, and the
+        library table (column, sort, filter, search term), /tracks, the analytics and the details
+        sheet all show that one tempo -- a measurement over the analyzer, a tag folded into its
+        genre's band, tracks without any BPM last in both sort directions."""
+        from services.music_manager.bpm import effective_table
+
+        measured = self._track(db, 'Eff Measured', genre='Hardstyle', tag=152.0, tempo=161.5)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method, analyzed_at)"
+            " VALUES ('uid-bpm-Eff Measured', 'ok', 150.00, 150.00, 0.910, 'acf-comb-v1', NOW())",
+        )
+        halftime = self._track(db, 'Eff Halftime', genre='Hardstyle', tag=76.0)
+        a_set = self._track(db, 'Eff Set', form='set', tag=140.0)
+        silent = self._track(db, 'Eff Silent')
+
+        first = effective_table.sync(_connect)
+        assert (first.resolved, first.upserted, first.deleted) == (3, 3, 0)
+        rows = {r['track_id']: r for r in run_sql(db, 'SELECT * FROM library_track_effective_bpm')}
+        assert set(rows) == {measured, halftime, a_set}
+        assert (float(rows[measured]['bpm']), rows[measured]['source'], rows[measured]['approximate']) == (
+            150.0,
+            'measured',
+            0,
+        )
+        assert (float(rows[halftime]['bpm']), rows[halftime]['folded'], rows[halftime]['approximate']) == (152.0, 1, 1)
+        assert effective_table.sync(_connect).upserted == 0  # nothing changed, nothing written
+
+        def advanced(query):
+            response = api.get(f'/api/library/advanced?{query}', headers=headers)
+            assert response.status_code == 200, response.text
+            return response.json()
+
+        desc = advanced('sort=bpm&direction=desc')['tracks']
+        assert [t['id'] for t in desc] == [halftime, measured, a_set, silent]
+        assert [t['id'] for t in advanced('sort=bpm&direction=asc')['tracks']] == [a_set, measured, halftime, silent]
+        by_id = {t['id']: t for t in desc}
+        assert (by_id[measured]['bpm'], by_id[measured]['bpm_approximate']) == (150.0, 0)
+        assert (by_id[halftime]['bpm'], by_id[halftime]['bpm_approximate']) == (152.0, 1)
+        assert by_id[silent]['bpm'] is None
+        assert by_id[measured]['file_path'] == '/mnt/music/EPs/Eff Measured.mp3'  # the outer subqueries ran
+        assert by_id[measured]['genres'] == ['Hardstyle']
+        # Paging over the sorted list neither repeats nor skips a track.
+        paged = [t['id'] for p in (1, 2) for t in advanced(f'sort=bpm&direction=desc&limit=2&page={p}')['tracks']]
+        assert paged == [halftime, measured, a_set, silent]
+
+        assert {t['id'] for t in advanced('bpm_min=149&bpm_max=151')['tracks']} == {measured}
+        found = advanced('q=153')
+        assert (found['total'], found['tracks'][0]['id']) == (1, halftime)
+        assert advanced('q=161')['total'] == 0  # the analyzer's 161.5 lost to the measurement
+
+        simple = {t['id']: t for t in api.get('/api/library/tracks?q=Eff', headers=headers).json()['tracks']}
+        assert (simple[measured]['bpm'], simple[measured]['bpm_approximate']) == (150.0, 0)
+
+        histogram = api.get('/api/analytics/bpm-histogram?bucket=5', headers=headers).json()
+        assert {(b['bucket_start'], b['count']) for b in histogram} == {(140, 1), (150, 2)}
+        summary = api.get('/api/analytics/summary', headers=headers).json()
+        assert summary['coverage']['bpm'] == pytest.approx(0.75)
+
+        halftime_path = '/mnt/music/EPs/Eff Halftime.mp3'
+        run_sql(
+            db,
+            'UPDATE library_media_files SET file_path_hash = %s WHERE track_id = %s',
+            (hashlib.sha256(halftime_path.encode()).hexdigest(), halftime),
+        )
+        details = api.get(
+            '/api/library/tracks/by-path', params={'path': 'EPs/Eff Halftime.mp3'}, headers=headers
+        ).json()
+        assert (details['bpm'], details['bpm_source'], details['bpm_approximate']) == (152.0, 'tag', True)
+
+        # A track that loses its only source loses its row; a partial sync touches only its ids.
+        run_sql(db, 'DELETE FROM library_track_audio_features WHERE internal_track_id = %s', (a_set,))
+        partial = effective_table.sync(_connect, track_ids=[a_set])
+        assert (partial.resolved, partial.upserted, partial.deleted) == (0, 0, 1)
+        assert {r['track_id'] for r in run_sql(db, 'SELECT track_id FROM library_track_effective_bpm')} == {
+            measured,
+            halftime,
+        }

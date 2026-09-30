@@ -108,10 +108,11 @@ describe("AnalyticsPanel", () => {
     expect(second.getAttribute("style")).toContain("height: 100%");
   });
 
-  it("warns that the bpm figures are a raw detection", () => {
+  it("says the bpm figures are the browse's effective tempo, rough where not measured", () => {
+    // Issue #141: the histogram reads the same effective BPM as Browse by BPM.
     render(AnalyticsPanel, props());
 
-    expect(screen.getByText(/Ruwe detectie/)).toBeTruthy();
+    expect(screen.getByText(/Hetzelfde tempo als Bladeren op BPM/)).toBeTruthy();
   });
 
   it("says so per section when the selection holds nothing", () => {

@@ -62,6 +62,19 @@ describe("TrackTable", () => {
     expect(screen.getByText("Uptempo Hardcore")).toBeTruthy();
   });
 
+  it("marks a BPM that is not measured with ≈ and a measured one plain (issue #141)", () => {
+    render(TrackTable, {
+      ...base,
+      total: 2,
+      tracks: [
+        { id: 1, title: "Coarse", genres: [], bpm: 152, bpm_approximate: 1 },
+        { id: 2, title: "Measured", genres: [], bpm: 150.02, bpm_approximate: 0 },
+      ],
+    });
+    expect(screen.getByText("≈152")).toBeTruthy();
+    expect(screen.getByText("150")).toBeTruthy();
+  });
+
   it("falls back to a dash for fields the library does not hold", () => {
     render(TrackTable, {
       ...base,

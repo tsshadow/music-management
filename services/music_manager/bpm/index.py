@@ -23,18 +23,22 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from services.music_manager.bpm.effective import CONFIDENCE_RANK, DEFAULT_RELIABLE_CONFIDENCE, resolve
+from services.music_manager.bpm.effective import (
+    CONFIDENCE_RANK,
+    DEFAULT_RELIABLE_CONFIDENCE,
+    resolve_row,
+    split_genres,
+)
 
 logger = logging.getLogger('music-manager.bpm')
 
 REFRESH_SECONDS = 600.0
-#: Separator for the genre names GROUP_CONCAT joins; no curated genre name holds one.
-GENRE_SEPARATOR = '|'
 
-#: Every track that is a track (not a set or podcast: a two-hour mix has no one tempo) and has
-#: at least one BPM source, with its genres. MAX() because a track can carry more than one
-#: audio-features row after a relink.
-INDEX_SQL = """
+#: Every track with at least one BPM source, with its genres: the inputs of `effective.resolve`,
+#: in the shape `effective.resolve_row` reads. MAX() because a track can carry more than one
+#: audio-features row after a relink. `{where}` narrows it further and is only ever filled with
+#: fixed SQL (a form condition, or a run of `%s` for track ids), never with a value.
+INPUTS_SQL = """
     SELECT t.id AS track_id,
            MAX(af.bpm_tag) AS bpm_tag,
            MAX(af.tempo) AS tempo,
@@ -47,10 +51,13 @@ INDEX_SQL = """
     LEFT JOIN library_track_bpm m ON m.track_uid = t.track_uid AND m.status = 'ok' AND m.bpm IS NOT NULL
     LEFT JOIN library_track_genres tg ON tg.track_id = t.id
     LEFT JOIN rules_genres g ON g.id = tg.genre_id
-    WHERE (t.form = 'track' OR t.form IS NULL)
-      AND (af.internal_track_id IS NOT NULL OR m.track_uid IS NOT NULL)
+    WHERE (af.internal_track_id IS NOT NULL OR m.track_uid IS NOT NULL){where}
     GROUP BY t.id
 """
+
+#: The browse's inputs: only tracks that are a track (not a set or podcast: a two-hour mix has
+#: no one tempo to browse by).
+INDEX_SQL = INPUTS_SQL.format(where="\n      AND (t.form = 'track' OR t.form IS NULL)")
 
 
 @dataclass(frozen=True)
@@ -83,16 +90,8 @@ class BpmIndex:
         """Resolve every row of INDEX_SQL; rows without a usable tempo are left out."""
         entries = []
         for row in rows:
-            genres = tuple(g for g in (row.get('genres') or '').split(GENRE_SEPARATOR) if g)
-            found = resolve(
-                measured=row.get('measured'),
-                measured_confidence=row.get('measured_confidence'),
-                measured_folded=bool(row.get('measured_folded')),
-                tag=row.get('bpm_tag'),
-                tempo=row.get('tempo'),
-                genres=genres,
-                reliable_confidence=reliable_confidence,
-            )
+            genres = split_genres(row.get('genres'))
+            found = resolve_row(row, reliable_confidence)
             if found is None:
                 continue
             entries.append(

@@ -83,10 +83,82 @@ second); afterwards an index older than ten minutes is still served while a back
 rebuilds it, and a failed rebuild keeps the old one. A new measurement therefore shows up within ten
 minutes. Memory: ~90k small frozen dataclasses, a few tens of MB at most.
 
+## Effective BPM in SQL (issue #141)
+
+The browse was the only reader of the rule. The library table's BPM column and sort, its BPM
+filter and bare-number search term (`analytics_filters`), `/api/library/tracks`, the analytics
+coverage and histogram, the feeds' `bpm` column (displayed, and the last fallback of a track's
+hardness) and the player's track details all read `COALESCE(af.tempo, af.bpm_tag)` -- the old
+analyzer first, never the measurement, never folded. So one track showed three tempos.
+
+Folding is Python, and those readers are SQL over the whole library (the table sorts all 328k
+tracks), so they cannot call `resolve()` per row; writing the rule again in SQL (a genre-band table
+in a CASE) is the duplication this design exists to avoid. Instead the result is **materialised**:
+
+- `library_track_effective_bpm` (migrate_v51, db_init, schema test): `track_id` (PK, FK to
+  `library_tracks` ON DELETE CASCADE), `bpm` DECIMAL(5,2), `source`, `confidence`, `approximate`,
+  `folded`, `updated_at`; index on `bpm`. One row per track that has a usable tempo -- every form, so
+  a set's tag still shows in the table (the browse leaves sets out, as before).
+- `bpm/effective_table.py` `sync()` reads the same inputs as the index (`index.INPUTS_SQL`, which
+  `INDEX_SQL` is now the track-only variant of), resolves each row through
+  `effective.resolve_row` (the one column-to-argument mapping, also used by the index), compares with
+  the table and writes only the difference: upserts in batches of 1000, deletes for tracks that lost
+  every source. The inputs stream through an unbuffered cursor, so memory holds only the table's
+  current ~300k small tuples.
+- The **bpm-analyzer worker** runs it: in full every `EFFECTIVE_SYNC_SECONDS` (30 min; also while the
+  analysis is paused or off, and first thing after a start), which picks up changed genres, a changed
+  `bpm_reliable_confidence` (now also read by the worker) and deleted tracks; and for just the batch's
+  tracks right after each round stores its measurements, so a measurement reaches the table within the
+  round. A failed sync is logged and never stops the analysis; a failed full sync is retried after
+  five minutes. The status file gains `effective_synced_at` and `effective_tracks`.
+- `analytics_filters.EFFECTIVE_BPM_JOIN` (`LEFT JOIN library_track_effective_bpm eb ON eb.track_id =
+  t.id`) is part of the shared `FROM_CLAUSE`, and `EFFECTIVE_BPM_SQL` (`eb.bpm`) is what every filter,
+  sort and aggregate reads. The feeds read it as a primary-key scalar subquery.
+- **Track details** (`/api/library/tracks/by-path`) resolve live instead: one track, three
+  primary-key probes, and a measurement shows the moment it is stored.
+
+Staleness: a new measurement is in the table within its round; a genre change within 30 minutes; a
+rebuilt library (new track ids) is empty for the tables' readers until the next full sync. Without a
+running worker (the test stack) the table stays empty and those readers show no BPM; the browse and
+the details sheet, which resolve for themselves, are unaffected. Measured on production (2026-09-30,
+read-only): the full input query takes 3.4 s for 148k rows today and will read ~290k once the backlog
+is done, so about 6 s of reading every half hour.
+
+**The library table's sort.** `/api/library/advanced` sorted the full selection with the per-track
+subqueries (label, genres, file) in the select list, and MariaDB evaluated them for every track before
+the sort: sorting by BPM took **7.5 s** on production. The query now picks the page first (an inner
+query over the joined tables with only narrow columns, `ORDER BY ... LIMIT`), and the outer query adds
+the subqueries for that page alone. Measured on production with a stand-in for
+`library_track_effective_bpm` (a second, non-unique `library_track_audio_features` join; the real
+table joins on its primary key, so this is an upper bound): the whole BPM-sorted page **1.5 s**, the
+narrow sort alone 0.9 s; the date sort, which has an index, stays under a millisecond. The count query
+beside it went from 0.44 s to 0.65 s with the stand-in; with the real table MariaDB's table
+elimination drops the join entirely from any query that reads no `eb` column, since it is a LEFT JOIN
+on a primary key.
+Tracks without a BPM sort last in both directions (`eb.bpm IS NULL, eb.bpm <dir>`), ties broken on the
+id so pages neither repeat nor skip a track.
+
+**Display.** Every client prints the effective BPM through `bpmFormat.formatBpm`: "150" for a
+measurement, "≈152" otherwise (`/advanced` and `/tracks` return `bpm_approximate` as 0/1, the details
+answer `bpm_approximate` as a boolean plus `bpm_source`, `bpm_confidence`, `bpm_folded`). The
+analytics caveat under the histogram now says what the tempo is instead of "raw detection".
+
 ## API Contract
 
 Router `services/music_manager/routers/bpm.py`, mounted at `/api/library/bpm`, any valid API key
-(`verify_api_key`). No existing endpoint changes; nothing breaks.
+(`verify_api_key`). The first merge request changed no existing endpoint. Issue #141 changes what the
+existing BPM fields *mean* -- additively, no field is removed or retyped:
+
+| Endpoint | Change |
+|---|---|
+| `GET /api/library/advanced` | `bpm` is the effective BPM; new `bpm_approximate` (0/1, null without a BPM); `sort=bpm` sorts on it, missing last, ties by id; `bpm_min`/`bpm_max` and a bare-number `q` filter on it. |
+| `GET /api/library/tracks` | `bpm` is the effective BPM; new `bpm_approximate`. |
+| `GET /api/library/tracks/by-path` | `bpm` is the effective BPM, resolved live; new `bpm_source`, `bpm_confidence`, `bpm_approximate`, `bpm_folded` (all null without a BPM). |
+| `GET /api/analytics/*` | The BPM filters, `summary.coverage.bpm` and `bpm-histogram` read the effective BPM. |
+| `GET /api/feeds/{slug}` | Each track's `bpm` is the effective BPM; new `bpm_approximate`. |
+
+No client reads a changed field in a way the new values break: the web UI is updated in the same
+change, and MuMa Mobile's native code reads none of them.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
@@ -211,6 +283,9 @@ cost of a second core that the overcommitted host may not have to spare.
   normal deploy; `MUMA_CPUS_BPM` / `MUMA_MEM_LIMIT_BPM` override its ceilings (docs/deployment.md).
 - MuMa Mobile native (Android Auto browse tree): none in this change; the BPM folder followed in
   issue #140 ([android-auto-bpm](../android-auto-bpm/technical.md)), on these two endpoints unchanged.
+- Issue #141: a new table (migrate_v51) that the bpm-analyzer fills; the web UI's library table,
+  inspector, analytics caveat and track details sheet print the effective BPM with "≈". LMS: none --
+  it reads BPM from the file tags itself and MuMa passes it nothing.
 
 ## Technical Acceptance Criteria
 
@@ -240,6 +315,17 @@ cost of a second core that the overcommitted host may not have to spare.
    (`test_bpm_worker.py`, `test_health.py`); and its queue, counts, genre fallback and upsert run on
    a real MariaDB, including the retry of a failure and the re-measurement of a replaced file
    (`BpmBrowseSqlTest`).
+
+9. Issue #141: `effective_table.sync` writes only the difference, deletes rows whose track lost its
+   tempo, and narrows to given ids (`test_bpm_effective_table.py`); the worker syncs in full every
+   interval also while paused, syncs a round's tracks right after it, and survives a failed sync
+   (`test_bpm_worker.py`); the filters, sort and histogram read `eb.bpm` only
+   (`test_analytics_filters.py`, `test_library_advanced.py`); by-path resolves live
+   (`test_library_router.py`); and on a real MariaDB the synced table drives the table's order (missing
+   last in both directions, stable paging), filter, search term, `/tracks`, the histogram, the
+   coverage and the details (`BpmBrowseSqlTest.test_the_effective_bpm_table_feeds_every_sql_reader`).
+   The table, inspector and details sheet print "≈" for a value that is not measured (`bpm.test.js`,
+   `trackTable.test.js`, `trackInspector.test.js`, `trackFile.test.js`).
 
 ## Related Docs
 

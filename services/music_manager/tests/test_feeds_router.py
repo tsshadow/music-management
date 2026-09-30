@@ -359,6 +359,7 @@ class FeedsRouterTest(_FeedsAuthTestCase):
                 'genres',
                 'duration_secs',
                 'bpm',
+                'bpm_approximate',
                 'release_date',
                 'file_path',
                 'library_path',

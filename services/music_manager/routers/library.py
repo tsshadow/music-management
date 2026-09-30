@@ -7,15 +7,20 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.bpm.effective import EffectiveBpm, resolve_row
+from services.music_manager.bpm.index import INPUTS_SQL
 from services.music_manager.database import get_db_connection
 from services.music_manager.genre_tint import genre_tint
 from services.music_manager.library_paths import candidate_paths
 from services.music_manager.routers.analytics_filters import (
+    EFFECTIVE_BPM_APPROXIMATE_SQL,
+    EFFECTIVE_BPM_SQL,
     FROM_CLAUSE,
     LibraryFilter,
     build_filter,
     parse_filter,
 )
+from services.music_manager.routers.bpm import reliable_confidence
 from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['library'])
@@ -24,19 +29,29 @@ settings = Settings()
 # Sort keys the track table offers, mapped to SQL. The value is interpolated into the query, so a
 # caller's sort parameter may only ever select a key here, never contribute text.
 #
-# A NULL release date sorts last in both directions: "unknown" is not older than 1970, it is absent.
+# Each key has two spellings of the same order: the first for the inner query that picks the
+# page (over the joined tables), the second for the outer one that re-sorts that page (over the
+# page's own columns, `page.*`, and `t`). `{d}` is the direction.
+#
+# A NULL release date and a missing BPM sort last in both directions: "unknown" is not older
+# than 1970 or slower than 40 BPM, it is absent. The BPM sort breaks ties on the id: thousands
+# of tracks share 150.00, and without a tie-break a page boundary between them is arbitrary, so
+# paging could show a track twice and skip another.
 _SORTS = {
-    'created': 't.created_at',
-    'release': 'af.release_date IS NULL, af.release_date',
-    'title': 't.title',
-    'bpm': 'COALESCE(af.tempo, af.bpm_tag)',
+    'created': ('t.created_at {d}', 't.created_at {d}'),
+    'release': ('af.release_date IS NULL, af.release_date {d}', 'page.release_date IS NULL, page.release_date {d}'),
+    'title': ('t.title {d}', 't.title {d}'),
+    'bpm': (
+        f'{EFFECTIVE_BPM_SQL} IS NULL, {EFFECTIVE_BPM_SQL} {{d}}, t.id {{d}}',
+        'page.bpm IS NULL, page.bpm {d}, page.id {d}',
+    ),
 }
 
 
-def _order_by(sort: str, direction: str) -> str:
+def _order_by(sort: str, direction: str, outer: bool = False) -> str:
     """The ORDER BY body for a requested sort, falling back to the default for anything unknown."""
-    column = _SORTS.get(sort, _SORTS['created'])
-    return f'{column} {"ASC" if direction == "asc" else "DESC"}'
+    inner_order, outer_order = _SORTS.get(sort, _SORTS['created'])
+    return (outer_order if outer else inner_order).format(d='ASC' if direction == 'asc' else 'DESC')
 
 
 # The largest page either track list serves. The frontend asks for 100; anything
@@ -79,12 +94,13 @@ def get_tracks(
                      WHERE tg.track_id = t.id) AS genre,
                     (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id LIMIT 1) AS file_path,
                     ml.ml_genre,
-                    COALESCE(af.tempo, af.bpm_tag) AS bpm,
+                    eb.bpm AS bpm,
+                    eb.approximate AS bpm_approximate,
                     CAST(t.created_at AS CHAR) AS created_at
                 FROM library_tracks t
                 LEFT JOIN library_artists a ON t.primary_artist_id = a.id
                 LEFT JOIN library_track_ml_labels ml ON t.track_uid = ml.track_id
-                LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
+                LEFT JOIN library_track_effective_bpm eb ON eb.track_id = t.id
                 WHERE t.title LIKE %s OR a.name LIKE %s OR
                       EXISTS (SELECT 1 FROM library_track_labels tl
                               JOIN library_labels l ON tl.label_id = l.id
@@ -132,6 +148,15 @@ def get_advanced_library(
 
     Paging is bounded the same way as /tracks: `page` from 1, `limit` up to
     MAX_PAGE_SIZE.
+
+    Two steps in one statement: the inner query filters, sorts and pages over the joined
+    tables and carries only narrow columns; the outer one adds the per-track subqueries
+    (label, genres, file) for the page alone. With those subqueries in the sorting query
+    MariaDB evaluated them for every track before the sort -- the BPM sort took 7.5 s over
+    the 328k tracks on production; paged first it takes about one (issue #141).
+
+    `bpm` is the effective BPM (analytics_filters.EFFECTIVE_BPM_SQL), with `bpm_approximate`
+    set when it is not a measurement; the BPM sort puts tracks without one last.
     """
     conn = get_db_connection()
     if not conn:
@@ -144,7 +169,7 @@ def get_advanced_library(
             cursor.execute(
                 f"""
                 SELECT
-                    t.id, t.title, a.name AS artist, t.display_artist, t.duration_secs,
+                    page.id, t.title, page.artist, t.display_artist, t.duration_secs,
                     (SELECT l.name FROM library_labels l
                      JOIN library_track_labels tl ON l.id = tl.label_id
                      WHERE tl.track_id = t.id LIMIT 1) AS label,
@@ -154,14 +179,23 @@ def get_advanced_library(
                      WHERE tg.track_id = t.id AND rg.state <> 'black') AS genres,
                     (SELECT mf.file_path FROM library_media_files mf
                      WHERE mf.track_id = t.id LIMIT 1) AS file_path,
-                    COALESCE(af.tempo, af.bpm_tag) AS bpm,
-                    af.release_year,
-                    af.release_date,
+                    page.bpm,
+                    page.bpm_approximate,
+                    page.release_year,
+                    page.release_date,
                     CAST(t.created_at AS CHAR) AS created_at
-                {FROM_CLAUSE}
-                WHERE {where}
-                ORDER BY {_order_by(sort, direction)}
-                LIMIT %s OFFSET %s
+                FROM (
+                    SELECT t.id, a.name AS artist,
+                           {EFFECTIVE_BPM_SQL} AS bpm,
+                           {EFFECTIVE_BPM_APPROXIMATE_SQL} AS bpm_approximate,
+                           af.release_year, af.release_date
+                    {FROM_CLAUSE}
+                    WHERE {where}
+                    ORDER BY {_order_by(sort, direction)}
+                    LIMIT %s OFFSET %s
+                ) page
+                JOIN library_tracks t ON t.id = page.id
+                ORDER BY {_order_by(sort, direction, outer=True)}
             """,
                 (*params, limit, offset),
             )
@@ -306,8 +340,37 @@ def _archive_source(cursor, spellings: list[str]) -> tuple[str | None, str | Non
     return None, None
 
 
-def _track_facts(cursor, media: dict) -> tuple[list[dict], float | None, str | None]:
-    """Channels, BPM and ML genre for the track behind a media file; empty for a file without one.
+#: One track's BPM inputs, in the shape `effective.resolve_row` reads.
+_TRACK_BPM_INPUTS_SQL = INPUTS_SQL.format(where='\n      AND t.id = %s')
+
+
+def _effective_bpm(cursor, track_id: int) -> EffectiveBpm | None:
+    """The track's effective BPM, resolved now by the one rule (bpm/effective.py), or None.
+
+    Resolved live rather than read from library_track_effective_bpm: this is one track, the
+    inputs are three primary-key probes, and the details sheet then shows a measurement the
+    moment it is stored instead of after the next sync.
+    """
+    cursor.execute(_TRACK_BPM_INPUTS_SQL, (track_id,))
+    row = cursor.fetchone()
+    return resolve_row(row, reliable_confidence()) if row else None
+
+
+def _bpm_fields(found: EffectiveBpm | None) -> dict:
+    """The BPM fields of a track details answer; all None without a BPM."""
+    if found is None:
+        return {'bpm': None, 'bpm_source': None, 'bpm_confidence': None, 'bpm_approximate': None, 'bpm_folded': None}
+    return {
+        'bpm': found.bpm,
+        'bpm_source': found.source,
+        'bpm_confidence': found.confidence,
+        'bpm_approximate': found.approximate,
+        'bpm_folded': found.folded,
+    }
+
+
+def _track_facts(cursor, media: dict) -> tuple[list[dict], EffectiveBpm | None, str | None]:
+    """Channels, effective BPM and ML genre for the track behind a media file; empty for a file without one.
 
     A channel carries the label or artist it was curated as, when it has one: that is what makes
     the channel row in the details sheet a place to go rather than a name to read.
@@ -332,13 +395,7 @@ def _track_facts(cursor, media: dict) -> tuple[list[dict], float | None, str | N
             {'platform': row['platform'], 'name': row['name'], 'label': row.get('label'), 'artist': row.get('artist')}
             for row in cursor.fetchall()
         ]
-        cursor.execute(
-            'SELECT COALESCE(af.tempo, af.bpm_tag) AS bpm FROM library_track_audio_features af '
-            'WHERE af.internal_track_id = %s LIMIT 1',
-            (media['track_id'],),
-        )
-        row = cursor.fetchone()
-        bpm = row['bpm'] if row else None
+        bpm = _effective_bpm(cursor, media['track_id'])
     if media['track_uid']:
         cursor.execute(
             'SELECT ml_genre FROM library_track_ml_labels WHERE track_id = %s LIMIT 1', (media['track_uid'],)
@@ -351,7 +408,9 @@ def _track_facts(cursor, media: dict) -> tuple[list[dict], float | None, str | N
 @router.get('/tracks/by-path')
 def get_track_by_path(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
     """What MuMa knows about one file that LMS does not: the channel it came from, the
-    source URL, the raw tag set the tagger wrote, and the analysed BPM.
+    source URL, the raw tag set the tagger wrote, and the effective BPM (bpm/effective.py:
+    a measurement first, else the file tag or the old analyzer's tempo folded into the genre's
+    band) with where it came from and whether it is approximate.
 
     Keyed on the path rather than a track id because the caller is the player, which holds
     the Subsonic song object and so the LMS-relative path -- it has no MuMa track id. Every
@@ -395,7 +454,7 @@ def get_track_by_path(path: str = Query(...), _auth: dict = Depends(verify_api_k
                 'channels': channels,
                 'source_url': source_url,
                 'source_platform': source_platform,
-                'bpm': bpm,
+                **_bpm_fields(bpm),
                 'ml_genre': ml_genre,
                 'tags': tags,
             }

@@ -21,15 +21,27 @@ BPM_SEARCH_MIN = 50.0
 BPM_SEARCH_MAX = 300.0
 BPM_SEARCH_TOLERANCE = 2.0
 
+# The effective BPM (docs/designs/bpm-browse/technical.md, "Effective BPM in SQL"): the tempo
+# services/music_manager/bpm/effective.py resolves -- a measurement first, else the file tag,
+# else the old analyzer's tempo, folded into the genre's band -- as the bpm-analyzer
+# materialises it. Every SQL reader of a track's BPM joins this and reads `eb.bpm`; none of
+# them chooses between library_track_bpm and the audio-features columns itself. One row per
+# track at most (primary key), so the join never multiplies rows.
+EFFECTIVE_BPM_JOIN = 'LEFT JOIN library_track_effective_bpm eb ON eb.track_id = t.id'
+EFFECTIVE_BPM_SQL = 'eb.bpm'
+#: 1 when the effective BPM is not a measurement (the clients print "≈152"); NULL without a BPM.
+EFFECTIVE_BPM_APPROXIMATE_SQL = 'eb.approximate'
+
 # Every consumer selects from this same shape, so a filter fragment written here
-# is valid in all of them. LEFT JOIN throughout: a track without audio features
-# or without an artist is still a track. Both joins are one-to-one -- artists on
-# primary_artist_id, audio features on a unique track_uid -- so this yields
-# exactly one row per track and SUM() over it stays meaningful.
-FROM_CLAUSE = """
+# is valid in all of them. LEFT JOIN throughout: a track without audio features,
+# a BPM or an artist is still a track. Artists join on primary_artist_id and the
+# effective BPM on its primary key, one row each; audio features on
+# internal_track_id, which is one row for all but a few thousand relinked tracks.
+FROM_CLAUSE = f"""
     FROM library_tracks t
     LEFT JOIN library_artists a ON t.primary_artist_id = a.id
     LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
+    {EFFECTIVE_BPM_JOIN}
 """
 
 _LABEL_EXISTS = (
@@ -79,7 +91,7 @@ def _term_clause(term, clauses, params):
     except ValueError:
         bpm = None
     if bpm is not None and BPM_SEARCH_MIN < bpm < BPM_SEARCH_MAX:
-        clauses.append('(COALESCE(af.tempo, af.bpm_tag) BETWEEN %s AND %s)')
+        clauses.append(f'({EFFECTIVE_BPM_SQL} BETWEEN %s AND %s)')
         params.extend([bpm - BPM_SEARCH_TOLERANCE, bpm + BPM_SEARCH_TOLERANCE])
         return
     pattern = f'%{term}%'
@@ -119,10 +131,10 @@ def build_filter(f: LibraryFilter):
         params.extend(labels)
 
     if f.bpm_min is not None:
-        clauses.append('COALESCE(af.tempo, af.bpm_tag) >= %s')
+        clauses.append(f'{EFFECTIVE_BPM_SQL} >= %s')
         params.append(f.bpm_min)
     if f.bpm_max is not None:
-        clauses.append('COALESCE(af.tempo, af.bpm_tag) <= %s')
+        clauses.append(f'{EFFECTIVE_BPM_SQL} <= %s')
         params.append(f.bpm_max)
 
     if f.year_min is not None:

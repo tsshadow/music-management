@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.87.0 (2026-09-30)
+
+- **Other Subsonic apps now show the BPM** that is in the file. The first library scan after the
+  update reads every file once to pick it up.
+
 ## Global Version 0.86.0 (2026-09-30)
 
 - **Measured tempos are now written into the files' BPM tag**, so DJ software and other players

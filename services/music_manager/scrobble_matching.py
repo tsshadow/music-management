@@ -35,6 +35,10 @@ _INTRA_WORD = re.compile(r"(?<=\w)['\u2019\u02bc.](?=\w)", re.UNICODE)
 _PUNCTUATION = re.compile(r"[^\w\s]", re.UNICODE)
 _WHITESPACE = re.compile(r'\s+')
 
+# Width of library_tracks.normalized_title / normalized_base_title (db_init.py): 191
+# characters, the widest utf8mb4 VARCHAR an InnoDB index takes whole.
+KEY_MAX_CHARS = 191
+
 
 class MatchTier(enum.Enum):
     """The ladder, in the order it is tried. Order here is the order of attempt."""
@@ -88,6 +92,16 @@ def base_title(title: str | None) -> str:
     if not title:
         return ''
     return _VERSION_SUFFIX.sub('', title).strip()
+
+
+def normalized_title_keys(title: str | None) -> tuple[str, str]:
+    """`(normalized_title, normalized_base_title)` for a library track, cut to their columns.
+
+    The one place the two stored keys are derived: the scanner writes them with the row and
+    scrobble_rematch.backfill_normalized fills any row another writer left without them, so
+    the stored keys and the ones a listen is looked up with cannot drift apart.
+    """
+    return normalize(title)[:KEY_MAX_CHARS], normalize(base_title(title))[:KEY_MAX_CHARS]
 
 
 def similarity(left: str, right: str) -> int:

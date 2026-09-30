@@ -83,6 +83,42 @@ class BackfillNormalizedTest(unittest.TestCase):
         self.assertEqual(cursor.statements_matching('normalized_title IS NULL')[0][1], (25,))
 
 
+class DrainNormalizedTest(unittest.TestCase):
+    """Bug report 137: one batch of 500 an hour could not keep up with a 67,331-row rescan."""
+
+    def conn(self):
+        conn = MagicMock()
+        conn.cursor.return_value = ScriptedCursor([])
+        return conn
+
+    def test_batches_run_until_one_comes_back_short(self):
+        conn = self.conn()
+        with patch.object(rematch, 'backfill_normalized', side_effect=[500, 500, 3]) as backfill:
+            self.assertEqual(rematch.drain_normalized(conn, limit=500), 1003)
+        self.assertEqual(backfill.call_count, 3)
+        # Committed per batch, so a pass stopped half-way keeps what it filled.
+        self.assertEqual(conn.commit.call_count, 3)
+
+    def test_nothing_missing_is_one_empty_batch(self):
+        conn = self.conn()
+        with patch.object(rematch, 'backfill_normalized', return_value=0) as backfill:
+            self.assertEqual(rematch.drain_normalized(conn, limit=500), 0)
+        self.assertEqual(backfill.call_count, 1)
+
+    def test_the_budget_ends_a_pass_that_never_runs_dry(self):
+        ticks = iter(range(0, 1000, 100))
+        with patch.object(rematch, 'backfill_normalized', return_value=500) as backfill:
+            filled = rematch.drain_normalized(self.conn(), limit=500, budget=250, clock=lambda: next(ticks))
+        self.assertEqual(backfill.call_count, 3)
+        self.assertEqual(filled, 1500)
+
+    def test_a_row_missing_only_the_base_key_is_picked_up(self):
+        cursor = ScriptedCursor([])
+        rematch.backfill_normalized(cursor)
+        sql = cursor.statements_matching('FROM library_tracks')[0][0]
+        self.assertIn('normalized_base_title IS NULL', sql)
+
+
 class FindTrackLadderTest(unittest.TestCase):
     def test_an_exact_hit_ends_the_search(self):
         cursor = ScriptedCursor([(EXACT_SQL, ('Angerfist', 'Raise Your Fist'), {'id': 5})])

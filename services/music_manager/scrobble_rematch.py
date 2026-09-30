@@ -10,7 +10,9 @@ Design: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.scrobble_matching import (
@@ -18,6 +20,7 @@ from services.music_manager.scrobble_matching import (
     base_title,
     enabled_tiers,
     normalize,
+    normalized_title_keys,
     similarity,
 )
 from services.music_manager.thread_registry import run_forever
@@ -25,13 +28,24 @@ from services.music_manager.thread_registry import run_forever
 BATCH_SIZE = int(os.getenv('SCROBBLE_REMATCH_BATCH', '500'))
 FUZZY_THRESHOLD = int(os.getenv('SCROBBLE_FUZZY_THRESHOLD', '90'))
 INTERVAL_SECONDS = int(os.getenv('SCROBBLE_REMATCH_INTERVAL', '3600'))
+# A pass keeps filling missing keys batch after batch until none are left or this many
+# seconds have gone by. One batch of 500 an hour could not keep up with a rescan: on
+# 2026-09-26 the label tree added 67,331 rows at once, and every track scanned in the days
+# after waited behind them without keys (bug report 137). Same shape as bug report 101.
+BACKFILL_BUDGET_SECONDS = int(os.getenv('SCROBBLE_BACKFILL_BUDGET', '300'))
+
+logger = logging.getLogger('music-manager.scrobble-rematch')
 
 # How long before a row that missed is tried again, by attempt count. A row that
 # will never match costs one lookup a week rather than one a cycle.
 RETRY_HOURS = [1, 24, 168]
 
 _BACKFILL_ARTISTS = 'SELECT id, name FROM library_artists WHERE normalized_name IS NULL LIMIT %s'
-_BACKFILL_TRACKS = 'SELECT id, title FROM library_tracks WHERE normalized_title IS NULL LIMIT %s'
+# Either key missing counts: the two are always written together, but a row that somehow has
+# only one would otherwise never be picked up again.
+_BACKFILL_TRACKS = (
+    'SELECT id, title FROM library_tracks WHERE normalized_title IS NULL OR normalized_base_title IS NULL LIMIT %s'
+)
 
 
 def tiers() -> list[MatchTier]:
@@ -41,10 +55,12 @@ def tiers() -> list[MatchTier]:
 def backfill_normalized(cursor, limit: int = BATCH_SIZE) -> int:
     """Fill normalized columns wherever they are missing.
 
-    Deliberately not left to the writers. Tracks are inserted from four places
-    and artists from one more, and a fifth will be added by someone who has not
-    read the design -- a row with a NULL key would then be permanently
-    unmatchable, which is the silent failure this whole change is removing.
+    Not left to the writers alone. The scanner writes the track keys with the row
+    (bug report 137), but tracks are inserted from other places too, and one more
+    will be added by someone who has not read the design -- a row with a NULL key
+    would then be permanently unmatchable, which is the silent failure this whole
+    change is removing. One batch of at most `limit` rows per kind; drain_normalized
+    repeats it.
     """
     filled = 0
 
@@ -58,14 +74,34 @@ def backfill_normalized(cursor, limit: int = BATCH_SIZE) -> int:
 
     cursor.execute(_BACKFILL_TRACKS, (limit,))
     for row in cursor.fetchall():
-        title = row['title']
         cursor.execute(
             'UPDATE library_tracks SET normalized_title = %s, normalized_base_title = %s WHERE id = %s',
-            (normalize(title)[:191], normalize(base_title(title))[:191], row['id']),
+            (*normalized_title_keys(row['title']), row['id']),
         )
         filled += 1
 
     return filled
+
+
+def drain_normalized(
+    conn, limit: int = BATCH_SIZE, *, budget: float = BACKFILL_BUDGET_SECONDS, clock=time.monotonic
+) -> int:
+    """Run backfill_normalized batch after batch until nothing is left or `budget` is spent.
+
+    Each batch is committed on its own, so stopping between two loses nothing. Every row a
+    batch selects is filled (a NULL title becomes the empty key, never NULL again), so a
+    batch that filled fewer than `limit` rows in total cannot have found a full batch of
+    either kind: nothing is left.
+    """
+    started = clock()
+    total = 0
+    while True:
+        with conn.cursor() as cursor:
+            filled = backfill_normalized(cursor, limit)
+        conn.commit()
+        total += filled
+        if filled < limit or clock() - started >= budget:
+            return total
 
 
 def find_track(cursor, artist: str, title: str) -> tuple[int, MatchTier, int | None] | None:
@@ -193,9 +229,9 @@ def rematch_once(conn, limit: int = BATCH_SIZE) -> dict:
     """One pass: fill missing keys, then retry the listens that are due."""
     stats = {'backfilled': 0, 'tried': 0, 'linked': 0}
 
-    with conn.cursor() as cursor:
-        stats['backfilled'] = backfill_normalized(cursor, limit)
-    conn.commit()
+    stats['backfilled'] = drain_normalized(conn, limit)
+    if stats['backfilled']:
+        logger.info('scrobble-rematch: filled the matching keys of %d rows', stats['backfilled'])
 
     with conn.cursor() as cursor:
         cursor.execute(

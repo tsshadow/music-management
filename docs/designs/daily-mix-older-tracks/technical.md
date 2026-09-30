@@ -60,6 +60,29 @@ because the pool is the whole library; the artist mix keeps the 90/365/none ladd
 | candidate rows by id (~1900 rows, PK range) | 0.13 s | 0.11 s |
 | "Meer laden" on a split mix | a full build (two samples, ~11 s of SQL) | no build: read + write-back of the row |
 
+**Shared samples** (issue #138, measured read-only on production 2026-09-30, user user, same
+`SYSDATE(6)` method, two runs each): Klassiek, Zachter, Middenin and Harder ask the very same two
+sample questions -- same user, day, split settings and profile match; the hardness band is applied
+afterwards in Python -- so `build._sample_ids` memoises the ids of each sample in-process for
+`SAMPLE_MEMO_TTL_SECONDS` (600 s), keyed on the rendered statement and its parameters. Whatever can
+change the answer (user, day, settings, the older half's profile names, the label mix's filter) is in
+the key by construction; the label mix therefore keeps its own pair. Only the ids are kept, in their
+`MD5(seed || track_uid)` order, so a build that reuses them fetches, scores and orders exactly what it
+would have fetched itself (`SharedSampleTest` builds all four with and without sharing and compares
+the whole `Feed`). At most `SAMPLE_MEMO_MAX_ENTRIES` (32) samples are held, ~110 kB for a full
+recent one.
+
+| Per listener, per day (feeds-refresh) | Before | After |
+|---|---|---|
+| recent-half sample (3000 ids) | 4 × 1.99 s | 1 × 1.99 s |
+| older-half sample (2000 ids) | 4 × 4.13 s | 1 × 4.13 s |
+| sample SQL for the four hardness-family mixes | ~24.5 s | ~6.1 s |
+
+The memo also covers on-demand builds: after a settings change each mix is rebuilt on its own
+request, on its own connection, and the second to fourth of those within ten minutes reuse the
+first one's samples. A rebuild later than that samples again, so a newly scanned track or a new
+rating is never kept out of a mix for longer than the TTL.
+
 The cost was not the scan itself but the audio-features derived table joined into every statement:
 `EXPLAIN` shows it as `LATERAL DERIVED` -- a `GROUP BY` over `idx_af_internal_track_id` for each of
 the ~345k scanned rows, only to supply a release date that `library_tracks.release_date` already

@@ -184,3 +184,53 @@ def test_a_miss_leaves_the_moment_of_the_listen_alone(database, library):
         rows = cursor.fetchall()
     assert [str(row['listened_at']) for row in rows] == moments
     assert [row['attempts'] for row in rows] == [1, 1]
+
+
+def test_the_scanner_upsert_writes_both_matching_keys(database, library):
+    """Bug report 137: the scanner's own statement fills the keys, a re-scan refreshes them."""
+    from services.music_manager.routers.scanner import _UPSERT_TRACK
+    from services.music_manager.scrobble_matching import normalized_title_keys
+
+    def upsert(title):
+        row = ('uid-137', title, 240.0, library['artist_id'], None, 'track', None)
+        with database.cursor() as cursor:
+            cursor.execute(_UPSERT_TRACK, (*row, *normalized_title_keys(title), *row[1:]))
+            cursor.execute(
+                'SELECT normalized_title, normalized_base_title FROM library_tracks WHERE track_uid = %s',
+                ('uid-137',),
+            )
+            return cursor.fetchone()
+
+    assert upsert('Raise Your Fist (Radio Edit)') == {
+        'normalized_title': 'raise your fist radio edit',
+        'normalized_base_title': 'raise your fist',
+    }
+    assert upsert('Raise Your Fist (Extended Mix)') == {
+        'normalized_title': 'raise your fist extended mix',
+        'normalized_base_title': 'raise your fist',
+    }
+
+
+def test_the_drain_fills_a_backlog_larger_than_one_batch(database, library):
+    """Bug report 137: 500 rows an hour left a 67,331-row rescan's tail without keys for days."""
+    with database.cursor() as cursor:
+        for number in range(7):
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, primary_artist_id) VALUES (%s, %s, %s)',
+                (f'uid-drain-{number}', f'Track {number} (Radio Edit)', library['artist_id']),
+            )
+        # Only one key missing still counts as missing.
+        cursor.execute(
+            "UPDATE library_tracks SET normalized_title = 'stale', normalized_base_title = NULL WHERE id = %s",
+            (library['track_id'],),
+        )
+
+    assert scrobble_rematch.drain_normalized(database, limit=3) == 8
+
+    with database.cursor() as cursor:
+        cursor.execute(
+            'SELECT COUNT(*) AS n FROM library_tracks WHERE normalized_title IS NULL OR normalized_base_title IS NULL'
+        )
+        assert cursor.fetchone()['n'] == 0
+        cursor.execute('SELECT normalized_base_title FROM library_tracks WHERE track_uid = %s', ('uid-drain-4',))
+        assert cursor.fetchone()['normalized_base_title'] == 'track 4'

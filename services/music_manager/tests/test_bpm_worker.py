@@ -16,7 +16,8 @@ import pytest
 np = pytest.importorskip('numpy')
 
 from services.common import config_store  # noqa: E402
-from services.music_manager.bpm import estimator, status, worker  # noqa: E402
+from services.music_manager.bpm import estimator, octave, refold, status, worker  # noqa: E402
+from services.music_manager.bpm.priors import Priors  # noqa: E402
 
 NOW = datetime(2026, 9, 29, 12, 0, 0)
 
@@ -103,6 +104,16 @@ class QueueSqlTest(unittest.TestCase):
         self.assertEqual(sql.count('%s'), len(params))
         self.assertIn('NOT IN (%s)', sql)
 
+    def test_the_later_tiers_add_the_unscored_measurements(self):
+        first, _ = worker._due_params(config(), NOW, 48, 0)  # pylint: disable=protected-access
+        doubt, doubt_params = worker._due_params(config(), NOW, 48, 1)  # pylint: disable=protected-access
+        rest, _ = worker._due_params(config(), NOW, 48, 2)  # pylint: disable=protected-access
+        self.assertNotIn('strength IS NULL', first)
+        self.assertIn('b.bpm > 200 OR b.bpm < 70 OR b.octave_corrected = 1', doubt)
+        self.assertIn(f'b.fold_margin < {octave.AMBIGUOUS_MARGIN}', doubt)
+        self.assertEqual(doubt.count('%s'), len(doubt_params))
+        self.assertIn("OR (b.status = 'ok' AND b.strength IS NULL)", rest)
+
     def test_the_count_has_no_limit(self):
         sql, params = worker._due_params(config(), NOW, None)  # pylint: disable=protected-access
         self.assertEqual(sql.count('%s'), len(params))
@@ -121,20 +132,32 @@ class StoreTest(unittest.TestCase):
             conns.append(conn)
         return worker.BpmStore(connect=MagicMock(side_effect=conns)), conns
 
-    def test_genres_fall_back_to_the_artists_commonest(self):
-        store, _ = self.store(
-            [{'track_id': 1, 'name': 'Hardstyle'}],
-            [
-                {'track_id': 2, 'name': 'Hardcore', 'uses': 3},
-                {'track_id': 2, 'name': 'Uptempo Hardcore', 'uses': 9},
-            ],
-        )
-        self.assertEqual(store.genres_for([1, 2, 3]), {1: ['Hardstyle'], 2: ['Uptempo Hardcore']})
+    def test_the_evidence_comes_by_track_id_and_never_from_the_artists_other_tracks(self):
+        store, conns = self.store([{'track_id': 1, 'genres': 'Hardstyle', 'labels': '7', 'primary_artist_id': 3}])
+        self.assertEqual(store.evidence_for([1, 2])[1]['genres'], 'Hardstyle')
+        sql = conns[0].cursor.return_value.__enter__.return_value.execute.call_args[0][0]
+        # Bug report 140: no stand-in genre from the primary artist's other tracks any more.
+        self.assertNotIn('primary_artist_id = t.primary_artist_id', sql)
 
     def test_no_ids_asks_nothing(self):
         store, conns = self.store()
-        self.assertEqual(store.genres_for([]), {})
+        self.assertEqual(store.evidence_for([]), {})
         self.assertEqual(conns, [])
+
+    def test_the_tiers_fill_a_batch_in_order_without_duplicates(self):
+        store, conns = self.store(
+            [job(9)],
+            [job(9), job(5)],
+            [job(9), job(5), job(4), job(3)],
+        )
+        found = store.due_tracks(config(), NOW, limit=3)
+        self.assertEqual([j['track_id'] for j in found], [9, 5, 4])
+        self.assertEqual(len(conns), 3)
+
+    def test_a_full_first_tier_asks_no_further(self):
+        store, conns = self.store([job(2), job(1)])
+        self.assertEqual(len(store.due_tracks(config(), NOW, limit=2)), 2)
+        self.assertEqual(len(conns), 1)
 
     def test_remaining_counts(self):
         store, _ = self.store([{'remaining': 1234}])
@@ -185,19 +208,40 @@ class ExcerptTest(unittest.TestCase):
 
 class ToRowTest(unittest.TestCase):
     def test_a_half_time_hardstyle_reading_is_folded_and_marked(self):
-        row = worker.to_row(job(1), {'ok': True, 'raw': 75.02, 'confidence': 0.9}, ['Hardstyle'], NOW)
-        self.assertEqual(row[:7], ('uid-1', 'ok', 150.04, 75.02, 0.9, estimator.METHOD, 1))
-        self.assertEqual(row[7:], (1.5, 1000, None, NOW))
+        evidence = octave.Evidence(genres=('Hardstyle',))
+        result = {
+            'ok': True,
+            'raw': 75.02,
+            'confidence': 0.9,
+            'strength': 0.5,
+            'half_score': None,
+            'double_score': 0.45,
+        }
+        row = worker.to_row(job(1), result, evidence, NOW)
+        self.assertEqual(row[:4], ('uid-1', 'ok', 150.04, 75.02))
+        self.assertEqual(row[5:7], (estimator.METHOD, 1))
+        self.assertEqual(row[7:11], (1.5, 1000, None, NOW))
+        # The stored confidence is the pulse's discounted by the octave choice, never above it.
+        self.assertLess(row[4], 0.9)
+        self.assertEqual(row[11:15], (0.9, 0.5, None, 0.45))
+        self.assertEqual(row[15], octave.EVIDENCE_BAND)
+        self.assertEqual(row[17], octave.FOLD_VERSION)
 
-    def test_an_estimate_no_octave_of_which_fits_loses_confidence(self):
-        row = worker.to_row(job(1), {'ok': True, 'raw': 100.0, 'confidence': 0.8}, ['Happy Hardcore'], NOW)
-        self.assertEqual(row[4], 0.4)
+    def test_without_any_evidence_a_raw_estimate_in_the_middle_stays(self):
+        row = worker.to_row(job(1), {'ok': True, 'raw': 128.0, 'confidence': 0.8}, None, NOW)
+        self.assertEqual((row[2], row[6]), (128.0, 0))
 
     def test_a_failure_keeps_the_file_facts_and_the_error(self):
-        row = worker.to_row(job(1), {'ok': False, 'error': 'DecodeError: x'}, [], NOW)
+        row = worker.to_row(job(1), {'ok': False, 'error': 'DecodeError: x'}, None, NOW)
         self.assertEqual(
-            row, ('uid-1', 'failed', None, None, None, estimator.METHOD, 0, 1.5, 1000, 'DecodeError: x', NOW)
+            row,
+            ('uid-1', 'failed', None, None, None, estimator.METHOD, 0, 1.5, 1000, 'DecodeError: x', NOW) + (None,) * 7,
         )
+
+    def test_the_row_fills_every_upsert_placeholder(self):
+        row = worker.to_row(job(1), {'ok': True, 'raw': 128.0, 'confidence': 0.8}, None, NOW)
+        # attempts is the literal 1 in VALUES, so one fewer parameter than columns.
+        self.assertEqual(worker.UPSERT_SQL.split('ON DUPLICATE')[0].count('%s'), len(row))
 
 
 class FakeStore:
@@ -222,8 +266,31 @@ class FakeStore:
     def remaining(self, _config, _now):
         return len(self.jobs)
 
-    def genres_for(self, ids):
-        return {track_id: ['Hardstyle'] for track_id in ids}
+    def evidence_for(self, ids):
+        return {track_id: {'track_id': track_id, 'genres': 'Hardstyle'} for track_id in ids}
+
+    #: When the stored priors were last recomputed; NOW means fresh, None means never.
+    priors_at = NOW
+    refolds = 0
+    recomputes = 0
+    refold_written = 0
+    maintain_error = None
+
+    def priors_updated_at(self):
+        if self.maintain_error:
+            raise self.maintain_error
+        return self.priors_at
+
+    def load_priors(self):
+        return Priors()
+
+    def recompute_priors(self, _now):
+        self.recomputes += 1
+        return Priors()
+
+    def refold(self, _priors, _reliable):
+        self.refolds += 1
+        return refold.RefoldResult(rows=10, written=self.refold_written)
 
     def save(self, rows):
         self.saved.extend(rows)
@@ -344,6 +411,50 @@ class WorkerTest(unittest.TestCase):
         self.assertTrue(pools[0][1].shut)
         w.close()
         self.assertTrue(pools[1][1].shut)
+
+    def test_fresh_priors_are_loaded_and_everything_refolded_once_a_day(self):
+        store = FakeStore([])
+        now = [1000.0]
+        w, _, _ = self.make(store, config(bpm_analysis_paused=True), clock=lambda: now[0])
+        w.tick()
+        self.assertEqual((store.recomputes, store.refolds), (0, 1))
+        now[0] += 60
+        w.tick()
+        self.assertEqual(store.refolds, 1)
+        now[0] += worker.PRIORS_SECONDS
+        w.tick()
+        self.assertEqual(store.refolds, 2)
+
+    def test_missing_or_day_old_priors_are_recomputed_first(self):
+        for stamp in (None, datetime(2026, 9, 27, 12, 0, 0)):
+            store = FakeStore([])
+            store.priors_at = stamp
+            w, _, _ = self.make(store, config(bpm_analysis_paused=True))
+            w.tick()
+            self.assertEqual((store.recomputes, store.refolds), (1, 1))
+
+    def test_a_refold_that_changed_rows_brings_the_effective_table_along(self):
+        for written, expect_full_sync in ((3, True), (0, False)):
+            store = FakeStore([])
+            store.refold_written = written
+            w, _, _ = self.make(store, config(bpm_analysis_paused=True))
+            w._next_full_sync = 10**9  # pylint: disable=protected-access  # the full sync is not due
+            w.tick()
+            self.assertEqual(any(ids is None for ids, _ in store.synced), expect_full_sync)
+
+    def test_a_failed_refold_is_retried_after_the_idle_interval(self):
+        store = FakeStore([])
+        store.maintain_error = RuntimeError('database down')
+        now = [1000.0]
+        w, _, _ = self.make(store, config(bpm_analysis_paused=True), clock=lambda: now[0])
+        w.tick()
+        store.maintain_error = None
+        now[0] += worker.IDLE_SECONDS - 1
+        w.tick()
+        self.assertEqual(store.refolds, 0)
+        now[0] += 2
+        w.tick()
+        self.assertEqual(store.refolds, 1)
 
     def test_run_survives_a_failed_round_and_stops_on_request(self):
         store = FakeStore([])

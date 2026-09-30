@@ -1,10 +1,13 @@
 """One tempo per track: which of the three BPM sources wins, and how far to trust it.
 
-docs/designs/bpm-browse/technical.md, "Effective BPM". Three places can hold a track's
+docs/designs/bpm-browse/technical.md, "Effective BPM". Four places can hold a track's
 tempo, and this module is the only one that decides between them:
 
-1. `library_track_bpm` -- a measurement at 0.01 BPM by the BPM analysis worker. Already
-   folded into the genre's band by the worker, so it is taken as it is.
+0. `library_track_bpm_manual` -- a tempo a person set in the track details (bug report 140).
+   Always wins, always `high`, and nothing automatic ever overwrites it.
+1. `library_track_bpm` -- a measurement at 0.01 BPM by the BPM analysis worker. Its octave is
+   already chosen by the worker (`octave.choose_octave`), and its confidence already includes how
+   sure that choice is, so it is taken as it is.
 2. `library_track_audio_features.bpm_tag` -- the file's BPM tag, as the deprecated
    ml-analyzer read it. Most of these were themselves written by an older librosa pass.
 3. `library_track_audio_features.tempo` -- the ml-analyzer's own estimate.
@@ -17,7 +20,7 @@ hardstyle track at half its tempo.
 The confidence is deliberately coarse, three words rather than a number the old data cannot
 back up:
 
-- `high`   -- a measurement at or above `bpm_reliable_confidence`.
+- `high`   -- a tempo set by hand, or a measurement at or above `bpm_reliable_confidence`.
 - `medium` -- a measurement below it, or a tag the analyzer agrees with (within 2 BPM after
   folding both) that already sat inside a genre's band without folding.
 - `low`    -- everything else: a tag or tempo alone, a folded value, or one no genre vouches for.
@@ -32,6 +35,7 @@ from dataclasses import dataclass
 
 from services.music_manager.bpm.bands import band_for_genres, fold_into_band
 
+SOURCE_MANUAL = 'manual'
 SOURCE_MEASURED = 'measured'
 SOURCE_TAG = 'tag'
 SOURCE_ANALYZER = 'analyzer'
@@ -74,6 +78,7 @@ def _valid(value) -> float | None:
 
 def resolve(
     *,
+    manual: float | None = None,
     measured: float | None = None,
     measured_confidence: float | None = None,
     measured_folded: bool = False,
@@ -83,6 +88,15 @@ def resolve(
     reliable_confidence: float = DEFAULT_RELIABLE_CONFIDENCE,
 ) -> EffectiveBpm | None:
     """The effective BPM from whatever the track has, or None when it has nothing usable."""
+    manual_value = _valid(manual)
+    if manual_value is not None:
+        return EffectiveBpm(
+            bpm=round(manual_value, 2),
+            source=SOURCE_MANUAL,
+            confidence=CONFIDENCE_HIGH,
+            folded=False,
+            approximate=False,
+        )
     measured_value = _valid(measured)
     if measured_value is not None:
         sure = measured_confidence is not None and float(measured_confidence) >= reliable_confidence
@@ -127,12 +141,13 @@ def split_genres(joined: str | None) -> tuple[str, ...]:
 
 
 def resolve_row(row: dict, reliable_confidence: float = DEFAULT_RELIABLE_CONFIDENCE) -> EffectiveBpm | None:
-    """`resolve()` for one row shaped like `index.INPUTS_SQL` (measured, bpm_tag, tempo, genres).
+    """`resolve()` for one row shaped like `index.INPUTS_SQL` (manual, measured, bpm_tag, tempo, genres).
 
     The browse index, the materialised `library_track_effective_bpm` table and the track details
     all read their inputs in that shape, so the column-to-argument mapping lives here once.
     """
     return resolve(
+        manual=row.get('manual'),
         measured=row.get('measured'),
         measured_confidence=row.get('measured_confidence'),
         measured_folded=bool(row.get('measured_folded')),

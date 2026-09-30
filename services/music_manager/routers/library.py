@@ -156,7 +156,8 @@ def get_advanced_library(
     the 328k tracks on production; paged first it takes about one (issue #141).
 
     `bpm` is the effective BPM (analytics_filters.EFFECTIVE_BPM_SQL), with `bpm_approximate`
-    set when it is not a measurement; the BPM sort puts tracks without one last.
+    set when it is not a measurement and `bpm_source` saying where it came from (`manual` when
+    set by hand); the BPM sort puts tracks without one last.
     """
     conn = get_db_connection()
     if not conn:
@@ -181,6 +182,7 @@ def get_advanced_library(
                      WHERE mf.track_id = t.id LIMIT 1) AS file_path,
                     page.bpm,
                     page.bpm_approximate,
+                    page.bpm_source,
                     page.release_year,
                     page.release_date,
                     CAST(t.created_at AS CHAR) AS created_at
@@ -188,6 +190,7 @@ def get_advanced_library(
                     SELECT t.id, a.name AS artist,
                            {EFFECTIVE_BPM_SQL} AS bpm,
                            {EFFECTIVE_BPM_APPROXIMATE_SQL} AS bpm_approximate,
+                           eb.source AS bpm_source,
                            af.release_year, af.release_date
                     {FROM_CLAUSE}
                     WHERE {where}

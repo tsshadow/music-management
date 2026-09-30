@@ -38,7 +38,11 @@ The migration only adds columns: it marks and queues nothing (every `migrate_*.s
 deploy).
 
 **The queue** (`DUE_SQL`): `status = 'ok'`, `method = estimator.METHOD`, `confidence >=
-bpm_tag_writeback_min_confidence / 100`, `NOT (tag_bpm <=> bpm)`, the measurement current (its
+bpm_tag_writeback_min_confidence / 100`, `NOT (tag_bpm <=> bpm)`. Since bug report 140
+([bpm-octave/technical.md](../bpm-octave/technical.md), "Tag writeback"): the value is the manual tempo
+when there is one (always due), a measurement only when `fold_version` is the current rule's, and a
+file this step wrote before is due again whenever its value changes even below the confidence
+threshold; `tag_bpm` is stamped with the value that was read. Further: the measurement current (its
 `file_mtime`/`file_size` equal `library_media_files`' for the track's first file -- the analyzer's own
 test), the track's form not in `bpm_analysis_skip_forms`, the file under a root (the EPs tree,
 `Soundcloud`, `Youtube`, `Telegram`, `Top 100`), and no path component starting with `.`

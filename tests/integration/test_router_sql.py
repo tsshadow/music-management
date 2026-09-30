@@ -2780,6 +2780,119 @@ class BpmBrowseSqlTest:
         run_sql(db, 'UPDATE library_media_files SET file_size = 11 WHERE track_id = %s', (older,))
         assert older in {row['track_id'] for row in store.due_tracks(config, now, limit=1000)}
 
+    def _measured(self, db, title, path, bpm=150.02, confidence=0.9, form='track', mtime=1.0, size=10):
+        """A track with one file at `path` and a current measurement of it."""
+        with db.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES (%s, %s, 240, %s)',
+                (f'uid-tag-{title}', title, form),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id, file_mtime, file_size)'
+                ' VALUES (%s, %s, %s, %s, %s)',
+                (path, f'hash-tag-{title}', track_id, mtime, size),
+            )
+            cursor.execute(
+                'INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method,'
+                ' file_mtime, file_size, analyzed_at)'
+                " VALUES (%s, 'ok', %s, %s, %s, 'acf-comb-v1', %s, %s, NOW())",
+                (f'uid-tag-{title}', bpm, bpm, confidence, mtime, size),
+            )
+        return track_id
+
+    def test_the_tag_writeback_queue_and_bookkeeping_run_against_a_real_schema(self, db):
+        """Issue #139, bpm/tag_writeback.py: confident, current, in-scope measurements newest first;
+        an outcome takes a file off the queue until its measurement changes; a write moves the
+        analyzer's, the scanner's and an up-to-date tagger row to the new stat, and nothing
+        requeues the file -- not this step, not the analyzer, not the tagger."""
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        from services.music_manager.bpm import tag_writeback, worker
+
+        eps = '/mnt/music/EPs'
+        older = self._measured(db, 'Older', f'{eps}/Label/REL1/older.mp3')
+        newer = self._measured(db, 'Newer', f'{eps}/Label/REL1/newer.mp3')
+        self._measured(db, 'Unsure', f'{eps}/Label/REL1/unsure.mp3', confidence=0.5)
+        self._measured(db, 'A Set', f'{eps}/Label/REL1/set.mp3', form='set')
+        self._measured(db, 'Todo', f'{eps}/__TODO/REL2/todo.mp3')
+        self._measured(db, 'Quarantined', f'{eps}/Label/.quarantine/q.mp3')
+        self._measured(db, 'Recycled', f'{eps}/#recycle/r.mp3')
+        self._measured(db, 'Lidarr', '/mnt/music/Lidarr/Artist/l.mp3')
+        self._measured(db, 'Wildcard', '/mnt/music/EPsX/w.mp3')  # '_' or a prefix is no root
+        stale = self._measured(db, 'Stale', f'{eps}/Label/REL1/stale.mp3')
+        run_sql(db, 'UPDATE library_media_files SET file_size = 11 WHERE track_id = %s', (stale,))
+
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        config = tag_writeback.read_settings({}.get)
+        due = store.due(config, [eps], 100)
+        assert [row['track_id'] for row in due] == [newer, older]
+        assert store.remaining(config, [eps]) == 2
+        assert [row['track_id'] for row in store.due(config, [eps], 1)] == [newer]
+        low = tag_writeback.read_settings({'bpm_tag_writeback_min_confidence': 40}.get)
+        assert len(store.due(low, [eps], 100)) == 3
+
+        now = datetime(2026, 9, 30, 12, 0)
+        rows = {row['track_id']: row for row in due}
+        store.record(rows[older], 'matches', now)
+        assert [row['track_id'] for row in store.due(config, [eps], 100)] == [newer]
+        # A new measurement with another value queues the file again.
+        run_sql(db, "UPDATE library_track_bpm SET bpm = 151.40 WHERE track_uid = 'uid-tag-Older'")
+        assert older in {row['track_id'] for row in store.due(config, [eps], 100)}
+
+        path = rows[newer]['file_path']
+        run_sql(
+            db,
+            'INSERT INTO tagger_processed_files (filepath, mtime, needs_rescan, last_processed)'
+            " VALUES (%s, 1.0, FALSE, '2026-01-01 00:00:00')",
+            (path,),
+        )
+        store.record_written(
+            rows[newer], SimpleNamespace(st_mtime=1.0, st_size=10), SimpleNamespace(st_mtime=2.5, st_size=12), now
+        )
+        bpm_row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-tag-Newer'")[0]
+        assert (float(bpm_row['tag_bpm']), bpm_row['tag_action']) == (150.02, 'written')
+        assert (bpm_row['file_mtime'], bpm_row['file_size']) == (2.5, 12)
+        media = run_sql(db, 'SELECT file_mtime, file_size FROM library_media_files WHERE track_id = %s', (newer,))[0]
+        assert (media['file_mtime'], media['file_size']) == (2.5, 12)
+        processed = run_sql(db, 'SELECT * FROM tagger_processed_files WHERE filepath = %s', (path,))[0]
+        assert processed['mtime'] == 2.5
+        assert str(processed['last_processed']) == '2026-01-01 00:00:00'  # the deep run's clock untouched
+        assert not processed['needs_rescan']
+
+        assert newer not in {row['track_id'] for row in store.due(config, [eps], 100)}
+        analysis = worker.read_settings(env={})
+        assert newer not in {
+            row['track_id'] for row in worker.BpmStore(connect=_connect).due_tracks(analysis, now, 1000)
+        }
+
+    def test_the_tag_writeback_leaves_a_queued_tagger_row_queued(self, db):
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        from services.music_manager.bpm import tag_writeback
+
+        path = '/mnt/music/EPs/Label/REL1/flagged.mp3'
+        self._measured(db, 'Flagged', path)
+        run_sql(
+            db,
+            "INSERT INTO tagger_processed_files (filepath, mtime, needs_rescan, rescan_reason)"
+            " VALUES (%s, 1.0, TRUE, 'genre_decision')",
+            (path,),
+        )
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        row = store.due(tag_writeback.read_settings({}.get), ['/mnt/music/EPs'], 10)[0]
+        store.record_written(
+            row, SimpleNamespace(st_mtime=1.0, st_size=10), SimpleNamespace(st_mtime=3.0, st_size=12), datetime.now()
+        )
+        processed = run_sql(db, 'SELECT * FROM tagger_processed_files WHERE filepath = %s', (path,))[0]
+        assert (processed['mtime'], bool(processed['needs_rescan']), processed['rescan_reason']) == (
+            1.0,
+            True,
+            'genre_decision',
+        )
+
     def test_the_effective_bpm_table_feeds_every_sql_reader(self, api, headers, db):
         """Issue #141: bpm/effective_table.py materialises what effective.py resolves, and the
         library table (column, sort, filter, search term), /tracks, the analytics and the details

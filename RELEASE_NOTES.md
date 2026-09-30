@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.86.0 (2026-09-30)
+
+- **Measured tempos are now written into the files' BPM tag**, so DJ software and other players
+  show the same tempo as MuMa. It runs slowly in the background (two to three days for the whole
+  library) and can be paused under Beheer → Config → BPM.
+
 ## Global Version 0.85.6 (2026-09-30)
 
 - **Artist portraits no longer flip back to album covers.** Other apps than the web player

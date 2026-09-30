@@ -91,8 +91,7 @@ changes:
 
 ## Open Questions / Not Yet Decided
 
-- **Writing a measured BPM back into the file's TBPM tag.** Not in either change: the measurement
-  lives in the database only. Writing tags rewrites every file (LMS re-indexes, the files' sizes
-  change) and is a separate decision.
+- **Writing a measured BPM back into the file's TBPM tag.** Not in either change. Decided later
+  (issue #139): yes, see [bpm-tag-writeback](../bpm-tag-writeback/functional.md).
 - **The same browse in Android Auto.** The car's browse tree is native (MediaLibrary), not this web
   page; a BPM folder there is a follow-up, not part of this change.

@@ -297,6 +297,44 @@ def _bpm_fields() -> list[ConfigField]:
             group=group,
             description='Files longer than this many minutes are left out of the BPM analysis (1-60).',
         ),
+        # Read by the tagger round in music-manager (services/music_manager/bpm/tag_writeback.py,
+        # SETTINGS); keys and defaults must match there. docs/designs/bpm-tag-writeback/.
+        ConfigField(
+            key='bpm_tag_writeback_enabled',
+            type='boolean',
+            default=True,
+            env='BPM_TAG_WRITEBACK_ENABLED',
+            group=group,
+            description='Write each confident measured tempo into the file\'s own BPM tag (TBPM, tmpo, BPM), '
+            'as a small step after every tagger round, so other players and DJ software see it too.',
+        ),
+        ConfigField(
+            key='bpm_tag_writeback_paused',
+            type='boolean',
+            default=False,
+            env='BPM_TAG_WRITEBACK_PAUSED',
+            group=group,
+            description='Pause writing measured tempos into the files without switching it off. It resumes '
+            'where it stopped.',
+        ),
+        ConfigField(
+            key='bpm_tag_writeback_per_round',
+            type='integer',
+            default=300,
+            env='BPM_TAG_WRITEBACK_PER_ROUND',
+            group=group,
+            description='How many files one tagger round checks and, where needed, writes a BPM tag to '
+            '(0-5000). At 300 the first pass over the library takes two to three days.',
+        ),
+        ConfigField(
+            key='bpm_tag_writeback_min_confidence',
+            type='integer',
+            default=75,
+            env='BPM_TAG_WRITEBACK_MIN_CONFIDENCE',
+            group=group,
+            description='Only measurements with at least this estimator confidence (0-100) are written into '
+            'the files. 75 is where the evaluation found 89% of the measurements right.',
+        ),
     ]
 
 

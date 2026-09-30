@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.2 (2026-09-30)
+
+- **Ratings and the hourly sync no longer wait for a big library scan to finish.**
+- **A busy database no longer restarts the music server from the podcast or ListenBrainz
+  features.**
+
 ## Global Version 0.85.1 (2026-09-30)
 
 - **MuMa Mobile 7.14.0 adds a BPM folder to Android Auto** (Nummers → Bladeren → BPM). See the muma-mobile changelog (issue #140).

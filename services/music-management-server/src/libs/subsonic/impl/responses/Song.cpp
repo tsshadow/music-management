@@ -315,6 +315,9 @@ namespace lms::api::subsonic
         };
         trackResponse.setAttribute("explicitStatus", advisoryToExplicitStatus(track->getAdvisory()));
 
+        // The file's BPM tag. OpenSubsonic wants the field always present, 0 when unknown.
+        trackResponse.setAttribute("bpm", track->getBpm().value_or(0));
+
         trackResponse.addChild("replayGain", createReplayGainNode(track, medium));
 
         return trackResponse;

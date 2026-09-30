@@ -19,10 +19,13 @@
 
 #include "Utils.hpp"
 
+#include <algorithm>
 #include <ctime>
 #include <iomanip>
 #include <sstream>
 #include <string_view>
+
+#include "core/String.hpp"
 
 namespace lms::scanner::utils
 {
@@ -92,6 +95,35 @@ namespace lms::scanner::utils
         }
 
         return result * sign;
+    }
+
+    std::optional<int> parseBpm(std::string_view bpmStr)
+    {
+        // Parsed by hand rather than with std::stof: that follows the locale, and a decimal
+        // comma is as common in these tags as a decimal point.
+        bpmStr = core::stringUtils::stringTrim(bpmStr);
+
+        const std::size_t separator{ bpmStr.find_first_of(".,") };
+        const std::string_view integerStr{ bpmStr.substr(0, separator) };
+        const std::string_view fractionStr{ separator == std::string_view::npos ? std::string_view{} : bpmStr.substr(separator + 1) };
+
+        // Digits only on both sides: no sign, no unit, no second separator. An empty fraction
+        // ("150.") is fine, an empty integer part (".5") is not.
+        const auto isDigit{ [](char c) { return c >= '0' && c <= '9'; } };
+        if (integerStr.empty() || !std::ranges::all_of(integerStr, isDigit) || !std::ranges::all_of(fractionStr, isDigit))
+            return std::nullopt;
+
+        const std::optional<int> integerPart{ core::stringUtils::readAs<int>(integerStr) };
+        if (!integerPart) // too many digits for an int: out of range anyway
+            return std::nullopt;
+
+        // Half up on the first decimal, as the writeback rounds the measurement.
+        const bool roundUp{ !fractionStr.empty() && fractionStr.front() >= '5' };
+        const int bpm{ *integerPart + (roundUp ? 1 : 0) };
+        if (bpm < minBpm || bpm > maxBpm)
+            return std::nullopt;
+
+        return bpm;
     }
 
     PerformerArtist extractPerformerAndRole(std::string_view entry)

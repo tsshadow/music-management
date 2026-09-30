@@ -779,6 +779,7 @@ namespace lms::scanner
         track.modify()->setAdvisory(getAdvisory(_file->track.advisory));
         track.modify()->setComment(!_file->track.comments.empty() ? _file->track.comments.front() : ""); // only take the first one for now
         track.modify()->setReplayGain(_file->track.replayGain);
+        track.modify()->setBpm(_file->track.bpm);
         track.modify()->setArtistDisplayName(_file->track.artistDisplayName);
 
         track.modify()->clearEmbeddedLyrics();

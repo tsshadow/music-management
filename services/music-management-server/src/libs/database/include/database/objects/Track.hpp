@@ -337,6 +337,9 @@ namespace lms::db
         void setSampleRate(std::size_t sampleRate) { _sampleRate = sampleRate; }
         void setBitsPerSample(std::optional<std::size_t> bitsPerSample) { _bitsPerSample = bitsPerSample; }
         void setReplayGain(std::optional<float> replayGain) { _replayGain = replayGain; }
+        // The file's BPM tag, as an integer; unset when the file has none or it is not a
+        // plausible tempo (see scanner::utils::parseBpm).
+        void setBpm(std::optional<int> bpm) { _bpm = bpm; }
 
         // Metadata
         void setTrackNumber(std::optional<int> num) { _trackNumber = num; }
@@ -393,6 +396,7 @@ namespace lms::db
         std::size_t getSampleRate() const { return _sampleRate; }
         std::optional<std::size_t> getBitsPerSample() const { return _bitsPerSample; }
         std::optional<float> getReplayGain() const { return _replayGain; }
+        std::optional<int> getBpm() const { return _bpm; }
         int getPlayCount() const { return _playCount; }
         const Wt::WDateTime& getLastPlayed() const { return _lastPlayed; }
 
@@ -465,6 +469,7 @@ namespace lms::db
             Wt::Dbo::field(a, _sampleRate, "sample_rate");
             Wt::Dbo::field(a, _bitsPerSample, "bits_per_sample");
             Wt::Dbo::field(a, _replayGain, "replay_gain");
+            Wt::Dbo::field(a, _bpm, "bpm");
 
             Wt::Dbo::field(a, _playCount, "play_count");
             Wt::Dbo::field(a, _lastPlayed, "last_played");
@@ -525,6 +530,7 @@ namespace lms::db
         int _sampleRate{};
         std::optional<int> _bitsPerSample;
         std::optional<float> _replayGain;
+        std::optional<int> _bpm;
         int _playCount{};
         Wt::WDateTime _lastPlayed;
 

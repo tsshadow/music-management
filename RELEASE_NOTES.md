@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.85.1 (2026-09-30)
+
+- **MuMa Mobile 7.14.0 adds a BPM folder to Android Auto** (Nummers → Bladeren → BPM). See the muma-mobile changelog (issue #140).
+
+- A track now shows the same tempo everywhere -- library table, search, BPM filter, chart, track
+  details and the BPM browse -- with "≈" when it is not measured. Sorting the library by BPM went
+  from 7.5 seconds to under two, with tracks without a BPM at the bottom.
+
 ## Global Version 0.85.0 (2026-09-29)
 
 - **Precise BPM.** MuMa now measures each track's tempo itself, newest first, so browsing by BPM gets

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.14.0 (2026-09-30)
+
+- **BPM in Android Auto.** Under Nummers → Bladeren → BPM, pick a tempo (140 up to 210+) and play
+  the tracks at that tempo.
+
 ## Global Version 7.13.2 (2026-09-29)
 
 - **The event log filter knows the new bpm-analyzer source.**

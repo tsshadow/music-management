@@ -94,6 +94,52 @@ namespace lms::scanner::utils
         return result * sign;
     }
 
+    std::optional<int> parseBpm(std::string_view bpmStr)
+    {
+        // Parsed by hand rather than with std::stof: that follows the locale, and a decimal
+        // comma is as common in these tags as a decimal point.
+        const auto isSpace{ [](char c) { return c == ' ' || c == '\t'; } };
+        while (!bpmStr.empty() && isSpace(bpmStr.front()))
+            bpmStr.remove_prefix(1);
+        while (!bpmStr.empty() && isSpace(bpmStr.back()))
+            bpmStr.remove_suffix(1);
+
+        const auto isDigit{ [](char c) { return c >= '0' && c <= '9'; } };
+
+        std::size_t i{};
+        int integerPart{};
+        for (; i < bpmStr.size() && isDigit(bpmStr[i]); ++i)
+        {
+            if (i >= 4) // five digits and more is out of range anyway; stop before it overflows
+                return std::nullopt;
+            integerPart = integerPart * 10 + (bpmStr[i] - '0');
+        }
+        if (i == 0)
+            return std::nullopt; // empty, a sign, or not a number at all
+
+        bool roundUp{};
+        if (i < bpmStr.size())
+        {
+            if (bpmStr[i] != '.' && bpmStr[i] != ',')
+                return std::nullopt;
+            ++i;
+            const std::size_t fractionBegin{ i };
+            for (; i < bpmStr.size() && isDigit(bpmStr[i]); ++i)
+            {
+            }
+            if (i != bpmStr.size())
+                return std::nullopt; // trailing text, a second separator, a unit
+            // Half up on the first decimal, as the writeback rounds the measurement.
+            roundUp = i > fractionBegin && bpmStr[fractionBegin] >= '5';
+        }
+
+        const int bpm{ integerPart + (roundUp ? 1 : 0) };
+        if (bpm < minBpm || bpm > maxBpm)
+            return std::nullopt;
+
+        return bpm;
+    }
+
     PerformerArtist extractPerformerAndRole(std::string_view entry)
     {
         std::string_view artistName;

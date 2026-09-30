@@ -32,6 +32,14 @@ namespace lms::scanner::utils
     Wt::WDate parseDate(std::string_view dateStr);
     std::optional<int> parseYear(std::string_view yearStr);
 
+    // A BPM tag as an integer tempo. ID3 TBPM is text and taggers write "150", "150.0" or,
+    // with a decimal comma, "150,5"; MP4 tmpo arrives as an integer already. The value is
+    // rounded half up. Anything that is not a number, or falls outside [minBpm, maxBpm],
+    // is no tempo at all: a 0 or a mis-parsed 1500 is noise, not a very slow or fast song.
+    inline constexpr int minBpm{ 40 };
+    inline constexpr int maxBpm{ 500 };
+    std::optional<int> parseBpm(std::string_view bpmStr);
+
     struct PerformerArtist
     {
         Artist artist;

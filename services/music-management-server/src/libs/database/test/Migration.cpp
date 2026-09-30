@@ -359,9 +359,10 @@ VALUES
             EXPECT_EQ(extraTags, "FESTIVAL");
         }
 
-        // The same migration against a row that already scans other tags, run on its own by
-        // winding the recorded version back to 119: FESTIVAL is appended, the audio scan
-        // version bumped once, and a second run changes nothing.
+        // The same migration against a row that already scans other tags, run by winding the
+        // recorded version back to 119: FESTIVAL is appended, the audio scan version bumped
+        // once, and a second run changes nothing. Winding back also re-runs step 125, which
+        // bumps the audio scan version on every run of its own -- hence 7 -> 9, then 10.
         {
             auto transaction{ session.createWriteTransaction() };
             session.execute("UPDATE scan_settings SET extra_tags_to_scan = 'MOOD;PUBLISHER', audio_scan_version = 7");
@@ -371,7 +372,7 @@ VALUES
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings").resultValue(), "MOOD;PUBLISHER;FESTIVAL");
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 8);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 9);
         }
         {
             auto transaction{ session.createWriteTransaction() };
@@ -381,7 +382,7 @@ VALUES
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(session.getDboSession()->query<std::string>("SELECT extra_tags_to_scan FROM scan_settings").resultValue(), "MOOD;PUBLISHER;FESTIVAL");
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 8);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue(), 10);
         }
 
         // migrateFromV120 on a token table as it stood before: a plain (domain, value) index and
@@ -453,7 +454,7 @@ VALUES
         EXPECT_EQ(loginNameIndexCount(), 0);
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 125);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
             EXPECT_EQ(User::getCount(session), 3U);
         }
 
@@ -489,8 +490,32 @@ VALUES
         EXPECT_EQ(outboxCount(), 1);
         {
             auto transaction{ session.createWriteTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 125);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
             session.execute("DELETE FROM muma_listen_outbox");
+        }
+
+        // migrateFromV125: track.bpm exists and is nullable (no tempo in the file), the audio
+        // scan version moves on so the next scan re-reads every file, and a second run on a
+        // database that already has the column only bumps the version again.
+        const auto audioScanVersion{ [&] {
+            auto transaction{ session.createReadTransaction() };
+            return session.getDboSession()->query<int>("SELECT audio_scan_version FROM scan_settings").resultValue();
+        } };
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>(R"(SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'bpm' AND type = 'INTEGER' AND "notnull" = 0)").resultValue(), 1);
+        }
+        const int scanVersionBefore{ audioScanVersion() };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("UPDATE version_info SET db_version = 125");
+        }
+        EXPECT_NO_THROW(db.getTLSSession().migrateSchemaIfNeeded());
+        EXPECT_EQ(audioScanVersion(), scanVersionBefore + 1);
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'bpm'").resultValue(), 1);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
         }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped

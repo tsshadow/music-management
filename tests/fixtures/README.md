@@ -10,7 +10,8 @@ end-to-end tests (see `docs/testing-inventory.md` and the test plan, Task 4 / Ph
   ffmpeg -f lavfi -i "sine=frequency=440:duration=5" -ar 44100 -ac 2 \
     -codec:a libmp3lame -q:a 4 tests/fixtures/music/ci-test-track-001.mp3
   ```
-- Tagged with fixed ID3v2.3 metadata (title, artist, album, genre, year) plus a
+- Tagged with fixed ID3v2.3 metadata (title, artist, album, genre, year, and a
+  `TBPM` of `174` so the Subsonic `bpm` field has something to carry) plus a
   custom `TXXX:MUSIC_MANAGEMENT_ID` frame, so it can be located by a stable ID
   regardless of how each service maps its own internal identifiers.
 - The expected values are documented as a schema/data file in

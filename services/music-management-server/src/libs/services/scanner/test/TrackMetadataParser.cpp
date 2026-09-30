@@ -223,6 +223,22 @@ namespace lms::scanner::tests
         }
     }
 
+    TEST(TrackMetadataParser, bpm)
+    {
+        // TagType::BPM is TBPM, tmpo or a Vorbis BPM comment, whichever the file has; the
+        // parsing rules themselves are pinned in AudioFileUtils.cpp.
+        const TestTagReader tagged{ { { audio::TagType::BPM, { "150.0" } } } };
+        const Track track{ TrackMetadataParser{}.parseTrackMetaData(tagged) };
+        ASSERT_TRUE(track.bpm.has_value());
+        EXPECT_EQ(track.bpm.value(), 150);
+
+        const TestTagReader garbage{ { { audio::TagType::BPM, { "fast" } } } };
+        EXPECT_FALSE(TrackMetadataParser{}.parseTrackMetaData(garbage).bpm.has_value());
+
+        const TestTagReader untagged{ {} };
+        EXPECT_FALSE(TrackMetadataParser{}.parseTrackMetaData(untagged).bpm.has_value());
+    }
+
     TEST(TrackMetadataParser, trim)
     {
         const TestTagReader testTags{

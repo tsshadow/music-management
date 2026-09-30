@@ -58,6 +58,8 @@ The following extra fields are implemented:
   * `albumArtists`
   * `artists`
   * `bitDepth`
+  * `bpm`: the file's BPM tag (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`) as an integer, rounded half
+    up; `0` when the file has none or it is outside 40-500
   * `channelCount`
   * `comment`
   * `contributors`

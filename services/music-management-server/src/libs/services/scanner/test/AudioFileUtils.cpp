@@ -24,6 +24,43 @@
 
 namespace lms::scanner::utils::tests
 {
+    TEST(MetaData, parseBpm)
+    {
+        struct TestCase
+        {
+            std::string_view str;
+            std::optional<int> result;
+        } testCases[]{
+            { "150", 150 },
+            { "150.0", 150 },
+            { "150.00", 150 },
+            { "150,5", 151 },  // decimal comma, rounded half up like the writeback
+            { "150.49", 150 }, // only the first decimal decides
+            { "150.5", 151 },
+            { "150.", 150 },
+            { " 174 ", 174 },
+            { "40", 40 }, // bounds are inclusive
+            { "500", 500 },
+            { "39", std::nullopt },
+            { "501", std::nullopt },
+            { "0", std::nullopt },    // a zero tag is noise
+            { "1500", std::nullopt }, // so is a mis-parsed one
+            { "99999999999", std::nullopt },
+            { "", std::nullopt },
+            { "  ", std::nullopt },
+            { "-150", std::nullopt },
+            { "fast", std::nullopt },
+            { "150 BPM", std::nullopt },
+            { "150.0.0", std::nullopt },
+            { "150,5,1", std::nullopt },
+            { ".5", std::nullopt },
+            { "150/2", std::nullopt },
+        };
+
+        for (const TestCase& testCase : testCases)
+            EXPECT_EQ(parseBpm(testCase.str), testCase.result) << "'" << testCase.str << "'";
+    }
+
     TEST(MetaData, parseDate)
     {
         struct TestCase

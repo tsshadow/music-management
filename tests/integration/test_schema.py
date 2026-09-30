@@ -85,6 +85,14 @@ def test_the_effective_bpm_table_is_an_expected_table():
     assert 'library_track_effective_bpm' in schema_sources.migration_declared_tables()
 
 
+def test_the_bpm_tag_writeback_columns_exist(database):
+    """Issue #139: db_init and migrate_v52 give library_track_bpm the writeback's bookkeeping."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW COLUMNS FROM library_track_bpm')
+        columns = {row['Field'] for row in cursor.fetchall()}
+    assert {'tag_bpm', 'tag_action', 'tag_checked_at'} <= columns
+
+
 def test_the_extractor_can_file_a_standing_file(db):
     """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
     from services.importer import conflict_store

@@ -8,11 +8,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
+from services.music_manager.bpm.tag_writeback import BpmTagWriteback
 from services.music_manager.rbac import require_admin
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.tagger.deep_run import deep_run_tick
-from services.tagger.tagger import Tagger, TagSingleFile
+from services.tagger.tagger import TAGGER_BATCH_PAUSE, Tagger, TagSingleFile
 from services.tagger.walk_schedule import WalkSchedule
 
 router = APIRouter(tags=['tagger'])
@@ -23,6 +24,8 @@ class TaggerManager:
     def __init__(self):
         self.tagger = Tagger()
         self._lock = threading.Lock()
+        #: Created on first use, so importing this router reads no settings.
+        self.bpm_tags: BpmTagWriteback | None = None
 
     def run_full(self, walk: bool | None = None):
         """One round: the queue, and the folder walk when asked or when it is due.
@@ -41,7 +44,23 @@ class TaggerManager:
             self.tagger.run(walk=walk)
             if walk and not self.tagger.stop_requested:
                 schedule.record()
+            if not self.tagger.stop_requested:
+                self._write_bpm_tags()
             logger.info('Tagging round completed (interrupted: %s)', self.tagger.stop_requested)
+
+    def _write_bpm_tags(self):
+        """The round's last step: a capped slice of measured tempos into the files' BPM tags.
+
+        After the queue and the walk, so every retag reason -- decisions, new files, bulk -- is
+        served first; inside the lock, so no tagger thread writes the same file meanwhile. A
+        failure is logged and never ends the round (issue #139, docs/designs/bpm-tag-writeback/).
+        """
+        try:
+            if getattr(self, 'bpm_tags', None) is None:
+                self.bpm_tags = BpmTagWriteback(pause_seconds=TAGGER_BATCH_PAUSE)
+            self.bpm_tags.run_round(should_stop=lambda: self.tagger.stop_requested)
+        except Exception as e:  # pylint: disable=broad-except  # the tagger round must go on
+            logger.error('BPM tag writeback failed: %s', e)
 
     def stop(self):
         logger.info('Requesting to stop tagging operation')

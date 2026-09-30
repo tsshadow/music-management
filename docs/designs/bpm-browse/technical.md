@@ -233,7 +233,8 @@ decode; and CPU-heavy work in the API process has starved the API before (the ta
 incidents). The container has `cpus: 2` (`MUMA_CPUS_BPM`) and `mem_limit: 768m`
 (`MUMA_MEM_LIMIT_BPM`), the usual hardening (all capabilities dropped but the four file ones,
 `pids_limit: 256`), and every analysis process runs at nice 19 and in the idle I/O class. The music
-share is mounted read-only; nothing writes tags.
+share is mounted read-only; the analyzer writes no tags (the tagger does, since issue #139:
+[bpm-tag-writeback](../bpm-tag-writeback/technical.md)).
 
 **Settings** (Beheer → Config → BPM, all re-read every round from music-manager's `config.json`,
 which the container mounts read-only -- ConfigStore reads its file once per process, which is

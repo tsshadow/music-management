@@ -32,6 +32,20 @@
   },
   "boot": {
     "connecting": "Connecting to the server…",
+    "offlineStart": "Starting offline…",
+    "reachability": {
+      "checking": "Checking the connection…",
+      "continueOffline": "Continue offline",
+      "nextAttempt": "Next attempt in {seconds} s",
+      "noNetworkBody": "Your phone has no network. You can continue with the music on this device.",
+      "noNetworkTitle": "No network connection",
+      "retry": "Try again",
+      "unreachableBody": "The MuMa server is not responding. You can wait for it to come back, or continue with the music on this device.",
+      "unreachableTitle": "Server unreachable",
+      "wait": "Wait for the server",
+      "waitingSince": "Waiting since {time}",
+      "waitingTitle": "Waiting for the server"
+    },
     "restoringQueue": "Restoring the queue…",
     "retry": "Try again",
     "signingIn": "Signing in…",
@@ -2062,6 +2076,19 @@
     "signInTitle": "Sign in again",
     "unavailableHelp": "This screen needs the server. It works again as soon as there is a connection.",
     "unavailableTitle": "Not available without a connection"
+  },
+  "offlineMode": {
+    "back": "Connected to the server again",
+    "backRestored": {
+      "one": "Connected again: queue restored (1 track)",
+      "other": "Connected again: queue restored ({count} tracks)"
+    },
+    "banner": "Offline: only the music on this device",
+    "reconnect": "Reconnect",
+    "skipped": {
+      "one": "1 track not available offline",
+      "other": "{count} tracks not available offline"
+    }
   },
   "presetBuilder": {
     "kicker": "Advanced search",

@@ -186,6 +186,13 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): Promise<boolean>} isOffline Whether there is no route to
  *   the server. Advisory: a caller still tries the server and falls back on a
  *   failure, because a reachable internet is not a reachable LAN.
+ * @property {function({timeoutMs?: number}=): Promise<{state: 'reachable'|'noNetwork'|
+ *   'unreachable'|'authFailed', elapsedMs: number, offlineChosen: boolean}>} checkServer The
+ *   start-up check (docs/designs/app-start-reachability/): one `ping` within the budget, classified
+ *   with the device's network state. A browser always answers `reachable`.
+ * @property {function(boolean): Promise<void>} setOfflineMode "Offline verder" on or off: while on,
+ *   `isOffline()` answers true and the native services use the downloaded library. No-op in a
+ *   browser.
  * @property {function(function({id: string, state: string, progress: number}): void):
  *   function(): void} onProgress `progress` is a percentage, 0 to 100, and 0
  *   whenever the server sent no content length to measure against.

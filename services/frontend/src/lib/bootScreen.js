@@ -11,7 +11,13 @@ import { t } from "./i18n/index.js";
  */
 
 /** The stages the shell walks through, in order. */
-export const BOOT_STAGES = Object.freeze(["connecting", "signingIn", "restoringQueue", "starting"]);
+export const BOOT_STAGES = Object.freeze([
+  "connecting",
+  "signingIn",
+  "restoringQueue",
+  "offlineStart",
+  "starting",
+]);
 
 /** How long one stage may take before the hint appears. */
 export const BOOT_SLOW_AFTER_MS = 8000;
@@ -77,6 +83,27 @@ export function setBootStage(stage, { done = 0, total = 0 } = {}, doc = globalTh
     const slow = translated("boot.slow");
     if (hint && slow && screen.isConnected) hint.textContent = slow;
   }, BOOT_SLOW_AFTER_MS);
+}
+
+/**
+ * Stops the "taking longer than usual" hint and the 20-second reload pill from appearing while
+ * the start waits on the listener's own choice (the server-unreachable panel,
+ * `bootUnreachable.js`): that wait is not the app being slow. The next `setBootStage` starts a
+ * fresh hint clock.
+ *
+ * @param {Document} [doc] - Injected by the tests.
+ */
+export function pauseBootHints(doc = globalThis.document) {
+  const win = doc?.defaultView;
+  if (win?.__mumaBootTimer) clearTimeout(win.__mumaBootTimer);
+  clearTimeout(slowTimer);
+  slowTimer = null;
+  lastStage = null;
+  const screen = screenOf(doc);
+  if (!screen) return;
+  screen.classList.remove("boot-stuck");
+  const hint = screen.querySelector("[data-boot-hint]");
+  if (hint) hint.textContent = "";
 }
 
 /**

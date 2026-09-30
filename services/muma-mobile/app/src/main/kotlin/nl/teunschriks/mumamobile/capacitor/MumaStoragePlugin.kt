@@ -23,6 +23,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.DownloadService
@@ -37,6 +38,7 @@ import nl.teunschriks.mumamobile.util.Storage
 import org.json.JSONArray
 import org.json.JSONObject
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import org.koin.core.component.inject
 import timber.log.Timber
 
@@ -57,6 +59,8 @@ import timber.log.Timber
  * | `size()` | the bytes under the music directory |
  * | `query({method, params})` | [OfflineSubsonic] over the Room cache and the files on disk |
  * | `isOffline()` | [hasRouteToServer], the same test the Kotlin services make |
+ * | `checkServer({timeoutMs})` | one `ping` within the budget, classified by [ServerReachability] |
+ * | `setOfflineMode({enabled})` | [ServerReachability.offlineChosen] |
  * | `onProgress(fn)` | the `progress` event, from `RxBus.trackDownloadStatePublisher` |
  * | `onConnectivity(fn)` | the `connectivity` event, from a `ConnectivityManager` callback |
  * | `clearCache()` | cancels queued/active downloads, then [CacheCleaner.clearCache] |
@@ -289,11 +293,59 @@ class MumaStoragePlugin :
         call.resolve(JSObject().put("value", !online()))
     }
 
+    /**
+     * The start-up check (docs/designs/app-start-reachability/): one Subsonic `ping`, signed by the
+     * app's own client, within `timeoutMs` (default [ServerReachability.DEFAULT_TIMEOUT_MS]),
+     * classified together with Android's network state by [ServerReachability.classify].
+     *
+     * Resolves `{state, elapsedMs, offlineChosen}`; `state` is a [Reachability.wire] value. Never
+     * rejects on a failed ping -- a ping that failed is the answer. With the hand-picked offline
+     * library active there is no server to ask, and the answer rests on the network state alone.
+     */
+    @PluginMethod
+    fun checkServer(call: PluginCall) {
+        val timeoutMs = (call.getInt("timeoutMs") ?: ServerReachability.DEFAULT_TIMEOUT_MS.toInt()).toLong()
+        calls.runCall(call) { answer ->
+            val started = System.nanoTime()
+            val networkUp = connectivity?.hasInternetCapability() == true
+            val outcome = if (ActiveServerProvider.isOffline()) {
+                null
+            } else {
+                pingWithin(get<SubsonicAPIClient>().api.ping(), timeoutMs)
+            }
+            val state = ServerReachability.classify(networkUp, outcome)
+            val elapsedMs = (System.nanoTime() - started) / NANOS_PER_MILLI
+            Timber.i("Start-up check: %s (%s) in %d ms", state, outcome, elapsedMs)
+            withContext(Dispatchers.Main) {
+                answer.resolve(
+                    JSObject()
+                        .put("state", state.wire)
+                        .put("elapsedMs", elapsedMs)
+                        .put("offlineChosen", ServerReachability.offlineChosen)
+                )
+            }
+        }
+    }
+
+    /**
+     * "Offline verder" on (`{enabled: true}`) or off. While on, [isOffline] answers true whatever
+     * the network does and `MusicServiceFactory` hands out the offline service, so the web UI,
+     * the native services and the Android Auto tree agree. A `connectivity` event follows.
+     */
+    @PluginMethod
+    fun setOfflineMode(call: PluginCall) {
+        ServerReachability.offlineChosen = call.getBoolean("enabled", false) == true
+        Timber.i("Offline mode %s", if (ServerReachability.offlineChosen) "chosen" else "left")
+        emitConnectivity(online())
+        call.resolve()
+    }
+
     // ------------------------------------------------------------------ plumbing
 
     private fun online(): Boolean = hasRouteToServer(
         activeServerIsOfflineDb = ActiveServerProvider.isOffline(),
-        networkHasInternet = connectivity?.hasInternetCapability() == true
+        networkHasInternet = connectivity?.hasInternetCapability() == true,
+        offlineChosen = ServerReachability.offlineChosen
     )
 
     /**
@@ -304,7 +356,9 @@ class MumaStoragePlugin :
         emitConnectivity(online())
         val manager = connectivity ?: return
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) = emitConnectivity(!ActiveServerProvider.isOffline())
+            override fun onAvailable(network: Network) = emitConnectivity(
+                !ActiveServerProvider.isOffline() && !ServerReachability.offlineChosen
+            )
 
             override fun onLost(network: Network) = emitConnectivity(online())
         }
@@ -406,6 +460,8 @@ class MumaStoragePlugin :
     companion object {
         const val EVENT_PROGRESS = "progress"
         const val EVENT_CONNECTIVITY = "connectivity"
+
+        private const val NANOS_PER_MILLI = 1_000_000L
 
         /** Capacitor's local file route; the JS side reaches it through `Capacitor.convertFileSrc`. */
         const val CAPACITOR_FILE_PREFIX = "/_capacitor_file_"

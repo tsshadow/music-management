@@ -24,6 +24,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.ServerReachability
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.di.OFFLINE_MUSIC_SERVICE
 import nl.teunschriks.mumamobile.di.ONLINE_MUSIC_SERVICE
@@ -87,6 +88,12 @@ object MusicServiceFactory : KoinComponent {
 
     @JvmStatic
     fun getMusicService(): MusicService {
+        // "Offline verder" on the start-up check (docs/designs/app-start-reachability/): the network
+        // may be up, the server is not, and every native caller -- the Android Auto tree above all
+        // -- should get the downloaded library at once instead of a network timeout per request.
+        // The active server is left alone, so leaving offline mode needs no switch back.
+        if (ServerReachability.offlineChosen) return get(named(OFFLINE_MUSIC_SERVICE))
+
         if (ActiveServerProvider.isOffline()) {
             previousServerId = null
             return get(named(OFFLINE_MUSIC_SERVICE))

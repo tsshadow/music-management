@@ -3,11 +3,15 @@ import "./app.css";
 import App from "./App.svelte";
 import { platform } from "./lib/platform/index.js";
 import { bootstrapShell } from "./lib/nativeSession.js";
+import { askServerDecision } from "./lib/bootUnreachable.js";
+import { watchServerReturn } from "./lib/offlineMode.js";
+import { notify } from "./lib/notifications.js";
+import { get } from "svelte/store";
 import { dismissBootScreen, setBootStage } from "./lib/bootScreen.js";
 import { logError, identifyBundle } from "./lib/diagnosticsLog.js";
 import { initialState, installChunkReload, preloadLikelyNext } from "./lib/bootChunks.js";
 import { preloadState } from "./lib/lazyViews.js";
-import { localeReady } from "./lib/i18n/index.js";
+import { localeReady, t } from "./lib/i18n/index.js";
 
 const target = document.querySelector("#app");
 
@@ -44,13 +48,34 @@ localeReady();
  * and not a music server. `bootstrapShell` never rejects, so a phone that
  * cannot reach its server still gets a login screen rather than a blank one.
  * Meanwhile the boot screen from index.html says which step it is on.
+ *
+ * A signed-in phone whose server does not answer is asked what to do on the boot screen itself
+ * (`bootUnreachable.js`: try again, wait for the server, or continue offline); after an offline
+ * start, `watchServerReturn` keeps asking the server in the background and switches back once it
+ * answers (docs/designs/app-start-reachability/).
  */
 const app = platform.system.isNative
-  ? bootstrapShell(platform, undefined, setBootStage).then(() => {
+  ? bootstrapShell(platform, undefined, setBootStage, { decide: askServerDecision }).then(() => {
       setBootStage("starting");
+      watchServerReturn(platform, { onBack: announceServerBack });
       return mountApp();
     })
   : mountApp();
+
+/**
+ * Says that offline mode ended because the server answered again, and whether the full queue
+ * came back with it (`reconcileQueue`: only when the listener had not started something else).
+ *
+ * @param {{restored: number}} outcome
+ */
+function announceServerBack(outcome) {
+  const translate = get(t);
+  notify.success(
+    outcome?.restored > 0
+      ? translate("offlineMode.backRestored", { count: outcome.restored })
+      : translate("offlineMode.back"),
+  );
+}
 
 /**
  * Mounts the app and takes the boot screen away once it has painted underneath

@@ -172,6 +172,14 @@ abstract class MediaLibraryBase protected constructor() {
         internal val FEED_DAILY_MIXES = FeedRepository.DAILY_MIXES
         internal const val FEED_OLD_HITS = FeedRepository.OLD_HITS
 
+        // Browse by BPM (issue #140, docs/designs/android-auto-bpm/). "MEDIA_BPM_LIST" is the folder
+        // of tempo rows under the Songs tab, "MEDIA_BPM_TRACKS|<key>" one row's list (and its
+        // "Alles afspelen"), "MEDIA_BPM_ITEM|<key>|<song id>" one track in it. The key is a
+        // [nl.teunschriks.mumamobile.service.BpmBucket.key]: "150", "210+".
+        internal const val MEDIA_BPM_LIST = "MEDIA_BPM_LIST"
+        internal const val MEDIA_BPM_TRACKS = "MEDIA_BPM_TRACKS"
+        internal const val MEDIA_BPM_ITEM = "MEDIA_BPM_ITEM"
+
         // Tag browsing, one shape for every kind of tag. See [TagQuery] for the id grammar:
         // "<action>|<length>|<type>|<value>|<year>|<sort>".
         //   MEDIA_TAG_LIST|<length>|<type>          the tags of one type (genres, labels, ...)

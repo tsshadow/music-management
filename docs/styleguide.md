@@ -285,6 +285,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — Browse by BPM in Android Auto (2026-09-30, issue #140, `docs/designs/android-auto-bpm/`):
+  no new style. One more text row ("BPM") in the Nummers tab's Bladeren group, after Lineups,
+  leading to ten plain folder rows ("150 BPM", "210+ BPM") with the track count as the row's
+  subtitle, and each of those to the usual "Alles afspelen" plus track rows. No artwork, so the
+  car draws a list, not a grid.
+
 - **Done** — Browse by BPM (2026-09-29, `docs/designs/bpm-browse/`): no new token or component.
   Its Bladeren tile takes the fixed tile colour `#006450` (`browseColors.js`, the one new value;
   the tile table is a set of fixed category colours, not tokens).

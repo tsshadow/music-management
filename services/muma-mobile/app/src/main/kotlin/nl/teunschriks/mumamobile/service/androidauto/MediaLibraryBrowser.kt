@@ -74,6 +74,7 @@ internal fun searchableRootParams(
  *
  * - [BrowseTabsArea]: the root and the Start, Songs, Sets and Library tabs.
  * - [FeedBrowseArea]: the personalized feeds, the daily mixes folder, radio and news.
+ * - [BpmBrowseArea]: the BPM folder under Songs, its tempo rows and their lists.
  * - [FavoritesBrowseArea]: starred songs, favourite genres, presets and a preset's folder.
  * - [TagBrowseArea]: the tag lists, the tag folder and its years, lineups, the tabs' sorted lists.
  * - [LibraryBrowseArea]: the Subsonic tree -- artists, albums, playlists, shares, bookmarks.
@@ -112,6 +113,7 @@ class MediaLibraryBrowser(
     private val areas: List<BrowseArea> = listOf(
         BrowseTabsArea(browseContext),
         FeedBrowseArea(browseContext),
+        BpmBrowseArea(browseContext),
         FavoritesBrowseArea(browseContext),
         TagBrowseArea(browseContext),
         LibraryBrowseArea(browseContext)

@@ -892,7 +892,8 @@ class MediaLibrarySessionCallback :
             MEDIA_SONG_STARRED_ITEM,
             MEDIA_SONG_RANDOM_ITEM,
             MEDIA_SEARCH_SONG_ITEM,
-            MEDIA_FEED_ITEM
+            MEDIA_FEED_ITEM,
+            MEDIA_BPM_ITEM
         )
     }
 }

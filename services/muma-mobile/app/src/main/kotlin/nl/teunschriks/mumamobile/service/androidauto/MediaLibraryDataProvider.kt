@@ -18,6 +18,7 @@ import nl.teunschriks.mumamobile.domain.SearchResult
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.home.TileInfo
 import nl.teunschriks.mumamobile.home.toTileInfo
+import nl.teunschriks.mumamobile.service.BpmRepository
 import nl.teunschriks.mumamobile.service.FeedRepository
 import nl.teunschriks.mumamobile.service.MusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
@@ -53,11 +54,20 @@ class MediaLibraryDataProvider(
      */
     feedRepositoryProvider: () -> FeedRepository = {
         KoinJavaComponent.get(FeedRepository::class.java)
+    },
+    /**
+     * Where the BPM folder's lists come from (issue #140). One instance shared by the browser and
+     * the playback side for the reason the feed repository is; resolved on first use.
+     */
+    bpmRepositoryProvider: () -> BpmRepository = {
+        KoinJavaComponent.get(BpmRepository::class.java)
     }
 ) : MediaLibraryBase() {
     val musicService: MusicService get() = musicServiceProvider()
 
     val feeds: FeedRepository by lazy(feedRepositoryProvider)
+
+    val bpm: BpmRepository by lazy(bpmRepositoryProvider)
 
     lateinit var playbackController: MediaLibraryPlaybackController
     var playlistCache: List<Track>? = null
@@ -142,6 +152,11 @@ class MediaLibraryDataProvider(
             MEDIA_SEARCH_SONG_ITEM -> playbackController.playSearch(mediaIdParts[INDEX_ID])
             MEDIA_FEED_ID -> playbackController.playFeed(mediaIdParts[INDEX_ID])
             MEDIA_FEED_ITEM -> playbackController.playFeedSong(
+                mediaIdParts[INDEX_ID],
+                mediaIdParts[INDEX_NAME]
+            )
+            MEDIA_BPM_TRACKS -> playbackController.bpm.tracks(mediaIdParts[INDEX_ID])
+            MEDIA_BPM_ITEM -> playbackController.bpm.song(
                 mediaIdParts[INDEX_ID],
                 mediaIdParts[INDEX_NAME]
             )

@@ -467,6 +467,8 @@ class RunBackupTest(unittest.TestCase):
             db_backup.run_backup()
         self.assertTrue(seen['name'].endswith(db_backup.SUFFIX + db_backup.PARTIAL_SUFFIX))
         names = sorted(p.name for p in self.dest.iterdir())
+        # On the first of the month the run also writes a monthly copy; it is not this dump.
+        names = [name for name in names if not name.startswith(db_backup.MONTHLY_PREFIX)]
         finished = [name for name in names if name.endswith(db_backup.SUFFIX)]
         self.assertEqual(names, [db_backup.LATEST_NAME, *finished])
         self.assertEqual(len(finished), 1)

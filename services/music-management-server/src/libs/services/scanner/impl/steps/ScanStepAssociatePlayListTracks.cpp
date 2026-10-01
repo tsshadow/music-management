@@ -287,7 +287,9 @@ namespace lms::scanner
         const ScanScope* scope{ singleReleaseSettingChanged ? nullptr : getScanScope(context) };
 
         if (scope)
+        {
             context.currentStepStats.totalElems = scope->playListFiles.size();
+        }
         else
         {
             auto transaction{ session.createReadTransaction() };

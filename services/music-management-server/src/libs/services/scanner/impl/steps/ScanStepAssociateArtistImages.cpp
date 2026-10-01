@@ -400,7 +400,9 @@ namespace lms::scanner
         const ScanScope* scope{ fallbackSettingChanged ? nullptr : getScanScope(context) };
 
         if (scope)
+        {
             context.currentStepStats.totalElems = scope->artists.size();
+        }
         else
         {
             auto transaction{ session.createReadTransaction() };

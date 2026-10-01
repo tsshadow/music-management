@@ -40,7 +40,7 @@ namespace lms::scanner
         // Calls `func` for every id under `directory`, in pages, through one of the
         // findAbsoluteFilePathInDirectory functions the removal check uses as well.
         template<typename Object, typename IdType, typename Func>
-        void forEachIdInDirectory(db::Session& session, const std::filesystem::path& directory, Func&& func)
+        void forEachIdInDirectory(db::Session& session, const std::filesystem::path& directory, const Func& func)
         {
             constexpr std::size_t pageSize{ 1000 };
 

@@ -228,7 +228,9 @@ namespace lms::scanner
         const ScanScope* scope{ getScanScope(context) };
 
         if (scope)
+        {
             context.currentStepStats.totalElems = scope->tracks.size();
+        }
         else
         {
             auto transaction{ session.createReadTransaction() };

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.15.2 (2026-10-01)
+
+- **Correct a track's BPM.** The app bundles the web UI of server 0.88.0: with the `bpm.override`
+  permission (admins by default) the track details offer ½×, 2× and a tempo field.
+
 ## Global Version 7.15.1 (2026-10-01)
 
 - **Track lists show their first rows sooner.** The app bundles the web UI of server 0.87.1: a

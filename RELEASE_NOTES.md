@@ -11,6 +11,20 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.88.0 (2026-10-01)
+
+- **Fix a wrong BPM yourself**: halve it, double it or type it in the track details (needs the new
+  `bpm.override` permission; admins have it).
+
+- **Wrong double or half BPMs fixed**: a ballad no longer shows 256, a slow industrial track no longer
+  230. The tempo is now chosen using what the label, the artist's own tracks and the genre usually
+  play, and a guessed tempo is no longer marked reliable or written into the file.
+
+- The "Zachter" daily mix (and any mix holding a track whose hardness comes from its measured BPM) no longer fails with a server error (bug report 143).
+
+- Songs from a release series (Q-dance presents SPEQTRUM, Gearbox Presents Lockdown, ...) and
+  remixes are no longer hidden behind one song; the release becomes the album.
+
 ## Global Version 0.87.1 (2026-10-01)
 
 - Track lists show their first rows much sooner, also while the library is being scanned.

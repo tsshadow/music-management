@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-10-01
+
+### Added
+- **Correct a track's BPM by hand** (bug report 140). The track panel in the management library and
+  the player's track details get ½×, 2× and a tempo field for users with the new `bpm.override`
+  permission (admins by default). The tempo is stored separately (`library_track_bpm_manual`),
+  wins over every measurement, is never overwritten by the analyzer, shows everywhere at once
+  (library, BPM browse, feeds, analytics) marked "handmatig", is written into the file's tag by the
+  next writeback round, and "Gemeten" takes it back. Every change is in the audit log
+  (`bpm.manual_set` / `bpm.manual_cleared`). API: `PUT` / `DELETE
+  /api/library/bpm/tracks/{id}/manual`.
+
+### Fixed
+- **A ballad no longer shows 256 BPM, and a slow industrial track no longer 230** (bug report 140).
+  The analyzer forced every measurement into a hand-set tempo range per genre, and a track without a
+  genre borrowed its artist's commonest one: André Hazes's genres here come from hardstyle and
+  uptempo remixes of his songs, so "Vaag en Stil" (measured 64) was multiplied by four; The
+  Silence's "Nothing" (a clear 115) had no octave inside industrial hardcore's 140-230 and went to
+  230 -- both marked as reliable as a real measurement, and 835 such doublings were written into
+  file tags. The octave (half, as measured, double) is now weighed on what the collection knows:
+  learned tempo priors per label, per artist (their own tracks only -- remixes, bootlegs and style
+  edits are left out by title) and per genre, recomputed daily; a pop-compilation folder (Hitzone,
+  Spotify, Lidarr, Top 100); and the estimator's comb scores, now stored, which say when a
+  neighbouring octave is no real periodicity. An artist's prior alone can never double a track into
+  hard dance, and a genre-less tempo above 205 is halved unless the pulse clearly says otherwise.
+  The stored confidence now includes how sure the octave is, so a guessed octave is not
+  "betrouwbaar" and is not written into a tag. Every existing measurement is re-decided from the
+  database when the bpm-analyzer starts; the ~89k doubtful ones are re-measured for their comb
+  scores first (~6 hours), the rest after (~12). On a 10% sample of production 3.9% of tracks get
+  another tempo and tracks above 200 drop by 15%; the evaluation set stays at its octave ceiling
+  (84.7% within 1 BPM, hard dance unchanged). The tag writeback only writes tempos the new rule chose
+  with enough confidence, and rewrites the files it wrote before whenever their tempo changed.
+
+- The "Zachter" daily mix (and any mix holding a track whose hardness comes from its measured BPM) no longer fails with a server error (bug report 143).
+
+- **A release series no longer collapses into one song.** The tagger read "｜ Q-dance presents
+  SPEQTRUM", "(Gearbox Presents Lockdown 3.0)", "[DRS Presents: TSR Album 8.0 - TSR042]" and
+  "(Dungeon: The Mini Album)" as the artist and title, so 63 SPEQTRUM uploads were one song by
+  "Q-dance". The marker is now stripped and becomes the album (only over an empty or channel-default
+  album); a catalogue number in it fills an empty catalogue number. A channel's own name as the last
+  title segment (101Barz) is no longer the artist, and interviews, covers and event previews get the
+  right artist. A featured artist no longer swallows the remix bracket behind it, so a remix is its
+  own song again. A work with more than 10 versions is now marked for review. Affected files are
+  re-tagged and regrouped after the deploy on their own (bug report 142).
+
 ## [0.87.1] - 2026-10-01
 
 ### Changed

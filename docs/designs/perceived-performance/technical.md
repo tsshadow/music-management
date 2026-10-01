@@ -237,6 +237,19 @@ A link that is not seeded still works: it gets the no-seed skeleton header.
   object the page and its queue continuation send. The value is the first page with its
   `nextOffset`, `hasMore` and the version keys folded so far (`seen`, as entries), so "load more"
   after a cached first page continues exactly as after a fresh one. Only the first page is cached.
+- **Small first page**: without a cached copy, the first request asks
+  `firstTrackPageSize(pageSize)` = `min(pageSize, FIRST_TRACK_PAGE)` (50) rows. Once those are on
+  screen, `topUpFirstPage` calls `topUpTrackPage`, which continues from the page's `nextOffset`
+  with `count` = what is missing and folds versions against a *copy* of the page's `seen` entries
+  (a failed or aborted top-up leaves `seenKeys` untouched, so no row is dropped as a duplicate of
+  one never shown). The filled page replaces the cache entry; the key stays the full page size. A
+  cached copy that is still short (a press prefetch, which asks only 50, or a top-up that never
+  finished) is topped up the same way. A background refresh of cached rows asks the whole page in
+  one go, so the rows on screen never shrink. `tracksLoading` is true during a top-up, which keeps
+  "load more" and the scroll sentinel (both check it) off the same offset.
+- **Abort**: `tracksController` is aborted by every new `loadAllTracks`, by the view effect when
+  the new view is not a track list (`isTrackListView`), and on unmount; the top-up and "load more"
+  travel with the same signal.
 - **Prefetch**: `CollectionGrid` takes `onpress`, called on `pointerdown` (the favourite toggle
   stops propagation). Dashboard's `prefetchTrackView(view)` builds the query the view will ask,
   with the filter bar's genre, year and search cleared unless the view is the one it was last reset

@@ -14,6 +14,7 @@ add_executable(test-scanner
 	ScanOptions.cpp
 	ScanRequestCollector.cpp
 	ScanSchedule.cpp
+	ScanScope.cpp
 	ScanStepSequence.cpp
 	TrackMetadataParser.cpp
 	)

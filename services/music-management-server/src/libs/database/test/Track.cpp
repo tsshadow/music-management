@@ -25,6 +25,10 @@
 #include <set>
 #include <vector>
 
+#include <Wt/Dbo/SqlConnection.h>
+#include <Wt/Dbo/SqlStatement.h>
+#include <Wt/Dbo/Transaction.h>
+
 #include "database/objects/Artwork.hpp"
 #include "database/objects/Image.hpp"
 #include "database/objects/RatedTrack.hpp"
@@ -1396,5 +1400,31 @@ namespace lms::db::tests
 
             EXPECT_EQ(results.results, (std::vector<TrackId>{ leapDay.getId() }));
         }
+    }
+
+    // getSpotifyTracks sort=recent orders by COALESCE(original_date, date): with the expression
+    // index SQLite walks the index and stops after the page; without it every page was a full
+    // scan of track plus a sort (0.65 s per query on a copy of production's 343,000 tracks). The
+    // ORDER BY below is sortMethodToSQL(OriginalDateDescAndRelease) verbatim -- SQLite only uses
+    // an expression index for the identical expression.
+    TEST_F(DatabaseFixture, Track_originalDateSortWalksItsIndex)
+    {
+        auto transaction{ session.createReadTransaction() };
+
+        Wt::Dbo::Transaction dboTransaction{ *session.getDboSession() };
+        auto statement{ dboTransaction.connection()->prepareStatement("EXPLAIN QUERY PLAN SELECT DISTINCT t.id FROM track t LEFT JOIN medium m ON t.medium_id = m.id"
+                                                                      " ORDER BY COALESCE(t.original_date, t.date) DESC, t.release_id, m.position, t.track_number LIMIT 201") };
+        statement->execute();
+
+        std::string plan;
+        while (statement->nextRow())
+        {
+            std::string detail;
+            detail.reserve(256);
+            if (statement->getResult(3, &detail, static_cast<int>(detail.capacity())))
+                plan += detail + '\n';
+        }
+
+        EXPECT_NE(plan.find("track_filing_date_release_idx"), std::string::npos) << plan;
     }
 } // namespace lms::db::tests

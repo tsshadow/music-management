@@ -41,6 +41,7 @@ namespace lms::scanner
     struct ScannerSettings;
     struct ScanStepStats;
     struct ScanContext;
+    struct ScanScope;
 
     class ScanStepBase : public IScanStep
     {
@@ -72,6 +73,12 @@ namespace lms::scanner
         const std::filesystem::path& getCachePath() const { return _cachePath; }
 
         void addError(ScanContext& context, std::shared_ptr<ScanError> error);
+
+        // The part of the library a scoped scan has to recompute (see ScanScope), or null when
+        // the step must cover the whole library: a library-wide scan, or a scoped one that
+        // involves more than maxScopedTrackCount tracks. Computed on the first call of a scan and
+        // kept in the context for the steps after it.
+        const ScanScope* getScanScope(ScanContext& context);
 
         // See IPriorityScanYield for when a step may call these: only with nothing of its own in
         // flight on the job scheduler and no transaction open.

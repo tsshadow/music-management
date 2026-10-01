@@ -29,6 +29,7 @@ add_library(lmsscanner STATIC
 	impl/steps/ScanStepCompact.cpp
 	impl/steps/ScanStepComputeClusterStats.cpp
 	impl/steps/ScanStepOptimize.cpp
+	impl/steps/ScanScope.cpp
 	impl/steps/ScanStepRemoveOrphanedDbEntries.cpp
 	impl/steps/ScanStepScanFiles.cpp
 	impl/steps/ScanStepUpdateLibraryFields.cpp

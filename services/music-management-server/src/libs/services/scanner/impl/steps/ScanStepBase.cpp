@@ -19,8 +19,12 @@
 
 #include "ScanStepBase.hpp"
 
+#include "core/ILogger.hpp"
+#include "database/IDb.hpp"
+
 #include "ScanContext.hpp"
 #include "ScanErrorPolicy.hpp"
+#include "ScanScope.hpp"
 
 namespace lms::scanner
 {
@@ -38,6 +42,25 @@ namespace lms::scanner
     }
 
     ScanStepBase::~ScanStepBase() = default;
+
+    const ScanScope* ScanStepBase::getScanScope(ScanContext& context)
+    {
+        if (!context.scanOptions.isScoped())
+            return nullptr;
+
+        if (!context.scopeResolved)
+        {
+            context.scope = computeScanScope(_db.getTLSSession(), context.scanOptions.scanDirectories);
+            context.scopeResolved = true;
+
+            if (context.scope)
+                LMS_LOG(DBUPDATER, DEBUG, "Scoped scan covers " << context.scope->tracks.size() << " tracks, " << context.scope->releases.size() << " releases, " << context.scope->artists.size() << " artists, " << context.scope->playListFiles.size() << " playlists");
+            else
+                LMS_LOG(DBUPDATER, INFO, "Scoped scan involves more than " << maxScopedTrackCount << " tracks: associating over the whole library");
+        }
+
+        return context.scope ? &*context.scope : nullptr;
+    }
 
     void ScanStepBase::addError(ScanContext& context, std::shared_ptr<ScanError> error)
     {

@@ -44,6 +44,7 @@
 
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
+#include "ScanScope.hpp"
 #include "ScannerSettings.hpp"
 
 namespace lms::scanner
@@ -394,6 +395,15 @@ namespace lms::scanner
     {
         auto& session{ _db.getTLSSession() };
 
+        // A changed fallback setting concerns every artist, whatever the scan read.
+        const bool fallbackSettingChanged{ getLastScanSettings() && getLastScanSettings()->artistImageFallbackToRelease != _settings.artistImageFallbackToRelease };
+        const ScanScope* scope{ fallbackSettingChanged ? nullptr : getScanScope(context) };
+
+        if (scope)
+        {
+            context.currentStepStats.totalElems = scope->artists.size();
+        }
+        else
         {
             auto transaction{ session.createReadTransaction() };
             context.currentStepStats.totalElems = db::Artist::getCount(session);
@@ -428,10 +438,19 @@ namespace lms::scanner
         {
             JobQueue queue{ getJobScheduler(), 20, processJobsDone, 1, 0.85F };
 
-            db::ArtistId lastRetrievedArtistId{};
-            db::IdRange<db::ArtistId> artistIdRange;
-            while (fetchNextArtistIdRange(session, lastRetrievedArtistId, artistIdRange))
-                queue.push(std::make_unique<ComputeArtistArtworkAssociationsJob>(_db, searchParams, artistIdRange));
+            if (scope)
+            {
+                // A scoped scan: only the artists of its tracks (bug report 141).
+                for (const db::IdRange<db::ArtistId>& artistIdRange : toConsecutiveIdRanges<db::ArtistId>(scope->artists))
+                    queue.push(std::make_unique<ComputeArtistArtworkAssociationsJob>(_db, searchParams, artistIdRange));
+            }
+            else
+            {
+                db::ArtistId lastRetrievedArtistId{};
+                db::IdRange<db::ArtistId> artistIdRange;
+                while (fetchNextArtistIdRange(session, lastRetrievedArtistId, artistIdRange))
+                    queue.push(std::make_unique<ComputeArtistArtworkAssociationsJob>(_db, searchParams, artistIdRange));
+            }
         }
 
         // process all remaining associations

@@ -71,6 +71,9 @@ Ours inside upstream files (modified, not new) -- the places a port most often l
 - `src/libs/services/scanner/impl/steps/ScanStepAssociateArtistImages.cpp` -- keeps an artist's
   artwork when it is an image under `artist-image-managed-directory` (music-manager's portraits,
   bug report 139).
+- `src/libs/services/scanner/impl/steps/ScanStepAssociate*.cpp`, `ScanStepComputeClusterStats.cpp`
+  -- a scoped scan walks only its `ScanScope` (new file `steps/ScanScope.*`), not the whole
+  library (bug report 141).
 
 ## Database version policy
 

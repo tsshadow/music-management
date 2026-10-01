@@ -109,6 +109,39 @@ scoped scan runs every one of them library-wide in 48-56 s, so between-steps is 
 them ever shows up as a gap between `Priority scan` lines, adding one is the same pattern as in
 `ScanStepCheckForRemovedFiles`.
 
+### The DB-only steps of a scoped scan (bug report 141)
+
+Those 48-56 s were the price of every scoped scan, priority passes included: the association
+steps and the cluster counts recomputed the whole library after any change. A scoped scan now
+computes a `ScanScope` (`scanner/impl/steps/ScanScope.*`) once, by the first step that asks for it
+(`ScanStepBase::getScanScope`, cached in `ScanContext`), after the walk and the removed-files
+check:
+
+| step | scoped scan walks |
+|---|---|
+| AssociatePlayListTracks | playlist files under the folders |
+| AssociateReleaseImages | releases of the tracks under the folders |
+| AssociateArtistImages | artists linked to the scope's tracks (any link type) |
+| AssociateMediumImages | mediums of the scope's tracks |
+| AssociateTrackImages | tracks under the folders + the other tracks of their releases |
+| ComputeClusterStats | clusters of the scope's tracks + `Cluster::findIdsWithOutdatedTrackCount` |
+
+The ids are handed to the existing jobs as runs of consecutive ids (`toConsecutiveIdRanges`),
+so a job reads `BETWEEN first AND last` as before and never touches an id outside the scope.
+The scope is library-wide (null) when:
+- the scan is not scoped;
+- more than `maxScopedTrackCount` (20,000) tracks are involved;
+- for the artist and playlist steps, their setting changed since the last scan;
+- for the cluster step, the previous scan could not write a batch.
+
+Left for the next library-wide scan:
+- an entity outside the folders whose artwork image the scan deleted (shown without artwork);
+- a release elsewhere that would match an MBID-named image in a scanned folder;
+- a playlist elsewhere that lists a file in a scanned folder.
+
+ArtistReconciliation, UpdateLibraryFields, AssociateExternalLyrics and RemoveOrphanedDbEntries
+stay library-wide: together they took under a second on production.
+
 Authentication (`AuthTokenService::processAuthToken`, `AuthServiceBase::onUserAuthenticated`)
 takes the process-wide write lock only when there is something to write. A use-limited token
 still waits for it; the `last_used` and `last_login` stamps use the new
@@ -134,7 +167,9 @@ read only `scanning`, `lastScan` and `scanSettings`.
 
 ## Technical Acceptance Criteria
 
-- `test-scanner`: `ImmediateScanPolicy.*`, `PriorityFolderQueue.*`, `ScanStepSequence.*`,
+- `test-scanner`: `ScanScope.*` and `ScanScopeIdRanges.*` (bug report 141: the scope, the cap,
+  scoped track artwork leaves the rest alone, scoped cluster stats fix the genre a retag left),
+  `ImmediateScanPolicy.*`, `PriorityFolderQueue.*`, `ScanStepSequence.*`,
   `BatchedRemoval.*` (a folder announced during a 20,000-row removal is read within one write
   batch of being due; every row is removed once)
   (including `aFolderAnnouncedDuringALibraryScanIsReadBeforeItFinishes`: read mid-walk, the walk
@@ -149,5 +184,6 @@ read only `scanning`, `lastScan` and `scanSettings`.
 
 - [Bug report 120](../../bug-reports/120-lms-scan-trigger-read-timeouts.md)
 - [Bug report 126](../../bug-reports/126-scoped-scans-wait-for-full-scan.md)
+- [Bug report 141](../../bug-reports/141-scoped-scans-recompute-the-whole-library.md) (scoped DB-only steps)
 - [LMS scan errors design](../lms-scan-errors/technical.md) (scoped error policy, bug 121)
 - [Tagger rescan paths](../tagger/rescan-paths.md)

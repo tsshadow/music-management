@@ -11,6 +11,12 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.88.1 (2026-10-01)
+
+- **About 33,000 releases get their cover back.** Scene-style cover files (`00-...jpg`) are now
+  recognised, and proofs, back covers and disc scans are skipped. The covers appear after the
+  first full library scan following the update.
+
 ## Global Version 0.88.0 (2026-10-01)
 
 - **Fix a wrong BPM yourself**: halve it, double it or type it in the track details (needs the new

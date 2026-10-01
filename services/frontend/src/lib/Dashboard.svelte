@@ -3,7 +3,7 @@
   import { t } from './i18n/index.js';
   import { fetchGenreTints, withTints } from './genreTints.js';
   import { Pencil } from '@lucide/svelte';
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import TrackList from './TrackList.svelte';
   import ArtistList from './ArtistList.svelte';
@@ -26,7 +26,7 @@
   import { getArtistImageUrl, viewArgument } from './utils.js';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
-  import { fetchFirstTrackPage, fetchListPage, listKey, prefetchTrackList, trackListCache, trackListKey } from './trackListCache.js';
+  import { fetchFirstTrackPage, fetchListPage, firstTrackPageSize, listKey, prefetchTrackList, topUpTrackPage, trackListCache, trackListKey } from './trackListCache.js';
   import SectionState from './loading/SectionState.svelte';
   import LabelChannels from './LabelChannels.svelte';
   import SkeletonRows from './loading/SkeletonRows.svelte';
@@ -286,6 +286,12 @@
    * may already have started the request. Without a cached copy, a new place starts from skeleton
    * rows and a filter change on the same place dims the rows it replaces (issue #109).
    *
+   * Without a cached copy the first request asks only `firstTrackPageSize(pageSize)` rows (50),
+   * so the first rows appear in the time a short answer takes even when the listener's page size
+   * is 200 and LMS is slow; `topUpFirstPage` then fetches the rest of the page behind them. A
+   * background refresh of cached rows asks the whole page at once, so the rows on screen never
+   * shrink to 50 and grow back.
+   *
    * @param {boolean} [append=false] - Load the next page onto the list instead.
    */
   async function loadAllTracks(append = false) {
@@ -322,6 +328,9 @@
     if (cached?.fresh) {
       tracksRefreshing = false;
       tracksLoading = false;
+      // A cached copy of the small first page (a press prefetch, or a top-up that never finished)
+      // is filled up now.
+      topUpFirstPage(seq, params, key, options, signal);
       return;
     }
 
@@ -329,10 +338,12 @@
     const blocking = !cached;
     tracksRefreshing = Boolean(cached) || tracksStale;
     if (blocking) tracksLoading = true;
+    const count = blocking ? firstTrackPageSize(pageSize) : pageSize;
+    let applied = false;
     try {
       const page = await trackListCache.load(
         key,
-        () => fetchFirstTrackPage(params, { ...options, signal }),
+        () => fetchFirstTrackPage(params, { ...options, count, signal }),
         { force: true }
       );
       // Another load started meanwhile, or the listener has added pages to the cached rows
@@ -340,6 +351,7 @@
       if (seq !== tracksLoadSeq || tracksPagedMore) return;
       applyFirstPage(page);
       tracksStatus = 'ready';
+      applied = true;
     } catch (e) {
       if (seq !== tracksLoadSeq || e.name === 'AbortError') return;
       console.error('Failed to load tracks:', e);
@@ -359,11 +371,50 @@
         if (blocking) tracksLoading = false;
       }
     }
+    if (applied) await topUpFirstPage(seq, params, key, options, signal);
+  }
+
+  /**
+   * Fills the first page on screen up to `pageSize` when it holds fewer rows and the list has
+   * more: the small first request, or a cached copy of one. Runs behind rows that are already
+   * usable; `tracksLoading` holds "load more" and the scroll sentinel off meanwhile, so the two
+   * never fetch the same offset. The filled page replaces the cache entry, so a revisit shows the
+   * whole page at once. Versions are folded against the page's own keys (`seenKeys`), on a copy.
+   *
+   * A failure leaves the rows and `tracksHasMore` as they were, so "load more" can try again.
+   *
+   * @param {number} seq - The `tracksLoadSeq` of the load this belongs to.
+   * @param {Record<string, unknown>} params - The list's query.
+   * @param {string} key - Its cache key.
+   * @param {{pageSize: number, dedupe: boolean}} options
+   * @param {AbortSignal} signal - Aborted when the listener moves on.
+   */
+  async function topUpFirstPage(seq, params, key, options, signal) {
+    if (seq !== tracksLoadSeq || !tracksHasMore || tracks.length >= options.pageSize) return;
+    tracksLoading = true;
+    try {
+      const shown = {
+        tracks,
+        nextOffset: tracksOffset,
+        hasMore: tracksHasMore,
+        seen: options.dedupe ? [...seenKeys.entries()] : null
+      };
+      const page = await topUpTrackPage(params, shown, { pageSize: options.pageSize, signal });
+      trackListCache.set(key, page);
+      if (seq !== tracksLoadSeq || tracksPagedMore) return;
+      applyFirstPage(page);
+    } catch (e) {
+      if (seq !== tracksLoadSeq || e.name === 'AbortError') return;
+      console.error('Failed to load the rest of the first page:', e);
+    } finally {
+      if (seq === tracksLoadSeq) tracksLoading = false;
+    }
   }
 
   /** Appends the next page of the track list on screen ("Meer laden", the scroll sentinel). */
   async function loadMoreTracks() {
-    if (!tracksHasMore || tracksStatus !== 'ready') return;
+    // `tracksLoading`: a top-up or another "load more" is already fetching the next offset.
+    if (!tracksHasMore || tracksStatus !== 'ready' || tracksLoading) return;
     const seq = tracksLoadSeq;
     const signal = tracksController?.signal;
     tracksLoading = true;
@@ -939,6 +990,22 @@
     }
   }
 
+  /**
+   * Whether `view` shows the `getSpotifyTracks` list this page loads through `loadAllTracks`.
+   *
+   * @param {string} view
+   * @returns {boolean}
+   */
+  function isTrackListView(view) {
+    return (
+      view === 'songs' || view === 'sets' || view.startsWith('search:') ||
+      ['genre:', 'label:', 'podcast:', 'festival:', 'year:', 'lineup:'].some((prefix) => view.startsWith(prefix))
+    );
+  }
+
+  // A list request outliving the page would keep its connection busy for nothing.
+  onDestroy(() => tracksController?.abort());
+
   $effect(() => {
     const view = activeView;
     const auth = $authParams;
@@ -946,6 +1013,10 @@
     // A dependency on purpose: coming back online has to re-run the loader for
     // the view the listener is already standing on.
     const unreachable = $offline && !viewHasOfflineSource(view);
+
+    // Leaving the track lists stops their request: a 200-row answer during an LMS scan holds a
+    // connection for seconds that the page the listener moved to needs.
+    if (!isTrackListView(view)) untrack(() => tracksController?.abort());
 
     if (auth && !unreachable) {
       untrack(() => {

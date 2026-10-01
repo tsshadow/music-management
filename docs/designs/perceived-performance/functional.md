@@ -126,6 +126,11 @@ tapped.
     be; Beheer, settings, statistics and the other pages off the first screen load when opened,
     and still render when opened by URL, by navigation, in a browser served by LMS and inside the
     app (issue #114).
+15. A track list (songs, sets, a genre, label, podcast, festival, year, lineup, search) shows its
+    first 50 rows in the time a 50-row answer takes, whatever the listener's page size; the rest of
+    the page follows behind them without moving what is on screen, versions folded across both. A
+    revisit within 5 minutes shows the whole page at once. Leaving a list -- for another list or
+    another page -- stops its request.
 
 ## Decisions
 
@@ -149,6 +154,11 @@ tapped.
   and opening Now Playing shows the same screen at once from what the mini player knows, while
   its file is fetched -- in practice it already was, on idle or the moment a finger touched the
   mini player.
+
+- **A small first page, whatever the page size.** `getSpotifyTracks` scales with `count`: on
+  production a 200-row list took 1.3 s idle and 12-17 s while LMS scanned. The listener's page size
+  (25-500) still decides how many rows the page holds and how many "Meer laden" adds; only the
+  first request is capped at 50, and the rest is fetched behind the rows already shown.
 
 ## Open Questions / Not Yet Decided
 

@@ -147,6 +147,12 @@
     reload({ resetPage: false });
   }
 
+  /** A tempo corrected in the inspector: the list row and the selection show the new value. */
+  function bpmChanged(updated) {
+    tracks = tracks.map((row) => (row.id === updated.id ? { ...row, ...updated } : row));
+    if (selectedTrack?.id === updated.id) selectedTrack = updated;
+  }
+
   /** POST, so it does not go through apiGet, which only issues GETs. */
   async function rerunParse(track) {
     if (!confirm($t('management.library.confirmRerunParse', { title: track.title }))) return;
@@ -282,7 +288,7 @@
     </div>
 
     {#if showInspector}
-      <TrackInspector track={selectedTrack} onRerunParse={rerunParse} onRedownload={redownload} />
+      <TrackInspector track={selectedTrack} onRerunParse={rerunParse} onRedownload={redownload} onBpmChange={bpmChanged} />
     {/if}
   </div>
 </div>

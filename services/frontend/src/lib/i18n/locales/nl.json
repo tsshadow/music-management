@@ -2392,7 +2392,22 @@
       "measured": "Gemeten",
       "tag": "Uit de BPM-tag van het bestand",
       "analyzer": "Uit de oude analyse",
-      "folded": "Verdubbeld of gehalveerd naar het tempo van het genre"
+      "folded": "Verdubbeld of gehalveerd naar het tempo van het genre",
+      "manual": "Met de hand ingesteld"
+    },
+    "override": {
+      "title": "Tempo corrigeren",
+      "manualMarker": "handmatig",
+      "halve": "½×",
+      "double": "2×",
+      "halveLabel": "Tempo halveren",
+      "doubleLabel": "Tempo verdubbelen",
+      "inputLabel": "Tempo in BPM",
+      "set": "Zet",
+      "reset": "Gemeten",
+      "resetLabel": "Terug naar het gemeten tempo",
+      "failed": "Het tempo kon niet worden aangepast.",
+      "invalid": "Vul een tempo tussen 40 en 500 in."
     }
   }
 }

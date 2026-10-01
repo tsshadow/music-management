@@ -37,11 +37,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 
-from services.music_manager.bpm import bands, estimator  # noqa: E402
+from services.music_manager.bpm import bands, estimator, octave  # noqa: E402
 
 METHODS = (
     'ours',
     'ours_folded',
+    'ours_octave',
     'essentia_multifeature',
     'essentia_degara',
     'essentia_percival',
@@ -80,13 +81,22 @@ def run_method(
 ) -> tuple[float | None, float]:
     """(bpm, analysis seconds) for one method on one excerpt; `extra` collects diagnostics."""
     extra = extra if extra is not None else {}
-    if method in ('ours', 'ours_folded'):
+    if method in ('ours', 'ours_folded', 'ours_octave'):
         y = decode(path, offset, seconds, estimator.SAMPLE_RATE)
         started = time.perf_counter()
         found = estimator.estimate_bpm(y)
         took = time.perf_counter() - started
         if method == 'ours':
             return found.bpm, took
+        if method == 'ours_octave':
+            # Bug report 140's octave choice with what a TSV row knows: its genres and its path.
+            # The learned label/artist priors need the database; the refold's dry run
+            # (python -m services.music_manager.bpm.refold --dry-run) covers them.
+            evidence = octave.Evidence(genres=tuple(g for g in genre.split(';') if g), root=octave.root_of(path))
+            scores = octave.Scores(found.strength, found.half_score, found.double_score)
+            choice = octave.choose_octave(found.bpm, found.confidence, evidence, scores)
+            extra.update(raw=found.bpm, confidence=choice.confidence, evidence=choice.evidence, margin=choice.margin)
+            return choice.bpm, took
         folded = bands.fold_into_band(found.bpm, bands.band_for_genres(genre.split(';')))
         extra.update(
             raw=found.bpm,

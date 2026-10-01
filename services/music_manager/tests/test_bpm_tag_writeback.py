@@ -21,6 +21,7 @@ from mutagen.ogg import OggPage
 from mutagen.wave import WAVE
 
 from services.music_manager.bpm import tag_writeback as tw
+from services.music_manager.bpm.octave import FOLD_VERSION
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = {
@@ -313,7 +314,8 @@ def test_the_queue_statement_binds_every_value():
     sql, params = tw._due_params(config, ['/mnt/music/EPs', '/mnt/music/Top_100'], 300)
     assert sql.count('%s') == len(params)
     assert params[0] == 'acf-comb-v1'
-    assert params[1] == 0.75
+    assert params[1] == FOLD_VERSION  # only rows the current octave rule chose (bug report 140)
+    assert params[2] == 0.75
     assert '/mnt/music/Top\\_100/%' in params  # a LIKE wildcard in a folder name is literal
     assert params[-1] == 300
     count_sql, count_params = tw._due_params(config, ['/mnt/music/EPs'], None)
@@ -571,7 +573,7 @@ def test_a_write_moves_the_taggers_mtime_only_when_it_was_up_to_date(processed, 
     store.record_written(row, Stat(100.0, 10), Stat(200.0, 12), datetime(2026, 9, 30))
 
     sql = [statement for statement, _ in conn.cursor_obj.statements]
-    assert any(s.startswith('UPDATE library_track_bpm SET tag_bpm') for s in sql)
+    assert any(s.startswith('UPDATE library_track_bpm b') and 'SET b.tag_bpm' in s for s in sql)
     assert any(s.startswith('UPDATE library_track_bpm SET file_mtime') for s in sql)
     assert any(s.startswith('UPDATE library_media_files') for s in sql)
     assert any(s.startswith('UPDATE tagger_processed_files') for s in sql) is refreshed
@@ -589,3 +591,29 @@ def test_a_failed_bookkeeping_write_is_rolled_back():
     with pytest.raises(RuntimeError):
         store.record_written(_row('/a.mp3'), Stat(1.0, 1), Stat(2.0, 2), datetime(2026, 9, 30))
     assert conn.events == ['begin', 'rollback', 'close']
+
+
+def test_the_queue_prefers_a_tempo_set_by_hand_and_requeues_what_it_once_wrote():
+    """Bug report 140: the value is the manual tempo when there is one, else a measurement the
+    current octave rule chose; a file this step wrote is queued again whenever its value changes,
+    even when the new value is not confident -- the old one came from a rule that was wrong."""
+    sql = ' '.join(tw.DUE_SQL.split())
+    assert 'COALESCE(mb.bpm, b.bpm) AS bpm' in sql
+    assert 'LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = b.track_uid' in sql
+    assert "(mb.bpm IS NOT NULL OR (b.fold_version = %s AND (b.confidence >= %s OR b.tag_action = 'written')))" in sql
+    assert 'NOT (b.tag_bpm <=> COALESCE(mb.bpm, b.bpm))' in sql
+
+
+def test_an_outcome_is_stamped_with_the_value_that_was_read():
+    conn = RecordingConnection(None)
+    store = tw.BpmTagStore(connect=lambda: conn)
+    store.record(_row('/mnt/music/EPs/a.mp3', 128.0), 'matches', datetime(2026, 9, 30))
+    statement, params = conn.cursor_obj.statements[0]
+    assert 'WHERE b.track_uid = %s AND COALESCE(mb.bpm, b.bpm) = %s' in statement
+    assert params[0] == 128.0 and params[1] == 'matches' and params[-1] == 128.0
+
+
+def test_a_written_octave_error_is_rewritten_by_the_rule():
+    """The ~835 files written at 256 for a ballad now measured at 128: `decide` writes again."""
+    decision = tw.decide('256', 128.0)
+    assert (decision.write, decision.value, decision.reason) == (True, 128, 'octave')

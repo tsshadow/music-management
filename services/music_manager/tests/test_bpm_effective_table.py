@@ -183,7 +183,7 @@ class SyncTest(unittest.TestCase):
         connect.assert_not_called()
 
     def test_tuple_rows_from_an_unbuffered_cursor_are_read_by_column(self):
-        rows = list(effective_table._stream(_TupleCursor([(5, 76.0, None, None, None, None, 'Hardstyle')])))  # pylint: disable=protected-access
+        rows = list(effective_table._stream(_TupleCursor([(5, None, 76.0, None, None, None, None, 'Hardstyle')])))  # pylint: disable=protected-access
         self.assertEqual(rows[0]['track_id'], 5)
         self.assertEqual(rows[0]['genres'], 'Hardstyle')
 

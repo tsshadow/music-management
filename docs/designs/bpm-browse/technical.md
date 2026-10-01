@@ -45,9 +45,11 @@ first merge request; the browse already reads it.
 
 One function, `resolve()`, decides a track's tempo. Nothing else chooses between the sources.
 
-1. A `library_track_bpm` row with `status = 'ok'` wins, taken as stored (the worker already folded
-   it). Confidence `high` at or above `bpm_reliable_confidence` (config, default 75%), else `medium`.
-   `approximate = false`.
+0. A tempo set by hand (`library_track_bpm_manual`, bug report 140) wins: `source = 'manual'`,
+   confidence `high`, `approximate = false`. See [bpm-octave/technical.md](../bpm-octave/technical.md).
+1. A `library_track_bpm` row with `status = 'ok'` wins, taken as stored (the worker already chose its
+   octave, and its confidence already includes how sure that choice is). Confidence `high` at or
+   above `bpm_reliable_confidence` (config, default 75%), else `medium`. `approximate = false`.
 2. Else `bpm_tag`, else `tempo`, each only when 40-500 (a zero tag or a mis-parsed 1500 is noise).
    The value is folded into the band of the track's genres (`bands.fold_into_band`).
    `approximate = true`. Confidence `medium` only when the source is the tag, the analyzer's tempo
@@ -57,6 +59,12 @@ One function, `resolve()`, decides a track's tempo. Nothing else chooses between
 "Betrouwbaar" in the page is `min_confidence=medium`.
 
 ### Octave folding (`services/music_manager/bpm/bands.py`)
+
+> **Since bug report 140 this is no longer how a measurement's octave is decided**: the worker
+> weighs half, as-measured and double on learned label/artist/genre priors, the path and the comb
+> scores ([bpm-octave/technical.md](../bpm-octave/technical.md)). The bands below remain the
+> fallback prior for a genre without enough measurements of its own, and still fold the old
+> analyzer's tags and tempos in `resolve()`.
 
 `GENRE_BANDS` maps a genre name (lower-cased `rules_genres.name`) to `(low, high)` BPM, every band
 narrower than an octave so at most one octave of a tempo fits: hardstyle 135-175, raw hardstyle
@@ -249,9 +257,10 @@ done) without a separate announce path. A row is current while `method` equals `
 and the file's `file_mtime`/`file_size` match what was measured; a failure is retried after seven
 days, at most three times, or at once when the file changed. For each track the pool decodes
 `ffmpeg -ss <30% in> -t 60 -i <file> -ac 1 -ar 11025 -f f32le` (a container seek: only the excerpt
-crosses the CIFS mount) and runs the estimator. The main process folds each estimate into the band
-of the track's genres, or of its primary artist's commonest genre when it has none (154k tracks have
-no genre of their own), halves the confidence when no octave fits the band, and upserts the batch.
+crosses the CIFS mount) and runs the estimator. The main process chooses each estimate's octave on
+the track's evidence (`octave.choose_octave`; until bug report 140 it folded into the band of the
+track's genres, or of its primary artist's commonest genre -- which is what put André Hazes at 256)
+and upserts the batch with the raw estimate, both confidences and the comb scores.
 Resumable by construction: the queue is whatever has no current row, so a restart, pause or crash
 continues where it stopped.
 

@@ -11,21 +11,39 @@ docs/designs/bpm-browse/technical.md, "API". Two endpoints under /api/library/bp
 
 Both read the in-memory index (services/music_manager/bpm/index.py); the database is asked
 only for the details of the page being returned.
+
+And the manual override (bug report 140, docs/designs/bpm-octave/technical.md, "Manual override"),
+for callers with the `bpm.override` permission:
+
+- `PUT /tracks/{track_id}/manual` -- set the track's tempo by hand: `{"bpm": 128}`, or
+  `{"factor": 0.5}` / `{"factor": 2}` to halve or double the tempo it shows now. Stored in
+  `library_track_bpm_manual`, the effective BPM's first source; audited as `bpm.manual_set`.
+- `DELETE /tracks/{track_id}/manual` -- back to the measured tempo; audited as `bpm.manual_cleared`.
+
+Both answer with the track's effective BPM afterwards, and bring `library_track_effective_bpm`
+along for that track at once (the library table, the feeds and the analytics read it).
 """
 
 from __future__ import annotations
 
+import json
+import logging
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from services.common.config_store import ConfigStore as Settings
-from services.music_manager.bpm.effective import DEFAULT_RELIABLE_CONFIDENCE
-from services.music_manager.bpm.index import INDEX_SQL, BpmIndex, Entry, IndexCache
+from services.music_manager import rbac
+from services.music_manager.bpm import effective_table
+from services.music_manager.bpm.effective import DEFAULT_RELIABLE_CONFIDENCE, VALID_MAX, VALID_MIN, resolve_row
+from services.music_manager.bpm.index import INDEX_SQL, INPUTS_SQL, BpmIndex, Entry, IndexCache
 from services.music_manager.database import get_db_connection, require_connection
 from services.music_manager.library_paths import relative_path
 from services.music_manager.routers.users import verify_api_key
 
+logger = logging.getLogger('music-manager.bpm')
 router = APIRouter(tags=['bpm'])
 settings = Settings()
 
@@ -185,3 +203,123 @@ def bpm_histogram(
         'default_tolerance': default_tolerance(),
         'summary': index.summary(),
     }
+
+
+# ----------------------------------------------------------------------------- manual override
+
+#: The permission the override needs; seeded for the admin role (rbac.PERMISSIONS).
+OVERRIDE_PERMISSION = 'bpm.override'
+
+TRACK_UID_SQL = 'SELECT track_uid FROM library_tracks WHERE id = %s'
+#: One track's effective-BPM inputs (effective.resolve_row), and its measurement for the answer.
+TRACK_INPUTS_SQL = INPUTS_SQL.format(where='\n      AND t.id = %s')
+MEASURED_SQL = "SELECT bpm, raw_bpm FROM library_track_bpm WHERE track_uid = %s AND status = 'ok'"
+SET_MANUAL_SQL = """
+    INSERT INTO library_track_bpm_manual (track_uid, bpm, set_by, set_at)
+    VALUES (%s, %s, %s, %s)
+    ON DUPLICATE KEY UPDATE bpm = VALUES(bpm), set_by = VALUES(set_by), set_at = VALUES(set_at)
+"""
+CLEAR_MANUAL_SQL = 'DELETE FROM library_track_bpm_manual WHERE track_uid = %s'
+
+
+class ManualBpm(BaseModel):
+    """A tempo set by hand: `bpm` itself, or a `factor` (0.5 or 2) on the tempo shown now."""
+
+    bpm: float | None = None
+    factor: Literal[0.5, 2.0] | None = None
+
+
+def _track_uid(cursor, track_id: int) -> str:
+    """The track's track_uid; 404 when there is no such track (or it has none)."""
+    cursor.execute(TRACK_UID_SQL, (track_id,))
+    row = cursor.fetchone()
+    if not row or not row.get('track_uid'):
+        raise HTTPException(status_code=404, detail='track not found')
+    return str(row['track_uid'])
+
+
+def _bpm_answer(cursor, track_id: int, track_uid: str) -> dict:
+    """The track's effective BPM as the details show it, plus its measurement."""
+    cursor.execute(TRACK_INPUTS_SQL, (track_id,))
+    row = cursor.fetchone()
+    found = resolve_row(row, reliable_confidence()) if row else None
+    cursor.execute(MEASURED_SQL, (track_uid,))
+    measured = cursor.fetchone() or {}
+    return {
+        'track_id': track_id,
+        'bpm': found.bpm if found else None,
+        'bpm_source': found.source if found else None,
+        'bpm_confidence': found.confidence if found else None,
+        'bpm_folded': found.folded if found else None,
+        'bpm_approximate': found.approximate if found else None,
+        'measured_bpm': float(measured['bpm']) if measured.get('bpm') is not None else None,
+        'raw_bpm': float(measured['raw_bpm']) if measured.get('raw_bpm') is not None else None,
+    }
+
+
+def _after_change(track_id: int) -> None:
+    """Bring the materialised table and the browse index along for one changed track."""
+    try:
+        effective_table.sync(get_db_connection, track_ids=[track_id], reliable_confidence=reliable_confidence())
+    except Exception:  # pylint: disable=broad-except  # derived; the analyzer's next full sync repairs it
+        logger.exception('bpm: syncing the effective BPM of track %s after a manual change failed', track_id)
+    index_cache.mark_stale()
+
+
+@router.put('/tracks/{track_id}/manual')
+def set_manual_bpm(track_id: int, body: ManualBpm, auth: dict = Depends(rbac.require_permission(OVERRIDE_PERMISSION))):
+    """Set a track's tempo by hand: a value, or half / double the tempo it shows now."""
+    if (body.bpm is None) == (body.factor is None):
+        raise HTTPException(status_code=400, detail='give either bpm or factor')
+    conn = require_connection(get_db_connection())
+    try:
+        with conn.cursor() as cursor:
+            track_uid = _track_uid(cursor, track_id)
+            before = _bpm_answer(cursor, track_id, track_uid)
+            if body.factor is not None:
+                if before['bpm'] is None:
+                    raise HTTPException(status_code=409, detail='the track has no BPM to halve or double')
+                value = round(float(before['bpm']) * float(body.factor), 2)
+            else:
+                value = round(float(body.bpm), 2)  # type: ignore[arg-type]
+            if not VALID_MIN <= value <= VALID_MAX:
+                raise HTTPException(status_code=400, detail=f'a tempo must lie between {VALID_MIN:g} and {VALID_MAX:g}')
+            actor_id = (auth.get('user') or {}).get('id')
+            cursor.execute(SET_MANUAL_SQL, (track_uid, value, actor_id, datetime.now().replace(microsecond=0)))
+            details = {
+                'track_id': track_id,
+                'bpm': value,
+                'factor': body.factor,
+                'previous_bpm': before['bpm'],
+                'previous_source': before['bpm_source'],
+            }
+            rbac.record_audit_event(cursor, 'bpm.manual_set', actor_user_id=actor_id, details=json.dumps(details))
+            conn.commit()
+            after = _bpm_answer(cursor, track_id, track_uid)
+    finally:
+        conn.close()
+    _after_change(track_id)
+    return after
+
+
+@router.delete('/tracks/{track_id}/manual')
+def clear_manual_bpm(track_id: int, auth: dict = Depends(rbac.require_permission(OVERRIDE_PERMISSION))):
+    """Forget a tempo set by hand: the track shows its measured (or tagged) tempo again."""
+    conn = require_connection(get_db_connection())
+    try:
+        with conn.cursor() as cursor:
+            track_uid = _track_uid(cursor, track_id)
+            before = _bpm_answer(cursor, track_id, track_uid)
+            cursor.execute(CLEAR_MANUAL_SQL, (track_uid,))
+            if before['bpm_source'] == 'manual':
+                actor_id = (auth.get('user') or {}).get('id')
+                details = {'track_id': track_id, 'previous_bpm': before['bpm']}
+                rbac.record_audit_event(
+                    cursor, 'bpm.manual_cleared', actor_user_id=actor_id, details=json.dumps(details)
+                )
+            conn.commit()
+            after = _bpm_answer(cursor, track_id, track_uid)
+    finally:
+        conn.close()
+    _after_change(track_id)
+    return after

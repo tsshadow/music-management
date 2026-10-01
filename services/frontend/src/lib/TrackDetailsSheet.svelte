@@ -13,6 +13,7 @@
   import { fetchTrackDetails } from './trackDetails.js';
   import { platform as defaultPlatform } from './platform/index.js';
   import Skeleton from './loading/Skeleton.svelte';
+  import BpmOverride from './BpmOverride.svelte';
 
   /**
    * Everything we know about one track, as a bottom sheet -- the web
@@ -159,6 +160,11 @@
   });
   const rows = $derived(tagRows(mumaDetails, track));
 
+  /** A tempo corrected in the sheet: the BPM row shows the answer without asking MuMa again. */
+  function bpmChanged(fields) {
+    mumaDetails = { ...mumaDetails, ...fields };
+  }
+
   function navigate(view) {
     onnavigate?.(view);
   }
@@ -298,9 +304,22 @@
                 {:else}
                   {row.value}
                 {/if}
+                {#if row.manual}
+                  <span
+                    class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-muma-spotify-text"
+                    title={$t('bpm.source.manual')}
+                    data-testid="bpm-manual-marker"
+                  >{$t('bpm.override.manualMarker')}</span>
+                {/if}
               </dd>
             {/each}
           </dl>
+          <BpmOverride
+            trackId={mumaDetails?.track_id ?? null}
+            bpm={mumaDetails?.bpm ?? null}
+            source={mumaDetails?.bpm_source ?? null}
+            onchange={bpmChanged}
+          />
         {/if}
       </div>
     {/if}

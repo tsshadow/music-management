@@ -17,14 +17,24 @@ One round:
    so the CIFS mount only serves the excerpt), at 11025 Hz mono, and estimate it
    (`estimator.estimate_bpm`) in a pool of `bpm_analysis_workers` processes at the lowest CPU
    and I/O priority.
-3. Fold each estimate into the band of the track's genres -- or, without any, of its primary
-   artist's commonest genre -- and store it in `library_track_bpm`.
+3. Choose each estimate's octave (T/2, T or 2T) on the track's evidence -- its label's, its
+   artist's own and its genres' learned tempo priors, a mainstream path, the comb scores
+   (`octave.choose_octave`, bug report 140) -- and store it in `library_track_bpm` with the
+   estimator's raw estimate, confidence and comb scores.
 4. Bring those tracks' rows in `library_track_effective_bpm` up to date (`effective_table.sync`),
    so the library table and the analytics see a new measurement within the round.
 
 Besides the rounds, every `EFFECTIVE_SYNC_SECONDS` -- also while the analysis is paused or off --
 the whole `library_track_effective_bpm` table is synced, which picks up changed genres, a changed
-`bpm_reliable_confidence` and deleted tracks (issue #141).
+`bpm_reliable_confidence` and deleted tracks (issue #141). At start and then every
+`PRIORS_SECONDS` the tempo priors are recomputed (`priors.recompute`, when older than a day) and
+every stored measurement's octave is chosen again from the database alone (`refold.refold`), so a
+changed rule or fresher priors reach the whole table without re-measuring it.
+
+The queue has three tiers, filled in order: tracks without a current measurement (new, changed,
+a failure due for a retry); then measurements from before bug report 140 that lack comb scores
+and whose octave is in doubt (above 200, below 70, folded, or an ambiguous choice); then every
+other measurement without comb scores. Only the first tier is ever urgent.
 
 Resumable by construction: the queue is whatever has no current row, so a restart, a pause or a
 crash simply continues. Settings are re-read from music-manager's config file every round
@@ -52,8 +62,8 @@ from typing import Any
 
 import numpy as np
 
-from services.music_manager.bpm import effective_table, estimator
-from services.music_manager.bpm.bands import band_for_genres, fold_into_band
+from services.music_manager.bpm import effective_table, estimator, octave, refold
+from services.music_manager.bpm import priors as priors_module
 
 logger = logging.getLogger('music-manager.bpm')
 
@@ -65,6 +75,8 @@ OFF_SECONDS = 60.0
 SUMMARY_SECONDS = 600.0
 #: How often the whole effective-BPM table is synced; a failed sync is retried after IDLE_SECONDS.
 EFFECTIVE_SYNC_SECONDS = 1800.0
+#: How often the tempo priors are recomputed and every measurement refolded.
+PRIORS_SECONDS = 86400.0
 RETRY_FAILED_AFTER = timedelta(days=7)
 MAX_ATTEMPTS = 3
 DECODE_TIMEOUT_SECONDS = 120
@@ -148,6 +160,7 @@ def read_settings(config_path: Path = CONFIG_PATH, env: dict | None = None) -> d
 #: Tracks without a current measurement, newest first. `{forms}` is one `%s` per skipped form
 #: (never empty: a blank sentinel is always appended). Parameters: the forms, the maximum
 #: duration, the current method, the failure retry cutoff, the attempt ceiling, the limit.
+#: `{tier}` is empty for the first tier, or one of the TIER_* conditions below (fixed SQL).
 DUE_SQL = """
     SELECT t.id AS track_id, t.track_uid, t.duration_secs,
            mf.file_path, mf.file_mtime, mf.file_size
@@ -166,41 +179,30 @@ DUE_SQL = """
         OR (b.status = 'failed' AND (NOT (b.file_mtime <=> mf.file_mtime)
                                      OR NOT (b.file_size <=> mf.file_size)
                                      OR (b.analyzed_at < %s AND b.attempts < %s)))
+        {tier}
       )
     ORDER BY t.id DESC
     LIMIT %s
 """
+
+#: Tier 2: a measurement from before the comb scores were stored whose octave is in doubt.
+TIER_DOUBT = """OR (b.status = 'ok' AND b.strength IS NULL
+            AND (b.bpm > 200 OR b.bpm < 70 OR b.octave_corrected = 1 OR b.fold_margin < {margin}))"""
+#: Tier 3: any measurement from before the comb scores were stored.
+TIER_UNSCORED = "OR (b.status = 'ok' AND b.strength IS NULL)"
+TIERS = ('', TIER_DOUBT.format(margin=octave.AMBIGUOUS_MARGIN), TIER_UNSCORED)
 
 #: The same queue, counted, for the progress summary.
 REMAINING_SQL = (
     'SELECT COUNT(*) AS remaining FROM (' + DUE_SQL.replace('ORDER BY t.id DESC\n    LIMIT %s', '') + ') AS due'
 )
 
-#: The genres of a set of tracks. `{placeholders}`: one `%s` per track id.
-GENRES_SQL = """
-    SELECT tg.track_id, g.name
-    FROM library_track_genres tg
-    JOIN rules_genres g ON g.id = tg.genre_id
-    WHERE tg.track_id IN ({placeholders})
-"""
-
-#: For tracks without genres of their own: every genre on the other tracks of their primary
-#: artist, with how often, so the commonest can stand in.
-ARTIST_GENRES_SQL = """
-    SELECT t.id AS track_id, g.name, COUNT(*) AS uses
-    FROM library_tracks t
-    JOIN library_tracks o ON o.primary_artist_id = t.primary_artist_id AND o.id <> t.id
-    JOIN library_track_genres tg ON tg.track_id = o.id
-    JOIN rules_genres g ON g.id = tg.genre_id
-    WHERE t.id IN ({placeholders}) AND t.primary_artist_id IS NOT NULL
-    GROUP BY t.id, g.name
-"""
-
 UPSERT_SQL = """
     INSERT INTO library_track_bpm
         (track_uid, status, bpm, raw_bpm, confidence, method, octave_corrected,
-         file_mtime, file_size, attempts, error, analyzed_at)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s)
+         file_mtime, file_size, attempts, error, analyzed_at,
+         raw_confidence, strength, half_score, double_score, fold_evidence, fold_margin, fold_version)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
         attempts = IF(VALUES(status) = 'failed' AND status = 'failed', attempts + 1, 1),
         status = VALUES(status),
@@ -212,17 +214,19 @@ UPSERT_SQL = """
         file_mtime = VALUES(file_mtime),
         file_size = VALUES(file_size),
         error = VALUES(error),
-        analyzed_at = VALUES(analyzed_at)
+        analyzed_at = VALUES(analyzed_at),
+        raw_confidence = VALUES(raw_confidence),
+        strength = VALUES(strength),
+        half_score = VALUES(half_score),
+        double_score = VALUES(double_score),
+        fold_evidence = VALUES(fold_evidence),
+        fold_margin = VALUES(fold_margin),
+        fold_version = VALUES(fold_version)
 """
 
 
-def _in_list_sql(template: str, count: int, name: str = 'placeholders') -> str:
-    """`template` with `{name}` filled by `count` `%s` markers; the values stay bound parameters."""
-    return template.format(**{name: ', '.join(['%s'] * count)})
-
-
-def _due_params(config: dict, now: datetime, limit: int | None) -> tuple[str, list]:
-    """The queue statement and its parameters; `limit=None` gives the counting variant."""
+def _due_params(config: dict, now: datetime, limit: int | None, tier: int = 0) -> tuple[str, list]:
+    """The queue statement of one tier and its parameters; `limit=None` counts the whole queue."""
     forms = [*config['skip_forms'], '']
     params: list = [
         *forms,
@@ -232,8 +236,9 @@ def _due_params(config: dict, now: datetime, limit: int | None) -> tuple[str, li
         MAX_ATTEMPTS,
     ]
     if limit is None:
-        return _in_list_sql(REMAINING_SQL, len(forms), 'forms'), params
-    return _in_list_sql(DUE_SQL, len(forms), 'forms'), [*params, limit]
+        return REMAINING_SQL.format(forms=', '.join(['%s'] * len(forms)), tier=TIER_UNSCORED), params
+    sql = DUE_SQL.format(forms=', '.join(['%s'] * len(forms)), tier=TIERS[tier])
+    return sql, [*params, limit]
 
 
 class BpmStore:
@@ -258,9 +263,18 @@ class BpmStore:
             conn.close()
 
     def due_tracks(self, config: dict, now: datetime, limit: int = BATCH_SIZE) -> list[dict]:
-        """Up to `limit` tracks to measure, newest first."""
-        sql, params = _due_params(config, now, limit)
-        return self._rows(sql, params)
+        """Up to `limit` tracks to measure: the first tier newest first, then the next tiers."""
+        found: list[dict] = []
+        seen: set[int] = set()
+        for tier in range(len(TIERS)):
+            sql, params = _due_params(config, now, limit, tier)
+            for row in self._rows(sql, params):
+                if int(row['track_id']) not in seen:
+                    seen.add(int(row['track_id']))
+                    found.append(row)
+            if len(found) >= limit:
+                break
+        return found[:limit]
 
     def remaining(self, config: dict, now: datetime) -> int:
         """How many tracks the queue holds right now."""
@@ -268,23 +282,25 @@ class BpmStore:
         rows = self._rows(sql, params)
         return int(rows[0]['remaining']) if rows else 0
 
-    def genres_for(self, track_ids: list[int]) -> dict[int, list[str]]:
-        """Each track's genres, or its primary artist's commonest genre when it has none."""
-        if not track_ids:
-            return {}
-        genres: dict[int, list[str]] = {}
-        for row in self._rows(_in_list_sql(GENRES_SQL, len(track_ids)), track_ids):
-            genres.setdefault(int(row['track_id']), []).append(row['name'])
-        missing = [track_id for track_id in track_ids if track_id not in genres]
-        if missing:
-            best: dict[int, tuple[int, str]] = {}
-            for row in self._rows(_in_list_sql(ARTIST_GENRES_SQL, len(missing)), missing):
-                track_id, uses = int(row['track_id']), int(row['uses'])
-                if track_id not in best or uses > best[track_id][0]:
-                    best[track_id] = (uses, row['name'])
-            for track_id, (_, name) in best.items():
-                genres[track_id] = [name]
-        return genres
+    def evidence_for(self, track_ids: list[int]) -> dict[int, dict]:
+        """Each track's genres, labels and primary artist (refold.EVIDENCE_SQL), by track id."""
+        return refold.evidence_for(self._connect_fn, track_ids)
+
+    def load_priors(self) -> priors_module.Priors:
+        """The stored tempo priors."""
+        return priors_module.load(self._connect_fn)
+
+    def priors_updated_at(self) -> datetime | None:
+        """When the priors were last recomputed."""
+        return priors_module.last_update(self._connect_fn)
+
+    def recompute_priors(self, now: datetime) -> priors_module.Priors:
+        """Recompute, store and return the tempo priors."""
+        return priors_module.recompute(self._connect_fn, now)
+
+    def refold(self, priors: priors_module.Priors, reliable_confidence: float) -> refold.RefoldResult:
+        """Choose every stored measurement's octave again and write what changed."""
+        return refold.refold(self._connect_fn, priors, reliable=reliable_confidence)
 
     def sync_effective(self, track_ids: list[int] | None, reliable_confidence: float) -> effective_table.SyncResult:
         """Sync `library_track_effective_bpm`, for every track (None) or the given ones."""
@@ -347,7 +363,15 @@ def analyze(job: dict, excerpt_seconds: float) -> dict:
     try:
         offset, seconds = excerpt_window(job.get('duration_secs'), excerpt_seconds)
         found = estimator.estimate_bpm(decode_excerpt(job['file_path'], offset, seconds))
-        return {'track_id': job['track_id'], 'ok': True, 'raw': found.bpm, 'confidence': found.confidence}
+        return {
+            'track_id': job['track_id'],
+            'ok': True,
+            'raw': found.bpm,
+            'confidence': found.confidence,
+            'strength': found.strength,
+            'half_score': found.half_score,
+            'double_score': found.double_score,
+        }
     except Exception as exc:  # pylint: disable=broad-except  # one bad file must not end the batch
         return {'track_id': job['track_id'], 'ok': False, 'error': f'{type(exc).__name__}: {exc}'[:255]}
 
@@ -360,26 +384,35 @@ def lower_priority() -> None:
         subprocess.run(['ionice', '-c', '3', '-p', str(os.getpid())], check=False, capture_output=True, timeout=5)
 
 
-def to_row(job: dict, result: dict, genres: list[str], now: datetime) -> tuple:
-    """The UPSERT_SQL row for one analysed track, folded into its genre's band."""
+def to_row(job: dict, result: dict, evidence: octave.Evidence | None, now: datetime) -> tuple:
+    """The UPSERT_SQL row for one analysed track, its octave chosen on `evidence`."""
     common = (job['file_mtime'], job['file_size'])
     if not result.get('ok'):
-        return (job['track_uid'], 'failed', None, None, None, estimator.METHOD, 0, *common, result.get('error'), now)
-    folded = fold_into_band(result['raw'], band_for_genres(genres))
-    confidence = float(result['confidence'])
-    if not folded.in_band:
-        confidence *= 0.5
+        return (
+            job['track_uid'], 'failed', None, None, None, estimator.METHOD, 0, *common, result.get('error'), now,
+            None, None, None, None, None, None, None,
+        )  # fmt: skip
+    scores = octave.Scores(result.get('strength'), result.get('half_score'), result.get('double_score'))
+    raw_confidence = float(result['confidence'])
+    choice = octave.choose_octave(float(result['raw']), raw_confidence, evidence, scores)
     return (
         job['track_uid'],
         'ok',
-        folded.bpm,
+        choice.bpm,
         result['raw'],
-        round(confidence, 3),
+        choice.confidence,
         estimator.METHOD,
-        int(folded.octave_corrected),
+        int(choice.octave_corrected),
         *common,
         None,
         now,
+        round(raw_confidence, 3),
+        scores.strength,
+        scores.half,
+        scores.double,
+        choice.evidence,
+        round(choice.margin, 3),
+        octave.FOLD_VERSION,
     )
 
 
@@ -468,6 +501,9 @@ class Worker:
         self._pool: Executor | None = None
         self._pool_size = 0
         self._next_full_sync = 0.0
+        #: The tempo priors the octave choice uses; loaded on the first tick (`_maintain_priors`).
+        self.priors = priors_module.Priors()
+        self._next_priors = 0.0
 
     def _executor(self, workers: int) -> Executor:
         """The pool, recreated when the configured size changed."""
@@ -489,13 +525,13 @@ class Worker:
         jobs = self.store.due_tracks(config, self.now())
         if not jobs:
             return 0
-        genres = self.store.genres_for([job['track_id'] for job in jobs])
+        found = self.store.evidence_for([job['track_id'] for job in jobs])
         excerpt = float(config['bpm_analysis_excerpt_seconds'])
         pool = self._executor(config['bpm_analysis_workers'])
         results = list(pool.map(self.analyze_fn, jobs, [excerpt] * len(jobs)))
         stamp = self.now().replace(microsecond=0)
         rows = [
-            to_row(job, result, genres.get(job['track_id'], []), stamp)
+            to_row(job, result, self._evidence(job, found.get(int(job['track_id']))), stamp)
             for job, result in zip(jobs, results, strict=True)
         ]
         self.store.save(rows)
@@ -505,6 +541,46 @@ class Worker:
         self.progress.failed += failed
         self.progress.window.append((self.clock(), len(jobs)))
         return len(jobs)
+
+    def _evidence(self, job: dict, row: dict | None) -> octave.Evidence:
+        """The octave evidence of one job: its EVIDENCE_SQL row and path, read with the priors."""
+        return refold.evidence_from(row or {}, self.priors, file_path=job.get('file_path'))
+
+    def _maintain_priors(self, config: dict) -> None:
+        """At start and every PRIORS_SECONDS: recompute the priors when a day old, then refold all.
+
+        The priors are recomputed only when the stored ones are older than PRIORS_SECONDS, so a
+        restart does not redo a day's work; the refold always runs (it writes only what changed,
+        and a deploy with a new rule needs it). A failure is logged and retried after IDLE_SECONDS.
+        """
+        now = self.clock()
+        if now < self._next_priors:
+            return
+        try:
+            updated = self.store.priors_updated_at()
+            age = None if updated is None else (self.now() - updated).total_seconds()
+            if age is None or age >= PRIORS_SECONDS:
+                self.priors = self.store.recompute_priors(self.now())
+                age = 0.0
+            else:
+                self.priors = self.store.load_priors()
+            reliable = config.get('bpm_reliable_confidence', 75) / 100.0
+            result = self.store.refold(self.priors, reliable)
+        except Exception:  # pylint: disable=broad-except  # the analysis carries on with the old priors
+            logger.exception('bpm: recomputing the priors or refolding failed')
+            self._next_priors = now + IDLE_SECONDS
+            return
+        logger.info(
+            'bpm: refolded %d measurements (%d changed, %d with a different tempo); priors %s',
+            result.rows,
+            result.written,
+            result.bpm_changed,
+            self.priors.coverage(),
+        )
+        self._next_priors = now + max(IDLE_SECONDS, PRIORS_SECONDS - age)
+        if result.written:
+            # The refold changed stored tempos: bring the effective table along now.
+            self._next_full_sync = 0.0
 
     def _sync_effective(self, config: dict, track_ids: list[int] | None = None) -> None:
         """Sync the effective-BPM table: in full when due (`track_ids` None), else for those tracks.
@@ -555,6 +631,7 @@ class Worker:
     def tick(self) -> float:
         """One step of the loop; returns how long to wait before the next."""
         config = self.settings()
+        self._maintain_priors(config)
         self._sync_effective(config)
         if not config['bpm_analysis_enabled'] or config['bpm_analysis_paused']:
             self.progress.state = 'disabled' if not config['bpm_analysis_enabled'] else 'paused'

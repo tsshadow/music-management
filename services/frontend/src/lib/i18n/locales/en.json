@@ -2392,7 +2392,22 @@
       "measured": "Measured",
       "tag": "From the file's BPM tag",
       "analyzer": "From the old analysis",
-      "folded": "Doubled or halved into the genre's tempo"
+      "folded": "Doubled or halved into the genre's tempo",
+      "manual": "Set by hand"
+    },
+    "override": {
+      "title": "Correct the tempo",
+      "manualMarker": "manual",
+      "halve": "½×",
+      "double": "2×",
+      "halveLabel": "Halve the tempo",
+      "doubleLabel": "Double the tempo",
+      "inputLabel": "Tempo in BPM",
+      "set": "Set",
+      "reset": "Measured",
+      "resetLabel": "Back to the measured tempo",
+      "failed": "Could not change the tempo.",
+      "invalid": "Enter a tempo between 40 and 500."
     }
   }
 }

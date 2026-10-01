@@ -188,6 +188,33 @@ describe("AdvancedLibraryTab", () => {
     await waitFor(() => expect(screen.getByText("Raise Your Fist")).toBeTruthy());
   });
 
+  it("a tempo corrected in the inspector also changes the list row", async () => {
+    const { userPermissions } = await import("../../src/lib/store.js");
+    userPermissions.set(["bpm.override"]);
+    const api = mockApi();
+    globalThis.fetch = vi.fn(async (url, options = {}) =>
+      options.method === "PUT"
+        ? {
+            ok: true,
+            status: 200,
+            json: async () => ({ track_id: 1, bpm: 87, bpm_source: "manual" }),
+          }
+        : api(url, options),
+    );
+    try {
+      await renderLoaded();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      expect(screen.getAllByText("174")).toHaveLength(2);
+
+      await fireEvent.click(screen.getByLabelText("Tempo halveren"));
+
+      await waitFor(() => expect(screen.getAllByText("87")).toHaveLength(2));
+      expect(screen.getByTestId("bpm-manual-marker")).toBeTruthy();
+    } finally {
+      userPermissions.set([]);
+    }
+  });
+
   it("a re-analysis asks for confirmation first", async () => {
     window.confirm.mockReturnValue(false);
     await renderLoaded();

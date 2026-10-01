@@ -15,6 +15,7 @@ add_library(lmsscanner STATIC
 	impl/scanners/ImageFileScanner.cpp
 	impl/scanners/Utils.cpp
 	impl/steps/JobQueue.cpp
+	impl/steps/ReleaseArtworkRules.cpp
 	impl/steps/ScanErrorLogger.cpp
 	impl/steps/ScanStepArtistReconciliation.cpp
 	impl/steps/ScanStepAssociateArtistImages.cpp

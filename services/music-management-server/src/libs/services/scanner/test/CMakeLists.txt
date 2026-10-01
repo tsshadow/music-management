@@ -3,6 +3,7 @@ include(GoogleTest)
 add_executable(test-scanner
 	ArtistInfo.cpp
 	AssociateArtistImages.cpp
+	AssociateReleaseImages.cpp
 	BatchedRemoval.cpp
 	AudioFileUtils.cpp
 	ImmediateScanPolicy.cpp

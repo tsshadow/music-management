@@ -47,6 +47,9 @@ namespace lms::scanner
         bool skipSingleReleasePlayLists{};
         bool allowArtistMBIDFallback{ true };
         bool artistImageFallbackToRelease{};
+        // Fingerprint of the release artwork rules (steps/ReleaseArtworkRules.hpp), from lms.conf
+        // for the current settings and from the database for the last scan's (bug report 144).
+        std::string releaseArtworkRules;
 
         std::vector<MediaLibraryInfo> mediaLibraries;
 

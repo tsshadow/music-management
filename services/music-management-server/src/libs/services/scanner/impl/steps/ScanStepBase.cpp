@@ -25,6 +25,7 @@
 #include "ScanContext.hpp"
 #include "ScanErrorPolicy.hpp"
 #include "ScanScope.hpp"
+#include "ScannerSettings.hpp"
 
 namespace lms::scanner
 {
@@ -42,6 +43,14 @@ namespace lms::scanner
     }
 
     ScanStepBase::~ScanStepBase() = default;
+
+    bool ScanStepBase::releaseArtworkRulesChanged(const ScanContext& context) const
+    {
+        if (context.scanOptions.isScoped())
+            return false;
+
+        return _lastScanSettings && _lastScanSettings->releaseArtworkRules != _settings.releaseArtworkRules;
+    }
 
     const ScanScope* ScanStepBase::getScanScope(ScanContext& context)
     {

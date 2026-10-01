@@ -84,6 +84,9 @@ namespace lms::db
         bool getSkipSingleReleasePlayLists() const { return _skipSingleReleasePlayLists; }
         bool getAllowMBIDArtistMerge() const { return _allowMBIDArtistMerge; }
         bool getArtistImageFallbackToReleaseField() const { return _artistImageFallbackToReleaseField; }
+        // Fingerprint of the release artwork rules the last scan applied (bug report 144). Only
+        // the `last_scan` row carries one; the current rules come from lms.conf.
+        std::string_view getReleaseArtworkRules() const { return _releaseArtworkRules; }
 
         // Setters
         void setUpdateStartTime(Wt::WTime t) { _startTime = t; }
@@ -98,6 +101,7 @@ namespace lms::db
         void setSkipSingleReleasePlayLists(bool value);
         void setAllowMBIDArtistMerge(bool value);
         void setArtistImageFallbackToReleaseField(bool value);
+        void setReleaseArtworkRules(std::string_view value) { _releaseArtworkRules = value; }
 
         template<class Action>
         void persist(Action& a)
@@ -117,6 +121,7 @@ namespace lms::db
             Wt::Dbo::field(a, _skipSingleReleasePlayLists, "skip_single_release_playlists");
             Wt::Dbo::field(a, _allowMBIDArtistMerge, "allow_mbid_artist_merge");
             Wt::Dbo::field(a, _artistImageFallbackToReleaseField, "artist_image_fallback_to_release");
+            Wt::Dbo::field(a, _releaseArtworkRules, "release_artwork_rules");
         }
 
     private:
@@ -142,5 +147,6 @@ namespace lms::db
         bool _skipSingleReleasePlayLists{};
         bool _allowMBIDArtistMerge{};
         bool _artistImageFallbackToReleaseField{};
+        std::string _releaseArtworkRules;
     };
 } // namespace lms::db

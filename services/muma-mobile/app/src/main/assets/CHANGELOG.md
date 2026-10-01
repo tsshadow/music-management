@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.15.2] - 2026-10-01
+
+### Changed
+- **Correct a track's BPM.** The app bundles the web UI of server 0.88.0: with the `bpm.override`
+  permission (admins by default) the track details offer ½×, 2× and a tempo field.
+
 ## [7.15.1] - 2026-10-01
 
 ### Changed

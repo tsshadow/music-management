@@ -244,3 +244,16 @@ class ClassifyBandTest(unittest.TestCase):
 
     def test_strictly_between_is_mid(self):
         self.assertEqual(classify_band(55, 40, 70), 'mid')
+
+
+def test_track_hardness_accepts_database_decimals():
+    """A DECIMAL BPM or mean from MariaDB arrives as Decimal and must not raise (500 on daily-mix-soft)."""
+    from decimal import Decimal
+
+    from services.music_manager.feeds.hardness import tempo_hardness, track_hardness
+
+    value, source = track_hardness(None, None, None, None, Decimal('150.25'))
+    assert source == 'tempo'
+    assert value == tempo_hardness(150.25)
+    assert track_hardness(Decimal('120'), Decimal('2'), None, None, None) == (60.0, 'genre')
+    assert track_hardness(None, None, Decimal('42.5'), None, None) == (42.5, 'label')

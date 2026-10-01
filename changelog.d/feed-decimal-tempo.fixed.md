@@ -1,0 +1,1 @@
+- The "Zachter" daily mix (and any mix holding a track whose hardness comes from its measured BPM) no longer fails with a server error (bug report 143).

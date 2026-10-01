@@ -256,6 +256,48 @@ namespace lms::db::tests
         }
     }
 
+    TEST_F(DatabaseFixture, Cluster_findIdsWithOutdatedTrackCount)
+    {
+        ScopedTrack track1{ session };
+        ScopedTrack track2{ session };
+        ScopedClusterType clusterType{ session, "MyClusterType" };
+        ScopedCluster genreA{ session, clusterType.lockAndGet(), "A" };
+        ScopedCluster genreB{ session, clusterType.lockAndGet(), "B" };
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            // No tracks, a zero count: nothing to recompute.
+            EXPECT_TRUE(Cluster::findIdsWithOutdatedTrackCount(session).empty());
+        }
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            genreA.get().modify()->addTrack(track1.get());
+            genreA.get().modify()->addTrack(track2.get());
+            genreA.get().modify()->setTrackCount(2);
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_TRUE(Cluster::findIdsWithOutdatedTrackCount(session).empty());
+        }
+
+        // A retag moves track2 from A to B: A still says 2 and B says 0. A scoped scan sees
+        // track2, so B, but nothing links it to A any more -- this is how A is found.
+        {
+            auto transaction{ session.createWriteTransaction() };
+            track2.get().modify()->setClusters({ genreB.get() });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+            const std::vector<ClusterId> outdated{ Cluster::findIdsWithOutdatedTrackCount(session) };
+            ASSERT_EQ(outdated.size(), 2);
+            EXPECT_EQ(outdated[0], genreA.getId());
+            EXPECT_EQ(outdated[1], genreB.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Cluster_singleTrackWithSeveralClusters)
     {
         ScopedTrack track{ session };

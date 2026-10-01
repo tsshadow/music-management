@@ -198,6 +198,18 @@ namespace lms::db
         return utils::fetchQuerySingleResult(session.getDboSession()->query<int>("SELECT EXISTS (SELECT 1 FROM cluster c WHERE c.track_count = 0 AND EXISTS (SELECT 1 FROM track_cluster t_c WHERE t_c.cluster_id = c.id))")) != 0;
     }
 
+    std::vector<ClusterId> Cluster::findIdsWithOutdatedTrackCount(Session& session)
+    {
+        session.checkReadTransaction();
+
+        auto query{ session.getDboSession()->query<ClusterId>("SELECT c.id FROM cluster c"
+                                                              " LEFT JOIN (SELECT t_c.cluster_id AS cluster_id, COUNT(*) AS track_count FROM track_cluster t_c GROUP BY t_c.cluster_id) cnt ON cnt.cluster_id = c.id")
+                        .where("c.track_count <> COALESCE(cnt.track_count, 0)")
+                        .orderBy("c.id") };
+
+        return utils::fetchQueryResults(query);
+    }
+
     void Cluster::addTrack(ObjectPtr<Track> track)
     {
         _tracks.insert(getDboPtr(track));

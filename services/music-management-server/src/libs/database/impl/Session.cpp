@@ -367,6 +367,12 @@ namespace lms::db
             tryExecute("CREATE INDEX IF NOT EXISTS track_name_file_size_idx ON track(name, file_size)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_name_nocase_idx ON track(name COLLATE NOCASE)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_original_date_idx ON track(original_date)");
+            // getSpotifyTracks sort=recent/releasedate orders by exactly this expression
+            // (TrackSortMethod::OriginalDateDescAndRelease). Without it every page was a full scan
+            // of track plus a temp B-tree sort -- 0.65 s per query on a copy of production's
+            // 343,000 tracks, run twice per deduplicated page; with it SQLite walks the index and
+            // stops after the page (2 ms). Created on every start, so no migration is needed.
+            tryExecute("CREATE INDEX IF NOT EXISTS track_filing_date_release_idx ON track(COALESCE(original_date, date) DESC, release_id)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_recording_mbid_idx ON track(recording_mbid)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_release_date_idx ON track(release_id, date)");
             tryExecute("CREATE INDEX IF NOT EXISTS track_release_file_last_write_idx ON track(release_id, file_last_write)");

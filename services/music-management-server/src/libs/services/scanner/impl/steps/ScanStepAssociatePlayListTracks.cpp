@@ -37,6 +37,7 @@
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
 #include "ScanErrorPolicy.hpp"
+#include "ScanScope.hpp"
 #include "ScannerSettings.hpp"
 
 namespace lms::scanner
@@ -281,6 +282,15 @@ namespace lms::scanner
     {
         auto& session{ _db.getTLSSession() };
 
+        // A changed single-release setting concerns every playlist, whatever the scan read.
+        const bool singleReleaseSettingChanged{ getLastScanSettings() && getLastScanSettings()->skipSingleReleasePlayLists != _settings.skipSingleReleasePlayLists };
+        const ScanScope* scope{ singleReleaseSettingChanged ? nullptr : getScanScope(context) };
+
+        if (scope)
+        {
+            context.currentStepStats.totalElems = scope->playListFiles.size();
+        }
+        else
         {
             auto transaction{ session.createReadTransaction() };
             context.currentStepStats.totalElems = db::PlayListFile::getCount(session);
@@ -310,10 +320,19 @@ namespace lms::scanner
         {
             JobQueue queue{ getJobScheduler(), 20, processJobsDone, 1, 0.85F };
 
-            db::PlayListFileId lastPlayListFileId;
-            db::IdRange<db::PlayListFileId> playListFileIdRange;
-            while (fetchNextPlayListFileIdRange(session, lastPlayListFileId, playListFileIdRange))
-                queue.push(std::make_unique<ComputePlayListFileAssociationsJob>(_db, _settings, context.scanOptions, playListFileIdRange));
+            if (scope)
+            {
+                // A scoped scan: only the playlist files under its folders (bug report 141).
+                for (const db::IdRange<db::PlayListFileId>& playListFileIdRange : toConsecutiveIdRanges<db::PlayListFileId>(scope->playListFiles))
+                    queue.push(std::make_unique<ComputePlayListFileAssociationsJob>(_db, _settings, context.scanOptions, playListFileIdRange));
+            }
+            else
+            {
+                db::PlayListFileId lastPlayListFileId;
+                db::IdRange<db::PlayListFileId> playListFileIdRange;
+                while (fetchNextPlayListFileIdRange(session, lastPlayListFileId, playListFileIdRange))
+                    queue.push(std::make_unique<ComputePlayListFileAssociationsJob>(_db, _settings, context.scanOptions, playListFileIdRange));
+            }
         }
 
         // process all remaining associations

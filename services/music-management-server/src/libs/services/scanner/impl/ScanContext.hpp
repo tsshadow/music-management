@@ -19,8 +19,12 @@
 
 #pragma once
 
+#include <optional>
+
 #include "services/scanner/ScannerOptions.hpp"
 #include "services/scanner/ScannerStats.hpp"
+
+#include "steps/ScanScope.hpp"
 
 namespace lms::scanner
 {
@@ -29,5 +33,11 @@ namespace lms::scanner
         ScanOptions scanOptions;
         ScanStats stats;
         ScanStepStats currentStepStats;
+
+        // What the association steps of a scoped scan look at, computed once by the first step
+        // that asks (ScanStepBase::getScanScope). Empty for a library-wide scan, and for a scoped
+        // one too large to be worth it.
+        std::optional<ScanScope> scope;
+        bool scopeResolved{};
     };
 } // namespace lms::scanner

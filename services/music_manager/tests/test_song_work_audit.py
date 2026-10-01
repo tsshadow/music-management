@@ -46,8 +46,18 @@ def test_a_radio_and_extended_pair_is_not_flagged():
     assert audit.assess_work(RADIO_AND_EXTENDED) is None
 
 
-def test_a_popular_song_with_few_lengths_is_not_flagged():
-    assert audit.assess_work(POPULAR) is None
+def test_a_popular_song_with_few_lengths_is_only_flagged_for_its_size():
+    # More than MANY_MEMBERS members is always worth a look (bug report 142), never a split.
+    verdict = audit.assess_work(POPULAR)
+    assert verdict['verdict'] == 'suspicious'
+    assert verdict['reasons'] == ['14 members']
+
+
+def test_ten_members_is_not_flagged_eleven_is():
+    members = [{'duration_secs': 200, 'release_date': None} for _ in range(10)]
+    assert audit.assess_work(members) is None
+    members.append({'duration_secs': 200, 'release_date': None})
+    assert audit.assess_work(members)['reasons'] == ['11 members']
 
 
 def test_a_wide_spread_below_the_split_is_only_suspicious():
@@ -61,7 +71,7 @@ def test_many_versions_over_many_years_are_suspicious():
     members = [{'duration_secs': 200 + (index % 2), 'release_date': f'{2010 + index}-01-01'} for index in range(13)]
     verdict = audit.assess_work(members)
     assert verdict['verdict'] == 'suspicious'
-    assert verdict['reasons'] == ['13 versions from 13 different years']
+    assert verdict['reasons'] == ['13 versions from 13 different years', '13 members']
 
 
 def test_exactly_twelve_lengths_is_not_enough_to_split():
@@ -71,6 +81,9 @@ def test_exactly_twelve_lengths_is_not_enough_to_split():
     assert audit.assess_work(members)['verdict'] == 'split'
 
 
-def test_the_report_lists_only_the_false_merge_worst_first():
+def test_the_report_lists_the_false_merge_and_the_large_work_worst_first():
     found = audit.suspicious_works(RADIO_AND_EXTENDED + POPULAR + SERIES)
-    assert [(work['work_id'], work['work_key'], work['verdict']) for work in found] == [(1, 'q dance:::next', 'split')]
+    assert [(work['work_id'], work['work_key'], work['verdict']) for work in found] == [
+        (1, 'q dance:::next', 'split'),
+        (3, 'art of fighters:::fuck you', 'suspicious'),
+    ]

@@ -17,7 +17,11 @@ class InferFeatureFromTitleRule(TagRule):
             return False
         patterns = [
             '[\\(\\[]\\s*(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+([^\\]\\)]+)\\s*[\\)\\]]',
-            '\\s+\\b(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+(.*)$',
+            # Stops at the first bracket: "Fired Up Ft. The Kemist (Kayzo Remix)" credits The
+            # Kemist and keeps "(Kayzo Remix)" in the title. Taking everything to the end made
+            # the remix "Fired Up" too, so song_versions grouped every remix with its original
+            # (bug report 142).
+            '\\s+\\b(?i:feat\\.?|ft\\.?|featuring|features|with|invite|invites|pres\\.?|presents?)\\s+([^\\(\\[]*?)\\s*(?=[\\(\\[]|$)',
         ]
         modified = False
         for pattern in patterns:
@@ -34,7 +38,7 @@ class InferFeatureFromTitleRule(TagRule):
                         added_any = True
                 if added_any:
                     artist_tag.deduplicate()
-                title = title.replace(full_match, '').strip()
+                title = title.replace(full_match, ' ').strip()
                 title = re.sub('\\s*\\(\\s*\\)\\s*', ' ', title)
                 title = re.sub('\\s*\\[\\s*\\]\\s*', ' ', title)
                 title = re.sub('\\s+', ' ', title).strip()

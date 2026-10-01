@@ -52,6 +52,10 @@ The system is split into specialized services, each handling a specific part of 
     - Artist rules match titles only against *trusted* names (`TrustedArtistHelper`): approved in
       artist curation, or already in the library before the queue was wired up. A name the scanner
       records later is pending until decided, so a guessed artist cannot confirm itself.
+    - Release and series markers in download titles (`｜ Q-dance presents SPEQTRUM`, `(Gearbox
+      Presents Lockdown 3.0)`, a trailing `｜ <channel>`) are stripped before the artist split and
+      the release becomes ALBUM over an empty or channel-default album
+      (`services/tagger/Song/title_markers.py`, [docs/designs/release-series-markers/](docs/designs/release-series-markers/technical.md)).
     - Remixer extraction from titles and assignment to `REMIXER` tag.
     - Cleanup of invalid characters (e.g., zero-width spaces).
     - Channel links: a SoundCloud/YouTube download whose channel a curator linked to a label or artist

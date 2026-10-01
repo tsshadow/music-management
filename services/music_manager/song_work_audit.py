@@ -33,6 +33,10 @@ SPREAD_RATIO = 1.5
 SPREAD_MIN_LENGTHS = 4
 MANY_VERSIONS = 12
 MANY_YEARS = 3
+# Any work with more members than this is put in front of a person (bug report 142): the
+# misparsed release series reached 18 to 88 members, while one song is rarely ripped more
+# than ten times. Only flags -- the automatic split still needs AUTO_SPLIT_LENGTHS.
+MANY_MEMBERS = 10
 
 
 def distinct_lengths(durations, tolerance: float = DURATION_TOLERANCE_SECONDS) -> int:
@@ -78,6 +82,8 @@ def assess_work(members) -> dict | None:
         reasons.append(f'longest is {ratio}x the shortest')
     if len(members) > MANY_VERSIONS and len(years) > MANY_YEARS:
         reasons.append(f'{len(members)} versions from {len(years)} different years')
+    if len(members) > MANY_MEMBERS:
+        reasons.append(f'{len(members)} members')
     if not reasons:
         return None
 

@@ -6,8 +6,16 @@ from difflib import SequenceMatcher, get_close_matches
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
 from services.common.Helpers.TableHelper import TableHelper
 from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
-from services.tagger.constants import ARTIST, ARTIST_REGEX_NON_CAPTURING, ORIGINAL_TITLE, TITLE
+from services.tagger.constants import (
+    ALBUM,
+    ARTIST,
+    ARTIST_REGEX_NON_CAPTURING,
+    CATALOG_NUMBER,
+    ORIGINAL_TITLE,
+    TITLE,
+)
 from services.tagger.Song.rules.TagRule import TagRule
+from services.tagger.Song.title_markers import parse_title_markers
 
 # "Thunderdome 2025", "Emporium 2025", "Snakepit 2024": an edition, never an artist.
 YEAR_SUFFIX_PATTERN = re.compile(r'\b(19[89]\d|20[0-4]\d)\s*$')
@@ -81,6 +89,48 @@ def looks_like_an_event(segment: str, festival_helper=None) -> bool:
         except Exception:
             return False
     return False
+
+
+def source_title(song, title_override: str | None = None) -> str:
+    """The title a sub-rule splits: the one InferArtistFromTitleRule handed over, else ORIGINAL_TITLE.
+
+    The parent rule strips release and channel markers first (title_markers.py) and passes
+    the rest down, so a sub-rule never sees "｜ Q-dance presents SPEQTRUM" as a segment.
+    """
+    if title_override is not None:
+        return title_override
+    return song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+
+
+# What SoundcloudSong and YoutubeSong write as ALBUM when nothing better is known.
+CHANNEL_DEFAULT_ALBUM = re.compile(r'(?:Soundcloud|Youtube) \(.*\)')
+
+
+def apply_release_album(song, album: str, catalog: str | None) -> None:
+    """Write a release marker's name as ALBUM, and its catalogue number if the file has none.
+
+    Only an empty ALBUM or the channel default (`Soundcloud (<uploader>)`, `Youtube
+    (<channel>)`) is replaced: an album somebody set by hand, or any other album, stays.
+    Because the channel default is written before the rules run, this is also what lets a
+    release win on a first tag and on a re-tag of a file tagged before this rule existed.
+    """
+    current = (song.tag_collection.get_item_as_string(ALBUM) or '').strip()
+    if not current or CHANNEL_DEFAULT_ALBUM.fullmatch(current):
+        song.tag_collection.set_item(ALBUM, album)
+    if catalog and not (song.tag_collection.get_item_as_string(CATALOG_NUMBER) or '').strip():
+        song.tag_collection.set_item(CATALOG_NUMBER, catalog)
+
+
+def channel_names(song) -> list[str]:
+    """The channel's stand-in names (folder, uploader), or none for a song type without them."""
+    stand_ins = getattr(song, 'channel_stand_ins', None)
+    if not callable(stand_ins):
+        return []
+    try:
+        names = stand_ins()
+        return [name for name in names if isinstance(name, str) and name.strip()]
+    except TypeError:
+        return []
 
 
 def names_in(text: str | None) -> list[str]:
@@ -264,8 +314,24 @@ class InferArtistFromTitleRule(TagRule):
     def apply(self, song):
         if not song.tag_collection.has_item(ORIGINAL_TITLE):
             song.tag_collection.set_item(ORIGINAL_TITLE, song.tag_collection.get_item_as_string(TITLE))
+        original = song.tag_collection.get_item_as_string(ORIGINAL_TITLE) or ''
+        # Release, series and channel markers first, so no sub-rule takes one for the
+        # artist or the title (bug report 142).
+        markers = parse_title_markers(original, channel_names(song))
+        if markers.album:
+            apply_release_album(song, markers.album, markers.catalog)
+        if markers.artist and set_cleaned_artist(
+            song, extract_artists_from_string(markers.artist), self.artist_db, source=markers.artist
+        ):
+            song.tag_collection.set_item(TITLE, markers.final_title)
+            return
+        title = markers.title
+        if title != original:
+            # What is left is the title until a sub-rule splits it further; on a re-tag this
+            # also replaces a title an earlier pass read out of the marker.
+            song.tag_collection.set_item(TITLE, title)
         for rule in self._current_rules():
-            if rule.apply(song):
+            if rule.apply(song, title):
                 print(f"[InferArtistFromTitle] Applied rule: {rule.__class__.__name__} on '{song.path()}'")
                 return
 
@@ -288,8 +354,8 @@ class InferArtistFromEventPrefixRule(TagRule):
         self.blocked_names = blocked_names or set()
         self.festival_helper = festival_helper
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         if not title:
             return False
         title = normalise_pipes(title)
@@ -325,9 +391,9 @@ class InferArtistFromTitleDotRule(TagRule):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
 
-    def apply(self, song):
+    def apply(self, song, title_override=None):
         CATALOG_PATTERN = re.compile('^(GB[EDH]\\d{3,})[.\\s]+(.*?)\\s+-\\s+(.*)')
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+        title = source_title(song, title_override)
         if not title and ('. ' not in title) and (' - ' not in title):
             return False
         match = CATALOG_PATTERN.match(title)
@@ -348,8 +414,8 @@ class InferArtistFromTitleAtRule(TagRule):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
         self.artist_db = artist_db
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         if not title:
             return False
         if ' @ ' not in title:
@@ -367,8 +433,8 @@ class InferArtistFromTitleByRule(TagRule):
         self.artist_names = artist_names
         self.artist_db = artist_db
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         if not title or ' by ' not in title.lower():
             return False
         parts = re.split('\\sby\\s', title, flags=re.IGNORECASE)
@@ -388,8 +454,8 @@ class InferArtistFromTitleSingleDashRule(TagRule):
         self.artist_db = artist_db
         self.festival_helper = festival_helper
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         title = normalise_pipes(title)
         if not title or title.count(' - ') != 1:
             return False
@@ -446,8 +512,8 @@ class InferArtistFromTitleMultiDashRule(TagRule):
         self.genre_names = genre_names
         self.festival_helper = festival_helper
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         title = self._clean_raw_title(title)
         if not title or ' - ' not in title:
             return False
@@ -519,8 +585,8 @@ class InferArtistFromFirstSegmentFallbackRule(TagRule):
         self.festival_helper = festival_helper
         self.ignored_names = ignored_names or set()
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         title = normalise_pipes(title)
         if not title or ' - ' not in title:
             return False
@@ -546,8 +612,8 @@ class InferArtistFromTitleFallbackRule(TagRule):
     def __init__(self, rules_ignored_artists):
         self.rules_ignored_artists = {a.lower() for a in rules_ignored_artists}
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         if not title:
             return False
         folder_artist = song.path().split(os.sep)[-2].strip().lower()
@@ -568,14 +634,18 @@ class InferArtistFromPresentsOrColonRule(TagRule):
         self.artist_db = artist_db
         self.artist_names = frozenset(artist_index(artist_db))
 
-    def apply(self, song):
-        title = song.tag_collection.get_item_as_string(ORIGINAL_TITLE)
+    def apply(self, song, title_override=None):
+        title = source_title(song, title_override)
         if not title:
             return False
-        match = re.search('\\b([A-Za-z0-9 &\\-_]+?)\\s*(presents:|presents\\b|:)', title, flags=re.IGNORECASE)
+        # Anchored at the start: "X presents Y" or "X: Y" names the artist only as the
+        # title's opening. Unanchored, "Deviouz & Matzic - Tomorrow (Gearbox Presents
+        # Lockdown 3.0)" made Gearbox the artist of the whole series (bug report 142).
+        match = re.match('\\s*([A-Za-z0-9 &\\-_]+?)\\s*(presents:|presents\\b|:)', title, flags=re.IGNORECASE)
         if match:
             candidate = match.group(1).strip()
-            if has_close_artist(candidate.lower(), self.artist_names, cutoff=0.7):
+            # "Artist - Title: Subtitle" is an artist-title split, not an artist prefix.
+            if ' - ' not in candidate and has_close_artist(candidate.lower(), self.artist_names, cutoff=0.7):
                 set_cleaned_artist(song, candidate, self.artist_db, source=candidate)
                 new_title = title[match.end() :].strip()
                 song.tag_collection.set_item(TITLE, new_title)

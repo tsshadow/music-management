@@ -49,6 +49,7 @@
 #include "scanners/lyrics/LyricsFileScanner.hpp"
 #include "scanners/playlist/PlayListFileScanner.hpp"
 
+#include "steps/ReleaseArtworkRules.hpp"
 #include "steps/ScanStepArtistReconciliation.hpp"
 #include "steps/ScanStepAssociateArtistImages.hpp"
 #include "steps/ScanStepAssociateExternalLyrics.hpp"
@@ -137,6 +138,7 @@ namespace lms::scanner
             settings->skipSingleReleasePlayLists = scanSettings->getSkipSingleReleasePlayLists();
             settings->allowArtistMBIDFallback = scanSettings->getAllowMBIDArtistMerge();
             settings->artistImageFallbackToRelease = scanSettings->getArtistImageFallbackToReleaseField();
+            settings->releaseArtworkRules = scanSettings->getReleaseArtworkRules();
 
             // TODO, store this in DB + expose in UI
             settings->skipDuplicateTrackMBID = core::Service<core::IConfig>::get()->getBool("scanner-skip-duplicate-mbid", false);
@@ -174,6 +176,7 @@ namespace lms::scanner
 
             scanSettings.modify()->setAllowMBIDArtistMerge(settings.allowArtistMBIDFallback);
             scanSettings.modify()->setSkipSingleReleasePlayLists(settings.skipSingleReleasePlayLists);
+            scanSettings.modify()->setReleaseArtworkRules(settings.releaseArtworkRules);
             // TODO add more fields
         }
 
@@ -529,8 +532,14 @@ namespace lms::scanner
             }
 
             // save current settings as last scan settings to compare during next scans if something changed
-            writeScannerSettings(_db.getTLSSession(), lastScanSettingsName, _settings);
-            _lastScanSettings = _settings;
+            ScannerSettings appliedSettings{ _settings };
+            // A scoped scan recomputes the artwork of its own releases only, so new release
+            // artwork rules are still owed to the rest of the library: the next library-wide
+            // scan must keep seeing them as new (bug report 144).
+            if (scanOptions.isScoped() && _lastScanSettings)
+                appliedSettings.releaseArtworkRules = _lastScanSettings->releaseArtworkRules;
+            writeScannerSettings(_db.getTLSSession(), lastScanSettingsName, appliedSettings);
+            _lastScanSettings = std::move(appliedSettings);
 
             // A library-wide request that arrived during this scoped scan runs now. One that
             // arrived during a library-wide run was absorbed by it and left nothing behind.
@@ -683,6 +692,7 @@ namespace lms::scanner
     {
         std::optional<ScannerSettings> newSettings{ readScannerSettings(_db.getTLSSession(), currentSettingsName) };
         assert(newSettings.has_value());
+        newSettings->releaseArtworkRules = computeReleaseArtworkRulesFingerprint(readReleaseArtworkRules());
         if (_settings == *newSettings)
             return;
 

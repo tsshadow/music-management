@@ -59,10 +59,10 @@ Wholly ours (new files; upstream has no counterpart):
 
 Ours inside upstream files (modified, not new) -- the places a port most often lands on:
 
-- `src/libs/database/impl/Migration.cpp` -- steps 103 to 125 (versions 104 to 126), see below.
+- `src/libs/database/impl/Migration.cpp` -- steps 103 to 126 (versions 104 to 127), see below.
 - `src/libs/database/include/database/objects/User.hpp` -- `muma_id`, `muma_scrobbling_enabled`,
   web-player settings, `disabled`; `Track.hpp` -- `rating`, `play_count`, song-version columns, `bpm`
-  (the file's BPM tag, step 125).
+  (the file's BPM tag, step 125); `ScanSettings.hpp` -- `release_artwork_rules` (step 126).
 - `src/libs/subsonic/impl/SubsonicResource.cpp` -- auth cache, `spotify/*` and MuMa endpoint
   registration; `endpoints/UserManagement.cpp` -- self-service `updateUser`.
 - `src/lms/main.cpp` -- wiring of the MuMa services, the `/muma` resource and the user sync.
@@ -74,6 +74,13 @@ Ours inside upstream files (modified, not new) -- the places a port most often l
 - `src/libs/services/scanner/impl/steps/ScanStepAssociate*.cpp`, `ScanStepComputeClusterStats.cpp`
   -- a scoped scan walks only its `ScanScope` (new file `steps/ScanScope.*`), not the whole
   library (bug report 141).
+- `src/libs/services/scanner/impl/steps/ScanStepAssociateReleaseImages.cpp` -- after the
+  preferred cover names and the embedded front cover, a scene-style `00-...` image or the only
+  image of the folder (new file `steps/ReleaseArtworkRules.*`, keys `cover-fallback-*` and
+  `cover-single-image-fallback`). The last scan's `scan_settings` row records a fingerprint of
+  those rules (`release_artwork_rules`, step 126); a library-wide scan that finds it changed
+  recomputes all release, artist and track artwork without re-reading files. Bump
+  `releaseArtworkRulesCodeVersion` when the way the rules are applied changes (bug report 144).
 
 ## Database version policy
 
@@ -96,7 +103,7 @@ The policy:
    porting anything that touches these tables.
 2. **Everything from 103 up is the fork's own sequence**, contiguous, owned by this repository
    alone. `LMS_DATABASE_VERSION` is the version a fresh migration run ends at, so the next free
-   step is `migrateFromV<LMS_DATABASE_VERSION>` (today: `migrateFromV126`, taking 126 to 127).
+   step is `migrateFromV<LMS_DATABASE_VERSION>` (today: `migrateFromV127`, taking 127 to 128).
 3. **An upstream migration is ported, never merged under its own number.** It becomes the fork's next
    free step, and its function carries a comment naming the source:
    `// Port of upstream LMS migrateFromV108 (v3.78.0, <commit>)`. Add it to the table below.

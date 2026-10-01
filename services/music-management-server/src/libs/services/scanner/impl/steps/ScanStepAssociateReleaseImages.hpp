@@ -19,9 +19,7 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
+#include "ReleaseArtworkRules.hpp"
 #include "ScanStepBase.hpp"
 
 namespace lms::scanner
@@ -40,6 +38,6 @@ namespace lms::scanner
         bool needProcess(const ScanContext& context) const override;
         void process(ScanContext& context) override;
 
-        const std::vector<std::string> _releaseImageFileNames;
+        const ReleaseArtworkRules _rules;
     };
 } // namespace lms::scanner

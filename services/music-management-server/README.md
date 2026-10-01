@@ -118,6 +118,16 @@ If neither exists, it will then search for a file named `artist` (or another nam
 2. Scan for the image: the directory is scanned starting from this common path, moving upwards if needed, until the artist image file is found.
 3. Fallback search: if no image is found, _LMS_ will then search within each individual album folder.
 
+## Album cover lookup
+_LMS_ looks for an album's cover in this order:
+1. An image named after the album's MusicBrainz AlbumID, anywhere in the libraries.
+2. An image named after one of `cover-preferred-file-names` (`cover`, `front`, `folder`, `default`) in the album's directories, the directory they share first.
+3. An embedded front cover.
+4. A scene-style cover in the album's directories: an image whose name starts with one of `cover-fallback-file-stem-prefixes` (`00`, as in `00-artist_-_title-(cat)-web-2026.jpg`). Proofs, back covers, inlays and disc scans next to it (`...-back.jpg`, `...-proof.jpg`, `...-cd1.jpg`) are skipped by `cover-fallback-excluded-words`, and one marked `front`/`cover`/`folder` wins. Failing that, the only image of a directory, if `cover-single-image-fallback` is on.
+5. An embedded disc image, then an embedded image of any other type.
+
+Changing these settings takes effect on the next library-wide scan, which then recomputes every album's cover even if no file changed.
+
 ## Disc image lookup
 _LMS_ automatically associates images with each disc in your collection. Name the image file after the disc's subtitle or another identifier configured in `lms.conf` (see the `medium-image-file-names` setting), and place it in the same directory as the disc's tracks. If no suitable image is found, LMS will also look for embedded images within the tracks of the disc.
 

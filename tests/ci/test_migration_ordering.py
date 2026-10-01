@@ -88,6 +88,13 @@ REVIEWED_SAFE = {
         "those three and lists rows without filtering on source, so nothing it does changes, and "
         "appending an ENUM value is a metadata-only ALTER that is a no-op when re-run (issue #58)"
     ),
+    "migrate_v53_bpm_octave.sql": (
+        "the MODIFY only appends 'manual' to the end of library_track_effective_bpm.source's ENUM, "
+        "keeping 'measured', 'tag', 'analyzer' and NOT NULL; the previous release only ever writes "
+        "those three (the bpm-analyzer's effective_table.sync) and reads the column as a string, so "
+        "nothing it does changes, and appending an ENUM value is a metadata-only ALTER that is a "
+        "no-op when re-run (bug report 140)"
+    ),
 }
 
 

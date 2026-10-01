@@ -12,7 +12,7 @@
  * tolerance (±2, from the server) is what lets "150" find the tracks that analyzer rounded to 152.
  */
 
-import { apiBase, fetchMumaJson, getHeaders } from "./mumaApi.js";
+import { MumaHttpError, apiBase, fetchMumaJson, getHeaders, jsonHeaders } from "./mumaApi.js";
 import { chunkPaths, resolveFeedChunk } from "./feeds.js";
 
 export { formatBpm } from "./bpmFormat.js";
@@ -272,4 +272,70 @@ export function countNear(bins, bpm, tol) {
     (sum, bin) => (Math.abs(bin.bpm - bpm) <= tol ? sum + bin.count : sum),
     0,
   );
+}
+
+/**
+ * The permission that lets a user correct a track's tempo by hand.
+ */
+export const OVERRIDE_PERMISSION = "bpm.override";
+
+/**
+ * Override a track's tempo by hand: `{bpm}` sets a value, `{factor: 0.5 | 2}` halves or doubles
+ * the tempo shown now. The answer carries the new effective BPM and its source (`manual`).
+ * Throws a `MumaHttpError` on a refusal (400 range, 404 no track, 409 nothing to halve).
+ *
+ * @param {number} trackId - The library track id.
+ * @param {{bpm: number}|{factor: number}} change
+ * @returns {Promise<Object>}
+ */
+export async function setManualBpm(trackId, change) {
+  return fetchMumaJson(`${apiBase()}/api/library/bpm/tracks/${trackId}/manual`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    body: JSON.stringify(change),
+  });
+}
+
+/**
+ * Drop a track's manual tempo, back to the measured one.
+ *
+ * @param {number} trackId - The library track id.
+ * @returns {Promise<Object>}
+ */
+export async function clearManualBpm(trackId) {
+  return fetchMumaJson(`${apiBase()}/api/library/bpm/tracks/${trackId}/manual`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+}
+
+/**
+ * The words to show for a failed override: the server's `detail` when it sent one as text,
+ * otherwise null so the caller falls back to its own generic message.
+ *
+ * @param {unknown} error
+ * @returns {string|null}
+ */
+export function overrideErrorDetail(error) {
+  if (error instanceof MumaHttpError && typeof error.body?.detail === "string") {
+    return error.body.detail;
+  }
+  return null;
+}
+
+/**
+ * The BPM fields of an override answer, to merge into the track the screen shows.
+ *
+ * @param {Object} answer - The body of a PUT or DELETE on `/manual`.
+ * @returns {{bpm: number|null, bpm_source: string|null, bpm_confidence: string|null,
+ *   bpm_folded: boolean, bpm_approximate: boolean}}
+ */
+export function overrideFields(answer) {
+  return {
+    bpm: answer?.bpm ?? null,
+    bpm_source: answer?.bpm_source ?? null,
+    bpm_confidence: answer?.bpm_confidence ?? null,
+    bpm_folded: Boolean(answer?.bpm_folded),
+    bpm_approximate: Boolean(answer?.bpm_approximate),
+  };
 }

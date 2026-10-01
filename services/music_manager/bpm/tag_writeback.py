@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from services.common.Helpers.ProcessedFilesHelper import changed_on_disk
+from services.music_manager.bpm.octave import FOLD_VERSION
 
 logger = logging.getLogger('music-manager.bpm.tags')
 
@@ -345,20 +346,27 @@ def library_roots(settings: Any = None) -> list[str]:
 # ----------------------------------------------------------------------------- SQL
 
 #: Confident, current measurements whose file has not been reconciled with this value yet,
-#: newest track first. A measurement is current while its file_mtime/size match what the
+#: newest track first. The value is the tempo set by hand when there is one (bug report 140),
+#: else the measurement -- and a measurement only when its octave was chosen by the current rule
+#: (`fold_version`; a deploy's refold must run first) and it is confident. A file this step once
+#: wrote is queued again whenever its value changes, confident or not: the value it carries came
+#: from a rule that has since changed its mind, so any current value is better than keeping it. A measurement is current while its file_mtime/size match what the
 #: scanner last saw (the analyzer's own test); one that is not is the analyzer's to redo.
 #: Folders: under a root (`{roots}`, one LIKE each), never through a hidden (`.quarantine`),
 #: underscore (`__TODO`, the import queue), `#recycle` or `@eaDir` folder.
 #: Parameters: method, min confidence, the skipped forms, the root patterns, the limit.
 DUE_SQL = """
-    SELECT t.id AS track_id, b.track_uid, b.bpm, b.confidence,
-           b.file_mtime, b.file_size, mf.id AS media_id, mf.file_path
+    SELECT t.id AS track_id, b.track_uid, COALESCE(mb.bpm, b.bpm) AS bpm, b.confidence,
+           mb.bpm AS manual_bpm, b.file_mtime, b.file_size, mf.id AS media_id, mf.file_path
     FROM library_track_bpm b
     JOIN library_tracks t ON t.track_uid = b.track_uid
     JOIN library_media_files mf
       ON mf.id = (SELECT MIN(m2.id) FROM library_media_files m2 WHERE m2.track_id = t.id)
-    WHERE b.status = 'ok' AND b.method = %s AND b.bpm IS NOT NULL AND b.confidence >= %s
-      AND NOT (b.tag_bpm <=> b.bpm)
+    LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = b.track_uid
+    WHERE b.status = 'ok' AND b.method = %s AND b.bpm IS NOT NULL
+      AND (mb.bpm IS NOT NULL
+           OR (b.fold_version = %s AND (b.confidence >= %s OR b.tag_action = 'written')))
+      AND NOT (b.tag_bpm <=> COALESCE(mb.bpm, b.bpm))
       AND b.file_mtime <=> mf.file_mtime AND b.file_size <=> mf.file_size
       AND (t.form IS NULL OR t.form NOT IN ({forms}))
       AND ({roots})
@@ -375,12 +383,13 @@ REMAINING_SQL = (
     'SELECT COUNT(*) AS remaining FROM (' + DUE_SQL.replace('ORDER BY t.id DESC\n    LIMIT %s', '') + ') AS due'
 )
 
-#: Stamp the outcome for the value that was read; a measurement that changed meanwhile is left
-#: queued for its new value.
+#: Stamp the outcome for the value that was read; a value that changed meanwhile (a new
+#: measurement, a refold, a tempo set or cleared by hand) is left queued for its new value.
 RECORD_SQL = """
-    UPDATE library_track_bpm
-    SET tag_bpm = bpm, tag_action = %s, tag_checked_at = %s
-    WHERE track_uid = %s AND bpm = %s
+    UPDATE library_track_bpm b
+    LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = b.track_uid
+    SET b.tag_bpm = %s, b.tag_action = %s, b.tag_checked_at = %s
+    WHERE b.track_uid = %s AND COALESCE(mb.bpm, b.bpm) = %s
 """
 
 #: After a write: the measurement describes the new file, if it described the old one.
@@ -420,6 +429,7 @@ def _due_params(config: dict, roots: list[str], limit: int | None) -> tuple[str,
     )
     params: list = [
         MEASURED_METHOD,
+        FOLD_VERSION,
         config['bpm_tag_writeback_min_confidence'] / 100.0,
         *forms,
         *root_patterns,
@@ -470,7 +480,7 @@ class BpmTagStore:
         conn = self._connect()
         try:
             with conn.cursor() as cursor:
-                cursor.execute(RECORD_SQL, (action, now, row['track_uid'], row['bpm']))
+                cursor.execute(RECORD_SQL, (row['bpm'], action, now, row['track_uid'], row['bpm']))
             conn.commit()
         finally:
             conn.close()
@@ -488,7 +498,7 @@ class BpmTagStore:
         try:
             conn.begin()
             with conn.cursor() as cursor:
-                cursor.execute(RECORD_SQL, ('written', now, row['track_uid'], row['bpm']))
+                cursor.execute(RECORD_SQL, (row['bpm'], 'written', now, row['track_uid'], row['bpm']))
                 cursor.execute(REFRESH_BPM_SQL, (new_mtime, new_size, row['track_uid'], old_mtime, old_size))
                 cursor.execute(REFRESH_MEDIA_SQL, (new_mtime, new_size, row['media_id'], old_mtime, old_size))
                 cursor.execute(PROCESSED_SQL, (row['file_path'],))

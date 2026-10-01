@@ -39,7 +39,16 @@ WRITE_BATCH = 1000
 #: Rows fetched per round trip from the unbuffered input cursor.
 FETCH_BATCH = 2000
 
-_INPUT_COLUMNS = ('track_id', 'bpm_tag', 'tempo', 'measured', 'measured_confidence', 'measured_folded', 'genres')
+_INPUT_COLUMNS = (
+    'track_id',
+    'manual',
+    'bpm_tag',
+    'tempo',
+    'measured',
+    'measured_confidence',
+    'measured_folded',
+    'genres',
+)
 
 EXISTING_SQL = f'SELECT track_id, bpm, source, confidence, approximate, folded FROM {TABLE}'
 

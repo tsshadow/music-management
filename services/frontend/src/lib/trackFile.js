@@ -105,7 +105,7 @@ function joined(tags, name) {
 /**
  * The named rows the sheet shows under "Tags", from MuMa's answer to
  * `/api/library/tracks/by-path` plus the LMS song object. Each row is
- * `{ key, value, href?, view? }`, with `key` an i18n key under `track.` so
+ * `{ key, value, href?, view?, manual? }`, with `key` an i18n key under `track.` so
  * the component only has to translate and print. `view` is a router target
  * for rows that are a place to go: a channel curated as a label opens that
  * label, one curated as an artist opens a search for the name (the artist
@@ -117,7 +117,8 @@ function joined(tags, name) {
  *
  * @param {Object|null} details - MuMa's answer, or null when there was none.
  * @param {Object} track - The Subsonic song object.
- * @returns {Array<{key: string, value: string, href?: string, view?: string, raw?: boolean}>}
+ * @returns {Array<{key: string, value: string, href?: string, view?: string, raw?: boolean,
+ *   manual?: boolean}>}
  */
 export function tagRows(details, track) {
   const rows = [];
@@ -140,7 +141,14 @@ export function tagRows(details, track) {
   const effective = formatBpm({ bpm: details?.bpm, approximate: details?.bpm_approximate });
   const tagged = joined(tags, "bpm");
   const bpm = effective || (tagged ? String(Math.round(Number(tagged)) || tagged) : "");
-  if (bpm) rows.push({ key: "bpm", value: bpm });
+  if (bpm) {
+    // A tempo set by hand says so, so nobody takes it for a measurement.
+    rows.push(
+      effective && details?.bpm_source === "manual"
+        ? { key: "bpm", value: bpm, manual: true }
+        : { key: "bpm", value: bpm },
+    );
+  }
   const named = [
     ["catalogNumber", "catalognumber"],
     ["copyright", "copyright"],

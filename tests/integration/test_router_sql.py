@@ -2726,12 +2726,12 @@ class BpmBrowseSqlTest:
             bpm_router.index_cache.invalidate()
 
     def test_the_analysis_workers_queue_and_upsert_run_against_a_real_schema(self, db):
-        """bpm/worker.py's DUE_SQL, REMAINING_SQL, genre lookups and UPSERT_SQL: newest first,
+        """bpm/worker.py's DUE_SQL, REMAINING_SQL, evidence lookup and UPSERT_SQL: newest first,
         sets skipped, a current measurement not queued again, a changed file queued again, a
         failure counted and retried only once due."""
         from datetime import datetime, timedelta
 
-        from services.music_manager.bpm import estimator, worker
+        from services.music_manager.bpm import estimator, octave, worker
 
         older = self._track(db, 'Queue Older', genre='Hardstyle')
         newer = self._track(db, 'Queue Newer')
@@ -2747,15 +2747,23 @@ class BpmBrowseSqlTest:
         before = store.remaining(config, now)
         assert before >= 2
 
-        genres = store.genres_for([older, newer])
-        assert genres[older] == ['Hardstyle']
-        assert genres.get(newer) == ['Hardstyle']  # the primary artist's other track
+        found = store.evidence_for([older, newer])
+        assert found[older]['genres'] == 'Hardstyle'
+        assert found[newer]['genres'] is None  # bug report 140: no stand-in from the artist's other tracks
 
         jobs = {row['track_id']: row for row in store.due_tracks(config, now, limit=1000)}
+        measured = {
+            'ok': True,
+            'raw': 75.0,
+            'confidence': 0.9,
+            'strength': 0.5,
+            'half_score': None,
+            'double_score': 0.45,
+        }
         store.save(
             [
-                worker.to_row(jobs[older], {'ok': True, 'raw': 75.0, 'confidence': 0.9}, ['Hardstyle'], now),
-                worker.to_row(jobs[newer], {'ok': False, 'error': 'DecodeError: x'}, [], now),
+                worker.to_row(jobs[older], measured, octave.Evidence(genres=('Hardstyle',)), now),
+                worker.to_row(jobs[newer], {'ok': False, 'error': 'DecodeError: x'}, None, now),
             ]
         )
         rows = {
@@ -2764,11 +2772,14 @@ class BpmBrowseSqlTest:
         }
         assert float(rows['uid-bpm-Queue Older']['bpm']) == 150.0
         assert rows['uid-bpm-Queue Older']['method'] == estimator.METHOD
+        assert float(rows['uid-bpm-Queue Older']['raw_confidence']) == 0.9
+        assert rows['uid-bpm-Queue Older']['fold_version'] == octave.FOLD_VERSION
+        assert rows['uid-bpm-Queue Older']['fold_evidence'] == octave.EVIDENCE_BAND
         assert rows['uid-bpm-Queue Newer']['status'] == 'failed'
         assert store.remaining(config, now) == before - 2
 
         # A second failure counts up; a retry is due only after RETRY_FAILED_AFTER.
-        store.save([worker.to_row(jobs[newer], {'ok': False, 'error': 'again'}, [], now)])
+        store.save([worker.to_row(jobs[newer], {'ok': False, 'error': 'again'}, None, now)])
         attempts = run_sql(db, "SELECT attempts FROM library_track_bpm WHERE track_uid = 'uid-bpm-Queue Newer'")[0][
             'attempts'
         ]
@@ -2779,9 +2790,28 @@ class BpmBrowseSqlTest:
         # A replaced file is measured again.
         run_sql(db, 'UPDATE library_media_files SET file_size = 11 WHERE track_id = %s', (older,))
         assert older in {row['track_id'] for row in store.due_tracks(config, now, limit=1000)}
+        run_sql(db, 'UPDATE library_media_files SET file_size = 10 WHERE track_id = %s', (older,))
+
+        # Bug report 140: a measurement from before the comb scores were kept is measured again --
+        # after the new tracks, and the doubtful ones (above 200, folded, ...) first.
+        doubtful = self._track(db, 'Queue Doubtful')
+        plain = self._track(db, 'Queue Plain')
+        for uid, bpm, corrected in (('uid-bpm-Queue Doubtful', 256.0, 1), ('uid-bpm-Queue Plain', 150.0, 0)):
+            run_sql(
+                db,
+                "INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method, octave_corrected,"
+                " file_mtime, file_size, analyzed_at) VALUES (%s, 'ok', %s, 64, 0.5, %s, %s, 1.0, 10, NOW())",
+                (uid, bpm, estimator.METHOD, corrected),
+            )
+        order = [row['track_id'] for row in store.due_tracks(config, later, limit=1000)]
+        assert order.index(doubtful) < order.index(plain)
+        assert order.index(newer) < order.index(doubtful)  # the failure due for a retry is first-tier
+        assert older not in order  # measured with comb scores: current
 
     def _measured(self, db, title, path, bpm=150.02, confidence=0.9, form='track', mtime=1.0, size=10):
-        """A track with one file at `path` and a current measurement of it."""
+        """A track with one file at `path` and a current measurement of it, folded by the current rule."""
+        from services.music_manager.bpm.octave import FOLD_VERSION
+
         with db.cursor() as cursor:
             cursor.execute(
                 'INSERT INTO library_tracks (track_uid, title, duration_secs, form) VALUES (%s, %s, 240, %s)',
@@ -2795,9 +2825,9 @@ class BpmBrowseSqlTest:
             )
             cursor.execute(
                 'INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method,'
-                ' file_mtime, file_size, analyzed_at)'
-                " VALUES (%s, 'ok', %s, %s, %s, 'acf-comb-v1', %s, %s, NOW())",
-                (f'uid-tag-{title}', bpm, bpm, confidence, mtime, size),
+                ' file_mtime, file_size, analyzed_at, fold_version, strength)'
+                " VALUES (%s, 'ok', %s, %s, %s, 'acf-comb-v1', %s, %s, NOW(), %s, 0.5)",
+                (f'uid-tag-{title}', bpm, bpm, confidence, mtime, size, FOLD_VERSION),
             )
         return track_id
 
@@ -2866,6 +2896,45 @@ class BpmBrowseSqlTest:
         assert newer not in {
             row['track_id'] for row in worker.BpmStore(connect=_connect).due_tracks(analysis, now, 1000)
         }
+
+    def test_the_tag_writeback_follows_the_octave_rule_and_the_manual_tempo(self, db):
+        """Bug report 140: a measurement is only written once the current rule chose its octave; a
+        file this step wrote is queued again when the rule changes its mind, even without
+        confidence; a tempo set by hand is written, whatever the measurement says."""
+        from datetime import datetime
+
+        from services.music_manager.bpm import tag_writeback
+
+        eps = '/mnt/music/EPs'
+        old_rule = self._measured(db, 'Old Rule', f'{eps}/Label/REL3/old.mp3')
+        run_sql(db, "UPDATE library_track_bpm SET fold_version = NULL WHERE track_uid = 'uid-tag-Old Rule'")
+        rewritten = self._measured(db, 'Rewritten', f'{eps}/Label/REL3/rewritten.mp3', bpm=256.0)
+        run_sql(
+            db,
+            "UPDATE library_track_bpm SET tag_bpm = 256.0, tag_action = 'written', bpm = 128.0, confidence = 0.4"
+            " WHERE track_uid = 'uid-tag-Rewritten'",
+        )
+        manual = self._measured(db, 'Manual', f'{eps}/Label/REL3/manual.mp3', bpm=230.0, confidence=0.2)
+        run_sql(
+            db,
+            "INSERT INTO library_track_bpm_manual (track_uid, bpm, set_by, set_at) VALUES ('uid-tag-Manual', 115, 1, NOW())",
+        )
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        config = tag_writeback.read_settings({}.get)
+        due = {row['track_id']: row for row in store.due(config, [eps], 100)}
+        assert old_rule not in due
+        assert float(due[rewritten]['bpm']) == 128.0
+        assert (float(due[manual]['bpm']), float(due[manual]['manual_bpm'])) == (115.0, 115.0)
+
+        store.record(due[manual], 'written', datetime(2026, 9, 30))
+        assert (
+            float(run_sql(db, "SELECT tag_bpm FROM library_track_bpm WHERE track_uid = 'uid-tag-Manual'")[0]['tag_bpm'])
+            == 115.0
+        )
+        assert manual not in {row['track_id'] for row in store.due(config, [eps], 100)}
+        # Clearing the manual tempo queues the measurement's value -- unconfident, but written before.
+        run_sql(db, "DELETE FROM library_track_bpm_manual WHERE track_uid = 'uid-tag-Manual'")
+        assert manual in {row['track_id'] for row in store.due(config, [eps], 100)}
 
     def test_the_tag_writeback_leaves_a_queued_tagger_row_queued(self, db):
         from datetime import datetime
@@ -2972,3 +3041,94 @@ class BpmBrowseSqlTest:
             measured,
             halftime,
         }
+
+    def test_priors_refold_and_the_manual_override_run_against_a_real_schema(self, api, headers, db):
+        """Bug report 140 end to end: the priors leave an artist's remixes out, the refold turns
+        André Hazes's 256 back into 128 from the database alone, and a tempo set by hand wins,
+        is audited, reaches library_track_effective_bpm at once, and can be taken back."""
+        from datetime import datetime
+
+        from services.music_manager.bpm import effective_table, octave, priors, refold
+
+        artist = 5551401
+        label_name = 'Priors Test Label'
+        run_sql(db, 'INSERT INTO library_labels (name) VALUES (%s)', (label_name,))
+        label_id = run_sql(db, 'SELECT id FROM library_labels WHERE name = %s', (label_name,))[0]['id']
+
+        def measured(title, raw, bpm, path, genre=None, confidence=0.9, labelled=False, by_artist=True):
+            track_id = self._track(db, title, genre=genre)
+            if by_artist:
+                run_sql(db, 'UPDATE library_tracks SET primary_artist_id = %s WHERE id = %s', (artist, track_id))
+            run_sql(db, 'UPDATE library_media_files SET file_path = %s WHERE track_id = %s', (path, track_id))
+            if labelled:
+                run_sql(
+                    db, 'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+                )
+            run_sql(
+                db,
+                'INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, method, octave_corrected,'
+                " analyzed_at) VALUES (%s, 'ok', %s, %s, %s, 'acf-comb-v1', %s, NOW())",
+                (f'uid-bpm-{title}', bpm, raw, confidence, int(bpm != raw)),
+            )
+            return track_id
+
+        for n in range(6):
+            measured(
+                f'Rode Licht {n} (Rectonize Remix)',
+                160.0,
+                160.0,
+                f'/mnt/music/EPs/L/r{n}.mp3',
+                'Hardstyle',
+                labelled=True,
+            )
+        for n in range(6):
+            measured(f'Label Own {n}', 150.0, 150.0, f'/mnt/music/EPs/L/o{n}.mp3', labelled=True, by_artist=False)
+        hazes = measured(
+            'Vaag en Stil', 64.0, 256.0, '/mnt/music/Hitzone/Hitzone 33/CD/21 - Vaag en Stil.mp3', confidence=0.5
+        )
+
+        stored = priors.recompute(_connect, datetime.now())
+        # The artist's six remixes are left out and the ballad is below the window: no artist prior.
+        assert stored.for_artist(artist) is None
+        assert stored.label[label_id].samples == 12
+        assert 'hardstyle' in stored.genre
+        assert priors.load(_connect).label[label_id].samples == 12
+        assert priors.last_update(_connect) is not None
+
+        result = refold.refold(_connect, stored, track_ids=[hazes])
+        assert (result.rows, result.written) == (1, 1)
+        row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-bpm-Vaag en Stil'")[0]
+        assert (float(row['bpm']), row['octave_corrected'], row['fold_version']) == (128.0, 1, octave.FOLD_VERSION)
+        assert float(row['raw_confidence']) == 0.5 and float(row['confidence']) <= 0.5
+        assert refold.refold(_connect, stored, track_ids=[hazes]).written == 0  # settled
+
+        effective_table.sync(_connect, track_ids=[hazes])
+        url = f'/api/library/bpm/tracks/{hazes}/manual'
+        response = api.put(url, json={'factor': 2}, headers=headers)
+        assert response.status_code == 200, response.text
+        assert (response.json()['bpm'], response.json()['bpm_source']) == (256.0, 'manual')
+        eff = run_sql(
+            db, 'SELECT bpm, source, confidence FROM library_track_effective_bpm WHERE track_id = %s', (hazes,)
+        )[0]
+        assert (float(eff['bpm']), eff['source'], eff['confidence']) == (256.0, 'manual', 'high')
+        audit = run_sql(
+            db, "SELECT details FROM audit_events WHERE event_type = 'bpm.manual_set' ORDER BY id DESC LIMIT 1"
+        )
+        assert json.loads(audit[0]['details'])['track_id'] == hazes
+        # The analyzer's refold never touches the manual tempo.
+        refold.refold(_connect, stored, track_ids=[hazes])
+        assert (
+            float(
+                run_sql(db, "SELECT bpm FROM library_track_bpm_manual WHERE track_uid = 'uid-bpm-Vaag en Stil'")[0][
+                    'bpm'
+                ]
+            )
+            == 256.0
+        )
+
+        response = api.delete(url, headers=headers)
+        assert (response.json()['bpm'], response.json()['bpm_source']) == (128.0, 'measured')
+        assert not run_sql(db, "SELECT * FROM library_track_bpm_manual WHERE track_uid = 'uid-bpm-Vaag en Stil'")
+        assert (
+            api.put('/api/library/bpm/tracks/999999999/manual', json={'bpm': 120}, headers=headers).status_code == 404
+        )

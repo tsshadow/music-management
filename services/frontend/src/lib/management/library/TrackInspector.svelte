@@ -1,12 +1,27 @@
 <script>
+  /**
+   * The management library's side panel for one track: its facts, the hand correction of its
+   * tempo (for `bpm.override`), and the re-analyse / re-download actions.
+   */
   import { t, format } from '../../i18n/index.js';
   import { Info, Music, RefreshCw, Download, Calendar, Hash, FileAudio } from '@lucide/svelte';
   import { formatBpm } from '../../bpmFormat.js';
+  import BpmOverride from '../../BpmOverride.svelte';
 
   export let track = null;
   export let onRerunParse;
   export let onRedownload;
+  /** Receives `(track, fields)` after a tempo correction, so the list row can follow. */
+  export let onBpmChange = null;
 
+  /** Shows the corrected tempo here and tells the parent, which owns the list rows. */
+  function bpmChanged(fields) {
+    const updated = { ...track, ...fields };
+    track = updated;
+    onBpmChange?.(updated, fields);
+  }
+
+  /** A duration in seconds as `m:ss`, or null when there is none. */
   function duration(secs) {
     if (!secs) return null;
     const m = Math.floor(secs / 60);
@@ -31,7 +46,16 @@
       <div class="grid grid-cols-2 gap-3">
         {#if formatBpm({ bpm: track.bpm })}
           <div class="bg-white/5 p-3 rounded-lg border border-white/5">
-            <span class="text-[9px] uppercase tracking-widest text-muma-spotify-text block mb-1">BPM</span>
+            <span class="text-[9px] uppercase tracking-widest text-muma-spotify-text flex items-center gap-1.5 mb-1">
+              BPM
+              {#if track.bpm_source === 'manual'}
+                <span
+                  class="text-[10px] font-bold normal-case tracking-normal px-1.5 py-0.5 rounded bg-white/10 text-muma-spotify-text"
+                  title={$t('bpm.source.manual')}
+                  data-testid="bpm-manual-marker"
+                >{$t('bpm.override.manualMarker')}</span>
+              {/if}
+            </span>
             <span class="text-lg font-black font-mono tabular-nums">{formatBpm({ bpm: track.bpm, approximate: track.bpm_approximate })}</span>
           </div>
         {/if}
@@ -50,6 +74,8 @@
           </div>
         {/if}
       </div>
+
+      <BpmOverride trackId={track.id} bpm={track.bpm} source={track.bpm_source} onchange={bpmChanged} />
 
       {#if track.genres && track.genres.length > 0}
         <div>

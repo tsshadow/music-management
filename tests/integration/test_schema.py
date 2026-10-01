@@ -93,6 +93,27 @@ def test_the_bpm_tag_writeback_columns_exist(database):
     assert {'tag_bpm', 'tag_action', 'tag_checked_at'} <= columns
 
 
+def test_the_bpm_octave_tables_are_expected_tables():
+    """Bug report 140: db_init creates the priors and the manual-tempo tables, migrate_v53 declares them."""
+    for table in ('library_bpm_priors', 'library_track_bpm_manual'):
+        assert table in EXPECTED_TABLES
+        assert table in schema_sources.code_declared_tables()
+        assert table in schema_sources.migration_declared_tables()
+
+
+def test_the_bpm_octave_columns_and_the_manual_source_exist(database):
+    """Bug report 140: db_init and migrate_v53 add the octave choice's columns and the 'manual' source."""
+    with database.cursor() as cursor:
+        cursor.execute('SHOW COLUMNS FROM library_track_bpm')
+        columns = {row['Field'] for row in cursor.fetchall()}
+        cursor.execute("SHOW COLUMNS FROM library_track_effective_bpm LIKE 'source'")
+        source = cursor.fetchone()['Type']
+    assert {
+        'raw_confidence', 'strength', 'half_score', 'double_score', 'fold_evidence', 'fold_margin', 'fold_version'
+    } <= columns  # fmt: skip
+    assert source == "enum('measured','tag','analyzer','manual')"
+
+
 def test_the_extractor_can_file_a_standing_file(db):
     """Bug report 119: migrate_v46 lets the extract step record a file, with its reason, and refresh it."""
     from services.importer import conflict_store

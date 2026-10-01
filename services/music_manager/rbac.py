@@ -36,6 +36,7 @@ PERMISSIONS = [
     ('user-requests.unapprove', 'Undo an approved access request (deletes/unlinks the resulting account)'),
     ('rules.manage', 'Edit artists, labels and genres, and manage tagging rules'),
     ('config.manage', 'Read and change the runtime configuration'),
+    ('bpm.override', "Correct a track's BPM by hand (halve, double or set it)"),
     ('radio.manage', 'Create and edit radio channels'),
     ('news.manage', 'Configure news recording'),
     ('roles.read', 'View roles'),

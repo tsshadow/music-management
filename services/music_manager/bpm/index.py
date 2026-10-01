@@ -40,6 +40,7 @@ REFRESH_SECONDS = 600.0
 #: fixed SQL (a form condition, or a run of `%s` for track ids), never with a value.
 INPUTS_SQL = """
     SELECT t.id AS track_id,
+           MAX(mb.bpm) AS manual,
            MAX(af.bpm_tag) AS bpm_tag,
            MAX(af.tempo) AS tempo,
            MAX(m.bpm) AS measured,
@@ -49,9 +50,10 @@ INPUTS_SQL = """
     FROM library_tracks t
     LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id
     LEFT JOIN library_track_bpm m ON m.track_uid = t.track_uid AND m.status = 'ok' AND m.bpm IS NOT NULL
+    LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = t.track_uid
     LEFT JOIN library_track_genres tg ON tg.track_id = t.id
     LEFT JOIN rules_genres g ON g.id = tg.genre_id
-    WHERE (af.internal_track_id IS NOT NULL OR m.track_uid IS NOT NULL){where}
+    WHERE (af.internal_track_id IS NOT NULL OR m.track_uid IS NOT NULL OR mb.track_uid IS NOT NULL){where}
     GROUP BY t.id
 """
 
@@ -211,6 +213,10 @@ class IndexCache:
             logger.exception('bpm: rebuilding the browse index failed; serving the previous one')
         finally:
             self._refreshing = False
+
+    def mark_stale(self) -> None:
+        """Rebuild behind the current index on the next request (a tempo was set by hand)."""
+        self._built_at = float('-inf')
 
     def invalidate(self) -> None:
         """Forget the index; the next request builds a fresh one. Tests use this."""

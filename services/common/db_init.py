@@ -72,6 +72,11 @@ REQUIRED_TABLES = [
     # Browse by BPM, the effective BPM per track (measurement > tag > tempo, folded) materialised
     # for SQL readers by the bpm-analyzer. See migrate_v51_track_effective_bpm.sql.
     'library_track_effective_bpm',
+    # BPM octave choice (bug report 140): the learned tempo priors per label, artist and genre,
+    # recomputed daily by the bpm-analyzer, and the tempos a person set by hand. See
+    # migrate_v53_bpm_octave.sql and docs/designs/bpm-octave/technical.md.
+    'library_bpm_priors',
+    'library_track_bpm_manual',
     # The deploy's migration ledger: which migrate_*.sql applied, with the sha256 of its
     # content (tools/apply_migrations.py, bug report 068).
     'schema_migrations',
@@ -201,8 +206,10 @@ def ensure_tables_exist() -> None:
         # The measured tempo per track (BPM browse), keyed on track_uid so a rebuild or a file
         # move keeps it. Filled by the BPM analysis worker; read by services/music_manager/bpm/.
         # See migrate_v50_track_bpm.sql.
-        'library_track_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                status ENUM('ok', 'failed') NOT NULL DEFAULT 'ok',\n                bpm DECIMAL(5,2) NULL,\n                raw_bpm DECIMAL(5,2) NULL,\n                confidence DECIMAL(4,3) NULL,\n                method VARCHAR(32) NOT NULL,\n                octave_corrected TINYINT(1) NOT NULL DEFAULT 0,\n                file_mtime DOUBLE NULL,\n                file_size BIGINT NULL,\n                attempts INT NOT NULL DEFAULT 1,\n                error VARCHAR(255) NULL,\n                analyzed_at DATETIME NOT NULL,\n                tag_bpm DECIMAL(5,2) NULL,\n                tag_action VARCHAR(16) NULL,\n                tag_checked_at DATETIME NULL,\n                INDEX idx_track_bpm_bpm (bpm),\n                INDEX idx_track_bpm_status (status, analyzed_at)\n            )\n        ",
-        'library_track_effective_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_effective_bpm (\n                track_id INT NOT NULL PRIMARY KEY,\n                bpm DECIMAL(5,2) NOT NULL,\n                source ENUM('measured', 'tag', 'analyzer') NOT NULL,\n                confidence ENUM('low', 'medium', 'high') NOT NULL,\n                approximate TINYINT(1) NOT NULL DEFAULT 0,\n                folded TINYINT(1) NOT NULL DEFAULT 0,\n                updated_at DATETIME NOT NULL,\n                INDEX idx_effective_bpm_bpm (bpm),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE\n            )\n        ",
+        'library_track_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                status ENUM('ok', 'failed') NOT NULL DEFAULT 'ok',\n                bpm DECIMAL(5,2) NULL,\n                raw_bpm DECIMAL(5,2) NULL,\n                confidence DECIMAL(4,3) NULL,\n                method VARCHAR(32) NOT NULL,\n                octave_corrected TINYINT(1) NOT NULL DEFAULT 0,\n                file_mtime DOUBLE NULL,\n                file_size BIGINT NULL,\n                attempts INT NOT NULL DEFAULT 1,\n                error VARCHAR(255) NULL,\n                analyzed_at DATETIME NOT NULL,\n                tag_bpm DECIMAL(5,2) NULL,\n                tag_action VARCHAR(16) NULL,\n                tag_checked_at DATETIME NULL,\n                raw_confidence DECIMAL(4,3) NULL,\n                strength FLOAT NULL,\n                half_score FLOAT NULL,\n                double_score FLOAT NULL,\n                fold_evidence VARCHAR(16) NULL,\n                fold_margin FLOAT NULL,\n                fold_version SMALLINT NULL,\n                INDEX idx_track_bpm_bpm (bpm),\n                INDEX idx_track_bpm_status (status, analyzed_at)\n            )\n        ",
+        'library_track_effective_bpm': "\n            CREATE TABLE IF NOT EXISTS library_track_effective_bpm (\n                track_id INT NOT NULL PRIMARY KEY,\n                bpm DECIMAL(5,2) NOT NULL,\n                source ENUM('measured', 'tag', 'analyzer', 'manual') NOT NULL,\n                confidence ENUM('low', 'medium', 'high') NOT NULL,\n                approximate TINYINT(1) NOT NULL DEFAULT 0,\n                folded TINYINT(1) NOT NULL DEFAULT 0,\n                updated_at DATETIME NOT NULL,\n                INDEX idx_effective_bpm_bpm (bpm),\n                FOREIGN KEY (track_id) REFERENCES library_tracks(id) ON DELETE CASCADE\n            )\n        ",
+        'library_bpm_priors': "\n            CREATE TABLE IF NOT EXISTS library_bpm_priors (\n                kind VARCHAR(8) NOT NULL,\n                prior_key VARCHAR(191) NOT NULL,\n                centre DOUBLE NOT NULL,\n                spread DOUBLE NOT NULL,\n                samples INT NOT NULL,\n                updated_at DATETIME NOT NULL,\n                PRIMARY KEY (kind, prior_key)\n            )\n        ",
+        'library_track_bpm_manual': "\n            CREATE TABLE IF NOT EXISTS library_track_bpm_manual (\n                track_uid VARCHAR(255) NOT NULL PRIMARY KEY,\n                bpm DECIMAL(5,2) NOT NULL,\n                set_by INT NULL,\n                set_at DATETIME NOT NULL\n            )\n        ",
         # One row per migrate_*.sql the deploy applied, keyed by file name, with the sha256
         # of the content it applied. scripts/deploy.sh skips a file whose name and hash are
         # recorded here; a changed file runs again. Kept identical to LEDGER_DDL in
@@ -317,6 +324,20 @@ def ensure_tables_exist() -> None:
                     'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_bpm DECIMAL(5,2) NULL',
                     'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_action VARCHAR(16) NULL',
                     'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS tag_checked_at DATETIME NULL',
+                    # The octave choice's inputs and outcome (bug report 140): the estimator's own
+                    # confidence and comb scores, which evidence decided the octave, by how much,
+                    # and under which version of the rule. See migrate_v53_bpm_octave.sql and
+                    # docs/designs/bpm-octave/technical.md.
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS raw_confidence DECIMAL(4,3) NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS strength FLOAT NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS half_score FLOAT NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS double_score FLOAT NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS fold_evidence VARCHAR(16) NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS fold_margin FLOAT NULL',
+                    'ALTER TABLE library_track_bpm ADD COLUMN IF NOT EXISTS fold_version SMALLINT NULL',
+                    # A tempo set by hand is the effective BPM's first source.
+                    "ALTER TABLE library_track_effective_bpm MODIFY COLUMN source "
+                    "ENUM('measured', 'tag', 'analyzer', 'manual') NOT NULL",
                 ):
                     try:
                         cursor.execute(column_sql)

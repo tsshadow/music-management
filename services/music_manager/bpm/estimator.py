@@ -16,8 +16,8 @@ autocorrelation idea but removes the grid:
    the sum is `HARMONICS` times sharper than any single lag.
 
 It deliberately does not decide between octaves (75 vs 150 vs 300): the score of the half
-and double tempo is returned alongside, and `bands.fold_into_band` settles it with the
-track's genre. No librosa: its import alone costs ~150 MB of resident memory (scipy,
+and double tempo is returned alongside, and `octave.choose_octave` settles it with the
+track's evidence (label, artist, genre, path). No librosa: its import alone costs ~150 MB of resident memory (scipy,
 scikit-learn, numba) in a worker that is meant to stay small, and numpy's FFT is all this
 needs.
 """
@@ -60,8 +60,8 @@ class Estimate:
 
     `bpm` is the raw winner in MIN_BPM..MAX_BPM, not yet folded into a genre band.
     `confidence` is 0..1: pulse strength, discounted when the two halves of the excerpt
-    disagree. `half_score` / `double_score` are the scores of bpm/2 and bpm*2 (None when
-    outside the search range), for the octave decision.
+    disagree. `strength` is the comb score of `bpm` itself, `half_score` / `double_score` those
+    of bpm/2 and bpm*2 (None outside SCORE_MIN_BPM..SCORE_MAX_BPM), for the octave choice.
     """
 
     bpm: float
@@ -149,9 +149,16 @@ def _best_tempo(envelope: np.ndarray) -> tuple[float, float, np.ndarray]:
     return float(fine[index]), float(fine_scores[index]), ac
 
 
+#: The tempos an octave neighbour is scored at: wider than the search range, because the octave
+#: choice (octave.py) weighs 32 against 64 and 256 against 128 too. Below 30 BPM even the first
+#: beat period lies beyond the autocorrelation's longest lag.
+SCORE_MIN_BPM = 30.0
+SCORE_MAX_BPM = 500.0
+
+
 def _score_at(ac: np.ndarray, bpm: float) -> float | None:
-    """The score of one tempo, or None outside the search range."""
-    if bpm < MIN_BPM or bpm > MAX_BPM:
+    """The comb score of one tempo, or None outside SCORE_MIN_BPM..SCORE_MAX_BPM."""
+    if bpm < SCORE_MIN_BPM or bpm > SCORE_MAX_BPM:
         return None
     return float(tempo_scores(ac, np.array([bpm]))[0])
 

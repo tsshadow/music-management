@@ -60,7 +60,9 @@ class EstimatorTest(unittest.TestCase):
     def test_the_octave_neighbours_are_scored(self):
         found = estimator.estimate_bpm(click_track(150.0))
         self.assertIsNotNone(found.half_score)
-        self.assertIsNone(found.double_score)  # 300 is outside the search range
+        # 300 is outside the search range but still scored: the octave choice weighs it too.
+        self.assertIsNotNone(found.double_score)
+        self.assertIsNone(estimator._score_at(np.ones(10), 20.0))  # pylint: disable=protected-access
 
     def test_noise_has_low_confidence(self):
         noise = np.random.default_rng(9).normal(0, 0.1, 60 * RATE).astype(np.float32)

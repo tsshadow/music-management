@@ -115,6 +115,11 @@ DEFAULT_BAND_EDGES: tuple[float, float] = (50.0, 75.0)
 MIN_TRACKS_FOR_ENTITY_MEAN = 5
 
 
+def _as_float(value) -> float | None:
+    """`value` as a float, None staying None -- a database Decimal included."""
+    return None if value is None else float(value)
+
+
 def tempo_hardness(tempo: float | None) -> float | None:
     """The tempo-only hardness estimate, or None when there is no tempo at all.
 
@@ -125,6 +130,7 @@ def tempo_hardness(tempo: float | None) -> float | None:
     """
     if tempo is None:
         return None
+    tempo = float(tempo)
     points = _TEMPO_POINTS
     if tempo <= points[0][0]:
         return points[0][1]
@@ -152,6 +158,12 @@ def track_hardness(
     `hardness`; a track whose only tag is one nobody has scored looks exactly like a
     track with no genre tag at all, which is what lets it fall through.
     """
+    # MariaDB hands DECIMAL columns and sums over them back as Decimal -- the measured BPM
+    # (library_track_bpm, 0.01 BPM) among them -- and Decimal does not mix with the float
+    # table below: every daily mix holding an untagged track failed with a 500.
+    genre_weighted_sum, genre_weight_sum, label_mean, artist_mean, tempo = (
+        _as_float(value) for value in (genre_weighted_sum, genre_weight_sum, label_mean, artist_mean, tempo)
+    )
     if genre_weighted_sum is not None and genre_weight_sum and genre_weight_sum > 0:
         return genre_weighted_sum / genre_weight_sum, 'genre'
     if label_mean is not None:

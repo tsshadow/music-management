@@ -350,7 +350,8 @@ need `rules.manage`.
   `release_year` (docs/designs/track-form/).
   BPM (issue #141): each track's `bpm` is its *effective BPM* -- the one the BPM browse shows, read
   from `library_track_effective_bpm`, which the bpm-analyzer keeps in sync -- with `bpm_approximate`
-  (1 when it is not a measurement, clients print "≈152"; null without a BPM). `bpm_min`/`bpm_max`
+  (1 when it is not a measurement, clients print "≈152"; null without a BPM) and `bpm_source`
+  (`manual`, `measured`, `tag` or `analyzer`; bug report 140). `bpm_min`/`bpm_max`
   and a bare number in `q` (50-300, ±2) filter on it, and `sort=bpm` sorts on it with tracks
   without a BPM last in both directions, ties broken by id. The `/api/analytics/*` BPM filters,
   `summary.coverage.bpm` and `bpm-histogram` read the same value, and so does `GET
@@ -358,9 +359,11 @@ need `rules.manage`.
 
 ### 🥁 Browse by BPM (`/api/library/bpm`)
 Design: [docs/designs/bpm-browse/](designs/bpm-browse/technical.md). Any valid API key. Both endpoints
-read an in-memory index of every track's *effective BPM* (a measurement from `library_track_bpm`, else
-the file's BPM tag, else the old analyzer's tempo, the latter two folded by a factor of two into the
-band of the track's genres), rebuilt at most every ten minutes. Sets and podcasts are not listed.
+read an in-memory index of every track's *effective BPM* (a tempo set by hand, else a measurement from
+`library_track_bpm` whose octave the analyzer chose on learned priors -- see
+[docs/designs/bpm-octave/](designs/bpm-octave/technical.md) --, else the file's BPM tag, else the old
+analyzer's tempo, the latter two folded by a factor of two into the band of the track's genres),
+rebuilt at most every ten minutes. Sets and podcasts are not listed.
 - **GET `/api/library/bpm/tracks`**: the tracks at `bpm` ± `tol` or from `bpm_from` to `bpm_to`
   (inclusive; either bound may be left out). `tol` defaults to the `bpm_browse_tolerance` setting
   (2), at most 10. Optional `min_confidence` (`low` default, `medium`, `high`; anything else 422) and
@@ -368,7 +371,7 @@ band of the track's genres), rebuilt at most every ten minutes. Sets and podcast
   `offset`. A picked tempo sorts nearest first, then the more trusted; a range sorts by tempo.
   Response: `{bpm_from, bpm_to, center, tolerance, min_confidence, genre, total, offset, next_offset,
   tracks: [{id, title, artist, duration_secs, work_id, genres, library_path, bpm, bpm_source
-  ("measured"|"tag"|"analyzer"), bpm_confidence ("high"|"medium"|"low"), bpm_folded,
+  ("manual"|"measured"|"tag"|"analyzer"), bpm_confidence ("high"|"medium"|"low"), bpm_folded,
   bpm_approximate}]}`. `library_path` is what a client hands LMS's `getSongsByPath`. `400` when
   neither `bpm` nor a range bound is given, or `bpm_from` > `bpm_to`; `422` for a value outside
   40-500.
@@ -376,6 +379,17 @@ band of the track's genres), rebuilt at most every ten minutes. Sets and podcast
   count}], default_tolerance, summary: {tracks, by_source, by_confidence}}` -- track counts per whole
   BPM from `bpm_from` (default 60) to `bpm_to` (default 300), with the same `min_confidence` and
   `genre` filters, and the 40 genres with the most tracks for the page's genre picker.
+- **PUT `/api/library/bpm/tracks/{track_id}/manual`** (permission `bpm.override`): set the track's
+  tempo by hand, body `{"bpm": 40..500}` or `{"factor": 0.5}` / `{"factor": 2}` (halve or double the
+  tempo it shows now). Stored in `library_track_bpm_manual`, the effective BPM's first source, never
+  overwritten by the analyzer, written into the file's tag by the next writeback round; audited as
+  `bpm.manual_set`. Response: `{track_id, bpm, bpm_source, bpm_confidence, bpm_folded,
+  bpm_approximate, measured_bpm, raw_bpm}` after the change. `400` when neither or both are given or
+  the result lies outside 40-500; `404` unknown track; `409` a factor on a track without a BPM; `422`
+  another factor; `403` without the permission.
+- **DELETE `/api/library/bpm/tracks/{track_id}/manual`** (permission `bpm.override`): back to the
+  measured (or tagged) tempo; audited as `bpm.manual_cleared` when there was a manual tempo. Same
+  response; `404` unknown track.
 
 ### 📡 Personalized feeds (`/api/feeds`)
 Release Radar and the daily mixes; the full contract is `docs/designs/feeds/technical.md`, the length

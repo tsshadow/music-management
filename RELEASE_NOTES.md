@@ -11,6 +11,15 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.87.1 (2026-10-01)
+
+- Track lists show their first rows much sooner, also while the library is being scanned.
+
+- **The web player stays fast while new downloads come in.** LMS used to rescan the whole library's
+  artwork and genre counts for every single downloaded file, which kept it busy most of the hour
+  and made the track list take 12-17 s. It now only redoes what changed. The "recent" list is also
+  much faster thanks to a new index.
+
 ## Global Version 0.87.0 (2026-09-30)
 
 - **Other Subsonic apps now show the BPM** that is in the file. The first library scan after the

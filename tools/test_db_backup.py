@@ -408,6 +408,11 @@ class RunBackupTest(unittest.TestCase):
         patcher = patch.dict(os.environ, env, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # On the first of a month run_backup also writes a monthly copy, which these tests
+        # do not expect: they all failed on 2026-10-01. PromoteMonthlyTest covers that path.
+        promote = patch.object(db_backup, 'promote_monthly', return_value=None)
+        promote.start()
+        self.addCleanup(promote.stop)
 
     def test_a_failed_dump_leaves_no_file_behind(self):
         """A partial file is a trap for whoever restores under pressure."""

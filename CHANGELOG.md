@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.87.1] - 2026-10-01
+
+### Changed
+- **Track lists show their first rows in the time a 50-row answer takes, whatever the page size.**
+  The songs and sets lists, genres, labels, podcasts, festivals, years, lineups and search asked
+  the whole page (up to 500 rows) in one `getSpotifyTracks` call; on production a 200-row page
+  took 1.3 s idle and 12-17 s while LMS scanned. The first request now asks 50 rows and the rest of
+  the page follows behind them, with versions folded across both; a revisit shows the whole page
+  from the cache. Leaving a list for a page that is not a track list now aborts its request too,
+  so it no longer holds an LMS connection the next page needs.
+
+### Fixed
+- **The web player was slow most of the hour because LMS kept scanning the whole library for one
+  file** (issue #154, bug report 141). Every download asks LMS to read its folder, about 45 times an
+  hour. Each of those scoped scans read the one file in a fraction of a second and then spent about
+  41 s recomputing the artwork of all 343,000 tracks, 54,000 releases, 55,000 artists and 49,000
+  playlists, plus every genre count. So LMS was busy most of the time, and the default track list
+  took 12-17 s instead of about 1.3 s whenever it was. A scoped scan now recomputes only what its
+  folders can have changed: their tracks and the rest of those tracks' releases, the releases,
+  mediums, artists and genres involved, and the playlists in the folders. It also recomputes any
+  genre whose count went stale, such as the one a retagged track left. A library-wide scan is
+  unchanged, and catches the rare case a scoped one leaves behind (an entity elsewhere whose cover
+  image was deleted, a playlist elsewhere that lists the new file).
+- **The "recent" track list no longer sorts the whole library for every page.** A new index on the
+  release-date expression the list sorts by takes the query from 0.65 s to 2 ms on a copy of the
+  production database. It is created at startup, so there is no database version bump.
+
 ## [0.87.0] - 2026-09-30
 
 ### Added

@@ -219,7 +219,8 @@ namespace lms::scanner
 
     bool ScanStepAssociateTrackImages::needProcess(const ScanContext& context) const
     {
-        return context.stats.getChangesCount() > 0;
+        // A track without artwork of its own falls back on its release's.
+        return context.stats.getChangesCount() > 0 || releaseArtworkRulesChanged(context);
     }
 
     void ScanStepAssociateTrackImages::process(ScanContext& context)

@@ -385,6 +385,10 @@ namespace lms::scanner
         if (context.stats.getChangesCount() > 0)
             return true;
 
+        // An artist can fall back on a release's artwork.
+        if (releaseArtworkRulesChanged(context))
+            return true;
+
         if (getLastScanSettings() && getLastScanSettings()->artistImageFallbackToRelease != _settings.artistImageFallbackToRelease)
             return true;
 

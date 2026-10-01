@@ -38,7 +38,7 @@ namespace lms::db
         // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
         // sequence. Upstream migrations above 103 are ported under the next free number here,
         // never merged under theirs -- see services/music-management-server/FORK.md.
-        static constexpr Version LMS_DATABASE_VERSION{ 126 };
+        static constexpr Version LMS_DATABASE_VERSION{ 127 };
     } // namespace
 
     VersionInfo::VersionInfo()
@@ -2106,6 +2106,18 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
                 utils::executeCommand(*session.getDboSession(), "ALTER TABLE track ADD COLUMN bpm INTEGER");
             utils::executeCommand(*session.getDboSession(), "UPDATE scan_settings SET audio_scan_version = audio_scan_version + 1");
         }
+
+        void migrateFromV126(Session& session)
+        {
+            // The release artwork rules the last scan applied, as a fingerprint (bug report 144).
+            // A library-wide scan that finds the current rules different recomputes the artwork
+            // of every release, medium, track and artist, even when no file changed -- which is
+            // how a new rule (here: scene `00-...` covers) reaches releases scanned long ago.
+            // Empty on the existing `last_scan` row, so the first library-wide scan after this
+            // step does that once. No scan version bump: no file needs re-reading. Re-runnable.
+            if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('scan_settings') WHERE name = 'release_artwork_rules'").resultValue() == 0)
+                utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN release_artwork_rules TEXT NOT NULL DEFAULT ''");
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2210,6 +2222,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 123, migrateFromV123 },
             { 124, migrateFromV124 },
             { 125, migrateFromV125 },
+            { 126, migrateFromV126 },
         };
 
         bool migrationPerformed{};

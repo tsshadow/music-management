@@ -19,10 +19,13 @@
 
 #include "ScanStepAssociateReleaseImages.hpp"
 
-#include <array>
 #include <cassert>
 #include <deque>
+#include <filesystem>
+#include <optional>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "core/IConfig.hpp"
 #include "core/IJob.hpp"
@@ -54,17 +57,60 @@ namespace lms::scanner
 
         struct SearchReleaseArtworkParams
         {
-            const std::vector<std::string>& releaseImageFileNames;
+            const ReleaseArtworkRules* rules{}; // never null
         };
 
-        db::Artwork::pointer findImageInDirectory(db::Session& session, const SearchReleaseArtworkParams& searchParams, const std::filesystem::path& directoryPath)
+        // The directories holding the release's tracks, and the deepest one they share: expect a
+        // layout like Artist/Release/CD1/..., Artist/Release/CD2/..., Artist/Release/cover.jpg.
+        struct ReleaseDirectories
+        {
+            std::optional<std::filesystem::path> commonPath; // only for a release spread over several directories
+            std::set<std::filesystem::path> paths;
+        };
+
+        ReleaseDirectories findReleaseDirectories(db::Session& session, const db::Release::pointer& release)
+        {
+            ReleaseDirectories res;
+
+            db::Directory::FindParameters params;
+            params.setRelease(release->getId());
+            db::Directory::find(session, params, [&](const db::Directory::pointer& directory) {
+                res.paths.insert(directory->getAbsolutePath());
+            });
+
+            if (res.paths.size() > 1)
+                res.commonPath = core::pathUtils::getLongestCommonPath(std::cbegin(res.paths), std::cend(res.paths));
+
+            return res;
+        }
+
+        // Tries `findInDirectory` on the shared parent first, then on each directory in turn.
+        template<typename FindInDirectory>
+        db::Artwork::pointer searchReleaseDirectories(const ReleaseDirectories& directories, FindInDirectory findInDirectory)
+        {
+            db::Artwork::pointer artwork;
+
+            if (directories.commonPath)
+                artwork = findInDirectory(*directories.commonPath);
+
+            for (const std::filesystem::path& releasePath : directories.paths)
+            {
+                if (artwork)
+                    break;
+                artwork = findInDirectory(releasePath);
+            }
+
+            return artwork;
+        }
+
+        db::Artwork::pointer findPreferredImageInDirectory(db::Session& session, const SearchReleaseArtworkParams& searchParams, const std::filesystem::path& directoryPath)
         {
             db::Artwork::pointer artwork;
 
             const db::Directory::pointer directory{ db::Directory::find(session, directoryPath) };
             if (directory) // may not exist for releases that are split on different media libraries
             {
-                for (std::string_view fileStem : searchParams.releaseImageFileNames)
+                for (std::string_view fileStem : searchParams.rules->preferredFileNames)
                 {
                     db::Image::FindParameters params;
                     params.setDirectory(directory->getId());
@@ -83,7 +129,29 @@ namespace lms::scanner
             return artwork;
         }
 
-        db::Artwork::pointer computePreferredReleaseImage(db::Session& session, const SearchReleaseArtworkParams& searchParams, const db::Release::pointer& release)
+        // The image none of the preferred names matched: a scene release's
+        // `00-artist_-_title-(cat)-web-2026.jpg`, or the only image there is (bug report 144).
+        db::Artwork::pointer findFallbackImageInDirectory(db::Session& session, const SearchReleaseArtworkParams& searchParams, const std::filesystem::path& directoryPath)
+        {
+            const db::Directory::pointer directory{ db::Directory::find(session, directoryPath) };
+            if (!directory)
+                return db::Artwork::pointer{};
+
+            std::vector<db::ImageId> imageIds;
+            std::vector<std::string> stems;
+            db::Image::find(session, db::Image::FindParameters{}.setDirectory(directory->getId()), [&](const db::Image::pointer& image) {
+                imageIds.push_back(image->getId());
+                stems.emplace_back(image->getFileStem());
+            });
+
+            const std::optional<std::size_t> picked{ pickFallbackReleaseImage(*searchParams.rules, stems) };
+            if (!picked)
+                return db::Artwork::pointer{};
+
+            return db::Artwork::find(session, imageIds.at(*picked));
+        }
+
+        db::Artwork::pointer computePreferredReleaseImage(db::Session& session, const SearchReleaseArtworkParams& searchParams, const db::Release::pointer& release, const ReleaseDirectories& directories)
         {
             db::Artwork::pointer artwork;
 
@@ -99,82 +167,55 @@ namespace lms::scanner
 
             if (!artwork)
             {
-                std::set<std::filesystem::path> releasePaths;
-                db::Directory::FindParameters params;
-                params.setRelease(release->getId());
-
-                db::Directory::find(session, params, [&](const db::Directory::pointer& directory) {
-                    releasePaths.insert(directory->getAbsolutePath());
+                artwork = searchReleaseDirectories(directories, [&](const std::filesystem::path& path) {
+                    return findPreferredImageInDirectory(session, searchParams, path);
                 });
-
-                // Expect layout like this:
-                // Artist/Release/CD1/...
-                //               /CD2/...
-                //               /cover.jpg
-                if (releasePaths.size() > 1)
-                {
-                    const std::filesystem::path releasePath{ core::pathUtils::getLongestCommonPath(std::cbegin(releasePaths), std::cend(releasePaths)) };
-                    artwork = findImageInDirectory(session, searchParams, releasePath);
-                }
-
-                if (!artwork)
-                {
-                    for (const std::filesystem::path& releasePath : releasePaths)
-                    {
-                        artwork = findImageInDirectory(session, searchParams, releasePath);
-                        if (artwork)
-                            break;
-                    }
-                }
             }
 
             return artwork;
         }
 
+        db::Artwork::pointer findEmbeddedReleaseImage(db::Session& session, const db::Release::pointer& release, core::media::ImageType imageType)
+        {
+            db::Artwork::pointer artwork;
+
+            db::TrackEmbeddedImage::FindParameters params;
+            params.setRelease(release->getId());
+            params.setImageType(imageType);
+            params.setSortMethod(db::TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
+            db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {
+                if (!artwork)
+                    artwork = db::Artwork::find(session, image->getId());
+            });
+
+            return artwork;
+        }
+
+        // In order: an image named after the release's MBID or one of the preferred names, an
+        // embedded front cover, the fallback image of the directory (an explicit front cover in
+        // the file stays ahead of a guess from a file name), an embedded disc image, and finally
+        // an embedded image of another type, as some tracks are badly tagged.
         db::Artwork::pointer computePreferredReleaseArtwork(db::Session& session, const SearchReleaseArtworkParams& searchParams, const db::Release::pointer& release)
         {
-            db::Artwork::pointer artwork{ computePreferredReleaseImage(session, searchParams, release) };
-            if (artwork)
-                return artwork;
+            const ReleaseDirectories directories{ findReleaseDirectories(session, release) };
 
-            // Fallback on embedded Front image
+            db::Artwork::pointer artwork{ computePreferredReleaseImage(session, searchParams, release, directories) };
+
+            if (!artwork)
+                artwork = findEmbeddedReleaseImage(session, release, core::media::ImageType::FrontCover);
+
+            if (!artwork)
             {
-                db::TrackEmbeddedImage::FindParameters params;
-                params.setRelease(release->getId());
-                params.setImageType(core::media::ImageType::FrontCover);
-                params.setSortMethod(db::TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
-                db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {
-                    if (!artwork)
-                        artwork = db::Artwork::find(session, image->getId());
+                artwork = searchReleaseDirectories(directories, [&](const std::filesystem::path& path) {
+                    return findFallbackImageInDirectory(session, searchParams, path);
                 });
             }
 
-            if (artwork)
-                return artwork;
+            if (!artwork)
+                artwork = findEmbeddedReleaseImage(session, release, core::media::ImageType::Media);
 
-            // Fallback on embedded Media image
-            {
-                db::TrackEmbeddedImage::FindParameters params;
-                params.setRelease(release->getId());
-                params.setImageType(core::media::ImageType::Media);
-                params.setSortMethod(db::TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
-                db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {
-                    if (!artwork)
-                        artwork = db::Artwork::find(session, image->getId());
-                });
-            }
-
-            // Fallback on embedded Other image, as some tracks may be badly tagged
-            {
-                db::TrackEmbeddedImage::FindParameters params;
-                params.setRelease(release->getId());
-                params.setImageType(core::media::ImageType::Other);
-                params.setSortMethod(db::TrackEmbeddedImageSortMethod::DiscNumberThenTrackNumberThenSizeDesc);
-                db::TrackEmbeddedImage::find(session, params, [&](const db::TrackEmbeddedImage::pointer& image) {
-                    if (!artwork)
-                        artwork = db::Artwork::find(session, image->getId());
-                });
-            }
+            if (!artwork)
+                artwork = findEmbeddedReleaseImage(session, release, core::media::ImageType::Other);
 
             return artwork;
         }
@@ -198,19 +239,6 @@ namespace lms::scanner
                     imageAssociations.pop_front();
                 }
             }
-        }
-
-        std::vector<std::string> constructReleaseImageFileNames()
-        {
-            std::vector<std::string> res;
-
-            core::Service<core::IConfig>::get()->visitStrings("cover-preferred-file-names",
-                                                              [&res](std::string_view fileName) {
-                                                                  res.emplace_back(fileName);
-                                                              },
-                                                              { "cover", "front", "folder", "default" });
-
-            return res;
         }
 
         bool fetchNextReleaseIdRange(db::Session& session, db::ReleaseId& lastRetrievedId, db::IdRange<db::ReleaseId>& idRange)
@@ -273,13 +301,13 @@ namespace lms::scanner
 
     ScanStepAssociateReleaseImages::ScanStepAssociateReleaseImages(InitParams& initParams)
         : ScanStepBase{ initParams }
-        , _releaseImageFileNames{ constructReleaseImageFileNames() }
+        , _rules{ readReleaseArtworkRules() }
     {
     }
 
     bool ScanStepAssociateReleaseImages::needProcess(const ScanContext& context) const
     {
-        return context.stats.getChangesCount() > 0;
+        return context.stats.getChangesCount() > 0 || releaseArtworkRulesChanged(context);
     }
 
     void ScanStepAssociateReleaseImages::process(ScanContext& context)
@@ -298,7 +326,7 @@ namespace lms::scanner
         }
 
         const SearchReleaseArtworkParams searchParams{
-            .releaseImageFileNames = _releaseImageFileNames,
+            .rules = &_rules,
         };
 
         ReleaseArtworkAssociationContainer releaseArtworkAssociations;

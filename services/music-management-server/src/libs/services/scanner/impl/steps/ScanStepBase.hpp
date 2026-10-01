@@ -69,6 +69,13 @@ namespace lms::scanner
     protected:
         core::IJobScheduler& getJobScheduler() { return _jobScheduler; };
         const ScannerSettings* getLastScanSettings() const { return _lastScanSettings; }
+
+        // Whether a library-wide scan has to recompute every release's artwork, and what falls
+        // back on it (media, tracks, artists), because the release artwork rules differ from
+        // the ones the last library-wide scan applied (bug report 144). Always false for a
+        // scoped scan: it covers its own releases only and leaves the change to the next
+        // library-wide one.
+        bool releaseArtworkRulesChanged(const ScanContext& context) const;
         const FileScanners& getFileScanners() const { return _fileScanners; }
         const std::filesystem::path& getCachePath() const { return _cachePath; }
 

@@ -454,7 +454,7 @@ VALUES
         EXPECT_EQ(loginNameIndexCount(), 0);
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
             EXPECT_EQ(User::getCount(session), 3U);
         }
 
@@ -490,7 +490,7 @@ VALUES
         EXPECT_EQ(outboxCount(), 1);
         {
             auto transaction{ session.createWriteTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
             session.execute("DELETE FROM muma_listen_outbox");
         }
 
@@ -515,7 +515,28 @@ VALUES
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'bpm'").resultValue(), 1);
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 126);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
+        }
+
+        // migrateFromV126: the release artwork fingerprint exists, empty on the rows that were
+        // there (so the first library-wide scan recomputes every release's artwork), and a second
+        // run on a database that already has the column keeps what the last scan recorded.
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>(R"(SELECT COUNT(*) FROM pragma_table_info('scan_settings') WHERE name = 'release_artwork_rules' AND "notnull" = 1 AND dflt_value = '''''')").resultValue(), 1);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM scan_settings WHERE release_artwork_rules <> ''").resultValue(), 0);
+        }
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("UPDATE scan_settings SET release_artwork_rules = 'v1-recorded'");
+            session.execute("UPDATE version_info SET db_version = 126");
+        }
+        EXPECT_NO_THROW(db.getTLSSession().migrateSchemaIfNeeded());
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('scan_settings') WHERE name = 'release_artwork_rules'").resultValue(), 1);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM scan_settings WHERE release_artwork_rules <> 'v1-recorded'").resultValue(), 0);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
         }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped

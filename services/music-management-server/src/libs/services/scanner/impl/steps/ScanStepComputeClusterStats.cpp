@@ -19,6 +19,9 @@
 
 #include "ScanStepComputeClusterStats.hpp"
 
+#include <algorithm>
+#include <set>
+#include <span>
 #include <vector>
 
 #include <Wt/Dbo/Exception.h>
@@ -29,6 +32,7 @@
 #include "database/objects/Cluster.hpp"
 
 #include "ScanContext.hpp"
+#include "ScanScope.hpp"
 
 namespace lms::scanner
 {
@@ -121,28 +125,21 @@ namespace lms::scanner
 
         Session& dbSession{ _db.getTLSSession() };
 
-        const std::size_t clusterCount{ [&] {
-            auto transaction{ dbSession.createReadTransaction() };
-            return Cluster::getCount(dbSession);
-        }() };
-
-        context.currentStepStats.totalElems = clusterCount;
+        // A batch the previous scan could not write may belong to any cluster: that retry covers
+        // the whole library, as does a library-wide scan.
+        const ScanScope* scope{ _retryPending ? nullptr : getScanScope(context) };
         _retryPending = false;
         std::size_t updatedCount{};
 
-        foreachSubRange(Range{ 0, clusterCount }, 100, [&](Range range) {
-            // Counts are computed in a read transaction and only the clusters whose counts
-            // moved are written, in one write transaction per batch. This step used to open a
-            // write transaction per cluster and rewrite every one of them, changed or not --
-            // thousands of trips for the write lock on every scan that had a single change,
-            // each of them a chance to meet music-manager holding it (bug report 132).
+        // Counts are computed in a read transaction and only the clusters whose counts moved
+        // are written, in one write transaction per batch. This step used to open a write
+        // transaction per cluster and rewrite every one of them, changed or not -- thousands of
+        // trips for the write lock on every scan that had a single change, each of them a chance
+        // to meet music-manager holding it (bug report 132). Returns false to stop.
+        auto processClusters = [&](std::span<const ClusterId> clusterIds) {
             std::vector<ClusterStats> changedStats;
             {
                 auto transaction{ dbSession.createReadTransaction() };
-
-                Cluster::FindParameters params;
-                params.setRange(range);
-                const std::vector<ClusterId> clusterIds{ Cluster::findIds(dbSession, params).results };
 
                 for (const ClusterId clusterId : clusterIds)
                 {
@@ -174,7 +171,53 @@ namespace lms::scanner
             _progressCallback(context.currentStepStats);
 
             return !_abortScan;
-        });
+        };
+
+        constexpr std::size_t batchSize{ 100 };
+
+        if (scope)
+        {
+            // A scoped scan (bug report 141): the clusters of its tracks, plus every cluster
+            // whose cached track count no longer matches its rows -- the genre a retagged track
+            // left, the one a removed track was in -- which the scope cannot name any more.
+            std::set<ClusterId> clusterIdSet{ std::cbegin(scope->clusters), std::cend(scope->clusters) };
+            {
+                auto transaction{ dbSession.createReadTransaction() };
+                for (const ClusterId clusterId : Cluster::findIdsWithOutdatedTrackCount(dbSession))
+                    clusterIdSet.insert(clusterId);
+            }
+            const std::vector<ClusterId> clusterIds(std::cbegin(clusterIdSet), std::cend(clusterIdSet));
+
+            context.currentStepStats.totalElems = clusterIds.size();
+            for (std::size_t offset{}; offset < clusterIds.size(); offset += batchSize)
+            {
+                const std::span<const ClusterId> batch{ std::span{ clusterIds }.subspan(offset, std::min(batchSize, clusterIds.size() - offset)) };
+                if (!processClusters(batch))
+                    break;
+            }
+        }
+        else
+        {
+            const std::size_t clusterCount{ [&] {
+                auto transaction{ dbSession.createReadTransaction() };
+                return Cluster::getCount(dbSession);
+            }() };
+
+            context.currentStepStats.totalElems = clusterCount;
+
+            foreachSubRange(Range{ 0, clusterCount }, batchSize, [&](Range range) {
+                std::vector<ClusterId> clusterIds;
+                {
+                    auto transaction{ dbSession.createReadTransaction() };
+
+                    Cluster::FindParameters params;
+                    params.setRange(range);
+                    clusterIds = Cluster::findIds(dbSession, params).results;
+                }
+
+                return processClusters(clusterIds);
+            });
+        }
 
         LMS_LOG(DBUPDATER, DEBUG, "Recomputed stats for " << context.currentStepStats.processedElems << " clusters, " << updatedCount << " updated!");
     }

@@ -40,6 +40,7 @@
 
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
+#include "ScanScope.hpp"
 
 namespace lms::scanner
 {
@@ -224,7 +225,11 @@ namespace lms::scanner
     void ScanStepAssociateTrackImages::process(ScanContext& context)
     {
         auto& session{ _db.getTLSSession() };
+        const ScanScope* scope{ getScanScope(context) };
 
+        if (scope)
+            context.currentStepStats.totalElems = scope->tracks.size();
+        else
         {
             auto transaction{ session.createReadTransaction() };
             context.currentStepStats.totalElems = db::Track::getCount(session);
@@ -252,10 +257,19 @@ namespace lms::scanner
         {
             JobQueue queue{ getJobScheduler(), 20, processTracks, 1, 0.85F };
 
-            db::TrackId lastRetrievedTrackId;
-            db::IdRange<db::TrackId> trackIdRange;
-            while (fetchNextTrackIdRange(session, lastRetrievedTrackId, trackIdRange))
-                queue.push(std::make_unique<ComputeTrackArtworkAssociationsJob>(_db, trackIdRange));
+            if (scope)
+            {
+                // A scoped scan: only the tracks its folders can have changed (bug report 141).
+                for (const db::IdRange<db::TrackId>& trackIdRange : toConsecutiveIdRanges<db::TrackId>(scope->tracks))
+                    queue.push(std::make_unique<ComputeTrackArtworkAssociationsJob>(_db, trackIdRange));
+            }
+            else
+            {
+                db::TrackId lastRetrievedTrackId;
+                db::IdRange<db::TrackId> trackIdRange;
+                while (fetchNextTrackIdRange(session, lastRetrievedTrackId, trackIdRange))
+                    queue.push(std::make_unique<ComputeTrackArtworkAssociationsJob>(_db, trackIdRange));
+            }
         }
 
         // process all remaining associations

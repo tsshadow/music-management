@@ -44,6 +44,7 @@
 
 #include "JobQueue.hpp"
 #include "ScanContext.hpp"
+#include "ScanScope.hpp"
 #include "database/objects/TrackEmbeddedImage.hpp"
 
 namespace lms::scanner
@@ -259,7 +260,11 @@ namespace lms::scanner
     void ScanStepAssociateMediumImages::process(ScanContext& context)
     {
         auto& session{ _db.getTLSSession() };
+        const ScanScope* scope{ getScanScope(context) };
 
+        if (scope)
+            context.currentStepStats.totalElems = scope->mediums.size();
+        else
         {
             auto transaction{ session.createReadTransaction() };
             context.currentStepStats.totalElems = db::Artist::getCount(session);
@@ -296,10 +301,19 @@ namespace lms::scanner
         {
             JobQueue queue{ getJobScheduler(), 20, processJobsDone, 1, 0.85F };
 
-            db::MediumId lastRetrievedMediumId{};
-            db::IdRange<db::MediumId> mediumIdRange;
-            while (fetchNextMediumIdRange(session, lastRetrievedMediumId, mediumIdRange))
-                queue.push(std::make_unique<ComputeMediumArtworkAssociationsJob>(_db, searchParams, mediumIdRange));
+            if (scope)
+            {
+                // A scoped scan: only the mediums of its tracks (bug report 141).
+                for (const db::IdRange<db::MediumId>& mediumIdRange : toConsecutiveIdRanges<db::MediumId>(scope->mediums))
+                    queue.push(std::make_unique<ComputeMediumArtworkAssociationsJob>(_db, searchParams, mediumIdRange));
+            }
+            else
+            {
+                db::MediumId lastRetrievedMediumId{};
+                db::IdRange<db::MediumId> mediumIdRange;
+                while (fetchNextMediumIdRange(session, lastRetrievedMediumId, mediumIdRange))
+                    queue.push(std::make_unique<ComputeMediumArtworkAssociationsJob>(_db, searchParams, mediumIdRange));
+            }
         }
 
         // process all remaining associations

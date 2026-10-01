@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## Global Version 7.15.1 (2026-10-01)
+
+- **Track lists show their first rows sooner.** The app bundles the web UI of server 0.87.1: a
+  songs or sets list now asks for its first 50 rows, shows them, and fetches the rest of the page
+  in the background; a list you just left comes back from cache at once, and a list request is
+  cancelled when you leave the lists.
+
 ## Global Version 7.15.0 (2026-09-30)
 
 - **Starting without the server.** When the app cannot reach the MuMa server at start-up it now says

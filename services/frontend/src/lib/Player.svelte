@@ -27,6 +27,8 @@
   import { describeFilter } from './management/radioChannels.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startQueue } from './queue.js';
+  import { queueRestore } from './queueRestore.js';
+  import Throbber from './loading/Throbber.svelte';
   import { startTrail, stepBack, stepForward } from './shuffleHistory.js';
   import { releaseDateLabel } from './trackDate.js';
   import { isSet } from './downloads.js';
@@ -1329,6 +1331,8 @@
   const radioColor = $derived($radioChannel ? '#b266ff' : '#b3b3b3');
   const newsColor = $derived(newsSnapshot ? '#b266ff' : '#b3b3b3');
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
+  /** True while the app-start queue restore runs behind the mounted app (`queueRestore.js`). */
+  const restoringQueue = $derived($queueRestore.status === 'restoring');
   const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
   const releaseDate = $derived(track ? releaseDateLabel(track) : '');
   // `coverArtSrc` is the one place that knows whether this device has a local,
@@ -1498,10 +1502,15 @@
     // either off -- this effect only has to stay out of the way while they are
     // running and resync once they are not.
     const radioOrNewsActive = Boolean($radioChannel) || Boolean(newsSnapshot);
+    // The app-start restore is still looking the service's queue up (issue #113,
+    // `queueRestore.js`). The stores hold nothing yet, or half of what is coming: nothing goes
+    // across until it has ended, and the service keeps playing what it holds.
+    const restore = $queueRestore.status;
     if (!nativePlayback || !engineReady || !nativeQueue) {
       wasRadioOrNews = radioOrNewsActive;
       return;
     }
+    if (restore === 'restoring') return;
     if (radioOrNewsActive) {
       wasRadioOrNews = true;
       return;
@@ -1518,8 +1527,9 @@
     // stores then is either what the service was already playing (in which case
     // nothing is sent at all) or a queue restored from localStorage, and an app
     // that starts playing the moment it is opened is a bug people notice at
-    // night.
-    const autoplay = justLeftRadioOrNews ? false : nativeQueueSynced;
+    // night. The one exception is a restore the listener cut short by starting a
+    // track: that first sync is their choice, and it plays.
+    const autoplay = justLeftRadioOrNews ? false : nativeQueueSynced || restore === 'cancelled';
     nativeQueueSynced = true;
     // An empty queue at boot is not an instruction to clear the service's: it
     // means the rehydrate found nothing to restore, which is no reason to stop
@@ -1794,6 +1804,16 @@
             </button>
           {/each}
         </div>
+      {:else if restoringQueue}
+        <!-- The app-start restore (issue #113): the square slot holds the inline throbber and
+             the line says what is coming, in place of "nothing playing" -- which would be
+             untrue while the service is playing. Styleguide, "Mini player: restoring the queue". -->
+        <div class="flex-1 flex items-center gap-3 min-w-0" data-testid="queue-restoring">
+          <div class="w-11 h-11 shrink-0 bg-muma-skeleton rounded flex items-center justify-center text-muma-spotify-text">
+            <Throbber size={20} label={$t('player.restoringQueue')} />
+          </div>
+          <div class="text-[13px] text-muma-spotify-text font-medium truncate">{$t('player.restoringQueue')}</div>
+        </div>
       {:else}
         <div class="flex-1 flex items-center gap-3 min-w-0">
           <div class="w-11 h-11 bg-white/5 rounded flex items-center justify-center">
@@ -1953,6 +1973,14 @@
               onnavigate={onnavigate}
             />
           </div>
+        </div>
+      {:else if restoringQueue}
+        <!-- The app-start restore on a wide screen (a tablet in the app); see the mini player. -->
+        <div class="flex items-center gap-3 min-w-0" data-testid="queue-restoring">
+          <div class="w-14 h-14 shrink-0 bg-muma-skeleton rounded flex items-center justify-center text-muma-spotify-text">
+            <Throbber size={20} label={$t('player.restoringQueue')} />
+          </div>
+          <div class="text-sm text-muma-spotify-text font-medium truncate">{$t('player.restoringQueue')}</div>
         </div>
       {/if}
     </div>

@@ -68,7 +68,11 @@
         if (selectedUser?.id === user.id) onSelectUser(null);
         fetchUsers();
       } else {
-        onError($t('management.users.deleteFailed'));
+        // The server's own reason when it gives one: the last-admin guard (409, bug report 052)
+        // and the `users.update` check (403, issue #38) both say why, which "could not delete"
+        // does not.
+        const data = await res.json().catch(() => ({}));
+        onError(typeof data?.detail === 'string' && data.detail ? data.detail : $t('management.users.deleteFailed'));
       }
     } catch (err) {
       onError($t('management.users.deleteNetworkError'));

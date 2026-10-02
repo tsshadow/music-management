@@ -208,7 +208,8 @@ request `rejected` — there is nothing to delete.
 
 ## Deleting a user directly (`DELETE /api/users/{id}`)
 
-Independent of the request flow above (e.g. for an account that was never created via a Google request at
+Admins only: it takes `users.update`, for every account including the caller's own -- a plain account
+cannot delete itself (issue #38). Independent of the request flow above (e.g. for an account that was never created via a Google request at
 all). Cleans up the same dependent rows as the unapprove flow, refuses (`409`) to delete the **last enabled
 admin account**, and returns a clear `Verwijderen mislukt: ...` message instead of a bare `500` on unexpected
 failures.

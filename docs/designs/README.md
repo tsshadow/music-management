@@ -47,6 +47,7 @@ undecided behavior that were flagged, not silently resolved, during this documen
 | Feature | Covers |
 |---|---|
 | [`authentication/`](authentication/) | Login/user model — username+password login, all Google Sign-In flows, the access-request approve/link/unapprove/reject lifecycle, and user deletion. Derived from the existing, code-verified [`docs/authentication.md`](../authentication.md), which remains the deepest-detail reference. |
+| [`account-scope/`](account-scope/) | Who sees the ListenBrainz import list (admins every account, others their own) and who may delete an account (`users.update` only, no self-delete) -- issue #38, follow-up of bug report 052. Backend, plus the Beheer users tab. |
 | [`downloader/`](downloader/) | Ingesting tracks from SoundCloud, YouTube, and Telegram (`services/downloader`). |
 | [`importer/`](importer/) | Processing incoming music from external sources / label promo pools: archive extraction, folder-structure metadata inference, tagging, and moving into the library (`services/importer`). |
 | [`tagger/`](tagger/) | Metadata enforcement engine — song-type auto-detection and rule-based tagging, plus its `/api/tagger` REST API (`services/tagger`, `services/music_manager/routers/tagger.py`). |
@@ -72,6 +73,7 @@ the retroactive documentation above):
 | [`universal-ui/`](universal-ui/) | **Proposal.** One Svelte UI for web, phone and PC: the web player in a Capacitor shell over the phone's native playback, offline, Android Auto and voice services (Path A), with restyling the Kotlin app to the web's look worked out as the alternative (Path B). Sets as a first-class mode on every surface. |
 | [`logout-confirmation/`](logout-confirmation/) | The "Log out?" dialog in front of the web and app logout (issue #80): what it says, cancel changes nothing, confirm runs the unchanged sign-out of bug report 106. Frontend only. |
 | [`perceived-performance/`](perceived-performance/) | The app looking as fast as it is (issue #107): a boot screen from the first frame, entity pages that draw their header from what the tapped link knew, an in-memory stale-while-revalidate cache, prefetch on pointerdown, and sections that load and fail on their own. Includes the start-up and navigation measurements. Frontend only. |
+| [`deferred-queue-restore/`](deferred-queue-restore/) | The app mounting before its queue restore (issue #113): the mini player shows the restore, a track started meanwhile cancels it, and nothing reaches `PlaybackService` while it runs. Frontend only (ships in the APK). |
 | [`app-start-reachability/`](app-start-reachability/) | The Android app asks the server once before restoring the queue; when it does not answer, the boot screen offers "Opnieuw proberen", "Wachten op server" and "Offline verder". Offline mode keeps only downloaded tracks in the queue, marks the app with a banner, and switches back with the full queue when the server returns. App only. |
 
 ## Relationship to `.ai/docs` and `.ai/requirements`

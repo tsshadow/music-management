@@ -77,3 +77,15 @@ The decision logic lives in `impl/ScanErrorPolicy.{hpp,cpp}` and is unit-tested 
 Left open: the 574 scene playlists outside the queue are still reported by the library-wide scan,
 now labelled. Whether to stop reporting single-release scene playlists altogether, or have the
 importer drop the `.m3u` once the tagger has renamed the tracks, is a decision: issue #96.
+
+Decided on #96: delete them. `scripts/prod/person/delete-stale-m3u-playlists.sh` reads LMS's own
+`playlist_file` and `track` tables and applies the scan step's test, so it deletes exactly what
+LMS reports: 574 all-entries-missing playlists outside the queue on 2026-10-02 (437 beside audio
+under other names, 137 in a folder without audio), after a tar backup, then asks LMS to rescan.
+The 113 partly-matching playlists stay unless `--include-partial` is given. A correction to the
+analysis above: nothing in the importer or the tagger renames a track file, and 572 of the 574
+playlist files date from before 2026, so the mismatches are the collection's history (case
+changes, Windows `D:\Music\...` paths, entries the release never had) and no code change is needed
+to stop new ones. One way a new one could still appear: the mover places a queue folder whose audio is
+gone (12 such folders wait in the queue, each with only its `.m3u` and scene files) -- a decision,
+issue #167.

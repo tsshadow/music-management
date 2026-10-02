@@ -248,6 +248,7 @@ b6758acb30b1330e x9  # renovate-missing-minimum-release-age renovate.json
 e3fd2407e6c36fdc x1  # sqlalchemy-execute-raw-query scripts/backfill_artwork.py
 3e91e9d22410d255 x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
 c9e52706e5417943 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
+cc3bdd9d890b0ab7 x2  # sqlalchemy-execute-raw-query scripts/prod/person/stale_media_rows.py
 4228ef42ed793ded x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py
 0682582578d9bfb3 x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongHelper.py
 e73ce674b63c1a00 x5  # sqlalchemy-execute-raw-query services/common/Helpers/FilterTableHelper.py

@@ -1206,10 +1206,15 @@ def delete_artist_redirect(rule_id: int, _auth: dict = Depends(require_rules_man
 
 
 @router.get('/scrobble/import/latest')
-def get_latest_scrobble_imports_proxy(_auth: dict = Depends(verify_api_key)):
+def get_latest_scrobble_imports_proxy(auth: dict = Depends(verify_api_key)):
+    """The same list as GET /api/scrobble/import/latest, with the same admin-or-own scope (issue #38).
+
+    The scrobbler router is mounted first and answers this path itself; this copy only answers
+    where that router is not mounted, and must never be the wider of the two.
+    """
     from services.music_manager.routers.scrobbler import get_latest_imports
 
-    return get_latest_imports()
+    return get_latest_imports(auth)
 
 
 @router.post('/scrobble/import/listenbrainz')

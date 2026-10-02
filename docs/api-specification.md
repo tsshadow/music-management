@@ -64,12 +64,15 @@ Removed outright, because every caller already uses the target: `GET|PUT
   account's password, and any admin's, needs the admin role. A non-admin changing their own must send
   `current_password` (403 when missing or wrong); an account without a password yet may set its first.
 - **PUT `/users/{user_id}/role`** (`users.assign-role`), **POST `/users/{user_id}/disable`**
-  (`users.disable`), **DELETE `/users/{user_id}`**: `409` when the change would leave no enabled
+  (`users.disable`), **DELETE `/users/{user_id}`** (`users.update`): `409` when the change would leave no enabled
   admin -- demoting, disabling or deleting the last one. Delete answered 400 before and counted
   disabled admins; demote and disable did not check at all. Disabling or demoting an unknown id is
   now 404. Enable, disable and delete each poke the music server's user sync (`/muma/users/sync`)
   after the commit; LMS disables a user whose account is disabled or gone from `GET /users/` and
-  revokes its keys.
+  revokes its keys. **Breaking (issue #38):** delete takes `users.update` (admins by default) for
+  every account, the caller's own included; a plain account deleting itself used to pass and now
+  gets `403 Missing permission: users.update`. An admin may still delete itself unless it is the
+  last enabled admin (the 409 above, bug report 052).
 - **POST `/users/sync/muma-server`** (deprecated alias `/sync/lms-db`; `/sync/lms` removed): run the
   lms.db sync now and return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly
   loop) is running.
@@ -482,7 +485,10 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
 - **POST `/api/scrobble/import/listenbrainz`**: body `{"username", "lb_username"?, "token"?}`. Imports
   into `username`'s history, so an ordinary account may only name itself (403 otherwise); an admin or
   the system key may name anyone.
-- **GET `/api/scrobble/import/latest`**: the last ten import rows. `status` is one of `pending`,
+- **GET `/api/scrobble/import/latest`**: the last ten import rows -- every account's for an admin or
+  the system key, only the caller's own (`username` = its account) for any other account
+  (**changed in issue #38**: every account used to see everyone's rows, ListenBrainz names and error
+  texts included; same response shape). `status` is one of `pending`,
   `running`, `completed`, `truncated` or `failed`. A run fetches at most 100 pages of 100 listens; one
   that stops at that cap ends as `truncated` (it used to report `completed`). `oldest_listened_ts` is
   the Unix timestamp of the oldest listen a run reached; the next import for the same

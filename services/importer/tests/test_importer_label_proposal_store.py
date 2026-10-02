@@ -58,12 +58,12 @@ class LabelProposalStoreTest(unittest.TestCase):
 
     def test_the_snapshot_reads_the_rules_version_and_every_row(self):
         self.cursor.fetchone.return_value = (3, 987654)
-        self.cursor.fetchall.return_value = [('A - One', 'new', None, 'abc'), ('B - Two', 'rejected', 'then', None)]
+        self.cursor.fetchall.return_value = [('A - One', 'new', None, 'abc', 'first'), ('B - Two', 'rejected', 'then', None, None)]
 
         snapshot = self.store.snapshot()
 
         self.assertEqual(snapshot.rules_version, '3:987654')
-        self.assertEqual(snapshot.rows['A - One'], KnownProposal('new', None, 'abc'))
+        self.assertEqual(snapshot.rows['A - One'], KnownProposal('new', None, 'abc', 'first'))
         self.assertEqual(snapshot.rows['B - Two'].status, 'rejected')
         first_query = self.cursor.execute.call_args_list[0].args[0]
         self.assertIn('rules_catid_label', first_query)

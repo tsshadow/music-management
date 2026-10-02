@@ -1,7 +1,7 @@
 import os
 import unittest
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -356,4 +356,4 @@ class MoveConflictTest(unittest.TestCase):
             self.mover._move_folder(self.FOLDER, 'EVAU', dry_run=False)
         self.assertFalse(os.path.exists(self.src()))
         self.assertTrue(os.path.exists(os.path.join(self.dst(), '01-track.mp3')))
-        post.assert_called_once_with(self.dst())
+        post.assert_called_once_with(self.dst(), arrival_date=ANY)

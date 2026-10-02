@@ -29,6 +29,15 @@ The system is split into specialized services, each handling a specific part of 
     - **Metadata Extraction**: Infers Publisher and Catalog Number from the folder structure (e.g., `/Labels/Scantraxx/SCAN123/`).
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
+- **Catalogue numbers**: `services/common/catalogue_number.py` is the one test of what a catalogue
+  number looks like (letters and digits, at least one digit, no title words like `Anthem`/`Edit`,
+  not a bare year). A folder name without one keeps its name -- no ` - ` prefix (bug report 145).
+- **Release info**: when the name does not route a release, the importer reads its `.nfo` (label,
+  `Company`, catalogue number, store link) and the Deezer album it links, cached in
+  `release_store_lookups`, and places it under the existing label folder they name
+  (`import_place_by_label_name`). Deezer is asked only by the importer (four a second, budget per
+  cycle); offline, everything falls back to today's behaviour.
+  [docs/designs/release-info-enrichment/](docs/designs/release-info-enrichment/functional.md).
 - **Import queue location**: `import_folder_path` (default: `__TODO` inside `eps_folder_path`). Any code
   that walks the label tree asks `services/common/import_queue.py` (`ImportQueue`) whether a folder is the
   queue or a label -- never compares against the name; `tests/ci/test_import_queue_predicate.py` enforces
@@ -57,6 +66,10 @@ The system is split into specialized services, each handling a specific part of 
       the release becomes ALBUM over an empty or channel-default album
       (`services/tagger/Song/title_markers.py`, [docs/designs/release-series-markers/](docs/designs/release-series-markers/technical.md)).
     - Remixer extraction from titles and assignment to `REMIXER` tag.
+    - Release date of a label release by a precision ladder -- Deezer date (cached), `.nfo`
+      release/street date, the file's own full date, `.nfo` rip date, arrival date -- written to
+      ORIGINALDATE with its rung in `DATE_SOURCE`; a worse rung never replaces a better one
+      (`InferReleaseDateFromNfoRule`). Backlog: `scripts/prod/person/backfill-release-dates.sh`.
     - Cleanup of invalid characters (e.g., zero-width spaces).
     - Channel links: a SoundCloud/YouTube download whose channel a curator linked to a label or artist
       (Beheer → Downloaders → Koppelingen, by proposal or by hand) gets that label as its publisher and

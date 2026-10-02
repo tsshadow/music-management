@@ -35,7 +35,9 @@ user of the successful import.
 | A `.zip` or `.rar` archive is placed in the import folder | The archive is extracted and then parked in the quarantine for `quarantine_retention_days`. Its releases only appear in the import folder once the whole archive extracted; a failed extraction leaves nothing behind but the archive. |
 | A RAR split into volumes (`.part1.rar`, `.part2.rar`, ... or `.rar`, `.r00`, ...) is placed in the import folder | It is extracted from its first volume once every volume has arrived, and all volumes are parked together. |
 | A release folder is still being copied into the import folder | It is left alone until nothing in it has changed for `import_settle_minutes` (default 5). |
-| An extracted folder contains a catalog ID in parentheses (e.g., `(SCAN123)`) | The folder is renamed to a standardized format: `SCAN123 - [Original Name]`. |
+| An extracted folder contains a catalog ID in parentheses (e.g., `(SCAN123)`) | The folder is renamed to a standardized format: `SCAN123 - [Original Name]`. A parenthesised group that is not a catalogue number -- `(Official_Hardbass_2026_Anthem)`, `(2026_Remaster)`, `(Volume_1)` -- does not count (bug report 145). |
+| A folder name carries no catalogue number | The catalogue number its `.nfo` states is used if there is one; otherwise the folder keeps its name (no empty ` - ` prefix). |
+| No catalogue rule routes the release, its `.nfo` (or Deezer album) names an existing label | It is moved into that label's folder (`docs/designs/release-info-enrichment/`). |
 | A standardized folder is ready for moving | The system looks up the catalog ID prefix (e.g., `SCAN`) in its database to find the associated Label (e.g., `Scantraxx`). |
 | The Label is found in the database | The folder is moved to the final library path: `/path/to/eps/[Label]/[Folder Name]`. |
 | A folder is moved to its final destination | Every audio file inside is tagged with metadata and recorded in the event log, and the user receives one "Import Complete" notification for the release (label, catalogue number, number of tracks). |

@@ -1,15 +1,16 @@
 import errno
 import logging
 import os
-import re
 from os import listdir
 from os.path import isdir, isfile, join
 
+from services.common.catalogue_number import from_folder_name
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.importer.conflict_store import RENAMER, ConflictTracker
 from services.importer.release_compare import is_same_release
+from services.importer.release_info import ReleaseInfo
 from services.importer.settle import is_settled, is_staging
 
 
@@ -24,24 +25,31 @@ def is_parsed(folder):
 
 
 def find_cat_id(folder):
-    """`folder` prefixed with its catalog id: the last parenthesised group holding a digit."""
-    res = re.findall('\\(.*?\\)', folder)
-    res.reverse()
-    logging.info(res)
-    if len(res) == 0:
-        return ' - ' + folder
-    for item in res:
-        if has_numbers(item):
-            item = item[1:-1]
-            return item + ' - ' + folder
-    return ' - ' + folder
+    """`folder` prefixed with its catalogue number, or None when its name carries none.
+
+    The catalogue number is the last parenthesised group that `is_catalogue_number`
+    accepts. A folder without one keeps its name: the empty ` - ` prefix this used to
+    give it, and the word prefix of a festival anthem (`Official_Hardbass_2026_Anthem -
+    ...`), told the Mover nothing and hid the real name (bug report 145).
+    """
+    catalogue_number = from_folder_name(folder)
+    if catalogue_number is None:
+        return None
+    return catalogue_number + ' - ' + folder
 
 
 class Renamer:
-    """Prefixes every release folder in the import folder with the catalogue number its name carries."""
+    """Prefixes every release folder in the import folder with the catalogue number its name carries.
 
-    def __init__(self):
+    A folder whose name carries none gets the catalogue number its .nfo states, if that is a
+    real one (docs/designs/release-info-enrichment/), and is otherwise left as it is (bug
+    report 145).
+    """
+
+    def __init__(self, release_info: ReleaseInfo | None = None):
         self.settings = Settings()
+        #: The .nfo facts per folder, shared with the Mover so each .nfo is read once.
+        self.release_info = release_info or ReleaseInfo()
         #: Standing conflicts, so each one is warned about once rather than every cycle.
         self.conflicts = ConflictTracker(RENAMER)
 
@@ -60,11 +68,16 @@ class Renamer:
             elif is_staging(folder):
                 continue
             elif not is_parsed(folder):
+                new_name = find_cat_id(folder) or self._from_nfo(folder)
+                if new_name is None:
+                    # Nothing to put in front. Asked before the settle check, which walks
+                    # the whole folder over CIFS, because a folder without a catalogue
+                    # number now keeps its name and is met again every cycle.
+                    continue
                 # Renaming a folder a copy is still filling sends the rest of the copy
                 # into a fresh folder under the old name.
                 if not is_settled(join(self.settings.import_folder_path, folder)):
                     continue
-                new_name = find_cat_id(folder)
                 logging.info('input: %s', folder)
                 logging.info('parsed: %s', new_name)
                 if dry_run:
@@ -90,6 +103,14 @@ class Renamer:
                 except Exception as e:
                     logging.warning("Failed to rename folder '%s': %s", folder, e)
         self.conflicts.end(dry_run=dry_run)
+
+    def _from_nfo(self, folder):
+        """`folder` prefixed with the catalogue number its .nfo states, or None."""
+        catalogue_number = self.release_info.catalogue_number(join(self.settings.import_folder_path, folder))
+        if not catalogue_number:
+            return None
+        logging.info('Catalogue number of %s taken from its .nfo: %s', folder, catalogue_number)
+        return catalogue_number + ' - ' + folder
 
     def _resolve_collision(self, src, dst, folder):
         """Handle a rename onto a target that already exists.

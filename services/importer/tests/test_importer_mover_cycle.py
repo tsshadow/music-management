@@ -238,7 +238,8 @@ class OnePushPerReleaseTest(MoverOnDiskTest):
         self.assertIn('Catalog: SCAN123', message)
         self.assertIn('Tracks: 3', message)
         self.assertEqual(self.notify.call_args.kwargs['title'], 'Import Complete')
-        self.assertNotIn('push', self.notify.call_args.kwargs)
+        # A new release, not backlog: the one push it gets.
+        self.assertIs(self.notify.call_args.kwargs['push'], True)
 
     def test_a_pack_of_releases_is_one_push_each_not_one_per_file(self):
         for number in range(1, 5):

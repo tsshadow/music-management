@@ -26,11 +26,30 @@ class FolderNameHelpersTest(unittest.TestCase):
     def test_brackets_are_searched_from_the_back(self):
         self.assertEqual(find_cat_id('Release (Remix) (CAT99)'), 'CAT99 - Release (Remix) (CAT99)')
 
-    def test_a_folder_without_brackets_only_gets_the_separator(self):
-        self.assertEqual(find_cat_id('Some Release'), ' - Some Release')
+    def test_a_folder_without_brackets_gets_no_prefix_at_all(self):
+        # Bug report 145: this used to be ' - Some Release', an empty catalogue number.
+        self.assertIsNone(find_cat_id('Some Release'))
 
     def test_brackets_without_digits_do_not_count_as_a_catalog_number(self):
-        self.assertEqual(find_cat_id('Release (Extended Mix)'), ' - Release (Extended Mix)')
+        self.assertIsNone(find_cat_id('Release (Extended Mix)'))
+
+    def test_a_festival_anthem_is_not_a_catalogue_number(self):
+        # The release seen on production on 2026-10-02 that never reached EPs/B2S.
+        name = 'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        self.assertIsNone(find_cat_id(name))
+
+    def test_scene_releases_without_a_catalogue_number_keep_their_name(self):
+        for name in ('Guizcore_-_Coffee_Time-WEB-FLAC-2026', 'Amigo_-_Uptempo_Fiesta_Vol.1-WEB-2026'):
+            with self.subTest(name=name):
+                self.assertIsNone(find_cat_id(name))
+
+    def test_a_word_group_after_the_catalogue_number_does_not_hide_it(self):
+        name = 'BLNK_-_Who_Run_This_(Extended_Mix)-(U13007)-WEB-FLAC-2026'
+        self.assertEqual(find_cat_id(name), 'U13007 - ' + name)
+
+    def test_a_duplicate_copy_suffix_is_not_a_catalogue_number(self):
+        name = 'DKR_-_Music_Is_Life_E.P.-(ESU054)-WEB-2026 (1)'
+        self.assertEqual(find_cat_id(name), 'ESU054 - ' + name)
 
 
 class RenamerTest(unittest.TestCase):
@@ -64,6 +83,14 @@ class RenamerTest(unittest.TestCase):
         rename = self.run_with(['@eaDir'])
         rename.assert_not_called()
 
+    def test_a_folder_without_a_catalogue_number_is_not_renamed_or_walked(self):
+        with patch.object(renamer, 'is_settled') as settled:
+            rename = self.run_with(['Guizcore_-_Coffee_Time-WEB-FLAC-2026'])
+        rename.assert_not_called()
+        # The settle check walks the folder over CIFS; a folder that will keep its name
+        # is met every cycle and must not cost that walk.
+        settled.assert_not_called()
+
     def test_a_dry_run_only_reports_what_it_would_do(self):
         rename = self.run_with(['Some Release (SCAN123)'], dry_run=True)
         rename.assert_not_called()
@@ -79,7 +106,7 @@ class RenamerTest(unittest.TestCase):
 
     def test_an_unexpected_rename_failure_does_not_stop_the_run(self):
         with (
-            patch.object(renamer, 'listdir', return_value=['A (1)', 'B (2)']),
+            patch.object(renamer, 'listdir', return_value=['A (AB1)', 'B (AB2)']),
             patch.object(renamer, 'isfile', return_value=False),
             patch.object(renamer.os, 'rename', side_effect=OSError('disk error')) as rename,
         ):
@@ -189,13 +216,13 @@ class RenamerCollisionTest(unittest.TestCase):
         self.assertTrue(self.parked(self.UNPARSED))
 
     def test_a_rename_failure_that_is_not_a_collision_is_logged_and_the_run_continues(self):
-        self.make_release('A (1)', {'01-track.mp3': 'aaa'})
-        self.make_release('B (2)', {'01-track.mp3': 'aaa'})
+        self.make_release('A (AB1)', {'01-track.mp3': 'aaa'})
+        self.make_release('B (AB2)', {'01-track.mp3': 'aaa'})
         with patch.object(renamer.os, 'rename', side_effect=OSError(errno.EACCES, 'denied')) as rename:
             self.renamer.run()
         self.assertEqual(rename.call_count, 2)
-        self.assertTrue(self.exists('A (1)'))
-        self.assertTrue(self.exists('B (2)'))
+        self.assertTrue(self.exists('A (AB1)'))
+        self.assertTrue(self.exists('B (AB2)'))
 
     def test_an_unreadable_colliding_folder_is_left_alone(self):
         self.make_release(self.UNPARSED, {'01-track.mp3': 'aaa'})

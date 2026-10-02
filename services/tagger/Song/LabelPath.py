@@ -7,6 +7,8 @@ folder and stores that as the label. Anchoring on the EPs root keeps the label a
 component no matter how deep the file sits below it.
 """
 
+from services.common.catalogue_number import is_catalogue_number
+
 
 def split(path: str, eps_root: str | None, delimiter: str) -> tuple[str, str]:
     """Returns `(label, release folder)` for a label path.
@@ -29,5 +31,13 @@ def split(path: str, eps_root: str | None, delimiter: str) -> tuple[str, str]:
 
 
 def catalog_number(release_folder: str) -> str:
-    """The catalog number is the first space separated part of the release folder."""
+    """The catalog number is the first space separated part of the release folder.
+
+    A folder name without a space is a catalogue number only when it is nothing else
+    (`FUSION001`). The importer prefixes `<cat id> - ` only when the release has one, and
+    since bug report 145 it leaves every other name alone -- a whole scene name like
+    `Guizcore_-_Coffee_Time-WEB-FLAC-2026` is not a catalogue number.
+    """
+    if ' ' not in release_folder:
+        return release_folder if is_catalogue_number(release_folder) else ''
     return release_folder.split(' ')[0]

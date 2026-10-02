@@ -860,6 +860,52 @@ def _config_fields() -> list[ConfigField]:
             'every song within the hour; songs pinned on the Versions page keep their pin.',
         ),
         *_artist_auto_approve_fields(),
+        *_importer_release_info_fields(),
+    ]
+
+
+def _importer_release_info_fields() -> list[ConfigField]:
+    """How the importer uses a release's .nfo and the store it links (docs/designs/release-info-enrichment/)."""
+    group = 'Importer'
+    return [
+        ConfigField(
+            key='import_place_by_label_name',
+            type='boolean',
+            default=True,
+            env='IMPORT_PLACE_BY_LABEL_NAME',
+            group=group,
+            description='Move a release no catalogue rule routes to the existing label folder its .nfo '
+            '(Label/Company) or its Deezer album names, when exactly one folder matches. Measured right for '
+            '95% of such releases already in the library; the rest were sub-label folders. Off: only catalogue '
+            'rules place a release, everything else becomes a label proposal.',
+        ),
+        ConfigField(
+            key='import_store_lookups',
+            type='boolean',
+            default=True,
+            env='IMPORT_STORE_LOOKUPS',
+            group=group,
+            description='Ask Deezer about the album a release\'s .nfo links (release date, label, UPC), once per '
+            'album, kept in release_store_lookups. Off: nothing leaves the network; dates come from the .nfo.',
+        ),
+        ConfigField(
+            key='import_store_lookups_per_cycle',
+            type='integer',
+            default=60,
+            env='IMPORT_STORE_LOOKUPS_PER_CYCLE',
+            group=group,
+            description='At most this many new Deezer lookups per import cycle (four a second). The rest wait for '
+            'the next cycle.',
+        ),
+        ConfigField(
+            key='import_label_name_moves_per_cycle',
+            type='integer',
+            default=50,
+            env='IMPORT_LABEL_NAME_MOVES_PER_CYCLE',
+            group=group,
+            description='At most this many releases placed by label name per import cycle, so working off a '
+            'backlog does not hold one cycle for hours.',
+        ),
     ]
 
 

@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-10-02
+
+### Added
+- **The importer reads the release's `.nfo`, and the Deezer album it links, for what the folder name
+  lacks.** A release no catalogue rule routes goes to the existing label folder its `.nfo` names
+  (`Label`, `Company`) or its Deezer album names; a catalogue number the `.nfo` states is used when
+  the name has none. Measured on the queue of 2026-10-02 the `.nfo` alone places 2.159 releases that
+  were waiting for a label decision. Switch: `import_place_by_label_name` (Beheer > Configuratie,
+  group Importer). Backlog releases placed this way are logged without a phone push.
+- **Where your filing and the `.nfo` disagree, you choose once per label.** Releases whose `.nfo`
+  says `Cloud 9 Music` sit in `Cloud 9 Dance`: such a release is not moved but proposed with both
+  folders in Beheer > Labelvoorstellen, and the folder you confirm is remembered for every later
+  release with that label (`rules_label_name_choices`, migrate_v56, seeded with the 104 labels found
+  in the label tree on 2026-10-02; re-learn with `scripts/prod/person/learn-label-name-history.sh`).
+- **Release dates follow a precision ladder** instead of stopping at the year: the Deezer release
+  date, then an `.nfo` release/street date, the file's own full date, the `.nfo` rip date, and for a
+  new release the day it arrived. The rung is written to `DATE_SOURCE`; a better rung later replaces
+  a worse one, never the other way round. The UPC goes to `BARCODE`. Year-only dates sort below
+  every dated track of their year in "recently released"; 22.689 EPs tracks of 2024-2026 had one.
+- `scripts/prod/person/backfill-release-dates.sh` (dry run first) lifts the year-only tracks already
+  in the label tree; about 7.550 of them link a Deezer album. New table `release_store_lookups`
+  (migrate_v55). Design: `docs/designs/release-info-enrichment/`.
+
+- **`scripts/prod/person/merge-stale-media-rows.sh` removes the 1,493 stale media rows the hourly
+  syncs skip** (issue #124, bug report 093). Each one's hash is not the SHA-256 of its path, so the
+  scanner never sees it, and it holds a stub track with the file name as title. The script finds
+  the live track for the same file (1,481 by path, 10 more by the path with a doubled release
+  folder collapsed), merges the stub's ratings keeping the highest per user, moves its listens
+  (dropping a listen the live track already has), takes it out of its works, and deletes the row
+  and the stub. Two folder rows nothing refers to are deleted outright; anything referenced that
+  cannot be matched would be kept and listed (none on 2026-10-02). JSON backup first, `--rollback`,
+  one transaction per row.
+- **`scripts/prod/person/delete-stale-m3u-playlists.sh` deletes the 574 scene playlists LMS reports
+  after every library scan** (issue #96, bug report 121). It decides "missing" the way LMS's scan
+  step does, from LMS's own database, leaves the import queue and partly-matching playlists alone,
+  tars every file first, and asks LMS to rescan the folders. 572 of the 574 predate 2026; nothing
+  in the importer or tagger renames a track, so no code change stops new ones.
+
+### Changed
+- **The app shows its home screen before the queue is restored** (issue #113). Inside the Android
+  shell the web UI used to wait on the boot screen for one `getSong` per queued track (up to 200)
+  before it mounted. It now mounts as soon as the server and session are known; the mini player
+  says "Wachtrij wordt hersteld…" with a spinner and fills in when the restore finishes. A track
+  started before then cancels the restore, so a late answer never replaces it; "add to queue"
+  meanwhile keeps its tracks behind the restored ones. Nothing is pushed to the player service
+  while the restore runs -- not the empty queue the UI starts with, not yesterday's queue from
+  `localStorage` -- and a restore that finishes goes across paused, as before. LMS has no endpoint
+  that resolves a list of track ids (`getSongs` filters by cluster, artist, work and form), so the
+  lookups themselves are unchanged; they just no longer hold the first paint back.
+
+### Fixed
+- The folder-label cleanup script (`clear-folder-labels.sh`) gives a file whose label was its release folder's name the label folder above that release folder (`247 Hardcore`) instead of leaving it empty.
+- The same script also repairs the label tree's own name (`EPs`, `Eps`) written as a label: it becomes the label folder the file sits in, and is cleared in `__Free&None`.
+
+- **A festival anthem in a release name was taken for its catalogue number, and a name without one
+  got an empty prefix.** `Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-...`
+  became `Official_Hardbass_2026_Anthem - ...` and never reached `EPs/B2S`; 2.663 folders in
+  `__TODO` were named ` - <release>`. The Renamer now only accepts something that looks like a
+  catalogue number (rule derived from the label tree: it rejects none of the 21.408 prefixes the
+  old Renamer produced there) and otherwise leaves the name alone.
+  `scripts/prod/person/repair-word-prefixed-import-folders.sh` gives the 2.759 misnamed folders
+  their name back (dry run first). Bug report 145.
+
+### Security
+- **The ListenBrainz import list and account deletion are admin matters now** (issue #38, left open
+  by bug report 052). `GET /api/scrobble/import/latest` showed every account's last ten imports --
+  name, ListenBrainz name and error text -- to anyone signed in; it now returns every account's
+  rows to an admin or the system key and only the caller's own to anyone else.
+  `DELETE /api/users/{id}` let a plain account delete itself (the check was "self or
+  `users.update`"); it now takes `users.update` for every account. **Breaking** for a client that
+  relied on self-delete: that call is a `403 Missing permission: users.update` now (no client in
+  this repository made it). The last-admin guard is unchanged, and Beheer > Gebruikers shows the
+  server's reason when a delete is refused instead of a generic error.
+
 ## [0.88.2] - 2026-10-02
 
 ### Fixed

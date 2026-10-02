@@ -61,12 +61,17 @@ The importer is a standalone Python service (`services/importer/importer_service
    into. Only a settled wrapper is flattened.
 3. **`Renamer`**:
     - Scans folders in `import_folder_path`, skipping unsettled ones.
-    - Regex searches for `(CATID)` in folder names.
-    - Renames folders to `CATID - FolderName` using `os.rename`.
+    - Takes the last `(...)` group in the name that `services/common/catalogue_number.py` accepts as
+      a catalogue number (bug report 145: never a festival anthem, an edit marker or a year), else the
+      catalogue number the release's `.nfo` states (`release_info.ReleaseInfo`).
+    - Renames folders to `CATID - FolderName` using `os.rename`. A folder without a catalogue number
+      keeps its name -- no empty ` - ` prefix -- and is not walked for the settle check.
 4. **`Mover`**:
     - Skips folders that are not settled.
     - Extracts `catid` from folder name (first space-separated part, cleaned of non-alphanumeric chars).
-    - Queries `rules_catid_label` for the `label`.
+    - Queries `rules_catid_label` for the `label`. Without one, and with `import_place_by_label_name`
+      on, places the release under the existing label folder its `.nfo` or linked Deezer album names
+      (`docs/designs/release-info-enrichment/`); otherwise records a proposal as below.
     - Moves folder to `eps_folder_path / label / FolderName` (checked before the move, never into an
       existing folder; see the duplicate rule below).
     - Triggers `post_processing_songs(path)`, then sends **one** push for the release.

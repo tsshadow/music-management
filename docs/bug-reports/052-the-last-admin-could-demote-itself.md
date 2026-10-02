@@ -85,3 +85,5 @@ mobile client without a housekeeping step.
   checked and is self-or-privileged: feeds and listening pin a user key to its own account, the
   ratings read is self-or-admin, the rating webhook is system-key only, the ListenBrainz import is
   self-or-admin, and the `/api/users/{id}/...` routes are self or `users.update`/`users.read`.
+  Decided and done in GitLab issue #38: the import list is admin-or-own, and delete takes
+  `users.update` with no self-delete for a plain account (the last-admin guard above stays).

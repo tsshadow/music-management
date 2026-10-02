@@ -820,6 +820,35 @@ class LabelProposalsTest(ManagementTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(any('rules_catid_label' in s for s in self.statements()))
 
+    def test_confirming_a_two_option_proposal_records_the_choice_for_the_label(self):
+        # #164: the .nfo says Cloud 9 Music, the curator files those under Cloud 9 Dance.
+        self.cursor.fetchone.return_value = {
+            'id': 3,
+            'folder': 'CLDM2025001 - VA-Masters_Of_Hardcore-(CLDM2025001)-2CD-FLAC-2025-OTT',
+            'catid': 'CLDM2025001',
+            'proposed_label': 'Cloud 9 Music',
+            'label_choice_key': 'cloud9',
+        }
+
+        response = self.confirm(3, 'Cloud 9 Dance')
+
+        self.assertEqual(response.status_code, 200)
+        choice = [c for c in self.cursor.execute.call_args_list if 'rules_label_name_choices' in str(c.args[0])]
+        self.assertEqual(1, len(choice))
+        self.assertEqual(('Cloud 9 Dance', 'cloud9'), choice[0].args[1])
+
+    def test_confirming_an_ordinary_proposal_records_no_choice(self):
+        self.cursor.fetchone.return_value = {
+            'id': 1,
+            'folder': 'BKRP104 - Darwin',
+            'catid': 'BKRP',
+            'proposed_label': 'Brutal Kuts',
+        }
+
+        self.confirm(1, 'Brutal Kuts')
+
+        self.assertFalse(any('rules_label_name_choices' in s for s in self.statements()))
+
     def test_confirming_a_proposal_with_a_cat_id_moves_nothing_itself(self):
         self.cursor.fetchone.return_value = {
             'id': 1,

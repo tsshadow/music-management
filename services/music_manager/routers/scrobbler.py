@@ -328,13 +328,29 @@ class ImportRequest(BaseModel):
 
 
 @router.get('/import/latest')
-def get_latest_imports(_auth: dict = Depends(verify_api_key)):
+def get_latest_imports(auth: dict = Depends(verify_api_key)):
+    """The ten newest ListenBrainz imports: every account's for an admin, the caller's own otherwise.
+
+    A row carries the account, its ListenBrainz name and the import's error text, so a plain
+    account sees only the imports into its own history (issue #38). "Its own" by the account's
+    stored spelling, which is what `_history_owner` writes the row under; the column's
+    case-insensitive collation also matches an older row written in another case.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT * FROM scrobble_imports ORDER BY started_at DESC LIMIT 10')
+            if is_admin_auth(auth):
+                cursor.execute('SELECT * FROM scrobble_imports ORDER BY started_at DESC LIMIT 10')
+            else:
+                username = ((auth or {}).get('user') or {}).get('username')
+                if not username:
+                    return []
+                cursor.execute(
+                    'SELECT * FROM scrobble_imports WHERE username = %s ORDER BY started_at DESC LIMIT 10',
+                    (username,),
+                )
             return cursor.fetchall()
     finally:
         conn.close()

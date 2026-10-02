@@ -10,6 +10,8 @@ from unittest.mock import patch
 
 from services.tagger import tag_registration
 from services.tagger.constants import (
+    BARCODE,
+    DATE_SOURCE,
     FESTIVAL,
     ORIGINAL_ARTIST,
     ORIGINAL_TITLE,
@@ -33,7 +35,19 @@ class CustomTagKeysTest(unittest.TestCase):
         was lost, so the list is asserted whole rather than key by key.
         """
         self.assertEqual(
-            {PUBLISHER, RATING, PARSED, FESTIVAL, REMIXER, ORIGINAL_TITLE, ORIGINAL_ARTIST, PODCAST, PODCAST_EPISODE},
+            {
+                PUBLISHER,
+                RATING,
+                PARSED,
+                FESTIVAL,
+                REMIXER,
+                ORIGINAL_TITLE,
+                ORIGINAL_ARTIST,
+                PODCAST,
+                PODCAST_EPISODE,
+                DATE_SOURCE,
+                BARCODE,
+            },
             set(tag_registration.CUSTOM_TAG_KEYS),
         )
 

@@ -14,13 +14,16 @@ from services.importer.label_resolver import LabelProposal
 # part of the proposal, and records what the folder looked like when its tags were last
 # read -- whatever the status. See `fingerprint`.
 RECORD_QUERY = """
-    INSERT INTO rules_label_proposals (folder, catid, proposed_label, source, confidence, resolved_fingerprint)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO rules_label_proposals
+        (folder, catid, proposed_label, source, confidence, resolved_fingerprint, alternative_label, label_choice_key)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
         catid = IF(status = 'new', VALUES(catid), catid),
         proposed_label = IF(status = 'new', VALUES(proposed_label), proposed_label),
         source = IF(status = 'new', VALUES(source), source),
         confidence = IF(status = 'new', VALUES(confidence), confidence),
+        alternative_label = IF(status = 'new', VALUES(alternative_label), alternative_label),
+        label_choice_key = IF(status = 'new', VALUES(label_choice_key), label_choice_key),
         resolved_fingerprint = VALUES(resolved_fingerprint)
 """
 
@@ -32,7 +35,7 @@ RULES_VERSION_QUERY = """
     FROM rules_catid_label
 """
 
-KNOWN_QUERY = 'SELECT folder, status, decided_at, resolved_fingerprint FROM rules_label_proposals'
+KNOWN_QUERY = 'SELECT folder, status, decided_at, resolved_fingerprint, created_at FROM rules_label_proposals'
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,8 @@ class KnownProposal:
     status: str
     decided_at: object
     fingerprint: str | None
+    #: When the importer first gave up on the folder: the day the release had arrived by.
+    created_at: object = None
 
 
 #: What `record` leaves behind for a folder that had no row yet.
@@ -86,8 +91,8 @@ class LabelProposalStore:
                 count, checksum = cursor.fetchone()
                 cursor.execute(KNOWN_QUERY)
                 rows = {
-                    str(folder): KnownProposal(str(status), decided_at, fp)
-                    for folder, status, decided_at, fp in cursor.fetchall()
+                    str(folder): KnownProposal(str(status), decided_at, fp, created_at)
+                    for folder, status, decided_at, fp, created_at in cursor.fetchall()
                 }
             return ProposalSnapshot(f'{count}:{checksum}', rows)
         except Exception as e:  # noqa: BLE001 - a missing cache is never a reason to fail the import
@@ -114,6 +119,8 @@ class LabelProposalStore:
                             proposal.source,
                             proposal.confidence,
                             resolved_fingerprint,
+                            proposal.alternative,
+                            proposal.choice_key,
                         ),
                     )
                 connection.commit()

@@ -42,7 +42,7 @@ Related tables:
 | `POST /api/user-requests/{id}/approve` | requires `user-requests.approve`; body: `{link_user_id?: int, display_name?: string}` | `200 {request: {...}}` — creates a new `user`-role account (never `admin`) if `link_user_id` is omitted, or adds a `user_identities` row to the given existing account if provided; `display_name` overrides the account's display name either way | only allowed while `status = 'pending'` |
 | `POST /api/user-requests/{id}/unapprove` | requires `user-requests.unapprove`; body: `{}` | `200 {request: {...}}` — request returns to `status = 'pending'` | only allowed while `status = 'approved'`; deletes the created account if `linked_existing = false`, or only removes the `user_identities` row if `linked_existing = true` |
 | `POST /api/user-requests/{id}/reject` | requires `user-requests.reject` | `200 {request: {...}}` — `status = 'rejected'` | only allowed while `status = 'pending'` |
-| `DELETE /api/users/{id}` | requires `users.update` (or the caller deleting their own account) | `200 {status: "ok"}` | `400` "Kan de laatste beheerder niet verwijderen" (refuses to delete the last admin); `404` user not found; `500` "Verwijderen mislukt: ..." on unexpected failure instead of a bare `500` |
+| `DELETE /api/users/{id}` | requires `users.update`, also for the caller's own account (issue #38: no self-delete) | `200 {status: "ok"}` | `400` "Kan de laatste beheerder niet verwijderen" (refuses to delete the last admin); `404` user not found; `500` "Verwijderen mislukt: ..." on unexpected failure instead of a bare `500` |
 
 ## Cross-App Impact
 

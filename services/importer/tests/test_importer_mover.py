@@ -202,7 +202,7 @@ class TestImportedReleaseIsWritable(unittest.TestCase):
             patch('os.path.exists', return_value=False),
             patch('shutil.move'),
             patch('services.importer.mover.make_library_writable', side_effect=lambda path: order.append('chmod')),
-            patch('services.importer.mover.post_processing_songs', side_effect=lambda path: order.append('tag')),
+            patch('services.importer.mover.post_processing_songs', side_effect=lambda path, **_: order.append('tag')),
             patch('services.common.Helpers.LmsScanTrigger.lms_scan_trigger.notify'),
         ):
             mover._move_folder('SCAN123 - Release', 'SCAN123', dry_run=False)

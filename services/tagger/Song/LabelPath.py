@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 
+from services.common.catalogue_number import is_catalogue_number
 from services.common.import_queue import ImportQueue
 from services.common.label_names import looks_like_release_folder
 
@@ -57,5 +58,13 @@ def split(path: str, eps_root: str | None, delimiter: str, queue: ImportQueue | 
 
 
 def catalog_number(release_folder: str) -> str:
-    """The catalog number is the first space separated part of the release folder."""
+    """The catalog number is the first space separated part of the release folder.
+
+    A folder name without a space is a catalogue number only when it is nothing else
+    (`FUSION001`). The importer prefixes `<cat id> - ` only when the release has one, and
+    since bug report 145 it leaves every other name alone -- a whole scene name like
+    `Guizcore_-_Coffee_Time-WEB-FLAC-2026` is not a catalogue number.
+    """
+    if ' ' not in release_folder:
+        return release_folder if is_catalogue_number(release_folder) else ''
     return release_folder.split(' ')[0]

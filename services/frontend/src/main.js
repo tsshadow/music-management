@@ -42,12 +42,16 @@ localeReady();
  * In a browser the app mounts as soon as the chunk the URL needs is in (see below), and the
  * boot screen leaves with the first frame.
  *
- * Inside the Android shell the app is mounted only after the phone's server,
- * session and playback queue have reached the stores -- the first component to
- * render otherwise fetches against `https://localhost`, which is the WebView
- * and not a music server. `bootstrapShell` never rejects, so a phone that
- * cannot reach its server still gets a login screen rather than a blank one.
- * Meanwhile the boot screen from index.html says which step it is on.
+ * Inside the Android shell the app is mounted only after the phone's server and
+ * session have reached the stores -- the first component to render otherwise
+ * fetches against `https://localhost`, which is the WebView and not a music
+ * server. `bootstrapShell` never rejects, so a phone that cannot reach its
+ * server still gets a login screen rather than a blank one. Meanwhile the boot
+ * screen from index.html says which step it is on.
+ *
+ * The playback queue is not waited for (`deferQueue`, issue #113): its restore -- one lookup per
+ * queued track -- runs behind the mounted app, with the mini player saying so, and a track the
+ * listener starts first cancels it (`queueRestore.js`, docs/designs/deferred-queue-restore/).
  *
  * A signed-in phone whose server does not answer is asked what to do on the boot screen itself
  * (`bootUnreachable.js`: try again, wait for the server, or continue offline); after an offline
@@ -55,7 +59,10 @@ localeReady();
  * answers (docs/designs/app-start-reachability/).
  */
 const app = platform.system.isNative
-  ? bootstrapShell(platform, undefined, setBootStage, { decide: askServerDecision }).then(() => {
+  ? bootstrapShell(platform, undefined, setBootStage, {
+      decide: askServerDecision,
+      deferQueue: true,
+    }).then(() => {
       setBootStage("starting");
       watchServerReturn(platform, { onBack: announceServerBack });
       return mountApp();

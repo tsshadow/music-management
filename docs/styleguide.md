@@ -200,7 +200,9 @@
   Never write "Loading…" text as the only content of a page.
 - **Boot screen** (web and app): from the very first frame, `index.html` shows the MuMa mark
   centred on `#191414`, with a status line under it in secondary text (`#B3B3B3`, 14px). The status
-  line names the stage ("Verbinden…", "Inloggen…", "Wachtrij herstellen…"). Under it runs a 3px
+  line names the stage ("Verbinden…", "Inloggen…"). The app does not wait for the queue restore
+  here any more (issue #113): the mini player shows it instead, see "Mini player: restoring the
+  queue". Under it runs a 3px
   progress bar, 160px wide and `rounded-full`, in the brand green on a `#2F2F2F` track. The bar is
   indeterminate (a sliding segment) unless the stage has a count, in which case it fills. After 8 s
   on one stage a muted line (`#727272`, 12px) says it is taking longer than usual. After 20 s
@@ -236,6 +238,15 @@
   action that is waiting (a play button pressed before its tracks arrived) or a background refresh
   next to a section heading. It never replaces a whole page or section: that is what skeletons are
   for.
+- **Mini player: restoring the queue** (app only, issue #113, docs/designs/deferred-queue-restore/):
+  while the queue the phone's player holds is still being looked up after the app opened, the mini
+  player shows, in place of "Niets aan het afspelen", its 44px cover slot as a `bg-muma-skeleton`
+  square (`rounded`) holding the inline throbber at 20px in secondary text, and the line
+  "Wachtrij wordt hersteld…" in secondary text, 13px, medium weight, not italic. The play/pause
+  button stays and works; next, the stars and the progress bar are hidden as with no track. The wide
+  player bar (a tablet) shows the same in its 56px cover slot at 14px. When the restore finishes
+  the row becomes the playing track without an animation; when the listener starts a track first,
+  that track replaces the row.
 
 ## Borders & Effects
 - **Border Radius**: Small (`rounded` / 4px) for inputs/buttons, Medium (`rounded-md` / 8px) for cards/modals, Full (`rounded-full`) for avatars and primary action pills.

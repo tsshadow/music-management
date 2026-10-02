@@ -1,3 +1,5 @@
+from datetime import date
+
 from services.common.config_store import ConfigStore as Settings
 from services.common.import_queue import ImportQueue
 from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
@@ -23,6 +25,9 @@ class LabelSong(BaseSong):
         publisher, release_folder = LabelPath.split(path, s.eps_folder_path, s.delimiter, ImportQueue.from_settings(s))
         self._publisher = str(publisher)
         self._catalog_number = str(LabelPath.catalog_number(release_folder))
+        #: The day the release first reached the import queue, set by the importer's Mover; the
+        #: release-date ladder's last rung before the year (InferReleaseDateFromNfoRule).
+        self.arrival_date: date | None = None
 
     def parse(self):
         # First: a copyright of "__TODO (2021)" left by bug report 030 is emptied here, so the

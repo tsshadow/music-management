@@ -188,7 +188,8 @@ def get_label_proposals(status: str = 'new', _auth: dict = Depends(verify_api_ke
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT id, folder, catid, proposed_label, source, confidence, status '
+                'SELECT id, folder, catid, proposed_label, source, confidence, status, '
+                'alternative_label, label_choice_key '
                 'FROM rules_label_proposals WHERE status = %s '
                 'ORDER BY proposed_label IS NULL, proposed_label, confidence DESC',
                 (status,),
@@ -238,6 +239,11 @@ def confirm_label_proposal(
     knows how to move a release whose CAT ID resolves, and it will do so on its next
     cycle, so there is no second move implementation here. Without one there is
     nothing to learn -- no key to hang a rule on -- so this places that single folder.
+
+    A proposal that offered two folders -- the one the release's .nfo label names and the one
+    the curator filed such releases in (`label_choice_key` set, #164) -- also records the
+    answer in `rules_label_name_choices`, so every later release with that .nfo label is placed
+    there without asking again.
     """
     conn = get_db_connection()
     if not conn:
@@ -246,7 +252,8 @@ def confirm_label_proposal(
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                'SELECT id, folder, catid, proposed_label FROM rules_label_proposals WHERE id = %s', (proposal_id,)
+                'SELECT id, folder, catid, proposed_label, label_choice_key FROM rules_label_proposals WHERE id = %s',
+                (proposal_id,),
             )
             row = cursor.fetchone()
             if not row:
@@ -293,6 +300,12 @@ def confirm_label_proposal(
                     'WHERE id = %s',
                     (decision.label, proposal_id),
                 )
+                if row.get('label_choice_key'):
+                    cursor.execute(
+                        'UPDATE rules_label_name_choices SET chosen_folder = %s, decided_at = NOW() '
+                        'WHERE nfo_label_key = %s',
+                        (decision.label, row['label_choice_key']),
+                    )
         return {'status': 'confirmed', 'folder': folder, 'label': decision.label}
     finally:
         conn.close()
@@ -1193,10 +1206,15 @@ def delete_artist_redirect(rule_id: int, _auth: dict = Depends(require_rules_man
 
 
 @router.get('/scrobble/import/latest')
-def get_latest_scrobble_imports_proxy(_auth: dict = Depends(verify_api_key)):
+def get_latest_scrobble_imports_proxy(auth: dict = Depends(verify_api_key)):
+    """The same list as GET /api/scrobble/import/latest, with the same admin-or-own scope (issue #38).
+
+    The scrobbler router is mounted first and answers this path itself; this copy only answers
+    where that router is not mounted, and must never be the wider of the two.
+    """
     from services.music_manager.routers.scrobbler import get_latest_imports
 
-    return get_latest_imports()
+    return get_latest_imports(auth)
 
 
 @router.post('/scrobble/import/listenbrainz')

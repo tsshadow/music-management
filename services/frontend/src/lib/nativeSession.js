@@ -9,6 +9,7 @@ import {
   mumaSessionActive,
   ensureSubsonicToken,
   playerState,
+  playlist,
   signedOut,
   subsonicToken,
   tokenSignsFor,
@@ -16,6 +17,7 @@ import {
 } from "./store.js";
 import { subsonicJson } from "./subsonic.js";
 import { startQueue } from "./queue.js";
+import { beginQueueRestore, withQueuedMeanwhile } from "./queueRestore.js";
 import { checkServer, isUnreachable } from "./serverReachability.js";
 import {
   clearStash,
@@ -56,6 +58,12 @@ import {
  *
  * In a browser tab every one of these is skipped and nothing changes.
  *
+ * In the app (`main.js`) step 3 no longer holds the first paint back (issue #113): with
+ * `deferQueue` the restore starts, the function returns, and the app mounts while the queue is
+ * still being looked up. The mini player says so meanwhile, a choice made before the restore is
+ * done cancels it, and nothing reaches the player service until it has ended
+ * (`queueRestore.js`, docs/designs/deferred-queue-restore/).
+ *
  * Before the session and the queue, the server is asked once whether it answers at all
  * (docs/designs/app-start-reachability/). The check leaves at the same moment as step 1 and is
  * only waited for after it, so a reachable server costs one ping round trip. When a signed-in
@@ -84,16 +92,27 @@ export const MAX_REHYDRATED_TRACKS = 200;
  * @param {function({state: string}): Promise<'online'|'offline'>} [options.decide] - Asked when a
  *   signed-in phone cannot reach its server; `bootUnreachable.js` in the app. Without one the
  *   start goes on as it always did.
- * @returns {Promise<{native: boolean, signedIn: boolean, restored: number, offline: boolean}>}
+ * @param {boolean} [options.deferQueue] - Start the queue restore and return without waiting for
+ *   it: the app mounts meanwhile. `restored` is then 0 and `queueRestored` resolves to the real
+ *   count once the restore has ended (finished or cancelled). Off by default, so a caller that
+ *   does not ask still gets the queue before it renders.
+ * @returns {Promise<{native: boolean, signedIn: boolean, restored: number, offline: boolean,
+ *   queueRestored: Promise<number>}>}
  */
 export async function bootstrapShell(
   platform = defaultPlatform,
   fetchImpl = undefined,
   onStage = () => {},
-  { decide = async () => "online" } = {},
+  { decide = async () => "online", deferQueue = false } = {},
 ) {
   if (!platform?.system?.isNative) {
-    return { native: false, signedIn: false, restored: 0, offline: false };
+    return {
+      native: false,
+      signedIn: false,
+      restored: 0,
+      offline: false,
+      queueRestored: Promise.resolve(0),
+    };
   }
 
   const report = (stage, progress) => {
@@ -115,21 +134,128 @@ export async function bootstrapShell(
     if (offlineStart) report("offlineStart");
     report("signingIn");
     const signedIn = await restoreSession(platform);
-    if (signedIn) report("restoringQueue");
-    const onProgress = (progress) => report("restoringQueue", progress);
-    let restored = 0;
-    if (signedIn && offlineStart) {
-      restored = await rehydrateOfflineQueue(platform, fetchImpl, onProgress);
-    } else if (signedIn) {
-      restored = await rehydrateQueue(platform, fetchImpl, onProgress);
-      restored = await putBackStashedQueue(fetchImpl, restored);
+    if (!signedIn) {
+      platform.diagnostics.log("shell:boot", { signedIn, restored: 0, offline: offlineStart });
+      return shellResult(signedIn, 0, offlineStart, Promise.resolve(0));
     }
+    if (deferQueue) {
+      // Begun here, before the caller mounts, so the first frame already shows the restore and
+      // the queue sync already holds back (`queueRestore.js`).
+      const ticket = beginQueueRestore();
+      platform.diagnostics.log("shell:boot", {
+        signedIn,
+        restored: 0,
+        offline: offlineStart,
+        deferred: true,
+      });
+      const queueRestored = restoreQueue(platform, fetchImpl, offlineStart, ticket).then(
+        (restored) => {
+          const cancelled = !ticket.isCurrent();
+          ticket.finish();
+          logRestore(platform, { restored: cancelled ? 0 : restored, cancelled });
+          return cancelled ? 0 : restored;
+        },
+      );
+      return shellResult(signedIn, 0, offlineStart, queueRestored);
+    }
+    report("restoringQueue");
+    const onProgress = (progress) => report("restoringQueue", progress);
+    const restored = await restoreQueue(platform, fetchImpl, offlineStart, null, onProgress);
     platform.diagnostics.log("shell:boot", { signedIn, restored, offline: offlineStart });
-    return { native: true, signedIn, restored, offline: offlineStart };
+    return shellResult(signedIn, restored, offlineStart, Promise.resolve(restored));
   } catch (error) {
     console.error("The shell could not be bootstrapped", error);
-    return { native: true, signedIn: false, restored: 0, offline: false };
+    return shellResult(false, 0, false, Promise.resolve(0));
   }
+}
+
+/**
+ * The shape `bootstrapShell` answers with inside the shell.
+ *
+ * @param {boolean} signedIn
+ * @param {number} restored
+ * @param {boolean} offline
+ * @param {Promise<number>} queueRestored
+ * @returns {{native: true, signedIn: boolean, restored: number, offline: boolean,
+ *   queueRestored: Promise<number>}}
+ */
+function shellResult(signedIn, restored, offline, queueRestored) {
+  return { native: true, signedIn, restored, offline, queueRestored };
+}
+
+/**
+ * Writes how a restore behind a mounted UI ended into the diagnostics trail.
+ *
+ * @param {object} platform
+ * @param {{restored: number, cancelled: boolean}} outcome
+ */
+function logRestore(platform, outcome) {
+  try {
+    platform.diagnostics.log("shell:queueRestore", outcome);
+  } catch (error) {
+    console.warn("Could not log the queue restore", error);
+  }
+}
+
+/**
+ * Restores the queue the player service holds, online or from the downloaded library, and puts
+ * back a queue an earlier offline start had cut down.
+ *
+ * Never rejects: a restore that fails leaves the queue empty rather than the app unusable.
+ *
+ * @param {object} platform
+ * @param {typeof fetch} [fetchImpl]
+ * @param {boolean} offlineStart
+ * @param {object|null} ticket - The `beginQueueRestore` ticket of a restore behind a mounted UI;
+ *   null for one that runs before the mount.
+ * @param {(progress: {done: number, total: number}) => void} [onProgress]
+ * @returns {Promise<number>} How many tracks were restored.
+ */
+async function restoreQueue(platform, fetchImpl, offlineStart, ticket, onProgress = () => {}) {
+  const progress = ticket ? (counts) => ticket.progress(counts) : onProgress;
+  try {
+    if (offlineStart) return await rehydrateOfflineQueue(platform, fetchImpl, progress, ticket);
+    const restored = await rehydrateQueue(platform, fetchImpl, progress, ticket);
+    if (ticket && !ticket.isCurrent()) return restored;
+    return await putBackStashedQueue(fetchImpl, restored, ticket);
+  } catch (error) {
+    console.error("The queue could not be restored", error);
+    return 0;
+  }
+}
+
+/**
+ * How a restore writes the UI's queue stores: through its ticket when it runs behind a mounted UI
+ * (a write after a cancellation is dropped), straight away otherwise.
+ *
+ * @param {object|null} ticket
+ * @returns {function(function(): void): boolean} Runs the write; false when it was dropped.
+ */
+function writerFor(ticket) {
+  if (ticket) return (apply) => ticket.write(apply);
+  return (apply) => {
+    apply();
+    return true;
+  };
+}
+
+/**
+ * Puts back the queue `localStorage` held from the previous session, when the player service has
+ * none of its own -- what a start before issue #113 left in the stores in that case. Only for a
+ * restore behind a mounted UI: `beginQueueRestore` emptied the stores, and an empty service queue
+ * is the one case where the old queue is still the best guess. It goes across paused, as the
+ * first sync after a start always does.
+ *
+ * @param {object|null} ticket
+ */
+function putBackLeftover(ticket) {
+  if (!ticket) return;
+  const { tracks, track } = ticket.leftover;
+  if (!tracks.length && !track) return;
+  ticket.write(() => {
+    playlist.set(withQueuedMeanwhile(tracks));
+    currentTrack.set(track);
+  });
 }
 
 /**
@@ -213,21 +339,30 @@ async function phoneHasSession(platform) {
  * @param {object} platform
  * @param {typeof fetch} [fetchImpl]
  * @param {(progress: {done: number, total: number}) => void} [onProgress]
+ * @param {object|null} [ticket] - See `restoreQueue`.
  * @returns {Promise<number>} How many tracks were restored.
  */
 export async function rehydrateOfflineQueue(
   platform,
   fetchImpl = undefined,
   onProgress = () => {},
+  ticket = null,
 ) {
-  const [state, queue] = await Promise.all([
+  const [started, queue] = await Promise.all([
     platform.player.refresh(),
     platform.player.queueState(),
   ]);
   const ids = queue.trackIds.slice(0, MAX_REHYDRATED_TRACKS).map(String);
-  if (!ids.length) return 0;
+  if (!ids.length) {
+    putBackLeftover(ticket);
+    return 0;
+  }
 
   const found = await fetchTracks(ids, fetchImpl, onProgress, platform);
+  // Cancelled meanwhile: the listener's choice stands, and the counts and stash below describe a
+  // queue that will not be shown.
+  if (ticket && !ticket.isCurrent()) return 0;
+  const state = latestState(platform, started, ticket);
   const plan = planOfflineQueue({
     ids,
     tracks: found,
@@ -247,17 +382,19 @@ export async function rehydrateOfflineQueue(
   }
   if (!plan.tracks.length) return 0;
 
-  startQueue(plan.tracks, { view: null });
-  currentTrack.set(plan.tracks[plan.index]);
-  // A different track than the one the player had is loaded paused, from its start.
-  playerState.update((current) => ({
-    ...current,
-    playing: plan.playingKept && state.status === "playing",
-    progress: plan.playingKept ? state.position : 0,
-    duration: (plan.playingKept && state.duration) || plan.tracks[plan.index]?.duration || 0,
-    volume: Math.round(state.volume * 100),
-  }));
-  return plan.tracks.length;
+  const written = writerFor(ticket)(() => {
+    startQueue(ticket ? withQueuedMeanwhile(plan.tracks) : plan.tracks, { view: null });
+    currentTrack.set(plan.tracks[plan.index]);
+    // A different track than the one the player had is loaded paused, from its start.
+    playerState.update((current) => ({
+      ...current,
+      playing: plan.playingKept && state.status === "playing",
+      progress: plan.playingKept ? state.position : 0,
+      duration: (plan.playingKept && state.duration) || plan.tracks[plan.index]?.duration || 0,
+      volume: Math.round(state.volume * 100),
+    }));
+  });
+  return written ? plan.tracks.length : 0;
 }
 
 /**
@@ -267,12 +404,30 @@ export async function rehydrateOfflineQueue(
  *
  * @param {typeof fetch} [fetchImpl]
  * @param {number} restored - What the ordinary restore brought back.
+ * @param {object|null} [ticket] - See `restoreQueue`.
  * @returns {Promise<number>} How many tracks the queue holds now.
  */
-async function putBackStashedQueue(fetchImpl, restored) {
+async function putBackStashedQueue(fetchImpl, restored, ticket = null) {
   if (!readStash()) return restored;
-  const outcome = await reconcileQueue({ fetchImpl });
+  const outcome = await reconcileQueue({ fetchImpl, write: writerFor(ticket) });
   return outcome.restored || restored;
+}
+
+/**
+ * What the player service reports now, for a restore that ran behind a mounted UI: the lookups
+ * take a while, and the service may have moved on to the next track meanwhile. The snapshot
+ * `platform.player.state()` holds is kept current by the service's own events. A restore before
+ * the mount, or a snapshot that names no track, keeps what was read at the start.
+ *
+ * @param {object} platform
+ * @param {object} state - What `refresh()` answered when the restore began.
+ * @param {object|null} ticket
+ * @returns {object}
+ */
+function latestState(platform, state, ticket) {
+  if (!ticket || typeof platform.player.state !== "function") return state;
+  const now = platform.player.state();
+  return now?.trackId == null ? state : { ...state, ...now };
 }
 
 /**
@@ -367,19 +522,31 @@ function adoptPhoneToken(stored) {
  * @param {typeof fetch} [fetchImpl]
  * @param {(progress: {done: number, total: number}) => void} [onProgress] - Told how many of
  *   the queued ids have been answered, as they are.
+ * @param {object|null} [ticket] - See `restoreQueue`. With one, every write goes through it, and
+ *   a restore the listener cancelled meanwhile writes nothing.
  * @returns {Promise<number>} How many tracks were restored.
  */
-export async function rehydrateQueue(platform, fetchImpl = undefined, onProgress = () => {}) {
-  const [state, queue] = await Promise.all([
+export async function rehydrateQueue(
+  platform,
+  fetchImpl = undefined,
+  onProgress = () => {},
+  ticket = null,
+) {
+  const [started, queue] = await Promise.all([
     platform.player.refresh(),
     platform.player.queueState(),
   ]);
 
   const ids = queue.trackIds.slice(0, MAX_REHYDRATED_TRACKS);
-  if (!ids.length) return 0;
+  if (!ids.length) {
+    putBackLeftover(ticket);
+    return 0;
+  }
 
   const tracks = await fetchTracks(ids, fetchImpl, onProgress, platform);
   if (!tracks.length) return 0;
+  if (ticket && !ticket.isCurrent()) return 0;
+  const state = latestState(platform, started, ticket);
 
   // Matched on the id rather than on the queue index: a track the server no
   // longer knows drops out of the list, and an index taken from the service
@@ -390,23 +557,27 @@ export async function rehydrateQueue(platform, fetchImpl = undefined, onProgress
 
   // This restores a queue the native side already had, it does not start one -- 'view: null'
   // clears queueSource rather than crediting the restore to whatever view loads first.
-  startQueue(tracks, { view: null });
-  currentTrack.set(tracks[index]);
-  playerState.update((current) => ({
-    ...current,
-    playing: state.status === "playing",
-    progress: state.position,
-    duration: state.duration || tracks[index]?.duration || 0,
-    volume: Math.round(state.volume * 100),
-  }));
-  return tracks.length;
+  const written = writerFor(ticket)(() => {
+    startQueue(ticket ? withQueuedMeanwhile(tracks) : tracks, { view: null });
+    currentTrack.set(tracks[index]);
+    playerState.update((current) => ({
+      ...current,
+      playing: state.status === "playing",
+      progress: state.position,
+      duration: state.duration || tracks[index]?.duration || 0,
+      volume: Math.round(state.volume * 100),
+    }));
+  });
+  return written ? tracks.length : 0;
 }
 
 /**
  * Looks the queued ids up in the library.
  *
  * One `getSong` per id, in parallel: there is no batch endpoint for an
- * arbitrary set of ids, and a queue is tens of items rather than thousands. An
+ * arbitrary set of ids (LMS's `getSongs` filters by cluster, artist, work and
+ * form, never by track id), and a queue is tens of items rather than thousands.
+ * Since issue #113 the lookups no longer hold the first paint back. An
  * id that no longer resolves is dropped instead of failing the whole restore --
  * a single deleted track must not cost the listener the rest of their queue.
  *

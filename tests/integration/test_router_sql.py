@@ -473,6 +473,36 @@ class UserLifecycleTest:
         assert refused.status_code == 409
         assert 'beheerder' in refused.json()['detail']
 
+    def _plain_account_key(self, api, headers):
+        """Sets up `root` (admin) and `user` (plain user) and returns user's own API key."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'user', 'password': 'hunter2-user'})
+        assert created.status_code == 200, created.text
+        login = api.post('/api/auth/login', json={'username': 'user', 'password': 'hunter2-user'})
+        assert login.status_code == 200, login.text
+        return created.json()['id'], login.json()['api_key']
+
+    def test_a_plain_account_cannot_delete_itself(self, api, headers, db):
+        """Issue #38: deleting an account takes `users.update`, also for one's own."""
+        user_id, key = self._plain_account_key(api, headers)
+        refused = api.delete(f'/api/users/{user_id}', headers={'x-api-key': key})
+        assert refused.status_code == 403, refused.text
+        assert run_sql(db, 'SELECT id FROM users WHERE id = %s', (user_id,))
+
+    def test_a_plain_account_lists_only_its_own_imports(self, api, headers, db):
+        """Issue #38: the scoped query runs on MariaDB, and an admin key still sees every row."""
+        _, key = self._plain_account_key(api, headers)
+        run_sql(
+            db,
+            'INSERT INTO scrobble_imports (username, lb_username, status) VALUES '
+            "('user', 'user-lb', 'completed'), ('root', 'root-lb', 'failed')",
+        )
+        own = api.get('/api/scrobble/import/latest', headers={'x-api-key': key})
+        assert own.status_code == 200, own.text
+        assert [row['username'] for row in own.json()] == ['user']
+        everyone = api.get('/api/scrobble/import/latest', headers=headers)
+        assert {row['username'] for row in everyone.json()} == {'user', 'root'}
+
     def test_the_last_enabled_admin_cannot_be_demoted_or_disabled(self, api, headers, db):
         admin_id = api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'}).json()['id']
         demoted = api.put(f'/api/users/{admin_id}/role', headers=headers, json={'role': 'user'})
@@ -2081,6 +2111,30 @@ class MultiStatementWriteSqlTest:
             self._one(db, 'SELECT label FROM rules_catid_label WHERE catid = %s', ('BKRP',))['label'] == 'Brutal Kuts'
         )
         assert self._one(db, 'SELECT status FROM rules_label_proposals')['status'] == 'confirmed'
+
+    def test_a_two_option_proposal_lists_both_and_its_confirmation_records_the_choice(self, api, headers, db):
+        run_sql(
+            db,
+            "INSERT INTO rules_label_name_choices (nfo_label_key, nfo_label, name_folder, history_folder) "
+            "VALUES ('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance') "
+            'ON DUPLICATE KEY UPDATE chosen_folder = NULL',
+        )
+        run_sql(
+            db,
+            "INSERT INTO rules_label_proposals (folder, catid, proposed_label, source, alternative_label, "
+            "label_choice_key) VALUES ('CLDM2025001 - VA', 'CLDM2025001', 'Cloud 9 Music', 'nfo-vs-history', "
+            "'Cloud 9 Dance', 'cloud9')",
+        )
+        listed = api.get('/api/label-proposals', headers=headers)
+        assert listed.status_code == 200, listed.text
+        row = next(r for r in listed.json() if r['folder'] == 'CLDM2025001 - VA')
+        assert (row['alternative_label'], row['label_choice_key']) == ('Cloud 9 Dance', 'cloud9')
+        confirmed = api.post(
+            f"/api/label-proposals/{row['id']}/confirm", headers=headers, json={'label': 'Cloud 9 Dance'}
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        chosen = self._one(db, "SELECT chosen_folder FROM rules_label_name_choices WHERE nfo_label_key = 'cloud9'")
+        assert chosen['chosen_folder'] == 'Cloud 9 Dance'
 
     def test_a_failing_alias_insert_keeps_the_old_show_name(self, api, headers, db, monkeypatch):
         run_sql(

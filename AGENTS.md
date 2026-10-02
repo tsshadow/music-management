@@ -54,7 +54,11 @@ The system is split into specialized services, each handling a specific part of 
 - **Song Types**:
     - `SoundcloudSong`: Specialized in SoundCloud metadata (e.g., handling "Premiere" prefixes).
     - `YoutubeSong`: Runs the same rule stack as `SoundcloudSong` — the artists usually only exist in the title, whether the channel belongs to the artist or to a label. What differs is the album (`Youtube (<channel>)`), the publisher, the festival inference, and the channel-to-genre lookup.
-    - `LabelSong`: Mapping folder structures to Publisher/Catalog tags and copyright strings.
+    - `LabelSong`: Mapping folder structures to Publisher/Catalog tags and copyright strings. A folder
+      that names no label -- the import queue, a `_` folder such as `__Free&None`, a release folder
+      in the label's place -- yields an empty publisher; `ImportQueue.is_placeholder_publisher` is
+      the one predicate the tagger, the importer's label proposals and the scanner share (bug
+      report 146).
 - **Rules**: A flexible rule engine (`services/tagger/Song/rules/`) that handles:
     - Genre inference based on artists or subgenres.
     - Artist normalization (casing, splitting featured artists).

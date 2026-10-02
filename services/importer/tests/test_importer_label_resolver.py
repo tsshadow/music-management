@@ -72,6 +72,25 @@ class LabelResolverTest(unittest.TestCase):
 
         self.assertIsNone(proposal.label)
 
+    def test_a_folder_name_in_a_label_tag_is_never_proposed(self):
+        # Bug report 146: confirmed, either would have become a label folder of its own.
+        release = 'STH685RMXBP - Bassjackers_-_I_Fink_U_Freeky_(Coone_Remix)-(STH685RMXBP)-SINGLE-WEB-2026-SRG'
+        for value in ('__Free&None', '___Free&None', release):
+            with self.subTest(value=value):
+                self.tags = {}
+                self.add_track('one.mp3', tpub=value, **{'txxx:publisher': 'Spinnin Records'})
+
+                proposal = self.resolve()
+
+                self.assertEqual(proposal.label, 'Spinnin Records')
+                self.assertEqual(proposal.source, 'tag:txxx-publisher')
+
+    def test_a_folder_name_in_the_nfo_is_never_proposed(self):
+        self.add_track('one.mp3')
+        self.add_nfo('release.nfo', 'Label.....: __Free&None\n')
+
+        self.assertIsNone(self.resolve().label)
+
     def test_the_blacklist_is_shared_with_the_repair(self):
         refused = blacklist('Intake')
         self.assertIn('intake', refused)

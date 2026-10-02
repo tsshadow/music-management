@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from services.common.label_names import looks_like_release_folder
+
 #: The queue's historical folder name, and the value the tagger stamped into files as their
 #: publisher while they waited in it. The only place in the code base allowed to spell it.
 LEGACY_QUEUE_NAME = '__TODO'
@@ -125,8 +127,22 @@ class ImportQueue:
         return values
 
     def is_placeholder_publisher(self, value: str | None) -> bool:
-        """Whether a publisher tag holds the queue's name instead of a label."""
-        return _text(value).lower() in self.placeholder_values()
+        """Whether a publisher tag holds a folder's name instead of a label.
+
+        Three kinds, all left by deriving the label from the path (bug reports 030 and 146): the
+        queue's name; the name of a folder that is no label, which starts with `_` exactly as
+        `is_label_folder` refuses it (`__Free&None`, and `___Free&None` from before it was
+        renamed); and a release folder's name, taken when the depth was off by one
+        (`label_names.looks_like_release_folder`).
+        """
+        text = _text(value)
+        if not text:
+            return False
+        return (
+            text.lower() in self.placeholder_values()
+            or text.startswith(NON_LABEL_FOLDER_PREFIX)
+            or looks_like_release_folder(text)
+        )
 
     def is_placeholder_copyright(self, value: str | None) -> bool:
         """Whether a copyright tag was computed from a placeholder publisher ("__TODO (2021)")."""

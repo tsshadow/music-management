@@ -16,6 +16,10 @@ class DropQueuePlaceholderRule(TagRule):
     is recomputed from the real publisher (or left empty) in the same pass. Setting '' rather than
     deleting is what makes `BaseSong.save_file` notice the change and drop the tag from the file.
     The repair that queues the affected files is services/tagger/todo_label_repair.py.
+
+    "Placeholder" is `ImportQueue.is_placeholder_publisher`: besides the queue's name it covers an
+    underscore folder's name (`__Free&None`) and a release folder's name (bug report 146), so a
+    release filed in `__Free&None` loses that publisher on its next retag instead of keeping it.
     """
 
     def __init__(self, queue: ImportQueue | None = None):

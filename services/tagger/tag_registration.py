@@ -17,6 +17,8 @@ from mutagen.easyid3 import EasyID3
 from mutagen.easymp4 import EasyMP4Tags
 
 from services.tagger.constants import (
+    BARCODE,
+    DATE_SOURCE,
     FESTIVAL,
     ORIGINAL_ARTIST,
     ORIGINAL_TITLE,
@@ -40,13 +42,22 @@ CUSTOM_TAG_KEYS = (
     ORIGINAL_ARTIST,
     PODCAST,
     PODCAST_EPISODE,
+    DATE_SOURCE,
+    BARCODE,
 )
 
 # The rating frame that already exists in the library is `TXXX:RATING`. Registering the
 # name against a lower-case description would write a second frame beside it instead of
 # updating it, so this one keeps its own spelling. ORIGINAL_ARTIST gets the same treatment
 # so its MP3 description matches WAVTags' `TXXX:ORIGINAL_ARTIST` casing.
-ID3_DESCRIPTIONS = {RATING: 'RATING', ORIGINAL_ARTIST: 'ORIGINAL_ARTIST'}
+# DATE_SOURCE and BARCODE match WAVTags' upper-case descriptions too; BARCODE is also the
+# description EasyID3's own `barcode` key uses, so re-registering it changes nothing.
+ID3_DESCRIPTIONS = {
+    RATING: 'RATING',
+    ORIGINAL_ARTIST: 'ORIGINAL_ARTIST',
+    DATE_SOURCE: 'DATE_SOURCE',
+    BARCODE: 'BARCODE',
+}
 
 
 def register_custom_tag_keys():

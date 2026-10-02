@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import shutil
+from datetime import date, datetime
 from os import listdir
 from os.path import isfile, join
 
@@ -10,10 +11,14 @@ from services.common.Helpers import Quarantine
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.NotificationService import notification_service
+from services.common.import_queue import ImportQueue
+from services.common.store_lookup import Budget
 from services.importer.conflict_store import MOVER, ConflictTracker
+from services.importer.label_match import LabelIndex
 from services.importer.label_proposal_store import NEW_ROW, LabelProposalStore, ProposalSnapshot, fingerprint
-from services.importer.label_resolver import resolve
+from services.importer.label_resolver import NFO_CONFIDENCE, LabelProposal, resolve
 from services.importer.release_compare import is_same_release
+from services.importer.release_info import Ask, Placement, ReleaseInfo
 from services.importer.settle import folder_signature, is_settled, is_staging
 from services.tagger.announce import announce
 from services.tagger.Song.LabelSong import LabelSong
@@ -86,7 +91,7 @@ def make_library_writable(folder_path) -> int:
     return failures
 
 
-def post_processing_songs(folder_path) -> int:
+def post_processing_songs(folder_path, arrival_date: date | None = None) -> int:
     """
     Call LabelSong(path) for every supported audio file in the folder,
     excluding Synology's @eaDir directories and non-files.
@@ -94,6 +99,10 @@ def post_processing_songs(folder_path) -> int:
     Every tagged file is recorded in the event log, without a push: one per file was
     100+ phone notifications for a single weekly pack. The mover sends one push per
     release instead, which is why this returns how many files were tagged.
+
+    `arrival_date` is the day the release first arrived in the import queue; the date
+    ladder may use it for a new release that carries nothing better than its year
+    (docs/designs/release-info-enrichment/).
     """
     supported_exts = ('.mp3', '.flac', '.m4a', '.aac', '.wav')
     tagged = 0
@@ -108,6 +117,7 @@ def post_processing_songs(folder_path) -> int:
                 try:
                     logging.info(f'Processing file with LabelSong: {full_path}')
                     s = LabelSong(str(full_path))
+                    s.arrival_date = arrival_date
                     s.parse()
                     # The walk would otherwise tag the release a second time on its next
                     # pass; and the scanner learns of it now rather than on the hour.
@@ -119,22 +129,59 @@ def post_processing_songs(folder_path) -> int:
     return tagged
 
 
-def release_summary(folder: str, label: str, tracks: int) -> str:
+def release_summary(folder: str, label: str, tracks: int, placement: Placement | None = None) -> str:
     """The one push a release gets: label, catalogue number and how many tracks were imported.
 
     The catalogue number is the part of the folder name before the renamer's ` - `, which
-    is the full number (`SCAN123`) rather than the prefix the label was looked up by.
+    is the full number (`SCAN123`) rather than the prefix the label was looked up by. A
+    release placed by the label its .nfo or store names says so, and what it said.
     """
     catalog = folder.split(' - ', 1)[0].strip() if ' - ' in folder else ''
     lines = [folder, f'Label: {label}']
+    if placement is not None:
+        lines.append(f'Label from: {placement.source} ({placement.stated})')
     if catalog:
         lines.append(f'Catalog: {catalog}')
     lines.append(f'Tracks: {tracks}')
     return '\n'.join(lines)
 
 
+#: Defaults of the release-info settings (ConfigStore group "Importer").
+PLACE_BY_LABEL_NAME_DEFAULT = True
+STORE_LOOKUPS_DEFAULT = True
+STORE_LOOKUPS_PER_CYCLE_DEFAULT = 60
+LABEL_NAME_MOVES_PER_CYCLE_DEFAULT = 50
+
+
+def _setting_bool(settings, key: str, default: bool) -> bool:
+    """A boolean setting; anything that is not clearly a boolean is the default."""
+    value = getattr(settings, key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip().lower() in ('1', 'true', 'yes', 'on', '0', 'false', 'no', 'off'):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return default
+
+
+def _setting_int(settings, key: str, default: int) -> int:
+    """A non-negative whole-number setting; anything else is the default."""
+    value = getattr(settings, key, default)
+    if isinstance(value, bool) or not isinstance(value, int | str):
+        return default
+    try:
+        number = int(value)
+    except ValueError:
+        return default
+    return number if number >= 0 else default
+
+
 class Mover:
-    """Moves every settled release folder in the import folder to its label, and tags it there."""
+    """Moves every settled release folder in the import folder to its label, and tags it there.
+
+    A release no catalogue rule routes goes to the existing label folder its .nfo (or the
+    Deezer album the .nfo links) names, when exactly one folder matches and
+    `import_place_by_label_name` is on (docs/designs/release-info-enrichment/).
+    """
 
     def __init__(self):
         self.settings = Settings()
@@ -149,8 +196,82 @@ class Mover:
         self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
         #: Standing conflicts, so each one is warned about once rather than every cycle.
         self.conflicts = ConflictTracker(MOVER)
+        #: The .nfo facts per folder, shared with the Renamer when the service passes it in.
+        self.release_info = ReleaseInfo()
+        #: This cycle's label folders, store-lookup budget and label-name moves left.
+        self._index: LabelIndex | None = None
+        self._budget: Budget | None = None
+        self._name_moves_left = 0
 
-    def _propose(self, folder, cat_id, warning):
+    def _begin_release_info_cycle(self):
+        """Fresh label index and budgets for one cycle."""
+        self._index = None
+        lookups = _setting_bool(self.settings, 'import_store_lookups', STORE_LOOKUPS_DEFAULT)
+        per_cycle = _setting_int(self.settings, 'import_store_lookups_per_cycle', STORE_LOOKUPS_PER_CYCLE_DEFAULT)
+        self._budget = Budget(per_cycle) if lookups else None
+        self._name_moves_left = _setting_int(
+            self.settings, 'import_label_name_moves_per_cycle', LABEL_NAME_MOVES_PER_CYCLE_DEFAULT
+        )
+
+    def _label_index(self) -> LabelIndex:
+        """The label folders of this cycle, listed once."""
+        if self._index is None:
+            self._index = LabelIndex.from_library(
+                self.settings.eps_folder_path, ImportQueue.from_settings(self.settings), self.db_connector.connection
+            )
+        return self._index
+
+    def _place(self, folder, dry_run) -> bool:
+        """Move a release no rule routes to the label folder its .nfo or store names. True when moved."""
+        if not _setting_bool(self.settings, 'import_place_by_label_name', PLACE_BY_LABEL_NAME_DEFAULT):
+            return False
+        src = join(self.settings.import_folder_path, folder)
+        try:
+            placement = self.release_info.placement(src, self._label_index(), self._budget)
+        except Exception as e:  # noqa: BLE001 - enrichment is optional, the proposal path still works
+            logging.warning(f'Could not read the release info of {folder}: {e}')
+            return False
+        if placement is None:
+            return False
+        if isinstance(placement, Ask):
+            # The curator's filing disagrees with the name: his decision, once per label (#164).
+            self._propose(
+                folder,
+                None,
+                f'Not placing {folder}: its .nfo says {placement.stated!r} ({placement.name_folder}), '
+                f'but such releases are filed under {placement.history_folder}. Proposed with both.',
+                LabelProposal(
+                    placement.name_folder,
+                    'nfo-vs-history',
+                    NFO_CONFIDENCE,
+                    get_cat_id(folder) or None,
+                    alternative=placement.history_folder,
+                    choice_key=placement.key,
+                ),
+            )
+            return True
+        if self._name_moves_left <= 0:
+            return False
+        logging.info(f'Placing {folder} under {placement.label}: {placement.source} says {placement.stated!r}')
+        self._name_moves_left -= 1
+        self._move_to_label(folder, placement.label, dry_run, placement)
+        return True
+
+    def _arrival(self, folder) -> date:
+        """The day the release first arrived: its proposal row's creation, else today."""
+        row = self._snapshot.rows.get(folder) if self._snapshot is not None else None
+        created = getattr(row, 'created_at', None)
+        if isinstance(created, datetime):
+            return created.date()
+        if isinstance(created, date):
+            return created
+        return date.today()
+
+    def _is_backlog(self, folder) -> bool:
+        """Whether the folder already waited a cycle as unplaceable: it has a proposal row."""
+        return self._snapshot is not None and folder in self._snapshot.rows
+
+    def _propose(self, folder, cat_id, warning, proposal: LabelProposal | None = None):
         """
         Record a release this step could not place, so it can be reviewed once instead
         of re-warned on every cycle for as long as it sits in the import folder.
@@ -174,7 +295,12 @@ class Mover:
         expected = None
         if signature is not None and snapshot is not None:
             row = snapshot.rows.get(folder, NEW_ROW)
-            expected = fingerprint(signature, snapshot.rules_version, row)
+            # A two-option proposal is filed under its own key, so a folder resolved before the
+            # pair was known is recorded once more, with both options.
+            rules_version = snapshot.rules_version + (
+                f':ask:{proposal.choice_key}' if proposal and proposal.choice_key else ''
+            )
+            expected = fingerprint(signature, rules_version, row)
             if row.fingerprint == expected:
                 self._counts['skipped'] += 1
                 return
@@ -186,7 +312,7 @@ class Mover:
         import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
         self.proposals.record(
             folder,
-            resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None),
+            proposal or resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None),
             expected,
         )
         self._counts['reread'] += 1
@@ -245,11 +371,17 @@ class Mover:
         """Processes and moves a single folder based on its CAT ID."""
         label = self.get_label(cat_id)
         if label is None:
+            if self._place(folder, dry_run):
+                return
             error_msg = (
                 f'CAT ID {cat_id} not found in database for folder {folder}. Please add it to rules_catid_label.'
             )
             self._propose(folder, cat_id, error_msg)
             return
+        self._move_to_label(folder, label, dry_run)
+
+    def _move_to_label(self, folder, label, dry_run, placement: Placement | None = None):
+        """Moves one release folder into `label`'s folder and tags it there."""
         src = join(self.settings.import_folder_path, folder)
         dst = join(self.settings.eps_folder_path, label, folder)
         # Checked before the move, not after it, because shutil.move does not fail on an
@@ -260,6 +392,14 @@ class Mover:
         if os.path.exists(dst):
             self._resolve_conflict(folder, src, dst, dry_run)
             return
+        # Before the move, while the .nfo is still where the cache knows it: the store's
+        # answer is what the tagging pass below reads the release date from.
+        try:
+            self.release_info.album(src, self._budget)
+        except Exception as e:  # noqa: BLE001 - the date ladder falls back on the .nfo
+            logging.info(f'No store lookup for {folder}: {e}')
+        arrival = self._arrival(folder)
+        backlog = self._is_backlog(folder)
         try:
             if not dry_run:
                 shutil.move(src, dst)
@@ -274,12 +414,17 @@ class Mover:
             else:
                 logging.info(f'Dry run - would move: {src} -> {dst}')
             try:
-                tracks = post_processing_songs(dst)
+                tracks = post_processing_songs(dst, arrival_date=arrival)
             except Exception as e:
                 logging.error(f'Post-processing failed for {dst}: {e}')
             else:
                 if not dry_run:
-                    notification_service.notify(release_summary(folder, label, tracks), title='Import Complete')
+                    # A release that already waited as unplaceable is backlog: placing a few
+                    # thousand of those after a rule or this feature lands must not become as
+                    # many phone pushes. The event is still written.
+                    notification_service.notify(
+                        release_summary(folder, label, tracks, placement), title='Import Complete', push=not backlog
+                    )
         except (FileExistsError, shutil.Error) as e:
             # shutil.move(src, dst) treats an existing "dst" directory as a target to move
             # INTO (i.e. src ends up at dst/basename(src)), not as an in-place conflict. If
@@ -318,6 +463,7 @@ class Mover:
         logging.info('Starting Move Step')
         self._snapshot = self.proposals.snapshot()
         self._counts = {'checked': 0, 'skipped': 0, 'reread': 0}
+        self._begin_release_info_cycle()
         self.conflicts.begin()
         only_folders = [
             f
@@ -332,7 +478,7 @@ class Mover:
             cat_id = get_cat_id(folder)
             if cat_id:
                 self._move_folder(folder, cat_id, dry_run)
-            else:
+            elif not self._place(folder, dry_run):
                 error_msg = f'No valid CAT ID found for folder: {folder}. Manual intervention required.'
                 self._propose(folder, None, error_msg)
         logging.info(

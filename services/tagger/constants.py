@@ -30,6 +30,12 @@ ORIGINAL_ARTIST: Final = 'original_artist'
 # everywhere it sorts and for the Memories anniversary match, so this is where a resolved release
 # date belongs. The value doubles as the EasyID3 key, which writes a real TDOR frame.
 ORIGINAL_DATE: Final = 'originaldate'
+# Which rung of the release-date ladder ORIGINAL_DATE came from: deezer, nfo-street, nfo-release,
+# tag, nfo-rip or arrival (InferReleaseDateFromNfoRule, docs/designs/release-info-enrichment/).
+# A better rung may replace a worse one later; without this tag a full date is never replaced.
+DATE_SOURCE: Final = 'date_source'
+# The release's UPC/EAN as a store reports it. Never a catalogue number; kept for lookups.
+BARCODE: Final = 'barcode'
 RATING: Final = 'rating'
 TRACK_NUMBER: Final = 'tracknumber'
 MP3Tags = {
@@ -41,6 +47,8 @@ MP3Tags = {
     COPYRIGHT: 'copyright',
     DATE: 'date',
     ORIGINAL_DATE: 'originaldate',
+    DATE_SOURCE: 'date_source',
+    BARCODE: 'barcode',
     FESTIVAL: 'festival',
     PODCAST: 'podcast',
     PODCAST_EPISODE: 'podcast_episode',
@@ -64,6 +72,8 @@ FLACTags = {
     COPYRIGHT: 'COPYRIGHT',
     DATE: 'DATE',
     ORIGINAL_DATE: 'ORIGINALDATE',
+    DATE_SOURCE: 'DATE_SOURCE',
+    BARCODE: 'BARCODE',
     FESTIVAL: 'FESTIVAL',
     PODCAST: 'PODCAST',
     PODCAST_EPISODE: 'PODCAST_EPISODE',
@@ -86,6 +96,8 @@ OPUSTags = {
     COPYRIGHT: 'COPYRIGHT',
     DATE: 'DATE',
     ORIGINAL_DATE: 'ORIGINALDATE',
+    DATE_SOURCE: 'DATE_SOURCE',
+    BARCODE: 'BARCODE',
     FESTIVAL: 'FESTIVAL',
     PODCAST: 'PODCAST',
     PODCAST_EPISODE: 'PODCAST_EPISODE',
@@ -108,6 +120,8 @@ AACTags = {
     COPYRIGHT: 'COPYRIGHT',
     DATE: 'DATE',
     ORIGINAL_DATE: 'ORIGINALDATE',
+    DATE_SOURCE: 'DATE_SOURCE',
+    BARCODE: 'BARCODE',
     FESTIVAL: 'FESTIVAL',
     PODCAST: 'PODCAST',
     PODCAST_EPISODE: 'PODCAST_EPISODE',
@@ -161,6 +175,8 @@ WAVTags = {
     COPYRIGHT: 'TCOP',
     DATE: 'TDRC',
     ORIGINAL_DATE: 'TDOR',
+    DATE_SOURCE: 'TXXX:DATE_SOURCE',
+    BARCODE: 'TXXX:BARCODE',
     GENRE: 'TCON',
     PUBLISHER: 'TPUB',
     TITLE: 'TIT2',

@@ -2112,6 +2112,30 @@ class MultiStatementWriteSqlTest:
         )
         assert self._one(db, 'SELECT status FROM rules_label_proposals')['status'] == 'confirmed'
 
+    def test_a_two_option_proposal_lists_both_and_its_confirmation_records_the_choice(self, api, headers, db):
+        run_sql(
+            db,
+            "INSERT INTO rules_label_name_choices (nfo_label_key, nfo_label, name_folder, history_folder) "
+            "VALUES ('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance') "
+            'ON DUPLICATE KEY UPDATE chosen_folder = NULL',
+        )
+        run_sql(
+            db,
+            "INSERT INTO rules_label_proposals (folder, catid, proposed_label, source, alternative_label, "
+            "label_choice_key) VALUES ('CLDM2025001 - VA', 'CLDM2025001', 'Cloud 9 Music', 'nfo-vs-history', "
+            "'Cloud 9 Dance', 'cloud9')",
+        )
+        listed = api.get('/api/label-proposals', headers=headers)
+        assert listed.status_code == 200, listed.text
+        row = next(r for r in listed.json() if r['folder'] == 'CLDM2025001 - VA')
+        assert (row['alternative_label'], row['label_choice_key']) == ('Cloud 9 Dance', 'cloud9')
+        confirmed = api.post(
+            f"/api/label-proposals/{row['id']}/confirm", headers=headers, json={'label': 'Cloud 9 Dance'}
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        chosen = self._one(db, "SELECT chosen_folder FROM rules_label_name_choices WHERE nfo_label_key = 'cloud9'")
+        assert chosen['chosen_folder'] == 'Cloud 9 Dance'
+
     def test_a_failing_alias_insert_keeps_the_old_show_name(self, api, headers, db, monkeypatch):
         run_sql(
             db,

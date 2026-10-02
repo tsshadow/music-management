@@ -20,7 +20,7 @@ _TOKEN = r'(\d{1,4}[-./]\d{1,2}[-./]\d{1,4})'
 # release; a rip date is when the group encoded it, usually the same week and occasionally weeks off.
 _LABEL_PATTERNS = (
     ('street', re.compile(r'(?:str\.?\s*date|street\s*date)\W{0,10}' + _TOKEN, re.I)),
-    ('release', re.compile(r'rel(?:ease)?\.?\s*date\W{0,10}' + _TOKEN, re.I)),
+    ('release', re.compile(r'(?:rel(?:ease)?|store|retail)\.?\s*date\W{0,10}' + _TOKEN, re.I)),
     ('rip', re.compile(r'(?:rip\.?\s*date|ripped|encoded|\bdate\b)\W{0,10}' + _TOKEN, re.I)),
 )
 

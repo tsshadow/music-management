@@ -699,6 +699,9 @@
       "replacedFromNow": "{name} is replaced by {targets} from now on."
     },
     "labelProposals": {
+      "chooseFolder": "The .nfo and your filing disagree. Choose once for this label:",
+      "perNfo": "per .nfo",
+      "perHistory": "where you filed these",
       "actions": "Actions",
       "catId": "Catalogue number",
       "confirmGroup": "Confirm all",

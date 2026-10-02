@@ -699,6 +699,9 @@
       "replacedFromNow": "{name} wordt voortaan vervangen door {targets}."
     },
     "labelProposals": {
+      "chooseFolder": "De .nfo en jouw indeling zijn het oneens. Kies één keer voor dit label:",
+      "perNfo": "volgens .nfo",
+      "perHistory": "waar jij ze neerzette",
       "actions": "Acties",
       "catId": "Catalogusnummer",
       "confirmGroup": "Bevestig alle",

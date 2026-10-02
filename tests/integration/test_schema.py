@@ -436,14 +436,20 @@ def test_the_importer_skips_an_unchanged_proposal_against_real_mariadb(db):
         edited = rules_version(cursor)
         assert len({empty, added, edited}) == 3
 
-        cursor.execute(RECORD_QUERY, ('NOPE123 - Release', 'NOPE', None, 'none', 0, 'a' * 64))
+        cursor.execute(RECORD_QUERY, ('NOPE123 - Release', 'NOPE', None, 'none', 0, 'a' * 64, None, None))
         cursor.execute("UPDATE rules_label_proposals SET status = 'rejected', decided_at = NOW()")
-        cursor.execute(RECORD_QUERY, ('NOPE123 - Release', 'NOPE', 'Other', 'tag:label', 90, 'b' * 64))
+        cursor.execute(
+            RECORD_QUERY, ('NOPE123 - Release', 'NOPE', 'Other', 'tag:label', 90, 'b' * 64, 'Second', 'second')
+        )
         cursor.execute(KNOWN_QUERY)
         row = cursor.fetchone()
+        cursor.execute('SELECT alternative_label, label_choice_key FROM rules_label_proposals')
+        options = cursor.fetchone()
     assert row['status'] == 'rejected'
     assert row['resolved_fingerprint'] == 'b' * 64
     assert row['decided_at'] is not None
+    # The two-option columns (#164) follow the proposal, which a decided row keeps as it was.
+    assert (options['alternative_label'], options['label_choice_key']) == (None, None)
 
 
 def test_a_track_carries_its_form_and_performance_date(built_schemas):

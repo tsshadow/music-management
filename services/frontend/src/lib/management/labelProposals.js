@@ -13,21 +13,28 @@
  * a curator working down it should not have it reshuffle under them after every
  * confirmation. The proposals nothing could be read from go to the bottom: they are
  * the ones that need someone to actually go looking.
+ *
+ * A proposal offering two folders — the one its .nfo label names and the one the curator
+ * filed such releases in (`alternative_label`, #164) — is grouped apart from plain
+ * proposals for the same label, so confirming one choice never moves a release that
+ * was not asked about. Such a group carries `alternative`.
  */
 export function groupByLabel(proposals) {
-  const byLabel = new Map();
+  const byKey = new Map();
   for (const proposal of proposals) {
-    const key = proposal.proposed_label ?? null;
-    if (!byLabel.has(key)) byLabel.set(key, []);
-    byLabel.get(key).push(proposal);
+    const label = proposal.proposed_label ?? null;
+    const alternative = proposal.alternative_label ?? null;
+    const key = JSON.stringify([label, alternative]);
+    if (!byKey.has(key)) byKey.set(key, { label, alternative, proposals: [] });
+    byKey.get(key).proposals.push(proposal);
   }
-  return [...byLabel.entries()]
-    .map(([label, grouped]) => ({ label, proposals: grouped }))
-    .sort((a, b) => {
-      if (a.label === null) return 1;
-      if (b.label === null) return -1;
-      return a.label.localeCompare(b.label);
-    });
+  return [...byKey.values()].sort((a, b) => {
+    if (a.label === null) return b.label === null ? 0 : 1;
+    if (b.label === null) return -1;
+    return (
+      a.label.localeCompare(b.label) || (a.alternative ?? "").localeCompare(b.alternative ?? "")
+    );
+  });
 }
 
 /**

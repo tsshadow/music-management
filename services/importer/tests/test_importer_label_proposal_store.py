@@ -29,7 +29,7 @@ class LabelProposalStoreTest(unittest.TestCase):
 
         query, params = self.cursor.execute.call_args.args
         self.assertIn('rules_label_proposals', query)
-        self.assertEqual(params, ('BKRP104 - Darwin', 'BKRP', 'Brutal Kuts', 'tag:label', 90, None))
+        self.assertEqual(params, ('BKRP104 - Darwin', 'BKRP', 'Brutal Kuts', 'tag:label', 90, None, None, None))
 
     def test_the_write_is_committed(self):
         self.store.record('BKRP104 - Darwin', LabelProposal('Brutal Kuts', 'tag:label', 90, 'BKRP'))
@@ -47,23 +47,26 @@ class LabelProposalStoreTest(unittest.TestCase):
         self.store.record(' - Dewstate_-_Bass_Cannon', LabelProposal(None, 'none', 0, None))
 
         _, params = self.cursor.execute.call_args.args
-        self.assertEqual(params, (' - Dewstate_-_Bass_Cannon', None, None, 'none', 0, None))
+        self.assertEqual(params, (' - Dewstate_-_Bass_Cannon', None, None, 'none', 0, None, None, None))
 
     def test_the_fingerprint_is_written_even_on_a_decided_row(self):
         self.store.record('BKRP104 - Darwin', LabelProposal('Brutal Kuts', 'tag:label', 90, 'BKRP'), 'f' * 64)
 
         query, params = self.cursor.execute.call_args.args
-        self.assertEqual(params[-1], 'f' * 64)
+        self.assertEqual(params[5], 'f' * 64)
         self.assertIn('resolved_fingerprint = VALUES(resolved_fingerprint)', query)
 
     def test_the_snapshot_reads_the_rules_version_and_every_row(self):
         self.cursor.fetchone.return_value = (3, 987654)
-        self.cursor.fetchall.return_value = [('A - One', 'new', None, 'abc'), ('B - Two', 'rejected', 'then', None)]
+        self.cursor.fetchall.return_value = [
+            ('A - One', 'new', None, 'abc', 'first'),
+            ('B - Two', 'rejected', 'then', None, None),
+        ]
 
         snapshot = self.store.snapshot()
 
         self.assertEqual(snapshot.rules_version, '3:987654')
-        self.assertEqual(snapshot.rows['A - One'], KnownProposal('new', None, 'abc'))
+        self.assertEqual(snapshot.rows['A - One'], KnownProposal('new', None, 'abc', 'first'))
         self.assertEqual(snapshot.rows['B - Two'].status, 'rejected')
         first_query = self.cursor.execute.call_args_list[0].args[0]
         self.assertIn('rules_catid_label', first_query)

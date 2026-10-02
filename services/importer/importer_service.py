@@ -58,6 +58,8 @@ class ImporterService:
         self.flattener = Flattener()
         self.renamer = Renamer()
         self.mover = Mover()
+        # One cache of .nfo facts for both steps, so a folder's .nfo is read once per change.
+        self.mover.release_info = self.renamer.release_info
         self.dry_run = getattr(self.settings, 'dryrun', False)
         self.steps: list[Step] = [
             Step('Extractor', self.extractor.run),

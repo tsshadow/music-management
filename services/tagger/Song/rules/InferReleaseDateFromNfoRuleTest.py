@@ -137,6 +137,51 @@ class DateLadderTest(RuleCase):
         self.assertEqual('2026-10-02', self.written()[ORIGINAL_DATE])
         self.assertEqual('deezer', self.written()[DATE_SOURCE])
 
+    def test_a_backfill_retag_lifts_a_rip_date_beside_a_full_file_date(self):
+        # What the backfill queues: the file already has full dates everywhere, the retag
+        # carries no arrival date, and the Deezer answer is in the cache by now.
+        self.song.path = MagicMock(return_value=f'{MINUS_MILITIA_DIR}/01-minus_militia.mp3')
+        self.tags.update({DATE: '2026-10-01', ORIGINAL_DATE: '2026-10-01', DATE_SOURCE: 'nfo-rip'})
+        self.store.albums['1104265012'] = DEEZER_ALBUM
+        self._apply(MINUS_MILITIA_NFO)
+        self.assertEqual('2026-10-02', self.tags[ORIGINAL_DATE])
+        self.assertEqual('deezer', self.tags[DATE_SOURCE])
+
+    def test_an_arrival_date_is_lifted_to_the_store_date_on_a_retag(self):
+        self.tags.update({ORIGINAL_DATE: '2026-10-05', DATE_SOURCE: 'arrival'})
+        self.store.albums['1104265012'] = DEEZER_ALBUM
+        self._apply(MINUS_MILITIA_NFO)
+        self.assertEqual('2026-10-02', self.tags[ORIGINAL_DATE])
+        self.assertEqual('deezer', self.tags[DATE_SOURCE])
+
+    def test_an_arrival_date_stays_when_a_retag_finds_nothing_better(self):
+        self.tags.update({ORIGINAL_DATE: '2026-10-05', DATE_SOURCE: 'arrival'})
+        self._apply('nothing dated, no link')
+        self.song.tag_collection.set_item.assert_not_called()
+
+    def test_a_pre_ladder_nfo_date_is_lifted_to_the_store_date(self):
+        # Before the ladder this rule wrote the .nfo date without DATE_SOURCE (4.141 files on
+        # production were skipped as "a person's date" for that reason).
+        self.tags[ORIGINAL_DATE] = '2026-10-01'
+        self.store.albums['1104265012'] = DEEZER_ALBUM
+        self._apply(MINUS_MILITIA_NFO)
+        self.assertEqual('2026-10-02', self.tags[ORIGINAL_DATE])
+        self.assertEqual('deezer', self.tags[DATE_SOURCE])
+
+    def test_a_pre_ladder_nfo_date_that_is_still_the_best_only_gets_its_source(self):
+        self.tags[ORIGINAL_DATE] = '2026-01-16'
+        self._apply('Str.date : 16-01-2026')
+        self.assertEqual({DATE_SOURCE: 'nfo-street'}, self.written())
+
+    def test_a_pre_ladder_date_from_the_file_date_counts_as_tag(self):
+        self.tags.update({DATE: '2026-03-04', ORIGINAL_DATE: '2026-03-04'})
+        self.store.albums['1104265012'] = DEEZER_ALBUM
+        self._apply(MINUS_MILITIA_NFO)
+        self.assertEqual(
+            {ORIGINAL_DATE: '2026-10-02', DATE_SOURCE: 'deezer'},
+            {ORIGINAL_DATE: self.tags[ORIGINAL_DATE], DATE_SOURCE: self.tags[DATE_SOURCE]},
+        )
+
     def test_a_store_date_is_never_downgraded(self):
         self.tags[ORIGINAL_DATE] = '2026-10-02'
         self.tags[DATE_SOURCE] = 'deezer'

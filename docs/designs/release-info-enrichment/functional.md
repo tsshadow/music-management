@@ -63,9 +63,10 @@ everyone listening (a "recent" list that is actually recent).
 | A backlog release (it already had a proposal row) gets placed | Recorded in the event log without a phone push, so placing a backlog does not send hundreds of pushes. |
 | Release is tagged after the move | Its tracks get the best date available, and the tag `DATE_SOURCE` says which: `deezer`, `nfo-street`/`nfo-release`, `tag` (the file's own full date), `nfo-rip`, or `arrival`. |
 | A track already has a full date from a better source | Left alone. A worse source never replaces a better one; a full date of unknown origin is never replaced. |
+| A track has a full date without `DATE_SOURCE` that equals its `.nfo` date or its own `DATE` | It was written by the date rule before the ladder existed, so it counts as that source: a better source replaces it, and otherwise it only gets its `DATE_SOURCE`. |
 | A track's date came from a worse source and a better one appears later (Deezer cache filled) | The next retag replaces it and updates `DATE_SOURCE`. |
 | New release, nothing but the year, year equals the year it arrived | The date it first arrived in the queue (`DATE_SOURCE=arrival`): within days for a scene release. |
-| Backfill, dry run (default) | Per source: how many year-only tracks in the label tree a Deezer link, an `.nfo` date line, or nothing could lift. Nothing is written, nothing is fetched. |
+| Backfill, dry run (default) | Per source: how many year-only tracks in the label tree a Deezer link, an `.nfo` date line, or nothing could lift. Also, per lower rung (`upgrade-from-nfo-rip`, `upgrade-from-arrival`, `upgrade-from-tag`), how many tracks with a full date a better rung would now replace, and how many wait for a Deezer answer (`upgrade-pending`). Nothing is written, nothing is fetched. |
 | Backfill, `--lookup N` | Fetches up to N uncached Deezer albums into the cache (rate-limited); no file is touched. |
 | Backfill, `--apply` | Queues the tracks whose release now has a better date for the tagger (reason `release_date_ladder`); the tagger writes them in its normal rounds. |
 
@@ -95,8 +96,12 @@ Every rung except arrival must agree with the year in the release's folder name,
    `.nfo`) and gets `ORIGINALDATE=2026-10-01`, `DATE_SOURCE=nfo-rip`.
 3. A release whose `.nfo` names a label with no folder is not moved; its proposal shows that label.
 4. A track with `DATE_SOURCE=nfo-rip` is upgraded to the Deezer date on a later retag; a track with
-   `DATE_SOURCE=deezer` is never downgraded; a full date without `DATE_SOURCE` is never touched.
-5. The backfill dry run prints a count per rung and changes nothing.
+   `DATE_SOURCE=deezer` is never downgraded; a full date without `DATE_SOURCE` is never touched,
+   unless it equals the `.nfo` date or the file's `DATE` (the rule's own date from before the
+   ladder), which counts as that source.
+5. The backfill dry run prints a count per rung and changes nothing. A track with
+   `DATE_SOURCE=nfo-rip` whose release now has a Deezer date is counted as `upgrade-from-nfo-rip`
+   and queued by `--apply`; a full date without `DATE_SOURCE` is never counted.
 6. Switching `import_place_by_label_name` off in Beheer > Configuratie restores today's placement
    (catalogue rules only).
 

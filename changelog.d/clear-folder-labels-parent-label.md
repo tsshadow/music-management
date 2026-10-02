@@ -1,0 +1,1 @@
+- The folder-label cleanup script (`clear-folder-labels.sh`) gives a file whose label was its release folder's name the label folder above that release folder (`247 Hardcore`) instead of leaving it empty.

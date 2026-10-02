@@ -172,9 +172,12 @@ export async function leaveOfflineMode(platform = defaultPlatform) {
  * @param {object} [options]
  * @param {typeof fetch} [options.fetchImpl] - Injected by the tests.
  * @param {Storage} [options.storage] - Injected by the tests.
+ * @param {function(function(): void): boolean} [options.write] - Runs the store write; false
+ *   when it was dropped. The app-start restore passes its ticket's (`queueRestore.js`), so a
+ *   listener who started something else meanwhile keeps it.
  * @returns {Promise<{restored: number, reason: string}>}
  */
-export async function reconcileQueue({ fetchImpl, storage } = {}) {
+export async function reconcileQueue({ fetchImpl, storage, write = runWrite } = {}) {
   const stash = readStash(storage);
   clearStash(storage);
   if (!stash) return { restored: 0, reason: "nothing-kept" };
@@ -197,8 +200,21 @@ export async function reconcileQueue({ fetchImpl, storage } = {}) {
   );
   const tracks = answers.filter(Boolean);
   if (tracks.length <= current.length) return { restored: 0, reason: "nothing-gained" };
-  startQueue(tracks, { view: null });
+  if (!write(() => startQueue(tracks, { view: null }))) {
+    return { restored: 0, reason: "queue-changed" };
+  }
   return { restored: tracks.length, reason: "restored" };
+}
+
+/**
+ * The default writer of `reconcileQueue`: runs the write at once.
+ *
+ * @param {function(): void} apply
+ * @returns {boolean} Always true.
+ */
+function runWrite(apply) {
+  apply();
+  return true;
 }
 
 /** The background attempt loop while offline mode is on; null otherwise. */

@@ -162,8 +162,8 @@ tapped.
 
 ## Open Questions / Not Yet Decided
 
-- Whether the queue restore in the app should move *after* the first paint, with the mini player
-  filling in afterwards. It is the biggest part of the app's start-up wait, but the restore must
-  never disturb playback, which needs its own look. It stays as it is for now; issue filed.
+- ~~Whether the queue restore in the app should move *after* the first paint, with the mini player
+  filling in afterwards.~~ Decided and built in issue #113: see
+  [deferred-queue-restore](../deferred-queue-restore/functional.md).
 - Which other pages follow first. All the follow-ups are done: feeds and track versions (#110,
   #111), genre/label/festival lists and search (#109, #112).

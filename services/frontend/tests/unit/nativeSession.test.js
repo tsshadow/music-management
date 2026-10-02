@@ -16,6 +16,7 @@ import {
 import { get } from "svelte/store";
 import { offline } from "../../src/lib/subsonic.js";
 import { offlineMode, QUEUE_STASH_KEY } from "../../src/lib/offlineMode.js";
+import { cancelQueueRestore, queueRestore } from "../../src/lib/queueRestore.js";
 
 /**
  * The shell's boot sequence: server, session, queue.
@@ -126,6 +127,7 @@ describe("bootstrapShell", () => {
       signedIn: false,
       restored: 0,
       offline: false,
+      queueRestored: expect.any(Promise),
     });
     expect(get(credentials).url).toBe("https://localhost");
   });
@@ -160,6 +162,7 @@ describe("bootstrapShell", () => {
       signedIn: false,
       restored: 0,
       offline: false,
+      queueRestored: expect.any(Promise),
     });
   });
 });
@@ -472,7 +475,13 @@ describe("bootstrapShell - boot stages", () => {
 
     const result = await bootstrapShell(shell({ stored: { signedIn: false } }), undefined, onStage);
 
-    expect(result).toEqual({ native: true, signedIn: true, restored: 0, offline: false });
+    expect(result).toEqual({
+      native: true,
+      signedIn: true,
+      restored: 0,
+      offline: false,
+      queueRestored: expect.any(Promise),
+    });
   });
 });
 
@@ -659,5 +668,181 @@ describe("bootstrapShell - start-up check", () => {
     expect(result).toMatchObject({ restored: 3, offline: false });
     expect(get(playlist).map((track) => track.id)).toEqual(["1", "2", "3"]);
     expect(localStorage.getItem(QUEUE_STASH_KEY)).toBeNull();
+  });
+});
+
+/**
+ * Issue #113: in the app the queue restore runs behind the mounted UI (`deferQueue`). These pin
+ * the order -- `bootstrapShell` resolves (and the app mounts) before a single queued track has
+ * been looked up -- and what a choice made meanwhile does to the restore.
+ */
+describe("bootstrapShell - deferred queue restore (issue #113)", () => {
+  const songs = {
+    1: { id: "1", title: "One", duration: 100 },
+    2: { id: "2", title: "Two", duration: 200 },
+    3: { id: "3", title: "Three", duration: 300 },
+  };
+
+  /** `fakeLibrary`, except that every `getSong` waits until `release()` is called. */
+  function gatedLibrary() {
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const answer = fakeLibrary(songs);
+    const fetchImpl = vi.fn(async (url) => {
+      if (url.includes("/rest/getSong")) await gate;
+      return answer(url);
+    });
+    return { fetchImpl, release };
+  }
+
+  /** A phone that is signed in through the web session, holding queue 1-2-3 on track 2. */
+  function signedInShell(overrides = {}) {
+    credentials.set({ url: "https://lms.example", username: "user" });
+    subsonicToken.set({ username: "user", token: "tok" });
+    return shell({
+      stored: { signedIn: false },
+      queue: { index: 1, trackIds: ["1", "2", "3"] },
+      state: { status: "playing", trackId: "2", position: 42, duration: 200 },
+      ...overrides,
+    });
+  }
+
+  beforeEach(() => {
+    cancelQueueRestore();
+    queueRestore.set({ status: "idle", done: 0, total: 0 });
+  });
+
+  it("resolves -- so the app mounts -- before the queue restore does", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+    const onStage = vi.fn();
+
+    const result = await bootstrapShell(signedInShell(), fetchImpl, onStage, {
+      deferQueue: true,
+    });
+
+    expect(result).toMatchObject({ native: true, signedIn: true, restored: 0 });
+    expect(get(queueRestore).status).toBe("restoring");
+    expect(get(playlist)).toEqual([]);
+    expect(get(currentTrack)).toBeNull();
+    // The boot screen is gone by now; the mini player says it instead.
+    expect(onStage.mock.calls.map(([stage]) => stage)).not.toContain("restoringQueue");
+
+    release();
+    expect(await result.queueRestored).toBe(3);
+  });
+
+  it("fills the queue and the playing track once the restore finishes", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+
+    const result = await bootstrapShell(signedInShell(), fetchImpl, undefined, {
+      deferQueue: true,
+    });
+    release();
+    await result.queueRestored;
+
+    expect(get(queueRestore).status).toBe("restored");
+    expect(get(playlist).map((track) => track.id)).toEqual(["1", "2", "3"]);
+    expect(get(currentTrack).id).toBe("2");
+    expect(get(playerState)).toMatchObject({ playing: true, progress: 42 });
+  });
+
+  it("reports how far the lookups are, for the mini player", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+
+    const result = await bootstrapShell(signedInShell(), fetchImpl, undefined, {
+      deferQueue: true,
+    });
+    await vi.waitFor(() => expect(get(queueRestore).total).toBe(3));
+    release();
+    await result.queueRestored;
+
+    expect(get(queueRestore)).toMatchObject({ done: 3, total: 3 });
+  });
+
+  it("is cancelled by a track the listener starts first, and never overwrites it", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+    const chosen = { id: "99", title: "Chosen", duration: 120 };
+
+    const result = await bootstrapShell(signedInShell(), fetchImpl, undefined, {
+      deferQueue: true,
+    });
+    playlist.set([chosen]);
+    currentTrack.set(chosen);
+
+    expect(get(queueRestore).status).toBe("cancelled");
+    release();
+    expect(await result.queueRestored).toBe(0);
+    expect(get(playlist)).toEqual([chosen]);
+    expect(get(currentTrack)).toEqual(chosen);
+  });
+
+  it("keeps a track queued meanwhile behind the restored queue", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+    const queued = { id: "7", title: "Queued", duration: 90 };
+
+    const result = await bootstrapShell(signedInShell(), fetchImpl, undefined, {
+      deferQueue: true,
+    });
+    playlist.update((tracks) => [...tracks, queued]);
+    expect(get(queueRestore).status).toBe("restoring");
+    release();
+    await result.queueRestored;
+
+    expect(get(playlist).map((track) => track.id)).toEqual(["1", "2", "3", "7"]);
+    expect(get(currentTrack).id).toBe("2");
+  });
+
+  it("follows the service when it moved on to the next track during the lookups", async () => {
+    const { fetchImpl, release } = gatedLibrary();
+    const platform = signedInShell();
+    platform.player.state = vi.fn(() => ({
+      status: "playing",
+      position: 3,
+      duration: 300,
+      trackId: "3",
+      volume: 1,
+    }));
+
+    const result = await bootstrapShell(platform, fetchImpl, undefined, { deferQueue: true });
+    release();
+    await result.queueRestored;
+
+    expect(get(currentTrack).id).toBe("3");
+    expect(get(playerState).progress).toBe(3);
+  });
+
+  it("puts the previous session's queue back when the service holds none", async () => {
+    const leftover = [{ id: "5", title: "Left over", duration: 60 }];
+    playlist.set(leftover);
+    currentTrack.set(leftover[0]);
+
+    const result = await bootstrapShell(
+      signedInShell({ queue: { index: -1, trackIds: [] }, state: { trackId: null } }),
+      fakeLibrary(songs),
+      undefined,
+      { deferQueue: true },
+    );
+    await result.queueRestored;
+
+    expect(get(queueRestore).status).toBe("restored");
+    expect(get(playlist)).toEqual(leftover);
+    expect(get(currentTrack)).toEqual(leftover[0]);
+  });
+
+  it("does not start a restore for a phone without a session", async () => {
+    const result = await bootstrapShell(
+      shell({ stored: { signedIn: false } }),
+      undefined,
+      undefined,
+      {
+        deferQueue: true,
+      },
+    );
+
+    expect(result.signedIn).toBe(false);
+    expect(get(queueRestore).status).toBe("idle");
+    expect(await result.queueRestored).toBe(0);
   });
 });

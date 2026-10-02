@@ -1675,6 +1675,7 @@
     "previous": "Previous",
     "radio": "Radio",
     "repeat": "Repeat",
+    "restoringQueue": "Restoring the queue…",
     "seek": "Seek track",
     "skipBack": "Skip back 30 seconds",
     "skipForward": "Skip forward 30 seconds",

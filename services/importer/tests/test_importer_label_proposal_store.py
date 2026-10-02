@@ -58,7 +58,10 @@ class LabelProposalStoreTest(unittest.TestCase):
 
     def test_the_snapshot_reads_the_rules_version_and_every_row(self):
         self.cursor.fetchone.return_value = (3, 987654)
-        self.cursor.fetchall.return_value = [('A - One', 'new', None, 'abc', 'first'), ('B - Two', 'rejected', 'then', None, None)]
+        self.cursor.fetchall.return_value = [
+            ('A - One', 'new', None, 'abc', 'first'),
+            ('B - Two', 'rejected', 'then', None, None),
+        ]
 
         snapshot = self.store.snapshot()
 

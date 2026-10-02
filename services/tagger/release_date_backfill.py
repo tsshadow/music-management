@@ -108,7 +108,7 @@ def judge(directory: str, store: StoreCache, read_nfo: Callable[[str], str | Non
             gone = True
     kind, resolved = NfoDate.resolve(text, dirname) if text else (None, None)
     if resolved is not None:
-        return {'street': 'nfo-street', 'release': 'nfo-release'}.get(kind, 'nfo-rip')
+        return {'street': 'nfo-street', 'release': 'nfo-release'}.get(kind or '', 'nfo-rip')
     if pending:
         return 'deezer-pending'
     return 'deezer-gone' if gone else 'none'

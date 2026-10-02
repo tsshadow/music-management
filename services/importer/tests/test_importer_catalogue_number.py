@@ -95,7 +95,9 @@ class IsCatalogueNumberTest(unittest.TestCase):
 
 class FromFolderNameTest(unittest.TestCase):
     def test_the_minus_militia_release_has_no_catalogue_number(self):
-        name = 'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        name = (
+            'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        )
         self.assertIsNone(from_folder_name(name))
         # ...where the old rule took the anthem.
         self.assertEqual(old_rule_prefix(name), 'Official_Hardbass_2026_Anthem')

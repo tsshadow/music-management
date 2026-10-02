@@ -24,7 +24,9 @@ RULES = {'scan': 'Scantraxx'}
 class CrookedRestTest(unittest.TestCase):
     def test_an_empty_prefix_in_both_spellings(self):
         self.assertEqual(('empty', 'Guizcore_-_Coffee_Time-WEB-FLAC-2026'), crooked_rest(EMPTY_PREFIXED))
-        self.assertEqual(('empty', 'Amigo_-_Uptempo_Fiesta_Vol.1-WEB-2026'), crooked_rest('- Amigo_-_Uptempo_Fiesta_Vol.1-WEB-2026'))
+        self.assertEqual(
+            ('empty', 'Amigo_-_Uptempo_Fiesta_Vol.1-WEB-2026'), crooked_rest('- Amigo_-_Uptempo_Fiesta_Vol.1-WEB-2026')
+        )
 
     def test_a_festival_anthem_prefix(self):
         self.assertEqual(('word', MINUS_MILITIA), crooked_rest(WORD_PREFIXED))
@@ -80,7 +82,9 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(1, sum(1 for entry in planned if entry.new))
 
     def test_other_folders_are_not_planned(self):
-        self.assertEqual([], plan(['HA037 - Hexus-(HA037)-WEB-2026', 'Collusion_-_PSYKO-(TCRECPRO173)-WEB-2026'], {}, RULES))
+        self.assertEqual(
+            [], plan(['HA037 - Hexus-(HA037)-WEB-2026', 'Collusion_-_PSYKO-(TCRECPRO173)-WEB-2026'], {}, RULES)
+        )
 
     def test_summary(self):
         planned = plan([EMPTY_PREFIXED, WORD_PREFIXED, 'Guizcore_-_Coffee_Time-WEB-FLAC-2026'], {}, RULES)

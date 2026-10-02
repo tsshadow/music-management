@@ -111,7 +111,8 @@ def rejection(value: str | None) -> str | None:
         return 'year'
     parts = [part for part in _PART_SPLIT.split(text) if part]
     for part in parts:
-        letters = _LEADING_LETTERS.match(part).group(0).lower()
+        leading = _LEADING_LETTERS.match(part)
+        letters = leading.group(0).lower() if leading else ''
         if part.lower() in WORDS or (len(letters) >= 3 and letters in WORDS):
             return f'word:{part}'
     if len(parts) > 1 and any(re.search(r'[a-z]', part) and re.search(r'[A-Za-z]{2,}', part) for part in parts):

@@ -35,7 +35,9 @@ class FolderNameHelpersTest(unittest.TestCase):
 
     def test_a_festival_anthem_is_not_a_catalogue_number(self):
         # The release seen on production on 2026-10-02 that never reached EPs/B2S.
-        name = 'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        name = (
+            'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        )
         self.assertIsNone(find_cat_id(name))
 
     def test_scene_releases_without_a_catalogue_number_keep_their_name(self):

@@ -518,5 +518,85 @@ class ServerSyncTest(RouteAuthTestCase):
         self.assertIsInstance(users_router.lms_db_sync_lock, type(threading.Lock()))
 
 
+class DeleteUserScopeTest(RouteAuthTestCase):
+    """DELETE /api/users/{id} is for `users.update` only (issue #38): no self-delete."""
+
+    def setUp(self):
+        super().setUp()
+        notify = patch.object(users_router, 'notify_server_sync_users')
+        notify.start()
+        self.addCleanup(notify.stop)
+
+    def test_a_plain_account_cannot_delete_itself(self):
+        response = self.call('delete', f"/api/users/{LISTENER['user']['id']}", None, LISTENER)
+        self.assertRefused(response, 'self-delete')
+        self.cursor.execute.assert_not_called()
+
+    def test_a_plain_account_cannot_delete_another(self):
+        self.assertRefused(self.call('delete', '/api/users/9', None, LISTENER), 'delete another')
+        self.cursor.execute.assert_not_called()
+
+    def test_users_update_and_the_system_key_may_delete(self):
+        self.cursor.fetchone.return_value = {'id': 9, 'username': 'user', 'role_id': 2}
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
+            self.assertEqual(self.call('delete', '/api/users/9', None, USER_ADMIN).status_code, 200)
+            self.assertEqual(self.call('delete', '/api/users/9', None, ADMIN).status_code, 200)
+            self.assertEqual(self.call('delete', '/api/users/9', None, 'system').status_code, 200)
+
+    def test_the_last_admin_still_cannot_delete_itself(self):
+        # Bug report 052: `cnt` counts the other enabled admins.
+        self.cursor.fetchone.side_effect = [{'id': 1, 'username': 'root', 'role_id': 1}, {'cnt': 0}]
+        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}):
+            response = self.call('delete', f"/api/users/{ADMIN['user']['id']}", None, ADMIN)
+        self.assertEqual(response.status_code, 409, response.text)
+
+
+class LatestImportsScopeTest(RouteAuthTestCase):
+    """GET /api/scrobble/import/latest: every account's for an admin, its own otherwise (issue #38)."""
+
+    def setUp(self):
+        super().setUp()
+        from services.music_manager.routers import scrobbler as scrobbler_router
+
+        patcher = patch.object(scrobbler_router, 'get_db_connection', return_value=self.conn)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.cursor.fetchall.return_value = []
+
+    def last_query(self):
+        """The statement and parameters of the last SELECT."""
+        call = self.cursor.execute.call_args
+        return call.args[0], (call.args[1] if len(call.args) > 1 else None)
+
+    def test_a_plain_account_reads_only_its_own_imports(self):
+        response = self.call('get', '/api/scrobble/import/latest', None, LISTENER)
+        self.assertEqual(response.status_code, 200, response.text)
+        sql, params = self.last_query()
+        self.assertIn('WHERE username = %s', sql)
+        self.assertEqual(params, ('listener',))
+
+    def test_an_admin_and_the_system_key_read_every_account(self):
+        for auth in (ADMIN, 'system'):
+            self.assertEqual(self.call('get', '/api/scrobble/import/latest', None, auth).status_code, 200)
+            sql, params = self.last_query()
+            self.assertNotIn('WHERE', sql)
+            self.assertIsNone(params)
+
+    def test_users_update_alone_does_not_widen_the_list(self):
+        self.call('get', '/api/scrobble/import/latest', None, USER_ADMIN)
+        sql, params = self.last_query()
+        self.assertIn('WHERE username = %s', sql)
+        self.assertEqual(params, ('helper',))
+
+    def test_the_management_copy_applies_the_same_scope(self):
+        management_router.get_latest_scrobble_imports_proxy(LISTENER)
+        sql, params = self.last_query()
+        self.assertIn('WHERE username = %s', sql)
+        self.assertEqual(params, ('listener',))
+
+
 if __name__ == '__main__':
     unittest.main()

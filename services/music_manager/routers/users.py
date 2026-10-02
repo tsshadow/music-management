@@ -1146,9 +1146,14 @@ def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: boo
 
 
 @router.delete('/{user_id}')
-def delete_user(user_id: int, auth: dict = Depends(verify_api_key)):
-    if auth.get('type') == 'user' and auth['user']['id'] != user_id and (not has_permission(auth, 'users.update')):
-        raise HTTPException(status_code=403, detail='Forbidden')
+def delete_user(user_id: int, auth: dict = Depends(require_permission('users.update'))):
+    """Delete an account and everything that hangs off it. Admins only (`users.update`).
+
+    A plain account may not delete itself any more (issue #38): it used to pass on "self or
+    `users.update`", which made removing an account something its owner could do by accident with
+    one call and no way back. An admin may delete any account, itself included, except the last
+    enabled admin (bug report 052), which `delete_user_row` refuses with a 409.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')

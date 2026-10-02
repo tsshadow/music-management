@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.15.4] - 2026-10-02
+
+### Changed
+- **The app opens on its home screen without waiting for the queue** (issue #113). The bundled web
+  UI no longer holds the boot screen until every queued track has been looked up: the mini player
+  shows "Wachtrij wordt hersteld…" with a spinner and fills in when the restore is done. Starting a
+  track before then cancels the restore, and `PlaybackService` is never sent an empty or half-built
+  queue in the meantime -- what was playing keeps playing.
+
 ## [7.15.3] - 2026-10-02
 
 ### Changed

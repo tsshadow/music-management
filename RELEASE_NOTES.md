@@ -11,6 +11,28 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.89.0 (2026-10-02)
+
+- **Only admins see everyone's ListenBrainz imports and can delete accounts.** Other accounts see
+  only their own imports and can no longer delete themselves.
+
+- The folder-label cleanup script (`clear-folder-labels.sh`) gives a file whose label was its release folder's name the label folder above that release folder (`247 Hardcore`) instead of leaving it empty.
+- The same script also repairs the label tree's own name (`EPs`, `Eps`) written as a label: it becomes the label folder the file sits in, and is cleared in `__Free&None`.
+
+- **The app opens faster.** The home screen appears straight away; the mini player shows that the
+  queue is being restored and fills in when it is ready. Starting something else meanwhile wins.
+
+- **Releases named after a festival anthem no longer get the anthem as their catalogue number**, and
+  a release without a catalogue number keeps its name in the import folder.
+
+- **New releases land under their label more often and carry their real release date.** The
+  importer reads the `.nfo` and the Deezer album it links; "recently released" stops listing
+  yesterday's release after January's.
+
+- **Two one-off cleanups for the library's leftovers:** 1,493 duplicate track rows from July are
+  folded into the real tracks (ratings and listens kept), and 574 broken scene playlists that LMS
+  complained about after every scan are deleted.
+
 ## Global Version 0.88.2 (2026-10-02)
 
 - **Folder names such as `__Free&None`, `__TODO` and whole release folder names no longer show up

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.15.4 (2026-10-02)
+
+- **The app opens faster.** The home screen appears straight away and the mini player fills in
+  once the queue is restored; starting something else meanwhile wins.
+
 ## Global Version 7.15.3 (2026-10-02)
 
 - **Bundles the web UI of server 0.88.2.** No visible change: the web UI's development

@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.88.2 (2026-10-02)
+
+- **Folder names such as `__Free&None`, `__TODO` and whole release folder names no longer show up
+  as labels.** New imports no longer get them; a one-off script removes the existing ones.
+
 ## Global Version 0.88.1 (2026-10-01)
 
 - **About 33,000 releases get their cover back.** Scene-style cover files (`00-...jpg`) are now

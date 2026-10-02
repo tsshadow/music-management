@@ -153,5 +153,60 @@ class LabelSongChainTest(unittest.TestCase):
         self.assertEqual('Texcore (2026)', self.parsed().copyright())
 
 
+class NoLabelFolderTest(unittest.TestCase):
+    """Bug report 146: a release filed where no label is named gets no publisher from the path.
+
+    The importer's Mover files a `FREE ...` release into `<eps root>/__Free&None/` (production's
+    `rules_catid_label` maps the catalogue id `FREE` there) and runs LabelSong over it directly,
+    without asking whether that folder is a label. 231 releases carried `__Free&None` as their
+    label in LMS on 2026-10-02.
+    """
+
+    def setUp(self):
+        reset_database_helpers()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.eps = Path(tmp.name)
+        settings = MagicMock(eps_folder_path=str(self.eps), delimiter='/')
+        patcher = patch.object(label_song_module, 's', settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def parsed(self, *folders, **tags):
+        release_dir = self.eps.joinpath(*folders)
+        release_dir.mkdir(parents=True)
+        song = LabelSong(str(release_dir / '13-pat_b_-_conjo_(extended_mix)-sob.mp3'))
+        song.tag_collection.set_item(DATE, '2023')
+        for name, value in tags.items():
+            song.tag_collection.set_item(name, value)
+        song.parse()
+        return song
+
+    def test_free_and_none_is_never_written_as_the_publisher(self):
+        for folder in ('__Free&None', '___Free&None'):
+            with self.subTest(folder=folder):
+                song = self.parsed(folder, 'FREE - Pat_B_-_USB_Album_3.0-FLASH-EXTRAS-2023-SOB')
+                self.assertEqual('', song.publisher())
+                self.assertFalse(song.copyright())
+                self.assertFalse(song.catalog_number())
+
+    def test_a_publisher_written_by_an_earlier_round_is_emptied(self):
+        song = self.parsed(
+            '__Free&None',
+            'Buren_Van_De_Brandweer_-_Wij_Zijn_Hier-WEB-2022',
+            publisher='__Free&None',
+            copyright='__Free&None (2022)',
+        )
+        self.assertEqual('', song.publisher())
+        self.assertEqual('', song.copyright())
+
+    def test_a_release_directly_in_the_root_is_not_its_own_publisher(self):
+        release = 'K1R331 - Hakim_And_Lakesiders_-_Set_Me_Free-(K1R331)-SINGLE-WEB-2025-SRG'
+        song = self.parsed(release)
+        self.assertEqual('', song.publisher())
+        self.assertEqual('K1R331', song.catalog_number())
+        self.assertFalse(song.copyright())
+
+
 if __name__ == '__main__':
     unittest.main()

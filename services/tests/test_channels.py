@@ -15,6 +15,7 @@ from services.common.channels import (
     path_can_carry_a_label,
 )
 from services.common.import_queue import ImportQueue
+from services.common.label_namesTest import REAL_LABELS, RELEASE_FOLDER_LABELS
 
 
 class IsLabelTest(unittest.TestCase):
@@ -37,6 +38,17 @@ class IsLabelTest(unittest.TestCase):
         # __TODO is the import folder's own name, stamped onto a release that never left it.
         self.assertFalse(is_label('__TODO'))
         self.assertFalse(is_label('__Free&none'))
+
+    def test_folder_names_are_not_labels(self):
+        # Bug report 146: 236 releases in LMS carried these as their label, 371 a release folder.
+        for value in ('__Free&None', '___Free&None', *RELEASE_FOLDER_LABELS):
+            with self.subTest(value=value):
+                self.assertFalse(is_label(value))
+
+    def test_real_labels_near_the_line_are_labels(self):
+        for value in REAL_LABELS:
+            with self.subTest(value=value):
+                self.assertTrue(is_label(value))
 
     def test_nothing_is_not_a_label(self):
         self.assertFalse(is_label(''))

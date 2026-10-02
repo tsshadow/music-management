@@ -64,5 +64,34 @@ class DropQueuePlaceholderRuleTest(unittest.TestCase):
         self.assertEqual({}, song.tag_collection.tags)
 
 
+class FolderNamePublisherTest(unittest.TestCase):
+    """Bug report 146: what a retag empties besides the queue's name."""
+
+    rule = DropQueuePlaceholderRule(ImportQueue('/mnt/music/EPs/__TODO'))
+
+    def test_free_and_none_is_emptied_with_its_copyright(self):
+        for value in ('__Free&None', '___Free&None'):
+            with self.subTest(value=value):
+                song = _Song(**{PUBLISHER: value, COPYRIGHT: value + ' (2020)'})
+                self.rule.apply(song)
+                self.assertEqual('', song.tag_collection.get_item_as_string(PUBLISHER))
+                self.assertEqual('', song.tag_collection.get_item_as_string(COPYRIGHT))
+
+    def test_a_release_folder_name_is_emptied(self):
+        release = 'K1R331 - Hakim_And_Lakesiders_-_Set_Me_Free-(K1R331)-SINGLE-WEB-2025-SRG'
+        song = _Song(**{PUBLISHER: release, COPYRIGHT: release + ' (2025)'})
+        self.rule.apply(song)
+        self.assertEqual('', song.tag_collection.get_item_as_string(PUBLISHER))
+        self.assertEqual('', song.tag_collection.get_item_as_string(COPYRIGHT))
+
+    def test_real_labels_with_free_in_the_name_are_kept(self):
+        for label in ('DWX Copyright Free', 'Freestyle', 'Free For All', 'Musical Freedom'):
+            with self.subTest(label=label):
+                song = _Song(**{PUBLISHER: label, COPYRIGHT: label + ' (2024)'})
+                self.rule.apply(song)
+                self.assertEqual(label, song.tag_collection.get_item_as_string(PUBLISHER))
+                self.assertFalse(song.tag_collection.tags[COPYRIGHT].has_changes())
+
+
 if __name__ == '__main__':
     unittest.main()

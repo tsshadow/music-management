@@ -100,6 +100,8 @@ module = [
     "services.common.config_store",
     # New code (bug report 087), so it starts strict.
     "services.common.import_queue",
+    # New code (bug report 146), so it starts strict.
+    "services.common.label_names",
     "services.tagger.todo_label_repair",
     "services.importer.catid_prefix_repair",
     "services.common.step",

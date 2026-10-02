@@ -36,8 +36,31 @@ CREATE TABLE IF NOT EXISTS release_store_lookups (
 );
 ```
 
-`not_found` rows are asked again after 30 days. No other table changes; `rules_label_proposals`
-is read for `created_at` (arrival) and for confirmed aliases.
+`not_found` rows are asked again after 30 days.
+
+The owner's decision on #164 adds, in `migrate_v56_label_name_choices.sql` (same shape in
+`db_init.py`, expand-only):
+
+```sql
+CREATE TABLE IF NOT EXISTS rules_label_name_choices (
+    nfo_label_key VARCHAR(191) NOT NULL PRIMARY KEY,   -- label_match.fold(.nfo label)
+    nfo_label VARCHAR(255) NOT NULL,
+    name_folder VARCHAR(255) NOT NULL,                 -- the folder the name maps to
+    history_folder VARCHAR(255) NOT NULL,              -- where the curator filed most such releases
+    history_count INT NOT NULL DEFAULT 0,
+    name_count INT NOT NULL DEFAULT 0,
+    examples TEXT NULL,
+    chosen_folder VARCHAR(255) NULL,                   -- his answer; never touched by a re-learn
+    decided_at TIMESTAMP NULL,
+    learned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE rules_label_proposals ADD COLUMN IF NOT EXISTS alternative_label VARCHAR(255) NULL;
+ALTER TABLE rules_label_proposals ADD COLUMN IF NOT EXISTS label_choice_key VARCHAR(191) NULL;
+```
+
+Seeded with the 104 pairs measured on 2026-10-02 (`INSERT IGNORE`); re-learned by
+`python -m services.importer.label_history [--apply]`. `rules_label_proposals` is also read for
+`created_at` (arrival) and for confirmed aliases.
 
 New tags (`services/tagger/constants.py`, registered in `tag_registration.CUSTOM_TAG_KEYS`):
 
@@ -72,9 +95,16 @@ gets the .nfo's, if any; otherwise the folder keeps its name and the settle walk
 **Mover**, per settled folder, in this order:
 
 1. `get_cat_id` + `rules_catid_label` -> move, unchanged.
-2. Else `_place`: if `import_place_by_label_name` and moves are left this cycle,
-   `ReleaseInfo.placement` -> `.nfo` label mapped through `LabelIndex`; the Deezer album's label
-   (looked up within the cycle's budget) as fallback; both mapped to different folders -> None.
+2. Else `_place`: if `import_place_by_label_name`, `ReleaseInfo.placement`:
+   - the `.nfo` label has a `rules_label_name_choices` row with `chosen_folder` (an existing folder)
+     -> placed there;
+   - it has a row without a choice -> `Ask(name_folder, history_folder)`: the Mover records a
+     proposal `proposed_label=name_folder, alternative_label=history_folder,
+     label_choice_key=<key>, source='nfo-vs-history'` (fingerprinted under its own key, so it is
+     written once) and moves nothing;
+   - otherwise the `.nfo` label mapped through `LabelIndex`; the Deezer album's label (looked up
+     within the cycle's budget) as fallback; both mapped to different folders -> None.
+   A placement counts against the cycle's move cap; an `Ask` does not.
    A placement goes through the same `_move_to_label` as a rule move (conflict checks, chmod, LMS
    notify, tagging).
 3. Else `_propose` (unchanged, fingerprint-skipped). `label_resolver` now reads the .nfo through
@@ -117,15 +147,19 @@ within a `Budget(N)` and writes only `release_store_lookups`; `--apply` upserts
 
 ## API Contract
 
-No endpoint changes.
+Additive only, no breaking change.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| — | — | — | — |
+| `GET /api/label-proposals` | unchanged | each row also carries `alternative_label` and `label_choice_key` (null for ordinary proposals) | unchanged |
+| `POST /api/label-proposals/{id}/confirm` | unchanged (`{"label": ...}`) | unchanged | unchanged; when the row has `label_choice_key`, the same transaction sets `rules_label_name_choices.chosen_folder` to the confirmed label |
+
+The web UI (Beheer > Labelvoorstellen) groups a two-option proposal apart from plain proposals for
+the same label and shows both folders as buttons; it is the only consumer.
 
 ## Cross-App Impact
 
-None at the API level. LMS, the web player and the app read ORIGINALDATE as they already do; the
+`services/frontend` (label proposals tab) changes with the API in the same MR. LMS, the web player and the app read ORIGINALDATE as they already do; the
 new tags are informational. `GET /api/config/fields` lists four new fields in group `Importer`.
 
 ## Technical Acceptance Criteria
@@ -144,7 +178,12 @@ new tags are informational. `GET /api/config/fields` lists four new fields in gr
    uses `arrival` only within the year (`InferReleaseDateFromNfoRuleTest`).
 6. The backfill dry run writes nothing and asks nobody; `--lookup` and `--apply` touch only their
    one table each (`ReleaseDateBackfillTest`).
-7. `test_schema_drift` passes: `db_init.py` and `migrate_v55` build the same table.
+7. `test_schema_drift` passes: `db_init.py` and `migrate_v55`/`v56` build the same tables.
+8. An undecided name-versus-filing pair is proposed with both folders and nothing moves; a decided
+   one places in the chosen folder; confirming a two-option proposal stores the choice in the same
+   transaction (`test_importer_release_info`, `test_management_router`, `test_router_sql`);
+   `label_history.learn` builds the pairs and never writes `chosen_folder`
+   (`test_importer_label_history`).
 
 ## Related Docs
 

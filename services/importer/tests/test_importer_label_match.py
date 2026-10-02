@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 from services.common.import_queue import ImportQueue
-from services.importer.label_match import LabelIndex, fold, load_aliases
+from services.importer.label_match import LabelChoice, LabelIndex, fold, load_aliases, load_choices
 
 FOLDERS = ['B2S', 'Cloud 9 Music', 'Cloud 9 Dance', 'HARD Music', 'Hard Music Records', 'Scantraxx', 'Evolve AU']
 
@@ -69,6 +69,29 @@ class FromLibraryTest(unittest.TestCase):
     def no_db():
         raise ConnectionError('db down')
         yield  # pragma: no cover
+
+
+class ChoiceTest(unittest.TestCase):
+    def test_a_recorded_pair_is_found_by_any_spelling_of_the_label(self):
+        pair = LabelChoice('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance')
+        index = LabelIndex(FOLDERS, choices=[pair])
+        self.assertEqual(pair, index.choice('CLOUD 9 Music'))
+        self.assertIsNone(index.choice('B2S'))
+
+    def test_load_choices_reads_the_table_and_survives_a_missing_one(self):
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', 8, 40, None)]
+        connection = MagicMock()
+        connection.cursor.return_value.__enter__.return_value = cursor
+
+        @contextmanager
+        def factory():
+            yield connection
+
+        self.assertEqual(
+            [LabelChoice('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', 8, 40)], load_choices(factory)
+        )
+        self.assertEqual([], load_choices(FromLibraryTest.no_db))
 
 
 class LoadAliasesTest(unittest.TestCase):

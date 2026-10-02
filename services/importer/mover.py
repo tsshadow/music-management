@@ -16,9 +16,9 @@ from services.common.store_lookup import Budget
 from services.importer.conflict_store import MOVER, ConflictTracker
 from services.importer.label_match import LabelIndex
 from services.importer.label_proposal_store import NEW_ROW, LabelProposalStore, ProposalSnapshot, fingerprint
-from services.importer.label_resolver import resolve
+from services.importer.label_resolver import NFO_CONFIDENCE, LabelProposal, resolve
 from services.importer.release_compare import is_same_release
-from services.importer.release_info import Placement, ReleaseInfo
+from services.importer.release_info import Ask, Placement, ReleaseInfo
 from services.importer.settle import folder_signature, is_settled, is_staging
 from services.tagger.announce import announce
 from services.tagger.Song.LabelSong import LabelSong
@@ -225,8 +225,6 @@ class Mover:
         """Move a release no rule routes to the label folder its .nfo or store names. True when moved."""
         if not _setting_bool(self.settings, 'import_place_by_label_name', PLACE_BY_LABEL_NAME_DEFAULT):
             return False
-        if self._name_moves_left <= 0:
-            return False
         src = join(self.settings.import_folder_path, folder)
         try:
             placement = self.release_info.placement(src, self._label_index(), self._budget)
@@ -234,6 +232,25 @@ class Mover:
             logging.warning(f'Could not read the release info of {folder}: {e}')
             return False
         if placement is None:
+            return False
+        if isinstance(placement, Ask):
+            # The curator's filing disagrees with the name: his decision, once per label (#164).
+            self._propose(
+                folder,
+                None,
+                f'Not placing {folder}: its .nfo says {placement.stated!r} ({placement.name_folder}), '
+                f'but such releases are filed under {placement.history_folder}. Proposed with both.',
+                LabelProposal(
+                    placement.name_folder,
+                    'nfo-vs-history',
+                    NFO_CONFIDENCE,
+                    get_cat_id(folder) or None,
+                    alternative=placement.history_folder,
+                    choice_key=placement.key,
+                ),
+            )
+            return True
+        if self._name_moves_left <= 0:
             return False
         logging.info(f'Placing {folder} under {placement.label}: {placement.source} says {placement.stated!r}')
         self._name_moves_left -= 1
@@ -254,7 +271,7 @@ class Mover:
         """Whether the folder already waited a cycle as unplaceable: it has a proposal row."""
         return self._snapshot is not None and folder in self._snapshot.rows
 
-    def _propose(self, folder, cat_id, warning):
+    def _propose(self, folder, cat_id, warning, proposal: LabelProposal | None = None):
         """
         Record a release this step could not place, so it can be reviewed once instead
         of re-warned on every cycle for as long as it sits in the import folder.
@@ -278,7 +295,12 @@ class Mover:
         expected = None
         if signature is not None and snapshot is not None:
             row = snapshot.rows.get(folder, NEW_ROW)
-            expected = fingerprint(signature, snapshot.rules_version, row)
+            # A two-option proposal is filed under its own key, so a folder resolved before the
+            # pair was known is recorded once more, with both options.
+            rules_version = snapshot.rules_version + (
+                f':ask:{proposal.choice_key}' if proposal and proposal.choice_key else ''
+            )
+            expected = fingerprint(signature, rules_version, row)
             if row.fingerprint == expected:
                 self._counts['skipped'] += 1
                 return
@@ -290,7 +312,7 @@ class Mover:
         import_folder_name = os.path.basename(self.settings.import_folder_path.rstrip(os.sep))
         self.proposals.record(
             folder,
-            resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None),
+            proposal or resolve(src, import_folder_name=import_folder_name, catid_from_name=cat_id or None),
             expected,
         )
         self._counts['reread'] += 1

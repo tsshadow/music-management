@@ -35,10 +35,19 @@ SYNOLOGY_FOLDER = '@eaDir'
 
 @dataclass(frozen=True)
 class LabelProposal:
+    """What the importer proposes for a release it could not place.
+
+    `alternative` and `choice_key` are set only when the .nfo's label and the curator's filing
+    name two different folders (`label` per the .nfo, `alternative` per the filing): confirming
+    the proposal then records the choice for every later release with that label (#164).
+    """
+
     label: str | None
     source: str
     confidence: int
     catid: str | None
+    alternative: str | None = None
+    choice_key: str | None = None
 
 
 def blacklist(import_folder_name: str) -> set[str]:

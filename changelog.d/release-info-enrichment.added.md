@@ -4,6 +4,11 @@
   the name has none. Measured on the queue of 2026-10-02 the `.nfo` alone places 2.159 releases that
   were waiting for a label decision. Switch: `import_place_by_label_name` (Beheer > Configuratie,
   group Importer). Backlog releases placed this way are logged without a phone push.
+- **Where your filing and the `.nfo` disagree, you choose once per label.** Releases whose `.nfo`
+  says `Cloud 9 Music` sit in `Cloud 9 Dance`: such a release is not moved but proposed with both
+  folders in Beheer > Labelvoorstellen, and the folder you confirm is remembered for every later
+  release with that label (`rules_label_name_choices`, migrate_v56, seeded with the 104 labels found
+  in the label tree on 2026-10-02; re-learn with `scripts/prod/person/learn-label-name-history.sh`).
 - **Release dates follow a precision ladder** instead of stopping at the year: the Deezer release
   date, then an `.nfo` release/street date, the file's own full date, the `.nfo` rip date, and for a
   new release the day it arrived. The rung is written to `DATE_SOURCE`; a better rung later replaces

@@ -12,11 +12,12 @@ trailing words every label tacks on (`Records`, `Recordings`, `Music`, `Digital`
 A curator's earlier decisions count as aliases: a confirmed label proposal whose proposed label
 differs from the one decided (`Evolve Audio` -> `Evolve AU`) maps that spelling from then on.
 
-Measured on production on 2026-10-02, over the .nfo files of the releases already in the label
-tree that no catalogue rule routes: the .nfo label maps to the folder the release is in for
-3.562 and to another folder for 188, almost all a parent label where the curator keeps a
-sub-label folder (`Cloud 9 Music` for `Cloud 9 Dance`). That residue is why placement by name has
-its own switch, `import_place_by_label_name`.
+The curator's own filing outranks the name (the owner's decision on #164). Where releases whose
+.nfo names label X sit in folder Y -- `Cloud 9 Music` releases filed under `Cloud 9 Dance` -- the
+pair lives in `rules_label_name_choices` (seeded from the label tree, re-learned by
+`label_history`). Until the curator picks one of the two once, `choice` says so and the importer
+proposes instead of moving; after that the chosen folder wins for every release with that label.
+Measured on 2026-10-02 over every label-tree release with an .nfo: 104 such labels, 848 releases.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import os
 import re
 import unicodedata
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from services.common.import_queue import ImportQueue
 
@@ -56,6 +58,11 @@ GENERIC_SUFFIXES = frozenset(
     }
 )
 
+CHOICES_SQL = (
+    'SELECT nfo_label_key, nfo_label, name_folder, history_folder, history_count, name_count, chosen_folder '
+    'FROM rules_label_name_choices'
+)
+
 ALIASES_SQL = (
     "SELECT proposed_label, decided_label FROM rules_label_proposals WHERE status = 'confirmed' "
     'AND proposed_label IS NOT NULL AND decided_label IS NOT NULL'
@@ -73,10 +80,28 @@ def fold(name: str | None) -> str:
     return ''.join(words)
 
 
+@dataclass(frozen=True)
+class LabelChoice:
+    """An .nfo label the name puts in one folder and the curator's filing in another."""
+
+    key: str
+    nfo_label: str
+    name_folder: str
+    history_folder: str
+    history_count: int = 0
+    name_count: int = 0
+    chosen_folder: str | None = None
+
+
 class LabelIndex:
     """The label folders of the library, looked up by folded name."""
 
-    def __init__(self, folders: Iterable[str], aliases: dict[str, str] | None = None):
+    def __init__(
+        self,
+        folders: Iterable[str],
+        aliases: dict[str, str] | None = None,
+        choices: Iterable[LabelChoice] | None = None,
+    ):
         self._by_key: dict[str, set[str]] = {}
         for folder in folders:
             key = fold(folder)
@@ -84,6 +109,7 @@ class LabelIndex:
                 self._by_key.setdefault(key, set()).add(folder)
         self._aliases = {fold(alias): target for alias, target in (aliases or {}).items() if fold(alias)}
         self.folders = {folder for names in self._by_key.values() for folder in names}
+        self._choices = {choice.key: choice for choice in choices or ()}
 
     @classmethod
     def from_library(cls, eps_root: str, queue: ImportQueue, connection_factory=None) -> LabelIndex:
@@ -98,7 +124,11 @@ class LabelIndex:
             for name in entries
             if os.path.isdir(os.path.join(eps_root, name)) and queue.is_label_folder(os.path.join(eps_root, name))
         ]
-        return cls(folders, load_aliases(connection_factory))
+        return cls(folders, load_aliases(connection_factory), load_choices(connection_factory))
+
+    def choice(self, name: str | None) -> LabelChoice | None:
+        """The name-versus-filing pair recorded for the label `name`, or None."""
+        return self._choices.get(fold(name))
 
     def match(self, name: str | None) -> str | None:
         """The one label folder `name` means, or None when it means none or more than one."""
@@ -112,14 +142,32 @@ class LabelIndex:
         return next(iter(hits)) if len(hits) == 1 else None
 
 
+def _connection_factory(connection_factory):
+    if connection_factory is None:
+        from services.common.Helpers.DatabaseConnector import DatabaseConnector
+
+        connection_factory = DatabaseConnector().connection
+    return connection_factory
+
+
+def load_choices(connection_factory=None) -> list[LabelChoice]:
+    """Every recorded name-versus-filing pair; empty when the table cannot be read."""
+    try:
+        with _connection_factory(connection_factory)() as connection, connection.cursor() as cursor:
+            cursor.execute(CHOICES_SQL)
+            return [
+                LabelChoice(str(key), str(label), str(name), str(history), int(hc or 0), int(nc or 0), chosen or None)
+                for key, label, name, history, hc, nc, chosen in cursor.fetchall()
+            ]
+    except Exception as exc:  # noqa: BLE001 - no pairs means placement by name only
+        logging.warning('Label name choices not readable, placing by name only: %s', exc)
+        return []
+
+
 def load_aliases(connection_factory=None) -> dict[str, str]:
     """`proposed -> decided` for every confirmed proposal; empty when the table cannot be read."""
     try:
-        if connection_factory is None:
-            from services.common.Helpers.DatabaseConnector import DatabaseConnector
-
-            connection_factory = DatabaseConnector().connection
-        with connection_factory() as connection, connection.cursor() as cursor:
+        with _connection_factory(connection_factory)() as connection, connection.cursor() as cursor:
             cursor.execute(ALIASES_SQL)
             return {str(proposed): str(decided) for proposed, decided in cursor.fetchall() if proposed != decided}
     except Exception as exc:  # noqa: BLE001 - no aliases is a smaller index, not a failure

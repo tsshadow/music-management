@@ -18,9 +18,9 @@ from services.common import release_nfo  # noqa: E402
 from services.common.store_lookup import Budget, StoreCache, _Pace  # noqa: E402
 from services.importer import mover as mover_module  # noqa: E402
 from services.importer import settle  # noqa: E402
-from services.importer.label_match import LabelIndex  # noqa: E402
+from services.importer.label_match import LabelChoice, LabelIndex  # noqa: E402
 from services.importer.label_proposal_store import KnownProposal  # noqa: E402
-from services.importer.release_info import ReleaseInfo  # noqa: E402
+from services.importer.release_info import Ask, ReleaseInfo  # noqa: E402
 from services.importer.renamer import Renamer  # noqa: E402
 from services.importer.tests.test_importer_mover_cycle import MoverOnDiskTest  # noqa: E402
 
@@ -156,6 +156,53 @@ class ReleaseInfoTest(unittest.TestCase):
             self.assertEqual(2, read.call_count)
 
 
+CLOUD9_NFO = """
+   Label.......: Cloud 9 Music
+   Catalog Nr..: CLDM2025001
+"""
+CLOUD9 = 'VA-Masters_Of_Hardcore_Chapter_XLVII_Temple_Of_Resonance-2CD-FLAC-2025-OTT'
+CLOUD9_PAIR = LabelChoice('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', 8, 40)
+
+
+class NameVersusFilingTest(unittest.TestCase):
+    """#164: the .nfo names one folder, the curator files such releases in another."""
+
+    def setUp(self):
+        self.root = self.enterContext(tempfile.TemporaryDirectory())
+        self.path = write_release(self.root, CLOUD9, CLOUD9_NFO)
+
+    def placement(self, *choices):
+        index = LabelIndex(['Cloud 9 Music', 'Cloud 9 Dance', 'B2S'], choices=choices)
+        return ReleaseInfo(StoreDouble().cache).placement(self.path, index, None)
+
+    def test_an_undecided_pair_asks_with_both_folders(self):
+        self.assertEqual(Ask('cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance'), self.placement(CLOUD9_PAIR))
+
+    def test_a_decided_pair_places_in_the_chosen_folder(self):
+        decided = LabelChoice(
+            'cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', chosen_folder='Cloud 9 Dance'
+        )
+        placement = self.placement(decided)
+        self.assertEqual(('Cloud 9 Dance', 'nfo:label+choice'), (placement.label, placement.source))
+
+    def test_the_name_may_win_the_choice_too(self):
+        decided = LabelChoice(
+            'cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', chosen_folder='Cloud 9 Music'
+        )
+        self.assertEqual('Cloud 9 Music', self.placement(decided).label)
+
+    def test_without_a_recorded_pair_the_name_places_it(self):
+        self.assertEqual('Cloud 9 Music', self.placement().label)
+
+    def test_minus_militia_has_no_pair_and_is_placed(self):
+        path = write_release(self.root, MINUS_MILITIA)
+        index = LabelIndex(
+            ['B2S', 'Brandstichters'],
+            choices=[LabelChoice('brandstichters', 'Brandstichters', 'Brandstichters', 'B2S', 1, 4)],
+        )
+        self.assertEqual('B2S', ReleaseInfo(StoreDouble().cache).placement(path, index, None).label)
+
+
 class RenamerTakesTheNfoCatalogueNumberTest(unittest.TestCase):
     def test_a_name_without_one_gets_the_nfos(self):
         root = self.enterContext(tempfile.TemporaryDirectory())
@@ -231,6 +278,44 @@ class MoverPlacesByReleaseInfoTest(MoverOnDiskTest):
 
         self.assertEqual([], self.deezer.requests)
         self.assertTrue(os.path.isdir(os.path.join(self.eps, 'B2S', MINUS_MILITIA)))
+
+    def test_a_name_versus_filing_pair_is_proposed_with_both_options_not_moved(self):
+        os.makedirs(os.path.join(self.eps, 'Cloud 9 Music'))
+        os.makedirs(os.path.join(self.eps, 'Cloud 9 Dance'))
+        self.mover._index = None
+        with patch.object(
+            mover_module.LabelIndex,
+            'from_library',
+            return_value=LabelIndex(['B2S', 'Cloud 9 Music', 'Cloud 9 Dance'], choices=[CLOUD9_PAIR]),
+        ):
+            write_release(self.imports, CLOUD9, CLOUD9_NFO)
+            self.mover.run()
+            self.mover.run()
+
+        self.assertTrue(os.path.isdir(os.path.join(self.imports, CLOUD9)))
+        self.store.record.assert_called_once()
+        proposal = self.store.record.call_args.args[1]
+        self.assertEqual(
+            ('Cloud 9 Music', 'Cloud 9 Dance', 'cloud9', 'nfo-vs-history'),
+            (proposal.label, proposal.alternative, proposal.choice_key, proposal.source),
+        )
+        self.resolve.assert_not_called()
+
+    def test_a_pair_the_curator_decided_is_placed_without_asking(self):
+        os.makedirs(os.path.join(self.eps, 'Cloud 9 Dance'))
+        decided = LabelChoice(
+            'cloud9', 'Cloud 9 Music', 'Cloud 9 Music', 'Cloud 9 Dance', chosen_folder='Cloud 9 Dance'
+        )
+        with patch.object(
+            mover_module.LabelIndex,
+            'from_library',
+            return_value=LabelIndex(['Cloud 9 Music', 'Cloud 9 Dance'], choices=[decided]),
+        ):
+            write_release(self.imports, CLOUD9, CLOUD9_NFO)
+            self.mover.run()
+
+        self.assertTrue(os.path.isdir(os.path.join(self.eps, 'Cloud 9 Dance', CLOUD9)))
+        self.store.record.assert_not_called()
 
     def test_a_catalogue_rule_still_wins_over_the_nfo(self):
         self.mover.get_label.return_value = 'Scantraxx'

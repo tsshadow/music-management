@@ -31,6 +31,19 @@ describe("groupByLabel", () => {
     expect(groups.map((g) => g.label)).toEqual(["Brutal Kuts", "Traxtorm Records"]);
   });
 
+  it("keeps a two-option proposal apart from plain ones for the same label", () => {
+    const groups = groupByLabel([
+      { id: 1, folder: "a", proposed_label: "Cloud 9 Music", alternative_label: "Cloud 9 Dance" },
+      { id: 2, folder: "b", proposed_label: "Cloud 9 Music" },
+      { id: 3, folder: "c", proposed_label: "Cloud 9 Music", alternative_label: "Cloud 9 Dance" },
+    ]);
+
+    expect(groups.map((g) => [g.label, g.alternative, g.proposals.length])).toEqual([
+      ["Cloud 9 Music", null, 1],
+      ["Cloud 9 Music", "Cloud 9 Dance", 2],
+    ]);
+  });
+
   it("returns nothing for an empty list", () => {
     expect(groupByLabel([])).toEqual([]);
   });

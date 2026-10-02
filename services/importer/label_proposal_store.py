@@ -14,13 +14,16 @@ from services.importer.label_resolver import LabelProposal
 # part of the proposal, and records what the folder looked like when its tags were last
 # read -- whatever the status. See `fingerprint`.
 RECORD_QUERY = """
-    INSERT INTO rules_label_proposals (folder, catid, proposed_label, source, confidence, resolved_fingerprint)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO rules_label_proposals
+        (folder, catid, proposed_label, source, confidence, resolved_fingerprint, alternative_label, label_choice_key)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
         catid = IF(status = 'new', VALUES(catid), catid),
         proposed_label = IF(status = 'new', VALUES(proposed_label), proposed_label),
         source = IF(status = 'new', VALUES(source), source),
         confidence = IF(status = 'new', VALUES(confidence), confidence),
+        alternative_label = IF(status = 'new', VALUES(alternative_label), alternative_label),
+        label_choice_key = IF(status = 'new', VALUES(label_choice_key), label_choice_key),
         resolved_fingerprint = VALUES(resolved_fingerprint)
 """
 
@@ -116,6 +119,8 @@ class LabelProposalStore:
                             proposal.source,
                             proposal.confidence,
                             resolved_fingerprint,
+                            proposal.alternative,
+                            proposal.choice_key,
                         ),
                     )
                 connection.commit()

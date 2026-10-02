@@ -100,14 +100,36 @@ Every rung except arrival must agree with the year in the release's folder name,
 6. Switching `import_place_by_label_name` off in Beheer > Configuratie restores today's placement
    (catalogue rules only).
 
+## Decided: the curator's filing outranks the name (#164, 2026-10-02)
+
+Measured with the shipped matcher on the label tree: of the releases no catalogue rule routes, 148
+sit in a different folder than their `.nfo` label names by name, across 54 label pairs -- mostly a
+parent label where the curator keeps a sub-label folder (`Cloud 9 Music` -> `Cloud 9 Dance`,
+`Hardcore Blasters` -> `Hardcore Blasters Jump`, `Enzyme Records` -> `Enzyme X`). The earlier
+figure of 188 came from a cruder matcher in the analysis script (it kept trailing carriage returns
+and counted `__` folders); over all label-tree releases, routed or not, it is 848 releases under
+104 `.nfo` labels. The owner decided:
+
+1. The `.nfo` label (or the Deezer label as fallback) names an existing folder and his filing does
+   not disagree: placed automatically, as built.
+2. The label names no folder: a proposal, as before.
+3. The label names folder X, but releases carrying it are filed under Y: **not moved**. A proposal
+   offers both, "X per .nfo" and "Y where you filed these"; he picks once per label, and the choice
+   places every later release with that label automatically.
+
+| Situation | Observable outcome |
+|---|---|
+| `.nfo` label whose releases the curator filed elsewhere, not yet chosen | Stays in the queue; Beheer > Labelvoorstellen shows it in its own group with two buttons, X (per .nfo) and Y (where you filed these). |
+| The curator confirms that group with one of the two (or any other label) | The release is placed; the choice is stored for the label. |
+| A later release with the same `.nfo` label | Placed in the chosen folder without asking. |
+| A label first filed elsewhere after the seed | `scripts/prod/person/learn-label-name-history.sh` re-learns the pairs from the label tree (dry run first); choices already made stay. |
+
+The 104 pairs measured on 2026-10-02 are seeded by the migration, so the rule holds from the first
+cycle after the deploy. The full list of the 148 is on issue #164.
+
 ## Open Questions / Not Yet Decided
 
-- **Placement by label name is ~95% right, not 100%.** Measured on the label tree: of the releases
-  no catalogue rule routes, the `.nfo` label maps to the folder the release is actually in for
-  3.562 and to another folder for 188 -- almost all a parent label where the curator keeps a
-  sub-label folder (`Cloud 9 Music` vs `Cloud 9 Dance`, `Hardcore Blasters` vs `... Jump`,
-  `Enzyme Records` vs `Enzyme X`). Shipped switched on, behind `import_place_by_label_name`, because
-  the alternative is the 7.186-row proposal backlog nobody works; whether to keep it on is Teun's
-  call (decision issue).
+- ~~Placement by label name is ~95% right, not 100%.~~ Decided on #164, see above. The switch
+  `import_place_by_label_name` stays, default on.
 - **Beatport links** (1.499 `.nfo` files) are counted but not looked up: Beatport has no public API.
   Qobuz and Tidal neither. Only Deezer is asked.

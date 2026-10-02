@@ -18,7 +18,7 @@
 
   /** The key a group's chosen label is stored under; null labels need a stable string. */
   function keyOf(group) {
-    return group.label ?? '';
+    return JSON.stringify([group.label ?? '', group.alternative ?? '']);
   }
 
   function labelFor(group) {
@@ -168,6 +168,24 @@
               <span class="text-muma-spotify-text text-sm font-normal tabular-nums">({group.proposals.length})</span>
             </h3>
 
+            {#if group.alternative}
+              <!-- #164: the .nfo names one folder, the curator's filing another; picked once per label. -->
+              <div class="w-full flex items-center gap-2 flex-wrap text-sm">
+                <span class="text-muma-spotify-text">{$t('management.labelProposals.chooseFolder')}</span>
+                <button
+                  onclick={() => (chosen[keyOf(group)] = group.label)}
+                  class="px-3 py-1.5 rounded-full border text-xs font-bold transition-colors {labelFor(group) === group.label ? 'border-brand text-brand' : 'border-white/10 text-white'}"
+                >
+                  {group.label} · {$t('management.labelProposals.perNfo')}
+                </button>
+                <button
+                  onclick={() => (chosen[keyOf(group)] = group.alternative)}
+                  class="px-3 py-1.5 rounded-full border text-xs font-bold transition-colors {labelFor(group) === group.alternative ? 'border-brand text-brand' : 'border-white/10 text-white'}"
+                >
+                  {group.alternative} · {$t('management.labelProposals.perHistory')}
+                </button>
+              </div>
+            {/if}
             <div class="flex items-center gap-3">
               <input
                 type="text"

@@ -35,7 +35,9 @@ The system is split into specialized services, each handling a specific part of 
 - **Release info**: when the name does not route a release, the importer reads its `.nfo` (label,
   `Company`, catalogue number, store link) and the Deezer album it links, cached in
   `release_store_lookups`, and places it under the existing label folder they name
-  (`import_place_by_label_name`). Deezer is asked only by the importer (four a second, budget per
+  (`import_place_by_label_name`) -- unless the curator filed releases with that `.nfo` label in
+  another folder: then it proposes both and remembers his one choice per label
+  (`rules_label_name_choices`, #164). Deezer is asked only by the importer (four a second, budget per
   cycle); offline, everything falls back to today's behaviour.
   [docs/designs/release-info-enrichment/](docs/designs/release-info-enrichment/functional.md).
 - **Import queue location**: `import_folder_path` (default: `__TODO` inside `eps_folder_path`). Any code

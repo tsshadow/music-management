@@ -32,6 +32,16 @@ MEMORY_SIZE = 20000
 
 
 @dataclass(frozen=True)
+class Ask:
+    """Not certain: the .nfo's label names one folder, the curator's filing another."""
+
+    key: str
+    stated: str
+    name_folder: str
+    history_folder: str
+
+
+@dataclass(frozen=True)
 class Placement:
     """Where a release goes without a catalogue rule, and on whose word."""
 
@@ -93,11 +103,18 @@ class ReleaseInfo:
         link = self.deezer_link(folder_path)
         return self.store.lookup(link, budget) if link else None
 
-    def placement(self, folder_path: str, index: LabelIndex, budget: Budget | None) -> Placement | None:
-        """The existing label folder the release belongs in, or None when that is not certain."""
+    def placement(self, folder_path: str, index: LabelIndex, budget: Budget | None) -> Placement | Ask | None:
+        """The existing label folder the release belongs in; an `Ask` when the .nfo's label and the
+        curator's filing disagree and he has not chosen yet; None when nothing is certain."""
         facts = self.nfo(folder_path)
         if facts is None:
             return None
+        choice = index.choice(facts.label) if facts.label else None
+        if choice is not None:
+            if choice.chosen_folder and choice.chosen_folder in index.folders:
+                return Placement(choice.chosen_folder, f'nfo:{facts.label_key}+choice', str(facts.label))
+            if not choice.chosen_folder:
+                return Ask(choice.key, str(facts.label), choice.name_folder, choice.history_folder)
         from_nfo = index.match(facts.label) if facts.label else None
         album = self.album(folder_path, budget) if facts.link('deezer') else None
         from_store = index.match(album.label) if album and album.found and album.label else None

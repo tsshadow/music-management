@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from services.common.import_queue import LEGACY_QUEUE_NAME, ImportQueue
+from services.common.label_namesTest import REAL_LABELS, RELEASE_FOLDER_LABELS
 
 
 class FromSettingsTest(unittest.TestCase):
@@ -70,6 +71,32 @@ class PlaceholderTest(unittest.TestCase):
         self.assertTrue(queue.is_placeholder_copyright('__TODO'))
         self.assertFalse(queue.is_placeholder_copyright('Scantraxx (2021)'))
         self.assertFalse(queue.is_placeholder_copyright(None))
+
+
+class FolderNamePlaceholderTest(unittest.TestCase):
+    """Bug report 146: underscore folders and release folders are no publisher either."""
+
+    queue = ImportQueue('/mnt/music/EPs/__TODO')
+
+    def test_underscore_folder_names_are_placeholders(self):
+        for value in ('__Free&None', '___Free&None', ' __free&none '):
+            with self.subTest(value=value):
+                self.assertTrue(self.queue.is_placeholder_publisher(value))
+
+    def test_a_release_folder_name_is_a_placeholder(self):
+        for value in RELEASE_FOLDER_LABELS:
+            with self.subTest(value=value):
+                self.assertTrue(self.queue.is_placeholder_publisher(value))
+
+    def test_real_labels_are_not(self):
+        for value in REAL_LABELS:
+            with self.subTest(value=value):
+                self.assertFalse(self.queue.is_placeholder_publisher(value))
+
+    def test_copyrights_computed_from_them(self):
+        self.assertTrue(self.queue.is_placeholder_copyright('__Free&None (2020)'))
+        self.assertTrue(self.queue.is_placeholder_copyright(RELEASE_FOLDER_LABELS[0] + ' (2026)'))
+        self.assertFalse(self.queue.is_placeholder_copyright('DWX Copyright Free (2024)'))
 
 
 if __name__ == '__main__':

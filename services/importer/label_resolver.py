@@ -60,6 +60,16 @@ def blacklist(import_folder_name: str) -> set[str]:
     return {'', import_folder_name.strip().lower()} | ImportQueue('').placeholder_values()
 
 
+def _is_refused(value: str, refused: set[str]) -> bool:
+    """Whether a label candidate is blacklisted, or a folder's name rather than a label.
+
+    The second half catches what a set cannot list: `__Free&None` and every release folder's
+    name that a past tagging run wrote into a release's TPUB or LABEL (bug report 146). Proposed,
+    and confirmed, such a value would become a label folder of its own.
+    """
+    return value.strip().lower() in refused or ImportQueue('').is_placeholder_publisher(value)
+
+
 def read_tags(path) -> dict[str, str]:
     """
     Flatten one file's tags to lowercase name -> first value.
@@ -113,7 +123,7 @@ def _label_from_nfo(folder_path: str, refused: set[str]) -> str | None:
             except OSError as e:
                 logging.debug('Could not read %s: %s', name, e)
                 continue
-            if match and match.group(1).strip().lower() not in refused:
+            if match and not _is_refused(match.group(1), refused):
                 return match.group(1).strip()
     return None
 
@@ -132,7 +142,7 @@ def _label_from_tags(per_file: list[dict[str, str]], refused: set[str]) -> tuple
         for tags in per_file:
             for key in keys:
                 value = tags.get(key, '')
-                if value and value.lower() not in refused:
+                if value and not _is_refused(value, refused):
                     values.append(value)
                     break
         if values:

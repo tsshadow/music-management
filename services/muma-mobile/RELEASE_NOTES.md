@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.15.3 (2026-10-02)
+
+- **Bundles the web UI of server 0.88.2.** No visible change: the web UI's development
+  dependencies were updated.
+
 ## Global Version 7.15.2 (2026-10-01)
 
 - **Correct a track's BPM.** The app bundles the web UI of server 0.88.0: with the `bpm.override`

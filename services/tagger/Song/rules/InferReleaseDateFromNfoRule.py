@@ -42,9 +42,11 @@ class InferReleaseDateFromNfoRule(TagRule):
 
     The year in the release directory's name guards every rung, so a rip date cannot redate a 1995
     vinyl release. The result goes to ORIGINALDATE and its rung to DATE_SOURCE. A better rung
-    replaces a worse one on a later retag; a worse one never replaces a better one; and a
-    day-precision date without DATE_SOURCE -- a person's, or this rule's from before the ladder --
-    is never replaced. The album's UPC goes to BARCODE when the file has none: it is not a
+    replaces a worse one on a later retag; a worse one never replaces a better one. A
+    day-precision date without DATE_SOURCE that equals the .nfo's date or the file's DATE is this
+    rule's from before the ladder, and counts as that rung (`infer_source`); it gets DATE_SOURCE
+    even when nothing better exists. Any other date without DATE_SOURCE is a person's and is never
+    replaced. The album's UPC goes to BARCODE when the file has none: it is not a
     catalogue number and is never used as one.
     """
 
@@ -66,12 +68,10 @@ class InferReleaseDateFromNfoRule(TagRule):
     def apply(self, song):
         tags = song.tag_collection
         current = tags.get_item_as_string(ORIGINAL_DATE)
-        current_source = tags.get_item_as_string(DATE_SOURCE).strip()
-        current_rank = None
-        if _is_day_precision(current):
-            current_rank = SOURCE_RANKS.get(current_source)
-            if current_rank is None:
-                return
+        stamped = tags.get_item_as_string(DATE_SOURCE).strip()
+        current_source = stamped
+        if _is_day_precision(current) and current_source not in SOURCE_RANKS:
+            current_source = ''
 
         directory = os.path.dirname(song.path())
         dirname = os.path.basename(directory)
@@ -79,17 +79,27 @@ class InferReleaseDateFromNfoRule(TagRule):
         expected_year = NfoDate.dirname_year(dirname) or _year_of(tags.get_item_as_string(DATE))
 
         album = self._album(text)
+        found = self._candidates(song, text, dirname, expected_year, album)
+        current_rank = None
+        if _is_day_precision(current):
+            current_source = current_source or infer_source(current, found) or ''
+            current_rank = SOURCE_RANKS.get(current_source)
+            if current_rank is None:
+                return
+
         if album is not None and album.found and album.upc and not tags.get_item_as_string(BARCODE).strip():
             tags.set_item(BARCODE, album.upc)
 
-        best = self._best(song, text, dirname, expected_year, album)
-        if best is None:
+        if not found:
             return
-        value, source = best
+        value, source = min(found, key=lambda item: SOURCE_RANKS[item[1]])
         rank = SOURCE_RANKS[source]
         if current_rank is not None and not (rank < current_rank or (source == current_source and value != current)):
+            if current_source != stamped:
+                # The pre-ladder rule's date, still the best there is: only say where it came from.
+                tags.set_item(DATE_SOURCE, current_source)
             return
-        if value == current and source == current_source:
+        if value == current and source == stamped:
             return
         logging.info('Release date for %s resolved to %s (%s)', song.path(), value, source)
         tags.set_item(ORIGINAL_DATE, value)
@@ -106,8 +116,8 @@ class InferReleaseDateFromNfoRule(TagRule):
             logging.debug('No store answer for %s: %s', link.url, exc)
             return None
 
-    def _best(self, song, text, dirname, expected_year, album):
-        """The best `(date, source)` on the ladder, or None."""
+    def _candidates(self, song, text, dirname, expected_year, album):
+        """Every `(date, source)` the evidence offers, in no particular order."""
         found = []
         store_date = album.full_date if album is not None and album.found else None
         if store_date and (expected_year is None or int(store_date[:4]) == expected_year):
@@ -118,15 +128,24 @@ class InferReleaseDateFromNfoRule(TagRule):
             kind, resolved = NfoDate.resolve(text, dirname, formats[0] if formats else None)
             if resolved is not None:
                 found.append((resolved.isoformat(), _NFO_SOURCES.get(kind, 'nfo-rip')))
-        from_tag = _from_date_tag(song.tag_collection.get_item_as_string(DATE))
+        from_tag = from_date_tag(song.tag_collection.get_item_as_string(DATE))
         if from_tag and (expected_year is None or int(from_tag[:4]) == expected_year):
             found.append((from_tag, 'tag'))
         arrival = getattr(song, 'arrival_date', None)
         if isinstance(arrival, date) and expected_year is not None and arrival.year == expected_year:
             found.append((arrival.isoformat(), 'arrival'))
-        if not found:
-            return None
-        return min(found, key=lambda item: SOURCE_RANKS[item[1]])
+        return found
+
+
+def infer_source(current, found):
+    """The rung a full date without DATE_SOURCE came from, or None when it is not this rule's.
+
+    Before the ladder this rule wrote the .nfo's date, else the file's own full DATE, and named no
+    source. A date that still equals one of those is that rung's; any other date is a person's and
+    is never replaced.
+    """
+    day = (current or '').strip()[:10]
+    return next((source for value, source in found if value == day and source not in ('deezer', 'arrival')), None)
 
 
 def _is_day_precision(value):
@@ -138,7 +157,7 @@ def _year_of(value):
     return int(match.group(1)) if match else None
 
 
-def _from_date_tag(value):
+def from_date_tag(value):
     """A day-precision DATE tag as a partial date string, or None.
 
     Same evidence, stored in the field that means "this edition" rather than "original release", so it

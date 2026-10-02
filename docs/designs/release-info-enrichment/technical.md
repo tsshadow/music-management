@@ -130,7 +130,10 @@ Ranks (lower wins): `deezer` 10, `nfo-street`/`nfo-release` 20, `tag` 25, `nfo-r
 3. `tag`: DATE at day precision, year guarded.
 4. `arrival`: `song.arrival_date` when its year is `expected_year`.
 
-Write rule: current ORIGINALDATE at day precision without a known DATE_SOURCE -> leave alone.
+Write rule: current ORIGINALDATE at day precision without a known DATE_SOURCE -> `infer_source`:
+when it equals the `.nfo` date or the full DATE (what this rule wrote before the ladder, without a
+source), it counts as that rung, and gets DATE_SOURCE stamped even when nothing better exists.
+Any other such date -> leave alone.
 Otherwise write `(date, source)` when there is no day-precision date yet, when the rank is
 strictly better, or when the same source now gives a different date. BARCODE := album UPC when
 the file has none.
@@ -144,6 +147,16 @@ the rule (`deezer`, `deezer-pending`, `deezer-gone`, `nfo-*`, `none`). `--lookup
 within a `Budget(N)` and writes only `release_store_lookups`; `--apply` upserts
 `tagger_processed_files(needs_rescan=TRUE, rescan_reason='release_date_ladder')` for the
 `deezer`/`nfo-*` tracks. The tagger's rounds write the tags.
+
+A track with a full `release_date` is a candidate as well when its file's DATE_SOURCE ranks
+below the best rung its directory offers now (`SOURCE_RANKS`). Only directories with a Deezer
+link or an `.nfo` date are looked at. A track whose date already equals the best date is skipped
+without a read; the others get one mutagen read for DATE_SOURCE (`TXXX:DATE_SOURCE`, Vorbis
+`date_source`, MP4 `----:com.apple.iTunes:date_source`). Verdicts: `upgrade-from-<source>`
+(queued by `--apply`) and `upgrade-pending` (Deezer not asked yet; `--lookup` asks for these
+albums first, before the year-only ones). No DATE_SOURCE, or an equal or better one, is never a
+candidate, the same guard as the rule's write rule. The report adds `dated_tracks` and
+`upgrade_tracks`.
 
 ## API Contract
 
@@ -175,9 +188,12 @@ new tags are informational. `GET /api/config/fields` lists four new fields in gr
    switches and the per-cycle cap, and still lets a catalogue rule win (`test_importer_release_info`).
 5. The ladder writes `2026-10-02`/`deezer` and BARCODE with a cached album, `2026-10-01`/`nfo-rip`
    without, upgrades `nfo-rip` to `deezer`, never downgrades, never touches an unknown full date,
+   treats an unsourced full date equal to the `.nfo` date or DATE as that rung,
    uses `arrival` only within the year (`InferReleaseDateFromNfoRuleTest`).
 6. The backfill dry run writes nothing and asks nobody; `--lookup` and `--apply` touch only their
-   one table each (`ReleaseDateBackfillTest`).
+   one table each; a full-date track on a lower rung is counted as `upgrade-from-<source>` and
+   queued, and a track without DATE_SOURCE or on an equal or better rung never is
+   (`ReleaseDateBackfillTest`).
 7. `test_schema_drift` passes: `db_init.py` and `migrate_v55`/`v56` build the same tables.
 8. An undecided name-versus-filing pair is proposed with both folders and nothing moves; a decided
    one places in the chosen folder; confirming a two-option proposal stores the choice in the same

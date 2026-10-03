@@ -32,10 +32,11 @@ FLAC = {'file_path': '/mnt/music/a.flac', 'file_size': 30_000_000, 'duration_sec
 MP3 = {'file_path': '/mnt/music/a.mp3', 'file_size': 4_800_000, 'duration_secs': 300}
 
 
-def _row(track_id, title, artist='Angerfist', files=MP3, has_label=1, from_soundcloud=0, from_youtube=0):
+def _row(track_id, title, artist='Angerfist', files=MP3, has_label=1, from_soundcloud=0, from_youtube=0, form='track'):
     return {
         'id': track_id,
         'title': title,
+        'form': form,
         'artist': artist,
         'has_label': has_label,
         'from_soundcloud': from_soundcloud,
@@ -342,6 +343,57 @@ class GroupOnceTest(unittest.TestCase):
         )
         stats = worker.group_once(self._conn(cursor))
         self.assertEqual(stats, {'assigned': 1, 'remaining': 499, 'recomputed': 1})
+
+
+class NonMusicTest(unittest.TestCase):
+    """An interview or a DVD preview is never a version of a song (docs/designs/non-music-forms/)."""
+
+    def _conn(self, cursor):
+        conn = MagicMock()
+        conn.cursor.return_value = cursor
+        return conn
+
+    def test_two_interviews_of_one_name_get_a_work_each(self):
+        cursor = ScriptedCursor(
+            [
+                (
+                    'AS batch',
+                    None,
+                    [
+                        _row(1, 'QAPITAL 2019 Interview', artist=None, form='interview'),
+                        _row(2, 'QAPITAL 2019 Interview', artist=None, form='interview'),
+                    ],
+                ),
+                ('SELECT id FROM library_works WHERE work_key', None, {'id': 40}),
+            ]
+        )
+        worker.assign_works(cursor)
+        keys = [params[0] for _sql, params in cursor.statements_matching('INSERT INTO library_works')]
+        self.assertEqual(keys, ['track:1', 'track:2'])
+
+    def test_a_grouped_interview_is_detached_and_its_old_work_recomputed(self):
+        cursor = ScriptedCursor(
+            [
+                ('AND w.work_key <> CONCAT(%s, t.id)', None, [{'id': 7, 'work_id': 41}]),
+                ('pinned_track_id <> COALESCE(canonical_track_id, 0)', None, []),
+                ('SELECT pinned_track_id FROM library_works', (41,), {'pinned_track_id': None}),
+                ('ORDER BY t.version_score DESC', (41,), {'id': 3}),
+                ('SELECT COUNT(*) AS n FROM library_tracks', None, {'n': 1}),
+            ]
+        )
+        stats = worker.group_once(self._conn(cursor))
+        detach = cursor.statements_matching('AND w.work_key <> CONCAT(%s, t.id)')
+        self.assertEqual(detach[0][1], ('interview', 'preview', 'track:'))
+        updates = cursor.statements_matching('UPDATE library_tracks SET work_id = NULL')
+        self.assertEqual([params for _sql, params in updates], [(7, 41)])
+        canonical = cursor.statements_matching('UPDATE library_works SET canonical_track_id')
+        self.assertEqual([params for _sql, params in canonical], [(3, 41)])
+        self.assertEqual(stats['recomputed'], 1)
+
+    def test_nothing_to_detach_writes_nothing(self):
+        cursor = ScriptedCursor([])
+        self.assertEqual(worker.detach_non_music(cursor), set())
+        self.assertEqual(cursor.statements_matching('UPDATE'), [])
 
 
 class GroupOnceAtomicityTest(unittest.TestCase):

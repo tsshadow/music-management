@@ -1,4 +1,7 @@
-"""What a file *is* -- a track, a set, a live set or a podcast episode -- and when a live set was played.
+"""What a file *is* -- a track, a set, a live set, a podcast episode or talk -- and when a live set was played.
+
+Talk is an interview or the preview of an event DVD: the two non-music forms
+(docs/designs/non-music-forms/).
 
 `SongTypeEnum` records where a file came from (SoundCloud, a label, ...), never what it is, and until
 this module nothing did: the songs/sets switch splits on ten minutes and that was all. See
@@ -21,10 +24,18 @@ TRACK = 'track'
 SET = 'set'
 LIVESET = 'liveset'
 PODCAST = 'podcast'
+INTERVIEW = 'interview'
+PREVIEW = 'preview'
 
 #: Every form, in the order a picker lists them. A closed set: the LMS endpoints refuse anything
 #: else, and so does the MuMa filter.
-FORMS = (TRACK, SET, LIVESET, PODCAST)
+FORMS = (TRACK, SET, LIVESET, PODCAST, INTERVIEW, PREVIEW)
+
+#: The forms that are not music: talk and DVD trailers among the downloads. They stay in the
+#: library and in search, and every music feature leaves them out -- the LMS lists, shuffles and
+#: radio (`FindParameters::excludeNonMusic`), the feeds, the song versions, the library count.
+#: docs/designs/non-music-forms/.
+NON_MUSIC_FORMS = frozenset({INTERVIEW, PREVIEW})
 
 #: Below this a file is a track, wherever it sits. The threshold the tagger's festival and podcast
 #: rules and the LMS LENGTH cluster already use. Decided first because the short files under
@@ -50,6 +61,25 @@ LABEL_FOLDERS = frozenset({'eps'})
 #: "Qlimax_2005-DVD-2006" and "Tha_Playah_Live-STREAM" count and "Oliver" or "delivery" do not.
 _LIVE_MARKER = re.compile(r'\b(live|livesets?|dvda?)\b')
 _SEPARATORS = re.compile(r'[_\-.()\[\]]+')
+
+#: Top-level folders the downloaders fill. Only there does "interview" in a title mean talk: a
+#: label release can be a song called "Interview".
+DOWNLOAD_FOLDERS = frozenset({'youtube', 'soundcloud'})
+
+#: "Interview" or "Interviews" as a whole word: "Ground Zero Festival 2014 - Lenny Dee Interview".
+_INTERVIEW = re.compile(r'(?<![a-z])interviews?(?![a-z])', re.IGNORECASE)
+
+#: A word that says the upload is music with some talk in it -- "Pat B At Topradio Liveset +
+#: Interview", "Going To An Interview (Outro Storytelling Audio)" -- so the interview rule skips it.
+_MUSIC_WORD = re.compile(r'(?<![a-z])(sets?|live ?sets?|mix|intro|outro)(?![a-z])', re.IGNORECASE)
+
+#: The trailer of an event DVD: "DVD Preview", "Blu-ray;DVD Preview", "Preview DVD". A plain
+#: "(Preview)" is a producer's snippet of a real song and stays music.
+_DVD_PREVIEW = re.compile(
+    r'(?<![a-z])(dvd|blu-?ray)(?![a-z]).{0,10}(?<![a-z])preview(?![a-z])'
+    r'|(?<![a-z])preview(?![a-z]).{0,10}(?<![a-z])(dvd|blu-?ray)(?![a-z])',
+    re.IGNORECASE,
+)
 
 
 def _top_folder(path: str | None, music_root: str | None) -> str:
@@ -86,6 +116,21 @@ def _festival_matches(path: str | None, title: str | None, festivals) -> list[di
     return matches
 
 
+def derive_non_music_form(path: str | None, music_root: str | None, title: str | None) -> str | None:
+    """`interview` or `preview` when the title marks the file as talk, otherwise None.
+
+    The title decides, not the length: a 12-minute interview is an interview, and a DVD preview is
+    a preview at any length (docs/designs/non-music-forms/).
+    """
+    if not title:
+        return None
+    if _DVD_PREVIEW.search(title):
+        return PREVIEW
+    if _INTERVIEW.search(title) and not _MUSIC_WORD.search(title) and _top_folder(path, music_root) in DOWNLOAD_FOLDERS:
+        return INTERVIEW
+    return None
+
+
 def derive_form(
     path: str | None,
     music_root: str | None,
@@ -96,10 +141,14 @@ def derive_form(
 ) -> str | None:
     """The form of one file, or None when its length is unknown.
 
-    First hit wins: length, then the folder, then an approved podcast show, then a festival.
-    Podcast before festival because "Defqon.1 Podcast #12" names a festival and is an episode.
-    In the label tree a festival counts only together with a live marker (bug report 109).
+    First hit wins: a non-music title, then length, then the folder, then an approved podcast show,
+    then a festival. Podcast before festival because "Defqon.1 Podcast #12" names a festival and is
+    an episode. In the label tree a festival counts only together with a live marker (bug report 109).
+    A non-music title needs no duration, every other form does.
     """
+    non_music = derive_non_music_form(path, music_root, title)
+    if non_music:
+        return non_music
     if not duration_secs or duration_secs <= 0:
         return None
     if duration_secs < MIN_SET_SECONDS:

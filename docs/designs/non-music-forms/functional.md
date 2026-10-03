@@ -1,8 +1,8 @@
 # Interviews and previews as non-music — Functional Design
 
-> Status: **proposed, not agreed.** Issue
-> [#157](https://gitlab.example.com/muma/music-management/-/issues/157). Nothing is built
-> until Teun answers the open questions at the end.
+> Status: **agreed** (2026-10-03). Issue
+> [#157](https://gitlab.example.com/muma/music-management/-/issues/157). The decisions are
+> at the end.
 
 ## Overview
 
@@ -64,37 +64,30 @@ The folder guard keeps every label release music, because a song can be called "
 | Songs view, no filters | No interview or DVD preview in the list |
 | Sets view, Soort "All" | No interview or DVD preview in the list |
 | Search for "Lenny Dee Interview" | The interview is in the results |
-| Open an artist, for example Headhunterz | The interview is in the artist's track list, at the end, under "Interviews and previews" |
+| Open an artist, for example Headhunterz | The interview is not in the artist's track list. Search finds it |
 | Daily mix, release radar, old hits, radio | Never pick an interview or a DVD preview |
 | Song versions (Versies) | An interview is never a version of a song, and never hides one |
 | Beheer, statistics | "Tracks" counts music. A second number shows the non-music files |
 | A new interview is downloaded | It is non-music within the hour, the same as the other forms |
-| A curator thinks a file is music after all | Open question 4 |
+| A curator thinks a file is music after all | A rename of the file, so the title no longer matches. Beheer has no per-track correction |
 
 ## Acceptance Criteria
 
 1. Each production example in the first two rows of the table above is `interview` or `preview`.
 2. "Zudröhnen (Preview)", "Pat B At Topradio Liveset 14-02-2020 + Interview" and "Going To An
    Interview (Outro Storytelling Audio)" keep the form they have today.
-3. No interview or DVD preview is in the songs view, the sets view, a daily mix, the release radar,
-   the old-hits feed or the radio.
+3. No interview or DVD preview is in the songs view, the sets view, an artist's track list, a
+   daily mix, the release radar, the old-hits feed or the radio.
 4. A search by title still finds them.
 5. An interview never has a song version, and no song is hidden behind one.
 6. The deploy runs no library-wide migration. The hourly form pass changes the forms.
 
-## Open Questions / Not Yet Decided
+## Decisions
 
-1. **Two forms or one?** The issue proposes `interview` and `preview`. One form `talk` (or
-   `extra`) is enough for "keep out of music features" and is one value less in every closed list
-   (LMS, web, phone). The two-form proposal keeps the issue's names.
-2. **Long DVD previews.** 11 of the 20 are ten minutes or longer, 7 longer than 18 minutes, and
-   the longest is 35 minutes. That can be a full DVD set and not a trailer. Proposal: non-music at every length. The other choice
-   is to keep the rule for files below ten minutes only.
-3. **Trailers, teasers and aftermovies.** Production holds about 510 files with "trailer", 319 with
-   "teaser" and 857 with "aftermovie". An aftermovie or a festival trailer is mostly the anthem
-   over crowd footage. An EP teaser is a minimix of songs. This proposal leaves all three as music.
-   Say if any of them is non-music too.
-4. **A curator correction.** No rule is perfect: "Act of Rage 'Interview'" can be a song title. Is
-   a per-track override in Beheer part of this change, or is a rename of the file enough for now?
-5. **The artist page.** The proposal shows the artist's interviews at the end of the artist page.
-   The other choice is to hide them there too and keep search as the only way to find them.
+Teun agreed the proposal on 2026-10-03:
+
+1. Two forms, `interview` and `preview`, as the issue names them.
+2. A DVD or Blu-ray preview is non-music at every length, the 35-minute one included.
+3. Trailers, teasers and aftermovies stay music.
+4. No per-track correction in Beheer for now. A rename of the file is the fix.
+5. Interviews are found through search only. The artist page does not list them.

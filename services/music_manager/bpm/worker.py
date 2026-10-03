@@ -98,7 +98,7 @@ SETTINGS: tuple[tuple[str, str, Any], ...] = (
     ('bpm_analysis_paused', 'boolean', False),
     ('bpm_analysis_workers', 'integer', 2),
     ('bpm_analysis_excerpt_seconds', 'integer', 60),
-    ('bpm_analysis_skip_forms', 'string', 'set,liveset,podcast'),
+    ('bpm_analysis_skip_forms', 'string', 'set,liveset,podcast,interview,preview'),
     ('bpm_analysis_max_minutes', 'integer', 15),
     # Not an analysis setting, but it decides the stored effective confidence (effective.py).
     ('bpm_reliable_confidence', 'integer', 75),

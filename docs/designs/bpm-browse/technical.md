@@ -248,7 +248,7 @@ share is mounted read-only; the analyzer writes no tags (the tagger does, since 
 which the container mounts read-only -- ConfigStore reads its file once per process, which is
 wrong for a process that lives for weeks): `bpm_analysis_enabled` (default on),
 `bpm_analysis_paused`, `bpm_analysis_workers` (2, 1-8), `bpm_analysis_excerpt_seconds` (60, 20-180),
-`bpm_analysis_skip_forms` (`set,liveset,podcast`), `bpm_analysis_max_minutes` (15).
+`bpm_analysis_skip_forms` (`set,liveset,podcast,interview,preview`), `bpm_analysis_max_minutes` (15).
 
 **A round.** `DUE_SQL` picks up to 48 tracks with no current `library_track_bpm` row, highest
 `library_tracks.id` first: new downloads and imports get the highest ids, so they are measured in

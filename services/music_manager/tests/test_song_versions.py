@@ -149,26 +149,26 @@ class WorkKeyTest(unittest.TestCase):
     def test_the_same_song_by_the_same_artist_shares_a_key(self):
         # Two different tracks, so the ids differ and must not reach the key.
         self.assertEqual(
-            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 1, 214.0),
-            work_key('angerfist', 'Raise Your Fist (Extended Mix)', 2, 337.0),
+            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 1, 214.0, None),
+            work_key('angerfist', 'Raise Your Fist (Extended Mix)', 2, 337.0, None),
         )
 
     def test_a_different_artist_is_a_different_work(self):
         self.assertNotEqual(
-            work_key('Angerfist', 'Raise Your Fist', 1, None),
-            work_key('Radical Redemption', 'Raise Your Fist', 2, None),
+            work_key('Angerfist', 'Raise Your Fist', 1, None, None),
+            work_key('Radical Redemption', 'Raise Your Fist', 2, None, None),
         )
 
     def test_no_artist_still_groups_by_title(self):
         # Half this library has no primary_artist_id and carries the artist in the
         # title instead. Those versions still have to meet.
         self.assertEqual(
-            work_key(None, 'The Elite - Royals (Radio Edit)', 1, 198.0),
-            work_key(None, 'The Elite - Royals (Extended)', 2, 402.0),
+            work_key(None, 'The Elite - Royals (Radio Edit)', 1, 198.0, None),
+            work_key(None, 'The Elite - Royals (Extended)', 2, 402.0, None),
         )
 
     def test_the_key_fits_the_column(self):
-        key = work_key('A' * 300, 'B' * 300, 1, None)
+        key = work_key('A' * 300, 'B' * 300, 1, None, None)
         self.assertLessEqual(len(key), 191)
 
 
@@ -186,24 +186,24 @@ class UnusableTitleTest(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(version_free_title(title), '')
                 self.assertNotEqual(
-                    work_key(None, title, index, None),
-                    work_key(None, title, index + 100, None),
+                    work_key(None, title, index, None, None),
+                    work_key(None, title, index + 100, None, None),
                 )
 
     def test_two_unusable_titles_never_meet(self):
-        keys = {work_key(None, title, index, None) for index, title in enumerate(self.UNUSABLE)}
+        keys = {work_key(None, title, index, None, None) for index, title in enumerate(self.UNUSABLE)}
         self.assertEqual(len(keys), len(self.UNUSABLE))
 
     def test_the_same_track_keeps_the_same_key(self):
         # The worker reads the key twice per pass and the repair script recomputes it
         # later; a key that moved would create a second work for one track.
-        self.assertEqual(work_key(None, '', 77, None), work_key(None, None, 77, None))
+        self.assertEqual(work_key(None, '', 77, None, None), work_key(None, None, 77, None, None))
 
     def test_an_unusable_title_is_marked_as_such(self):
         # Phase two has to be able to say why a song has one version: because nobody
         # else matched, or because the title was unusable. The namespace carries that.
-        self.assertTrue(work_key('Angerfist', '', 77, None).startswith(UNGROUPABLE_PREFIX))
-        self.assertFalse(work_key('Angerfist', 'Raise Your Fist', 77, None).startswith(UNGROUPABLE_PREFIX))
+        self.assertTrue(work_key('Angerfist', '', 77, None, None).startswith(UNGROUPABLE_PREFIX))
+        self.assertFalse(work_key('Angerfist', 'Raise Your Fist', 77, None, None).startswith(UNGROUPABLE_PREFIX))
 
     def test_the_reserved_namespaces_cannot_collide_with_a_real_key(self):
         # Both mean "one track, and not because the song has one version". A real key
@@ -211,7 +211,7 @@ class UnusableTitleTest(unittest.TestCase):
         self.assertNotIn(':::', UNGROUPABLE_PREFIX)
         self.assertNotIn(':::', SPLIT_PREFIX)
         self.assertNotEqual(UNGROUPABLE_PREFIX, SPLIT_PREFIX)
-        self.assertIn(':::', work_key('Angerfist', 'Raise Your Fist', 1, None))
+        self.assertIn(':::', work_key('Angerfist', 'Raise Your Fist', 1, None, None))
 
 
 class LongFormTest(unittest.TestCase):
@@ -226,33 +226,33 @@ class LongFormTest(unittest.TestCase):
 
     def test_two_episodes_of_one_show_are_two_works(self):
         self.assertNotEqual(
-            work_key(None, self.EPISODE, 1, 3560.2),
-            work_key(None, self.EPISODE, 2, 3629.4),
+            work_key(None, self.EPISODE, 1, 3560.2, None),
+            work_key(None, self.EPISODE, 2, 3629.4, None),
         )
 
     def test_a_long_recording_is_marked_ungroupable_rather_than_keyed_on_its_title(self):
-        self.assertTrue(work_key(None, self.EPISODE, 1, 3560.2).startswith(UNGROUPABLE_PREFIX))
+        self.assertTrue(work_key(None, self.EPISODE, 1, 3560.2, None).startswith(UNGROUPABLE_PREFIX))
 
     def test_a_normal_song_of_the_same_name_still_groups(self):
         self.assertEqual(
-            work_key('Angerfist', 'Raise Your Fist', 1, 214.0),
-            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 2, 198.0),
+            work_key('Angerfist', 'Raise Your Fist', 1, 214.0, None),
+            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 2, 198.0, None),
         )
 
     def test_the_threshold_is_exclusive(self):
         # Sitting exactly on it groups; the band around it is empty in this library
         # anyway, so this is about the rule being decidable, not about the value.
-        self.assertNotIn(UNGROUPABLE_PREFIX, work_key('Angerfist', 'Live At Defqon', 1, float(LONG_FORM_SECONDS)))
+        self.assertNotIn(UNGROUPABLE_PREFIX, work_key('Angerfist', 'Live At Defqon', 1, float(LONG_FORM_SECONDS), None))
         self.assertTrue(
-            work_key('Angerfist', 'Live At Defqon', 1, LONG_FORM_SECONDS + 0.1).startswith(UNGROUPABLE_PREFIX)
+            work_key('Angerfist', 'Live At Defqon', 1, LONG_FORM_SECONDS + 0.1, None).startswith(UNGROUPABLE_PREFIX)
         )
 
     def test_an_unknown_duration_groups_as_before(self):
         # duration_secs is nullable, and a track that never got a duration must not
         # be pushed into a work of its own for the lack of one.
         self.assertEqual(
-            work_key('Angerfist', 'Raise Your Fist', 1, None),
-            work_key('Angerfist', 'Raise Your Fist', 2, 0),
+            work_key('Angerfist', 'Raise Your Fist', 1, None, None),
+            work_key('Angerfist', 'Raise Your Fist', 2, 0, None),
         )
 
 
@@ -405,3 +405,23 @@ class VersionScoreTest(unittest.TestCase):
 
     def test_a_missing_bitrate_scores_without_crashing(self):
         self.assertIsInstance(_score('none', '', 0), int)
+
+
+class NonMusicWorkKeyTest(unittest.TestCase):
+    """docs/designs/non-music-forms/: talk never groups with anything."""
+
+    def test_an_interview_gets_a_key_of_its_own(self):
+        self.assertEqual(work_key(None, 'QAPITAL 2019 Interview', 5, 300.0, 'interview'), f'{UNGROUPABLE_PREFIX}5')
+        self.assertNotEqual(
+            work_key(None, 'QAPITAL 2019 Interview', 5, 300.0, 'interview'),
+            work_key(None, 'QAPITAL 2019 Interview', 6, 300.0, 'interview'),
+        )
+
+    def test_a_dvd_preview_gets_a_key_of_its_own(self):
+        self.assertTrue(work_key('Zatox', 'DVD Preview', 8, 2122.0, 'preview').startswith(UNGROUPABLE_PREFIX))
+
+    def test_a_music_form_groups_as_before(self):
+        self.assertEqual(
+            work_key('Angerfist', 'Raise Your Fist', 1, 214.0, 'track'),
+            work_key('Angerfist', 'Raise Your Fist (Radio Edit)', 2, 198.0, None),
+        )

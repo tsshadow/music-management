@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import has_permission
 from services.music_manager.routers.users import verify_api_key
@@ -22,6 +23,7 @@ def get_stats(auth: dict = Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail='Database connection failed')
     stats: dict[str, Any] = {
         'total_tracks': 0,
+        'total_non_music': 0,
         'total_artists': 0,
         'total_albums': 0,
         'top_artists': [],
@@ -34,8 +36,17 @@ def get_stats(auth: dict = Depends(verify_api_key)):
     }
     try:
         with conn.cursor() as cursor:
-            cursor.execute('SELECT COUNT(*) as count FROM library_tracks')
-            stats['total_tracks'] = cursor.fetchone()['count']
+            # Tracks means music: an interview or a DVD preview is counted apart
+            # (docs/designs/non-music-forms/). One scan of the table for both figures.
+            cursor.execute(
+                'SELECT COUNT(*) AS count, COALESCE(SUM(form IN ('
+                + ', '.join(['%s'] * len(NON_MUSIC_FORMS))
+                + ')), 0) AS non_music FROM library_tracks',
+                tuple(sorted(NON_MUSIC_FORMS)),
+            )
+            counts = cursor.fetchone()
+            stats['total_non_music'] = int(counts['non_music'])
+            stats['total_tracks'] = counts['count'] - stats['total_non_music']
             cursor.execute('SELECT COUNT(*) as count FROM library_artists')
             stats['total_artists'] = cursor.fetchone()['count']
             stats['total_albums'] = 0

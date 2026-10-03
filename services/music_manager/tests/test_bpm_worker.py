@@ -67,7 +67,7 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(values['bpm_analysis_enabled'])
         self.assertFalse(values['bpm_analysis_paused'])
         self.assertEqual(values['bpm_analysis_workers'], 2)
-        self.assertEqual(values['skip_forms'], ['liveset', 'podcast', 'set'])
+        self.assertEqual(values['skip_forms'], ['interview', 'liveset', 'podcast', 'preview', 'set'])
 
     def test_the_config_file_wins_over_the_environment_and_is_clamped(self):
         with tempfile.TemporaryDirectory() as tmp:

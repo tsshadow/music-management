@@ -110,7 +110,8 @@ The system is split into specialized services, each handling a specific part of 
       with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
       `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
       switches it on in Beheer > Config (issue #170, bug report 149).
-    - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
+    - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`, or the
+      non-music `interview` / `preview` that LMS leaves out of music lists) and, for a
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
       pushed into LMS `track.form`) by `track_form_sync.py`. See `docs/designs/track-form/`.

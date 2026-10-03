@@ -23,9 +23,11 @@ from dataclasses import dataclass
 
 from services.common.config_store import ConfigStore
 from services.common.import_queue import ImportQueue
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.song_versions import (
     SPLIT_PREFIX,
+    UNGROUPABLE_PREFIX,
     derived_bitrate,
     is_official_release,
     ranking_signature,
@@ -61,6 +63,7 @@ _UNGROUPED = '''
     SELECT
         t.id,
         t.title,
+        t.form,
         a.name AS artist,
         mf.file_path,
         mf.file_size,
@@ -209,7 +212,7 @@ def assign_works(cursor, limit: int = BATCH_SIZE, context: RankingContext | None
     candidates = _best_per_track(rows, context)
     for track_id, candidate in candidates.items():
         row = candidate['row']
-        key = work_key(row['artist'], row['title'], track_id, row['duration_secs'])
+        key = work_key(row['artist'], row['title'], track_id, row['duration_secs'], row['form'])
         cursor.execute(
             'INSERT INTO library_works (work_key, title, primary_artist_id, ranking_signature) '
             'VALUES (%s, %s, (SELECT primary_artist_id FROM library_tracks WHERE id = %s), %s) '
@@ -373,6 +376,38 @@ def split_false_merges(cursor, work_ids) -> dict[int, list[int]]:
     return split
 
 
+# Non-music tracks (an interview, a DVD preview) still sitting in a work that is not their
+# own: grouped before the hourly form pass classified them, or before the form existed. The
+# grouping pass never looks at a grouped track again, so without this they would stay a
+# version of whatever they were grouped with (docs/designs/non-music-forms/). A hand-split
+# track keeps its split.
+_GROUPED_NON_MUSIC = f"""
+    SELECT t.id, t.work_id
+    FROM library_tracks t
+    JOIN library_works w ON w.id = t.work_id
+    WHERE t.form IN ({', '.join(['%s'] * len(NON_MUSIC_FORMS))})
+      AND t.work_locked = 0
+      AND w.work_key <> CONCAT(%s, t.id)
+"""
+
+
+def detach_non_music(cursor) -> set[int]:
+    """Take every grouped non-music track out of its work, for assign_works to re-key.
+
+    Returns the works they left, whose canonical has to be chosen again. The UPDATE repeats
+    its precondition, as every write in this module does.
+    """
+    cursor.execute(_GROUPED_NON_MUSIC, (*sorted(NON_MUSIC_FORMS), UNGROUPABLE_PREFIX))
+    rows = cursor.fetchall()
+    for row in rows:
+        cursor.execute(
+            'UPDATE library_tracks SET work_id = NULL, version_kind = NULL, version_score = NULL '
+            'WHERE id = %s AND work_id = %s AND work_locked = 0',
+            (row['id'], row['work_id']),
+        )
+    return {row['work_id'] for row in rows}
+
+
 def group_once(conn, context: RankingContext | None = None) -> dict:
     """One pass. Idempotent: a second call over unchanged data writes nothing new.
 
@@ -383,7 +418,9 @@ def group_once(conn, context: RankingContext | None = None) -> dict:
     looks at a grouped track again, so nothing repaired it.
     """
     with transaction(conn), conn.cursor() as cursor:
+        left = detach_non_music(cursor)
         touched, assigned = assign_works(cursor, context=context)
+        touched.update(left)
 
         # Works whose pin moved need recomputing even when no track was assigned.
         cursor.execute(

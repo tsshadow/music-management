@@ -11,7 +11,7 @@ Implements [functional.md](functional.md).
 
 | Column | Type | Meaning |
 |---|---|---|
-| `form` | `VARCHAR(16) NULL`, indexed (`idx_tracks_form`) | `track` / `set` / `liveset` / `podcast`; NULL = not classified (no duration) |
+| `form` | `VARCHAR(16) NULL`, indexed (`idx_tracks_form`) | `track` / `set` / `liveset` / `podcast` / `interview` / `preview`; NULL = not classified (no duration) |
 | `performance_date` | `VARCHAR(10) NULL` | `YYYY-MM-DD`, only ever set when `form = 'liveset'` |
 
 `VARCHAR(10)` like `release_date` (migrate_v24), so the two compare and COALESCE without casts.
@@ -47,6 +47,8 @@ read per track.
 
 Order, first hit wins:
 
+0. an interview or a DVD preview → `interview` / `preview`, at any length and with no duration
+   too (`derive_non_music_form`, [non-music-forms](../non-music-forms/technical.md))
 1. no duration → `None`
 2. duration < 600 s → `track`
 3. top folder `Livesets` or `Telegram` → `liveset`; `Podcasts` → `podcast`

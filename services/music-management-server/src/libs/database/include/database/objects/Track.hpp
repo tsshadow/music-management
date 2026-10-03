@@ -124,6 +124,12 @@ namespace lms::db
             //: supplied one (a live set whose festival edition is known), otherwise the year of
             //: the date tag -- the same year the YEAR cluster carries. Honoured by both builders.
             std::optional<int> year;
+            //: Leave out what muma classified as non-music (an interview, a DVD preview), so a
+            //: music list, a shuffle or a radio channel never plays one. Off by default: the
+            //: scanner, the syncs, playlists and search must still see every track. Ignored when
+            //: `forms` names a non-music form, which is how a curator lists them. Honoured by
+            //: both builders. docs/designs/non-music-forms/.
+            bool excludeNonMusic{};
             std::set<std::string> allowedArtists;
 
             void setAllowedArtists(const std::set<std::string>& artists)

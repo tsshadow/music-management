@@ -29,7 +29,7 @@ class TestStats(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.side_effect = [
-            {'count': 10},  # total tracks
+            {'count': 10, 'non_music': 2},  # total tracks, of which non-music
             {'count': 5},  # total artists
             {'avg_dur': 200.0},  # avg duration
             {'count': 8},  # matched count
@@ -54,6 +54,15 @@ class TestStats(unittest.TestCase):
         self.assertEqual(
             response.json()['top_genres'], [{'genre': 'Hardstyle', 'count': 2}, {'genre': 'Terror', 'count': 1}]
         )
+
+    @patch('services.music_manager.routers.stats.get_db_connection')
+    def test_non_music_is_counted_apart_from_the_tracks(self, mock_get_db):
+        cursor = self._mock(mock_get_db, [[], [], []])
+        body = self.client.get('/api/stats/', headers={'x-api-key': self.api_key}).json()
+        self.assertEqual((body['total_tracks'], body['total_non_music']), (8, 2))
+        sql, params = cursor.execute.call_args_list[0].args
+        self.assertIn('SUM(form IN (%s, %s))', sql)
+        self.assertEqual(params, ('interview', 'preview'))
 
     @patch('services.music_manager.routers.stats.get_db_connection')
     def test_ml_genre_is_not_consulted(self, mock_get_db):

@@ -220,6 +220,15 @@ def test_a_long_track_that_already_sits_alone_is_not_moved_again():
     assert repair.misfiled(rows) == []
 
 
+def test_an_interview_leaves_the_work_it_shared_and_says_why():
+    # docs/designs/non-music-forms/: talk is never a version of a song.
+    row = {**_row(7, 'Interview', ':::interview', artist=None), 'form': 'interview'}
+    wrong = repair.misfiled([row])
+    assert [(item['expected_key'], item['reason']) for item in wrong] == [('track:7', 'non-music')]
+    assert repair.misfiled([{**row, 'work_key': 'track:7'}]) == []
+    assert 't.form' in repair._GROUPED
+
+
 def test_the_rescore_query_matches_a_download_on_its_whole_path():
     # The provenance test it repairs compared a basename against a column that only
     # ever holds absolute paths, so it matched nothing.

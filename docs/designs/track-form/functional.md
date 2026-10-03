@@ -24,6 +24,7 @@ the same interface.
 | `set` | A released DJ set or mix (Warm Up Mixes, a long SoundCloud upload, a label's mix album) | Ten minutes or longer and none of the below applies |
 | `liveset` | A recording of a performance at an event | Ten minutes or longer, and in `Livesets/` or `Telegram/`, or naming a known festival in its title (or in its path together with a year); under `EPs/` the festival counts only when the title or folder also says "live" or "DVD" |
 | `podcast` | An episode of a radio show or podcast series | Ten minutes or longer, and in `Podcasts/` or naming an approved show |
+| `interview`, `preview` | Not music: an interview, the preview of an event DVD | The title, at any length. See [non-music-forms](../non-music-forms/functional.md) |
 
 Decided against a separate `mix` form. The product goal treats released sets and mixes identically
 (both filter on their release date), and no rule can tell a "mix" from a "set" in a long SoundCloud

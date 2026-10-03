@@ -72,6 +72,7 @@ import sys
 if '__file__' in globals():
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from services.common.track_form import NON_MUSIC_FORMS  # noqa: E402
 from services.music_manager.database import get_db_connection  # noqa: E402
 from services.music_manager.song_version_worker import (  # noqa: E402
     find_suspicious_works,
@@ -86,7 +87,7 @@ UPDATE_CHUNK = 500
 # Every grouped track that the worker is still allowed to move, with the key of the
 # work it currently sits in. work_locked = 1 is a hand-made split and stays put.
 _GROUPED = '''
-    SELECT t.id, t.title, t.work_id, t.duration_secs, w.work_key, w.pinned_track_id, a.name AS artist
+    SELECT t.id, t.title, t.work_id, t.duration_secs, t.form, w.work_key, w.pinned_track_id, a.name AS artist
     FROM library_tracks t
     JOIN library_works w ON w.id = t.work_id
     LEFT JOIN library_artists a ON a.id = t.primary_artist_id
@@ -169,7 +170,7 @@ def misfiled(rows) -> list[dict]:
     """
     wrong = []
     for row in rows:
-        expected = work_key(row['artist'], row['title'], row['id'], row['duration_secs'])
+        expected = work_key(row['artist'], row['title'], row['id'], row['duration_secs'], row.get('form'))
         if expected == row['work_key']:
             continue
         if row.get('pinned_track_id') is not None and row['pinned_track_id'] == row['id']:
@@ -177,6 +178,10 @@ def misfiled(rows) -> list[dict]:
             # track to its new key and leave the choice behind, so it stays -- and is
             # reported, because its siblings may now group somewhere else.
             reason = 'pinned-kept'
+        elif expected.startswith(UNGROUPABLE_PREFIX) and row.get('form') in NON_MUSIC_FORMS:
+            # An interview or a DVD preview: never a version of a song
+            # (docs/designs/non-music-forms/).
+            reason = 'non-music'
         elif expected.startswith(UNGROUPABLE_PREFIX) and _is_long_form(row):
             # A set or a radio episode, which stopped grouping by title when
             # LONG_FORM_SECONDS arrived. Counted apart from a title that says nothing:

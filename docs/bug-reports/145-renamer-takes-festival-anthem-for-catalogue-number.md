@@ -64,6 +64,12 @@ fact: the Mover reads `''` and records a proposal.
   cleared, because the tagger never clears one. Dry run on production, 2026-10-03: 44.227 release
   folders, 19 to rename, 3 ambiguous (`I_Am_Frenchcore_05`, `I_Am_Frenchcore_12`, `NERKOLOG!K40`).
   Test: `test_importer_label_tree_prefix_repair.py`.
+- Before this fix `LabelPath.catalog_number` returned a space-less release folder name as it was,
+  so the tagger wrote a whole scene name as `CATALOGNUMBER`. It now returns '' for such a name,
+  and `HealStaleCatalogueNumberRule` (run by `LabelSong`) replaces a tag that still holds the
+  folder name: with the folder's prefix, else with the bracketed number `from_folder_name`
+  accepts (no `.nfo` needed, decided in issue #172), else with nothing. When the `.nfo` states a
+  different number the tag stays, and `scripts/prod/person/catalogue_tag_mismatch.py` lists it.
 - Getting releases like Minus Militia to their label without a catalogue number is the
   enrichment in `docs/designs/release-info-enrichment/`.
 - Tests: `services/importer/tests/test_importer_catalogue_number.py`,

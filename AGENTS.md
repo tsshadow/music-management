@@ -76,6 +76,10 @@ The system is split into specialized services, each handling a specific part of 
       the release becomes ALBUM over an empty or channel-default album
       (`services/tagger/Song/title_markers.py`, [docs/designs/release-series-markers/](docs/designs/release-series-markers/technical.md)).
     - Remixer extraction from titles and assignment to `REMIXER` tag.
+    - A label track's `CATALOGNUMBER` that still holds the whole release folder name (written
+      before bug report 145) gets the folder's prefix, else the bracketed number the catalogue
+      number test accepts, else it is cleared; an `.nfo` that names another number leaves it for
+      a person (`HealStaleCatalogueNumberRule`, issue #172). Any other value stays.
     - Release date of a label release by a precision ladder -- Deezer date (cached), `.nfo`
       release/street date, the file's own full date, `.nfo` rip date, arrival date -- written to
       ORIGINALDATE with its rung in `DATE_SOURCE`; a worse rung never replaces a better one

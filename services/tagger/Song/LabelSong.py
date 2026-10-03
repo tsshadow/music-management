@@ -6,6 +6,7 @@ from services.tagger.constants import CATALOG_NUMBER, COPYRIGHT, PUBLISHER
 from services.tagger.Song import LabelPath, rule_stack
 from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.rules.DropQueuePlaceholderRule import DropQueuePlaceholderRule
+from services.tagger.Song.rules.HealStaleCatalogueNumberRule import HealStaleCatalogueNumberRule
 
 s = Settings()
 
@@ -18,12 +19,16 @@ class LabelSong(BaseSong):
     146). The importer's Mover reaches this class directly for every release it files, whatever
     folder `rules_catid_label` sends it to, so the check lives in `LabelPath.split`, not in the
     callers.
+
+    A CATALOGNUMBER that still holds the whole release folder name, written before bug report
+    145, is replaced or cleared (`HealStaleCatalogueNumberRule`, issue #172).
     """
 
     def __init__(self, path):
         super().__init__(path)
         publisher, release_folder = LabelPath.split(path, s.eps_folder_path, s.delimiter, ImportQueue.from_settings(s))
         self._publisher = str(publisher)
+        self._release_folder = str(release_folder)
         self._catalog_number = str(LabelPath.catalog_number(release_folder))
         #: The day the release first reached the import queue, set by the importer's Mover; the
         #: release-date ladder's last rung before the year (InferReleaseDateFromNfoRule).
@@ -33,6 +38,7 @@ class LabelSong(BaseSong):
         # First: a copyright of "__TODO (2021)" left by bug report 030 is emptied here, so the
         # check below recomputes it from the publisher this path actually names.
         DropQueuePlaceholderRule().apply(self)
+        HealStaleCatalogueNumberRule(self._release_folder).apply(self)
         self.tag_collection.set_item(PUBLISHER, self._publisher)
         if self._catalog_number:
             self.tag_collection.set_item(CATALOG_NUMBER, self._catalog_number)

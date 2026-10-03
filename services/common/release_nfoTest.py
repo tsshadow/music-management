@@ -85,5 +85,23 @@ class ReadTest(unittest.TestCase):
         self.assertIsNone(release_nfo.read('/does/not/exist'))
 
 
+class StatedCatalogueNumberTest(unittest.TestCase):
+    """The catalogue number an .nfo states, with or without the colon `parse` needs (issue #172)."""
+
+    def test_a_line_without_a_colon_is_read(self):
+        # 00-d-teq_-_dark_energy-(bir030)-web-2011.nfo on production.
+        self.assertEqual('BIR030', release_nfo.stated_catalogue_number('   CAT NR..[ BIR030\n'))
+
+    def test_a_key_value_pair_is_read_first(self):
+        self.assertEqual('PR096', release_nfo.stated_catalogue_number('  Catalognr....: PR096\n  Label..: Pure\n'))
+
+    def test_a_value_that_is_no_catalogue_number_is_ignored(self):
+        self.assertIsNone(release_nfo.stated_catalogue_number('  CAT NR..[ 10368151\n'))
+        self.assertIsNone(release_nfo.stated_catalogue_number('  Category: Hardcore\n'))
+
+    def test_no_text_states_nothing(self):
+        self.assertIsNone(release_nfo.stated_catalogue_number(''))
+
+
 if __name__ == '__main__':
     unittest.main()

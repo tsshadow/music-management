@@ -7,7 +7,9 @@
   `merge-stale-media-rows.sh` now also deletes the media rows whose file is gone from disk (8,372,
   mostly old `EPs/__TODO/` paths, `--gone`). It stops when a share looks unmounted.
   `fix-catalogue-tag-mismatch.sh` writes the folder's catalogue number into files whose
-  CATALOGNUMBER disagrees with it, only where the release's .nfo agrees with the folder. All three
+  CATALOGNUMBER disagrees with it, only where the release's .nfo agrees with the folder. It also
+  replaces the whole folder name the tagger wrote as CATALOGNUMBER before bug report 145 with the
+  bracketed number the .nfo confirms (76 releases). All three
   back up first and have a rollback.
 <!-- release notes -->
 - Person scripts to park duplicate release folders, delete media rows of vanished files and fix

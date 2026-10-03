@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.89.2 (2026-10-03)
+
+- The release-date backfill now asks Deezer about a release even when its tracks' date already
+  equals the `.nfo` rip date. It skipped those tracks as "already at the best date" before Deezer
+  had answered, so it never asked, and a single like Minus Militia and Nolz "Recover The Archive"
+  kept its rip date (2026-10-01) instead of the Deezer date.
+
 ## Global Version 0.89.1 (2026-10-02)
 
 - The release-date backfill now also picks up tracks that already have a full date from a lower

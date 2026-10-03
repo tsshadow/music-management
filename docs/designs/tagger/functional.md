@@ -23,6 +23,7 @@ The Tagger is the core metadata enforcement engine of the Music Management Syste
 | A file is located in the `Soundcloud` folder | The system identifies it as a SoundCloud track. It sets the Publisher to "Soundcloud", sets the Album to "Soundcloud (uploader name)", and applies SoundCloud-specific cleanup rules (e.g., removing "PREMIERE" from titles). |
 | A file is located in the `Youtube` folder | The system identifies it as a YouTube track. It sets the Publisher to "Youtube", sets the Album to "Youtube (channel name)", and attempts to split the title into "Artist - Title" if it's currently just a single string. |
 | A file is located in the Labels/Promo pool folder | The system identifies it as a Label track. It extracts the Publisher (label name) and Catalog Number from the folder names and applies them to the file's tags. |
+| A label track's Catalog Number holds the whole release folder name, as the tagger wrote it before bug report 145 | The tagger replaces it with the folder's `<number> - ` prefix, or else with the number in the folder name's brackets when the release's `.nfo` states the same number. With neither, it clears the tag. A value that is not the folder name stays (issue #172). |
 | A file is located elsewhere in the library | The system identifies it as a "Generic" track and applies standard cleanup rules (Unicode normalization, title cleaning, BPM analysis) without source-specific overrides. |
 
 ### Metadata Inference and Cleanup

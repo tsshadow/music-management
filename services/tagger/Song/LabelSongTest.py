@@ -28,7 +28,7 @@ from services.tests.mock_base import reset_database_helpers
 pytestmark = pytest.mark.mock_base('mutagen', 'Cache')
 
 from services.common.Helpers.GenreRulesHelper import WHITE, GenreRow  # noqa: E402
-from services.tagger.constants import ARTIST, DATE  # noqa: E402
+from services.tagger.constants import ARTIST, CATALOG_NUMBER, DATE  # noqa: E402
 from services.tagger.Song import LabelSong as label_song_module  # noqa: E402
 from services.tagger.Song.LabelSong import LabelSong  # noqa: E402
 
@@ -210,3 +210,75 @@ class NoLabelFolderTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class StaleCatalogueNumberTest(unittest.TestCase):
+    """Issue #172: a CATALOGNUMBER that holds the whole release folder name is replaced or cleared.
+
+    Before bug report 145 the tagger wrote such a name for every release folder without a
+    `<number> - ` prefix. The folder names here are real ones from production's label tree.
+    """
+
+    def setUp(self):
+        reset_database_helpers()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.eps = Path(tmp.name)
+        settings = MagicMock(eps_folder_path=str(self.eps), delimiter='/')
+        patcher = patch.object(label_song_module, 's', settings)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def parsed(self, label, release, catalogue, nfo=None, nested=False):
+        release_dir = self.eps / label / release
+        audio_dir = release_dir / release if nested else release_dir
+        audio_dir.mkdir(parents=True)
+        if nfo is not None:
+            (release_dir / '00-release.nfo').write_bytes(nfo)
+        song = LabelSong(str(audio_dir / '01-track.mp3'))
+        song.tag_collection.set_item(DATE, '2011')
+        song.tag_collection.set_item(CATALOG_NUMBER, catalogue)
+        song.parse()
+        return song
+
+    def test_the_bracketed_number_the_nfo_confirms_replaces_the_folder_name(self):
+        release = 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB'
+        # The .nfo of this release on production writes the number without a colon.
+        song = self.parsed('Bazz Implant Recordings', release, release, nfo=b'  CAT NR..[ BIR030\n')
+        self.assertEqual('BIR030', song.catalog_number())
+
+    def test_the_nfo_is_found_above_a_nested_copy_of_the_release(self):
+        release = 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB'
+        song = self.parsed('Bazz Implant Recordings', release, release, nfo=b'Catalog Nr.: BIR030\n', nested=True)
+        self.assertEqual('BIR030', song.catalog_number())
+
+    def test_a_bracketed_number_without_an_nfo_to_confirm_it_is_cleared(self):
+        """Taking it unconfirmed is the decision issue #172 leaves open."""
+        release = 'Producer_Snafu-The_Brown_Cloud-(NGM.02)-Vinyl-2009-OBC'
+        song = self.parsed('NGM Records', release, release)
+        self.assertEqual('', song.catalog_number())
+
+    def test_an_nfo_that_names_another_number_does_not_confirm_the_brackets(self):
+        release = 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB'
+        song = self.parsed('Bazz Implant Recordings', release, release, nfo=b'Catalog Nr.: BIR031\n')
+        self.assertEqual('', song.catalog_number())
+
+    def test_a_folder_without_a_bracketed_number_has_its_stale_tag_cleared(self):
+        release = 'Teequee-In_Ya_Face_EP-WEB-2009-UKHx'
+        song = self.parsed('Bazz Implant Recordings', release, release)
+        self.assertEqual('', song.catalog_number())
+
+    def test_the_name_after_a_prefix_the_importer_added_later_takes_the_prefix(self):
+        release = 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB'
+        song = self.parsed('Bazz Implant Recordings', 'BIR030 - ' + release, release)
+        self.assertEqual('BIR030', song.catalog_number())
+
+    def test_a_number_a_person_or_the_label_wrote_stays(self):
+        for index, value in enumerate(('BIR-030', 'BIR030CD', 'D-Teq_-_Dark_Energy')):
+            with self.subTest(value=value):
+                song = self.parsed(f'Label {index}', 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB', value)
+                self.assertEqual(value, song.catalog_number())
+
+    def test_a_folder_named_only_for_its_number_keeps_it(self):
+        song = self.parsed('Fusion Records', 'FUSION001', 'FUSION001')
+        self.assertEqual('FUSION001', song.catalog_number())

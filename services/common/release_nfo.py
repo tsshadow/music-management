@@ -49,6 +49,13 @@ _QOBUZ_ALBUM = re.compile(r'qobuz\.com/(?:[a-z]{2}-[a-z]{2}/)?album/(?:[^/\s]+/)
 _TIDAL_ALBUM = re.compile(r'tidal\.com/(?:browse/)?album/(\d+)', re.I)
 #: Bytes block art is drawn with; a value made of them is decoration, not data.
 _ART = re.compile('[\u2500-\u259f]')
+# A catalogue line without the colon `_PAIR` needs: `CAT NR..[ BIR030`, `Catalognr....:: PR096`,
+# after any box-drawing border. The same pattern as scripts/prod/person/catalogue_tag_mismatch.py.
+_CATALOGUE_LINE = re.compile(
+    r'^[^A-Za-z]*(?:cat(?:alog(?:ue)?)?[ .]*(?:nr|no|number|num|#)?|catnumber|catalognr)\.?'
+    r'[ .:\[\]]*[:.\[][ .:\[\]]*([A-Za-z0-9][A-Za-z0-9_.\-]*)',
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -139,6 +146,25 @@ def parse(text: str) -> NfoInfo:
         if catalogue:
             break
     return NfoInfo(label, label_key, catalogue, links(text), text or '')
+
+
+def stated_catalogue_number(text: str) -> str | None:
+    """The catalogue number an .nfo states, in a `Key: value` pair or on a line of its own, or None.
+
+    `parse` reads only the pairs with a colon. Some groups write `CAT NR..[ BIR030` instead,
+    so a line that starts with a catalogue key is the fallback. Either value must pass
+    `nfo_catalogue_number`.
+    """
+    found = parse(text).catalogue_number
+    if found:
+        return found
+    for line in (text or '').splitlines():
+        match = _CATALOGUE_LINE.match(line)
+        if match:
+            value = nfo_catalogue_number(match.group(1).strip(' .'))
+            if value:
+                return value
+    return None
 
 
 def decode(raw: bytes) -> str:

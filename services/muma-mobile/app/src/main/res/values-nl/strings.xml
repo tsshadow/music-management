@@ -27,16 +27,11 @@
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Offline</string>
     <string name="main.songs_title">Nummers</string>
-    <string name="main.welcome_text_demo">Om in MuMa naar je eigen muziek te luisteren, heb je je <b>eigen server</b> nodig. \n\n➤ Maar als je de app eerst wilt uitproberen, dan kun je voorlopig de demoserver gebruiken. \n\n➤ In de <b>instellingen</b> kun je je eigen server instellen.</string>
-    <string name="main.welcome_title">Welkom!</string>
-    <string name="main.welcome_cancel">Open de instellingen</string>
-    <string name="menu.common">Algemeen</string>
     <string name="playlist.label">Afspeellijsten</string>
     <string name="search.more">Meer tonen</string>
     <string name="select_album.no_network">Waarschuwing: er is geen internetverbinding!\nAls je mobiel internet gebruikt, dan is het noodzakelijk dat je downloads via beperkte verbindingen toestaat in de instellingen.</string>
     <string name="select_album.no_sdcard">Fout: geen SD-kaart beschikbaar.</string>
     <string name="select_album.play_all">Alles afspelen</string>
-    <string name="select_genre.empty">Geen genres gevonden</string>
     <string name="settings.cache_location_error">Ongeldige cachelocatie; de standaardlocatie wordt gebruikt.</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="widget.initial_text">Druk om muziek te selecteren</string>
@@ -45,9 +40,6 @@
     <string name="share_default_greeting">Hé, luister eens naar de muziek die ik heb gedeeld via %s</string>
     <string name="notification.downloading_title">Bezig met downloaden van media op de achtergrond…</string>
     <string name="notification.permission_required">Meldingen zijn vereist voor het afspelen van media. Je kunt dit recht te allen tijde verlenen in de Android-instellingen.</string>
-    <string name="server_menu.move_up">Omhoog</string>
-    <string name="server_menu.move_down">Omlaag</string>
-    <string name="server_menu.demo">Demoserver</string>
 
 
     <!-- Subsonic api errors -->
@@ -66,53 +58,20 @@
 
 
     <!-- muma -->
-    <string name="tile_icon_description">Tegelicoon</string>
-    <string name="genre_name">Genrenaam</string>
-    <string name="hide_filters">Filters verbergen ▲</string>
-    <string name="from">Van</string>
-    <string name="to">Tot</string>
-    <string name="search_livesets">Livesets zoeken</string>
-    <string name="tile_title">Titel</string>
-    <string name="edit_filter_title">Filter bewerken</string>
-    <string name="new_filter_title">Nieuwe filter</string>
 
 
-    <string name="welcome_morning">Goedemorgen</string>
-    <string name="welcome_afternoon">Goedemiddag</string>
-    <string name="welcome_evening">Goedenavond</string>
-    <string name="welcome_night">Goedenacht</string>
     <string name="main.sets">Sets</string>
-    <string name="main_recently_played">Recent afgespeeld</string>
-    <string name="filter.recent">Recent</string>
-    <string name="filter.new">Nieuw</string>
-    <string name="filter.genres">Genres</string>
-    <string name="filter.playlists">Playlists</string>
     <string name="main.albums_released">Recent uitgebracht</string>
     <string name="main.library_title">Bibliotheek</string>
-    <string name="main.moods_title">Stemmingen</string>
     <string name="main.years_title">Jaren</string>
-    <string name="main.title_all_songs">Alles (nummers)</string>
-    <string name="main.title_all_livesets">Alles (livesets)</string>
-    <string name="main.title_songs_this_year">Dit jaar (nummers)</string>
-    <string name="main.title_songs_last_year">Vorig jaar (nummers)</string>
-    <string name="main.title_livesets_this_year">Dit jaar (livesets)</string>
-    <string name="main.title_livesets_last_year">Vorig jaar (livesets)</string>
-    <string name="main.landing_page_title">Start</string>
-    <string name="main.livesets">livesets</string>
     <string name="server_switched_offline">Server onbereikbaar. Overgeschakeld naar offline modus.</string>
     <string name="server_switched_online">Server bereikbaar. Online modus hersteld.</string>
-    <string name="main.songs_random_this_year">Willekeurig (2025)</string>
     <string name="main.songs_recent_added">Recent toegevoegd</string>
-    <string name="main.songs_recent_modified">Recent gewijzigd</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.news_title">Nieuws</string>
     <string name="main.daily_mixes_title">Dagelijkse mixen</string>
     <string name="main.release_radar_title">Release radar</string>
     <string name="news.button">Nieuws</string>
-    <string name="artist_detail_eps">EP\'s</string>
-    <string name="artist_detail_singles">Singles</string>
-    <string name="select_mood.empty">Geen stemmingen gevonden</string>
-    <string name="select_year.empty">Geen jaren gevonden</string>
     <string name="home.shortcuts">Recent gespeeld</string>
     <string name="home.recently_released">Recent uitgebracht</string>
     <string name="home.daily_mix">Dagelijkse mix</string>
@@ -151,22 +110,16 @@
          is sent (issue #72). -->
     <string name="auto.token_sign_in_again">Log opnieuw in in de MuMa-app op je telefoon</string>
     <string name="auto.token_server_unreachable">De MuMa-server is niet bereikbaar. Probeer het zo opnieuw</string>
-    <string name="download.menu_unstar">Ster verwijderen</string>
     <string name="crash_report.dialog_title">Vorige sessie is gecrasht</string>
     <string name="crash_report.dialog_message">MuMa is de vorige keer niet netjes afgesloten. Diagnostiek delen om dit te helpen oplossen?</string>
     <string name="crash_report.dialog_share">Delen</string>
     <string name="crash_report.dialog_dismiss">Negeren</string>
-    <string name="server_menu.lms">LMS</string>
-    <string name="server_menu.lmsalpha">LMS Alpha</string>
-    <string name="server_menu.lmsstable">LMS stable</string>
     <string name="api.subsonic.multiple_auth">Tegenstrijdige authenticatiemethodes (apiKey en wachtwoord). Gebruik er maar één.</string>
     <string name="api.subsonic.unknown_error">Onbekende Subsonic-fout (code %1$d).</string>
     <string name="foreground_exception_title">Afspelen kan niet worden hervat</string>
     <string name="foreground_exception_text">Druk op de afspeelknop in de mediamelding als die er nog staat. Open anders de app om het afspelen te starten en de sessie opnieuw met de speler te verbinden</string>
     <string name="shortcut_play_random_songs_short">Willekeurige nummers</string>
     <string name="shortcut_play_random_songs_long">Willekeurige nummers afspelen</string>
-    <string name="select_items">items kiezen</string>
-    <string name="lineup_default">Lineup</string>
     <string name="voice.title">Spraakcommando\'s</string>
     <string name="voice.text"><![CDATA[Vraag het de Assistent in de auto, of gebruik de spraakzoekfunctie van de app. Alles hieronder mag in één zin door elkaar.\n\n<b>Een genre</b>\nSpeel genre hardstyle af\nSpeel uptempo hardcore af\nSpeel drum and bass livesets af\n\n<b>Een artiest</b>\nSpeel muziek van headhunterz af\nSpeel artiest brennan heart af\n\n<b>Een label</b>\nSpeel label art of creation af\n\n<b>Een set</b>\nSpeel een set af\nSpeel een Defqon set af\nSpeel de nieuwste set van headhunterz af\n\n<b>Livesets, dj-sets of podcasts</b>\nSpeel livesets af\nSpeel livesets van Defqon 2019 af\nSpeel dj sets van headhunterz af\nSpeel podcasts af\nEen liveset valt onder het jaar waarin hij gespeeld is.\n\n<b>Een podcast</b>\nSpeel de podcast van Keeping The Rave Alive af\nSpeel de KTRA podcast af\nSpeel de laatste aflevering van Monstercat af\nDe nieuwste aflevering komt eerst. Een naam die de bibliotheek niet als podcast kent, speelt gewoon podcasts af.\n\n<b>Een jaar</b>\nSpeel hardstyle uit 2021 af\nSpeel headhunterz uit 2020 af\n\n<b>Een volgorde</b>\nSpeel random hardcore af\nSpeel recent af\nSpeel recent toegevoegd af\n\n<b>Je favorieten</b>\nSpeel favorieten af\nSpeel favorieten van headhunterz af\nSpeel favorieten uit 2021 af\n\n<b>Alles tegelijk</b>\nSpeel willekeurige favorieten uit 2023 af\nSpeel random uptempo hardcore uit 2021 af\n\n<b>Later in de wachtrij</b>\nSpeel project one hierna af\nSpeel dragonborn als volgende af\n\n<b>Een kwaliteit</b>\nSpeel flac hardstyle af\nSpeel hardcore in hoge kwaliteit af\n\nEen naam moet er één zijn die de bibliotheek kent. Wat niet geplaatst kan worden valt weg en de rest van het verzoek speelt gewoon; kan er niets geplaatst worden, dan neemt de gewone zoekfunctie het over en zoekt op titel.]]></string>
 

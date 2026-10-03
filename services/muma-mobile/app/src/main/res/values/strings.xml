@@ -2,11 +2,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <string name="main.sets">Sets</string>
-    <string name="main_recently_played">Recently played</string>
-    <string name="filter.recent">Recent</string>
-    <string name="filter.new">New</string>
-    <string name="filter.genres">Genres</string>
-    <string name="filter.playlists">Playlists</string>
     <string name="buttons.play">Play</string>
     <string name="download.jukebox_not_authorized">Remote control is not allowed. Please enable jukebox mode in <b>Users &gt; Settings</b> on your Subsonic server.</string>
     <string name="download.jukebox_offline">Remote control is not available in offline mode.</string>
@@ -34,43 +29,23 @@
     <string name="main.artists_title">Artists</string>
     <string name="main.genres_title">Genres</string>
     <string name="main.library_title">Library</string>
-    <string name="main.moods_title">Moods</string>
     <string name="main.years_title">Years</string>
-    <string name="main.title_all_songs">All (songs)</string>
-    <string name="main.title_all_livesets">All (livesets)</string>
-    <string name="main.title_songs_this_year">This year (songs)</string>
-    <string name="main.title_songs_last_year">Last year (songs)</string>
-    <string name="main.title_livesets_this_year">This Year (livesets)</string>
-    <string name="main.title_livesets_last_year">Last Year (livesets)</string>
-    <string name="main.landing_page_title">Home</string>
-    <string name="main.livesets">livesets</string>
     <string name="main.offline">Offline</string>
     <string name="server_switched_offline">Server unreachable. Switched to offline mode.</string>
     <string name="server_switched_online">Server reachable. Online mode restored.</string>
-    <string name="main.songs_random_this_year">Random (2025)</string>
     <string name="main.songs_recent_added">Recently added</string>
-    <string name="main.songs_recent_modified">Recently modified</string>
     <string name="main.radio_title">Radio</string>
     <string name="main.news_title">News</string>
     <string name="main.daily_mixes_title">Daily mixes</string>
     <string name="main.release_radar_title">Release radar</string>
     <string name="main.songs_title">Songs</string>
     <string name="news.button">News</string>
-    <string name="main.welcome_text_demo">To use MuMa with your own music you will need your <b>own server</b>. \n\n➤ The LMS servers and a demo server have been pre-configured for you. \n\n➤ You can add or change servers in the <b>settings</b>.</string>
-    <string name="main.welcome_title">Welcome to MuMa!</string>
-    <string name="main.welcome_cancel">Take me to the settings</string>
-    <string name="menu.common">Common</string>
     <string name="playlist.label">Playlists</string>
     <string name="search.more">Show More</string>
     <string name="select_album.no_network">Warning: No usable network available.\n If you are using mobile data, you may need to allow downloads on metered connections in the settings.</string>
     <string name="select_album.no_sdcard">Error: No SD card available.</string>
     <string name="select_album.play_all">Play All</string>
     <!-- Screen title plus how many tracks match the filter, not how many the page holds. -->
-    <string name="artist_detail_eps">EPs</string>
-    <string name="artist_detail_singles">Singles</string>
-    <string name="select_genre.empty">No genres found</string>
-    <string name="select_mood.empty">No moods found</string>
-    <string name="select_year.empty">No years found</string>
     <string name="setting_key.canonical_only">canonicalOnly</string>
     <string name="home.shortcuts">Recently played</string>
     <string name="home.recently_released">Recently released</string>
@@ -118,7 +93,6 @@
     <string name="widget.initial_text">Touch to select music</string>
     <string name="widget.sdcard_busy">SD card unavailable</string>
     <string name="widget.sdcard_missing">No SD card</string>
-    <string name="download.menu_unstar">Unstar</string>
     <string name="share_default_greeting">Check out this music I shared from %s</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
     <string name="crash_report.dialog_message">MuMa did not shut down cleanly last time. Share diagnostics to help fix this?</string>
@@ -129,18 +103,8 @@
     <string name="crash_report.manual_failed">Failed to save diagnostics</string>
     <string name="notification.downloading_title">Downloading media in the background…</string>
     <string name="notification.permission_required">Notifications are required for media playback. You can grant the permission anytime in the Android settings.</string>
-    <string name="server_menu.move_up">Move up</string>
-    <string name="server_menu.move_down">Move down</string>
-    <string name="server_menu.demo">Demo Server</string>
-    <string name="server_menu.lms">LMS</string>
-    <string name="server_menu.lmsalpha">LMS Alpha</string>
-    <string name="server_menu.lmsstable">LMS stable</string>
 
 
-    <string name="welcome_morning">Good morning</string>
-    <string name="welcome_afternoon">Good afternoon</string>
-    <string name="welcome_evening">Good evening</string>
-    <string name="welcome_night">Good night</string>
 
 
     <!-- Subsonic api errors -->
@@ -166,18 +130,6 @@
     <string name="shortcut_play_random_songs_long">Play random songs</string>
 
     <!-- muma -->
-    <string name="tile_icon_description">Tile icon</string>
-    <string name="genre_name">Genre Name</string>
-    <string name="hide_filters">Hide Filters ▲</string>
-    <string name="from">From</string>
-    <string name="to">To</string>
-    <string name="search_livesets">Search Livesets</string>
-
-    <string name="tile_title">title</string>
-    <string name="edit_filter_title">Edit filter</string>
-    <string name="new_filter_title">New filter</string>
-    <string name="select_items">select items</string>
-    <string name="lineup_default">Lineup</string>
     <string name="setting_key_last_seen_version" translatable="false">last_seen_version</string>
 
     <string name="muma_voice_title">MuMa Voice</string>

@@ -7,7 +7,7 @@
 
 package nl.teunschriks.mumamobile.util
 
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import nl.teunschriks.mumamobile.R
@@ -101,7 +101,7 @@ object Storage {
             if (Settings.cacheLocationUri.isBlank()) return Pair(getDefaultRoot(), true)
             val documentFile = DocumentFile.fromTreeUri(
                 UApp.applicationContext(),
-                Uri.parse(Settings.cacheLocationUri)
+                Settings.cacheLocationUri.toUri()
             ) ?: return Pair(getDefaultRoot(), true)
             if (!documentFile.exists()) return Pair(getDefaultRoot(), true)
             Pair(

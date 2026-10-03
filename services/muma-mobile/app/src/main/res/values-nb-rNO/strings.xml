@@ -6,8 +6,6 @@
     <string name="language.ru">Russisk</string>
     <string name="main.albums_title">Album</string>
     <string name="main.genres_title">Sjangere</string>
-    <string name="server_menu.move_up">Flytt oppover</string>
-    <string name="server_menu.move_down">Flytt nedover</string>
     <string name="download.jukebox_offline">Fjernkontroll er ikke tilgjengelig i frakoblet modus.</string>
     <string name="widget.sdcard_missing">Ingen SD-kort</string>
     <string name="language.en">Engelsk</string>
@@ -19,24 +17,16 @@
     <string name="language.es">Spansk</string>
     <string name="language.pl">Polsk</string>
     <string name="language.pt">Portugisisk</string>
-    <string name="main.welcome_title">Velkommen til MuMa.</string>
     <string name="main.songs_title">Spor</string>
     <string name="playlist.label">Spillelister</string>
     <string name="search.more">Vis mer</string>
     <string name="select_album.play_all">Spill alle</string>
-    <string name="select_genre.empty">Fant ingen sjangere</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="widget.initial_text">Trykk for å velge musikk</string>
     <string name="widget.sdcard_busy">SD-kort utilgjengelig</string>
-    <string name="server_menu.demo">Demo-tjener</string>
     <string name="api.subsonic.generic">Generisk API-feil: %1$s</string>
     <string name="notification.downloading_title">Last ned medier i bakgrunnen …\?</string>
     <string name="notification.permission_required">Merknader kreves for medieavspilling. Du kan innvilge tilgangen når som helst i Android-innstillingene.</string>
-    <string name="main.welcome_text_demo">For å bruke MuMa med din egen musikk trenger du en <b>egen tjener</b>.
-\n
-\n➤ Hvis du vil prøve ut programmet først kan du legge til en demo-tjener nå.
-\n
-\n➤ Ellers kan du sette opp tjeneren din i <b>innstillingene</b>.</string>
     <string name="api.subsonic.param_missing">Påkrevd parameter mangler.</string>
     <string name="download.jukebox_not_authorized">Fjernkontroll er avskrudd. Skru på jukebox-modus i <b>Brukere &gt; Innstillinger</b> på din Subsonic-tjener.</string>
     <string name="download.jukebox_server_too_old">Fjernkontroll støttes ikke. Oppgrader din Subsonic-tjener.</string>
@@ -45,8 +35,6 @@
     <string name="language.cs">Tsjekkisk</string>
     <string name="language.pt_BR">Portugisisk (Brasil)</string>
     <string name="language.zh_TW">Kinesisk (Taiwan)</string>
-    <string name="main.welcome_cancel">Gå til innstillingene</string>
-    <string name="menu.common">Felles</string>
     <string name="select_album.no_network">Advarsel: Mangler anvendbart nettverk.
 \n Hvis du bruker mobildata kan det hende du må slå på nedlastinger over kvotebaserte tilkoblinger i innstillingene.</string>
     <string name="select_album.no_sdcard">Feil: Ingen tilgjengelige SD-kort.</string>

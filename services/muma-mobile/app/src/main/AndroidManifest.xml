@@ -50,8 +50,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
         android:theme="@style/UltrasonicTheme.Spotify"
-        tools:ignore="UnusedAttribute"
-        tools:targetApi="q">
+        tools:ignore="UnusedAttribute">
         <!-- Add for API 34 android:enableOnBackInvokedCallBack="true" -->
 
         <meta-data android:name="com.google.android.gms.car.application"

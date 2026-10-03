@@ -24,16 +24,11 @@
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Offline</string>
     <string name="main.songs_title">Titel</string>
-    <string name="main.welcome_text_demo">Um MuMa mit Deiner eigenen Musik zu verwenden, benötigst Du einen <b>eigenen Server</b>. \n\n➤ Wenn Du die App erst einmal testen möchtest, kann jetzt ein Demo Server hinzugefügt werden. \n\n➤ Sonst kannst Du Deinen Server in den <b>Einstellungen</b> konfigurieren.</string>
-    <string name="main.welcome_title">Willkommen zu MuMa!</string>
-    <string name="main.welcome_cancel">Zu den Einstellungen</string>
-    <string name="menu.common">Allgemein</string>
     <string name="playlist.label">Wiedergabelisten</string>
     <string name="search.more">Zeige mehr</string>
     <string name="select_album.no_network">Warnung: Kein verwendbares Netz verfügbar.\nWenn Mobile Daten verwendet werden sollen, müssen Downloads in den Einstellungen der jeweiligen Verbindung erlaubt sein.</string>
     <string name="select_album.no_sdcard">Fehler: Keine SD Karte verfügbar.</string>
     <string name="select_album.play_all">Alles wiedergeben</string>
-    <string name="select_genre.empty">Keine Genres gefunden</string>
     <string name="settings.cache_location_error">Ungültiger Ort des Caches. Verwende Standard.</string>
     <string name="main.video" tools:ignore="UnusedResources">Film</string>
     <string name="widget.initial_text">Berühren, um Musik auszuwählen</string>
@@ -41,9 +36,6 @@
     <string name="widget.sdcard_missing">Keine SD Karte</string>
     <string name="share_default_greeting">Hör dir mal die Musik an, die ich mit dir über %s geteilt habe.</string>
     <string name="notification.downloading_title">Lade Medien im Hintergrund runter…</string>
-    <string name="server_menu.move_up">Hochschieben</string>
-    <string name="server_menu.move_down">Herunterschieben</string>
-    <string name="server_menu.demo">Demo Server</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Allgemeiner API Fehler: %1$s</string>
     <string name="api.subsonic.generic.no.message">Keine Nachricht vom Server erhalten</string>

@@ -338,7 +338,7 @@ object Util {
     }
 
     @JvmStatic
-    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim().isEmpty()
+    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim { it <= ' ' }.isEmpty()
 
     @JvmOverloads
     fun formatTotalDuration(totalDuration: Long?, inMilliseconds: Boolean = false): String {

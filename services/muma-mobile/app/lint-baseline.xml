@@ -24,6 +24,39 @@
     </issue>
 
     <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (name == null || name.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="310"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="        if (path == null || path.trim { it &lt;= &apos; &apos; }.isEmpty()) {"
+        errorLine2="                                      ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/FileUtil.kt"
+            line="329"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="TrimLambda"
+        message="The lambda argument (`{ it &lt;= &apos; &apos; }`) is unnecessary"
+        errorLine1="    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim { it &lt;= &apos; &apos; }.isEmpty()"
+        errorLine2="                                                                                             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/nl/teunschriks/mumamobile/util/Util.kt"
+            line="341"
+            column="94"/>
+    </issue>
+
+    <issue
         id="TrustAllX509TrustManager"
         message="`checkClientTrusted` is empty, which could cause insecure network traffic due to trusting arbitrary TLS/SSL certificates presented by peers">
         <location

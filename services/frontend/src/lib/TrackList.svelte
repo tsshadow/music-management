@@ -213,7 +213,7 @@
     try {
       const date = new Date(dateStr);
       return date.toLocaleString();
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   }

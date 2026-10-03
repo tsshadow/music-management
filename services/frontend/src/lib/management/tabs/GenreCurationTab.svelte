@@ -105,7 +105,7 @@
       } else {
         onError($t('management.genres.overviewLoadFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.genres.overviewLoadNetworkError'));
     } finally {
       loading = false;
@@ -160,7 +160,7 @@
       return decision.payload.canonical_ids
         .map((id) => whiteGenres.find((g) => String(g.id) === String(id))?.name)
         .filter(Boolean);
-    } catch (err) {
+    } catch {
       onError($t('management.genres.saveNetworkError'));
       return null;
     }

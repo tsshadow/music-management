@@ -3,7 +3,7 @@
   import { onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { downloaderSubTabRequest } from '../../store.js';
-  import { Cloud, ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
+  import { ExternalLink, Trash2, Plus, Search, Play, Timer, RotateCcw, AlertTriangle } from '@lucide/svelte';
   import { formatDuration, describeBackoff, changedValues } from '../downloaderTiming';
   import DownloaderCoverage from '../DownloaderCoverage.svelte';
   import ChannelLinkProposals from '../ChannelLinkProposals.svelte';
@@ -110,7 +110,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       rateStates = Object.fromEntries((data.sources || []).map((entry) => [entry.source, entry]));
-    } catch (err) {
+    } catch {
       // The status panel is informational; a hiccup here must not clear the form.
     }
   }
@@ -155,7 +155,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onMessage($t('management.downloaders.backoffReset'));
       await loadRateState();
-    } catch (err) {
+    } catch {
       onError($t('management.downloaders.backoffResetFailed'));
     }
   }
@@ -181,7 +181,7 @@
         newAccountId = '';
         refreshDownloaders();
       }
-    } catch (err) {
+    } catch {
       onError($t('management.downloaders.accountAddFailed'));
     }
   }
@@ -197,7 +197,7 @@
         onMessage($t('management.downloaders.accountDeleted'));
         refreshDownloaders();
       }
-    } catch (err) {
+    } catch {
       onError($t('management.downloaders.accountDeleteFailed'));
     }
   }
@@ -215,7 +215,7 @@
         newAccountName = '';
         refreshDownloaders();
       }
-    } catch (err) {
+    } catch {
       onError($t('management.downloaders.channelAddFailed'));
     }
   }
@@ -233,7 +233,7 @@
         onMessage($t('management.downloaders.channelDeleted'));
         refreshDownloaders();
       }
-    } catch (err) {
+    } catch {
       onError($t('management.downloaders.channelDeleteFailed'));
     }
   }

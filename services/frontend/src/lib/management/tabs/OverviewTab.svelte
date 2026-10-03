@@ -117,9 +117,11 @@
       <div class="p-6 overflow-y-auto flex-1 max-h-[300px] prose prose-invert prose-sm">
         {#if selectedServiceNotes === 'control-center'}
           <h4 class="text-brand">Version {config.version}</h4>
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- release notes from our own API (RELEASE_NOTES.md) -->
           {@html notes.release_notes}
         {:else if allNotes[selectedServiceNotes]}
           <h4 class="text-brand">Version {allNotes[selectedServiceNotes].version}</h4>
+          <!-- eslint-disable-next-line svelte/no-at-html-tags -- release notes from our own API (RELEASE_NOTES.md) -->
           {@html allNotes[selectedServiceNotes].notes}
         {/if}
       </div>

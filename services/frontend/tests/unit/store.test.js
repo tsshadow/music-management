@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { get, writable } from "svelte/store";
+import { get } from "svelte/store";
 import {
   hasPermission,
   userPermissions,

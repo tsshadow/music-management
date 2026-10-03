@@ -22,7 +22,7 @@
       } else {
         systemLogs = $t('management.health.logsUnavailable');
       }
-    } catch (err) {
+    } catch {
       systemLogs = $t('management.health.logsFailed');
     }
   }

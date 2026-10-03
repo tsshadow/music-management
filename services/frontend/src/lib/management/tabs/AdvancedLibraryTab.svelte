@@ -166,7 +166,7 @@
       } else {
         onError(body.detail || $t('management.library.rerunFailed', { status: res.status }));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.library.serverUnreachable'));
     }
   }
@@ -183,7 +183,7 @@
       } else {
         onError(body.detail || $t('management.library.redownloadFailed', { status: res.status }));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.library.serverUnreachable'));
     }
   }

@@ -1107,6 +1107,7 @@ async function writeWholeSettingsBlob(userId, changes) {
 async function writePendingSettings() {
   const generation = settingsGeneration;
   let failed = false;
+  // oxlint-disable-next-line unicorn/no-useless-spread -- a snapshot: the loop deletes from the map and awaits
   for (const [userId, changes] of [...pendingSettingWrites]) {
     pendingSettingWrites.delete(userId);
     const saved = await writeSettingsBlob(userId, changes);

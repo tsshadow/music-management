@@ -14,7 +14,7 @@ import { apiBase, getHeaders, jsonHeaders } from "../mumaApi";
 
 async function request(path, options = {}) {
   const response = await fetch(`${apiBase()}/api/curation${path}`, options);
-  let body = null;
+  let body;
   try {
     body = await response.json();
   } catch {

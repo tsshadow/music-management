@@ -68,7 +68,7 @@
 - **Least-covered part of the repository**: 235 tests over 54 components, ~22% statements. The
   `thresholds` in `vite.config.js` are a ratchet just under the current numbers so it cannot erode;
   raise them as coverage climbs
-- Lint: `npm run lint` (`oxlint` + `eslint`), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
+- Lint: `npm run lint` (`oxlint` + `eslint`, both fail on a warning), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
 - Dockerfile: first build stage of `services/music-management-server/Dockerfile-release` (`node:24-alpine`) — frontend has no own Dockerfile under `docker/`
 
 ### importer

@@ -58,7 +58,7 @@
    * silently flow into the list state and render as an empty page with no explanation.
    */
   async function readJson(res) {
-    let body = null;
+    let body;
     try {
       body = await res.json();
     } catch {

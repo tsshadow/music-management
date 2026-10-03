@@ -111,9 +111,11 @@ welcome; removing from it needs a reason in the commit message. A module on the
 list also has to document every public function and class -- `scripts/lint.sh`
 fails it otherwise -- so document a module before adding it.
 
-**Formatting is opt-in.** `./scripts/format.sh <path>` runs `ruff format` on a
-directory you name. It is deliberately not in CI: a tree-wide reformat would
-rewrite almost every file and conflict with every open branch.
+**Formatting is checked.** `./scripts/format.sh` runs `ruff format` over
+`services/`, `tools/` and `tests/`, or over the paths you name. The
+`backend:format` job and the pre-commit hook run `./scripts/format.sh --check`
+and fail on an unformatted file. The whole-tree reformat is listed in
+`.git-blame-ignore-revs`.
 
 ## Branches and releases
 

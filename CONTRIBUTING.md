@@ -27,7 +27,7 @@ two can never drift apart.
 ./scripts/lint.sh                       # ruff + pylint (threshold 9.77) + docstrings on strict modules
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
-./scripts/typecheck.sh --all            # mypy over the whole tree (CI: allowed to fail, for now)
+./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```

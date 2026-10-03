@@ -96,6 +96,8 @@ READ_ENDPOINTS = [
     # timestamp the YouTube table only has since migrate_v31.
     ('/api/downloaders/coverage/soundcloud', 200),
     ('/api/downloaders/coverage/youtube', 200),
+    # Deprecated; reads downloads_account_checks through the downloader's own connector.
+    ('/api/downloaders/schedule/soundcloud', 200),
     ('/api/channel-links/proposals', 200),
     ('/api/channel-links/proposals?status=rejected&kind=artist', 200),
     ('/api/channel-links/proposals?status=maybe', 400),
@@ -1348,6 +1350,22 @@ class ChannelLinksTest:
             db, 'SELECT needs_rescan, rescan_reason FROM tagger_processed_files WHERE filepath = %s', (path,)
         )
         assert [(bool(r['needs_rescan']), r['rescan_reason']) for r in rows] == [(True, 'channel_link')]
+
+
+class DownloaderScheduleTest:
+    """The deprecated schedule read, against a checks table that holds a row."""
+
+    def test_the_deprecated_schedule_reports_a_checked_account(self, api, headers, db):
+        # An empty table hid a 500 here: each row came back as an AccountCheck (#171).
+        run_sql(
+            db,
+            "INSERT INTO downloads_account_checks (source, account, last_checked_at)"
+            " VALUES ('soundcloud', 'traxtorm', '2026-07-30 12:00:00')",
+        )
+        db.commit()
+        response = api.get('/api/downloaders/schedule/soundcloud', headers=headers)
+        assert response.status_code == 200
+        assert response.json()['accounts'] == [{'account': 'traxtorm', 'last_checked_at': '2026-07-30T12:00:00'}]
 
 
 class ScrobblingTest:

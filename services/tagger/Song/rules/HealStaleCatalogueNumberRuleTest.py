@@ -61,8 +61,19 @@ class HealStaleCatalogueNumberRuleTest(unittest.TestCase):
         self.assertEqual('BIR030', tag.to_string())
         self.assertTrue(tag.has_changes())
 
-    def test_an_unconfirmed_name_is_emptied_so_the_save_drops_it(self):
+    def test_a_bracketed_number_without_an_nfo_replaces_the_name(self):
         tag = self.song(RELEASE, RELEASE)
+        self.assertEqual('BIR030', tag.to_string())
+        self.assertTrue(tag.has_changes())
+
+    def test_an_nfo_with_another_number_leaves_the_name(self):
+        tag = self.song(RELEASE, RELEASE, nfo=b'CAT NR..[ BIR031\n')
+        self.assertEqual(RELEASE, tag.to_string())
+        self.assertFalse(tag.has_changes())
+
+    def test_a_name_without_a_number_is_emptied_so_the_save_drops_it(self):
+        name = 'Teequee-In_Ya_Face_EP-WEB-2009-UKHx'
+        tag = self.song(name, name)
         self.assertEqual('', tag.to_string())
         self.assertTrue(tag.has_changes())
 

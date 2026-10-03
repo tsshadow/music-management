@@ -37,20 +37,21 @@ def release_directory(path: str, release_folder: str) -> str:
     return found or os.path.dirname(path)
 
 
-def confirmed_bracketed_number(release_folder: str, directory: str) -> str:
-    """The number in the folder name's brackets (`-(BIR030)-`) when the release's .nfo states the same one, else ''.
+def bracketed_number(release_folder: str, directory: str) -> str | None:
+    """The number in the folder name's brackets (`-(BIR030)-`), '' when there is none, None when the .nfo disagrees.
 
-    The .nfo is the confirmation. Whether a bracketed number without an .nfo is good enough is
-    still open in issue #172; until it is decided, such a release gets its stale tag cleared.
+    The bracketed group must pass `is_catalogue_number` (`from_folder_name`); an .nfo is not
+    needed (issue #172, decided 2026-10-03). An .nfo that states a different number makes the
+    release a case for a person, so the answer is None and the tag stays as it is.
     """
     bracketed = from_folder_name(release_folder)
     if not bracketed:
         return ''
     info = release_nfo.read(directory)
     stated = release_nfo.stated_catalogue_number(info.text) if info else None
-    if stated and comparable(stated) == comparable(bracketed):
-        return bracketed
-    return ''
+    if stated and comparable(stated) != comparable(bracketed):
+        return None
+    return bracketed
 
 
 class HealStaleCatalogueNumberRule(TagRule):
@@ -59,8 +60,9 @@ class HealStaleCatalogueNumberRule(TagRule):
     Only a tag equal to the release folder name, or to that name without its `<number> - `
     prefix, counts as stale. Any other value is a number a person or the label wrote, and stays.
     The number derived now is the folder's prefix (`LabelPath.catalog_number`), else the bracketed
-    number the release's .nfo confirms. Without either the tag is emptied, which makes
-    `BaseSong.save_file` drop it from the file.
+    number in the folder name. When the release's .nfo states a different number, the tag stays
+    for a person to decide (`scripts/prod/person/catalogue_tag_mismatch.py` lists those). With no
+    number at all the tag is emptied, which makes `BaseSong.save_file` drop it from the file.
 
     LabelSong runs it before it writes the folder's number, with the release folder name.
     """
@@ -75,11 +77,11 @@ class HealStaleCatalogueNumberRule(TagRule):
         current = (collection.get_item_as_string(CATALOG_NUMBER) or '').strip()
         if current not in stale_values(self._release_folder):
             return
-        derived = LabelPath.catalog_number(self._release_folder)
+        derived: str | None = LabelPath.catalog_number(self._release_folder)
         if not derived:
-            directory = release_directory(song.path(), self._release_folder)
-            derived = confirmed_bracketed_number(self._release_folder, directory)
-        if derived == current:
-            # A folder named only for its number (`FUSION001`): the tag is right.
+            derived = bracketed_number(self._release_folder, release_directory(song.path(), self._release_folder))
+        if derived is None or derived == current:
+            # The .nfo disagrees with the folder, or the folder is named only for its number
+            # (`FUSION001`): the tag stays.
             return
         collection.set_item(CATALOG_NUMBER, derived)

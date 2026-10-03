@@ -252,20 +252,27 @@ class StaleCatalogueNumberTest(unittest.TestCase):
         song = self.parsed('Bazz Implant Recordings', release, release, nfo=b'Catalog Nr.: BIR030\n', nested=True)
         self.assertEqual('BIR030', song.catalog_number())
 
-    def test_a_bracketed_number_without_an_nfo_to_confirm_it_is_cleared(self):
-        """Taking it unconfirmed is the decision issue #172 leaves open."""
+    def test_a_bracketed_number_needs_no_nfo(self):
+        """Decided in issue #172: the catalogue number test is enough. This .nfo has no catalogue line."""
         release = 'Producer_Snafu-The_Brown_Cloud-(NGM.02)-Vinyl-2009-OBC'
-        song = self.parsed('NGM Records', release, release)
-        self.assertEqual('', song.catalog_number())
+        song = self.parsed('NGM Records', release, release, nfo=b'  Label....: NGM Records\n')
+        self.assertEqual('NGM.02', song.catalog_number())
 
-    def test_an_nfo_that_names_another_number_does_not_confirm_the_brackets(self):
+    def test_an_nfo_that_names_another_number_leaves_the_tag_for_a_person(self):
         release = 'D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB'
         song = self.parsed('Bazz Implant Recordings', release, release, nfo=b'Catalog Nr.: BIR031\n')
-        self.assertEqual('', song.catalog_number())
+        self.assertEqual(release, song.catalog_number())
 
     def test_a_folder_without_a_bracketed_number_has_its_stale_tag_cleared(self):
         release = 'Teequee-In_Ya_Face_EP-WEB-2009-UKHx'
         song = self.parsed('Bazz Implant Recordings', release, release)
+        self.assertEqual('', song.catalog_number())
+
+    def test_a_bracketed_group_that_is_no_catalogue_number_is_cleared(self):
+        release = (
+            'Minus_Militia_And_Nolz_-_Recover_The_Archive_(Official_Hardbass_2026_Anthem)_(Edit)-SINGLE-WEB-2026-UTNG'
+        )
+        song = self.parsed('B2S', release, release)
         self.assertEqual('', song.catalog_number())
 
     def test_the_name_after_a_prefix_the_importer_added_later_takes_the_prefix(self):

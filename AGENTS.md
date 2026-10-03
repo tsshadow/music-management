@@ -382,9 +382,13 @@ To maintain high code quality, the system employs an automated test suite:
   (`./scripts/install-hooks.sh`) is a thin wrapper around the same scripts so the two cannot
   drift, but it runs only `format.sh --check`, `lint.sh` and the Python unit suite — not the
   type check:
-    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.77. On a full
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.87. On a full
       run it also fails any module on the strict type-check list that has an undocumented public
       function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
+      In test files only (a `tests/` directory, `test_*.py`, `*Test.py`, `conftest.py`) the
+      plugin `tools/pylint_plugins/muma_test_layout.py` turns off `wrong-import-position`,
+      `import-outside-toplevel` and `redefined-outer-name`: a test imports after its mock_base
+      stubs and names arguments after pytest fixtures. Production code keeps all three.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
@@ -396,7 +400,7 @@ To maintain high code quality, the system employs an automated test suite:
       default branch, not as a merge-request gate (it audits the runner's environment, which
       this repository does not manage). Accepted findings, with a reason, live in
       `security/accepted-vulnerabilities.txt`.
-- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.77), `COVERAGE_MIN` in
+- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.87), `COVERAGE_MIN` in
   `scripts/test/music-management-unit.sh` (84%) and the `thresholds` in
   `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
   one to make a red build green. The Python coverage figure is measured on source only —

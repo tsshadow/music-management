@@ -1,5 +1,10 @@
 [MASTER]
 ignore=node_modules,venv,.git,dist
+# tools/pylint_plugins/muma_test_layout.py turns off wrong-import-position,
+# import-outside-toplevel and redefined-outer-name in test files only (see its
+# docstring). The path is relative, so pylint runs from the repository root.
+init-hook=import os, sys; sys.path.insert(0, os.path.join(os.getcwd(), 'tools', 'pylint_plugins'))
+load-plugins=muma_test_layout
 extension-pkg-allow-list=docker
 
 [MESSAGES CONTROL]

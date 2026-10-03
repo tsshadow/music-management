@@ -22,3 +22,17 @@ CVE-2025-47273   # setuptools 70.3.0, PackageIndex path traversal. pip vendors
 GHSA-6v7p-g79w-8964  # msgpack 1.1.2, out-of-bounds read on Unpacker reuse.
                      # pip uses it through cachecontrol, on responses from the
                      # package index it is already trusting for code.
+
+# pip 26.2.1 vendors urllib3 2.7.0 (pip/_vendor/vendor.txt), next to the 2.8.0
+# our requirements install in /opt/venv. Same shape as the two above: trivy
+# reads pip's own vendor list, and there is no pip release to upgrade to.
+# pip only runs while an image is built, against PyPI, without a proxy; no
+# service calls pip at runtime, so neither path below is reachable in
+# production. The urllib3 our code imports (safe_fetch.py, requests) is 2.8.0.
+#
+# Way out: drop these two lines when a pip release vendors urllib3 2.8.0 or
+# later (check pip/_vendor/vendor.txt), then rebuild the images.
+CVE-2026-97687   # urllib3 2.7.0, HTTPS proxy TLS configuration override.
+                 # pip's image builds use no proxy.
+CVE-2026-97689   # urllib3 2.7.0, unbounded memory in the chunked-response
+                 # parser. Only PyPI responses reach it, at build time.

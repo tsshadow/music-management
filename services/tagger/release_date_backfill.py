@@ -243,7 +243,8 @@ def plan_upgrades(
             continue
         found: dict[str, list[str]] = {}
         for path, current in dated[directory]:
-            if best.date is not None and current[:10] == best.date[:10]:
+            # While Deezer is unasked, a date equal to the .nfo's may still be a day off.
+            if best.date is not None and not best.pending and current[:10] == best.date[:10]:
                 continue
             source = read_tags(path).rung(best)
             rank = SOURCE_RANKS.get(source)

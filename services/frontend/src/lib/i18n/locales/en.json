@@ -221,7 +221,9 @@
       "track": "Tracks",
       "set": "Sets & mixes",
       "liveset": "Live sets",
-      "podcast": "Podcasts"
+      "podcast": "Podcasts",
+      "interview": "Interviews",
+      "preview": "DVD previews"
     },
     "genre": "Genre",
     "quality": {
@@ -912,6 +914,7 @@
       "totalArtists": "Total artists",
       "totalScrobbles": "Total scrobbles",
       "totalTracks": "Total tracks",
+      "nonMusic": "{count} interviews and previews not counted",
       "version": "MuMa version",
       "containersWithProblems": "{count} containers have problems.",
       "allSystemsOk": "All systems are working properly.",

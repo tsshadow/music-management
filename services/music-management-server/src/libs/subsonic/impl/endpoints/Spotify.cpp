@@ -96,6 +96,9 @@ namespace lms::api::subsonic
         {
             params.forms = parseTrackForms(ctx.getParameters());
             params.year = getParameterAs<int>(ctx.getParameters(), "year");
+            // A music list leaves interviews and DVD previews out; a search by name still finds
+            // them, since search is the one way to reach one (docs/designs/non-music-forms/).
+            params.excludeNonMusic = getParameterAs<std::string>(ctx.getParameters(), "query").value_or("").empty();
         }
 
         // One key per song, decided by muma and synced into work_id (migration 118). What

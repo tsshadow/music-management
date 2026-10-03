@@ -284,7 +284,7 @@ SETTINGS: tuple[tuple[str, str, Any, tuple[int, int] | None], ...] = (
     ('bpm_tag_writeback_paused', 'boolean', False, None),
     ('bpm_tag_writeback_per_round', 'integer', 300, (0, 5000)),
     ('bpm_tag_writeback_min_confidence', 'integer', 75, (0, 100)),
-    ('bpm_analysis_skip_forms', 'string', 'set,liveset,podcast', None),
+    ('bpm_analysis_skip_forms', 'string', 'set,liveset,podcast,interview,preview', None),
 )
 
 

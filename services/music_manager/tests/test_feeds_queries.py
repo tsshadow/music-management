@@ -143,6 +143,17 @@ class CandidatesQueryTest(unittest.TestCase):
         ):
             self.assertNotIn('GROUP BY internal_track_id', sql)
 
+    def test_every_candidate_query_leaves_non_music_out(self):
+        """docs/designs/non-music-forms/: a feed never picks an interview or a DVD preview,
+        and an unclassified track stays a candidate."""
+        for sql in (
+            candidates_query('user', POLICIES['release-radar'], NOW)[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'older', 'seed')[0],
+            split_sample_query('user', POLICIES['daily-mix'], NOW, 'recent', 'seed')[0],
+            rotation_counts_query('user', POLICIES['daily-mix-artist'], NOW, 'artist', ['a'], (90, None))[0],
+        ):
+            self.assertIn("(t.form IS NULL OR t.form NOT IN ('interview', 'preview'))", sql)
+
     def test_the_rating_join_carries_all_three_key_columns(self):
         sql, _ = candidates_query('user', POLICIES['release-radar'], NOW)
         self.assertIn("r.entity_type = 'track'", sql)

@@ -15,7 +15,9 @@ import services.music_manager.database
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.main import app
+from services.music_manager.routers import stats as stats_router
 
 
 class TestStats(unittest.TestCase):
@@ -29,7 +31,7 @@ class TestStats(unittest.TestCase):
         mock_get_db.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.fetchone.side_effect = [
-            {'count': 10},  # total tracks
+            {'count': 10, 'non_music': 2},  # total tracks, of which non-music
             {'count': 5},  # total artists
             {'avg_dur': 200.0},  # avg duration
             {'count': 8},  # matched count
@@ -54,6 +56,15 @@ class TestStats(unittest.TestCase):
         self.assertEqual(
             response.json()['top_genres'], [{'genre': 'Hardstyle', 'count': 2}, {'genre': 'Terror', 'count': 1}]
         )
+
+    @patch('services.music_manager.routers.stats.get_db_connection')
+    def test_non_music_is_counted_apart_from_the_tracks(self, mock_get_db):
+        cursor = self._mock(mock_get_db, [[], [], []])
+        body = self.client.get('/api/stats/', headers={'x-api-key': self.api_key}).json()
+        self.assertEqual((body['total_tracks'], body['total_non_music']), (8, 2))
+        self.assertEqual(cursor.execute.call_args_list[0].args, (stats_router.NON_MUSIC_COUNT_SQL,))
+        for form in NON_MUSIC_FORMS:
+            self.assertIn(f"'{form}'", stats_router.NON_MUSIC_COUNT_SQL)
 
     @patch('services.music_manager.routers.stats.get_db_connection')
     def test_ml_genre_is_not_consulted(self, mock_get_db):

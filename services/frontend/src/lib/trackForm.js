@@ -5,9 +5,22 @@
  * The filter bar only offers the three long forms, and only in the sets view: in the songs view
  * every row is a track, so a picker there would have one real choice. See
  * docs/designs/track-form/functional.md.
+ *
+ * `interview` and `preview` are the non-music forms: LMS leaves them out of every music list, and
+ * no chip offers them, so the sets view never asks for one (docs/designs/non-music-forms/).
  */
 
-export const TRACK_FORMS = Object.freeze(["track", "set", "liveset", "podcast"]);
+export const TRACK_FORMS = Object.freeze([
+  "track",
+  "set",
+  "liveset",
+  "podcast",
+  "interview",
+  "preview",
+]);
+
+/** The forms that are not music: talk and DVD trailers, findable through search only. */
+export const NON_MUSIC_FORMS = Object.freeze(["interview", "preview"]);
 
 /** The forms the sets view's Soort chip offers, in the order it lists them. */
 export const SET_FORMS = Object.freeze(["set", "liveset", "podcast"]);
@@ -18,6 +31,8 @@ export const FORM_LABEL_KEYS = Object.freeze({
   set: "filter.form.set",
   liveset: "filter.form.liveset",
   podcast: "filter.form.podcast",
+  interview: "filter.form.interview",
+  preview: "filter.form.preview",
 });
 
 /**

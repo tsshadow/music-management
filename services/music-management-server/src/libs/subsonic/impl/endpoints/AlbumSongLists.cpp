@@ -314,6 +314,8 @@ namespace lms::api::subsonic
         params.filters.setMediaLibrary(mediaLibraryId);
         // A shuffle draws songs, not files: two versions of one song are one draw (bug report 096).
         params.canonicalOnly = true;
+        // And music: never an interview or a DVD preview (docs/designs/non-music-forms/).
+        params.excludeNonMusic = true;
 
         Track::find(context.getDbSession(), params, [&](const Track::pointer& track) {
             randomSongsNode.addArrayChild("song", createSongNode(context, track, context.getUser()));
@@ -376,6 +378,8 @@ namespace lms::api::subsonic
         params.filters.setClusters(clusters);
         params.filters.setMediaLibrary(mediaLibrary);
         params.setRange(Range{ offset, count });
+        // A genre lists its music, not the interviews filed under it.
+        params.excludeNonMusic = true;
         params.setMinRating(static_cast<int>(ratingMin));
         params.setMaxRating(static_cast<int>(ratingMax));
         params.ratingUser = context.getUser()->getId();
@@ -422,8 +426,10 @@ namespace lms::api::subsonic
         params.filters.setMediaLibrary(mediaLibrary);
         if (seed.has_value())
             params.randomSeed = seed;
-        // A radio channel plays songs, not files (bug report 096), like getRandomSongs above.
+        // A radio channel plays songs, not files (bug report 096), like getRandomSongs above,
+        // and only music.
         params.canonicalOnly = true;
+        params.excludeNonMusic = true;
 
         std::vector<ClusterId> clusters;
         if (genre.has_value())
@@ -643,6 +649,9 @@ namespace lms::api::subsonic
         params.forms = std::move(forms);
         params.year = year;
         params.randomSeed = seed;
+        // The app's songs and sets lists, the car and voice: music only. A non-music form named
+        // in `form` still lists those (docs/designs/non-music-forms/).
+        params.excludeNonMusic = true;
 
         std::map<std::string, std::set<ClusterId>> clusterGroups;
         if (filters.has_value())

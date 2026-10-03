@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.scrobble_matching import normalize
 
 # Words that describe a length or a packaging of the same recording. A bracketed
@@ -299,7 +300,9 @@ def version_kind(title: str | None) -> str:
     return 'none'
 
 
-def work_key(artist: str | None, title: str | None, track_id: int, duration_secs: float | None) -> str:
+def work_key(
+    artist: str | None, title: str | None, track_id: int, duration_secs: float | None, form: str | None
+) -> str:
     """The grouping key: one song by one artist, however its versions are spelled.
 
     A title that normalizes away to nothing identifies no song, so the track gets a
@@ -320,10 +323,16 @@ def work_key(artist: str | None, title: str | None, track_id: int, duration_secs
     place beside its radio edit. That is the safe direction: the failure is showing a
     file twice, not hiding it.
 
-    The track id and the duration are required rather than optional: every caller has
-    both, and a default would leave the old behaviour reachable from a caller that
-    forgot.
+    An interview or a DVD preview (`form` in NON_MUSIC_FORMS) gets a key of its own too:
+    it is never a version of a song, and thirteen uploads called "QAPITAL 2019 Interview"
+    are thirteen talks (docs/designs/non-music-forms/).
+
+    The track id, the duration and the form are required rather than optional: every
+    caller has them, and a default would leave the old behaviour reachable from a caller
+    that forgot.
     """
+    if form in NON_MUSIC_FORMS:
+        return f'{UNGROUPABLE_PREFIX}{track_id}'
     versionless = version_free_title(title)
     if not versionless:
         return f'{UNGROUPABLE_PREFIX}{track_id}'

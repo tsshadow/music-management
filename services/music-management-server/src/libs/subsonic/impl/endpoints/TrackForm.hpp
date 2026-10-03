@@ -34,7 +34,9 @@ namespace lms::api::subsonic
     // The forms muma classifies every track under (services/common/track_form.py FORMS), written
     // into track.form by its lms.db sync. A closed set, so an unknown value is refused rather than
     // silently matching nothing -- "no live sets" and "typo" must not look the same.
-    inline constexpr std::array<std::string_view, 4> trackForms{ "track", "set", "liveset", "podcast" };
+    // `interview` and `preview` are non-music (docs/designs/non-music-forms/): the music lists
+    // leave them out, and naming one here is how a curator lists them.
+    inline constexpr std::array<std::string_view, 6> trackForms{ "track", "set", "liveset", "podcast", "interview", "preview" };
 
     /**
      * The `form` parameter of getSpotifyTracks and getSongs: repeatable, and each value may itself
@@ -53,7 +55,7 @@ namespace lms::api::subsonic
                 if (form.empty())
                     continue;
                 if (std::find(trackForms.begin(), trackForms.end(), form) == trackForms.end())
-                    throw BadParameterGenericError{ "form", "expected track, set, liveset or podcast" };
+                    throw BadParameterGenericError{ "form", "expected track, set, liveset, podcast, interview or preview" };
                 if (std::find(forms.begin(), forms.end(), form) == forms.end())
                     forms.push_back(form);
             }

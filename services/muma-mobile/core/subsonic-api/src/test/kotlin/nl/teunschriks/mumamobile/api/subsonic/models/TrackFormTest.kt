@@ -6,15 +6,22 @@ import org.junit.Test
 
 /**
  * [TrackForm] is the gate every `form` value passes before `getSongs`: the server
- * (`parseTrackForms` in LMS) refuses anything outside track/set/liveset/podcast with an error for
+ * (`parseTrackForms` in LMS) refuses anything outside track/set/liveset/podcast/interview/preview with an error for
  * the whole request, so an unknown value has to vanish here rather than cost the listener the list.
  */
 class TrackFormTest {
 
     @Test
     fun `the forms are exactly the ones the server accepts`() {
-        TrackForm.FORMS `should be equal to` listOf("track", "set", "liveset", "podcast")
+        TrackForm.FORMS `should be equal to` listOf("track", "set", "liveset", "podcast", "interview", "preview")
         TrackForm.SET_FORMS `should be equal to` listOf("set", "liveset", "podcast")
+    }
+
+    @Test
+    fun `the non-music forms pass the gate but no sets view offers them`() {
+        TrackForm.NON_MUSIC_FORMS `should be equal to` listOf("interview", "preview")
+        TrackForm.sanitize(listOf("interview", "preview")) `should be equal to` listOf("interview", "preview")
+        TrackForm.SET_FORMS.none { it in TrackForm.NON_MUSIC_FORMS } `should be equal to` true
     }
 
     @Test

@@ -135,6 +135,12 @@
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.totalTracks')}</div>
       <div class="text-2xl font-extrabold text-brand">{$format.number(stats.total_tracks)}</div>
+      {#if stats.total_non_music}
+        <!-- Interviews and DVD previews, counted apart from the music (docs/designs/non-music-forms/). -->
+        <div class="text-muma-spotify-text text-xs mt-1">
+          {$t('management.overview.nonMusic', { count: $format.number(stats.total_non_music) })}
+        </div>
+      {/if}
     </div>
     <div class="bg-muma-spotify-panel p-4 rounded-xl border border-white/5">
       <div class="text-muma-spotify-text text-[10px] font-bold uppercase mb-1">{$t('management.overview.totalArtists')}</div>

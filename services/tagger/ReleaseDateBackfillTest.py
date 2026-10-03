@@ -240,6 +240,74 @@ class UpgradeTest(unittest.TestCase):
         self.assertEqual({'upgrade-from-nfo-rip': {'tracks': 1, 'directories': 1}}, report['counts'])
 
 
+# OMA writes its .nfo dates month-first; rules_scene_group_date_format says so. Production, 2026-10-03:
+# `Rip.date: 05.09.2022`, Deezer 2022-05-06, so the release is from May, not September.
+OMA = f'{EPS}/BSC/BSC040 - VA-Devotions_Chapter_1-()-WEB-2022-OMA'
+
+
+class FakeFormats:
+    """`rules_scene_group_date_format` as the rule's LookupTableHelper answers it, case-insensitively."""
+
+    def get(self, group):
+        return ['md'] if group.lower() == 'oma' else []
+
+
+class SceneGroupDateOrderTest(unittest.TestCase):
+    """The backfill reads an .nfo date in the scene group's own order, as the rule does."""
+
+    def setUp(self):
+        self.read = {OMA: 'Rip.date: 05.09.2022\n'}.get
+        self.store = FakeStore()
+
+    def test_a_month_first_group_is_read_month_first(self):
+        best = backfill.best_available(OMA, self.store, self.read, FakeFormats())
+
+        self.assertEqual(('nfo-rip', '2022-05-09'), (best.verdict, best.date))
+
+    def test_without_the_table_the_default_order_applies(self):
+        self.assertEqual('2022-09-05', backfill.best_available(OMA, self.store, self.read).date)
+
+    def test_the_rules_own_date_is_its_rung_and_the_swapped_one_is_not(self):
+        best = backfill.best_available(OMA, self.store, self.read, FakeFormats())
+
+        self.assertEqual('nfo-rip', backfill.DateTags('', '2022-05-09', '2022').rung(best))
+        self.assertEqual('', backfill.DateTags('', '2022-09-05', '2022').rung(best))
+
+    def run_with_deezer(self, formats):
+        """The OMA release with a cached Deezer date, one year-only track and one with the rule's .nfo date."""
+        self.store.cached_albums['555'] = StoreAlbum('deezer', '555', OK, release_date='2022-05-06')
+        read = {OMA: 'Rip.date: 05.09.2022\nUrl:https://deezer.com/album/555\n'}.get
+        connection, _cursor = connection_with([f'{OMA}/01.mp3'], [(f'{OMA}/02.mp3', '2022-05-09')])
+        return backfill.run(
+            connection,
+            EPS,
+            ImportQueue(f'{EPS}/__TODO'),
+            self.store,
+            read_nfo=read,
+            read_tags=lambda path: backfill.DateTags('', '2022-05-09', '2022'),
+            formats=formats,
+        )
+
+    def test_run_passes_the_table_to_both_plans(self):
+        report = self.run_with_deezer(FakeFormats())
+
+        self.assertEqual(
+            {
+                'deezer': {'tracks': 1, 'directories': 1},
+                'upgrade-from-nfo-rip': {'tracks': 1, 'directories': 1},
+            },
+            report['counts'],
+        )
+
+    def test_without_the_table_the_rules_date_reads_as_a_persons(self):
+        self.assertNotIn('upgrade-from-nfo-rip', self.run_with_deezer(None)['counts'])
+
+    def test_date_order_without_a_group_or_a_table(self):
+        self.assertIsNone(backfill.date_order('No_Group_Here', FakeFormats()))
+        self.assertIsNone(backfill.date_order('X-WEB-2022-OMA', None))
+        self.assertEqual('md', backfill.date_order('X-WEB-2022-OMA', FakeFormats()))
+
+
 class ReadDateSourceTest(unittest.TestCase):
     """The tag is found under its key for every format family."""
 

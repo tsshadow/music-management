@@ -9,7 +9,7 @@ Contract", for the binding shape of every response below.
 
 import hashlib
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
@@ -319,11 +319,11 @@ def list_body(conn, username: str | None, now: datetime) -> dict:
         policy = _policy(slug)
         if slug == OLD_HITS_SLUG:
             # Static: nothing about this feed's name depends on the listener's profile.
-            info = {'title': OLD_HITS_TITLE, 'subtitle': OLD_HITS_SUBTITLE}
+            info: dict = {'title': OLD_HITS_TITLE, 'subtitle': OLD_HITS_SUBTITLE}
         elif resolution is not None:
             info = describe_feed(
                 conn,
-                username,
+                cast(str, username),  # resolution is only set for a listener
                 policy,
                 now,
                 starting_genres,
@@ -350,7 +350,7 @@ def feed_body(conn, username: str, policy, now: datetime) -> dict:
     if policy.slug == OLD_HITS_SLUG:
         feed = build_old_hits(conn, username, now, _old_hits_config(policy.size))
         return _body(feed, policy, now)
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     starting_genres = _starting_genres()
     if starting_genres:
         kwargs['starting_genres'] = starting_genres
@@ -446,6 +446,7 @@ def list_feeds(response: Response, username: str | None = None, auth: dict = Dep
         if not conn:
             body, source = list_body(None, None, now), 'live'
         else:
+            assert resolved  # a connection is only opened for a listener
             body, source = serve_snapshot(
                 conn,
                 resolved,

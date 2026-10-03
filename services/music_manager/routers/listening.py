@@ -43,6 +43,7 @@ than let the totals shrink by 60% without explanation.
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -226,7 +227,8 @@ class ListeningScope:
         them, so an unqualified name cannot become ambiguous -- and leaving the
         alias out keeps this a constant string rather than one built per caller.
         """
-        clauses, params = [], []
+        clauses: list[str] = []
+        params: list[Any] = []
         if self.username:
             clauses.append('username = %s')
             params.append(self.username)

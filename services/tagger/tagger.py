@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from mutagen import MutagenError
 
@@ -18,7 +19,7 @@ from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.import_queue import ImportQueue
 from services.tagger import download_info, ingestion
 from services.tagger.constants import SongTypeEnum
-from services.tagger.Song.BaseSong import ExtensionNotSupportedException
+from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
 from services.tagger.Song.GenericSong import GenericSong
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
@@ -54,7 +55,7 @@ def _env_number(name: str, default: float, cast=float) -> float:
 #: with practically no turns: a 32.000-file queue after the 0.67.0 deploy had /health and
 #: /api/auth/login timing out for over an hour while LMS answered in milliseconds. Twelve
 #: keeps most of the throughput; the pause below is what actually gives the API its turn.
-TAGGER_WORKERS = max(1, _env_number('TAGGER_WORKERS', 12, int))
+TAGGER_WORKERS = max(1, cast(int, _env_number('TAGGER_WORKERS', 12, int)))
 
 #: Seconds the tagger idles between slices of tagged files, once the pool has drained.
 #: With every worker thread parked the event loop owns the GIL and serves whatever queued
@@ -489,7 +490,7 @@ class Tagger:
         if '@eaDir' in str(folder):
             return
         try:
-            files = []
+            files: list[Path] = []
             for ext, enabled in {
                 'mp3': parse_mp3,
                 'flac': parse_flac,
@@ -576,7 +577,7 @@ class Tagger:
         @param song_type: Type of song source (LABEL, YOUTUBE, etc)
         @param extra_info:
         """
-        song = None
+        song: BaseSong | None = None
         if extra_info is None:
             # Only the downloader ever holds yt-dlp's answer, and every pass after it walks
             # the filesystem with nothing in hand. The archive row keeps a pruned copy of

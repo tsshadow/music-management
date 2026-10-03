@@ -128,8 +128,8 @@ def plan_one(name: str, proposal: Proposal | None, rules: dict[str, str]) -> Pla
         if label:
             catid, source = from_proposal, 'proposal'
     if catid is None:
-        routed = {candidate: _usable(candidate, rules) for candidate in name_candidates(rest)}
-        routed = {candidate: rule for candidate, rule in routed.items() if rule}
+        usable = {candidate: _usable(candidate, rules) for candidate in name_candidates(rest)}
+        routed = {candidate: rule for candidate, rule in usable.items() if rule}
         labels = {rule.lower() for rule in routed.values()}
         if len(labels) > 1:
             listed = ', '.join(f'{c}->{r}' for c, r in routed.items())

@@ -114,6 +114,7 @@ def resolve(
         return None
     band = band_for_genres(genres)
     source, value = (SOURCE_TAG, tag_value) if tag_value is not None else (SOURCE_ANALYZER, tempo_value)
+    assert value is not None  # one of the two is set, checked above
     folded = fold_into_band(value, band)
 
     confidence = CONFIDENCE_LOW

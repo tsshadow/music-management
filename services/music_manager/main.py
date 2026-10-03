@@ -5,6 +5,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import uvicorn
 from dotenv import load_dotenv
@@ -236,7 +237,7 @@ def health(response: Response):
     threads = thread_status()
     threads['events'] = event_service.is_alive()
 
-    heartbeats = thread_heartbeats()
+    heartbeats: dict[str, Any] = thread_heartbeats()
     bpm_analysis = bpm_status.read_status()
     if bpm_analysis is not None:
         heartbeats['bpm-analyzer'] = bpm_status.heartbeat_entry(bpm_analysis)

@@ -184,8 +184,8 @@ def _credentials() -> dict[str, str]:
     return {
         'host': host,
         'port': port,
-        'user': os.getenv('BACKUP_DB_USER') or os.getenv('DB_USER', ''),
-        'password': os.getenv('BACKUP_DB_PASS') or os.getenv('DB_PASS', ''),
+        'user': os.getenv('BACKUP_DB_USER') or os.getenv('DB_USER') or '',
+        'password': os.getenv('BACKUP_DB_PASS') or os.getenv('DB_PASS') or '',
         'database': os.getenv('DB_DB', ''),
     }
 
@@ -568,7 +568,7 @@ def prune_labelled(destination: Path, label: str, keep: int = LABELLED_KEPT) -> 
 
 def run_backup(argv_destination: str | None = None) -> int:
     """Take one backup: dump, verify, and record/prune for a nightly run."""
-    destination = resolve_destination(argv_destination or os.getenv('BACKUP_PATH', ''), os.getenv('DATA_PATH'))
+    destination = resolve_destination(argv_destination or os.getenv('BACKUP_PATH') or '', os.getenv('DATA_PATH'))
     retention = int(os.getenv('BACKUP_RETENTION_DAYS', str(DEFAULT_RETENTION_DAYS)))
     label = backup_label()
     creds = _credentials()

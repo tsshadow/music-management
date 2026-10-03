@@ -1,6 +1,7 @@
 import logging
 import sys
 import types
+from typing import Any
 
 from services.common.config_store import ConfigStore as Settings
 from services.tagger.constants import BPM
@@ -9,11 +10,12 @@ from services.tagger.Song.rules.TagRule import TagRule
 try:
     import librosa
 except Exception:
-    librosa = types.ModuleType('librosa')
-    librosa.load = lambda *a, **k: ([], 0)
-    beat_mod = types.ModuleType('librosa.beat')
+    _librosa_stub: Any = types.ModuleType('librosa')
+    _librosa_stub.load = lambda *a, **k: ([], 0)
+    beat_mod: Any = types.ModuleType('librosa.beat')
     beat_mod.beat_track = lambda *a, **k: (0, None)
-    librosa.beat = beat_mod
+    _librosa_stub.beat = beat_mod
+    librosa = _librosa_stub
     sys.modules['librosa'] = librosa
     sys.modules['librosa.beat'] = beat_mod
 sys.modules.setdefault(__name__ + '.librosa', librosa)

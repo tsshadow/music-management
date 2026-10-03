@@ -297,7 +297,7 @@ class ProcessedFilesHelper:
         finally:
             connection.close()
 
-    def mark_for_rescan(self, song_path: str = None, reason: str | None = None):
+    def mark_for_rescan(self, song_path: str | None = None, reason: str | None = None):
         """Marks one or all songs for rescan, optionally recording why.
 
         A retag asked for on purpose starts the file's failure count over, which is also
@@ -306,7 +306,7 @@ class ProcessedFilesHelper:
         reason_sql = (', rescan_reason = %s' if reason else '') + self._RESET_ATTEMPTS
         if song_path:
             query = f'UPDATE {self.table_name} SET needs_rescan = TRUE{reason_sql} WHERE filepath = %s'
-            args = (reason, song_path) if reason else (song_path,)
+            args: tuple[str | None, ...] | None = (reason, song_path) if reason else (song_path,)
         else:
             query = f'UPDATE {self.table_name} SET needs_rescan = TRUE{reason_sql}'
             args = (reason,) if reason else None

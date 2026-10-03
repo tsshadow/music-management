@@ -88,9 +88,9 @@ def _candidate_orders(first, second, year_first, order):
     still offered as a second candidate, so an impossible calendar date falls back rather than
     discarding a date that is really there.
     """
-    if first > 12 and second <= 12:
+    if second <= 12 < first:
         return [(first, second)]
-    if second > 12 and first <= 12:
+    if first <= 12 < second:
         return [(second, first)]
     if first > 12 and second > 12:
         return []

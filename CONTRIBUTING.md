@@ -24,7 +24,7 @@ job, and the hook is a thin wrapper around the same scripts on purpose -- the
 two can never drift apart.
 
 ```bash
-./scripts/lint.sh                       # ruff + pylint (threshold 9.77) + docstrings on strict modules
+./scripts/lint.sh                       # ruff + pylint (threshold 9.87) + docstrings on strict modules
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)

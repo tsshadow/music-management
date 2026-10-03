@@ -13,6 +13,7 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'release' / 'assemble_changelog.py'
 
 spec = importlib.util.spec_from_file_location('assemble_changelog', SCRIPT)
+assert spec is not None and spec.loader is not None
 assemble_changelog = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(assemble_changelog)
 

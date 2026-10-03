@@ -11,6 +11,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'feeds_dryrun.py'
 spec = importlib.util.spec_from_file_location('feeds_dryrun', SCRIPT)
+assert spec is not None and spec.loader is not None
 dryrun = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dryrun)
 

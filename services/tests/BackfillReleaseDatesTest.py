@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'backfill_release_dates.py'
 
 spec = importlib.util.spec_from_file_location('backfill_release_dates', SCRIPT)
+assert spec is not None and spec.loader is not None
 backfill = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(backfill)
 

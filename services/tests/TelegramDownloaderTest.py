@@ -3,8 +3,9 @@ import sys
 import tempfile
 import types
 import unittest
+from typing import Any
 
-telethon_mod = types.ModuleType('telethon')
+telethon_mod: Any = types.ModuleType('telethon')
 
 
 class DummyClient:

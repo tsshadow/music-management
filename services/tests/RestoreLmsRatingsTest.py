@@ -15,6 +15,7 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "restore_lms_ratings.py"
 
 spec = importlib.util.spec_from_file_location("restore_lms_ratings", SCRIPT)
+assert spec is not None and spec.loader is not None
 restore_lms_ratings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(restore_lms_ratings)
 

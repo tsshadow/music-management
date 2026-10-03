@@ -1,4 +1,5 @@
 import unittest
+from typing import Any
 
 from services.music_manager.routers.analytics_filters import (
     EFFECTIVE_BPM_JOIN,
@@ -11,7 +12,7 @@ from services.music_manager.routers.analytics_filters import (
 )
 
 # parse_filter is a FastAPI dependency; called directly, every Query default must be passed.
-PARSE_DEFAULTS = {
+PARSE_DEFAULTS: dict[str, Any] = {
     'q': '',
     'artist': [],
     'genre': [],

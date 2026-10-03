@@ -32,6 +32,7 @@ import ast
 import os
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -222,7 +223,8 @@ def declared_stubs(path: Path) -> frozenset:
             targets = node.targets if isinstance(node, ast.Assign) else [getattr(node, 'target', None)]
             if not any(isinstance(t, ast.Name) and t.id == 'pytestmark' for t in targets):
                 continue
-            for call in ast.walk(node.value):
+            # Only an Assign or AnnAssign named pytestmark gets here.
+            for call in ast.walk(cast(ast.Assign, node).value):
                 if not (isinstance(call, ast.Call) and _dotted(call.func).endswith('mark.' + _MARKER)):
                     continue
                 for arg in call.args:

@@ -376,7 +376,8 @@ To maintain high code quality, the system employs an automated test suite:
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
 - **Quality gates** — enforced in CI (`quality` stage). The versioned pre-commit hook
   (`./scripts/install-hooks.sh`) is a thin wrapper around the same scripts so the two cannot
-  drift, but it runs only `lint.sh` and the Python unit suite — not the type check:
+  drift, but it runs only `format.sh --check`, `lint.sh` and the Python unit suite — not the
+  type check:
     - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
       run it also fails any module on the strict type-check list that has an undocumented public
       function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
@@ -385,8 +386,9 @@ To maintain high code quality, the system employs an automated test suite:
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
       tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
       added, see issue [#41](https://gitlab.example.com/muma/music-management/-/issues/41)) reaches zero.
-    - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
-      reformat would rewrite nearly every file and conflict with every open branch.
+    - `./scripts/format.sh` — `ruff format` over `services/`, `tools/` and `tests/` (or the
+      paths you name). `--check` is the `backend:format` job, so an unformatted file fails the
+      pipeline; run the script without `--check` to fix it.
     - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
       default branch, not as a merge-request gate (it audits the runner's environment, which
       this repository does not manage). Accepted findings, with a reason, live in

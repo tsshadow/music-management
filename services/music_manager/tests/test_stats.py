@@ -15,7 +15,9 @@ import services.music_manager.database
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.main import app
+from services.music_manager.routers import stats as stats_router
 
 
 class TestStats(unittest.TestCase):
@@ -60,9 +62,9 @@ class TestStats(unittest.TestCase):
         cursor = self._mock(mock_get_db, [[], [], []])
         body = self.client.get('/api/stats/', headers={'x-api-key': self.api_key}).json()
         self.assertEqual((body['total_tracks'], body['total_non_music']), (8, 2))
-        sql, params = cursor.execute.call_args_list[0].args
-        self.assertIn('SUM(form IN (%s, %s))', sql)
-        self.assertEqual(params, ('interview', 'preview'))
+        self.assertEqual(cursor.execute.call_args_list[0].args, (stats_router.NON_MUSIC_COUNT_SQL,))
+        for form in NON_MUSIC_FORMS:
+            self.assertIn(f"'{form}'", stats_router.NON_MUSIC_COUNT_SQL)
 
     @patch('services.music_manager.routers.stats.get_db_connection')
     def test_ml_genre_is_not_consulted(self, mock_get_db):

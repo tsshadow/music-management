@@ -17,6 +17,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager import song_version_worker as worker
 from services.music_manager.song_versions import ranking_signature, version_score
 from services.music_manager.tests.scripted_cursor import (
@@ -383,7 +384,9 @@ class NonMusicTest(unittest.TestCase):
         )
         stats = worker.group_once(self._conn(cursor))
         detach = cursor.statements_matching('AND w.work_key <> CONCAT(%s, t.id)')
-        self.assertEqual(detach[0][1], ('interview', 'preview', 'track:'))
+        self.assertEqual(detach[0][1], ('track:',))
+        for form in NON_MUSIC_FORMS:
+            self.assertIn(f"'{form}'", detach[0][0])
         updates = cursor.statements_matching('UPDATE library_tracks SET work_id = NULL')
         self.assertEqual([params for _sql, params in updates], [(7, 41)])
         canonical = cursor.statements_matching('UPDATE library_works SET canonical_track_id')

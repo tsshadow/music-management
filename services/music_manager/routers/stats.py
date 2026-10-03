@@ -2,12 +2,17 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.database import get_db_connection
 from services.music_manager.rbac import has_permission
 from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['stats'])
+
+# The non-music forms of services.common.track_form.NON_MUSIC_FORMS, as literals so the query
+# stays a constant (as in feeds.queries.MUSIC_ONLY). The tests check the two agree.
+NON_MUSIC_COUNT_SQL = (
+    "SELECT COUNT(*) AS count, COALESCE(SUM(form IN ('interview', 'preview')), 0) AS non_music FROM library_tracks"
+)
 
 
 def init_db(_cursor):
@@ -38,12 +43,7 @@ def get_stats(auth: dict = Depends(verify_api_key)):
         with conn.cursor() as cursor:
             # Tracks means music: an interview or a DVD preview is counted apart
             # (docs/designs/non-music-forms/). One scan of the table for both figures.
-            cursor.execute(
-                'SELECT COUNT(*) AS count, COALESCE(SUM(form IN ('
-                + ', '.join(['%s'] * len(NON_MUSIC_FORMS))
-                + ')), 0) AS non_music FROM library_tracks',
-                tuple(sorted(NON_MUSIC_FORMS)),
-            )
+            cursor.execute(NON_MUSIC_COUNT_SQL)
             counts = cursor.fetchone()
             stats['total_non_music'] = int(counts['non_music'])
             stats['total_tracks'] = counts['count'] - stats['total_non_music']

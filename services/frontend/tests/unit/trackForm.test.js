@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { FORM_LABEL_KEYS, NON_MUSIC_FORMS, SET_FORMS, TRACK_FORMS, formParam } from "../../src/lib/trackForm.js";
+import {
+  FORM_LABEL_KEYS,
+  NON_MUSIC_FORMS,
+  SET_FORMS,
+  TRACK_FORMS,
+  formParam,
+} from "../../src/lib/trackForm.js";
 
 describe("trackForm", () => {
   it("mirrors the six forms the backend classifies", () => {

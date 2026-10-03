@@ -10,7 +10,14 @@
  * no chip offers them, so the sets view never asks for one (docs/designs/non-music-forms/).
  */
 
-export const TRACK_FORMS = Object.freeze(["track", "set", "liveset", "podcast", "interview", "preview"]);
+export const TRACK_FORMS = Object.freeze([
+  "track",
+  "set",
+  "liveset",
+  "podcast",
+  "interview",
+  "preview",
+]);
 
 /** The forms that are not music: talk and DVD trailers, findable through search only. */
 export const NON_MUSIC_FORMS = Object.freeze(["interview", "preview"]);

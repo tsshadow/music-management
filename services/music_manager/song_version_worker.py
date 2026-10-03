@@ -23,7 +23,6 @@ from dataclasses import dataclass
 
 from services.common.config_store import ConfigStore
 from services.common.import_queue import ImportQueue
-from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.song_versions import (
     SPLIT_PREFIX,
@@ -381,11 +380,13 @@ def split_false_merges(cursor, work_ids) -> dict[int, list[int]]:
 # grouping pass never looks at a grouped track again, so without this they would stay a
 # version of whatever they were grouped with (docs/designs/non-music-forms/). A hand-split
 # track keeps its split.
-_GROUPED_NON_MUSIC = f"""
+# The forms are literals, as in feeds.queries.MUSIC_ONLY: a constant query, checked against
+# NON_MUSIC_FORMS by the tests.
+_GROUPED_NON_MUSIC = """
     SELECT t.id, t.work_id
     FROM library_tracks t
     JOIN library_works w ON w.id = t.work_id
-    WHERE t.form IN ({', '.join(['%s'] * len(NON_MUSIC_FORMS))})
+    WHERE t.form IN ('interview', 'preview')
       AND t.work_locked = 0
       AND w.work_key <> CONCAT(%s, t.id)
 """
@@ -397,7 +398,7 @@ def detach_non_music(cursor) -> set[int]:
     Returns the works they left, whose canonical has to be chosen again. The UPDATE repeats
     its precondition, as every write in this module does.
     """
-    cursor.execute(_GROUPED_NON_MUSIC, (*sorted(NON_MUSIC_FORMS), UNGROUPABLE_PREFIX))
+    cursor.execute(_GROUPED_NON_MUSIC, (UNGROUPABLE_PREFIX,))
     rows = cursor.fetchall()
     for row in rows:
         cursor.execute(

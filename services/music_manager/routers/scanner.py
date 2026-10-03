@@ -20,6 +20,7 @@ from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.PodcastHelper import PodcastHelper
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.track_form import classify
+from services.common.vanished_files import LibraryUnreadable
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.orphan_purge import purge_orphaned_tracks
 from services.music_manager.rbac import require_admin
@@ -32,6 +33,7 @@ from services.music_manager.track_relink import (
     relink_track,
     track_has_media_file,
 )
+from services.music_manager.vanished_media import drop_vanished_media, summary
 from services.scanner.Song.ReadonlySong import ReadonlySong
 from services.tagger.Song.BaseSong import ExtensionNotSupportedException
 
@@ -196,8 +198,10 @@ class ScannerManager:
                 logger.error('Could not get database connection')
                 return
             try:
-                count = self._scan_recursive(conn, force)
+                seen: set[str] = set()
+                count = self._scan_recursive(conn, force, seen)
                 logger.info(f'Scan completed. Total files processed/updated: {count}')
+                self._drop_vanished(conn, seen)
             finally:
                 conn.close()
         # Deliberately after the lock is released: an unreachable LMS must not keep the
@@ -205,7 +209,34 @@ class ScannerManager:
         # only reprocesses what actually changed.
         lms_scan_trigger.trigger()
 
-    def _scan_recursive(self, conn, force):
+    def _drop_vanished(self, conn, seen):
+        """Remove the media rows of files this walk no longer found (issue #170), unless switched off.
+
+        After the walk, inside the scan lock, so no scan repoints a row underneath it. An unmounted
+        share stops the pass with a WARNING and deletes nothing; any other failure is logged and
+        the scan still counts as done -- the next walk tries again.
+        """
+        if not self.settings.get('scanner_drop_vanished_media', True):
+            return None
+        try:
+            totals = drop_vanished_media(conn, self.music_path, seen)
+        except LibraryUnreadable as exc:
+            logger.warning('Vanished-file cleanup skipped, nothing deleted: %s', exc)
+            return None
+        except Exception:
+            logger.exception('Vanished-file cleanup failed')
+            return None
+        # INFO -- and so an event -- only when a row went; most walks find nothing.
+        if totals['deleted'] or totals['failed']:
+            logger.info(summary(totals))
+        return totals
+
+    def _scan_recursive(self, conn, force, seen=None):
+        """Walk the music root and scan every file in it; return how many were written.
+
+        `seen`, when given, collects every file path the walk met, scanned or not: the vanished-file
+        pass afterwards reads it as the set of files that are still there.
+        """
         count = 0
         for root, dirs, files in os.walk(self.music_path):
             # Hidden directories are not library content. The one that matters is
@@ -220,6 +251,8 @@ class ScannerManager:
                 if file.startswith('.'):
                     continue
                 full_path = os.path.join(root, file)
+                if seen is not None:
+                    seen.add(full_path)
                 if self._process_file_safe(conn, full_path, force):
                     count += 1
                     if count % 100 == 0:

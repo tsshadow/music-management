@@ -65,8 +65,36 @@ What neither key matches is handled by `POST /api/scanner/purge-orphans`
 (`orphan_purge.purge_orphaned_tracks`). It deletes an orphan only when no listen, no rating, no
 work pin and no reviewed ml label points at it, in batches of 1000 with every guard re-checked
 under `FOR UPDATE`. Referenced orphans are listed for a person. Neither endpoint ever runs
-automatically. The scanner itself needs no file-name lookup: it never deletes a media row, and
-the relink rule above already covers a same-path retag.
+automatically.
+
+### Vanished files: the media row of a file gone from disk
+A release folder that moves or is deleted used to leave its `library_media_files` rows behind, with
+the right hash and no file: 8,372 of 354,222 rows on production on 2026-10-03 (GitLab issue #170).
+After every full walk, still inside the scan lock, `run_full` calls
+`vanished_media.drop_vanished_media(conn, music_path, seen)`. `seen` is every file path the walk
+met, scanned or not.
+
+1. Candidates: every row whose hash is `SHA2(file_path, 256)` and whose path is under the music
+   root, and that the walk did not see. A row with a wrong hash is bug report 093's, and
+   `scripts/prod/person/stale_media_rows.py` folds it into its live track instead.
+2. A listing of each candidate's folder decides if the file is gone
+   (`services/common/vanished_files.gone_paths`, shared with that script's `--gone` pass). A
+   hidden folder the walk skips is settled here too.
+3. Guards. Each raises `LibraryUnreadable`, the pass logs a WARNING, and nothing is deleted:
+   - a library folder (the first folder below the music root) is missing or empty;
+   - a folder cannot be listed for any reason except that it does not exist;
+   - more than `MAX_GONE_SHARE` (10%) of the rows under the root are gone.
+4. Per track, in one transaction: each gone row is locked (`FOR UPDATE`), re-checked (same path,
+   nothing at that path, `os.path.lexists`) and deleted. The track row is never deleted here.
+5. A track that loses its last file is relinked at once when the metadata key of
+   `relink-orphans` finds exactly one successor (`track_relink.find_relink_target`, index built
+   once per pass, tracks the same pass leaves fileless excluded). That is a file moved and retagged
+   in one go. Any other fileless track stays for `relink-orphans` and `purge-orphans`.
+
+A move with unchanged tags needs no relink: the walk gives the new path a row on the same track
+(same `track_uid`) before the pass runs, so the track keeps a file. One INFO line (an event) is
+logged when a row was deleted or a track failed. `scanner_drop_vanished_media` (config, default
+on) switches the pass off.
 
 ### Downloader Domain (for Redownload)
 - **`downloads_soundcloud_archive`**: Checked by filename to find original SoundCloud URLs.

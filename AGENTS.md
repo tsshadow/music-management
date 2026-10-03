@@ -98,6 +98,13 @@ The system is split into specialized services, each handling a specific part of 
     - **Failure handling**: a tag value longer than its column is cut to the column's character
       length and the file is queued for a retag (`overlong_tag`); a file whose scan fails three
       times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
+    - **Vanished files**: after each full walk the scanner deletes the `library_media_files` row of
+      a file that is gone from disk, never the track (`services/music_manager/vanished_media.py`).
+      A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
+      relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
+      be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
+      with `stale_media_rows.py --gone`). Config `scanner_drop_vanished_media` switches it off
+      (issue #170, bug report 149).
     - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus

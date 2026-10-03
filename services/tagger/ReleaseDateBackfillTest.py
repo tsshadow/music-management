@@ -231,6 +231,14 @@ class UpgradeTest(unittest.TestCase):
         self.assertNotIn('upgrade-pending', report['counts'])
         self.assertEqual({'tracks': 4, 'directories': 3}, report['counts']['upgrade-from-nfo-rip'])
 
+    def test_a_pending_release_is_asked_even_when_the_date_equals_the_nfo(self):
+        self.connection, self.cursor = connection_with([], [(f'{PENDING_DATED}/01.mp3', '2026-03-03')])
+
+        report = self.run_backfill(lookup=10)
+
+        self.assertEqual(['93254283'], self.store.fetched)
+        self.assertEqual({'upgrade-from-nfo-rip': {'tracks': 1, 'directories': 1}}, report['counts'])
+
 
 class ReadDateSourceTest(unittest.TestCase):
     """The tag is found under its key for every format family."""

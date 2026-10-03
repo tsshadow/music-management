@@ -29,6 +29,10 @@ The system is split into specialized services, each handling a specific part of 
     - **Metadata Extraction**: Infers Publisher and Catalog Number from the folder structure (e.g., `/Labels/Scantraxx/SCAN123/`).
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
+- **Release folder without audio**: the Mover deletes a queue folder that holds only scene files
+  (`00-*.m3u`, `.nfo`, `.sfv`, cover) instead of placing it, with an `INFO` event; audio at any
+  depth, an unextracted archive or any other file keeps it (`services/common/audio_less_folder.py`,
+  bug report 147).
 - **Catalogue numbers**: `services/common/catalogue_number.py` is the one test of what a catalogue
   number looks like (letters and digits, at least one digit, no title words like `Anthem`/`Edit`,
   not a bare year). A folder name without one keeps its name -- no ` - ` prefix (bug report 145).

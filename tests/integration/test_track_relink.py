@@ -405,11 +405,19 @@ def moved(library, monkeypatch):
     """A rated and played file scanned at its old place, then moved; the walk has not seen it yet.
 
     Two files is a tiny library, where one gone row is 50%: the 10% brake is lifted here and
-    tested in services/music_manager/tests/test_vanished_media.py.
+    tested in services/music_manager/tests/test_vanished_media.py. The pass is off by default, so
+    it is switched on here.
     """
     from services.common import vanished_files
 
     monkeypatch.setattr(vanished_files, 'MAX_GONE_SHARE', 1.0)
+    settings = library['manager'].settings
+    real_get = settings.get
+    monkeypatch.setattr(
+        settings,
+        'get',
+        lambda key, default=None: True if key == 'scanner_drop_vanished_media' else real_get(key, default),
+    )
     db = library['db']
     library['scan'](library['add_file']('EPs/Label/R0/keep.mp3'), FakeSong(['Outsiders'], title='Keep'))
     path = library['add_file']('EPs/__TODO/R1/raise.mp3')

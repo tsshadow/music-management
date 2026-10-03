@@ -103,8 +103,9 @@ The system is split into specialized services, each handling a specific part of 
       A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
       relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
       be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
-      with `stale_media_rows.py --gone`). Config `scanner_drop_vanished_media` switches it off
-      (issue #170, bug report 149).
+      with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
+      `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
+      switches it on in Beheer > Config (issue #170, bug report 149).
     - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus

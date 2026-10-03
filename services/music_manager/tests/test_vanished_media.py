@@ -346,7 +346,15 @@ def scanner(lib):
     """A ScannerManager over the tmp library, with the database and LMS replaced."""
     manager = scanner_router.ScannerManager()
     manager.music_path = str(lib.root)
+    real_get = manager.settings.get
     with (
+        patch.object(
+            manager.settings,
+            'get',
+            side_effect=lambda key, default=None: (
+                True if key == 'scanner_drop_vanished_media' else real_get(key, default)
+            ),
+        ),
         patch.object(manager, '_reload_rules'),
         patch.object(manager, 'process_file', side_effect=_fake_process_file(lib)),
         patch.object(scanner_router, 'get_db_connection', side_effect=lib.connection),
@@ -412,16 +420,17 @@ def test_an_unmounted_share_skips_the_pass_and_the_scan_still_finishes(lib, scan
     assert scanner.lms_trigger.call_count == 2
 
 
+def test_the_pass_is_off_by_default():
+    """The backlog goes through merge-stale-media-rows.sh --gone first, with its backup."""
+    field = next(f for f in scanner_router.Settings()._fields if f.key == 'scanner_drop_vanished_media')
+    assert field.default is False
+
+
 def test_the_pass_can_be_switched_off(lib, scanner):
     lib.track(5, title='Gone')
     lib.media(50, str(lib.root / 'EPs/Gone/v.mp3'), 5)
     lib.file('EPs/Label/R0/keep.mp3', 'Other|200|8')
-    real_get = scanner.settings.get
-    with patch.object(
-        scanner.settings,
-        'get',
-        side_effect=lambda key, default=None: False if key == 'scanner_drop_vanished_media' else real_get(key, default),
-    ):
+    with patch.object(scanner.settings, 'get', side_effect=lambda key, default=None: False):
         scanner.run_full()
 
     assert 50 in lib.media_ids()

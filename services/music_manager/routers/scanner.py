@@ -210,13 +210,13 @@ class ScannerManager:
         lms_scan_trigger.trigger()
 
     def _drop_vanished(self, conn, seen):
-        """Remove the media rows of files this walk no longer found (issue #170), unless switched off.
+        """Remove the media rows of files this walk no longer found (issue #170), when switched on.
 
         After the walk, inside the scan lock, so no scan repoints a row underneath it. An unmounted
         share stops the pass with a WARNING and deletes nothing; any other failure is logged and
         the scan still counts as done -- the next walk tries again.
         """
-        if not self.settings.get('scanner_drop_vanished_media', True):
+        if not self.settings.get('scanner_drop_vanished_media', False):
             return None
         try:
             totals = drop_vanished_media(conn, self.music_path, seen)

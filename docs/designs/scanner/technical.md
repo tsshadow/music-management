@@ -93,8 +93,12 @@ met, scanned or not.
 
 A move with unchanged tags needs no relink: the walk gives the new path a row on the same track
 (same `track_uid`) before the pass runs, so the track keeps a file. One INFO line (an event) is
-logged when a row was deleted or a track failed. `scanner_drop_vanished_media` (config, default
-on) switches the pass off.
+logged when a row was deleted or a track failed.
+
+The pass is off by default (`scanner_drop_vanished_media`, config). The first deploy removes
+nothing. The 8,372-row backlog goes through `scripts/prod/person/merge-stale-media-rows.sh --gone`
+first, because that script writes a JSON backup and the scanner does not. After that, a curator
+switches the pass on in Beheer > Config.
 
 ### Downloader Domain (for Redownload)
 - **`downloads_soundcloud_archive`**: Checked by filename to find original SoundCloud URLs.

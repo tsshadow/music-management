@@ -32,8 +32,11 @@ deleted: ratings key on `track_uid` and listens on the track id. A track that lo
 is relinked when the `relink-orphans` metadata key finds exactly one successor (a file moved and
 retagged). Any other fileless track stays for `POST /api/scanner/relink-orphans` and
 `purge-orphans`. A move with unchanged tags keeps its track, because the walk already gave the new
-path a row on the same track. Config `scanner_drop_vanished_media` (default on) switches the pass
-off.
+path a row on the same track.
+
+Config `scanner_drop_vanished_media` is off by default, so the first deploy removes nothing. The
+backlog goes through `scripts/prod/person/merge-stale-media-rows.sh --gone` first, with its JSON
+backup. Then a curator switches the pass on in Beheer > Config.
 
 Tests: `services/music_manager/tests/test_vanished_media.py` (a normal vanish, an unmounted share,
 a missing root, an unreadable folder, the 10% brake, a move, a move with a retag, a file that came

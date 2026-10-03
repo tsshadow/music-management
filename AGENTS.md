@@ -388,8 +388,7 @@ To maintain high code quality, the system employs an automated test suite:
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
-      tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
-      added, see issue [#41](https://gitlab.example.com/muma/music-management/-/issues/41)) reaches zero.
+      tree at the loose floor. Both are hard gates: a new error fails the pipeline.
     - `./scripts/format.sh` — `ruff format` over `services/`, `tools/` and `tests/` (or the
       paths you name). `--check` is the `backend:format` job, so an unformatted file fails the
       pipeline; run the script without `--check` to fix it.

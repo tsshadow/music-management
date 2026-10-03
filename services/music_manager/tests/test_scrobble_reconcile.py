@@ -583,7 +583,6 @@ class OpenServersTest(unittest.TestCase):
 
     def _db(self, directory, name, tables):
         """Create an on-disk SQLite file with the given empty tables."""
-        import os
 
         path = os.path.join(directory, name)
         conn = sqlite3.connect(path)

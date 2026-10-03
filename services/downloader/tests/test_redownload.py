@@ -30,11 +30,11 @@ class FolderTestCase(unittest.TestCase):
         self.folder = os.path.join(self.tmp.name, 'Youtube', 'Channel')
         os.makedirs(self.folder)
         self.target = os.path.join(self.folder, 'Track.m4a')
-        with open(self.target, 'w') as handle:
+        with open(self.target, 'w', encoding='utf-8') as handle:
             handle.write('old')
 
     def read(self, path):
-        with open(path) as handle:
+        with open(path, encoding='utf-8') as handle:
             return handle.read()
 
 
@@ -61,7 +61,7 @@ class StagedOptsTest(FolderTestCase):
 
     def test_a_failed_download_leaves_the_old_file_and_no_staging_folder(self):
         with self.assertRaises(RuntimeError), redownload.staged_opts({}, self.target) as opts:
-            with open(os.path.join(os.path.dirname(opts['outtmpl']), 'abc.m4a.part'), 'w') as handle:
+            with open(os.path.join(os.path.dirname(opts['outtmpl']), 'abc.m4a.part'), 'w', encoding='utf-8') as handle:
                 handle.write('half')
             raise RuntimeError('403')
         self.assertEqual(self.read(self.target), 'old')
@@ -71,7 +71,7 @@ class StagedOptsTest(FolderTestCase):
 class ReplaceTargetTest(FolderTestCase):
     def stage(self, name, content='new'):
         path = os.path.join(self.tmp.name, name)
-        with open(path, 'w') as handle:
+        with open(path, 'w', encoding='utf-8') as handle:
             handle.write(content)
         return path
 
@@ -92,7 +92,7 @@ class ReplaceTargetTest(FolderTestCase):
 class ReplaceExistingPPTest(FolderTestCase):
     def test_the_info_dict_points_at_the_library_path_afterwards(self):
         staged = os.path.join(self.tmp.name, 'abc.m4a')
-        with open(staged, 'w') as handle:
+        with open(staged, 'w', encoding='utf-8') as handle:
             handle.write('new')
         info = {'filepath': staged, 'requested_downloads': [{'filepath': staged}]}
         _, info = redownload.ReplaceExistingPP(self.target).run(info)
@@ -109,7 +109,7 @@ class ReplaceExistingPPTest(FolderTestCase):
         staged = os.path.join(staging, 'abc.m4a')
         thumbnail = os.path.join(staging, 'abc.webp')
         for path in (staged, thumbnail):
-            with open(path, 'w') as handle:
+            with open(path, 'w', encoding='utf-8') as handle:
                 handle.write('new')
         info = {'filepath': staged, '__finaldir': staging, '__files_to_move': {thumbnail: None, '/x/sub.vtt': None}}
         _, info = redownload.ReplaceExistingPP(self.target).run(info)
@@ -134,7 +134,7 @@ class YoutubeRedownloadTest(FolderTestCase):
             'youtube_archive': os.path.join(self.tmp.name, 'archive'),
             'yt_cookies': os.path.join(self.tmp.name, 'cookies.txt'),
         }
-        with open(os.path.join(self.tmp.name, 'cookies.txt'), 'w') as handle:
+        with open(os.path.join(self.tmp.name, 'cookies.txt'), 'w', encoding='utf-8') as handle:
             handle.write('# Netscape HTTP Cookie File\n')
         timing = load_timing('youtube', overrides={})
         self.downloader = youtube_module.YoutubeDownloader(

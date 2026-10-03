@@ -112,46 +112,34 @@ class PlanEntriesTest(unittest.TestCase):
         }
 
     def test_starts_at_now_when_timeline_is_empty(self):
-        from services.music_manager.routers import radio
-
-        entries = radio.plan_entries(None, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
+        entries = radio_router.plan_entries(None, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]['started_at'], 1000.0)
         self.assertEqual(entries[0]['ends_at'], 1060.0)
 
     def test_appends_back_to_back_after_existing_end(self):
-        from services.music_manager.routers import radio
-
-        entries = radio.plan_entries(
+        entries = radio_router.plan_entries(
             1200.0, 1000.0, [self._candidate('tr-1', 60), self._candidate('tr-2', 30)], horizon=300.0
         )
         self.assertEqual([e['started_at'] for e in entries], [1200.0, 1260.0])
         self.assertEqual([e['ends_at'] for e in entries], [1260.0, 1290.0])
 
     def test_restarts_at_now_when_timeline_has_fallen_behind(self):
-        from services.music_manager.routers import radio
-
-        entries = radio.plan_entries(500.0, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
+        entries = radio_router.plan_entries(500.0, 1000.0, [self._candidate('tr-1', 60)], horizon=30.0)
         self.assertEqual(entries[0]['started_at'], 1000.0)
 
     def test_stops_once_horizon_is_covered(self):
-        from services.music_manager.routers import radio
-
         candidates = [self._candidate(f'tr-{i}', 60) for i in range(10)]
-        entries = radio.plan_entries(None, 0.0, candidates, horizon=100.0)
+        entries = radio_router.plan_entries(None, 0.0, candidates, horizon=100.0)
         self.assertEqual(len(entries), 2)
 
     def test_returns_nothing_when_horizon_already_covered(self):
-        from services.music_manager.routers import radio
-
-        entries = radio.plan_entries(2000.0, 1000.0, [self._candidate('tr-1', 60)], horizon=600.0)
+        entries = radio_router.plan_entries(2000.0, 1000.0, [self._candidate('tr-1', 60)], horizon=600.0)
         self.assertEqual(entries, [])
 
     def test_does_not_mutate_candidates(self):
-        from services.music_manager.routers import radio
-
         candidate = self._candidate('tr-1', 60)
-        radio.plan_entries(None, 1000.0, [candidate], horizon=30.0)
+        radio_router.plan_entries(None, 1000.0, [candidate], horizon=30.0)
         self.assertNotIn('started_at', candidate)
 
 
@@ -166,13 +154,11 @@ class FillChannelTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_inserts_planned_entries(self, mock_fetch):
-        from services.music_manager.routers import radio
-
         mock_fetch.return_value = [
             {'track_id': 'tr-1', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
         ]
         conn, cursor = self._conn_with_end(None)
-        inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
+        inserted = radio_router.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
         self.assertEqual(inserted, 1)
         insert_call = next(c for c in cursor.execute.call_args_list if 'INSERT INTO radio_timeline' in c[0][0])
         self.assertEqual(insert_call[0][1][0], 3)
@@ -182,29 +168,23 @@ class FillChannelTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_skips_fetch_when_timeline_already_full(self, mock_fetch):
-        from services.music_manager.routers import radio
-
-        conn, _ = self._conn_with_end(1000.0 + radio.SCHEDULE_HORIZON_SECONDS + 60)
-        inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
+        conn, _ = self._conn_with_end(1000.0 + radio_router.SCHEDULE_HORIZON_SECONDS + 60)
+        inserted = radio_router.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
         self.assertEqual(inserted, 0)
         mock_fetch.assert_not_called()
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_passes_channel_genre_to_fetch(self, mock_fetch):
-        from services.music_manager.routers import radio
-
         mock_fetch.return_value = []
         conn, _ = self._conn_with_end(None)
-        radio.fill_channel(conn, {'id': 4, 'slug': 'hard', 'genre': 'hardstyle'}, now=1000.0)
+        radio_router.fill_channel(conn, {'id': 4, 'slug': 'hard', 'genre': 'hardstyle'}, now=1000.0)
         self.assertEqual(mock_fetch.call_args[0][0], {'genre': 'hardstyle'})
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_passes_stored_filter_to_fetch(self, mock_fetch):
-        from services.music_manager.routers import radio
-
         mock_fetch.return_value = []
         conn, _ = self._conn_with_end(None)
-        radio.fill_channel(
+        radio_router.fill_channel(
             conn,
             {
                 'id': 5,
@@ -218,25 +198,21 @@ class FillChannelTest(unittest.TestCase):
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_does_not_schedule_a_track_already_on_the_timeline(self, mock_fetch):
-        from services.music_manager.routers import radio
-
         mock_fetch.return_value = [
             {'track_id': 'tr-1', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
             {'track_id': 'tr-2', 'title': 't', 'artist': 'a', 'album': 'b', 'cover_art': None, 'duration_ms': 700000},
         ]
         conn, cursor = self._conn_with_end(None, scheduled=['tr-1'])
-        inserted = radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
+        inserted = radio_router.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0)
         self.assertEqual(inserted, 1)
         insert_call = next(c for c in cursor.execute.call_args_list if 'INSERT INTO radio_timeline' in c[0][0])
         self.assertEqual(insert_call[0][1][1], 'tr-2')
 
     @patch('services.music_manager.routers.radio.fetch_candidate_tracks')
     def test_lms_failure_does_not_raise(self, mock_fetch):
-        from services.music_manager.routers import radio
-
         mock_fetch.side_effect = RuntimeError('LMS down')
         conn, _ = self._conn_with_end(None)
-        self.assertEqual(radio.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
+        self.assertEqual(radio_router.fill_channel(conn, {'id': 3, 'slug': 'main', 'genre': None}, now=1000.0), 0)
 
 
 class CandidateFailureLoggingTest(unittest.TestCase):
@@ -248,11 +224,9 @@ class CandidateFailureLoggingTest(unittest.TestCase):
     )
 
     def setUp(self):
-        from services.music_manager.routers import radio
-
-        self.radio = radio
-        radio._channels_in_outage.clear()
-        self.addCleanup(radio._channels_in_outage.clear)
+        self.radio = radio_router
+        radio_router._channels_in_outage.clear()
+        self.addCleanup(radio_router._channels_in_outage.clear)
 
     def _conn(self):
         conn = MagicMock()
@@ -378,36 +352,29 @@ class RadioStateTest(unittest.TestCase):
 
 class ChannelFilterTest(unittest.TestCase):
     def test_reads_the_stored_filter(self):
-        from services.music_manager.routers import radio
-
         self.assertEqual(
-            radio.channel_filter({'slug': 'q', 'genre': None, 'filter_json': '{"label": "Dirty Workz"}'}),
+            radio_router.channel_filter({'slug': 'q', 'genre': None, 'filter_json': '{"label": "Dirty Workz"}'}),
             {'label': 'Dirty Workz'},
         )
 
     def test_falls_back_to_the_legacy_genre_column(self):
-        from services.music_manager.routers import radio
-
-        self.assertEqual(radio.channel_filter({'slug': 'h', 'genre': 'hardstyle'}), {'genre': 'hardstyle'})
+        self.assertEqual(radio_router.channel_filter({'slug': 'h', 'genre': 'hardstyle'}), {'genre': 'hardstyle'})
 
     def test_no_filter_and_no_genre_is_the_whole_library(self):
-        from services.music_manager.routers import radio
-
-        self.assertEqual(radio.channel_filter({'slug': 'main', 'genre': None, 'filter_json': None}), {})
+        self.assertEqual(radio_router.channel_filter({'slug': 'main', 'genre': None, 'filter_json': None}), {})
 
     def test_stored_filter_wins_over_genre(self):
-        from services.music_manager.routers import radio
-
         self.assertEqual(
-            radio.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': '{"label": "Q-dance Records"}'}),
+            radio_router.channel_filter(
+                {'slug': 'q', 'genre': 'hardstyle', 'filter_json': '{"label": "Q-dance Records"}'}
+            ),
             {'label': 'Q-dance Records'},
         )
 
     def test_unreadable_filter_falls_back_rather_than_raising(self):
-        from services.music_manager.routers import radio
-
         self.assertEqual(
-            radio.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': 'not json'}), {'genre': 'hardstyle'}
+            radio_router.channel_filter({'slug': 'q', 'genre': 'hardstyle', 'filter_json': 'not json'}),
+            {'genre': 'hardstyle'},
         )
 
 
@@ -416,27 +383,19 @@ class PickCandidatesTest(unittest.TestCase):
         return {'track_id': track_id, 'duration_ms': 1000}
 
     def test_keeps_the_order_lms_randomised(self):
-        from services.music_manager.routers import radio
-
         candidates = [self._candidate('tr-1'), self._candidate('tr-2')]
-        self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
+        self.assertEqual([c['track_id'] for c in radio_router.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
 
     def test_drops_tracks_still_on_the_timeline(self):
-        from services.music_manager.routers import radio
-
         candidates = [self._candidate('tr-1'), self._candidate('tr-2')]
-        self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, ['tr-1'])], ['tr-2'])
+        self.assertEqual([c['track_id'] for c in radio_router.pick_candidates(candidates, ['tr-1'])], ['tr-2'])
 
     def test_drops_a_repeat_within_the_same_batch(self):
-        from services.music_manager.routers import radio
-
         candidates = [self._candidate('tr-1'), self._candidate('tr-1'), self._candidate('tr-2')]
-        self.assertEqual([c['track_id'] for c in radio.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
+        self.assertEqual([c['track_id'] for c in radio_router.pick_candidates(candidates, [])], ['tr-1', 'tr-2'])
 
     def test_copes_with_an_empty_timeline_argument(self):
-        from services.music_manager.routers import radio
-
-        self.assertEqual(radio.pick_candidates([self._candidate('tr-1')], None), [self._candidate('tr-1')])
+        self.assertEqual(radio_router.pick_candidates([self._candidate('tr-1')], None), [self._candidate('tr-1')])
 
 
 class ChannelAdminTest(unittest.TestCase):
@@ -615,29 +574,23 @@ class ChannelAdminTest(unittest.TestCase):
 
 class RadioInitDbTest(unittest.TestCase):
     def test_init_db_creates_tables_and_seeds_default_channel(self):
-        from services.music_manager.routers import radio
-
         cursor = MagicMock()
-        radio.init_db(cursor)
+        radio_router.init_db(cursor)
         statements = [call[0][0] for call in cursor.execute.call_args_list]
         self.assertTrue(any('CREATE TABLE IF NOT EXISTS radio_channels' in s for s in statements))
         self.assertTrue(any('CREATE TABLE IF NOT EXISTS radio_timeline' in s for s in statements))
         self.assertTrue(any('INSERT IGNORE INTO radio_channels' in s for s in statements))
 
     def test_init_db_adds_the_filter_column_when_it_is_missing(self):
-        from services.music_manager.routers import radio
-
         cursor = MagicMock()
         cursor.fetchone.return_value = None
-        radio.init_db(cursor)
+        radio_router.init_db(cursor)
         statements = [call[0][0] for call in cursor.execute.call_args_list]
         self.assertTrue(any('ADD COLUMN filter_json' in s for s in statements))
 
     def test_init_db_leaves_an_existing_filter_column_alone(self):
-        from services.music_manager.routers import radio
-
         cursor = MagicMock()
         cursor.fetchone.return_value = {'Field': 'filter_json'}
-        radio.init_db(cursor)
+        radio_router.init_db(cursor)
         statements = [call[0][0] for call in cursor.execute.call_args_list]
         self.assertFalse(any('ADD COLUMN filter_json' in s for s in statements))

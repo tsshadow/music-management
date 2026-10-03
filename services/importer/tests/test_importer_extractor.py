@@ -230,11 +230,11 @@ class ExtractorTest(ExtractorHarness):
         remove.assert_not_called()
 
     def test_a_file_that_cannot_be_quarantined_does_not_stop_the_run(self):
-        patool, remove = self.run_with(['a.zip', 'b.zip'], remove_side_effect=OSError('read only'))
+        _patool, remove = self.run_with(['a.zip', 'b.zip'], remove_side_effect=OSError('read only'))
         self.assertEqual(remove.call_count, 2)
 
     def test_an_unexpected_failure_does_not_stop_the_run(self):
-        patool, remove = self.run_with(['a.zip', 'b.zip'], extract_side_effect=RuntimeError('boom'))
+        patool, _remove = self.run_with(['a.zip', 'b.zip'], extract_side_effect=RuntimeError('boom'))
         self.assertEqual(patool.extract_archive.call_count, 2)
 
 

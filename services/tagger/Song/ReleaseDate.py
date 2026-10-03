@@ -38,7 +38,7 @@ def format_release_date(value) -> str | None:
     undelimited `20260903` that yt-dlp's `upload_date` arrives as. None when there is no
     usable year, so a caller can leave the line out entirely.
     """
-    digits = _ISO_LIKE.sub('', str(value or '').split('T')[0])
+    digits = _ISO_LIKE.sub('', str(value or '').split('T', maxsplit=1)[0])
     if len(digits) < 4:
         return None
     year, month, day = (digits[0:4], digits[4:6], digits[6:8])

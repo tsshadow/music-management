@@ -78,7 +78,9 @@ class MemoryDb:
 def write_release(base, folder, nfo=NFO):
     path = os.path.join(base, folder)
     os.makedirs(path, exist_ok=True)
-    with open(os.path.join(path, '01-minus_militia_and_nolz_-_recover_the_archive.mp3'), 'w') as handle:
+    with open(
+        os.path.join(path, '01-minus_militia_and_nolz_-_recover_the_archive.mp3'), 'w', encoding='utf-8'
+    ) as handle:
         handle.write('audio')
     if nfo is not None:
         with open(os.path.join(path, '00-release.nfo'), 'wb') as handle:

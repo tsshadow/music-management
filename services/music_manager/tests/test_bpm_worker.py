@@ -241,7 +241,7 @@ class ToRowTest(unittest.TestCase):
     def test_the_row_fills_every_upsert_placeholder(self):
         row = worker.to_row(job(1), {'ok': True, 'raw': 128.0, 'confidence': 0.8}, None, NOW)
         # attempts is the literal 1 in VALUES, so one fewer parameter than columns.
-        self.assertEqual(worker.UPSERT_SQL.split('ON DUPLICATE')[0].count('%s'), len(row))
+        self.assertEqual(worker.UPSERT_SQL.split('ON DUPLICATE', maxsplit=1)[0].count('%s'), len(row))
 
 
 class FakeStore:

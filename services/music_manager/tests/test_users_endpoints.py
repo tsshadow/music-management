@@ -267,7 +267,7 @@ class PlaylistTracksTest(UsersEndpointTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_the_rating_join_is_scoped_to_the_requesting_user(self):
-        query, params = self.build(json.dumps({}))
+        _query, params = self.build(json.dumps({}))
         self.assertEqual(params[0], 'user')
 
     def test_an_unknown_user_still_produces_a_query(self):
@@ -283,11 +283,11 @@ class PlaylistTracksTest(UsersEndpointTestCase):
         self.assertEqual(params.count('Hardstyle'), 2)
 
     def test_an_extra_genre_rule_widens_the_selection(self):
-        query, params = self.build(json.dumps({'genres': [], 'rules': [{'column': 'genre', 'value': 'Uptempo'}]}))
+        _query, params = self.build(json.dumps({'genres': [], 'rules': [{'column': 'genre', 'value': 'Uptempo'}]}))
         self.assertEqual(params.count('Uptempo'), 2)
 
     def test_a_rule_repeating_a_selected_genre_is_not_added_twice(self):
-        query, params = self.build(
+        _query, params = self.build(
             json.dumps({'genres': ['Hardstyle'], 'rules': [{'column': 'genre', 'value': 'Hardstyle'}]})
         )
         self.assertEqual(params.count('Hardstyle'), 2)

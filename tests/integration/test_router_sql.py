@@ -954,7 +954,6 @@ class LibraryReadsTest:
 
     def test_the_form_pass_classifies_the_library_against_mariadb(self, db, a_track):
         """track_form_sync's window query and UPDATE run on MariaDB, and a second pass writes nothing."""
-        from datetime import date
 
         from services.common.Helpers.FestivalHelper import Festival, FestivalHelper
         from services.common.Helpers.PodcastHelper import PodcastHelper
@@ -2196,7 +2195,6 @@ class MultiStatementWriteSqlTest:
     def test_the_fetcher_rolls_its_primary_flags_back_on_its_own_connection(self, db, monkeypatch):
         """The CLI's connection is not the pool's: a plain pymysql connection, autocommit off."""
         from services.music_manager.artist_image_fetcher.fetcher import ArtistImageFetcher
-        from tests.integration.conftest import _connect
 
         artist_id, old, new = self._artist_with_two_images(db)
         connection = _connect()
@@ -2259,7 +2257,6 @@ class ScrobbleReconcileSqlTest:
 
         # The `lms-listen-backfill` loop's windowed reads (bug report 075): LMS's `julianday`
         # bound, and muma's listened_at-or-created_at bound on both listen tables.
-        import time
         from datetime import UTC, datetime
 
         from services.music_manager import lms_listen_backfill
@@ -2359,7 +2356,6 @@ class TransactionTest:
 
     def test_a_failure_after_the_delete_leaves_every_row_in_place(self, db):
         from services.music_manager.database import transaction
-        from tests.integration.conftest import _connect
 
         self._seed(db)
         conn = _connect()
@@ -2376,7 +2372,6 @@ class TransactionTest:
 
     def test_a_completed_block_replaces_the_rows_for_everyone(self, db):
         from services.music_manager.database import transaction
-        from tests.integration.conftest import _connect
 
         self._seed(db)
         conn = _connect()
@@ -2783,7 +2778,7 @@ class BpmBrowseSqlTest:
         """bpm/worker.py's DUE_SQL, REMAINING_SQL, evidence lookup and UPSERT_SQL: newest first,
         sets skipped, a current measurement not queued again, a changed file queued again, a
         failure counted and retried only once due."""
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         from services.music_manager.bpm import estimator, octave, worker
 

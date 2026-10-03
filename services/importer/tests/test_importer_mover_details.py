@@ -301,7 +301,7 @@ class MoveConflictTest(unittest.TestCase):
     def make(self, base, files):
         os.makedirs(base, exist_ok=True)
         for name, content in files.items():
-            with open(os.path.join(base, name), 'w') as handle:
+            with open(os.path.join(base, name), 'w', encoding='utf-8') as handle:
                 handle.write(content)
         return base
 

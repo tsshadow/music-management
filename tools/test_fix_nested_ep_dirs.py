@@ -19,7 +19,7 @@ from tools.fix_nested_ep_dirs import (
 def write(path, name, content='x'):
     os.makedirs(path, exist_ok=True)
     full = os.path.join(path, name)
-    with open(full, 'w') as handle:
+    with open(full, 'w', encoding='utf-8') as handle:
         handle.write(content)
     return full
 
@@ -205,7 +205,7 @@ class ExecutorTest(unittest.TestCase):
         write(self.inner, 'cover.jpg', 'inner')
         write(self.inner, '01.mp3')
         result = self.executor.move_up(self.case())
-        with open(os.path.join(self.outer, 'cover.jpg')) as handle:
+        with open(os.path.join(self.outer, 'cover.jpg'), encoding='utf-8') as handle:
             self.assertEqual(handle.read(), 'outer')
         self.assertTrue(os.path.isfile(os.path.join(self.inner, 'cover.jpg')))
         self.assertEqual(result.clashes, ['cover.jpg'])
@@ -235,7 +235,7 @@ class ExecutorTest(unittest.TestCase):
         old_dup = os.path.join(self.inner, '01.mp3')
         self.executor.merge_unique(self.case())
         self.assertTrue(os.path.isfile(os.path.join(self.outer, '02.mp3')))
-        with open(os.path.join(self.outer, '01.mp3')) as handle:
+        with open(os.path.join(self.outer, '01.mp3'), encoding='utf-8') as handle:
             self.assertEqual(handle.read(), 'outer')
         self.assertFalse(os.path.exists(self.inner))
         deleted = self.db.delete_paths.call_args[0][0]

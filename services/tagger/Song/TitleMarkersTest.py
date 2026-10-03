@@ -222,7 +222,7 @@ class FeatureKeepsTheRemixTest(unittest.TestCase):
         artist_tag.add.assert_called_once_with('The Kemist')
 
     def test_unbracketed_feature_at_the_end(self):
-        song, artist_tag = self._apply('Fired Up feat. The Kemist')
+        song, _artist_tag = self._apply('Fired Up feat. The Kemist')
         song.tag_collection.set_item.assert_called_once_with(TITLE, 'Fired Up')
 
     def test_bracketed_feature(self):

@@ -54,7 +54,7 @@ class FromLibraryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as eps:
             for name in ('B2S', '__TODO', '__Free&None', 'Scantraxx'):
                 os.makedirs(os.path.join(eps, name))
-            open(os.path.join(eps, 'notes.txt'), 'w').close()
+            open(os.path.join(eps, 'notes.txt'), 'w', encoding='utf-8').close()
 
             index = LabelIndex.from_library(eps, ImportQueue(os.path.join(eps, '__TODO')), self.no_db)
 

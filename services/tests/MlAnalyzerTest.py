@@ -311,7 +311,7 @@ class GetTrackInfoTest(unittest.TestCase):
         self.assertEqual(analyzer_with(engine).get_track_info(self.PATH), (self.expected_hash(), 42))
 
     def test_a_media_file_without_a_track_gets_one_created(self):
-        engine, connection, result = connection_yielding([(None, 7)])
+        engine, connection, _result = connection_yielding([(None, 7)])
         connection.execute.return_value.scalar.return_value = 99
 
         with sql_is_readable():

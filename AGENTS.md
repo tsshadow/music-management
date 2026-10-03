@@ -382,7 +382,7 @@ To maintain high code quality, the system employs an automated test suite:
   (`./scripts/install-hooks.sh`) is a thin wrapper around the same scripts so the two cannot
   drift, but it runs only `format.sh --check`, `lint.sh` and the Python unit suite — not the
   type check:
-    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.77. On a full
       run it also fails any module on the strict type-check list that has an undocumented public
       function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
@@ -397,7 +397,7 @@ To maintain high code quality, the system employs an automated test suite:
       default branch, not as a merge-request gate (it audits the runner's environment, which
       this repository does not manage). Accepted findings, with a reason, live in
       `security/accepted-vulnerabilities.txt`.
-- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.5), `COVERAGE_MIN` in
+- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.77), `COVERAGE_MIN` in
   `scripts/test/music-management-unit.sh` (84%) and the `thresholds` in
   `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
   one to make a red build green. The Python coverage figure is measured on source only —

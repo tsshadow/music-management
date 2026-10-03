@@ -9,7 +9,6 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Setup logging to stdout
-import sys
 
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 from services.common.Helpers.FilterTableHelper import FilterTableHelper

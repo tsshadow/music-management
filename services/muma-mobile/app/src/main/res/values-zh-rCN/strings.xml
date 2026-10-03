@@ -10,21 +10,12 @@
     <string name="main.genres_title">流派</string>
     <string name="main.offline">离线</string>
     <string name="main.songs_title">歌曲</string>
-    <string name="main.welcome_text_demo">使用 MuMa 来播放您的音乐，需要您自己的 <b>服务器</b>。
-\n
-\n➤ 如果您想试试此应用， 可以添加试用服务器。
-\n
-\n➤ 可在 <b>设置</b> 中编辑服务器配置信息。</string>
-    <string name="main.welcome_title">欢迎！</string>
-    <string name="main.welcome_cancel">点击前往设置</string>
-    <string name="menu.common">公共</string>
     <string name="playlist.label">播放列表</string>
     <string name="search.more">显示更多</string>
     <string name="select_album.no_network">警告：当前没有可用的网络。
 \n 如果您要使用移动数据，您需要在设置中允许使用流量进行下载。</string>
     <string name="select_album.no_sdcard">错误：没有SD卡。</string>
     <string name="select_album.play_all">播放全部</string>
-    <string name="select_genre.empty">找不到流派</string>
     <string name="settings.cache_location_error">缓存路径错误，正在使用默认路径。</string>
     <string name="main.video" tools:ignore="UnusedResources">视频</string>
     <string name="widget.initial_text">轻触选择音乐</string>
@@ -32,9 +23,6 @@
     <string name="widget.sdcard_missing">没有 SD 卡</string>
     <string name="share_default_greeting">看看我从 %s 分享的这首音乐</string>
     <string name="notification.downloading_title">在后台下载媒体…</string>
-    <string name="server_menu.move_up">上移</string>
-    <string name="server_menu.move_down">下移</string>
-    <string name="server_menu.demo">试用服务器</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">一般 API 错误：%1$s</string>
     <string name="api.subsonic.generic.no.message">服务器未发送任何信息</string>

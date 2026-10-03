@@ -10,21 +10,16 @@
     <string name="main.genres_title">Műfajok</string>
     <string name="main.offline">Kapcsolat nélküli</string>
     <string name="main.songs_title">Dalok</string>
-    <string name="main.welcome_title">Üdvözlet!</string>
-    <string name="menu.common">Általános</string>
     <string name="playlist.label">Lejátszási listák</string>
     <string name="search.more">Továbbiak</string>
     <string name="select_album.no_sdcard">Hiba: SD kártya nem áll rendelkezésre!</string>
     <string name="select_album.play_all">Összes lejátszása</string>
-    <string name="select_genre.empty">Műfajok nem találhatók!</string>
     <string name="settings.cache_location_error">Hibás gyorsítótár hely! Az alapértelmezett használata.</string>
     <string name="main.video" tools:ignore="UnusedResources">Videó</string>
     <string name="widget.initial_text">Érintse meg a zene kiválasztásához</string>
     <string name="widget.sdcard_busy">Az SD kártya nem elérhető!</string>
     <string name="widget.sdcard_missing">Nincs SD kártya!</string>
     <string name="share_default_greeting">Hallgasd meg ezt a zenét, megosztottam innen: %s</string>
-    <string name="server_menu.move_up">Feljebb mozgat</string>
-    <string name="server_menu.move_down">Lejjebb mozgat</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Általános api hiba: %1$s</string>
     <string name="api.subsonic.generic.no.message">nincs üzenet a szerverről</string>

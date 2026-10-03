@@ -9,21 +9,16 @@
     <string name="main.genres_title">Žánry</string>
     <string name="main.offline">Bez připojení</string>
     <string name="main.songs_title">Skladby</string>
-    <string name="main.welcome_title">Vítejte!</string>
-    <string name="menu.common">Další</string>
     <string name="playlist.label">Playlisty</string>
     <string name="search.more">Zobrazit více</string>
     <string name="select_album.no_sdcard">Chyba: SD karta nedostupná.</string>
     <string name="select_album.play_all">Přehrát vše</string>
-    <string name="select_genre.empty">Žánry nenalezeny</string>
     <string name="settings.cache_location_error">Neplatné umístění cache. Používám výchozí cestu.</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="widget.initial_text">Ťuknutím vybrat hudbu</string>
     <string name="widget.sdcard_busy">SD karta nedostupná</string>
     <string name="widget.sdcard_missing">Chybí SD karta</string>
     <string name="share_default_greeting">Mrkni na hudbu sdílenou z %s</string>
-    <string name="server_menu.move_up">Posunout výš</string>
-    <string name="server_menu.move_down">Posunout níž</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Obecná api chyba: %1$s</string>
     <string name="api.subsonic.generic.no.message">žádné zprávy dodané serverem</string>

@@ -15,7 +15,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.app.ActivityCompat
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.car.CarPresence
@@ -131,10 +130,5 @@ class BluetoothIntentReceiver :
         return if (hasPermission) this?.name else "Unknown"
     }
 
-    private fun Intent.getBluetoothDevice(): BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-    } else {
-        @Suppress("DEPRECATION")
-        getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-    }
+    private fun Intent.getBluetoothDevice(): BluetoothDevice? = getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
 }

@@ -24,16 +24,11 @@
     <string name="main.genres_title">Gêneros</string>
     <string name="main.offline">Offline</string>
     <string name="main.songs_title">Músicas</string>
-    <string name="main.welcome_text_demo">Para usar o MuMa com sua própria música, você precisará de um <b>servidor próprio</b>.\n\n➤ Caso queira experimentar o aplicativo primeiro, você pode adicionar um servidor de demonstração agora.\n\n➤ Caso contrário, configure seu servidor nas <b>configurações</b>.</string>
-    <string name="main.welcome_title">Bem-vindo ao MuMa!</string>
-    <string name="main.welcome_cancel">Vá para as configurações</string>
-    <string name="menu.common">Comum</string>
     <string name="playlist.label">Playlists</string>
     <string name="search.more">Mostrar Mais</string>
     <string name="select_album.no_network">Atenção: Nenhuma rede encontrada.\nSe você está usando dados móveis, deve permitir downloads em conexões deste tipo, nas configurações.</string>
     <string name="select_album.no_sdcard">Erro: Nenhum cartão SD disponível.</string>
     <string name="select_album.play_all">Tocar Tudo</string>
-    <string name="select_genre.empty">Nenhum gênero encontrado</string>
     <string name="settings.cache_location_error">Localização do cache inválida. Usando o padrão.</string>
     <string name="main.video" tools:ignore="UnusedResources">Vídeo</string>
     <string name="widget.initial_text">Toque para selecionar a música</string>
@@ -42,9 +37,6 @@
     <string name="share_default_greeting">Confira esta música que compartilhei do %s</string>
     <string name="notification.downloading_title">Baixado mídia em segundo plano…</string>
     <string name="notification.permission_required">As notificações são necessárias para a reprodução de mídia. Você pode conceder a permissão a qualquer momento nas configurações do Android.</string>
-    <string name="server_menu.move_up">Para cima</string>
-    <string name="server_menu.move_down">Para baixo</string>
-    <string name="server_menu.demo">Servidor Demonstração</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Erro genérico de API: %1$s</string>
     <string name="api.subsonic.generic.no.message">nenhuma mensagem fornecida pelo servidor</string>
@@ -57,7 +49,6 @@
     <string name="api.subsonic.upgrade_client">Versões incompativeis. Atualize o aplicativo MuMa para Android.</string>
     <string name="api.subsonic.upgrade_server">Versões incompativeis. Atualize o servidor MuMa.</string>
     <!-- Subsonic features  -->
-    <string name="download.menu_unstar">Desfavoritar</string>
     <string name="foreground_exception_text">Pressione o botão play na notificação de mídia se ainda estiver presente. Caso contrário, abra o aplicativo para iniciar a reprodução e reconectar a sessão ao controlador</string>
     <string name="shortcut_play_random_songs_long">Tocar músicas aleatórias</string>
     <string name="shortcut_play_random_songs_short">Músicas aleatórias</string>

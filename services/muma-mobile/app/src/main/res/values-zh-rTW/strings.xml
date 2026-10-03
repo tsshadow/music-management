@@ -5,9 +5,7 @@
     <string name="main.artists_title">歌手</string>
     <string name="main.genres_title">類型</string>
     <string name="main.offline">離線</string>
-    <string name="menu.common">一般</string>
     <string name="playlist.label">播放清單</string>
-    <string name="select_genre.empty">無符合類型</string>
     <string name="settings.cache_location_error">錯誤緩衝路徑，使用預設緩衝路徑。</string>
     <string name="language.zh_CN">簡體中文（中國）</string>
     <string name="download.jukebox_server_too_old">不支援遠端控制，請升級您的 Subsonic 伺服器。</string>
@@ -23,18 +21,11 @@
     <string name="download.jukebox_offline">離線模式下無法使用遠端控制。</string>
     <string name="language.pt_BR">葡萄牙語（巴西）</string>
     <string name="language.hu">匈牙利語</string>
-    <string name="main.welcome_cancel">前往設定</string>
     <string name="language.zh_TW">繁體中文（臺灣）</string>
     <string name="language.cs">捷克語</string>
     <string name="language.en">英語</string>
     <string name="language.pt">葡萄牙語</string>
     <string name="main.songs_title">歌曲</string>
-    <string name="main.welcome_title">歡迎！</string>
-    <string name="main.welcome_text_demo">要使用 MuMa 播放您的音樂，需要您 <b>自己的伺服器</b>。
-\n
-\n➤ 如果您想嘗試此應用程式， 可以添加一個演示伺服器。
-\n
-\n➤ 此外，可在 <b>設定</b> 中配置您的伺服器。</string>
     <string name="download.jukebox_not_authorized">不允許遠端控制。請在您在 Subsonic 伺服器上的 <b>使用者 &gt; 設定</b> 中啟用點唱機模式。</string>
     <string name="select_album.no_sdcard">錯誤：無可用的 SD 卡。</string>
     <string name="select_album.no_network">警告：目前沒有可用的網路。

@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
-import android.os.Build
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
@@ -162,18 +161,10 @@ private fun VmPolicy.Builder.detectAllExceptSocket(): VmPolicy.Builder {
     detectLeakedClosableObjects()
     detectLeakedRegistrationObjects()
     detectFileUriExposure()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        detectContentUriWithoutPermission()
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        detectCleartextNetwork()
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        detectCredentialProtectedWhileLocked()
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        detectUnsafeIntentLaunch()
-        detectIncorrectContextUse()
-    }
+    detectContentUriWithoutPermission()
+    detectCleartextNetwork()
+    detectCredentialProtectedWhileLocked()
+    detectUnsafeIntentLaunch()
+    detectIncorrectContextUse()
     return this
 }

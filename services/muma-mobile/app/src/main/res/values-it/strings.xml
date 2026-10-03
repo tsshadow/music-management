@@ -8,13 +8,10 @@
     <string name="main.genres_title">Generi</string>
     <string name="main.offline">Disconnesso</string>
     <string name="main.songs_title">Canzoni</string>
-    <string name="main.welcome_title">Benvenuto!</string>
-    <string name="menu.common">Comune</string>
     <string name="playlist.label">Playlist</string>
     <string name="search.more">Mostra di più</string>
     <string name="select_album.no_sdcard">Errore: Nessuna memoria SD disponibile.</string>
     <string name="select_album.play_all">Riproduci tutto</string>
-    <string name="select_genre.empty">Nessun genere trovato</string>
     <string name="settings.cache_location_error">Posizione cache non valida. Uso la predefinita.</string>
     <string name="main.video" tools:ignore="UnusedResources">Video</string>
     <string name="widget.initial_text">Tocca per selezionare musica</string>

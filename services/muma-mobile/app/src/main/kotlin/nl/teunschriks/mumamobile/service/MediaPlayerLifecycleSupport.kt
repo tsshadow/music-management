@@ -12,7 +12,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
-import android.os.Build
 import android.view.KeyEvent
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import nl.teunschriks.mumamobile.app.UApp.Companion.applicationContext
@@ -142,12 +141,7 @@ class MediaPlayerLifecycleSupport(
 
         if (intentAction == Constants.CMD_PROCESS_KEYCODE) {
             if (intent.extras != null) {
-                val event = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.extras!!.getParcelable(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.extras!![Intent.EXTRA_KEY_EVENT] as KeyEvent?
-                }
+                val event = intent.extras!!.getParcelable(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
                 event.ifNotNull { handleKeyEvent(it) }
             }
         } else {

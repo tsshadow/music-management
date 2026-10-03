@@ -8,21 +8,16 @@
     <string name="main.genres_title">Gêneros</string>
     <string name="main.offline">Offline</string>
     <string name="main.songs_title">Músicas</string>
-    <string name="main.welcome_title">Bem-vindo!</string>
-    <string name="menu.common">Comum</string>
     <string name="playlist.label">Playlists</string>
     <string name="search.more">Mostrar Mais</string>
     <string name="select_album.no_sdcard">Erro: Nenhum cartão SD disponível.</string>
     <string name="select_album.play_all">Tocar Tudo</string>
-    <string name="select_genre.empty">Nenhum gênero encontrado</string>
     <string name="settings.cache_location_error">Localização do cache inválida. Usando o padrão.</string>
     <string name="main.video" tools:ignore="UnusedResources">Vídeo</string>
     <string name="widget.initial_text">Toque para selecionar a música</string>
     <string name="widget.sdcard_busy">Cartão SD indisponível</string>
     <string name="widget.sdcard_missing">Sem cartão SD</string>
     <string name="share_default_greeting">Confira esta música que compartilhei do %s</string>
-    <string name="server_menu.move_up">Move up</string>
-    <string name="server_menu.move_down">Move down</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Erro de api genérico: %1$s</string>
     <string name="api.subsonic.generic.no.message">nenhuma mensagem fornecida pelo servidor</string>
@@ -35,7 +30,6 @@
     <string name="api.subsonic.upgrade_client">Versões incompativeis. Atualize o aplicativo MuMa para Android.</string>
     <string name="api.subsonic.upgrade_server">Versões incompativeis. Atualize o servidor MuMa.</string>
     <!-- Subsonic features  -->
-    <string name="server_menu.demo">Servidor Demonstração</string>
     <string name="buttons.play">Tocar</string>
     <string name="language.it">Italiano</string>
     <string name="language.es">Espanhol</string>
@@ -52,12 +46,6 @@
     <string name="language.pt">Português</string>
     <string name="language.pt_BR">Português (Brasil)</string>
     <string name="language.ru">Russo</string>
-    <string name="main.welcome_text_demo">Para usar o MuMa com a sua própria música, precisará de um <b>servidor próprio</b>.
-\n
-\n➤ Caso queira primeiro experimentar a app, pode adicionar um servidor de demonstração agora.
-\n
-\n➤ Caso contrário, configure o seu servidor nas <b>configurações</b>.</string>
-    <string name="main.welcome_cancel">Vá às configurações</string>
     <string name="select_album.no_network">Atenção: Nenhuma rede encontrada.
 \nSe usa dados móveis, deve permitir descargas em conexões deste tipo, nas configurações.</string>
     <string name="notification.downloading_title">Descarregado mídia em segundo plano…</string>

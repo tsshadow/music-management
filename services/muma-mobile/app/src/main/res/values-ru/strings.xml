@@ -20,24 +20,16 @@
     <string name="main.genres_title">Жанры</string>
     <string name="main.offline">Не в сети</string>
     <string name="main.songs_title">Песни</string>
-    <string name="main.welcome_text_demo">Чтобы использовать MuMa с вашей собственной музыкой, вам понадобится <b>собственный сервер</b>. \n\n➤ Если вы хотите сначала опробовать приложение, вы можете добавить демо-сервер прямо сейчас. \n\n➤ В противном случае вы можете настроить свой сервер в <b>настройках</b>.</string>
-    <string name="main.welcome_title">Добро пожаловать в MuMa!</string>
-    <string name="main.welcome_cancel">Отведи меня в настройки</string>
-    <string name="menu.common">Общий</string>
     <string name="playlist.label">Плейлисты</string>
     <string name="search.more">Показать еще</string>
     <string name="select_album.no_sdcard">Ошибка: нет SD-карты</string>
     <string name="select_album.play_all">Воспроизвести все</string>
-    <string name="select_genre.empty">Жанры не найдены</string>
     <string name="settings.cache_location_error">Неверное расположение кеша. Использование по умолчанию.</string>
     <string name="main.video" tools:ignore="UnusedResources">Видео</string>
     <string name="widget.initial_text">Нажмите, чтобы выбрать музыку</string>
     <string name="widget.sdcard_busy">SD-карта недоступна</string>
     <string name="widget.sdcard_missing">Нет SD-карты</string>
     <string name="share_default_greeting">Проверьте эту музыку, с которой я поделился %s</string>
-    <string name="server_menu.move_up">Поднять</string>
-    <string name="server_menu.move_down">Опустить</string>
-    <string name="server_menu.demo">Демо-сервер</string>
 
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Общая ошибка API: %1$s</string>

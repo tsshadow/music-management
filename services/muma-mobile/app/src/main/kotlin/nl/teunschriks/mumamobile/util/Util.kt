@@ -338,7 +338,7 @@ object Util {
     }
 
     @JvmStatic
-    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim { it <= ' ' }.isEmpty()
+    fun isNullOrWhiteSpace(string: String?): Boolean = string.isNullOrEmpty() || string.trim().isEmpty()
 
     @JvmOverloads
     fun formatTotalDuration(totalDuration: Long?, inMilliseconds: Boolean = false): String {
@@ -409,8 +409,7 @@ object Util {
         if (ContextCompat.checkSelfPermission(
                 applicationContext(),
                 POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             val requestPermissionLauncher =
                 fragment.registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -436,8 +435,7 @@ object Util {
         if (ContextCompat.checkSelfPermission(
                 applicationContext(),
                 POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ) == PackageManager.PERMISSION_GRANTED
         ) {
             notificationManagerCompat.notify(id, notification)
         }

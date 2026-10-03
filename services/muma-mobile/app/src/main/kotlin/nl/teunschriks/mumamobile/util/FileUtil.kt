@@ -307,7 +307,7 @@ object FileUtil {
      * @return The filename with special characters replaced by hyphens.
      */
     private fun fileSystemSafe(name: String?): String {
-        if (name == null || name.trim { it <= ' ' }.isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             return UNNAMED
         }
         var filename: String = name
@@ -326,7 +326,7 @@ object FileUtil {
      * @return The the directory name with special characters replaced by hyphens.
      */
     private fun fileSystemSafeDir(path: String?): String {
-        if (path == null || path.trim { it <= ' ' }.isEmpty()) {
+        if (path == null || path.trim().isEmpty()) {
             return ""
         }
         var filepath: String = path

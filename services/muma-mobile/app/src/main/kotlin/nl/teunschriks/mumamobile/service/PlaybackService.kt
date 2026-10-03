@@ -11,7 +11,6 @@ import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
@@ -476,11 +475,8 @@ class PlaybackService :
     private fun getPendingIntentForContent(): PendingIntent {
         val intent = UiVariant.launchIntent(this)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        var flags = FLAG_UPDATE_CURRENT
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // needed starting Android 12 (S = 31)
-            flags = flags or FLAG_IMMUTABLE
-        }
+        // FLAG_IMMUTABLE is required since Android 12 (S = 31).
+        val flags = FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
         intent.action = Intent.ACTION_MAIN
         intent.putExtra(Constants.INTENT_SHOW_PLAYER, true)
         return PendingIntent.getActivity(this, 0, intent, flags)
@@ -519,12 +515,7 @@ class PlaybackService :
                 TaskStackBuilder.create(this@PlaybackService).run {
                     addNextIntent(UiVariant.launchIntent(this@PlaybackService))
 
-                    val immutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        FLAG_IMMUTABLE
-                    } else {
-                        0
-                    }
-                    getPendingIntent(0, immutableFlag or FLAG_UPDATE_CURRENT)
+                    getPendingIntent(0, FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT)
                 }
             val builder =
                 NotificationCompat.Builder(this@PlaybackService, NOTIFICATION_CHANNEL_ID)

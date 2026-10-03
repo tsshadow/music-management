@@ -70,7 +70,7 @@ export {
  * @returns {Promise<R[]>}
  */
 export async function mapWithLimit(items, worker, limit = MAX_PARALLEL_MUMA_CALLS) {
-  const results = new Array(items.length);
+  const results = Array.from({ length: items.length });
   let next = 0;
 
   async function runner() {

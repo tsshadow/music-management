@@ -52,7 +52,7 @@
         return params.rules.map((r) => `${r.column}=${r.value}`).join(' • ');
       }
       return paramsStr;
-    } catch(e) {
+    } catch {
       if (paramsStr.includes('&')) return paramsStr.split('&').join(' • ');
       return paramsStr;
     }
@@ -95,7 +95,7 @@
       } else {
         onError($t('management.playlists.saveFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.playlists.saveError'));
     }
   }
@@ -113,7 +113,7 @@
       } else {
         onError($t('management.playlists.deleteFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.playlists.deleteError'));
     }
   }
@@ -124,7 +124,7 @@
       playlistName = playlist.name;
       try {
         playlistParams = JSON.parse(playlist.params);
-      } catch (e) {
+      } catch {
         playlistParams = { genres: [], rating_range: [0, 100], size: 500, sort_method: 'newest', song_type: 'both' };
       }
     } else {

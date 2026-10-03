@@ -33,7 +33,7 @@
       } else {
         onError($t('management.requests.loadFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.requests.loadNetworkError'));
     } finally {
       loading = false;
@@ -64,7 +64,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.requests.approveFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.requests.networkError'));
     }
   }
@@ -84,7 +84,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.requests.undoFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.requests.networkError'));
     }
   }
@@ -103,7 +103,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.requests.rejectFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.requests.networkError'));
     }
   }

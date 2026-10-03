@@ -41,7 +41,7 @@
         artistSuggestions = await apiGet(
           API_BASE, '/api/analytics/artist-search', {}, getHeaders,
           { q: artistQuery.trim(), limit: 15 });
-      } catch (err) {
+      } catch {
         artistSuggestions = [];
       }
     }, 250);

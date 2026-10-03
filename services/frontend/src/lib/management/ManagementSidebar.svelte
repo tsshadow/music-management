@@ -32,7 +32,7 @@
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
   // the desktop sidebar it is simply not passed.
-  const { onnavigate, onselect } = $props();
+  const { onselect } = $props();
 
   /**
    * What each page shows in the sidebar, and what it takes to see it.

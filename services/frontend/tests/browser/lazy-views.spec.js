@@ -94,7 +94,7 @@ test("the first screen does not fetch the management or settings code", async ({
   expect(oneTap).toEqual([]);
   // Nor is the full-screen player (issue #119): the mini player is in the entry, Now Playing
   // comes with the idle preload or a press on the mini player.
-  expect(scripts.filter((file) => /^NowPlaying-/.test(file))).toEqual([]);
+  expect(scripts.filter((file) => file.startsWith("NowPlaying-"))).toEqual([]);
 });
 
 test("index.html preloads the listener's locale file together with the entry", async ({ page }) => {

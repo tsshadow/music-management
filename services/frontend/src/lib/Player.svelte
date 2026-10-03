@@ -860,7 +860,7 @@
    * @param {{name: string, seconds: number|null, state: object}} command
    */
   function handleNativeCommand(command) {
-      const engine = { ...(command.state ?? {}), ...platform.player.state() };
+      const engine = { ...command.state, ...platform.player.state() };
       playerState.update(s => ({
           ...s,
           playing: engine.status === 'playing',

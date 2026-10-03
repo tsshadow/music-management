@@ -112,7 +112,7 @@
     try {
       const res = await fetch(`${API_BASE}/api/events/${id}`, { method: 'DELETE', headers: getHeaders() });
       if (res.ok) events = events.filter((e) => e.id !== id);
-    } catch (err) {
+    } catch {
       onError($t('management.events.deleteFailed'));
     }
   }
@@ -126,7 +126,7 @@
         total = 0;
         onMessage($t('management.events.cleared'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.events.clearFailed'));
     }
   }

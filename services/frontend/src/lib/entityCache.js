@@ -143,6 +143,7 @@ export function createEntityCache({
    */
   function invalidate(keyOrPrefix) {
     if (keyOrPrefix.endsWith(":")) {
+      // oxlint-disable-next-line unicorn/no-useless-spread -- a snapshot: the loop deletes from the map
       for (const key of [...entries.keys()]) {
         if (key.startsWith(keyOrPrefix)) entries.delete(key);
       }

@@ -66,7 +66,7 @@
         lastError = source.last_error;
         lastSuccessAt = source.last_success_at;
       }
-    } catch (err) {
+    } catch {
       onError($t('management.news.loadFailed'));
     } finally {
       loading = false;
@@ -106,7 +106,7 @@
         const body = await res.json();
         onError(body.detail || $t('management.news.loadFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.news.loadFailed'));
     } finally {
       saving = false;
@@ -134,7 +134,7 @@
       } else {
         onError(body.detail || $t('management.news.recordFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.news.recordFailed'));
     } finally {
       recording = false;

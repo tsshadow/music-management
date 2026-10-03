@@ -83,7 +83,7 @@
       } else {
         onError($t('management.podcasts.loadFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.podcasts.loadNetworkError'));
     } finally {
       loading = false;
@@ -131,7 +131,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.podcasts.saveFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.podcasts.saveNetworkError'));
     }
   }
@@ -178,7 +178,7 @@
       onMessage(message);
       await reloadEditing();
       return true;
-    } catch (err) {
+    } catch {
       onError($t('management.podcasts.saveNetworkError'));
       return false;
     }

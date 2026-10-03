@@ -124,7 +124,7 @@
   // Re-run search when mode changes and search is active
   $effect(() => {
     // We want to trigger when viewMode changes
-    const mode = $viewMode;
+    const _mode = $viewMode;
     untrack(() => {
       if (showResults && query.trim()) {
         performSearch();

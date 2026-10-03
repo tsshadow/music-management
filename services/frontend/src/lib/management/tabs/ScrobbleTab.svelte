@@ -1,7 +1,7 @@
 <script >
   import { t, format } from '../../i18n/index.js';
   import { onDestroy } from 'svelte';
-  import { RefreshCw, Radio } from '@lucide/svelte';
+  import { RefreshCw } from '@lucide/svelte';
   
   export let API_BASE;
   export let getHeaders;
@@ -60,7 +60,7 @@
         onError($t('management.scrobble.startFailed'));
         isImporting = false;
       }
-    } catch (err) {
+    } catch {
       onError($t('management.scrobble.startNetworkError'));
       isImporting = false;
     }

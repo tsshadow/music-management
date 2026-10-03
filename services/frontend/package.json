@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "oxlint . && eslint .",
+    "lint": "oxlint --deny-warnings . && eslint --max-warnings 0 .",
     "check": "svelte-check",
     "format": "oxfmt --write src tests *.js",
     "format:check": "oxfmt --check src tests *.js",

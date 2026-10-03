@@ -40,7 +40,7 @@
       } else {
         onError($t('management.radio.loadFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.radio.loadFailed'));
     } finally {
       loading = false;
@@ -92,7 +92,7 @@
         // previewing before saving.
         onError(body.detail || $t('management.radio.previewFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.radio.previewFailed'));
     } finally {
       previewing = false;
@@ -131,7 +131,7 @@
         const body = await res.json();
         onError(body.detail || $t('management.radio.saveFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.radio.saveFailed'));
     } finally {
       saving = false;
@@ -147,7 +147,7 @@
       });
       if (res.ok) await fetchChannels();
       else onError($t('management.radio.saveFailed'));
-    } catch (err) {
+    } catch {
       onError($t('management.radio.saveFailed'));
     }
   }
@@ -166,7 +166,7 @@
       } else {
         onError($t('management.radio.deleteFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.radio.deleteFailed'));
     }
   }

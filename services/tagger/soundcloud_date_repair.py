@@ -143,7 +143,7 @@ def run(connection, since: str, apply: bool, read: Callable[[str], str | None] =
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point; prints the report as JSON."""
-    parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+    parser = argparse.ArgumentParser(description=__doc__.split('\n', maxsplit=1)[0])
     parser.add_argument('--since', default=DEFAULT_SINCE, help='archive rows added from this moment on')
     parser.add_argument('--apply', action='store_true', help='queue the files; without it nothing is written')
     args = parser.parse_args(argv)

@@ -19,8 +19,6 @@ class ReadonlySong(BaseSong):
 
     def save_file(self):
         """Override save_file to do nothing."""
-        pass
 
     def __del__(self):
         """Override __del__ to prevent saving."""
-        pass

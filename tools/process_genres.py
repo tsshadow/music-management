@@ -115,7 +115,7 @@ class MockHelper:
 def process_genres(json_file=None, dry_run=True, interactive=False):
     genres_list = []
     if json_file:
-        with open(json_file) as f:
+        with open(json_file, encoding='utf-8') as f:
             data = json.load(f)
         genres_list = [{'value': item['value']} for item in data['subsonic-response']['rules_genres']['genre']]
 

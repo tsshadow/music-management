@@ -74,6 +74,7 @@ def _run(repo: Path, branch: str) -> subprocess.CompletedProcess:
         cwd=repo,
         capture_output=True,
         text=True,
+        check=False,
         env={"PATH": "/usr/bin:/bin", "CI_COMMIT_BRANCH": branch, "HOME": str(repo)},
     )
 
@@ -190,6 +191,7 @@ def test_the_comparison_base_can_be_overridden(repo: Path):
         cwd=repo,
         capture_output=True,
         text=True,
+        check=False,
         env={
             "PATH": "/usr/bin:/bin",
             "CI_COMMIT_BRANCH": "release/0.0.2",

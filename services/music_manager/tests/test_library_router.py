@@ -639,7 +639,6 @@ class ListenBrainzImportTest(RouterTestCase):
 
     def test_the_management_proxy_applies_the_same_check(self):
         # Registered on the same path after the scrobbler router, so called directly here.
-        from fastapi import HTTPException
 
         from services.music_manager.routers import management as management_router
 

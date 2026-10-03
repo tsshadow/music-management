@@ -250,7 +250,7 @@ class CanonicalRowsQueryTest(unittest.TestCase):
 
     @staticmethod
     def _select(sql):
-        return ' '.join(sql.split()).split(' WHERE EXISTS (SELECT 1 FROM library_media_files')[0]
+        return ' '.join(sql.split()).split(' WHERE EXISTS (SELECT 1 FROM library_media_files', maxsplit=1)[0]
 
     def test_same_row_shape_as_a_candidate(self):
         canonical_sql, _ = canonical_rows_query('user', [7])

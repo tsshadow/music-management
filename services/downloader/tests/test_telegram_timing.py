@@ -229,7 +229,7 @@ class TaggingTest(TelegramTimingTestBase):
         self.assertEqual(['set.mp3'], self.files)
 
     def test_a_name_that_climbs_out_of_the_folder_lands_inside_it(self):
-        parse, announce, folder = self._download(self._message('audio/mpeg', name='../../evil.mp3'))
+        _parse, announce, folder = self._download(self._message('audio/mpeg', name='../../evil.mp3'))
         announce.assert_called_once_with(f'{folder}/evil [1].mp3')
         self.assertEqual(['evil [1].mp3'], self.files)
 

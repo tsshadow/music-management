@@ -249,7 +249,7 @@ def test_prune_keep_is_configurable(tmp_path: Path) -> None:
 
 
 def test_prune_reports_a_refused_removal_and_carries_on(tmp_path: Path) -> None:
-    result, log_dir = _run_prune(tmp_path, FAKE_RMI_FAILS=DANGLING)
+    result, _log_dir = _run_prune(tmp_path, FAKE_RMI_FAILS=DANGLING)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"skipped {DANGLING}: Error: conflict" in result.stdout
     assert "1 reference(s) removed, 1 skipped." in result.stdout

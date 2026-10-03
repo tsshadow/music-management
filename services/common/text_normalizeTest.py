@@ -46,7 +46,7 @@ INPUTS = [
     'Scantraxx Official',
     'A.B.C.',
     'Mr. Ivex',
-    'x​y',
+    'x\u200by',
     'ﬁne',
     'Ⅳ',
 ]
@@ -160,7 +160,7 @@ IMAGE_FETCHER_KEY = [
     'scantraxx',
     'a.b.c.',
     'mr. ivex',
-    'x​y',
+    'x\u200by',
     'ﬁne',
     'ⅳ',
 ]

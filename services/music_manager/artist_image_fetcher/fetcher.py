@@ -282,7 +282,7 @@ class ArtistImageFetcher:
             else:
                 image_data = self.downloader.download(best_candidate['url'])
             if not image_data:
-                raise Exception('Failed to download image data')
+                raise RuntimeError('Failed to download image data')
             image_meta = self.storage.save_image(artist_id, best_candidate['source'], image_data)
             image_id = self._save_image_to_db(artist_id, best_candidate, image_meta)
             self._set_primary_image(artist_id, image_id)

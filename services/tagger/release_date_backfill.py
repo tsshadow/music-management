@@ -158,7 +158,23 @@ class DateTags:
         return infer_source(self.original, found) or ''
 
 
-def best_available(directory: str, store: StoreCache, read_nfo: Callable[[str], str | None] | None = None) -> Best:
+def date_order(dirname: str, formats) -> str | None:
+    """The scene group's written date order ('dm' or 'md') from `formats`, or None for the default.
+
+    `formats` answers `get(group) -> list[str]`, like the rule's `LookupTableHelper` on
+    `rules_scene_group_date_format`. Without it, 29 groups that write month-first have their .nfo
+    read day-first, and a correct date then looks like a swapped one.
+    """
+    group = NfoDate.scene_group(dirname)
+    if formats is None or not group:
+        return None
+    found = formats.get(group)
+    return found[0] if found else None
+
+
+def best_available(
+    directory: str, store: StoreCache, read_nfo: Callable[[str], str | None] | None = None, formats=None
+) -> Best:
     """The best rung for one release directory, judged the way the rule judges it."""
     text = (read_nfo or NfoDate.read_nfo)(directory) or ''
     dirname = os.path.basename(directory)
@@ -174,7 +190,7 @@ def best_available(directory: str, store: StoreCache, read_nfo: Callable[[str], 
             deezer_date = album.full_date
         elif not album.found:
             gone = True
-    kind, resolved = NfoDate.resolve(text, dirname) if text else (None, None)
+    kind, resolved = NfoDate.resolve(text, dirname, date_order(dirname, formats)) if text else (None, None)
     nfo = None
     if resolved is not None:
         nfo = (resolved.isoformat(), {'street': 'nfo-street', 'release': 'nfo-release'}.get(kind or '', 'nfo-rip'))
@@ -187,9 +203,9 @@ def best_available(directory: str, store: StoreCache, read_nfo: Callable[[str], 
     return Best('deezer-gone' if gone else 'none')
 
 
-def judge(directory: str, store: StoreCache, read_nfo: Callable[[str], str | None] | None = None) -> str:
+def judge(directory: str, store: StoreCache, read_nfo: Callable[[str], str | None] | None = None, formats=None) -> str:
     """The verdict for one release directory; see the module docstring."""
-    return best_available(directory, store, read_nfo).verdict
+    return best_available(directory, store, read_nfo, formats).verdict
 
 
 def read_date_tags(path: str) -> DateTags:
@@ -233,11 +249,12 @@ def plan_upgrades(
     store: StoreCache,
     read_nfo=None,
     read_tags: Callable[[str], DateTags] = read_date_tags,
+    formats=None,
 ) -> Plan:
     """The full-date tracks on a lower rung than their release offers now; never a downgrade."""
     result = Plan()
     for directory in sorted(dated):
-        best = best_available(directory, store, read_nfo)
+        best = best_available(directory, store, read_nfo, formats)
         known_rank = SOURCE_RANKS.get(best.verdict)
         if known_rank is None and not best.pending:
             continue
@@ -259,11 +276,11 @@ def plan_upgrades(
     return result
 
 
-def plan(grouped: dict[str, list[str]], store: StoreCache, read_nfo=None) -> Plan:
+def plan(grouped: dict[str, list[str]], store: StoreCache, read_nfo=None, formats=None) -> Plan:
     """Judge every release directory."""
     result = Plan()
     for directory in sorted(grouped):
-        result.add(judge(directory, store, read_nfo), grouped[directory])
+        result.add(judge(directory, store, read_nfo, formats), grouped[directory])
     return result
 
 
@@ -320,6 +337,7 @@ def run(
     apply: bool = False,
     read_nfo=None,
     read_tags: Callable[[str], DateTags] = read_date_tags,
+    formats=None,
 ) -> dict:
     """The dry run, the optional cache fill and the optional queueing. Returns the report."""
     with connection.cursor() as cursor:
@@ -335,11 +353,11 @@ def run(
 
     filled = None
     if lookup > 0:
-        pending = plan_upgrades(dated, store, read_nfo, cached_tags).tracks.get(UPGRADE_PENDING, [])
+        pending = plan_upgrades(dated, store, read_nfo, cached_tags, formats).tracks.get(UPGRADE_PENDING, [])
         pending_dirs = sorted({os.path.dirname(path) for path in pending})
         filled = fill_cache(pending_dirs + sorted(grouped), store, lookup, read_nfo)
-    result = plan(grouped, store, read_nfo)
-    upgrades = plan_upgrades(dated, store, read_nfo, cached_tags)
+    result = plan(grouped, store, read_nfo, formats)
+    upgrades = plan_upgrades(dated, store, read_nfo, cached_tags, formats)
     result.merge(upgrades)
     queued = 0
     if apply:
@@ -371,6 +389,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from services.common.config_store import ConfigStore
     from services.common.Helpers.DatabaseConnector import DatabaseConnector
+    from services.common.Helpers.LookupTableHelper import LookupTableHelper
     from services.common.import_queue import ImportQueue
 
     settings = ConfigStore()
@@ -382,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
             StoreCache(),
             lookup=args.lookup,
             apply=args.apply,
+            formats=LookupTableHelper('rules_scene_group_date_format', 'scene_group', 'date_format'),
         )
     json.dump(report, sys.stdout, ensure_ascii=False, indent=1)
     sys.stdout.write('\n')

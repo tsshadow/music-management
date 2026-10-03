@@ -69,7 +69,7 @@ def library(db, tmp_path, monkeypatch):
         assert manager.process_file(db, path, force=True)
         return _track_of(db, manager, path)
 
-    return {'db': db, 'add_file': add_file, 'scan': scan, 'manager': manager}
+    return {'db': db, 'add_file': add_file, 'scan': scan, 'manager': manager, 'tags': tags, 'root': tmp_path}
 
 
 def _track_of(db, manager, path):
@@ -395,3 +395,81 @@ def test_the_dry_run_endpoints_write_nothing(api, headers, db):
     assert relink_status['last']['relinked_file_name'] == 1
     assert purge_status['last']['purged'] == 3
     assert run_sql(db, 'SELECT COUNT(*) AS n FROM library_tracks')[0]['n'] == 6
+
+
+# --- issue #170: the scanner removes the media row of a file gone from disk ------------------------
+
+
+@pytest.fixture
+def moved(library, monkeypatch):
+    """A rated and played file scanned at its old place, then moved; the walk has not seen it yet.
+
+    Two files is a tiny library, where one gone row is 50%: the 10% brake is lifted here and
+    tested in services/music_manager/tests/test_vanished_media.py. The pass is off by default, so
+    it is switched on here.
+    """
+    from services.common import vanished_files
+
+    monkeypatch.setattr(vanished_files, 'MAX_GONE_SHARE', 1.0)
+    settings = library['manager'].settings
+    real_get = settings.get
+    monkeypatch.setattr(
+        settings,
+        'get',
+        lambda key, default=None: True if key == 'scanner_drop_vanished_media' else real_get(key, default),
+    )
+    db = library['db']
+    library['scan'](library['add_file']('EPs/Label/R0/keep.mp3'), FakeSong(['Outsiders'], title='Keep'))
+    path = library['add_file']('EPs/__TODO/R1/raise.mp3')
+    old = library['scan'](path, FakeSong(['Angerfist']))
+    _rate_and_listen(db, old)
+    new_path = library['root'] / 'EPs/Label/R1/raise.mp3'
+    new_path.parent.mkdir(parents=True)
+    (library['root'] / 'EPs/__TODO/R1/raise.mp3').rename(new_path)
+    return {**library, 'old': old, 'new_path': str(new_path)}
+
+
+def _walk_and_drop(manager, db):
+    """One full walk and the vanished-file pass after it, on the fixture's connection."""
+    seen: set[str] = set()
+    manager._scan_recursive(db, False, seen)
+    return manager._drop_vanished(db, seen)
+
+
+def test_a_moved_file_keeps_its_track_and_loses_only_the_old_row(moved):
+    db, old = moved['db'], moved['old']
+    moved['tags'][moved['new_path']] = FakeSong(['Angerfist'])
+
+    totals = _walk_and_drop(moved['manager'], db)
+
+    assert (totals['deleted'], totals['left_without_file']) == (1, 0)
+    assert run_sql(db, 'SELECT file_path FROM library_media_files WHERE track_id = %s', (old['id'],)) == [
+        {'file_path': moved['new_path']}
+    ]
+    assert run_sql(db, 'SELECT entity_id FROM rating_tracks') == [{'entity_id': old['track_uid']}]
+    assert run_sql(db, 'SELECT track_id FROM scrobble_listens') == [{'track_id': old['id']}]
+
+
+def test_a_moved_and_retagged_file_takes_its_history_to_the_new_track(moved):
+    db, old = moved['db'], moved['old']
+    moved['tags'][moved['new_path']] = FakeSong(['Angerfist'], title='Raise your Fist!')
+
+    totals = _walk_and_drop(moved['manager'], db)
+
+    new = _track_of(db, moved['manager'], moved['new_path'])
+    assert new['id'] != old['id']
+    assert (totals['deleted'], totals['relinked'], totals['ratings_moved'], totals['listens_moved']) == (1, 1, 1, 1)
+    assert not run_sql(db, 'SELECT id FROM library_tracks WHERE id = %s', (old['id'],))
+    assert run_sql(db, 'SELECT entity_id FROM rating_tracks') == [{'entity_id': new['track_uid']}]
+    assert run_sql(db, 'SELECT track_id FROM scrobble_listens') == [{'track_id': new['id']}]
+
+
+def test_a_deleted_file_keeps_its_track_for_relink_orphans(moved):
+    db, old = moved['db'], moved['old']
+    (moved['root'] / 'EPs/Label/R1/raise.mp3').unlink()
+
+    totals = _walk_and_drop(moved['manager'], db)
+
+    assert (totals['deleted'], totals['kept_without_file']) == (1, 1)
+    assert run_sql(db, 'SELECT id FROM library_tracks WHERE id = %s', (old['id'],)) == [{'id': old['id']}]
+    assert run_sql(db, 'SELECT entity_id FROM rating_tracks') == [{'entity_id': old['track_uid']}]

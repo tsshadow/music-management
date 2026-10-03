@@ -424,6 +424,18 @@ def _config_fields() -> list[ConfigField]:
             description='Destination library for processed tracks.',
         ),
         ConfigField(
+            key='scanner_drop_vanished_media',
+            type='boolean',
+            default=False,
+            env='SCANNER_DROP_VANISHED_MEDIA',
+            group='Paths',
+            description='After every full scan, remove the library entry of a file that is gone from disk '
+            '(its track, ratings and listens stay; a moved and retagged file is relinked). Nothing is removed '
+            'when a library folder is missing or empty or more than 10% of the files look gone. Off by default: '
+            'switch it on after scripts/prod/person/merge-stale-media-rows.sh --gone has cleared the backlog '
+            'with its backup.',
+        ),
+        ConfigField(
             key='quarantine_folder_path',
             type='string',
             default='',

@@ -25,6 +25,10 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 | A redownload is requested for a track that was imported manually (no source URL found) | The request is refused with a clear message stating that the source URL could not be found in the system's history. |
 | A file's metadata is updated on disk | During the next scan (full or single-file), the database record is updated to reflect the new title, artist, or label. |
 | A retag changes a file's title or primary artist | The file lands on a new track row; its ratings and listening history move with it and the old, fileless row disappears. A label or channel the file no longer names is unlinked. |
+| A file is deleted from disk (removal switched on) | After the next full scan, the library no longer lists that file. The track stays, with its ratings and listens. When the track has no other file, it waits for the orphan relink or purge (Beheer, or `POST /api/scanner/relink-orphans`). |
+| A release folder moves within the library (removal switched on) | After the next full scan, each track shows the new file and not the old one. The ratings and listens stay on the track. When the move came with a retag, they move to the track the file became. |
+| The music share is not mounted, or a library folder is empty | Nothing is removed. The scan logs a warning that says why. |
+| More than 10% of the library looks gone after a scan | Nothing is removed. The scan logs a warning with the count. |
 
 ## Acceptance Criteria
 
@@ -34,10 +38,16 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 4. Redownload logic correctly identifies the source URL from the download history based on the current filename.
 5. The system prevents concurrent full scans to protect database and filesystem performance.
 6. Scanner state (busy/idle) is correctly reported via the health endpoint.
+7. A file gone from disk loses its library entry after the next full scan. Its track, ratings and listens stay.
+8. An unmounted share, an empty library folder, or more than 10% of the files gone removes nothing.
+9. The removal is off by default (`scanner_drop_vanished_media`). It stays off until
+   `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup. Then a curator
+   switches it on in Beheer > Config.
 
 ## Open Questions / Not Yet Decided
 
-- **Handling of deleted files**: Currently, the scanner adds and updates records but does not remove entries from the database when a physical file is deleted from disk.
-- **Moved files**: Moving a file currently creates a new media file record while leaving the old one orphaned. Detecting moves (e.g., via audio content hash) is not yet implemented.
+- **Moved files**: a move is not detected as such. The new path gets its own row and the old row
+  goes when the file is gone (GitLab issue #170). A move that also changed the tags relinks on
+  title, duration and artist. A move detected by audio content hash is not built.
 - **Automatic triggers**: Besides the periodic loop (default 1 hour) and manual API calls, the scanner does not yet react automatically to filesystem events (e.g., inotify).
 - **Broken files**: Files that are corrupted or have unsupported formats are logged but not explicitly flagged in the UI for user intervention.

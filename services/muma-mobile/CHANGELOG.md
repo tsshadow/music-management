@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.15.5] - 2026-10-03
+
+### Changed
+- **Bundles the web UI of server 0.90.0.** No visible change: the web UI's development
+  dependencies were updated.
+
 ## [7.15.4] - 2026-10-02
 
 ### Changed

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.15.5 (2026-10-03)
+
+- **Bundles the web UI of server 0.90.0.** No visible change: the web UI's development
+  dependencies were updated.
+
 ## Global Version 7.15.4 (2026-10-02)
 
 - **The app opens faster.** The home screen appears straight away and the mini player fills in

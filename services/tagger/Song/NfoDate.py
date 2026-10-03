@@ -16,12 +16,17 @@ MONTH_DAY = 'md'
 
 _TOKEN = r'(\d{1,4}[-./]\d{1,2}[-./]\d{1,4})'
 
+# What may sit between a label and its date: dot padding (`Date..........: `, the layout AOV_INT
+# writes from 2022 on), then up to ten other separators (`: `, `[ `, `\xfe\xfe: `). The dots and
+# spaces stop at a line break, so the padding cannot carry a label to a date on a later line.
+_GAP = r'[ .]{0,40}\W{0,10}'
+
 # Label spellings seen across the library, most authoritative first. A street date is the official
 # release; a rip date is when the group encoded it, usually the same week and occasionally weeks off.
 _LABEL_PATTERNS = (
-    ('street', re.compile(r'(?:str\.?\s*date|street\s*date)\W{0,10}' + _TOKEN, re.I)),
-    ('release', re.compile(r'(?:rel(?:ease)?|store|retail)\.?\s*date\W{0,10}' + _TOKEN, re.I)),
-    ('rip', re.compile(r'(?:rip\.?\s*date|ripped|encoded|\bdate\b)\W{0,10}' + _TOKEN, re.I)),
+    ('street', re.compile(r'(?:str\.?\s*date|street\s*date)' + _GAP + _TOKEN, re.I)),
+    ('release', re.compile(r'(?:rel(?:ease)?|store|retail)\.?\s*date' + _GAP + _TOKEN, re.I)),
+    ('rip', re.compile(r'(?:rip\.?\s*date|ripped|encoded|\bdate\b)' + _GAP + _TOKEN, re.I)),
 )
 
 # A four-digit year that is not part of a longer run of digits, so a catalogue number like

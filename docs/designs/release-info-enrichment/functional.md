@@ -86,6 +86,8 @@ week 50%, the year only 10%, nothing 0%. A week off is acceptable, the year alon
 
 Every rung except arrival must agree with the year in the release's folder name, the guard the
 `.nfo` rule already uses so a rip date cannot redate a 1995 vinyl release.
+A label padded with dots to a column counts the same as the short spelling: AOV_INT writes
+`Date..........: 11.23.2022`, a rip date in month-first order.
 
 ## Acceptance Criteria
 

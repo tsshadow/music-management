@@ -152,3 +152,13 @@ def old_rule_prefix(folder: str) -> str | None:
         if any(char.isdigit() for char in group):
             return group
     return None
+
+
+def comparable(value: str | None) -> str:
+    """A catalogue number without case, separators or leading zeros: `NEKROLOG1K_044` -> `NEKROLOG1K44`.
+
+    Two spellings of one number compare equal this way. The same reduction as
+    scripts/prod/person/catalogue_tag_mismatch.py uses.
+    """
+    text = re.sub(r'[^A-Z0-9]', '', (value or '').upper())
+    return re.sub(r'\d+', lambda match: str(int(match.group())), text)

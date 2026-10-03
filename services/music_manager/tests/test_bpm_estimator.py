@@ -1,8 +1,12 @@
 """The tempo estimator on synthetic click tracks at known tempos, off the old librosa grid."""
 
 import unittest
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    import numpy
 
 # The images and CI carry numpy (requirements.txt); a bare host interpreter may not.
 np = pytest.importorskip('numpy')
@@ -12,7 +16,7 @@ from services.music_manager.bpm import bands, estimator  # noqa: E402
 RATE = estimator.SAMPLE_RATE
 
 
-def click_track(bpm: float, seconds: float = 60.0, offbeat_hats: bool = False, seed: int = 1) -> np.ndarray:
+def click_track(bpm: float, seconds: float = 60.0, offbeat_hats: bool = False, seed: int = 1) -> 'numpy.ndarray':
     """A kick on every beat (a decaying 55 Hz burst plus a click), optionally hats on the offbeats."""
     rng = np.random.default_rng(seed)
     y = rng.normal(0, 0.01, int(seconds * RATE)).astype(np.float32)

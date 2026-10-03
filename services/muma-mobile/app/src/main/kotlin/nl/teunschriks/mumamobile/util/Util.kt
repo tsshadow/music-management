@@ -409,8 +409,7 @@ object Util {
         if (ContextCompat.checkSelfPermission(
                 applicationContext(),
                 POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             val requestPermissionLauncher =
                 fragment.registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -436,8 +435,7 @@ object Util {
         if (ContextCompat.checkSelfPermission(
                 applicationContext(),
                 POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ) == PackageManager.PERMISSION_GRANTED
         ) {
             notificationManagerCompat.notify(id, notification)
         }

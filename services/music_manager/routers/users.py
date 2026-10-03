@@ -394,7 +394,9 @@ def password_matches(password: str, user: dict) -> bool:
         # bcrypt check anyway, so the response time says nothing about which case this is.
         _equalise_bcrypt_cost(candidate)
     api_key = user.get('api_key')
-    return bool(api_key) and secrets.compare_digest(candidate, api_key.encode('utf-8'))
+    if not api_key:
+        return False
+    return secrets.compare_digest(candidate, api_key.encode('utf-8'))
 
 
 @auth_router.post('/auth/login')

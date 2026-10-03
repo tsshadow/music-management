@@ -157,7 +157,7 @@ class RenamerCollisionTest(unittest.TestCase):
         for name, content in files.items():
             full = os.path.join(path, name)
             os.makedirs(os.path.dirname(full), exist_ok=True)
-            with open(full, 'w') as handle:
+            with open(full, 'w', encoding='utf-8') as handle:
                 handle.write(content)
         return path
 

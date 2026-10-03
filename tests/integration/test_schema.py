@@ -452,6 +452,24 @@ def test_the_importer_skips_an_unchanged_proposal_against_real_mariadb(db):
     assert (options['alternative_label'], options['label_choice_key']) == (None, None)
 
 
+def test_a_deleted_audio_less_folder_takes_only_its_open_proposal_off_the_list(db):
+    """#167: the mover deletes a queue folder without audio and marks its open proposal stale;
+    a proposal someone already decided keeps its decision."""
+    from services.importer.label_proposal_store import MARK_GONE_QUERY, RECORD_QUERY
+
+    with db.cursor() as cursor:
+        for folder in ('GONE123 - Release', 'DECIDED123 - Release'):
+            cursor.execute(RECORD_QUERY, (folder, None, None, 'none', 0, None, None, None))
+        cursor.execute("UPDATE rules_label_proposals SET status = 'rejected' WHERE folder = 'DECIDED123 - Release'")
+        cursor.execute(MARK_GONE_QUERY, ('GONE123 - Release',))
+        cursor.execute(MARK_GONE_QUERY, ('DECIDED123 - Release',))
+        cursor.execute('SELECT folder, status, decided_at FROM rules_label_proposals ORDER BY folder')
+        rows = {row['folder']: row for row in cursor.fetchall()}
+    assert rows['GONE123 - Release']['status'] == 'stale'
+    assert rows['GONE123 - Release']['decided_at'] is not None
+    assert rows['DECIDED123 - Release']['status'] == 'rejected'
+
+
 def test_a_track_carries_its_form_and_performance_date(built_schemas):
     """migrate_v42 and db_init both give library_tracks the two columns the form filter and the
     year filter read (docs/designs/track-form/), and the form is indexed on both paths."""

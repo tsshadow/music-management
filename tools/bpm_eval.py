@@ -114,6 +114,7 @@ def run_method(
 
         y = decode(path, offset, seconds, 44100)
         started = time.perf_counter()
+        bpm: float | None
         if method == 'essentia_percival':
             bpm = float(es.PercivalBpmEstimator()(y))
         else:

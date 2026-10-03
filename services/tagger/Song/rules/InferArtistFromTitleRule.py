@@ -224,8 +224,8 @@ class InferArtistFromTitleRule(TagRule):
     def __init__(
         self,
         artist_db=None,
-        ignored_db: FilterTableHelper = None,
-        genre_db: FilterTableHelper = None,
+        ignored_db: FilterTableHelper | None = None,
+        genre_db: FilterTableHelper | None = None,
         festival_helper=None,
     ):
         from services.common.Helpers.Cache import databaseHelpers
@@ -254,9 +254,11 @@ class InferArtistFromTitleRule(TagRule):
         #
         # A name that carries a correction stays selectable on purpose: picking it is how
         # CheckArtistRule gets the chance to swap in the spelling the correction names.
-        self.ignored_without_correction = {
-            name.lower() for name in ignored_names if not ignored_helper.get_corrected(name)
-        }
+        self.ignored_without_correction = (
+            {name.lower() for name in ignored_names if not ignored_helper.get_corrected(name)}
+            if ignored_helper
+            else set()
+        )
         self._ignored_names = ignored_names
         self._all_genres = all_genres
         # The rule outlives a file since the rule stack is built once per round (see

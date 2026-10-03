@@ -1,5 +1,5 @@
 <script>
-  import { viewMode, authParams, favoriteGenres, isAdmin } from './store.js';
+  import { viewMode, authParams, favoriteGenres } from './store.js';
   import { MODE_SECTIONS, PLAYLISTS_SECTION, PERSONAL_SECTIONS, librarySections } from './navigation.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { platform } from './platform/index.js';

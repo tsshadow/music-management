@@ -8,21 +8,16 @@
     <string name="main.genres_title">Gatunki</string>
     <string name="main.offline">Offline</string>
     <string name="main.songs_title">Utwory</string>
-    <string name="main.welcome_title">Witaj!</string>
-    <string name="menu.common">Wspólne</string>
     <string name="playlist.label">Playlisty</string>
     <string name="search.more">Wyświetl więcej</string>
     <string name="select_album.no_sdcard">Błąd: Niedostępna karta SD.</string>
     <string name="select_album.play_all">Odtwórz wszystkie</string>
-    <string name="select_genre.empty">Brak gatunków</string>
     <string name="settings.cache_location_error">Nieprawidłowa lokalizacja pamięci podręcznej. Przywrócono domyślną.</string>
     <string name="main.video" tools:ignore="UnusedResources">Wideo</string>
     <string name="widget.initial_text">Dotknij, aby wybrać muzykę</string>
     <string name="widget.sdcard_busy">Karta SD jest niedostępna</string>
     <string name="widget.sdcard_missing">Brak karty SD</string>
     <string name="share_default_greeting">Sprawdź muzykę, którą udostępniam na %s</string>
-    <string name="server_menu.move_up">Przesuń się w górę</string>
-    <string name="server_menu.move_down">Przesuń się w dół</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Ogólny błąd interfejsu API: %1$s</string>
     <string name="api.subsonic.generic.no.message">brak wiadomości zwróconej przez serwer</string>
@@ -37,7 +32,6 @@
     <!-- Subsonic features  -->
     <string name="language.en">Angielski</string>
     <string name="language.fr">Francuski</string>
-    <string name="main.welcome_cancel">Otwórz ustawienia</string>
     <string name="language.cs">Czeski</string>
     <string name="language.de">Niemiecki</string>
     <string name="notification.downloading_title">Pobieranie w tle…</string>
@@ -58,10 +52,4 @@
     <string name="select_album.no_network">Uwaga: Brak dostępnych sieci do użycia.
 \n Jeżeli używasz danych mobilnych, potrzebne może być włączenie płatnych połączeń w ustawieniach.</string>
     <string name="notification.permission_required">Powiadomienia są wymagane do odtwarzania multimediów. Możesz przyznać uprawnienie do nich w dowolnym momencie w ustawieniach Androida.</string>
-    <string name="server_menu.demo">Serwer demonstracyjny</string>
-    <string name="main.welcome_text_demo">Aby używać MuMa z własną muzyką, potrzebujesz <b>własnego serwera</b>.
-\n
-\n➤ Jeśli chcesz najpierw wypróbować aplikację, możesz teraz dodać serwer demonstracyjny.
-\n
-\n➤ W przeciwnym razie możesz skonfigurować serwer w <b>ustawieniach</b>.</string>
 </resources>

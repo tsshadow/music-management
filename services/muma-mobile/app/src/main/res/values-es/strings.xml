@@ -24,16 +24,11 @@
     <string name="main.genres_title">Géneros</string>
     <string name="main.offline">Sin conexión</string>
     <string name="main.songs_title">Canciones</string>
-    <string name="main.welcome_text_demo">Para utilizar MuMa con tu música necesitas un <b>servidor propio</b>. \n\n➤ En caso de que quieras probar la aplicación primero, se puede añadir ahora un servidor de demostración. \n\n➤ En caso contrario, puedes configurar tu servidor personal en la <b>configuración</b>.</string>
-    <string name="main.welcome_title">¡Bienvenido a MuMa!</string>
-    <string name="main.welcome_cancel">Llévame a la configuración</string>
-    <string name="menu.common">Común</string>
     <string name="playlist.label">Listas de reproducción</string>
     <string name="search.more">Mostrar mas</string>
     <string name="select_album.no_network">Atención: No hay ninguna red utilizable disponible.\n Si estás utilizando datos móviles, es posible que tengas que permitir las descargas en conexiones con tarificación o en itinerancia en los ajustes.</string>
     <string name="select_album.no_sdcard">Error: No hay tarjeta SD disponible.</string>
     <string name="select_album.play_all">Reproducir todo</string>
-    <string name="select_genre.empty">No se han encontrado géneros</string>
     <string name="settings.cache_location_error">Ubicación de la caché no válida. Usando la localización predeterminada.</string>
     <string name="main.video" tools:ignore="UnusedResources">Vídeo</string>
     <string name="widget.initial_text">Toca para seleccionar música</string>
@@ -42,9 +37,6 @@
     <string name="share_default_greeting">Echa un vistazo a esta música que te comparto desde %s</string>
     <string name="notification.downloading_title">Descargando medios en segundo plano…</string>
     <string name="notification.permission_required">Las notificaciones son necesarias para la reproducción de medios. Puedes conceder el permiso en cualquier momento en los ajustes de Android.</string>
-    <string name="server_menu.move_up">Subir</string>
-    <string name="server_menu.move_down">Bajar</string>
-    <string name="server_menu.demo">Servidor de demostración</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Error genérico de la API: %1$s</string>
     <string name="api.subsonic.generic.no.message">ningún mensaje dado desde el servidor</string>
@@ -61,7 +53,6 @@
     <string name="foreground_exception_text">Presione el botón de reproducción en la notificación de medios si aún está presente; de lo contrario, abra la aplicación para iniciar la reproducción y vuelva a conectar la sesión al controlador</string>
     <string name="shortcut_play_random_songs_short">Canciones aleatorias</string>
     <string name="shortcut_play_random_songs_long">Reproducir las canciones aleatoriamente</string>
-    <string name="download.menu_unstar">No me gusta</string>
     <string name="car_mode.title">Modo coche</string>
     <string name="car_mode.notification_text">Abrir la pantalla de conducción</string>
     <string name="car_mode.channel_name">Modo coche</string>

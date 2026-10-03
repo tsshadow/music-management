@@ -11,6 +11,27 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.90.0 (2026-10-03)
+
+- The importer no longer places a release folder that holds no audio, only scene files such as `00-*.m3u`, `.nfo`, `.sfv` and a cover. It deletes the folder from the import queue and writes an event that names the files it held. Before, such a folder went to the label tree, and LMS reported its playlist as missing entries after every scan. A folder with audio in a sub folder, an archive that is not extracted yet, or any other file stays (#167).
+
+- **1,314 label releases now get the exact date from their .nfo.** The tagger skipped date lines
+  padded with dots, such as `Date..........: 11.23.2022`.
+
+- The scanner can now remove files that are gone from disk from the library. Ratings and listens stay. Nothing is removed when the music share is not mounted. It is off until the old backlog is cleaned up.
+
+- The deprecated `GET /api/downloaders/schedule/{source}` answers 200 again for a source with checked accounts. It answered 500 for each such source, because it read the check record as a date. The response shape is unchanged. The whole-tree type check (`backend:typecheck-all`) has no errors left and now fails the pipeline on a new one (#171, #41, bug report 148).
+
+- A label track whose `CATALOGNUMBER` still holds the whole release folder name, written before bug report 145 (`D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB`), gets a real number on its next retag. The tagger writes the number in the folder name's brackets when it passes the catalogue number test, with or without an `.nfo`, and clears the tag when the name has no such number. When the `.nfo` states a different number, the tag stays for a person to decide. Any other value, such as a number a person typed, stays as it is (#172).
+
+- The catalogue-number repair script can now take the number from the release folder's name for
+  releases without a confirming .nfo.
+
+- The weekly dependency audit is green again: one frontend build tool is updated, and two findings in pip's own bundled copy of urllib3 are recorded as accepted until pip ships a fix.
+
+- Person scripts to park duplicate release folders, delete media rows of vanished files and fix
+  catalogue-number tags that disagree with the folder and its .nfo.
+
 ## Global Version 0.89.4 (2026-10-03)
 
 - **The release-date backfill read month-first .nfo dates day-first.** `release_date_backfill`

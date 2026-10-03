@@ -27,16 +27,16 @@ class TestCopyright(unittest.TestCase):
         song = LabelSong(file_path)
         song.tag_collection.set_item(DATE, '2023-01-01')
         song.tag_collection.set_item(PUBLISHER, 'Scantraxx')
-        copyright = song.calculate_copyright()
-        self.assertEqual(copyright, 'Scantraxx (2023)')
+        copyright_line = song.calculate_copyright()
+        self.assertEqual(copyright_line, 'Scantraxx (2023)')
 
     def test_calculate_copyright_without_date(self):
         """Test copyright calculation with publisher but no date."""
         file_path = '/tmp/Scantraxx/SCAN123/song.mp3'
         song = LabelSong(file_path)
         song.tag_collection.set_item(PUBLISHER, 'Scantraxx')
-        copyright = song.calculate_copyright()
-        self.assertEqual(copyright, 'Scantraxx')
+        copyright_line = song.calculate_copyright()
+        self.assertEqual(copyright_line, 'Scantraxx')
 
     def test_calculate_copyright_applied_on_parse(self):
         """Test that copyright is automatically applied during parse if missing."""

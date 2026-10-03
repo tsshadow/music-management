@@ -153,10 +153,11 @@ def resolve(answers: list[str]) -> str | None:
 
 def _windows(muma_cursor) -> range:
     muma_cursor.execute('SELECT MIN(id) AS low, MAX(id) AS high FROM library_tracks')
-    bounds = muma_cursor.fetchone() or {}
+    bounds: dict = muma_cursor.fetchone() or {}
     low, high = bounds.get('low'), bounds.get('high')
     if low is None:
         return range(0)
+    assert high is not None  # MIN and MAX are NULL together
     return range(low, high + 1, ID_WINDOW)
 
 

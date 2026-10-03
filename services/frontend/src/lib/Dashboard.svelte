@@ -141,9 +141,6 @@
   }
   let playlistView = $state(defaultCollectionState('playlists'));
 
-  const visibleGenres = $derived(queryCollection(allGenres, 'genres', genreView, { favorites: $favoriteGenres }));
-  const visibleLabels = $derived(queryCollection(allLabels, 'labels', labelView, { favorites: $favoriteLabels }));
-  const visiblePodcasts = $derived(queryCollection(allPodcasts, 'podcasts', podcastView));
   const visiblePlaylists = $derived(
     queryCollection(playlists, 'playlists', playlistView, {
       favorites: $favoritePlaylists,
@@ -1009,7 +1006,7 @@
   $effect(() => {
     const view = activeView;
     const auth = $authParams;
-    const mode = $viewMode;
+    const _mode = $viewMode;
     // A dependency on purpose: coming back online has to re-run the loader for
     // the view the listener is already standing on.
     const unreachable = $offline && !viewHasOfflineSource(view);

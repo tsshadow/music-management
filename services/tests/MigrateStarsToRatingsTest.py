@@ -15,6 +15,7 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "migrate_stars_to_ratings.py"
 
 spec = importlib.util.spec_from_file_location("migrate_stars_to_ratings", SCRIPT)
+assert spec is not None and spec.loader is not None
 migrate_stars_to_ratings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(migrate_stars_to_ratings)
 

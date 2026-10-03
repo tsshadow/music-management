@@ -24,10 +24,10 @@ job, and the hook is a thin wrapper around the same scripts on purpose -- the
 two can never drift apart.
 
 ```bash
-./scripts/lint.sh                       # ruff + pylint (threshold 9.5) + docstrings on strict modules
+./scripts/lint.sh                       # ruff + pylint (threshold 9.87) + docstrings on strict modules
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
-./scripts/typecheck.sh --all            # mypy over the whole tree (CI: allowed to fail, for now)
+./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
@@ -111,9 +111,11 @@ welcome; removing from it needs a reason in the commit message. A module on the
 list also has to document every public function and class -- `scripts/lint.sh`
 fails it otherwise -- so document a module before adding it.
 
-**Formatting is opt-in.** `./scripts/format.sh <path>` runs `ruff format` on a
-directory you name. It is deliberately not in CI: a tree-wide reformat would
-rewrite almost every file and conflict with every open branch.
+**Formatting is checked.** `./scripts/format.sh` runs `ruff format` over
+`services/`, `tools/` and `tests/`, or over the paths you name. The
+`backend:format` job and the pre-commit hook run `./scripts/format.sh --check`
+and fail on an unformatted file. The whole-tree reformat is listed in
+`.git-blame-ignore-revs`.
 
 ## Branches and releases
 

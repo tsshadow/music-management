@@ -926,11 +926,12 @@ def test_backend_suites_run_in_the_container_in_ci():
 def test_the_loose_type_floor_is_checked_somewhere():
     """backend:typecheck runs the strict list only, so the floor the whole tree is
     held to ran nowhere -- and could not have started, since tools/ was "found twice
-    under different module names". The job may be orange while the backlog is
-    worked down (GitLab issue #41); it may not disappear."""
+    under different module names". Its backlog reached zero (GitLab issues #41 and
+    #171), so it is a hard gate now: it may neither disappear nor turn orange."""
     ci = load_ci()
     job = ci["backend:typecheck-all"]
     assert job["script"] == ["./scripts/typecheck.sh --all"]
+    assert not job.get("allow_failure", False)
     assert job["stage"] == "quality"
     globs = _changes_globs(ci, "backend:typecheck-all")
     assert "tools/**/*.py" in globs and "services/**/*.py" in globs

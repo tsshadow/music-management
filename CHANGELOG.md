@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.90.0] - 2026-10-03
+
+### Added
+- **`fix-catalogue-tag-mismatch.sh --from-folder-name` fixes the stale catalogue tags no .nfo
+  confirms (#172).** The default mode left 272 releases whose files still hold the whole scene
+  folder name as CATALOGNUMBER and where the folder and the .nfo agree on no number (268 without an
+  .nfo, 4 whose .nfo names another one). The new mode writes the catalogue number in brackets in
+  the folder name (`D-Teq_-_Arcade-(BIR047)-WEB-2012-SRG` gets BIR047), only when it passes
+  `services/common/catalogue_number.py`. A folder without a passing bracket is listed with the
+  reason and never written. An .nfo that states another number makes the release a conflict for a
+  person: listed with both numbers, never written, the same decision the tagger's
+  `HealStaleCatalogueNumberRule` makes. Dry run by default, a JSON backup before the first write, `--rollback`, and a second
+  dry run finds nothing.
+
+- **Three person scripts for what the label-tree cleanup left behind.**
+  `park-duplicate-releases.sh` finds release folders that hold the same release twice in one label
+  folder (838 groups on prod) and moves the weaker copy to `/mnt/music/.quarantine/`. A move happens
+  only when the copies have the same format, the same source and tracks that pair on title and
+  duration, and one copy wins on files, bitrate, scene name or .nfo (595 folders). Ties, vinyl next
+  to web, scene fix releases and history held only by the weaker copy are listed for a person.
+  `merge-stale-media-rows.sh` now also deletes the media rows whose file is gone from disk (8,372,
+  mostly old `EPs/__TODO/` paths, `--gone`). It stops when a share looks unmounted.
+  `fix-catalogue-tag-mismatch.sh` writes the folder's catalogue number into files whose
+  CATALOGNUMBER disagrees with it, only where the release's .nfo agrees with the folder. It also
+  replaces the whole folder name the tagger wrote as CATALOGNUMBER before bug report 145 with the
+  bracketed number the .nfo confirms (76 releases). All three
+  back up first and have a rollback.
+
+### Fixed
+- The importer no longer places a release folder that holds no audio, only scene files such as `00-*.m3u`, `.nfo`, `.sfv` and a cover. It deletes the folder from the import queue and writes an event that names the files it held. Before, such a folder went to the label tree, and LMS reported its playlist as missing entries after every scan. A folder with audio in a sub folder, an archive that is not extracted yet, or any other file stays (#167).
+
+- **1,314 label releases had a date in their .nfo that the tagger did not read.** `NfoDate` allowed
+  no more than 10 characters between a date label and its date, so it skipped labels padded with
+  dots to a column: `Date..........: 11.23.2022` (AOV, AOV_INT) and `* street date .........:
+  2024-03-17` (JUSTiFY). The date ladder then fell back to the arrival date or the year. The reader
+  now allows the dot padding. A padded `Date` stays a rip date, and a padded street, release or store
+  date keeps its own rung. Measured on production over the 48,769 .nfo folders of the label tree:
+  1,314 folders get a date for the first time. One EDML folder changes from its `Release Date` to
+  the `Store Date` above it, which is the same rung. No "Last Updated" stamp or other non-release
+  date is read. `migrate_v57` adds the five month-first groups the seed script could not measure
+  before (AOV, BMI, CMC, DDS, SCL), so `08.11.2023` from AOV reads as 11 August. Issue #169.
+
+- The scanner now removes the library entry of a file that is gone from disk. A moved or deleted release folder used to leave its rows behind for good: 8,372 of 354,222 media rows on production on 2026-10-03. The track stays, with its ratings and listens. A track whose file was moved and retagged takes its history to the track the file became. Nothing is removed when the share is not mounted, a library folder is empty, or more than 10% of the files look gone. It is off by default (`scanner_drop_vanished_media`): the backlog goes through `merge-stale-media-rows.sh --gone` first, with its backup, and then a curator switches it on in Beheer > Config (#170, bug report 149).
+
+- The deprecated `GET /api/downloaders/schedule/{source}` answers 200 again for a source with checked accounts. It answered 500 for each such source, because it read the check record as a date. The response shape is unchanged. The whole-tree type check (`backend:typecheck-all`) has no errors left and now fails the pipeline on a new one (#171, #41, bug report 148).
+
+- A label track whose `CATALOGNUMBER` still holds the whole release folder name, written before bug report 145 (`D-Teq_-_Dark_Energy-(BIR030)-WEB-2011-HB`), gets a real number on its next retag. The tagger writes the number in the folder name's brackets when it passes the catalogue number test, with or without an `.nfo`, and clears the tag when the name has no such number. When the `.nfo` states a different number, the tag stays for a person to decide. Any other value, such as a number a person typed, stays as it is (#172).
+
+### Security
+- The weekly dependency audit (`security:dependency-audit`) is green again. It had failed on develop since pipeline 4434 with two findings. The frontend's `brace-expansion` moves from 5.0.9 to 5.0.12 for three denial-of-service advisories (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p). Only ESLint loads it, at build time. Two urllib3 advisories (CVE-2026-97687, CVE-2026-97689) are accepted in `security/trivyignore`: they hit the copy that pip 26.2.1 bundles, which runs only while an image is built. No pip release bundles a fixed urllib3 yet. The urllib3 the services import is 2.8.0, the fixed version.
+
 ## [0.89.4] - 2026-10-03
 
 ### Fixed

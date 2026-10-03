@@ -64,7 +64,7 @@ logger = logging.getLogger('artist-auto-approve')
 
 # The judgement lives in services/common so the scheduled run inside music-manager applies the
 # very same rules; several names are re-exported for tools/test_artist_auto_approve.py.
-from services.common.Helpers.ArtistEvidence import (  # noqa: E402,F401
+from services.common.Helpers.ArtistEvidence import (  # noqa: E402,F401  # pylint: disable=unused-import,wrong-import-position
     APPROVE,
     DECIDE_BATCH,
     DECIDED_BY,
@@ -247,8 +247,6 @@ def run(conn: sqlite3.Connection, args) -> None:
         titles = json.loads(row['titles'])
         try:
             verdict = resolve(fetcher, row['name'], titles, tuple(args.sources))
-        except KeyboardInterrupt:
-            raise
         except Exception:  # noqa: BLE001 - one name must not end the run
             logger.exception('%s: lookup failed', row['name'])
             continue
@@ -435,7 +433,7 @@ def undo(conn: sqlite3.Connection, args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    parser = argparse.ArgumentParser(description=__doc__.split('\n\n', maxsplit=1)[0])
     parser.add_argument('--state', required=True, help='sqlite file holding the snapshot, cache and verdicts')
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('snapshot', help='read the queue and its titles from the database')

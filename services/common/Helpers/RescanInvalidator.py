@@ -69,7 +69,7 @@ class RescanInvalidator:
         if self._substring_worthy(term):
             like = f'%{self._escape_like(term)}%'
             query = base + ' WHERE a.name = %s OR t.title LIKE %s OR mf.file_path LIKE %s'
-            args = (term, like, like)
+            args: tuple[str, ...] = (term, like, like)
         else:
             query = base + ' WHERE a.name = %s'
             args = (term,)

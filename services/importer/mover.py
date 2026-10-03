@@ -6,6 +6,7 @@ from datetime import date, datetime
 from os import listdir
 from os.path import isfile, join
 
+from services.common import audio_less_folder
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
@@ -319,6 +320,50 @@ class Mover:
         if signature is not None:
             self._resolved[folder] = signature
 
+    def _drop_audio_less(self, folder, dry_run) -> bool:
+        """Delete a queue folder that holds no audio, only scene files. True when it was handled.
+
+        A release whose tracks are gone keeps its `00-*.m3u`, `.nfo`, `.sfv` and cover. Placed
+        in the label tree, LMS would report the playlist as pointing at missing files after
+        every library scan, and nothing in the folder is worth keeping (GitLab issue #167). The
+        rule leans towards keeping -- audio at any depth, an archive not yet extracted, any
+        unknown file or link keeps the folder -- see `services/common/audio_less_folder.py`.
+
+        A folder that should go but cannot be deleted is still not placed: True all the same,
+        and the next cycle tries again.
+        """
+        src = join(self.settings.import_folder_path, folder)
+        verdict = audio_less_folder.inspect(src)
+        if not verdict.audio_less:
+            return False
+        queue = ImportQueue.from_settings(self.settings)
+        if not audio_less_folder.is_queue_release(queue, src):
+            logging.warning(f'Not deleting {src}: it holds no audio, but it is not a folder in the import queue')
+            return True
+        files = ', '.join(verdict.files)
+        if dry_run:
+            logging.info(f'Dry run - would delete {folder}: it holds no audio, only {files}')
+            return True
+        try:
+            deleted = audio_less_folder.delete_from_queue(queue, src)
+        except OSError as e:
+            logging.error(f'Could not delete {src}, which holds no audio: {e}')
+            return True
+        if deleted is None:
+            # Something arrived between the two looks; the next cycle judges it afresh.
+            return True
+        logging.info(f'Deleted {src}: it held no audio, only {files}')
+        notification_service.notify(
+            f'{folder}\nDeleted from the import queue: it held no audio, only {len(deleted.files)} '
+            f'file(s): {", ".join(deleted.files)}',
+            title='Release folder without audio deleted',
+            push=False,
+        )
+        # LMS indexed the playlist in the queue; the rescan drops it and its scan error.
+        lms_scan_trigger.notify([src])
+        self.proposals.mark_gone(folder)
+        return True
+
     def get_label(self, key) -> str | None:
         query = 'SELECT `label` FROM `rules_catid_label` WHERE `catid` = %s'
         try:
@@ -474,6 +519,8 @@ class Mover:
             # A release still being copied in would be moved with half its tracks, and
             # the rest would arrive in a new import folder the next cycle calls a conflict.
             if not is_settled(join(self.settings.import_folder_path, folder)):
+                continue
+            if self._drop_audio_less(folder, dry_run):
                 continue
             cat_id = get_cat_id(folder)
             if cat_id:

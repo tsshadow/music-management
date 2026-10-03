@@ -18,6 +18,7 @@ pytestmark = pytest.mark.mock_base('pymysql', 'dbutils')
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'repair_song_works.py'
 
 spec = importlib.util.spec_from_file_location('repair_song_works', SCRIPT)
+assert spec is not None and spec.loader is not None
 repair = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(repair)
 

@@ -3,6 +3,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault('import_folder_path', '/tmp')
@@ -14,8 +15,9 @@ os.environ.setdefault('DB_USER', 'user')
 os.environ.setdefault('DB_PORT', '0')
 os.environ.setdefault('DB_PASS', '')
 os.environ.setdefault('DB_DB', 'db')
-sys.modules['dotenv'] = types.ModuleType('dotenv')
-sys.modules['dotenv'].load_dotenv = lambda *a, **k: None
+_dotenv: Any = types.ModuleType('dotenv')
+_dotenv.load_dotenv = lambda *a, **k: None
+sys.modules['dotenv'] = _dotenv
 from services.tagger.constants import SongTypeEnum
 
 

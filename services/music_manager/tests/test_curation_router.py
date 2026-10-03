@@ -21,7 +21,7 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector', 'Cache')
 import services.music_manager.routers.users as users_router
 from services.music_manager.api_key import resolve_system_api_key
 
-users_router.run_lms_db_sync = lambda: None
+users_router.run_lms_db_sync = lambda only_sources=None: None
 
 from fastapi.testclient import TestClient
 
@@ -46,7 +46,7 @@ BLACK_GENRE = {'id': 99, 'name': 'Arts', 'state': 'black'}
 class CurationTestCase(unittest.TestCase):
     """Wires a scripted cursor under the router and hands out an admin client."""
 
-    rules = ()
+    rules: tuple = ()
 
     def setUp(self):
         self.client = TestClient(app)
@@ -297,7 +297,7 @@ class ArtistAliasTest(CurationTestCase):
 
 
 class LabelReadTest(CurationTestCase):
-    rules = (
+    rules: tuple = (
         ('FROM library_labels', None, LABEL_ROW),
         ('FROM label_external_ids', None, []),
         ('FROM rules_label_genres', None, [{'genre_id': 12, 'name': 'Hardcore', 'created_by': None}]),

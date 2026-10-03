@@ -53,7 +53,7 @@ import signal
 import subprocess
 import threading
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import Executor, ProcessPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -127,7 +127,7 @@ def _coerce(kind: str, value: Any, default: Any) -> Any:
     return str(value)
 
 
-def read_settings(config_path: Path = CONFIG_PATH, env: dict | None = None) -> dict[str, Any]:
+def read_settings(config_path: Path = CONFIG_PATH, env: Mapping[str, str] | None = None) -> dict[str, Any]:
     """The worker's settings: the config page's override, else the environment, else the default.
 
     Read from music-manager's `config.json` directly (mounted read-only), not through

@@ -9,6 +9,7 @@ from typing import Final
 
 import patoolib
 
+from services.common.audio_less_folder import DOCUMENT_EXTENSIONS, IGNORED_NAMES, IMAGE_EXTENSIONS
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import Quarantine
 from services.common.Helpers.ReleaseFolder import AUDIO_EXTENSIONS, is_same_release
@@ -85,14 +86,9 @@ ARCHIVE_SIGNATURES: Final[tuple[tuple[str, tuple[bytes, ...]], ...]] = (
 # "unknown". Audio outside a release folder is its own case: nothing in the pipeline places
 # a loose track, so it stands until someone puts it in a folder.
 VIDEO_EXTENSIONS: Final = ('.mp4', '.mkv', '.avi', '.mov', '.webm', '.wmv', '.flv', '.m4v', '.mpg', '.mpeg', '.ts')
-IMAGE_EXTENSIONS: Final = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.heic')
-DOCUMENT_EXTENSIONS: Final = (
-    '.pdf', '.txt', '.nfo', '.doc', '.docx', '.rtf', '.md', '.html', '.htm', '.csv', '.xls', '.xlsx',
-    '.cue', '.m3u', '.m3u8', '.log', '.sfv', '.json', '.xml',
-)  # fmt: skip
-
-# Housekeeping files an OS or the NAS drops into any folder. Never an import, never worth a line.
-IGNORED_NAMES: Final = frozenset({'thumbs.db', 'desktop.ini'})
+# Images, documents and the housekeeping files an OS or the NAS drops into any folder
+# (IGNORED_NAMES: never an import, never worth a line) are shared with the mover's
+# audio-less check, which treats the same kinds as a release's companions.
 
 #: What `classify` returns for a file to extract, and for one to pass over without a word.
 ARCHIVE = 'archive'

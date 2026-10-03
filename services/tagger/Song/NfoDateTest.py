@@ -90,6 +90,54 @@ class ResolveTest(unittest.TestCase):
         self.assertIsNone(resolved)
 
 
+# The header of the AOV_INT .nfo of ROUGH247PRO as it reads on production: one key per line,
+# padded with dots to a fixed column. AOV_INT writes month first (rules_scene_group_date_format).
+AOV_INT_NFO = """
+Artist(s).....: Rejecta
+Album.........: Living My Dream
+Genre.........: Techno
+Date..........: 11.23.2022
+Encoder.......: LAME 3.100
+Quality.......: 320kbps - 44,1Khz - Joint Stereo
+Track(s)......: 02
+Label.........: Roughstate
+Catalognr.....: ROUGH247PRO
+URL...........: https://www.deezer.com/nl/album/373294327
+"""
+AOV_INT_DIR = 'ROUGH247PRO - Rejecta-Living_My_Dream-()-WEB-2022-AOV_INT'
+
+
+class DotPaddedLabelTest(unittest.TestCase):
+    def test_a_dot_padded_date_line_is_read_as_the_rip_date(self):
+        kind, resolved = NfoDate.resolve(AOV_INT_NFO, AOV_INT_DIR, NfoDate.MONTH_DAY)
+        self.assertEqual(kind, 'rip')
+        self.assertEqual(resolved, date(2022, 11, 23))
+
+    def test_the_group_order_decides_an_ambiguous_dot_padded_date(self):
+        # PRSPX197D: 08.07.2023 is August 7th for a month-first group.
+        text = 'Genre.........: Techno\nDate..........: 08.07.2023\nEncoder.......: LAME 3.100\n'
+        dirname = 'PRSPX197D - Thieves_Of_Dreams-From_The_Darkness-(PRSPX197D)-SINGLE-WEB-2023-AOV_INT'
+        self.assertEqual(NfoDate.resolve(text, dirname, NfoDate.MONTH_DAY), ('rip', date(2023, 8, 7)))
+
+    def test_a_dot_padded_date_from_another_year_is_still_rejected(self):
+        # SPQ003PRO: a 2017 release that AOV_INT ripped in 2022.
+        text = 'Date..........: 11.27.2022\n'
+        dirname = 'SPQ003PRO - Deetox_Ft._Mc_Jeff-Lucky_Number_7_(Pro_Mix)-()-SINGLE-WEB-2017-AOV_INT'
+        self.assertEqual(NfoDate.resolve(text, dirname, NfoDate.MONTH_DAY), (None, None))
+
+    def test_dot_padding_works_for_the_street_and_release_labels_too(self):
+        # The bare `date` inside each label also reads as a rip date; precedence puts it last.
+        self.assertEqual(NfoDate.date_tokens('Str.date..........: 16-01-2026')[0], ('street', '16-01-2026'))
+        self.assertEqual(NfoDate.date_tokens('Release Date........: 16-01-2026')[0], ('release', '16-01-2026'))
+
+    def test_an_updated_stamp_is_not_a_date_label(self):
+        self.assertEqual(NfoDate.date_tokens('Last Updated..........: 01.02.2021'), [])
+
+    def test_a_bare_label_does_not_take_a_date_from_a_later_line(self):
+        text = 'Date..........:\nGenre.........: Techno\nNotes.........: 01.02.2021\n'
+        self.assertEqual(NfoDate.date_tokens(text), [])
+
+
 class ReadNfoTest(unittest.TestCase):
     def test_reads_cp437_art_and_strips_nul_bytes(self):
         raw = b'\xdb\xdc art \x00\x00 Str.date\xfe\xfe: 16-01-2026\r\n'

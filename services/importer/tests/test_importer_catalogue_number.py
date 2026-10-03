@@ -2,7 +2,13 @@
 
 import unittest
 
-from services.common.catalogue_number import from_folder_name, is_catalogue_number, old_rule_prefix, rejection
+from services.common.catalogue_number import (
+    comparable,
+    from_folder_name,
+    is_catalogue_number,
+    old_rule_prefix,
+    rejection,
+)
 
 # Prefixes of label folders on production on 2026-10-02, one per shape the old Renamer
 # produced. Every one of them routes a release today, so the new rule must keep them all.
@@ -113,3 +119,15 @@ class FromFolderNameTest(unittest.TestCase):
 
     def test_old_rule_prefix_without_any_digit_group_is_none(self):
         self.assertIsNone(old_rule_prefix('Guizcore_-_Coffee_Time-WEB-FLAC-2026'))
+
+
+class ComparableTest(unittest.TestCase):
+    """Two spellings of one catalogue number compare equal (issue #172)."""
+
+    def test_case_separators_and_leading_zeros_are_ignored(self):
+        self.assertEqual(comparable('NEKROLOG1K_044'), comparable('nekrolog1k44'))
+        self.assertEqual(comparable('NGM.02'), comparable('NGM2'))
+
+    def test_different_numbers_stay_different(self):
+        self.assertNotEqual(comparable('BIR030'), comparable('BIR031'))
+        self.assertEqual('', comparable(None))

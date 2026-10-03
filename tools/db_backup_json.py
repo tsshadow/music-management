@@ -37,7 +37,7 @@ def backup_db():
 
             backup_data[table] = {"create_sql": create_sql, "data": rows}
 
-    with open("backup_before_domain_rename.json", "w") as f:
+    with open("backup_before_domain_rename.json", "w", encoding='utf-8') as f:
         # We gebruiken een custom encoder voor datetimes etc indien nodig
         # Maar voor nu proberen we standaard json
         try:

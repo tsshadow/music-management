@@ -262,7 +262,7 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | `server:format` | the server sources changed | clang-format check, pinned to one clang version. Fix with `./scripts/test/muma-server-format.sh --fix`. |
 | `server:lint` | the server sources changed | clang-tidy over 307 translation units against a baseline of accepted findings. ~12 minutes, so it is deliberately not on every pipeline. |
 | `server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
-| `frontend:format` / `:lint` / `:typecheck` | the Svelte frontend changed | oxfmt, oxlint + eslint, svelte-check. |
+| `frontend:format` / `:lint` / `:typecheck` | the Svelte frontend changed | oxfmt, oxlint + eslint (a warning fails the job), svelte-check. |
 | `frontend:unit` | the Svelte frontend changed | Vitest with coverage. |
 | `mobile:format` | the Android app changed | ktlint. Fix with `./scripts/test/muma-mobile-ktlint.sh ktlintFormat`. |
 | `mobile:lint` | the Android app changed | detekt (no baseline: every finding fails) and Android Lint (against a baseline). |

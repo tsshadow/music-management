@@ -1,6 +1,6 @@
 <script>
   import { t } from '../i18n/index.js';
-  import { onDestroy, onMount, untrack } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { RefreshCw } from '@lucide/svelte';
   import { activeManagementTab, isAdmin, mumaApiKey, mumaApiUrl, userPermissions, mumaUser, hasPermission, endLeftoverSharedKeySession, endRejectedSession } from '../store.js';
   import { getHeaders as sharedHeaders, fetchMumaJson, mapWithLimit } from '../mumaApi.js';
@@ -156,7 +156,7 @@
         message = $t('management.overview.fetchImagesStarted');
         startProgressPolling();
       }
-    } catch (err) {
+    } catch {
       error = $t('management.overview.fetchImagesFailed');
     }
   }
@@ -317,7 +317,7 @@
         } else {
           isLoggedIn = false;
         }
-      } catch (e) {
+      } catch {
         isLoggedIn = false;
       }
     } else {

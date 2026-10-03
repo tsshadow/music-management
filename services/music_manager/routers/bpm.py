@@ -226,7 +226,8 @@ class ManualBpm(BaseModel):
     """A tempo set by hand: `bpm` itself, or a `factor` (0.5 or 2) on the tempo shown now."""
 
     bpm: float | None = None
-    factor: Literal[0.5, 2.0] | None = None
+    # pydantic validates a float Literal; PEP 586 does not allow one, so mypy objects.
+    factor: Literal[0.5, 2.0] | None = None  # type: ignore[valid-type]
 
 
 def _track_uid(cursor, track_id: int) -> str:

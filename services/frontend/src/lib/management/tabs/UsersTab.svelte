@@ -1,7 +1,6 @@
 <script >
   import { t, format } from '../../i18n/index.js';
-  import { onMount } from 'svelte';
-  import { RefreshCw, Plus, Trash2, Users, Key, Radio, Database, Shield, ShieldAlert, ShieldCheck, Link, Power, LogOut } from '@lucide/svelte';
+  import { RefreshCw, Plus, Trash2, Users, Key, Radio, Database, Shield, ShieldCheck, Link, Power, LogOut } from '@lucide/svelte';
   import { authParams, hasPermission, mumaApiUrl, mumaUser } from '../../store.js';
 
   export let users;
@@ -51,7 +50,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.users.addFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.addNetworkError'));
     }
   }
@@ -74,7 +73,7 @@
         const data = await res.json().catch(() => ({}));
         onError(typeof data?.detail === 'string' && data.detail ? data.detail : $t('management.users.deleteFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.deleteNetworkError'));
     }
   }
@@ -96,7 +95,7 @@
       } else {
         onError($t('management.users.lbLinkFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.lbLinkNetworkError'));
     }
   }
@@ -115,7 +114,7 @@
       } else {
         onError($t('management.users.passwordUpdateFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.passwordNetworkError'));
     }
   }
@@ -133,7 +132,7 @@
       } else {
         onError($t('management.users.syncFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.syncNetworkError'));
     }
   }
@@ -151,7 +150,7 @@
       } else {
         onError($t('management.users.syncFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.syncNetworkError'));
     }
   }
@@ -220,7 +219,7 @@
       } else {
         onError((await res.text()) || $t('management.users.tokenSaveFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.tokenNetworkError'));
     } finally {
       isSavingSubsonicToken = false;
@@ -268,7 +267,7 @@
         const data = await res.json();
         onError(data.detail || $t('management.users.roleUpdateFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.roleNetworkError'));
     }
   }
@@ -287,7 +286,7 @@
       } else {
         onError(action === 'enable' ? $t('management.users.enableFailed') : $t('management.users.disableFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.networkError'));
     }
   }
@@ -305,7 +304,7 @@
       } else {
         onError($t('management.users.sessionsRevokeFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.networkError'));
     }
   }
@@ -330,13 +329,16 @@
         const data = await res.json();
         onError(data.detail || $t('management.users.mergeFailed'));
       }
-    } catch (err) {
+    } catch {
       onError($t('management.users.mergeNetworkError'));
     }
   }
 
+  // The `$:` block runs again on every change of selectedUser and reads
+  // lastSelectedUserId then; the rule only sees one pass.
   $: if (selectedUser) {
     if (selectedUser.id !== lastSelectedUserId) {
+      // eslint-disable-next-line no-useless-assignment
       lastSelectedUserId = selectedUser.id;
       fetchLBAccount();
       fetchIdentities();
@@ -344,6 +346,7 @@
       updateUserPassword = '';
     }
   } else {
+    // eslint-disable-next-line no-useless-assignment
     lastSelectedUserId = null;
   }
 </script>

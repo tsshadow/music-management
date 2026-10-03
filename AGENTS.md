@@ -29,6 +29,10 @@ The system is split into specialized services, each handling a specific part of 
     - **Metadata Extraction**: Infers Publisher and Catalog Number from the folder structure (e.g., `/Labels/Scantraxx/SCAN123/`).
     - **Tagging**: Uses `LabelSong` to apply rule-based metadata.
 - **Workflow**: `Monitor` -> `Extract` -> `Tag` -> `Move` to the final library destination.
+- **Release folder without audio**: the Mover deletes a queue folder that holds only scene files
+  (`00-*.m3u`, `.nfo`, `.sfv`, cover) instead of placing it, with an `INFO` event; audio at any
+  depth, an unextracted archive or any other file keeps it (`services/common/audio_less_folder.py`,
+  bug report 147).
 - **Catalogue numbers**: `services/common/catalogue_number.py` is the one test of what a catalogue
   number looks like (letters and digits, at least one digit, no title words like `Anthem`/`Edit`,
   not a bare year). A folder name without one keeps its name -- no ` - ` prefix (bug report 145).
@@ -72,6 +76,10 @@ The system is split into specialized services, each handling a specific part of 
       the release becomes ALBUM over an empty or channel-default album
       (`services/tagger/Song/title_markers.py`, [docs/designs/release-series-markers/](docs/designs/release-series-markers/technical.md)).
     - Remixer extraction from titles and assignment to `REMIXER` tag.
+    - A label track's `CATALOGNUMBER` that still holds the whole release folder name (written
+      before bug report 145) gets the folder's prefix, else the bracketed number the catalogue
+      number test accepts, else it is cleared; an `.nfo` that names another number leaves it for
+      a person (`HealStaleCatalogueNumberRule`, issue #172). Any other value stays.
     - Release date of a label release by a precision ladder -- Deezer date (cached), `.nfo`
       release/street date, the file's own full date, `.nfo` rip date, arrival date -- written to
       ORIGINALDATE with its rung in `DATE_SOURCE`; a worse rung never replaces a better one
@@ -94,6 +102,14 @@ The system is split into specialized services, each handling a specific part of 
     - **Failure handling**: a tag value longer than its column is cut to the column's character
       length and the file is queued for a retag (`overlong_tag`); a file whose scan fails three
       times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
+    - **Vanished files**: after each full walk the scanner deletes the `library_media_files` row of
+      a file that is gone from disk, never the track (`services/music_manager/vanished_media.py`).
+      A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
+      relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
+      be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
+      with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
+      `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
+      switches it on in Beheer > Config (issue #170, bug report 149).
     - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`) and, for a
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
@@ -376,22 +392,27 @@ To maintain high code quality, the system employs an automated test suite:
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
 - **Quality gates** — enforced in CI (`quality` stage). The versioned pre-commit hook
   (`./scripts/install-hooks.sh`) is a thin wrapper around the same scripts so the two cannot
-  drift, but it runs only `lint.sh` and the Python unit suite — not the type check:
-    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.5. On a full
+  drift, but it runs only `format.sh --check`, `lint.sh` and the Python unit suite — not the
+  type check:
+    - `./scripts/lint.sh` — ruff (config in `pyproject.toml`) + pylint, threshold 9.87. On a full
       run it also fails any module on the strict type-check list that has an undocumented public
       function or class (rule 5 below); `.pylintrc` still disables those checks for the rest.
+      In test files only (a `tests/` directory, `test_*.py`, `*Test.py`, `conftest.py`) the
+      plugin `tools/pylint_plugins/muma_test_layout.py` turns off `wrong-import-position`,
+      `import-outside-toplevel` and `redefined-outer-name`: a test imports after its mock_base
+      stubs and names arguments after pytest fixtures. Production code keeps all three.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
-      tree at the loose floor, and is `allow_failure` until its backlog (299 errors when it was
-      added, see issue [#41](https://gitlab.example.com/muma/music-management/-/issues/41)) reaches zero.
-    - `./scripts/format.sh <path>` — opt-in `ruff format`. Deliberately not in CI: a tree-wide
-      reformat would rewrite nearly every file and conflict with every open branch.
+      tree at the loose floor. Both are hard gates: a new error fails the pipeline.
+    - `./scripts/format.sh` — `ruff format` over `services/`, `tools/` and `tests/` (or the
+      paths you name). `--check` is the `backend:format` job, so an unformatted file fails the
+      pipeline; run the script without `--check` to fix it.
     - `./scripts/ci/dependency-audit.sh` — pip-audit + npm audit. Runs on a schedule and on the
       default branch, not as a merge-request gate (it audits the runner's environment, which
       this repository does not manage). Accepted findings, with a reason, live in
       `security/accepted-vulnerabilities.txt`.
-- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.5), `COVERAGE_MIN` in
+- **Ratchets** — `FAIL_UNDER` in `scripts/lint.sh` (9.87), `COVERAGE_MIN` in
   `scripts/test/music-management-unit.sh` (84%) and the `thresholds` in
   `services/frontend/vite.config.js` are floors. Raise them as the numbers climb; never lower
   one to make a red build green. The Python coverage figure is measured on source only —

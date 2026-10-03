@@ -27,7 +27,7 @@
 - Test: `pytest` (root `pytest.ini`: `pythonpath = services .`, patterns `*Test.py` / `test_*.py`)
   - Tests: `services/music_manager/tests/` (one module per router and worker), run by
     `scripts/test/music-management-unit.sh`
-- Lint: `.pylintrc` (root), disables e.g. `missing-docstring`, `import-error`; `scripts/lint.sh` re-enables the function and class docstring checks for the strictly type-checked modules and fails on any finding there
+- Lint: `.pylintrc` (root), disables e.g. `missing-docstring`, `import-error`; `scripts/lint.sh` re-enables the function and class docstring checks for the strictly type-checked modules and fails on any finding there. `tools/pylint_plugins/muma_test_layout.py` (loaded by `.pylintrc`) turns off `wrong-import-position`, `import-outside-toplevel` and `redefined-outer-name` in test files only
 - Env vars: `DB_HOST/PORT/USER/PASS/DB`, `API_KEY`, `AUTH_SERVICE_URL`, `MUMA_SERVER_HOSTS`, `MUMA_SERVER_SUBSONIC_API_KEY`, `NOTIFY_URL`, `STORAGE_PATH`, `PYTHONPATH`
 - Migrations: no ORM migration tool found (root `migrate_v2.sql`, `migrate_v3.sql` — manual SQL scripts)
 - External dependencies: MariaDB, music-management-server (Subsonic API), ntfy.sh, Spotify/Last.fm (artist images)
@@ -68,7 +68,7 @@
 - **Least-covered part of the repository**: 235 tests over 54 components, ~22% statements. The
   `thresholds` in `vite.config.js` are a ratchet just under the current numbers so it cannot erode;
   raise them as coverage climbs
-- Lint: `npm run lint` (`oxlint` + `eslint`), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
+- Lint: `npm run lint` (`oxlint` + `eslint`, both fail on a warning), format: `npm run format` (`oxfmt`), typecheck: `npm run check` (`svelte-check`)
 - Dockerfile: first build stage of `services/music-management-server/Dockerfile-release` (`node:24-alpine`) — frontend has no own Dockerfile under `docker/`
 
 ### importer

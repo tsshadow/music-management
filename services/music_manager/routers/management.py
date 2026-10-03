@@ -377,7 +377,8 @@ def is_listed_container(name: str) -> bool:
 def get_containers(_auth: dict = Depends(require_admin_role)):
     """The installation's containers and their state. Admin only."""
     try:
-        client = docker.from_env()
+        # The repo's own docker/ folder shadows the SDK package for mypy.
+        client = docker.from_env()  # type: ignore[attr-defined]
         containers = []
         for container in client.containers.list(all=True):
             if is_listed_container(container.name):
@@ -405,7 +406,8 @@ def get_logs(name: str, tail: int = 200, _auth: dict = Depends(require_admin_rol
     if not is_listed_container(name):
         raise HTTPException(status_code=404, detail='Unknown container')
     try:
-        client = docker.from_env()
+        # The repo's own docker/ folder shadows the SDK package for mypy.
+        client = docker.from_env()  # type: ignore[attr-defined]
         container = client.containers.get(name)
         if container.name != name:
             raise HTTPException(status_code=404, detail='Unknown container')

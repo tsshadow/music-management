@@ -22,8 +22,7 @@ def candidate_paths(path: str) -> list[str]:
             relative = path[len(root) + 1 :]
             break
     candidates = [path, f'{MUMA_MUSIC_ROOT}/{relative}', f'{LMS_MUSIC_ROOT}/{relative}', relative]
-    seen = set()
-    return [c for c in candidates if not (c in seen or seen.add(c))]
+    return list(dict.fromkeys(candidates))
 
 
 def server_candidate_paths(path: str) -> list[str]:

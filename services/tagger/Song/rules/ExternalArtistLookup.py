@@ -1,4 +1,5 @@
 import logging
+from typing import cast
 
 import requests
 
@@ -38,7 +39,7 @@ class MusicBrainzLookup:
         try:
             response = requests.get(
                 self.API_URL,
-                params={'query': name, 'fmt': 'json', 'limit': 1},
+                params=cast(dict[str, str | int], {'query': name, 'fmt': 'json', 'limit': 1}),
                 headers={'User-Agent': 'MusicManagement/1.0 (codex@example.com)'},
                 timeout=5,
             )
@@ -115,7 +116,7 @@ class SpotifyLookup:
         try:
             response = requests.get(
                 self.SEARCH_URL,
-                params={'q': name, 'type': 'artist', 'limit': 1},
+                params=cast(dict[str, str | int], {'q': name, 'type': 'artist', 'limit': 1}),
                 headers={'Authorization': f'Bearer {token}'},
                 timeout=5,
             )

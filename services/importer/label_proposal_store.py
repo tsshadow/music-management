@@ -35,6 +35,10 @@ RULES_VERSION_QUERY = """
     FROM rules_catid_label
 """
 
+MARK_GONE_QUERY = (
+    "UPDATE rules_label_proposals SET status = 'stale', decided_at = NOW() WHERE folder = %s AND status = 'new'"
+)
+
 KNOWN_QUERY = 'SELECT folder, status, decided_at, resolved_fingerprint, created_at FROM rules_label_proposals'
 
 
@@ -126,3 +130,17 @@ class LabelProposalStore:
                 connection.commit()
         except Exception as e:  # noqa: BLE001 - a proposal is never a reason to fail the import
             logging.error(f'Could not record a label proposal for {folder}: {e}')
+
+    def mark_gone(self, folder: str) -> None:
+        """Mark an open proposal stale because its folder is gone, so it leaves the review list.
+
+        The same status confirming a vanished folder sets (`management.py`). Decided rows keep
+        their decision. Failures are logged and swallowed, like `record`.
+        """
+        try:
+            with self.db_connector.connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(MARK_GONE_QUERY, (folder,))
+                connection.commit()
+        except Exception as e:  # noqa: BLE001 - a proposal is never a reason to fail the import
+            logging.error(f'Could not mark the label proposal for {folder} stale: {e}')

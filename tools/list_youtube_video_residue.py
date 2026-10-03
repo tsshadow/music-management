@@ -21,6 +21,7 @@ import json
 import os
 import re
 import subprocess
+from typing import cast
 
 VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mkv', '.flv')
 
@@ -81,7 +82,7 @@ def scan(folder: str, probe: bool = True) -> list[dict]:
                     'resolution': probe_resolution(path) if probe else '-',
                 }
             )
-    findings.sort(key=lambda entry: entry['path'])
+    findings.sort(key=lambda entry: cast(str, entry['path']))
     return findings
 
 

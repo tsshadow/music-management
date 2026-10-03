@@ -345,7 +345,7 @@ def _username_taken_detail(username: str | None) -> str:
 
 def _is_duplicate_entry(exc: Exception) -> bool:
     """Whether `exc` is the database refusing a duplicate key (MariaDB error 1062)."""
-    args = getattr(exc, 'args', ())
+    args: tuple = getattr(exc, 'args', ())
     return type(exc).__name__ == 'IntegrityError' and bool(args) and args[0] == _DUPLICATE_ENTRY
 
 

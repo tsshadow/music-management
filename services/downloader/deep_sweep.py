@@ -133,8 +133,10 @@ def take_snapshot(
     """
     # One entry per id: a listing that repeats an id would otherwise make the
     # three parts add up to more than the ids there are.
-    seen: set[str] = set()
-    listing = [entry for entry in listing if not (entry.track_id in seen or seen.add(entry.track_id))]
+    first_by_id: dict[str, FlatTrack] = {}
+    for entry in listing:
+        first_by_id.setdefault(entry.track_id, entry)
+    listing = list(first_by_id.values())
     held_now = {entry.track_id for entry in listing if entry.track_id in held or entry.track_id in arrived}
     remaining = wanted_tracks(listing, held_now, write_offs, retry_days, now, bounds)
     listed = len(listing)

@@ -11,13 +11,14 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector')
 import services.music_manager.routers.users
 from services.music_manager.api_key import resolve_system_api_key
 
-services.music_manager.routers.users.run_lms_db_sync = lambda: None
+services.music_manager.routers.users.run_lms_db_sync = lambda only_sources=None: None
 import services.music_manager.database
 
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 
 from fastapi.testclient import TestClient
 
+from services.downloader.account_schedule import AccountCheck
 from services.downloader.rate_state import InMemoryRateStateStore, RateState
 from services.downloader.settings_store import InMemorySettingsStore
 from services.downloader.timing import load_timing
@@ -250,6 +251,44 @@ class RateStateEndpointTest(DownloaderApiTestBase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ScheduleEndpointTest(DownloaderApiTestBase):
+    """The deprecated schedule read, with a store that answers the way DatabaseCheckStore does."""
+
+    def _get(self, checks, source='soundcloud'):
+        with patch('services.music_manager.routers.downloaders.DatabaseCheckStore') as store:
+            store.return_value.load.return_value = checks
+            return self.client.get(f'/api/downloaders/schedule/{source}', headers=self.headers)
+
+    def test_a_checked_account_reports_when_it_was_checked(self):
+        # The store returns AccountCheck records, not datetimes: calling isoformat() on
+        # the record itself was a 500 for every source with a checked account (#171).
+        checks = {
+            'zeta': AccountCheck(NOW, last_upload_at=datetime(2026, 7, 1)),
+            'alpha': AccountCheck(datetime(2026, 7, 29, 8, 30)),
+        }
+        response = self._get(checks)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                'source': 'soundcloud',
+                'accounts': [
+                    {'account': 'alpha', 'last_checked_at': '2026-07-29T08:30:00'},
+                    {'account': 'zeta', 'last_checked_at': '2026-07-30T12:00:00'},
+                ],
+            },
+        )
+
+    def test_an_unknown_source_is_refused(self):
+        self.assertEqual(self._get({}, source='bandcamp').status_code, 400)
+
+    def test_a_database_outage_is_a_503(self):
+        with patch('services.music_manager.routers.downloaders.DatabaseCheckStore') as store:
+            store.return_value.load.side_effect = RuntimeError('db down')
+            response = self.client.get('/api/downloaders/schedule/youtube', headers=self.headers)
+        self.assertEqual(response.status_code, 503)
 
 
 class CoverageEndpointTest(DownloaderApiTestBase):

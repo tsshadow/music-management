@@ -24,16 +24,11 @@
     <string name="main.genres_title">Genres</string>
     <string name="main.offline">Hors-ligne</string>
     <string name="main.songs_title">Titres</string>
-    <string name="main.welcome_text_demo">Pour utiliser MuMa avec votre propre musique vous allez avoir besoin de <b>votre propre serveur</b>. \n\n➤ Si vous souhaitez essayer l’application d’abord, il est possible d’ajouter un serveur de démo dès maintenant. \n\n➤ Autrement, vous pouvez configurer votre serveur dans les <b>paramètres</b>.</string>
-    <string name="main.welcome_title">Bienvenue sur MuMa !</string>
-    <string name="main.welcome_cancel">Aller aux paramètres</string>
-    <string name="menu.common">Général</string>
     <string name="playlist.label">Listes de lecture</string>
     <string name="search.more">Afficher plus</string>
     <string name="select_album.no_network">Avertissement : Aucun réseau disponible.\n Si vous êtes en train d\'utiliser une connexion mobile, il se peut que vous deviez autoriser dans les préférences les téléchargements depuis une connexion limitée.</string>
     <string name="select_album.no_sdcard">Erreur : Aucune carte SD disponible.</string>
     <string name="select_album.play_all">Tout jouer</string>
-    <string name="select_genre.empty">Aucun genre trouvé</string>
     <string name="settings.cache_location_error">Emplacement du cache invalide. Utilisation du cache par défaut.</string>
     <string name="main.video" tools:ignore="UnusedResources">Vidéo</string>
     <string name="widget.initial_text">Touchez pour sélectionner un titre</string>
@@ -41,9 +36,6 @@
     <string name="widget.sdcard_missing">Aucune carte SD</string>
     <string name="share_default_greeting">Écoutez donc cette musique que j\'ai partagée depuis %s</string>
     <string name="notification.downloading_title">Téléchargement des fichiers en arrière-plan…</string>
-    <string name="server_menu.move_up">Déplacer vers le haut</string>
-    <string name="server_menu.move_down">Déplacer vers le bas</string>
-    <string name="server_menu.demo">Serveur de démo</string>
     <!-- Subsonic api errors -->
     <string name="api.subsonic.generic">Erreur de l\'API générique : %1$s</string>
     <string name="api.subsonic.generic.no.message">aucun message donné par le serveur</string>

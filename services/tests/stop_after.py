@@ -25,7 +25,7 @@ class StopAfter(threading.Event):
         if rounds < 1:
             raise ValueError('rounds must be at least 1')
         self._rounds = rounds
-        self.delays: list[float] = []
+        self.delays: list[float | None] = []
 
     def wait(self, timeout: float | None = None) -> bool:
         """Record `timeout`, set the event once `rounds` waits have been made, return whether it is set."""

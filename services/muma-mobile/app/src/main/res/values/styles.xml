@@ -8,10 +8,16 @@
          label in Spotify, a dim one in MuMa. -->
 
 
+    <!--
+    Having clipToOutline to true is needed for the background (that has id with
+    android:id/background so that the system knows the widget has been updated
+    and doesn't need to be clipped by the launcher.
+    -->
     <style name="Widget.AppWidget.AppWidget.Container" parent="android:Widget">
         <item name="android:id">@android:id/background</item>
         <item name="android:padding">?attr/appWidgetPadding</item>
         <item name="android:background">@drawable/app_widget_background</item>
+        <item name="android:clipToOutline">true</item>
     </style>
 
     <style name="Theme.AppWidget.AppWidgetContainerParent" parent="Theme.Material3.DynamicColors.DayNight">
@@ -29,10 +35,9 @@
     </style>
 
     <style name="Theme.AppWidget.AppWidgetContainer" parent="Theme.AppWidget.AppWidgetContainerParent">
-        <item name="appWidgetRadius">0dp</item>
-        <item name="appWidgetInnerRadius">0dp</item>
-        <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
-        <item name="appWidgetPadding">4dp</item>
+        <item name="appWidgetRadius">@android:dimen/system_app_widget_background_radius</item>
+        <item name="appWidgetInnerRadius">@android:dimen/system_app_widget_inner_radius</item>
+        <item name="appWidgetPadding">16dp</item>
         <item name="android:imageButtonStyle">@style/Theme.AppWidget.ImageButton</item>
     </style>
 
@@ -45,16 +50,9 @@
 
     <style name="Theme.AppWidget.AppWidgetContainerCropped" parent="Theme.AppWidget.AppWidgetContainer">
         <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
-        <item name="appWidgetPadding">4dp</item>
+        <item name="appWidgetPadding">0dp</item>
     </style>
 
-    <style name="TileStyle">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">match_parent</item>
-        <item name="android:gravity">center</item>
-        <item name="android:textAppearance">?android:attr/textAppearanceMedium</item>
-        <item name="android:padding">16dp</item>
-    </style>
 
 
 

@@ -136,7 +136,8 @@ def get_schedule(source: str, _auth: dict = Depends(verify_api_key)):
     return {
         'source': source,
         'accounts': [
-            {'account': account, 'last_checked_at': when.isoformat()} for account, when in sorted(checked.items())
+            {'account': account, 'last_checked_at': check.last_checked_at.isoformat()}
+            for account, check in sorted(checked.items())
         ],
     }
 

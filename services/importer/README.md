@@ -31,6 +31,11 @@ extracted; any other file at the root of the watch folder (a video, an image, a 
 archive that cannot be extracted is left in place, warned about once and listed in Beheer under
 "Openstaande importproblemen" until it changes or is removed (bug report 119). See `docs/designs/importer/technical.md` for the settle and duplicate rules.
 
+The Mover deletes a settled release folder that holds no audio, only scene files (`00-*.m3u`, `.nfo`,
+`.sfv`, a cover), instead of placing it, and records an event naming what it held. Audio in a sub
+folder, an archive not yet extracted, or any other file keeps the folder; the rule is
+`services/common/audio_less_folder.py` (bug report 147, issue #167).
+
 ## 🚀 Downloaders
 
 The importer often works in tandem with the **Downloader Service**, which fetches music from various sources:

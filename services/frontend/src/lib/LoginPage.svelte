@@ -121,7 +121,7 @@
         const data = await response.json();
         error = data.detail || $t('login.setupFailed');
       }
-    } catch (e) {
+    } catch {
       error = $t('login.noManagementConnection');
     } finally {
       isLoading = false;
@@ -171,7 +171,7 @@
         requestStatus = data.status.replace('request_', '');
         googleRequest = data.request;
       }
-    } catch (e) {
+    } catch {
       error = $t('login.noGoogleConnection');
     } finally {
       isLoading = false;
@@ -197,7 +197,7 @@
       } else {
         error = data.detail || $t('login.accessRequestFailed');
       }
-    } catch (e) {
+    } catch {
       error = $t('login.accessRequestError');
     } finally {
       isLoading = false;

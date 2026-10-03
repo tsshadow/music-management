@@ -376,7 +376,7 @@ def trigger_lms_scan() -> None:
 
 
 def write_report(path: str, lines: Sequence[str]) -> None:
-    with open(path, 'w') as handle:
+    with open(path, 'w', encoding='utf-8') as handle:
         handle.write('\n'.join(lines) + '\n')
     print(f'Report written to {path}')
 

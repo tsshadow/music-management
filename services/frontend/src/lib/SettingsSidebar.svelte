@@ -1,13 +1,13 @@
 <script>
   import { t } from './i18n/index.js';
-  import { activeSettingsTab, activeView } from './store.js';
+  import { activeSettingsTab } from './store.js';
   import { platform } from './platform/index.js';
   import SidebarHeader from './SidebarHeader.svelte';
   import { settingsTabs } from './lazyViews.js';
 
   // `onselect` lets the mobile drawer close itself once a tab was picked; on
   // the desktop sidebar it is simply not passed.
-  const { onnavigate, onselect } = $props();
+  const { onselect } = $props();
 
   // Player settings are personal settings only. Everything that administers the
   // server itself (scanner, libraries, users, API tokens) lives in the
@@ -26,13 +26,6 @@
       ? [{ id: 'device', labelKey: 'settings.tabs.device', icon: 'M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H7V5h10v14z' }]
       : [])
   ];
-
-  /**
-   * Navigates back to the home view.
-   */
-  function goBack() {
-    activeView.set('home');
-  }
 
   /**
    * Starts fetching a tab's chunk the moment a finger or button goes down on it (issue #119),

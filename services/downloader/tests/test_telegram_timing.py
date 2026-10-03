@@ -6,11 +6,12 @@ import types
 import unittest
 import unittest.mock
 from datetime import datetime, timedelta
+from typing import Any
 
 # Telethon is not installed in the test environment; stand in for it before the
 # downloader imports TelegramClient.
-_telethon = types.ModuleType('telethon')
-_errors = types.ModuleType('telethon.errors')
+_telethon: Any = types.ModuleType('telethon')
+_errors: Any = types.ModuleType('telethon.errors')
 
 
 class FloodWaitError(Exception):
@@ -24,7 +25,7 @@ _telethon.errors = _errors
 sys.modules['telethon'] = _telethon
 sys.modules['telethon.errors'] = _errors
 
-RECORDED_CLIENTS = []
+RECORDED_CLIENTS: list = []
 
 
 class DummyClient:
@@ -229,7 +230,7 @@ class TaggingTest(TelegramTimingTestBase):
         self.assertEqual(['set.mp3'], self.files)
 
     def test_a_name_that_climbs_out_of_the_folder_lands_inside_it(self):
-        parse, announce, folder = self._download(self._message('audio/mpeg', name='../../evil.mp3'))
+        _parse, announce, folder = self._download(self._message('audio/mpeg', name='../../evil.mp3'))
         announce.assert_called_once_with(f'{folder}/evil [1].mp3')
         self.assertEqual(['evil [1].mp3'], self.files)
 

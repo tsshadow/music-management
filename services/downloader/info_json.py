@@ -97,6 +97,7 @@ def to_json(info: dict | None) -> str | None:
     pruned = prune(info)
     if not pruned:
         return None
+    assert info is not None  # prune(None) is None
     try:
         blob = json.dumps(pruned, ensure_ascii=False, default=str)
     except Exception as e:

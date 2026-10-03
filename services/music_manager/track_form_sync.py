@@ -82,10 +82,11 @@ _SERVER_UPDATE = (
 
 def _windows(cursor) -> range:
     cursor.execute('SELECT MIN(id) AS low, MAX(id) AS high FROM library_tracks')
-    bounds = cursor.fetchone() or {}
+    bounds: dict = cursor.fetchone() or {}
     low, high = bounds.get('low'), bounds.get('high')
     if low is None:
         return range(0)
+    assert high is not None  # MIN and MAX are NULL together
     return range(low, high + 1, ID_WINDOW)
 
 

@@ -7,12 +7,16 @@
 # the two can never drift apart. The previous version carried its own hardcoded
 # list of test targets, which silently stopped matching the suite.
 #
-# Set SKIP_HOOK_TESTS=1 to run only the linter (e.g. for a docs-only commit).
+# Set SKIP_HOOK_TESTS=1 to run only the format check and the linter (e.g. for a
+# docs-only commit).
 
 set -e
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "$ROOT_DIR"
+
+echo "--- pre-commit: format ---"
+./scripts/format.sh --check
 
 echo "--- pre-commit: lint ---"
 ./scripts/lint.sh

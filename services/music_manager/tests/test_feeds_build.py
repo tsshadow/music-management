@@ -692,7 +692,7 @@ class RotatingMixPlayableArtistTest(unittest.TestCase):
 
     def test_an_artist_below_the_minimum_at_every_window_is_skipped(self):
         below = build.MIN_ROTATION_CANDIDATES - 1
-        conn, feed = self._build([_songs('Unproven', below, below, below), _songs('Angerfist', 20, 20, 20)])
+        _conn, feed = self._build([_songs('Unproven', below, below, below), _songs('Angerfist', 20, 20, 20)])
         self.assertEqual(feed.title, 'angerfist')
 
     def test_the_whole_top_ten_is_counted_in_one_query(self):

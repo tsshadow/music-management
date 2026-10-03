@@ -29,6 +29,7 @@ import os
 import sys
 import types
 from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock
 
 # The attribute every stub module carries, so a leak check can tell a stub from the real
@@ -59,8 +60,11 @@ def apply_env_defaults():
         os.environ.setdefault(key, value)
 
 
-def _module(name: str) -> types.ModuleType:
-    """Create an empty stub module flagged as coming from mock_base."""
+def _module(name: str) -> Any:
+    """Create an empty stub module flagged as coming from mock_base.
+
+    Typed as Any: the builders assign the stubbed attributes onto it one by one.
+    """
     mod = types.ModuleType(name)
     setattr(mod, STUB_FLAG, True)
     return mod

@@ -178,7 +178,7 @@
 
     if (tracks.length === 0) {
       phase = 'nothing';
-      explanation = { ...(explanation ?? {}), reason: $t('voice.noMatch', { query: heardText }) };
+      explanation = { ...explanation, reason: $t('voice.noMatch', { query: heardText }) };
       return;
     }
 
@@ -391,6 +391,7 @@
     {#if showCommands && commands}
       <div class="w-full max-w-sm bg-muma-spotify-panel rounded-lg p-4 text-left text-sm text-muma-spotify-text" data-testid="voice-commands">
         {#if commands.title}<h2 class="text-white font-bold mb-2">{commands.title}</h2>{/if}
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- the app's own string resources, see toHtml -->
         <div>{@html toHtml(commands.html)}</div>
       </div>
     {/if}

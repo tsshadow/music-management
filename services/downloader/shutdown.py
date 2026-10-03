@@ -30,7 +30,7 @@ in the deep pass -- do the rest.
 
 from __future__ import annotations
 
-from services.common.shutdown import (  # noqa: F401 - re-exported for the downloader
+from services.common.shutdown import (  # noqa: F401 - re-exported for the downloader  # pylint: disable=unused-import
     _announced,
     _requested,
     install_handlers,

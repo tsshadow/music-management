@@ -35,7 +35,7 @@ TARGET=${1:-services/ tools/ tests/}
 # Ratchet, same idea as COVERAGE_MIN in scripts/test/music-management-unit.sh:
 # the codebase currently scores well above this. Raise it as the score climbs,
 # never lower it to make a red build green.
-FAIL_UNDER=${2:-9.5}
+FAIL_UNDER=${2:-9.87}
 
 # Formatting is NOT checked here. It is its own job (backend:format, running
 # ./scripts/format.sh --check), so that a red pipeline says which of the two

@@ -6,6 +6,7 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from yt_dlp import YoutubeDL
 from yt_dlp.postprocessor import EmbedThumbnailPP, FFmpegMetadataPP
@@ -419,7 +420,7 @@ class SoundcloudDownloader:
 
     def _checked_kwargs(self, account: str) -> dict:
         """What this sweep learned about the account, consumed as it is reported."""
-        learned = {}
+        learned: dict[str, Any] = {}
         upload_at = self._learned.pop(account, None)
         if upload_at is not None:
             learned['last_upload_at'] = upload_at
@@ -428,14 +429,16 @@ class SoundcloudDownloader:
             learned['last_seen_track_id'] = track_id
         return learned
 
-    def download_account(self, name: str, yt_dl_opts: dict = None):
+    def download_account(self, name: str, yt_dl_opts: dict | None = None):
         self.policy.guard(name)
         link = f'http://soundcloud.com/{name}/tracks'
         logging.info(f'Downloading from SoundCloud account: {name}')
         self.download_url(link, yt_dl_opts, account=name)
         logging.info(f'Finished downloading from: {name}')
 
-    def download_url(self, url: str, yt_dl_opts: dict = None, account: str | None = None, replace: str | None = None):
+    def download_url(
+        self, url: str, yt_dl_opts: dict | None = None, account: str | None = None, replace: str | None = None
+    ):
         """
         Download tracks from a specific SoundCloud URL (account, playlist, or single track).
 
@@ -531,7 +534,7 @@ class SoundcloudDownloader:
             return
         self.policy.note_progress()
 
-    def run(self, account: str = '', break_on_existing_arg: bool | None = None, redownload: bool = False):
+    def run(self, account: str | None = '', break_on_existing_arg: bool | None = None, redownload: bool = False):
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('SoundCloud soundcloud is not configured; skipping run().')
             return
@@ -563,7 +566,7 @@ class SoundcloudDownloader:
                 self.policy.throttle()
         self.policy.finish()
 
-    def _get_accounts(self, account: str) -> list[str]:
+    def _get_accounts(self, account: str | None) -> list[str]:
         if not account:
             accounts = get_accounts_from_db()
             if not accounts:
@@ -653,7 +656,7 @@ class SoundcloudDownloader:
                 'soundcloud_user_agent',
             ]
         )
-        self.downloader_config = {
+        self.downloader_config: dict[str, Any] = {
             'output_folder': values.get('soundcloud_folder') or None,
             'archive_dir': values.get('soundcloud_archive') or None,
             'cookies_file': values.get('soundcloud_cookies') or 'soundcloud.com_cookies.txt',

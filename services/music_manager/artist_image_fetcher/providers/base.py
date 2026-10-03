@@ -97,7 +97,6 @@ class ArtistImageProvider(ABC):
     @abstractmethod
     def name(self):
         """The name this provider is recorded under in the source column."""
-        pass
 
     @property
     def configured(self) -> bool:

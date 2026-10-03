@@ -23,6 +23,7 @@ from services.downloader.artwork import (
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'backfill_artwork.py'
 
 spec = importlib.util.spec_from_file_location('backfill_artwork', SCRIPT)
+assert spec is not None and spec.loader is not None
 backfill = importlib.util.module_from_spec(spec)
 sys.modules['backfill_artwork'] = backfill
 spec.loader.exec_module(backfill)

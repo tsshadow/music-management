@@ -49,7 +49,21 @@ fact: the Mover reads `''` and records a proposal.
   misnamed folders to the name the Renamer gives them today. Planned against production's folder
   list, proposals and rules: 2.759 misnamed, 2.740 renameable (2.733 to their bare name, 5 to a
   catalogue number a rule routes, 2 to the number their own name carries), 19 refused because the
-  bare name already exists (a second download of the same release).
+  bare name already exists (a second download of the same release). It ran on production on
+  2026-10-02: 2.046 renamed.
+- The same names also reached the label tree (`EPs/B2S/Official_Hardbass_2026_Anthem - ...`), where
+  the tagger wrote the anthem into every file as its catalogue number.
+  `services/importer/label_tree_prefix_repair.py`, run as `repair-word-prefixed-import-folders.sh
+  --label-tree`, walks the label folders `ImportQueue.is_label_folder` accepts. It renames a
+  release folder whose prefix holds a digit, is refused by the rule, and is exactly what the old
+  Renamer took from the rest of the name. A refused prefix the old Renamer cannot have written,
+  or one a `rules_catid_label` rule routes, is listed as AMBIGUOUS and never renamed. A prefix
+  without a digit is a label code a person typed and stays. Per folder, in one transaction, the
+  stored paths in `library_media_files` (with `file_path_hash`) and `tagger_processed_files` move
+  along, so track ids and ratings stay. A `CATALOGNUMBER` tag that holds exactly the word is
+  cleared, because the tagger never clears one. Dry run on production, 2026-10-03: 44.227 release
+  folders, 19 to rename, 3 ambiguous (`I_Am_Frenchcore_05`, `I_Am_Frenchcore_12`, `NERKOLOG!K40`).
+  Test: `test_importer_label_tree_prefix_repair.py`.
 - Getting releases like Minus Militia to their label without a catalogue number is the
   enrichment in `docs/designs/release-info-enrichment/`.
 - Tests: `services/importer/tests/test_importer_catalogue_number.py`,

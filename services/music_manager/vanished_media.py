@@ -50,8 +50,9 @@ LIVE_MEDIA_ROWS = 'SELECT id, file_path, track_id FROM library_media_files WHERE
 #: One row, locked, for the re-check right before its delete.
 _LOCK_ROW = 'SELECT id, file_path, file_path_hash, track_id FROM library_media_files WHERE id = %s FOR UPDATE'
 
-#: The tracks a pass left without a file, as `find_relink_target` reads them.
-_TRACKS_BY_ID = 'SELECT id, title, duration_secs, primary_artist_id FROM library_tracks WHERE id IN ({})'
+#: A track the pass leaves without a file, as `find_relink_target` reads it. One primary-key read
+#: per track: a fixed statement, no IN list built from the ids.
+_TRACK_BY_ID = 'SELECT id, title, duration_secs, primary_artist_id FROM library_tracks WHERE id = %s'
 
 
 def empty_totals() -> dict[str, int]:
@@ -129,8 +130,12 @@ def _relink_inputs(conn: Any, fileless: list[int]) -> tuple[dict[int, dict], dic
     if not fileless:
         return {}, {}
     with conn.cursor() as cursor:
-        cursor.execute(_TRACKS_BY_ID.format(', '.join(['%s'] * len(fileless))), tuple(fileless))
-        orphans = {int(row['id']): row for row in cursor.fetchall()}
+        orphans = {}
+        for track_id in fileless:
+            cursor.execute(_TRACK_BY_ID, (track_id,))
+            row = cursor.fetchone()
+            if row is not None:
+                orphans[int(row['id'])] = row
         titles = {
             normalize(row['title'])
             for row in orphans.values()

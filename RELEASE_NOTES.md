@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.89.3 (2026-10-03)
+
+- A repair script fixes 19 releases in the label tree that had a festival anthem as their
+  catalogue number. Dry run first.
+
 ## Global Version 0.89.2 (2026-10-03)
 
 - The release-date backfill now asks Deezer about a release even when its tracks' date already

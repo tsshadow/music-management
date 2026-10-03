@@ -72,6 +72,15 @@ class InferReleaseDateFromNfoRuleTest(RuleCase):
         self.helper.get.assert_called_once_with('ZzZz')
         self.assertEqual('2026-05-06', self.written()[ORIGINAL_DATE])
 
+    def test_reads_the_dot_padded_date_line_of_aov_int_month_first(self):
+        self.song.path = MagicMock(
+            return_value='/music/EPs/Roughstate/ROUGH247PRO - Rejecta-Living_My_Dream-()-WEB-2022-AOV_INT/01-x.mp3'
+        )
+        self.helper.get = MagicMock(return_value=['md'])
+        self._apply('Genre.........: Techno\nDate..........: 11.23.2022\nEncoder.......: LAME 3.100\n')
+        self.helper.get.assert_called_once_with('AOV_INT')
+        self.assertEqual({ORIGINAL_DATE: '2022-11-23', DATE_SOURCE: 'nfo-rip'}, self.written())
+
     def test_leaves_a_full_date_of_unknown_origin_alone(self):
         self.tags[ORIGINAL_DATE] = '2026-01-02'
         self._apply('Str.date : 16-01-2026')

@@ -93,9 +93,9 @@ class QueueSqlTest(unittest.TestCase):
     def test_every_skipped_form_is_a_bound_parameter(self):
         sql, params = worker._due_params(config(), NOW, 48)  # pylint: disable=protected-access
         self.assertEqual(sql.count('%s'), len(params))
-        self.assertEqual(params[:4], ['liveset', 'podcast', 'set', ''])
-        self.assertEqual(params[4], 15 * 60)
-        self.assertEqual(params[5], estimator.METHOD)
+        self.assertEqual(params[:6], ['interview', 'liveset', 'podcast', 'preview', 'set', ''])
+        self.assertEqual(params[6], 15 * 60)
+        self.assertEqual(params[7], estimator.METHOD)
         self.assertEqual(params[-1], 48)
         self.assertIn('ORDER BY t.id DESC', sql)
 

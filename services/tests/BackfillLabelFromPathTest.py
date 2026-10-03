@@ -15,6 +15,7 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[2] / 'scripts' / 'backfill_label_from_path.py'
 
 spec = importlib.util.spec_from_file_location('backfill_label_from_path', SCRIPT)
+assert spec is not None and spec.loader is not None
 backfill = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(backfill)
 

@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import time
+from typing import Any
 
 from yt_dlp import YoutubeDL
 
@@ -134,7 +135,7 @@ class YoutubeDownloader:
                 'yt_user_agent',
             ]
         )
-        self.downloader_config = {
+        self.downloader_config: dict[str, Any] = {
             'output_folder': values.get('youtube_folder'),
             'video_folder': values.get('youtube_video_folder'),
             'archive_dir': values.get('youtube_archive'),
@@ -654,7 +655,7 @@ class YoutubeDownloader:
             os.makedirs(archive_dir, exist_ok=True)
         return os.path.join(archive_dir, f'{account.name}.txt')
 
-    def download_account(self, account, ydl_opts: dict = None):
+    def download_account(self, account, ydl_opts: dict | None = None):
         """
         Downloads videos from a specific YouTube account.
 
@@ -823,7 +824,7 @@ class YoutubeDownloader:
             return False
         return True
 
-    def run(self, break_on_existing_arg: bool | None = None, redownload: bool = False, account: str = ''):
+    def run(self, break_on_existing_arg: bool | None = None, redownload: bool = False, account: str | None = ''):
         """One round over the due channels, audio first, unless the source is parked."""
         if not getattr(self, 'downloader_config', {}).get('enabled', True):
             logging.warning('YouTube downloader is not configured; skipping run().')
@@ -848,7 +849,7 @@ class YoutubeDownloader:
         finally:
             self._restore_live_profile(snapshot)
 
-    def _run_sweep(self, break_on_existing_arg, redownload: bool, account: str) -> None:
+    def _run_sweep(self, break_on_existing_arg, redownload: bool, account: str | None) -> None:
         """The body of `run`, once the sweep may start and the cookies are in place."""
         self.redownload_mode = redownload
         accounts = self._get_accounts(account)
@@ -909,7 +910,7 @@ class YoutubeDownloader:
         by_key = {entry.schedule_key: entry for entry in accounts}
         return [by_key[key] for key in self.policy.due(list(by_key)) if key in by_key]
 
-    def _get_accounts(self, account: str) -> list[YoutubeAccount]:
+    def _get_accounts(self, account: str | None) -> list[YoutubeAccount]:
         try:
             rows = [YoutubeAccount(name=account)] if account else self.get_accounts_from_db()
         except Exception as e:

@@ -416,6 +416,7 @@ def get_label(name: str, _auth: dict = READ):
                     (label_id,),
                 )
                 external_ids = list(cursor.fetchall())
+                assert label is not None  # label_id came from it
                 if label.get('parent_label_id'):
                     cursor.execute('SELECT name FROM library_labels WHERE id = %s', (label['parent_label_id'],))
                     parent = cursor.fetchone()

@@ -14,7 +14,7 @@ pytestmark = pytest.mark.mock_base('yt_dlp')
 
 
 class DummyYoutubeArchive:
-    inserted = []
+    inserted: list = []
 
     @staticmethod
     def exists(_account, _video_id, _download_type='audio'):

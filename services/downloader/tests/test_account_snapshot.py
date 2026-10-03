@@ -2,6 +2,7 @@
 
 import unittest
 from datetime import datetime, timedelta
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -38,7 +39,7 @@ def listing(*ids):
 
 
 def report(**overrides) -> DeepSweepReport:
-    values = {'listed': 0, 'held': 0, 'written_off': 0, 'wanted': 0}
+    values: dict[str, Any] = {'listed': 0, 'held': 0, 'written_off': 0, 'wanted': 0}
     values.update(overrides)
     return DeepSweepReport(**values)
 
@@ -119,7 +120,14 @@ class TakeSnapshotTest(unittest.TestCase):
 
 
 def a_snapshot(**overrides) -> AccountSnapshot:
-    values = {'listed': 10, 'held': 7, 'excluded': 1, 'remaining': 2, 'state': SNAPSHOT_CAPPED, 'taken_at': NOW}
+    values: dict[str, Any] = {
+        'listed': 10,
+        'held': 7,
+        'excluded': 1,
+        'remaining': 2,
+        'state': SNAPSHOT_CAPPED,
+        'taken_at': NOW,
+    }
     values.update(overrides)
     return AccountSnapshot(**values)
 

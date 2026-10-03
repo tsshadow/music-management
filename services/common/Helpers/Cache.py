@@ -1,3 +1,5 @@
+from typing import Any
+
 from services.common.Helpers.ChannelLinkHelper import ChannelLinkHelper
 from services.common.Helpers.FestivalHelper import FestivalHelper
 from services.common.Helpers.FilterTableHelper import FilterTableHelper
@@ -8,7 +10,8 @@ from services.common.Helpers.PodcastHelper import PodcastHelper
 from services.common.Helpers.TableHelper import TableHelper
 from services.common.Helpers.TrustedArtistHelper import TrustedArtistHelper
 
-databaseHelpers = {
+# Any: a registry of unrelated helper classes, each looked up by name.
+databaseHelpers: dict[str, Any] = {
     # Only the names the tagger may trust (approved, or grandfathered at wiring time),
     # not every name the scanner inserted; see TrustedArtistHelper.
     'library_artists': TrustedArtistHelper(),

@@ -22,6 +22,7 @@ ask for, which size to keep, and how a picture goes into each container format.
 from __future__ import annotations
 
 import logging
+from typing import TypeGuard
 
 #: SoundCloud's `artwork_url` comes back as the 100x100 `-large` variant. The same object is
 #: served in other sizes by substituting the suffix; `t500x500` is the largest one that exists
@@ -45,14 +46,14 @@ MIN_IMAGE_BYTES = 2 * 1024
 logger = logging.getLogger(__name__)
 
 
-def is_web_url(url: str | None) -> bool:
+def is_web_url(url: str | None) -> TypeGuard[str]:
     """Whether a URL is one this backfill may fetch.
 
     `urllib` speaks `file://` as happily as `https://`, and the SoundCloud side of this takes
     its URLs out of a third party's JSON. A crafted `artwork_url` would otherwise have the
     backfill read a local file and embed it into the library.
     """
-    return bool(url) and url.startswith(('https://', 'http://'))
+    return url is not None and url.startswith(('https://', 'http://'))
 
 
 def soundcloud_artwork_url(artwork_url: str | None) -> str | None:

@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from services.music_manager.database import get_db_connection
@@ -18,7 +20,7 @@ def get_stats(auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')
-    stats = {
+    stats: dict[str, Any] = {
         'total_tracks': 0,
         'total_artists': 0,
         'total_albums': 0,

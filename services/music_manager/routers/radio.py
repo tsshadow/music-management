@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -342,8 +343,8 @@ def update_channel(slug: str, body: ChannelUpdate, _auth: dict = Depends(require
             if not cursor.fetchone():
                 raise HTTPException(status_code=404, detail='Unknown channel')
 
-            assignments = []
-            params = []
+            assignments: list[str] = []
+            params: list[Any] = []
             if body.name is not None:
                 if not body.name.strip():
                     raise HTTPException(status_code=400, detail='Name is required')

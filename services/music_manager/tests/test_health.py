@@ -14,7 +14,7 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector')
 
 import services.music_manager.routers.users
 
-services.music_manager.routers.users.run_lms_db_sync = lambda: None
+services.music_manager.routers.users.run_lms_db_sync = lambda only_sources=None: None
 import services.music_manager.database
 
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)

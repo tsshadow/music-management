@@ -5,7 +5,7 @@ from services.music_manager.feeds.profile import build_profile
 
 NOW = datetime(2026, 9, 5, 12, 0, 0)
 PARENTS = {'uptempo': {'hardcore'}}
-NO_EXCLUSIONS = {'artist': set(), 'label': set(), 'genre': set()}
+NO_EXCLUSIONS: dict[str, set[str]] = {'artist': set(), 'label': set(), 'genre': set()}
 
 
 def listen(

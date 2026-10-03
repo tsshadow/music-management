@@ -18,6 +18,7 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector')
 _SPEC = importlib.util.spec_from_file_location(
     'database_under_test', Path(__file__).resolve().parent.parent / 'database.py'
 )
+assert _SPEC is not None and _SPEC.loader is not None
 database = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(database)
 

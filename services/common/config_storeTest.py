@@ -13,6 +13,7 @@ from unittest.mock import patch
 # in place before the module body runs, because @dataclass looks its class up there.
 _MODULE_NAME = 'services.common.config_store_under_test'
 _spec = importlib.util.spec_from_file_location(_MODULE_NAME, Path(__file__).with_name('config_store.py'))
+assert _spec is not None and _spec.loader is not None
 config_store = importlib.util.module_from_spec(_spec)
 sys.modules[_MODULE_NAME] = config_store
 _spec.loader.exec_module(config_store)

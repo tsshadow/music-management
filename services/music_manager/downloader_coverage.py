@@ -152,7 +152,7 @@ def build_coverage(
     write_offs: Mapping[str, int],
     rate_state: dict[str, Any] | None,
     now: datetime,
-    channels: Mapping[str, dict[str, Any]] | None = None,
+    channels: Mapping[str, dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     """The full response body for one source.
 

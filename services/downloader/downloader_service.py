@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 from collections.abc import Callable, Iterable, Sequence
+from typing import Any
 
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers.logging_setup import setup_logging
@@ -64,7 +65,7 @@ def _current_timing(source: str):
 
 
 def sweep_sleep_seconds(
-    steps: Iterable[str], override: int | None, load: Callable[[str], object] = _current_timing
+    steps: Iterable[str], override: int | None, load: Callable[[str], Any] = _current_timing
 ) -> int:
     """How long to sleep before the next round of the configured steps.
 

@@ -33,7 +33,8 @@ def read_status(path: Path | None = None, now: float | None = None) -> dict[str,
         return None
     now = time.time() if now is None else now
     try:
-        age = max(0.0, now - float(payload.get('heartbeat_at')))
+        # A missing heartbeat_at is float(None): the TypeError below handles it.
+        age = max(0.0, now - float(payload.get('heartbeat_at')))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         age = None
     payload['age_seconds'] = None if age is None else round(age, 1)

@@ -11,7 +11,7 @@ pytestmark = pytest.mark.mock_base('DatabaseConnector', 'Cache')
 import services.music_manager.routers.users as users_router
 from services.music_manager.api_key import resolve_system_api_key
 
-users_router.run_lms_db_sync = lambda: None
+users_router.run_lms_db_sync = lambda only_sources=None: None
 
 from fastapi.testclient import TestClient
 
@@ -42,7 +42,7 @@ EDITIONS = [{'festival_id': 1, 'year': 2025, 'date': '2025-06-27'}]
 
 
 class FestivalTestCase(unittest.TestCase):
-    rules = (
+    rules: tuple = (
         ('FROM rules_festivals ORDER BY name', None, FESTIVALS),
         ('FROM rules_festival_aliases ORDER BY alias', None, ALIASES),
         ('FROM rules_festival_editions ORDER BY year', None, EDITIONS),

@@ -242,7 +242,9 @@ def _catalogue_keys(tags, prefix: str) -> list[str]:
 def drop_catalogue_tag(path: str, prefix: str, open_file: Callable | None = None) -> bool:
     """Removes the catalogue-number tag of one file when it holds exactly `prefix`."""
     if open_file is None:
-        from mutagen import File as open_file  # pylint: disable=import-outside-toplevel
+        from mutagen import File  # pylint: disable=import-outside-toplevel
+
+        open_file = File
     audio = open_file(path)
     tags = getattr(audio, 'tags', None) if audio is not None else None
     if tags is None:

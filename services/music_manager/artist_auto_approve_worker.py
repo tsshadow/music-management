@@ -87,7 +87,7 @@ TITLE_CHUNK = 500
 #: approving it would delete that rule, which is a curation decision, not evidence.
 TAGGER_RULE = 'tagger-rule'
 
-DEFAULTS = {
+DEFAULTS: dict[str, Any] = {
     'enabled': True,
     'dry_run': True,
     'interval_hours': 24,

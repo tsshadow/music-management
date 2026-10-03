@@ -17,12 +17,12 @@ from services.tagger.constants import (
 )
 from services.tagger.Song.Tag import Tag
 
-missing_tags_flac = []
-missing_tags_opus = []
-missing_aac_tags = []
-missing_tags_mp3 = []
-missing_tags_wav = []
-missing_tags_m4a = []
+missing_tags_flac: list[str] = []
+missing_tags_opus: list[str] = []
+missing_aac_tags: list[str] = []
+missing_tags_mp3: list[str] = []
+missing_tags_wav: list[str] = []
+missing_tags_m4a: list[str] = []
 
 
 def _canonical_m4a_key(tag_key: str) -> str:

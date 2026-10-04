@@ -1610,9 +1610,6 @@
       // Take over the queue that is already there before any effect pushes one.
       // Both go on the same chain, so the adopt always wins the race.
       nativeQueue = createNativeQueue(platform.player, {
-        artworkUrlFor: (entry) => (entry.coverArt
-          ? restUrl(`/rest/getCoverArt?id=${entry.coverArt}&size=512&${$authParams}`)
-          : ''),
         onError: (e) => console.error('Could not hand the queue to the player service', e),
       });
       // See `queueIndex`: the adopted position is otherwise invisible to it until something

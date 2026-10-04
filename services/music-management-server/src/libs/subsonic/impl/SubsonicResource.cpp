@@ -82,50 +82,6 @@ namespace lms::api::subsonic
         // ceiling. Comfortably above the number of distinct clients this server ever sees.
         constexpr std::size_t maxAuthCacheEntryCount{ 1000 };
 
-        std::string parameterMapToDebugString(const Wt::Http::ParameterMap& parameterMap)
-        {
-            constexpr std::string_view redactedStr{ "*REDACTED*" };
-            auto redactValueIfNeeded = [redactedStr](const std::string& type, const std::string& value) -> std::string_view {
-                if (type == "p" || type == "password" || type == "apiKey")
-                    return redactedStr;
-
-                return value;
-            };
-
-            std::string res;
-
-            bool firstParameter{ true };
-            for (const auto& [type, values] : parameterMap)
-            {
-                if (!firstParameter)
-                    res += ", ";
-                firstParameter = false;
-
-                res += "{" + type + "=";
-                if (values.size() == 1)
-                {
-                    res += redactValueIfNeeded(type, values.front());
-                }
-                else
-                {
-                    res += "{";
-                    bool firstValue{ true };
-                    for (const std::string& value : values)
-                    {
-                        if (!firstValue)
-                            res += ',';
-                        firstValue = false;
-
-                        res += redactValueIfNeeded(type, value);
-                    }
-                    res += "}";
-                }
-                res += "}";
-            }
-
-            return res;
-        }
-
         void checkUserTypeIsAllowed(const db::User::pointer& user, core::EnumSet<db::UserType> allowedUserTypes)
         {
             assert(user);

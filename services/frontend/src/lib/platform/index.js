@@ -100,8 +100,8 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function({tracks: Array<object>, index?: number, autoplay?: boolean}):
  *   Promise<{index: number, length: number, trackIds: string[]}>} setQueue
  *   Replaces the platform queue wholesale; the order of `tracks` is the order
- *   of the queue. Each track is `{id, title, artist, album, artworkUrl,
- *   duration}`. A browser answers with an empty queue and keeps its own list,
+ *   of the queue. Each track is `{id, title, artist, album, coverArt,
+ *   duration}`, where `coverArt` is a Subsonic cover-art id and never a URL. A browser answers with an empty queue and keeps its own list,
  *   so the UI can call this unconditionally.
  * @property {function(): Promise<{index: number, length: number, trackIds: string[]}>} queueState
  *   What the platform is holding. This is what a UI rebuilt after the WebView

@@ -5,6 +5,7 @@ add_executable(test-subsonic
 	ClientInfo.cpp
 	FestivalLineup.cpp
 	Memories.cpp
+	ParameterRedaction.cpp
 	ScanScope.cpp
 	SongsByPath.cpp
 	SpotifyPaging.cpp

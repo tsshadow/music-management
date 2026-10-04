@@ -16,6 +16,7 @@ import android.os.ParcelFileDescriptor
 import java.util.Locale
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.imageloader.redactCredentials
 import nl.teunschriks.mumamobile.subsonic.ImageLoaderProvider
 import nl.teunschriks.mumamobile.util.FileUtil
 import org.koin.core.component.KoinComponent
@@ -68,7 +69,7 @@ class AlbumArtContentProvider :
             return null
         }
         val albumArtFile = resolved.path
-        Timber.d("AlbumArtContentProvider openFile id: %s; file: %s", parts[0], albumArtFile)
+        Timber.d("AlbumArtContentProvider openFile id: %s; file: %s", redactCredentials(parts[0]), albumArtFile)
 
         // TODO: Check if the dependency on the image loader could be removed.
         // TODO: This method can be called outside of our regular lifecycle, where Koin might not exist yet

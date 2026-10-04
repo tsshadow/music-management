@@ -69,29 +69,36 @@ const TRACKS = [
   { id: 3, title: "Three", artist: "C", album: "Y", duration: 300 },
 ];
 
-const artworkUrlFor = (track) => (track.coverArt ? `/art/${track.coverArt}` : "");
-
 describe("toQueueTrack", () => {
   it("sends only what the notification and a head unit draw", () => {
-    expect(toQueueTrack(TRACKS[0], artworkUrlFor)).toEqual({
+    expect(toQueueTrack(TRACKS[0])).toEqual({
       id: "1",
       title: "One",
       artist: "A",
       album: "X",
-      artworkUrl: "/art/c1",
+      coverArt: "c1",
       duration: 100,
     });
   });
 
   it("never sends undefined across the bridge", () => {
-    expect(toQueueTrack({ id: 9 }, () => undefined)).toEqual({
+    expect(toQueueTrack({ id: 9 })).toEqual({
       id: "9",
       title: "",
       artist: "",
       album: "",
-      artworkUrl: "",
+      coverArt: "",
       duration: 0,
     });
+  });
+
+  // Bug report 150: a signed getCoverArt URL crossed the bridge as the cover,
+  // and the service sent it back to the server as the id of a new request.
+  it("sends the cover-art id, never a URL with the user's credentials", () => {
+    const sent = toQueueTrack({ id: 7, coverArt: "art-824661-1786979739" });
+
+    expect(sent.coverArt).toBe("art-824661-1786979739");
+    expect(JSON.stringify(sent)).not.toMatch(/getCoverArt|[?&][tsu]=/);
   });
 });
 
@@ -115,7 +122,7 @@ describe("createNativeQueue", () => {
   beforeEach(() => {
     player = fakePlayer();
     onError = vi.fn();
-    queue = createNativeQueue(player, { artworkUrlFor, onError });
+    queue = createNativeQueue(player, { onError });
   });
 
   it("pushes a new queue and starts it in the same call", async () => {
@@ -125,7 +132,7 @@ describe("createNativeQueue", () => {
       [
         "setQueue",
         {
-          tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
+          tracks: TRACKS.map((t) => toQueueTrack(t)),
           index: 1,
           autoplay: true,
         },
@@ -144,10 +151,7 @@ describe("createNativeQueue", () => {
     await queue.sync([...TRACKS], TRACKS[1]);
 
     expect(player.calls).toEqual([
-      [
-        "setQueue",
-        { tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)), index: 1, autoplay: true },
-      ],
+      ["setQueue", { tracks: TRACKS.map((t) => toQueueTrack(t)), index: 1, autoplay: true }],
     ]);
     expect(player.state().trackId).toBe("2");
   });
@@ -171,7 +175,7 @@ describe("createNativeQueue", () => {
       [
         "setQueue",
         {
-          tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
+          tracks: TRACKS.map((t) => toQueueTrack(t)),
           index: 0,
           autoplay: false,
         },
@@ -199,7 +203,7 @@ describe("createNativeQueue", () => {
       [
         "setQueue",
         {
-          tracks: [loose, ...TRACKS].map((t) => toQueueTrack(t, artworkUrlFor)),
+          tracks: [loose, ...TRACKS].map((t) => toQueueTrack(t)),
           index: 0,
           autoplay: true,
         },
@@ -221,7 +225,7 @@ describe("createNativeQueue", () => {
       [
         "setQueue",
         {
-          tracks: TRACKS.map((t) => toQueueTrack(t, artworkUrlFor)),
+          tracks: TRACKS.map((t) => toQueueTrack(t)),
           index: 0,
           autoplay: false,
         },
@@ -242,7 +246,7 @@ describe("createNativeQueue", () => {
   it("adopts the queue the service is already holding, and pushes nothing for it", async () => {
     player = fakePlayer({ queue: { index: 1, length: 3, trackIds: ["1", "2", "3"] } });
     player.nowPlaying("2");
-    queue = createNativeQueue(player, { artworkUrlFor, onError });
+    queue = createNativeQueue(player, { onError });
 
     await queue.adopt();
     expect(queue.pushedIds()).toEqual(["1", "2", "3"]);
@@ -275,7 +279,7 @@ describe("createNativeQueue", () => {
   // and "add after current" against the native side's actual position.
   it("reports the adopted position through currentIndex", async () => {
     player = fakePlayer({ queue: { index: 2, length: 3, trackIds: ["1", "2", "3"] } });
-    queue = createNativeQueue(player, { artworkUrlFor, onError });
+    queue = createNativeQueue(player, { onError });
 
     expect(queue.currentIndex()).toBe(-1);
     await queue.adopt();
@@ -332,7 +336,7 @@ describe("a queue mutation", () => {
   /** The service playing `tracks`, on `current`, that many seconds in. */
   async function playing(tracks, current, position = 176) {
     player = fakePlayer();
-    queue = createNativeQueue(player, { artworkUrlFor, onError: () => {} });
+    queue = createNativeQueue(player, { onError: () => {} });
     await queue.sync(tracks, current);
     player.nowPlaying(current.id, position);
     player.calls.length = 0;
@@ -502,7 +506,7 @@ describe("createNativeQueue: mirrors and stale reports", () => {
       state: { trackId: "1" },
       queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
     });
-    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    const queue = createNativeQueue(player);
     await queue.adopt();
 
     queue.follow("2");
@@ -519,7 +523,7 @@ describe("createNativeQueue: mirrors and stale reports", () => {
       state: { trackId: "1" },
       queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
     });
-    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    const queue = createNativeQueue(player);
     await queue.adopt();
 
     const first = queue.sync(LIST, LIST[1]);
@@ -538,7 +542,7 @@ describe("createNativeQueue: mirrors and stale reports", () => {
       state: { trackId: "1" },
       queue: { index: 0, length: 3, trackIds: ["1", "2", "3"] },
     });
-    const queue = createNativeQueue(player, { artworkUrlFor: () => "" });
+    const queue = createNativeQueue(player);
     await queue.adopt();
     await queue.sync(LIST, LIST[0], { autoplay: false });
 

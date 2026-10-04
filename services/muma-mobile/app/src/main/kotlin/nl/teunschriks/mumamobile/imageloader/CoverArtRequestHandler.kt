@@ -29,8 +29,10 @@ class CoverArtRequestHandler(
     }
 
     override fun load(request: Request, networkPolicy: Int): Result {
-        val id = request.uri.getQueryParameter(QUERY_ID)
-            ?: throw IllegalArgumentException("Nullable id")
+        // A signed getCoverArt URL in place of the id is reduced to its id, so it is never sent
+        // nested inside a new getCoverArt request (bug report 150).
+        val id = coverArtIdOf(request.uri.getQueryParameter(QUERY_ID))
+            ?: throw IllegalArgumentException("No cover-art id")
         val size = request.uri.getQueryParameter(SIZE)?.toLong()
 
         // Check if we have a hit in the disk cache

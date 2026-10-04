@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.capacitor
 
 import nl.teunschriks.mumamobile.domain.Track
+import nl.teunschriks.mumamobile.imageloader.coverArtIdOf
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibraryBase
 import org.json.JSONArray
 import org.json.JSONObject
@@ -18,9 +19,12 @@ import org.json.JSONObject
  * The web module owns the queue -- shuffle, radio, the news, jam sync all live there -- but the
  * native service has to *hold* it, or the music stops the moment Android reclaims the WebView and
  * "next" has nothing to advance to. So the UI hands over a plain list and the service plays it.
- * These six fields are everything the notification, the lock screen and Android Auto show; a
+ * These fields are everything the notification, the lock screen and Android Auto show; a
  * library lookup would add a round trip and could not answer for a track the web knows and the
  * cache does not.
+ *
+ * [coverArt] is the Subsonic cover-art id. [artworkUrl] is what an older web bundle sends in its
+ * place: a signed `getCoverArt` URL, which is only read to get the id back out of it.
  */
 data class QueueTrack(
     val id: String,
@@ -28,10 +32,11 @@ data class QueueTrack(
     val artist: String? = null,
     val album: String? = null,
     val artworkUrl: String? = null,
-    val duration: Int? = null
+    val duration: Int? = null,
+    val coverArt: String? = null
 )
 
-/** Reads one `{id, title, artist, album, artworkUrl, duration}` object. Ignores what it does not know. */
+/** Reads one `{id, title, artist, album, coverArt, artworkUrl, duration}` object. Ignores what it does not know. */
 fun queueTrackOf(json: JSONObject): QueueTrack? {
     val id = json.optString("id").takeIf { it.isNotBlank() } ?: return null
     return QueueTrack(
@@ -40,7 +45,8 @@ fun queueTrackOf(json: JSONObject): QueueTrack? {
         artist = json.optStringOrNull("artist"),
         album = json.optStringOrNull("album"),
         artworkUrl = json.optStringOrNull("artworkUrl"),
-        duration = if (json.has("duration") && !json.isNull("duration")) json.optInt("duration") else null
+        duration = if (json.has("duration") && !json.isNull("duration")) json.optInt("duration") else null,
+        coverArt = json.optStringOrNull("coverArt")
     )
 }
 
@@ -58,9 +64,11 @@ fun queueTracksOf(json: JSONArray?): List<QueueTrack> {
 /**
  * Turns the queue into the domain type `MediaPlayerManager` speaks.
  *
- * [Track.coverArt] carries the artwork *url* the web supplied rather than a Subsonic cover-art id.
- * Both are opaque strings to the notification's image loader, and the web already resolved it
- * against the right server.
+ * [Track.coverArt] must be a Subsonic cover-art id: the image loader sends it as the `id` of a
+ * `getCoverArt` request, and the track can be saved with it. A signed URL there made the app ask
+ * for `getCoverArt?id=https://...getCoverArt?id=...` and stored the user's token with the track
+ * (bug report 150). So the id the web sent wins, and the id inside an old-style [artworkUrl] is
+ * the fallback.
  *
  * @param serverId the active server, so a downloaded copy of this track resolves to the same file
  *   the legacy UI would have played.
@@ -71,7 +79,7 @@ fun QueueTrack.toTrack(serverId: Int): Track = Track(
     title = title,
     album = album,
     artist = artist,
-    coverArt = artworkUrl,
+    coverArt = coverArtIdOf(coverArt) ?: coverArtIdOf(artworkUrl),
     duration = duration,
     isDirectory = false
 )

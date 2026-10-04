@@ -65,6 +65,9 @@ Ours inside upstream files (modified, not new) -- the places a port most often l
   (the file's BPM tag, step 125); `ScanSettings.hpp` -- `release_artwork_rules` (step 126).
 - `src/libs/subsonic/impl/SubsonicResource.cpp` -- auth cache, `spotify/*` and MuMa endpoint
   registration; `endpoints/UserManagement.cpp` -- self-service `updateUser`.
+- `src/libs/subsonic/impl/ParameterParsing.*` -- `parameterMapToDebugString`, moved out of
+  `SubsonicResource.cpp`, also redacts `t` and `s`, and the credentials inside a value that is a
+  URL itself (bug report 150).
 - `src/lms/main.cpp` -- wiring of the MuMa services, the `/muma` resource and the user sync.
 - `src/libs/services/scrobbling/impl/ScrobblingService.cpp`, `feedback/impl/FeedbackService.cpp`
   -- the always-on MuMa relay next to the configured backend.

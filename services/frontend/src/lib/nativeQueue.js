@@ -54,19 +54,22 @@ import { logAction } from "./diagnosticsLog.js";
  * Only what the notification, the lock screen and a head unit draw. The id is
  * what everything else is resolved from on the far side.
  *
+ * `coverArt` is the Subsonic cover-art id, never a URL. The service fetches the
+ * picture itself with its own signed request; a signed URL here made it ask for
+ * `getCoverArt?id=https://...` and kept the user's token with the track (bug
+ * report 150).
+ *
  * @param {object} track - A Subsonic track as the library returned it.
- * @param {function(object): string} artworkUrlFor - Builds a cover URL; it
- *   carries credentials, so the web module is the only side that can.
  * @returns {{id: string, title: string, artist: string, album: string,
- *   artworkUrl: string, duration: number}}
+ *   coverArt: string, duration: number}}
  */
-export function toQueueTrack(track, artworkUrlFor) {
+export function toQueueTrack(track) {
   return {
     id: String(track.id),
     title: track.title ?? "",
     artist: track.artist ?? "",
     album: track.album ?? "",
-    artworkUrl: artworkUrlFor(track) ?? "",
+    coverArt: track.coverArt ? String(track.coverArt) : "",
     duration: Number(track.duration) || 0,
   };
 }
@@ -158,8 +161,7 @@ export function trackAfterCommand(
  * Builds the thing that owns the hand-off.
  *
  * @param {object} player - `platform.player`, with `ownsQueue` true.
- * @param {{artworkUrlFor: function(object): string,
- *          onError?: function(Error): void}} options
+ * @param {{onError?: function(Error): void}} [options]
  * @returns {{adopt: function(): Promise<string[]>,
  *            sync: function(Array<object>, object|null, {autoplay?: boolean}=): Promise<void>,
  *            follow: function(string|number): void,
@@ -167,7 +169,7 @@ export function trackAfterCommand(
  *            pushedIds: function(): string[]|null,
  *            currentIndex: function(): number}}
  */
-export function createNativeQueue(player, { artworkUrlFor, onError = () => {} }) {
+export function createNativeQueue(player, { onError = () => {} } = {}) {
   /** The ids last known to be on the far side; null until `adopt` or a push. */
   let pushed = null;
   /** The index last known to be on the far side, alongside [pushed]; -1 until `adopt` or a push. */
@@ -322,7 +324,7 @@ export function createNativeQueue(player, { artworkUrlFor, onError = () => {} })
     // that leaves the current item where it is, so a queue that keeps being
     // re-sent cannot un-pause the player.
     await player.setQueue({
-      tracks: queue.map((track) => toQueueTrack(track, artworkUrlFor)),
+      tracks: queue.map((track) => toQueueTrack(track)),
       index: Math.max(index, 0),
       autoplay: autoplay && index >= 0,
     });

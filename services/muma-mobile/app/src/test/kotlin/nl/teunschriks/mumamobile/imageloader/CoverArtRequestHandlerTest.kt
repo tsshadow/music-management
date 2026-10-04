@@ -15,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
@@ -128,6 +129,30 @@ class CoverArtRequestHandlerTest {
         handler.tryLoad("flaky")
 
         verify(mockApi, times(2)).getCoverArt(any(), any())
+    }
+
+    /**
+     * Bug report 150: a signed getCoverArt URL in place of the id was sent as the `id` of a new
+     * getCoverArt request. Only the id inside it may reach the server.
+     */
+    @Test
+    fun `Should ask for the id inside a signed getCoverArt URL`() {
+        whenever(mockApiClient.toStreamResponse(any()))
+            .thenReturn(StreamResponse(null, null, 404))
+
+        handler.tryLoad("https://muma.example.org/rest/getCoverArt?id=art-824661-1786979739&size=512&u=user&t=abc&s=salt")
+
+        verify(mockApi, times(1)).getCoverArt(eq("art-824661-1786979739"), any())
+    }
+
+    @Test
+    fun `Should not ask the server for a URL that is no cover art`() {
+        val fail = {
+            handler.load(createLoadCoverArtRequest("https://muma.example.org/images/fallback.svg").buildRequest(), 0)
+        }
+
+        fail `should throw` IllegalArgumentException::class
+        verify(mockApi, times(0)).getCoverArt(any(), any())
     }
 
     /** Every load in these two tests is expected to fail; only the request count is interesting. */

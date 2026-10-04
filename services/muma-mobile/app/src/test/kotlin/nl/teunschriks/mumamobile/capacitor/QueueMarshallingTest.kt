@@ -41,7 +41,7 @@ class QueueMarshallingTest {
             put("title", "Trance Energy 2004")
             put("artist", "Marco V")
             put("album", "Trance Energy")
-            put("artworkUrl", "https://lms.example.org/art/42")
+            put("coverArt", "al-42")
             put("duration", 4711)
         }
 
@@ -49,14 +49,56 @@ class QueueMarshallingTest {
         parsed.title shouldBeEqualTo "Trance Energy 2004"
         parsed.artist shouldBeEqualTo "Marco V"
         parsed.album shouldBeEqualTo "Trance Energy"
-        parsed.artworkUrl shouldBeEqualTo "https://lms.example.org/art/42"
+        parsed.coverArt shouldBeEqualTo "al-42"
         parsed.duration shouldBeEqualTo 4711
 
         val domain = parsed.toTrack(serverId = 3)
         domain.serverId shouldBeEqualTo 3
-        domain.coverArt shouldBeEqualTo "https://lms.example.org/art/42"
+        domain.coverArt shouldBeEqualTo "al-42"
         domain.duration shouldBeEqualTo 4711
         domain.isDirectory shouldBeEqualTo false
+    }
+
+    /**
+     * Bug report 150. An older web bundle sends a signed getCoverArt URL as `artworkUrl`. Kept as
+     * the cover-art id, the image loader sent it as the `id` of a new getCoverArt request, and
+     * the track kept the user's token. The id inside the URL is what the track must hold.
+     */
+    @Test
+    fun `a signed artwork URL becomes the cover-art id inside it`() {
+        val json = JSONObject().apply {
+            put("id", "42")
+            put(
+                "artworkUrl",
+                "https://muma.example.org/rest/getCoverArt?id=art-824661-1786979739&size=512&u=user&t=abc&s=salt&v=1"
+            )
+        }
+
+        val domain = queueTrackOf(json)!!.toTrack(serverId = 3)
+
+        domain.coverArt shouldBeEqualTo "art-824661-1786979739"
+    }
+
+    @Test
+    fun `the cover-art id wins over the artwork URL`() {
+        val json = JSONObject().apply {
+            put("id", "42")
+            put("coverArt", "al-7")
+            put("artworkUrl", "https://muma.example.org/rest/getCoverArt?id=al-8&t=abc&s=salt")
+        }
+
+        queueTrackOf(json)!!.toTrack(serverId = 3).coverArt shouldBeEqualTo "al-7"
+    }
+
+    /** The web player's fallback picture is a URL, but no cover-art id: the track gets none. */
+    @Test
+    fun `an artwork URL that is not getCoverArt gives no cover art`() {
+        val json = JSONObject().apply {
+            put("id", "42")
+            put("artworkUrl", "https://muma.example.org/images/spotify-fallback.svg")
+        }
+
+        queueTrackOf(json)!!.toTrack(serverId = 3).coverArt.shouldBeNull()
     }
 
     @Test

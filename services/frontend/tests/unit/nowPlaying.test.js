@@ -371,6 +371,22 @@ describe("NowPlaying track info", () => {
     expect(onnavigate).toHaveBeenCalledWith("album:al1");
   });
 
+  it("shows the track's place in the queue on the artist line", () => {
+    playlist.set([TRACK, { ...TRACK, id: "b" }, { ...TRACK, id: "c" }, { ...TRACK, id: "d" }]);
+    renderNowPlaying({ queueIndex: 3 });
+
+    expect(screen.getByTestId("now-playing-position").textContent).toBe("4/4");
+    playlist.set([]);
+  });
+
+  it("shows no position for a track that is not in the queue", () => {
+    playlist.set([TRACK]);
+    renderNowPlaying({ queueIndex: -1 });
+
+    expect(screen.queryByTestId("now-playing-position")).toBeNull();
+    playlist.set([]);
+  });
+
   it("does not make the album line a link without an album id", () => {
     renderNowPlaying({ track: { ...TRACK, albumId: null } });
 

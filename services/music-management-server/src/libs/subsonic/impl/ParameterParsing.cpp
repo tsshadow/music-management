@@ -51,9 +51,9 @@ namespace lms::api::subsonic
         // The length of the query separator at `pos`: `?` or `&`, or their percent-encoded forms.
         std::size_t separatorLengthAt(std::string_view text, std::size_t pos)
         {
-            if (text[pos] == '?' || text[pos] == '&')
+            if (text.at(pos) == '?' || text.at(pos) == '&')
                 return 1;
-            if (text[pos] == '%' && pos + 2 < text.size())
+            if (text.at(pos) == '%' && pos + 2 < text.size())
             {
                 const std::string_view code{ text.substr(pos + 1, 2) };
                 if (equalsIgnoringCase(code, "3F") || equalsIgnoringCase(code, "26"))
@@ -65,9 +65,9 @@ namespace lms::api::subsonic
         // The length of the `=` at `pos`, plain or percent-encoded, or 0 when there is none.
         std::size_t equalsLengthAt(std::string_view text, std::size_t pos)
         {
-            if (pos < text.size() && text[pos] == '=')
+            if (pos < text.size() && text.at(pos) == '=')
                 return 1;
-            if (pos + 2 < text.size() && text[pos] == '%' && equalsIgnoringCase(text.substr(pos + 1, 2), "3D"))
+            if (pos + 2 < text.size() && text.at(pos) == '%' && equalsIgnoringCase(text.substr(pos + 1, 2), "3D"))
                 return 3;
             return 0;
         }
@@ -93,7 +93,7 @@ namespace lms::api::subsonic
             const std::size_t separatorLength{ separatorLengthAt(value, pos) };
             if (separatorLength == 0)
             {
-                res += value[pos++];
+                res += value.at(pos++);
                 continue;
             }
 
@@ -101,7 +101,7 @@ namespace lms::api::subsonic
             pos += separatorLength;
 
             std::size_t nameEnd{ pos };
-            while (nameEnd < value.size() && std::isalpha(static_cast<unsigned char>(value[nameEnd])))
+            while (nameEnd < value.size() && std::isalpha(static_cast<unsigned char>(value.at(nameEnd))))
                 ++nameEnd;
 
             const std::size_t equalsLength{ equalsLengthAt(value, nameEnd) };
@@ -114,7 +114,7 @@ namespace lms::api::subsonic
 
             // Skip the secret up to the next parameter.
             pos = nameEnd + equalsLength;
-            while (pos < value.size() && value[pos] != '#' && separatorLengthAt(value, pos) == 0)
+            while (pos < value.size() && value.at(pos) != '#' && separatorLengthAt(value, pos) == 0)
                 ++pos;
         }
 

@@ -15,6 +15,7 @@
   import { playlist, queueSource } from './store.js';
   import { PLACE_PREFIXES } from './recentPlaces.js';
   import { startQueue } from './queue.js';
+  import { queuePosition } from './queuePosition.js';
   import { nowPlayingBackground, playingFromLabel } from './nowPlayingContext.js';
   import { releaseDateLabel } from './trackDate.js';
   import { describeFilter } from './management/radioChannels.js';
@@ -522,7 +523,16 @@
                 data-testid="now-playing-title"
                 onclick={() => (showDetailsSheet = true)}
               >{track.title}</button>
-              <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
+              <!-- Artist left, place in the play order ("4/100") right-aligned on the same
+                   line, like a queue row. Only for a track that sits in the queue. -->
+              <div class="flex min-w-0 items-center gap-3">
+                <div class="min-w-0 flex-1">
+                  <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
+                </div>
+                {#if queueIndex >= 0 && $playlist.length > 0}
+                  <span class="shrink-0 text-sm text-muma-spotify-text tabular-nums" data-testid="now-playing-position">{queuePosition(queueIndex, $playlist.length)}</span>
+                {/if}
+              </div>
               <!-- Album left, release date right-aligned on the same line: the header names
                    the place the queue came from, which is not the album. The album gives
                    way (truncates) before the date does. -->

@@ -527,4 +527,5 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** (queue position) — A queue row shows its place in the play order, "3/500", right-aligned
   on the artist line (`text-xs text-muma-spotify-text tabular-nums`, `min-width` set from the
   widest position so the artist does not shift). The date moves to the right end of the album line.
-  Other track lists have no position.
+  The Now Playing screen shows the same text (`text-sm`) right-aligned on its artist line, when the
+  track sits in the queue. Other track lists have no position.

@@ -22,7 +22,7 @@ from services.music_manager.song_versions import version_kind, work_key
 LARGEST_GROUPS = 25
 
 _ROWS = '''
-    SELECT t.id, t.title, t.duration_secs, a.name AS artist,
+    SELECT t.id, t.title, t.duration_secs, t.form, a.name AS artist,
            (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id LIMIT 1) AS file_path
     FROM library_tracks t
     LEFT JOIN library_artists a ON a.id = t.primary_artist_id
@@ -43,7 +43,7 @@ def summarize(rows: list[dict]) -> dict:
     kinds: collections.Counter = collections.Counter()
 
     for row in rows:
-        groups[work_key(row['artist'], row['title'], row['id'], row.get('duration_secs'))].append(row)
+        groups[work_key(row['artist'], row['title'], row['id'], row.get('duration_secs'), row.get('form'))].append(row)
         kinds[version_kind(row['title'])] += 1
 
     ordered = sorted(groups.items(), key=lambda item: len(item[1]), reverse=True)

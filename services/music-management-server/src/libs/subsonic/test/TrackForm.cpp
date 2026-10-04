@@ -46,6 +46,12 @@ namespace lms::api::subsonic::tests
         EXPECT_EQ(parseTrackForms(parameters), (std::vector<std::string>{ "track" }));
     }
 
+    TEST(TrackForm, theNonMusicFormsAreAccepted)
+    {
+        const Wt::Http::ParameterMap parameters{ { "form", { "interview,preview" } } };
+        EXPECT_EQ(parseTrackForms(parameters), (std::vector<std::string>{ "interview", "preview" }));
+    }
+
     TEST(TrackForm, anUnknownFormIsRefused)
     {
         const Wt::Http::ParameterMap parameters{ { "form", { "liveset,mixtape" } } };

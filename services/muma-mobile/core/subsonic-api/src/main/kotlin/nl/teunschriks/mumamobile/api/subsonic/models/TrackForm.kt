@@ -22,9 +22,18 @@ object TrackForm {
     const val SET = "set"
     const val LIVESET = "liveset"
     const val PODCAST = "podcast"
+    const val INTERVIEW = "interview"
+    const val PREVIEW = "preview"
 
     /** Every form the server accepts, in the order MuMa's derivation lists them. */
-    val FORMS: List<String> = listOf(TRACK, SET, LIVESET, PODCAST)
+    val FORMS: List<String> = listOf(TRACK, SET, LIVESET, PODCAST, INTERVIEW, PREVIEW)
+
+    /**
+     * The forms that are not music: an interview, the preview of an event DVD. The server leaves
+     * them out of `getSongs` unless `form` names one, so the app needs no filter of its own and
+     * no view offers them (see `docs/designs/non-music-forms/`).
+     */
+    val NON_MUSIC_FORMS: List<String> = listOf(INTERVIEW, PREVIEW)
 
     /**
      * The forms a sets view offers. A track is the only form of the songs side, so a choice there

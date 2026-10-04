@@ -23,7 +23,14 @@ docs/designs/feeds/technical.md, Invariants):
 
 from datetime import datetime, timedelta
 
+from services.common.track_form import NON_MUSIC_FORMS
 from services.music_manager.feeds.policy import FeedPolicy
+
+#: Every feed plays music: never an interview or a DVD preview. A track the form pass has not
+#: classified yet (NULL) stays a candidate, as it does everywhere a form is not asked for
+#: (docs/designs/non-music-forms/). Literals from a fixed set, so no placeholder shifts the
+#: positional params the queries below are careful about.
+MUSIC_ONLY = '(t.form IS NULL OR t.form NOT IN (' + ', '.join(f"'{form}'" for form in sorted(NON_MUSIC_FORMS)) + '))'
 
 # One row per track: a disagreeing release_date across several files sharing a
 # track counts as unknown rather than picking one of them arbitrarily.
@@ -210,6 +217,7 @@ def candidates_query(
         'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
         't.duration_secs > 0',
         't.duration_secs < %s',
+        MUSIC_ONLY,
     ]
     params.append(policy.max_track_seconds)
 
@@ -309,6 +317,7 @@ def split_sample_query(
         'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
         't.duration_secs > 0',
         't.duration_secs < %s',
+        MUSIC_ONLY,
     ]
     params.append(policy.max_track_seconds)
     if half == 'recent':
@@ -485,6 +494,7 @@ def rotation_counts_query(
         'EXISTS (SELECT 1 FROM library_media_files mf WHERE mf.track_id = t.id)',
         't.duration_secs > 0',
         't.duration_secs < %s',
+        MUSIC_ONLY,
     ]
     params.append(policy.max_track_seconds)
     pool_clause = _pool_clause(username, policy, params)

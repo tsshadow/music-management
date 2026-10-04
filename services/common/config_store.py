@@ -284,10 +284,10 @@ def _bpm_fields() -> list[ConfigField]:
         ConfigField(
             key='bpm_analysis_skip_forms',
             type='string',
-            default='set,liveset,podcast',
+            default='set,liveset,podcast,interview,preview',
             env='BPM_ANALYSIS_SKIP_FORMS',
             group=group,
-            description='Track forms the BPM analysis leaves out, comma-separated: a mix has no one tempo.',
+            description='Track forms the BPM analysis leaves out, comma-separated: a mix has no one tempo, talk has none.',
         ),
         ConfigField(
             key='bpm_analysis_max_minutes',

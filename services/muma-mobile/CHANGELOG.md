@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.16.0] - 2026-10-04
+
+### Added
+- **Interviews and DVD previews are known track forms.** `TrackForm` knows the server's two new
+  non-music forms, `interview` and `preview`, and `NON_MUSIC_FORMS` groups them. The bundled web UI
+  of server 0.91.0 labels them and keeps them out of the form filters.
+
 ## [7.15.5] - 2026-10-03
 
 ### Changed

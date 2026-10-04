@@ -120,6 +120,91 @@ class DeriveFormTest(unittest.TestCase):
         self.assertEqual(track_form.derive_form(f'{ROOT}/Soundcloud/x/a.mp3', ROOT, LONG, 'Defqon.1 2012'), 'set')
 
 
+class NonMusicFormTest(unittest.TestCase):
+    """Interviews and DVD previews among the downloads (docs/designs/non-music-forms/)."""
+
+    def test_production_interviews_are_interviews(self):
+        for path, title in [
+            ('Youtube/Ground Zero Festival', 'Ground Zero Festival 2014 - Lenny Dee Interview'),
+            ('Youtube/Q-dance', 'QAPITAL 2019 Interview'),
+            ('Youtube/Q-dance', 'QAPITAL 2019 ｜ Interview with Rejecta'),
+            ('Youtube/DJ Mag', 'Top 100 DJs Profile Interview (2014)'),
+            ('Youtube/101Barz', "'Ik houd echt van Rotterdam' - Interview"),
+            ('Youtube/Supremacy', 'MINUS MILITIA INTERVIEW SUPREMACY'),
+            ('Soundcloud/Someone', 'Interviews Dano & Joey Beltram Fun Factory 1992'),
+        ]:
+            with self.subTest(title=title):
+                self.assertEqual(form(f'{ROOT}/{path}/a.mp3', duration=SHORT, title=title), 'interview')
+
+    def test_production_dvd_previews_are_previews(self):
+        for title in [
+            'DVD Preview',
+            'Blu-ray;DVD Preview',
+            'DVD;Bluray preview',
+            'Q-dance DVD preview',
+            'Qlimax 2010 ｜ Blu-ray ⧸ DVD Preview ｜ Zatox',
+            'Preview DVD',
+        ]:
+            with self.subTest(title=title):
+                self.assertEqual(form(f'{ROOT}/Youtube/Q-dance/a.mp3', duration=SHORT, title=title), 'preview')
+
+    def test_the_title_decides_before_the_length(self):
+        # A 35-minute DVD preview and a 12-minute interview are still talk, not a set or live set.
+        self.assertEqual(form(f'{ROOT}/Youtube/Q-dance/a.mp3', duration=2122.0, title='Q-dance DVD preview'), 'preview')
+        self.assertEqual(form(f'{ROOT}/Youtube/101Barz/a.mp3', duration=720.0, title='The Interview'), 'interview')
+        self.assertEqual(form(f'{ROOT}/Telegram/rips/a.mp3', title='Qlimax DVD Preview'), 'preview')
+
+    def test_a_non_music_title_needs_no_duration(self):
+        self.assertEqual(form(f'{ROOT}/Youtube/Q-dance/a.mp3', duration=None, title='DVD Preview'), 'preview')
+
+    def test_a_song_preview_stays_music(self):
+        for title in [
+            'Zudröhnen (Preview)',
+            '"TKT" Studio Preview',
+            '【Preview】Srav3R',
+            'Artist - Song (Official Preview)',
+        ]:
+            with self.subTest(title=title):
+                self.assertEqual(form(f'{ROOT}/Soundcloud/Someone/a.mp3', duration=SHORT, title=title), 'track')
+
+    def test_music_with_some_talk_stays_music(self):
+        self.assertEqual(
+            form(f'{ROOT}/Soundcloud/Pat B/a.mp3', title='Pat B At Topradio Liveset 14-02-2020 + Interview'), 'set'
+        )
+        self.assertEqual(
+            form(
+                f'{ROOT}/Soundcloud/X/a.mp3', duration=SHORT, title='Going To An Interview (Outro Storytelling Audio)'
+            ),
+            'track',
+        )
+        self.assertEqual(form(f'{ROOT}/Youtube/X/a.mp3', title='Hardstyle Mix + Interview'), 'set')
+
+    def test_an_interview_outside_the_download_folders_stays_music(self):
+        # A label release can be a song called "Interview".
+        self.assertEqual(
+            form(f'{ROOT}/EPs/Label/CAT001/01 - Interview.mp3', duration=SHORT, title='Interview'), 'track'
+        )
+        self.assertEqual(form('/elsewhere/Youtube/x/a.mp3', duration=SHORT, title='Interview'), 'track')
+
+    def test_interview_is_a_whole_word(self):
+        self.assertEqual(form(f'{ROOT}/Youtube/X/a.mp3', duration=SHORT, title='Interviewed by fate'), 'track')
+
+    def test_trailers_teasers_and_aftermovies_stay_music(self):
+        for title in ['Defqon.1 2019 | Official Trailer', 'EP teaser', 'Qlimax 2019 | Official Aftermovie']:
+            with self.subTest(title=title):
+                self.assertEqual(form(f'{ROOT}/Youtube/Q-dance/a.mp3', duration=SHORT, title=title), 'track')
+
+    def test_non_music_has_no_performance_date(self):
+        self.assertEqual(
+            track_form.classify(f'{ROOT}/Youtube/Q-dance/a.mp3', ROOT, LONG, 'Defqon.1 2012 DVD Preview', festivals()),
+            ('preview', None),
+        )
+
+    def test_the_non_music_forms_are_forms(self):
+        self.assertEqual(track_form.NON_MUSIC_FORMS, {'interview', 'preview'})
+        self.assertTrue(set(track_form.FORMS) >= track_form.NON_MUSIC_FORMS)
+
+
 class DerivePerformanceDateTest(unittest.TestCase):
     def test_a_liveset_with_a_known_edition_gets_its_date(self):
         result = track_form.classify(

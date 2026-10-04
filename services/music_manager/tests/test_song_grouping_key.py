@@ -68,7 +68,7 @@ DIFFERENT_SONGS = [
 
 def _key(pair, track_id):
     artist, title = pair
-    return work_key(artist, title, track_id, 200.0)
+    return work_key(artist, title, track_id, 200.0, None)
 
 
 @pytest.mark.parametrize(('left', 'right'), SAME_SONG, ids=[right[1] for _left, right in SAME_SONG])

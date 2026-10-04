@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.91.0 (2026-10-04)
+
+- Interviews and DVD previews are marked as non-music. The songs view, the artist page, the daily
+  mix and the radio leave them out, and search still finds them.
+
 ## Global Version 0.90.0 (2026-10-03)
 
 - The importer no longer places a release folder that holds no audio, only scene files such as `00-*.m3u`, `.nfo`, `.sfv` and a cover. It deletes the folder from the import queue and writes an event that names the files it held. Before, such a folder went to the label tree, and LMS reported its playlist as missing entries after every scan. A folder with audio in a sub folder, an archive that is not extracted yet, or any other file stays (#167).

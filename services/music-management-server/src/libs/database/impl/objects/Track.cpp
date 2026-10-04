@@ -19,6 +19,7 @@
 
 #include "database/objects/Track.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 
@@ -76,6 +77,20 @@ namespace lms::db
             return "t.form IN (" + utils::createPlaceholders(formCount) + ")";
         }
 
+        // The forms muma marks as non-music (services/common/track_form.py NON_MUSIC_FORMS).
+        // Literals rather than bound values: the set is fixed and the condition then needs no
+        // binding in either builder.
+        constexpr std::string_view nonMusicCondition{ "t.form NOT IN ('interview', 'preview')" };
+
+        // Whether FindParameters::excludeNonMusic applies: not when the caller asked for a
+        // non-music form by name -- that request is the way to list them.
+        bool excludesNonMusic(const Track::FindParameters& params)
+        {
+            if (!params.excludeNonMusic)
+                return false;
+            return std::none_of(params.forms.begin(), params.forms.end(), [](const std::string& form) { return form == "interview" || form == "preview"; });
+        }
+
         // FindParameters::forms and ::year for createQuery. Helpers of their own, for both
         // builders, so the two cannot drift -- and so the cognitive-complexity figures of
         // createQuery and buildAdvancedQueryBody, which are clang-tidy baseline keys, stay put.
@@ -91,6 +106,9 @@ namespace lms::db
 
             if (params.year)
                 query.where(std::string{ filingYearExpr } + " = ?").bind(std::to_string(*params.year));
+
+            if (excludesNonMusic(params))
+                query.where(std::string{ nonMusicCondition });
         }
 
         // FindParameters::workId and ::canonicalOnly for createQuery, with the predicate
@@ -124,6 +142,8 @@ namespace lms::db
                 const std::string year{ std::to_string(*params.year) };
                 bindFuncs.emplace_back([year](auto& q) { q.bind(year); });
             }
+            if (excludesNonMusic(params))
+                baseQuery += " AND " + std::string{ nonMusicCondition };
         }
 
         // A PartialDateTime is stored as its toString() form (see PartialDateTimeTraits.hpp), so the

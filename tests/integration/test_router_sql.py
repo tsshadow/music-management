@@ -1744,6 +1744,22 @@ class FeedsPipelineTest:
         assert [track['title'] for track in body['tracks']] == ['New Single']
         assert out_of_window not in [track['id'] for track in body['tracks']]
 
+    def test_release_radar_leaves_an_interview_out(self, api, headers, db):
+        """docs/designs/non-music-forms/: the form condition runs on MariaDB, drops the
+        interview and keeps a track the form pass has not classified yet (form NULL)."""
+        today = date.today().isoformat()
+        song = self._track(db, 'New Single', release_date=today)
+        self._listen(db, song)
+        self._track(db, 'Unclassified Single', artist='Radical Redemption', release_date=today)
+        interview = self._track(db, 'QAPITAL 2019 Interview', artist='Rejecta', release_date=today)
+        with db.cursor() as cursor:
+            cursor.execute("UPDATE library_tracks SET form = 'track' WHERE id = %s", (song,))
+            cursor.execute("UPDATE library_tracks SET form = 'interview' WHERE id = %s", (interview,))
+
+        body = api.get('/api/feeds/release-radar?username=root', headers=headers).json()
+        assert body['state'] == 'ok', body
+        assert sorted(track['title'] for track in body['tracks']) == ['New Single', 'Unclassified Single']
+
     def test_daily_mix_runs_its_unheard_pool_clause_against_a_real_schema(self, api, headers, db):
         """daily-mix's policy differs from release-radar's in exactly the ways
         that matter for SQL coverage: a 90-day window, the 'unheard' pool's

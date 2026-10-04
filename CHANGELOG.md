@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-10-04
+
+### Added
+- **Interviews and DVD previews are no longer songs.** Two new track forms, `interview` and
+  `preview`, mark 231 interviews and 20 Q-dance DVD and Blu-ray previews on production. The title
+  decides, at any length: "interview" in a YouTube or SoundCloud title without "set", "mix",
+  "intro" or "outro", and "DVD" or "Blu-ray" next to "preview". The about 5,400 song previews,
+  trailers, teasers and aftermovies stay music. LMS leaves the two forms out of the songs and sets
+  views, the artist page, `getSongs`, `getRandomSongs`, `getSongsByGenre` and the radio. Search
+  still finds them, and `form=interview` lists them. The daily mix and the release radar skip them,
+  song versions never group them (a grouped one leaves its work in the next round), BPM analysis
+  skips them, and Beheer counts them apart from the tracks. The hourly form pass reclassifies the
+  existing files, no migration. A client that expects every track from `getSongs` misses these
+  now, and the phone's offline cache shows a cached interview until the next sync.
+
 ## [0.90.0] - 2026-10-03
 
 ### Added

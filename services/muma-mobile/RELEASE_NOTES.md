@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.16.0 (2026-10-04)
+
+- **Interviews and DVD previews are no longer songs.** They stay out of the songs view, the artist
+  page, the daily mix and the radio. Search still finds them.
+
 ## Global Version 7.15.5 (2026-10-03)
 
 - **Bundles the web UI of server 0.90.0.** No visible change: the web UI's development

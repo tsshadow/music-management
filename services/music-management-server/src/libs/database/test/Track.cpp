@@ -981,6 +981,44 @@ namespace lms::db::tests
         EXPECT_EQ(findTrackIds(session, params), sorted({ liveset.getId(), set.getId() }));
     }
 
+    TEST_F(DatabaseFixture, Track_excludesNonMusic_bothBuilders)
+    {
+        ScopedTrack song{ session };
+        ScopedTrack interview{ session };
+        ScopedTrack preview{ session };
+        ScopedTrack unclassified{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            song.get().modify()->setForm("track");
+            interview.get().modify()->setForm("interview");
+            preview.get().modify()->setForm("preview");
+        }
+
+        auto transaction{ session.createReadTransaction() };
+
+        // Off by default: every caller that does not ask keeps seeing every track.
+        Track::FindParameters params;
+        const std::vector<TrackId> everything{ sorted({ song.getId(), interview.getId(), preview.getId(), unclassified.getId() }) };
+        EXPECT_EQ(findAdvancedIds(session, params), everything);
+        EXPECT_EQ(findTrackIds(session, params), everything);
+
+        // Asked for: the non-music forms go, an unclassified track stays.
+        params.excludeNonMusic = true;
+        const std::vector<TrackId> music{ sorted({ song.getId(), unclassified.getId() }) };
+        EXPECT_EQ(findAdvancedIds(session, params), music);
+        EXPECT_EQ(findTrackIds(session, params), music);
+        EXPECT_EQ(Track::countAdvanced(session, params, {}), 2);
+
+        // Naming a non-music form lists it, exclusion or not.
+        params.forms = { "interview" };
+        EXPECT_EQ(findAdvancedIds(session, params), std::vector<TrackId>{ interview.getId() });
+        EXPECT_EQ(findTrackIds(session, params), std::vector<TrackId>{ interview.getId() });
+
+        // A music form keeps the exclusion, and needs it for nothing.
+        params.forms = { "track" };
+        EXPECT_EQ(findTrackIds(session, params), std::vector<TrackId>{ song.getId() });
+    }
+
     TEST_F(DatabaseFixture, Track_findByFilingYear_bothBuilders)
     {
         ScopedTrack liveset{ session };

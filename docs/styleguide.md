@@ -523,3 +523,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new
   place clears to skeletons, same place dims stale results, search says "Zoeken…" until it has an
   answer, and History, Starred and Memories load as skeleton sections.
+
+- **Done** (queue position) — A queue row shows its place in the play order, "3/500", right-aligned
+  on the artist line (`text-xs text-muma-spotify-text tabular-nums`, `min-width` set from the
+  widest position so the artist does not shift). The date moves to the right end of the album line.
+  Other track lists have no position.

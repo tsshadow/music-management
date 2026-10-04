@@ -10,6 +10,7 @@
   import Modal from './Modal.svelte';
   import { notify } from './notifications.js';
   import { releaseDateLabel } from './trackDate.js';
+  import { queuePosition, queuePositionWidth } from './queuePosition.js';
   import { genreSegments } from './genreSegments.js';
   import { platform as defaultPlatform } from './platform/index.js';
   import { FALLBACK, artistImageFallback, coverArtSrc, localCoverArt, resolveCoverArt } from './coverArt.js';
@@ -508,21 +509,39 @@
               <!-- `truncate` on a wrapper: the names are inline text, and one long
                    unbroken credit ("Bössels,Revellers") otherwise ran on over the
                    album column next to it. -->
-              <div class="min-w-0 truncate">
-                <ArtistList
-                  artist={track.artist}
-                  artistId={track.artistId}
-                  artists={track.artists}
-                  active={String($currentTrack?.id) === String(track.id)}
-                  onnavigate={onnavigate}
-                />
+              <div class="flex items-baseline gap-2 min-w-0">
+                <div class="min-w-0 flex-1 truncate">
+                  <ArtistList
+                    artist={track.artist}
+                    artistId={track.artistId}
+                    artists={track.artists}
+                    active={String($currentTrack?.id) === String(track.id)}
+                    onnavigate={onnavigate}
+                  />
+                </div>
+                {#if isQueue}
+                  <!-- Place in the play order over the queue length ("3/500"). Right-aligned
+                       on the artist line, above the date; tabular digits and a width that
+                       fits the length keep the artist column from moving between rows. -->
+                  <span
+                    class="shrink-0 text-right text-xs text-muma-spotify-text tabular-nums"
+                    style="min-width: {queuePositionWidth(tracks.length)}ch"
+                    data-testid="queue-position"
+                  >{queuePosition(i, tracks.length)}</span>
+                {/if}
               </div>
               {#if $isMobile && Number($trackListLines) === 3}
-                <div class="text-xs text-muma-spotify-text truncate" data-testid="track-third-line">
-                  {#if track.albumId}
-                    <button class="bg-transparent border-none p-0 text-inherit hover:underline cursor-pointer" onpointerdown={() => pressEntity('album', { id: track.albumId })} onclick={(e) => { e.stopPropagation(); seedFromTrack(track); onnavigate?.(`album:${track.albumId}`); }}>{track.album || ''}</button>
-                  {:else}{track.album || ''}{/if}
-                  {#if track.album} • {/if}{showDate ? formatDate(track.listenedAt) : releaseDateLabel(track)}
+                <div class="text-xs text-muma-spotify-text {isQueue ? 'flex items-baseline gap-2 min-w-0' : 'truncate'}" data-testid="track-third-line">
+                  <span class={isQueue ? 'min-w-0 flex-1 truncate' : ''}>
+                    {#if track.albumId}
+                      <button class="bg-transparent border-none p-0 text-inherit hover:underline cursor-pointer" onpointerdown={() => pressEntity('album', { id: track.albumId })} onclick={(e) => { e.stopPropagation(); seedFromTrack(track); onnavigate?.(`album:${track.albumId}`); }}>{track.album || ''}</button>
+                    {:else}{track.album || ''}{/if}
+                    {#if !isQueue}{#if track.album} • {/if}{showDate ? formatDate(track.listenedAt) : releaseDateLabel(track)}{/if}
+                  </span>
+                  {#if isQueue}
+                    <!-- In the queue the date sits at the right end, under the position. -->
+                    <span class="shrink-0 text-right tabular-nums" data-testid="queue-date">{showDate ? formatDate(track.listenedAt) : releaseDateLabel(track)}</span>
+                  {/if}
                 </div>
               {/if}
               {#if $isMobile && !isQueue}

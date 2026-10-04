@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.93.0] - 2026-10-04
+
+### Added
+- **The Now Playing screen shows the track's place in the queue.** The position ("4/100") sits
+  right-aligned on the artist line and follows shuffle and reordering.
+
 ## [0.92.0] - 2026-10-04
 
 ### Added

@@ -11,6 +11,11 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.93.0 (2026-10-04)
+
+- **The Now Playing screen shows the track's place in the queue.** The position ("4/100") sits
+  right-aligned on the artist line and follows shuffle and reordering.
+
 ## Global Version 0.92.0 (2026-10-04)
 
 - **The queue list shows each track's place in the queue.** A row has the title on the first line,

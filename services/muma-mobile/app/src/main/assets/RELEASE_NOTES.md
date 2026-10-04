@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.16.1 (2026-10-04)
+
+- Covers of tracks started from the player show again in the notification, on the lock screen and
+  in the car.
+
 ## Global Version 7.16.0 (2026-10-04)
 
 - **Interviews and DVD previews are no longer songs.** They stay out of the songs view, the artist

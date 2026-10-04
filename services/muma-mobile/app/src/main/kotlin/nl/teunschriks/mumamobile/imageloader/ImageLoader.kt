@@ -223,8 +223,13 @@ class ImageLoader(
         downloadCoverArt(track.coverArt!!, FileUtil.getAlbumArtFile(track))
     }
 
-    fun downloadCoverArt(id: String, file: String) = launch {
-        if (id.isBlank()) return@launch
+    /**
+     * Downloads the cover art [value] names into [file], unless the file is already there.
+     * [value] is a cover-art id; a signed `getCoverArt` URL in its place is reduced to its id
+     * (see [coverArtIdOf]), and any other value downloads nothing.
+     */
+    fun downloadCoverArt(value: String, file: String) = launch {
+        val id = coverArtIdOf(value) ?: return@launch
 
         withContext(Dispatchers.IO) {
             // Return if have a cache hit

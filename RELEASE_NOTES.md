@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.91.1 (2026-10-04)
+
+- The server log no longer shows the login token of a request.
+
 ## Global Version 0.91.0 (2026-10-04)
 
 - Interviews and DVD previews are marked as non-music. The songs view, the artist page, the daily

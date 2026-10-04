@@ -23,6 +23,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/String.hpp"
@@ -32,6 +33,16 @@
 
 namespace lms::api::subsonic
 {
+
+    // Renders the parameters of a request for a log line. A credential (`p`, `password`,
+    // `apiKey`, the token `t` and its salt `s`) is replaced by *REDACTED*, and so is a credential
+    // inside a value that is itself a URL with a query string, such as a signed getCoverArt URL
+    // a client sent as the `id` (MuMa bug report 150).
+    std::string parameterMapToDebugString(const Wt::Http::ParameterMap& parameterMap);
+
+    // The same redaction for one value: every `t=`, `s=`, `p=`, `u=`, `password=` or `apiKey=`
+    // in a query string inside it, plain or percent-encoded, keeps its name and loses its value.
+    std::string redactCredentialsInValue(std::string_view value);
 
     template<typename T>
     std::vector<T> getMultiParametersAs(const Wt::Http::ParameterMap& parameterMap, const std::string& paramName)

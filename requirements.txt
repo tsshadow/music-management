@@ -92,4 +92,4 @@ PyYAML~=6.0
 # built from this file, so scripts/test/core-e2e.sh falls back to a container
 # that installs tests/bdd/requirements.txt. This pin is what a developer machine
 # and build.sh's in-image run get.
-pytest-bdd~=8.1
+pytest-bdd~=9.0

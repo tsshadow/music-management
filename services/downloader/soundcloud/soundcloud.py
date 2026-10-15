@@ -56,6 +56,15 @@ DURATION_BOUNDS = (60, 21600)
 FIREFOX_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0'
 
 
+# What a track downloads. SoundCloud stopped serving MP3 around 2026-10-13: every
+# track, old or new, now offers only its AAC streams (`hls_aac_96k`, `hls_aac_160k`),
+# and the `bestaudio[ext=mp3]` that stood here failed each new track with "Requested
+# format is not available". MP3 stays first for as long as a track still has one;
+# otherwise the best AAC stream lands as `.m4a`, untouched. Transcoding it to MP3
+# would stack a second lossy encode on the first (issue #185).
+AUDIO_FORMAT = 'bestaudio[ext=mp3]/bestaudio'
+
+
 def account_from_url(url: str) -> str:
     """The account a SoundCloud URL belongs to, for reporting and write-offs."""
     parts = [part for part in str(url).split('/') if part]
@@ -700,7 +709,7 @@ class SoundcloudDownloader:
             # without this every SoundCloud download landed without artwork -- 387 of 149.626
             # tracks on production had any, and the web UI drew the placeholder for the rest.
             'writethumbnail': True,
-            'format': 'bestaudio[ext=mp3]',
+            'format': AUDIO_FORMAT,
             'quiet': False,
             'ignoreerrors': True,
             'set_file_timestamp': True,

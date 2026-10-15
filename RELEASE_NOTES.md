@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.93.1 (2026-10-15)
+
+- SoundCloud downloads work again. Since 2026-10-13 SoundCloud serves only AAC streams, and the
+  downloader asked for MP3 only, so every new track failed with "Requested format is not
+  available". A track without MP3 now downloads its best AAC stream as `.m4a`, without a transcode.
+  The tracks missed since then have no archive row, so the next run picks them up.
+
 ## Global Version 0.93.0 (2026-10-04)
 
 - **The Now Playing screen shows the track's place in the queue.** The position ("4/100") sits

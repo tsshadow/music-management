@@ -18,7 +18,7 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-    image: mariadb:13.0.2@sha256:f1bba652ba57bea3099ca2fe1af692af537c27d96e0bcde39dce29e2ba1ec4f3
+    image: mariadb:13.0.2@sha256:0e4bb0f339feba125d1154fbacd36c16ec8518f52e44e1f82ecec7d6771caf39
     container_name: music-management-db-1
     restart: unless-stopped
     # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the

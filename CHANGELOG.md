@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.93.2] - 2026-10-22
+
+### Fixed
+- Android Auto shows the Songs lists "Recent toegevoegd" and "Recent uitgebracht" again. Both were
+  empty while the same lists under Sets worked. LMS answered the `getSongs` call for short tracks
+  with a 500 ("database or disk is full"): to sort them it first put every matching track, with
+  all its columns, in a temporary table, and for nearly the whole library that is more than the
+  container's 64 MB `/tmp` holds. The filters are now conditions on the track, so SQLite reads
+  the newest tracks in order and stops at the page size.
+
 ## [0.93.1] - 2026-10-15
 
 ### Fixed

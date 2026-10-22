@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.18.2 (2026-10-22)
+
+- The web player bundled in the app takes the frontend dependency updates of this release. No
+  visible change.
+
 ## Global Version 7.18.1 (2026-10-15)
 
 - The web player bundled in the app takes the frontend dependency updates of this release, and the

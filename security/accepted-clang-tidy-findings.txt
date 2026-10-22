@@ -639,7 +639,6 @@ fa7ce8f4e3f23dc6 x2  # misc-const-correctness src/libs/database/impl/objects/Lis
 1e6f51bb3ff93a19 x2  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
 05acc4bf3ffb0b35 x2  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
 7ba7173cb7e20b5f x1  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
-4483bac64b5b43c1 x1  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
 1552c1e03a89060c x2  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
 403c1f0542e86285 x4  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
 005784de8760f274 x1  # misc-const-correctness src/libs/database/impl/objects/Track.cpp
@@ -1315,7 +1314,8 @@ a27cd96be7bdd706 x1  # readability-else-after-return src/lms/ui/Utils.cpp
 # Long functions. A finding here is a refactor with its own risk, so it
 # belongs in the change that touches the function anyway, not in a sweep.
 # Two of these move whenever anything in their function moves: the measured
-# complexity is part of the finding, so buildAdvancedQueryBody (87) and
+# complexity is part of the finding, so buildAdvancedQueryBody (85 since the
+# cluster groups moved into appendClusterGroups, 2026-10-22) and
 # handleGetSpotifyTracks (45 since the year filter moved into applyFormAndYear,
 # 2026-09-25) produce a fresh entry for a one-line change. Both
 # were far past the threshold of 25 before the song-version work touched them,
@@ -1328,7 +1328,7 @@ e4de389a65e4ab86 x1  # readability-function-cognitive-complexity src/libs/audio/
 15820dc0935a4bfd x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Artist.cpp
 41aeff7cb54ddd5b x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Release.cpp
 a4390b32b458b503 x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
-eff16ca6f72b4140 x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
+e0ad33ee15d1abb5 x1  # readability-function-cognitive-complexity src/libs/database/impl/objects/Track.cpp
 4e6591b11c0394d8 x1  # readability-function-cognitive-complexity src/libs/muma/MumaResource.cpp
 cd4433a7061d7d91 x1  # readability-function-cognitive-complexity src/libs/services/auth/impl/musicmanagement/UserSynchronizer.cpp
 59b580e571f02a09 x1  # readability-function-cognitive-complexity src/libs/services/scanner/impl/scanners/audiofile/AudioFileScanOperation.cpp

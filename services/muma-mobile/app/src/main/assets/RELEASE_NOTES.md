@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.18.1 (2026-10-15)
+
+- The web player bundled in the app takes the frontend dependency updates of this release, and the
+  build uses Gradle 9.8.1. No visible change.
+
 ## Global Version 7.18.0 (2026-10-04)
 
 - **The Now Playing screen shows the track's place in the queue.** The position ("4/100") sits

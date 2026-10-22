@@ -825,6 +825,45 @@ namespace lms::db
     namespace
     {
         /**
+         * The cluster groups of find_advanced and countAdvanced, as one EXISTS per group: a track
+         * passes when it has any cluster of every group (OR inside a group, AND between groups).
+         *
+         * EXISTS rather than a join: a join repeats a track for every cluster it matches, so the
+         * query needed SELECT DISTINCT, and SQLite builds that DISTINCT from every matching full
+         * row before ORDER BY and LIMIT apply. For LENGTH=short that is nearly the whole library,
+         * more than the LMS container's 64 MB /tmp holds, and getSongs answered 500 with
+         * "database or disk is full" (bug report 151).
+         */
+        template<typename ResultType>
+        void appendClusterGroups(
+            std::string& baseQuery,
+            std::vector<std::function<void(Wt::Dbo::Query<ResultType>&)>>& bindFuncs,
+            const std::map<std::string, std::set<ClusterId>>& clusterGroups)
+        {
+            int groupCounter = 0;
+            for (const auto& [filterName, clusterIds] : clusterGroups)
+            {
+                const std::string alias = "tc" + std::to_string(groupCounter++);
+                baseQuery += " AND EXISTS (SELECT 1 FROM track_cluster " + alias + " WHERE " + alias + ".track_id = t.id"
+                           + " AND " + alias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + "))";
+
+                for (const auto& cid : clusterIds)
+                    bindFuncs.emplace_back([cid](auto& q) { q.bind(cid); });
+            }
+        }
+
+        /**
+         * Whether the joins of buildAdvancedQueryBody can return one track more than once. The
+         * artist links can: a track links to the same artist once per link type. So can the
+         * rating join, because rated_track has no unique key on (user_id, track_id). The medium
+         * and label joins are one row per track, and the cluster groups are EXISTS conditions.
+         */
+        bool advancedQueryRepeatsTracks(const Track::FindParameters& params)
+        {
+            return !params.artists.empty() || params.artist.isValid() || !params.artistName.empty() || params.ratingUser.isValid();
+        }
+
+        /**
          * The FROM/JOIN/WHERE (and optionally ORDER BY) part shared by find_advanced and
          * countAdvanced. Callers prepend their own SELECT. Binders are appended to `bindFuncs`
          * in the order their placeholders appear, so the two must stay in step.
@@ -862,19 +901,6 @@ namespace lms::db
                 || params.sortMethod == TrackSortMethod::Release)
             {
                 baseQuery += " LEFT JOIN medium m ON t.medium_id = m.id";
-            }
-
-            int groupCounter = 0;
-            for (const auto& [filterName, clusterIds] : clusterGroups)
-            {
-                std::string joinAlias = "tc" + std::to_string(groupCounter++);
-                baseQuery += " JOIN track_cluster " + joinAlias + " ON " + joinAlias + ".track_id = t.id"
-                           + " AND " + joinAlias + ".cluster_id IN (" + utils::createPlaceholders(clusterIds.size()) + ")";
-
-                for (const auto& cid : clusterIds)
-                {
-                    bindFuncs.emplace_back([cid](auto& q) { q.bind(cid); });
-                }
             }
 
             // Every artist gets its own join, so the aliases AND together: a track survives only
@@ -945,6 +971,8 @@ namespace lms::db
             }
 
             baseQuery += " WHERE 1=1";
+
+            appendClusterGroups(baseQuery, bindFuncs, clusterGroups);
 
             if (params.workId.has_value())
             {
@@ -1151,7 +1179,7 @@ namespace lms::db
         std::vector<std::function<void(Wt::Dbo::Query<Wt::Dbo::ptr<Track>>&)>> bindFuncs;
         const std::string body{ buildAdvancedQueryBody<Wt::Dbo::ptr<Track>>(params, clusterGroups, bindFuncs, /* includeOrderBy = */ true) };
 
-        auto query{ session.getDboSession()->query<Wt::Dbo::ptr<Track>>("SELECT DISTINCT t" + body) };
+        auto query{ session.getDboSession()->query<Wt::Dbo::ptr<Track>>((advancedQueryRepeatsTracks(params) ? "SELECT DISTINCT t" : "SELECT t") + body) };
 
         // Apply all bind lambdas
         for (const auto& bind : bindFuncs)

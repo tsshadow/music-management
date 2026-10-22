@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.18.2] - 2026-10-22
+
+### Changed
+- The web player bundled in the app takes the frontend dependency updates of this release. No
+  visible change.
+
 ## [7.18.1] - 2026-10-15
 
 ### Changed

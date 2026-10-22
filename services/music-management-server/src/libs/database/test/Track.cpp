@@ -1197,6 +1197,69 @@ namespace lms::db::tests
         }
     }
 
+    // A cluster group is OR inside, AND between groups, and a track that matches two clusters of
+    // one group still comes back once. The groups are EXISTS conditions rather than joins, so
+    // the query needs no DISTINCT: SQLite built that DISTINCT from every matching full row,
+    // which for LENGTH=short overflowed LMS's 64 MB /tmp (bug report 151).
+    TEST_F(DatabaseFixture, Track_findAdvanced_clusterGroupsReturnEachTrackOnce)
+    {
+        ScopedClusterType genreType{ session, "GENRE" };
+        ScopedClusterType lengthType{ session, "LENGTH" };
+        ScopedCluster hardcore{ session, genreType.lockAndGet(), "Hardcore" };
+        ScopedCluster frenchcore{ session, genreType.lockAndGet(), "Frenchcore" };
+        ScopedCluster shortLength{ session, lengthType.lockAndGet(), "short" };
+
+        ScopedTrack bothGenres{ session };
+        ScopedTrack oneGenre{ session };
+        // Short but in neither genre: must not come back for the genre group.
+        ScopedTrack noGenre{ session };
+        // Hardcore but not short: must not come back for the length group.
+        ScopedTrack notShort{ session };
+
+        {
+            auto transaction{ session.createWriteTransaction() };
+            hardcore.get().modify()->addTrack(bothGenres.get());
+            frenchcore.get().modify()->addTrack(bothGenres.get());
+            frenchcore.get().modify()->addTrack(oneGenre.get());
+            hardcore.get().modify()->addTrack(notShort.get());
+            for (auto* track : { &bothGenres, &oneGenre, &noGenre })
+                shortLength.get().modify()->addTrack(track->get());
+
+            bothGenres.get().modify()->setAddedTime(Wt::WDateTime{ Wt::WDate{ 2026, 10, 2 } });
+            oneGenre.get().modify()->setAddedTime(Wt::WDateTime{ Wt::WDate{ 2026, 10, 1 } });
+        }
+
+        {
+            auto transaction{ session.createReadTransaction() };
+
+            Track::FindParameters params;
+            params.setSortMethod(TrackSortMethod::AddedDesc);
+
+            std::map<std::string, std::set<ClusterId>> clusterGroups;
+            clusterGroups["GENRE"] = { hardcore.getId(), frenchcore.getId() };
+            clusterGroups["LENGTH"].insert(shortLength.getId());
+
+            std::vector<TrackId> foundIds;
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+
+            ASSERT_EQ(foundIds.size(), 2);
+            EXPECT_EQ(foundIds[0], bothGenres.getId());
+            EXPECT_EQ(foundIds[1], oneGenre.getId());
+            EXPECT_EQ(Track::countAdvanced(session, params, clusterGroups), 2);
+
+            // A page of one is one track, not one of the duplicate rows a join made.
+            params.setRange(Range{ 0, 1 });
+            foundIds.clear();
+            Track::find_advanced(session, params, clusterGroups, [&](const Track::pointer& t) {
+                foundIds.push_back(t->getId());
+            });
+            ASSERT_EQ(foundIds.size(), 1);
+            EXPECT_EQ(foundIds[0], bothGenres.getId());
+        }
+    }
+
     TEST_F(DatabaseFixture, Track_findAdvanced_byAllowedArtistNames)
     {
         ScopedTrack solo{ session };

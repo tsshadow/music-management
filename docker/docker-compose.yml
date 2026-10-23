@@ -206,7 +206,7 @@ services:
       - SETGID
       - SETUID
     pids_limit: 256
-    image: phpmyadmin:5.2.3@sha256:da3c72f9886fca93037b740c93fe1697a7924fe6790a58733814cee61ec49af8
+    image: phpmyadmin:5.2.3@sha256:62a50b1419fe55b9b4c3cd6f5aed03a18f8f5b4a236f24735d76400bea75a5ff
     container_name: music-management-phpmyadmin-1
     labels:
       # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).

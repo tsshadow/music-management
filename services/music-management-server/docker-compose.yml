@@ -130,7 +130,7 @@ services:
     labels:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
-    image: willfarrell/autoheal:latest@sha256:7221058d5f68f4aef6eccd88417c6ae18436ad81b8f9d98a204901033b662740
+    image: willfarrell/autoheal:latest@sha256:0f0ce6b17107f8c428f228586ad79187dd6eda431b25309229eb7f38efdcf5a1
     # A shell loop that talks to the Docker socket with curl: no capability
     # needed (the socket is root's own file), nothing written. 2 PIDs.
     security_opt:

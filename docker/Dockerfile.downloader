@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y ffmpeg unzip && rm -rf /var/lib/apt/lis
 # whatever PyPI served on the day of the build. muma:refresh-downloader overrides
 # this ARG with the version pinned on develop -- see scripts/ci/refresh-downloader-image.sh.
 # renovate: datasource=pypi depName=yt-dlp
-ARG YT_DLP_VERSION=2026.8.19
+ARG YT_DLP_VERSION=2026.10.21
 RUN pip install --no-cache-dir "yt-dlp[default,curl-cffi]==${YT_DLP_VERSION}"
 
 # Deno is the runtime yt-dlp uses by default; the others need an explicit --js-runtimes flag.

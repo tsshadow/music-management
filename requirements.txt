@@ -56,7 +56,7 @@ Pillow~=12.3
 # docker/Dockerfile.tools, at any time and without the three-day cooldown, and
 # scripts/ci/refresh-downloader-image.sh ships develop's pin to production between
 # releases. See docs/bug-reports/067-image-builds-pull-unpinned-inputs.md.
-yt-dlp==2026.8.19
+yt-dlp==2026.10.21
 telethon~=1.45.0
 patool~=4.0
 

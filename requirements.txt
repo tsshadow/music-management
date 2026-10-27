@@ -9,7 +9,7 @@
 # major does not. Renovate opens a merge request for updates (renovate.json).
 
 # --- Web/API -----------------------------------------------------------------
-fastapi~=0.142.1
+fastapi~=0.162.0
 uvicorn~=0.54.0
 pydantic~=2.13
 anyio~=4.15.0
@@ -73,7 +73,7 @@ docker~=7.2.0
 # the built image, so these have to be present at runtime there.
 pytest>=8.4.0
 pytest-cov>=4.1.0
-coverage~=7.16.0
+coverage~=7.17.0
 # fastapi.testclient (starlette.testclient) refuses to import without it, and
 # every router test uses TestClient. The CI runners' system Python had it
 # installed by hand, so nothing noticed this file did not list it until the

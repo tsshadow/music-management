@@ -7,7 +7,7 @@
 #
 # Renovate opens a merge request when a new version is available (renovate.json).
 
-fastapi~=0.142.1
+fastapi~=0.162.0
 uvicorn~=0.54.0
 pydantic~=2.13
 pymysql~=1.2.0

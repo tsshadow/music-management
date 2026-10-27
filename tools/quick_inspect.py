@@ -1,15 +1,43 @@
-import pymysql
-from dotenv import load_dotenv
+"""Print every table of the music-management database with its row count.
 
-load_dotenv()
+Connection settings come from the environment: DB_HOST, DB_USER and DB_PASS are required,
+DB_PORT (3306) and DB_NAME (music-management) are optional. A `.env` file is read too.
+"""
+
+import os
+import sys
+
+import pymysql
+
+REQUIRED_VARS = ("DB_HOST", "DB_USER", "DB_PASS")
+
+
+def connection_settings_from_env(env=None):
+    """Return host, port, user, password and database read from the environment.
+
+    Exits with a message that names every missing required variable.
+    """
+    env = os.environ if env is None else env
+    missing = [name for name in REQUIRED_VARS if not env.get(name)]
+    if missing:
+        sys.exit(f"Missing environment variable(s): {', '.join(missing)}. Set them or put them in .env.")
+    return {
+        "host": env["DB_HOST"],
+        "port": int(env.get("DB_PORT") or 3306),
+        "user": env["DB_USER"],
+        "password": env["DB_PASS"],
+        "database": env.get("DB_NAME") or "music-management",
+    }
 
 
 def inspect():
-    host = "192.0.2.27"
-    port = 3306
-    user = "music-management"
-    password = "Properly-Urologist9-Onlooker-Stupor-Triage-Rocket"
-    db_name = "music-management"
+    """Connect with the environment settings and print table row counts and rating samples."""
+    settings = connection_settings_from_env()
+    host = settings["host"]
+    port = settings["port"]
+    user = settings["user"]
+    password = settings["password"]
+    db_name = settings["database"]
 
     print(f"Connecting to {host}:{port}/{db_name} as {user}...")
 

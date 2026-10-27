@@ -156,7 +156,7 @@ fae11ff959a398dc x1  # github-actions-mutable-action-tag services/music-manageme
 # certificate verification. Audited 2026-09-26 (bug report 114).
 e194609fb29b11bc x1  # http-not-https-connection services/music_manager/artist_image_fetcher/safe_fetch.py
 
-# --- insecure-file-permissions --- [r:115750c8]
+# --- insecure-file-permissions --- [r:b8b53ede]
 # The importer setting 0777/0666 on a release it just moved into the
 # library. That is what the whole tree carries after the 2026-09-05
 # permission repair, and it has to: the muma containers write as root, LMS
@@ -166,7 +166,10 @@ e194609fb29b11bc x1  # http-not-https-connection services/music_manager/artist_i
 # September and the release-date backfill skipped nine of their files.
 # Narrowing this to a shared group is the better answer, and it is a change
 # to how every writer is deployed rather than to this line. Audited
-# 2026-09-08.
+# 2026-09-08. The other site, scripts/prod/person/leaked_credentials.py,
+# makes a private temp dir with mode 0700 (owner only) for the leaked
+# values; the mode is the protection, not a gap. Audited 2026-10-27.
+e586672e80543d07 x1  # insecure-file-permissions scripts/prod/person/leaked_credentials.py
 71418121d6e17a96 x1  # insecure-file-permissions services/importer/mover.py
 
 # --- missing-internal --- [r:fa952df5]

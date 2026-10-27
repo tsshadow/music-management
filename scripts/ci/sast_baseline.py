@@ -118,7 +118,10 @@ REASONS = {
         'first week of September and the release-date backfill skipped nine of '
         'their files. Narrowing this to a shared group is the better answer, and '
         'it is a change to how every writer is deployed rather than to this '
-        'line. Audited 2026-09-08.'
+        'line. Audited 2026-09-08. The other site, scripts/prod/person/'
+        'leaked_credentials.py, makes a private temp dir with mode 0700 (owner '
+        'only) for the leaked values; the mode is the protection, not a gap. '
+        'Audited 2026-10-27.'
     ),
     'writable-filesystem-service': (
         'Container hardening that is not safe to switch on blind: a service that '

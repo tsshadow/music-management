@@ -5,7 +5,7 @@
 # still open — see "still required outside this repository"
 
 # reported problem
-A new user (`someuser@example.com`) installed the latest Ultrasonic Android app and could not
+A new user (`user@example.org`) installed the latest Ultrasonic Android app and could not
 get in at all:
 1. "Sign in with Google" showed *"Inloggen met Google is mislukt"*
    (`welcome_google_signin_failed`).

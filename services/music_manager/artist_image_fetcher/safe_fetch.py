@@ -31,14 +31,19 @@ import certifi
 import urllib3
 from urllib3.exceptions import ConnectTimeoutError, NewConnectionError
 
-from services.common.user_agent import build_user_agent
+from services.common.user_agent import user_agent as _user_agent
 
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 DEFAULT_MAX_REDIRECTS = 3
 DEFAULT_TIMEOUT_SECONDS = 10.0
 CHUNK_BYTES = 64 * 1024
 REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
-USER_AGENT = build_user_agent('MuMa-artist-images', '1.0')
+
+
+def user_agent() -> str:
+    """The User-Agent for this module's requests, built on first use."""
+    return _user_agent('MuMa-artist-images', '1.0')
+
 
 # Spelled out rather than left to `is_global` alone, so the ranges this deployment
 # actually lives in -- the Docker bridges (172.16/12), the LAN (192.168/16, 10/8), the
@@ -202,7 +207,7 @@ def _open(url: str, headers: dict, timeout: float):
     scheme, host, port, target = split_url(url)
     addresses = resolve_public(host, port)
     request_headers = {
-        'User-Agent': USER_AGENT,
+        'User-Agent': user_agent(),
         'Accept': 'image/*,*/*;q=0.8',
         'Accept-Encoding': 'identity',
         **headers,

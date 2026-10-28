@@ -82,6 +82,9 @@ KEY_FILE=""
 # accepts any key at all. PROD_SSH_OPTS is what every caller passes to ssh/scp.
 # shellcheck source=scripts/lib/ssh_host_keys.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
+if ssh_pinned_host_missing "$REMOTE_HOST"; then
+    exit 1
+fi
 mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
 
 # Ensure SSH is working.

@@ -74,6 +74,28 @@ def test_the_ci_job_and_the_timer_run_the_script_without_overrides():
     assert exec_start == "ExecStart=/opt/muma-disk-janitor/disk-janitor.sh"
 
 
+def test_the_ci_job_takes_the_registry_user_from_the_docker_hub_variable():
+    assert load_ci()["runner:disk-janitor"]["variables"]["DOCKER_USER"] == "$DOCKERHUB_USERNAME"
+
+
+def test_the_timer_unit_can_get_docker_user_from_a_file_or_a_drop_in():
+    text = SERVICE.read_text()
+    assert "EnvironmentFile=-/etc/muma-disk-janitor.env" in text
+
+
+def test_without_docker_user_the_script_stops_and_names_it():
+    env = {k: v for k, v in os.environ.items() if k != "DOCKER_USER"}
+    result = subprocess.run(["bash", str(SCRIPT), "--dry-run"], env=env, capture_output=True, text=True, check=False)
+    assert result.returncode == 2
+    assert "DOCKER_USER" in result.stderr
+
+
+def test_an_empty_docker_user_is_refused_too():
+    env = {**os.environ, "DOCKER_USER": ""}
+    result = subprocess.run(["bash", str(SCRIPT), "--dry-run"], env=env, capture_output=True, text=True, check=False)
+    assert result.returncode == 2
+
+
 # --- Behaviour against a fake daemon -----------------------------------------
 
 FAKE_DOCKER = r"""#!/bin/bash
@@ -116,7 +138,7 @@ def run_janitor(tmp_path: Path, usage: int, after_prunes: list[int], *args: str)
     _executable(bin_dir / "df", FAKE_DF)
     (tmp_path / "usage").write_text(f"{usage}\n")
     (tmp_path / "after_prune").write_text("".join(f"{value}\n" for value in after_prunes))
-    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "STATE": str(tmp_path)}
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "STATE": str(tmp_path), "DOCKER_USER": "tester"}
     env.pop("DISK_JANITOR_CACHE_MAX_AGE_HOURS", None)
     env.pop("DISK_JANITOR_CACHE_FLOOR_AGE_HOURS", None)
     result = subprocess.run(

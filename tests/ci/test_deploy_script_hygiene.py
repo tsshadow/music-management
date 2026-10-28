@@ -415,7 +415,7 @@ def _write_env_file(tmp_path: Path) -> Path:
     backups = tmp_path / "backups"
     backups.mkdir(exist_ok=True)
     env_file.write_text(
-        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDB_USER=muma\nDB_PASS=unused#x\n'
+        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDB_USER=muma\nDOCKER_USER=tester\nDB_PASS=unused#x\n'
         f"HOST_BACKUP_PATH={backups}\n",
         encoding="utf-8",
     )
@@ -546,7 +546,14 @@ def test_prod_ssh_setup_agent_dies_with_the_sourcing_shell(tmp_path: Path) -> No
     keyscan.chmod(0o755)
     key = tmp_path / "id_test"
     subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
-    env = _env(tmp_path, bin_dir, log_dir, SSH_PRIVATE_KEY=str(key), PROD_REMOTE_HOST="prod.example.org")
+    env = _env(
+        tmp_path,
+        bin_dir,
+        log_dir,
+        SSH_PRIVATE_KEY=str(key),
+        PROD_REMOTE_HOST="prod.example.org",
+        PROD_SSH_ACCEPT_NEW_HOST_KEY="true",
+    )
     env["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '/usr/bin:/bin')}"
     pid_file = tmp_path / "agent.pid"
     script = 'set -e; . "$1"; echo "$SSH_AGENT_PID" > "$2"; ssh-add -l >/dev/null'
@@ -695,7 +702,7 @@ def test_a_missing_backup_destination_aborts_the_deploy(tmp_path: Path) -> None:
     bin_dir, log_dir = _fake_bin(tmp_path)
     env_file = tmp_path / "prod.env"
     env_file.write_text(
-        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nHOST_BACKUP_PATH={tmp_path / "not-mounted"}\n',
+        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDOCKER_USER=tester\nHOST_BACKUP_PATH={tmp_path / "not-mounted"}\n',
         encoding="utf-8",
     )
     env = _env(tmp_path, bin_dir, log_dir, DEPLOY_TARGET_NAME="order-test", LOCAL_ENV_FILE=str(env_file))
@@ -1105,3 +1112,10 @@ def test_a_slow_but_growing_fallback_dump_is_not_stopped(tmp_path: Path) -> None
     assert result.returncode == 0, result.stdout + result.stderr
     assert "wrote nothing" not in result.stdout
     assert _index(_events(log_dir), lambda e: e == "dump") < _index(_events(log_dir), lambda e: e == "migrate")
+
+
+def test_deploy_has_no_default_registry_user() -> None:
+    """The remote compose file is found by `<DOCKER_USER>/muma`; a guessed user matches the wrong stack."""
+    text = DEPLOY_SH.read_text(encoding="utf-8")
+    assert "DOCKER_USER:-muma" not in text
+    assert "Error: DOCKER_USER is not set" in text

@@ -8,7 +8,9 @@ string carries no address at all, so a fresh install never names a project it do
 
 from __future__ import annotations
 
+import logging
 import os
+import threading
 
 
 def project_url() -> str:
@@ -31,3 +33,32 @@ def build_user_agent(product: str, version: str) -> str:
     agent = f'{product}/{version}'
     url = project_url()
     return f'{agent} (+{url})' if url else agent
+
+
+_warned = False
+_warn_lock = threading.Lock()
+_logger = logging.getLogger('music-manager.user-agent')
+
+
+def _warn_once_without_url() -> None:
+    """Log one WARNING per process that requests carry no contact address."""
+    global _warned  # pylint: disable=global-statement
+    with _warn_lock:
+        if _warned:
+            return
+        _warned = True
+    _logger.warning(
+        'project_url is empty: requests to MusicBrainz and other public APIs carry no contact address. '
+        'Set PROJECT_URL (Beheer > Config > About); MusicBrainz asks clients to identify themselves.'
+    )
+
+
+def user_agent(product: str, version: str) -> str:
+    """Build the User-Agent at the moment of the first request, not at import.
+
+    Same string as `build_user_agent`; also logs one WARNING per process when `project_url` is empty.
+    Callers call this where they set the header, so importing a module never opens the config store.
+    """
+    if not project_url():
+        _warn_once_without_url()
+    return build_user_agent(product, version)

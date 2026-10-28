@@ -626,6 +626,9 @@ runner:disk-janitor:
   retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $DISK_JANITOR == "true"'
+  variables:
+    # The release images are pushed under the Docker Hub user; the janitor has no default for it.
+    DOCKER_USER: $DOCKERHUB_USERNAME
   script:
     - ./scripts/ci/disk-janitor.sh
 

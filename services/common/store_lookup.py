@@ -34,7 +34,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from services.common.release_nfo import StoreLink
-from services.common.user_agent import build_user_agent
+from services.common.user_agent import user_agent as _user_agent
 
 logger = logging.getLogger('importer.store-lookup')
 
@@ -47,7 +47,13 @@ DEEZER_NO_DATA_CODE = 800
 #: Seconds between two requests from this process: four a second.
 MIN_INTERVAL_SECONDS = 0.25
 TIMEOUT_SECONDS = 15
-USER_AGENT = build_user_agent('muma-importer', '0.1')
+
+
+def user_agent() -> str:
+    """The User-Agent for this module's requests, built on first use."""
+    return _user_agent('muma-importer', '0.1')
+
+
 #: How long a gone album stays gone before it is asked about again.
 NOT_FOUND_RETRY_DAYS = 30
 #: Albums kept in memory per process, so a tagging round does not query the table per track.
@@ -128,7 +134,7 @@ def _default_http_get(url: str) -> tuple[int, Any]:
     """`GET url` -> (status, parsed JSON or None). Raises OSError-like errors on network trouble."""
     import requests
 
-    response = requests.get(url, timeout=TIMEOUT_SECONDS, headers={'User-Agent': USER_AGENT})
+    response = requests.get(url, timeout=TIMEOUT_SECONDS, headers={'User-Agent': user_agent()})
     try:
         return response.status_code, response.json()
     except ValueError:

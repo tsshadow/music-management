@@ -111,7 +111,7 @@ for arg in "$@"; do
     esac
 done
 TAG="${TAG:-latest}"
-SEARCH_STRING="${SEARCH_STRING:-${DOCKER_USER:-muma}/muma}"
+SEARCH_STRING="${SEARCH_STRING:-}"
 LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker/docker-compose.yml}"
 
 # Deploy-order knobs, see the header.
@@ -202,6 +202,16 @@ fi
 # Until bug report 094, DEPLOY_DB=1 recreated `db` in (a), before the dump.
 if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     echo "--- Starting remote deployment for stack: $STACK_NAME on $REMOTE_HOST ---"
+
+    # The remote compose file is found by the image name it holds, <registry user>/muma.
+    # There is no default registry user: guessing one would match the wrong stack (or none).
+    if [ -z "$SEARCH_STRING" ]; then
+        if [ -z "${DOCKER_USER:-}" ]; then
+            echo "Error: DOCKER_USER is not set (and SEARCH_STRING is not given). Set DOCKER_USER in the .env of this deploy." >&2
+            exit 1
+        fi
+        SEARCH_STRING="${DOCKER_USER}/muma"
+    fi
 
     # Discovery command to be run on remote hosts
     DISCOVERY_CMD="

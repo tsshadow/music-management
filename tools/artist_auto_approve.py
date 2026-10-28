@@ -79,7 +79,6 @@ from services.common.Helpers.ArtistEvidence import (  # noqa: E402,F401  # pylin
     SOURCES,
     TIMEOUT,
     UNRESOLVED,
-    USER_AGENT,
     ExternalArtist,
     Verdict,
     _deezer_error,
@@ -92,6 +91,7 @@ from services.common.Helpers.ArtistEvidence import (  # noqa: E402,F401  # pylin
     score_artist,
     titles_hash,
     usable_titles,
+    user_agent,
 )
 
 # ----------------------------------------------------------------------------- state
@@ -172,7 +172,7 @@ class Fetcher:
         self.conn = conn
         self.offline = offline
         self.session = requests.Session()
-        self.session.headers['User-Agent'] = USER_AGENT
+        self.session.headers['User-Agent'] = user_agent()
         self.last_call = dict.fromkeys(SOURCES, 0.0)
         self.fetched = 0
         self.failed = 0

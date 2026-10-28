@@ -38,7 +38,7 @@ def days_ago(days: float) -> datetime:
 
 
 def removals(lines: list[str], **kwargs) -> list[str]:
-    defaults = {"now": NOW, "keep_versions": 3, "keep_android": 2, "test_stack_min_age_hours": 2}
+    defaults = {"now": NOW, "keep_versions": 3, "keep_android": 2, "test_stack_min_age_hours": 2, "docker_user": "muma"}
     defaults.update(kwargs)
     return [image.ref for image in plan.select_removals(plan.parse_listing(lines), **defaults)]
 
@@ -194,3 +194,15 @@ def test_the_release_prefix_comes_from_the_docker_user():
     )
     assert removals(lines, keep_versions=1, docker_user="acme") == ["acme/music-manager:0.1.0"]
     assert removals(lines, keep_versions=1) == ["muma/music-manager:0.1.0"]
+
+
+def test_the_plan_refuses_to_run_without_a_docker_user():
+    import os
+    import subprocess
+
+    env = {k: v for k, v in os.environ.items() if k != "DOCKER_USER"}
+    result = subprocess.run(
+        ["python3", str(MODULE_PATH)], input="", env=env, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 2
+    assert "DOCKER_USER" in result.stderr

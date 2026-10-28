@@ -12,7 +12,7 @@ on stdin and writes one image reference per line to stdout, oldest first.
 The rules encode what three separate outages taught us (see the
 gitlab-runner-disk-fills-up notes):
 
-* Release images (`<DOCKER_USER>/*`, `muma/*` unless DOCKER_USER says otherwise) are the big win: every release build keeps its
+* Release images (`<DOCKER_USER>/*`, named by DOCKER_USER, no default) are the big win: every release build keeps its
   version tag forever, and they are all recoverable from Docker Hub.
 * `muma-ci/*` is the same story for the merge-request image builds. Those now
   build under a per-job `muma-ci-<job-id>/*` namespace instead, which
@@ -48,7 +48,6 @@ CREATED_AT = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{4})")
 # newest to keep. Moving tags (:latest, :stable, and :rc -- the newest release
 # build, which release:build-images pushes instead of :latest) are never
 # candidates.
-DEFAULT_DOCKER_USER = "muma"
 #: Prefix of the old shared merge-request build images; the release prefix comes from DOCKER_USER.
 SHARED_CI_PREFIX = "muma-ci/"
 MOVING_TAGS = frozenset({"latest", "stable", "rc"})
@@ -110,7 +109,7 @@ def select_removals(
     keep_versions: int,
     keep_android: int,
     test_stack_min_age_hours: int,
-    docker_user: str = DEFAULT_DOCKER_USER,
+    docker_user: str,
 ) -> list[Image]:
     """The images that may be removed, oldest first.
 
@@ -160,8 +159,8 @@ def main() -> int:
     parser.add_argument("--test-stack-min-age-hours", type=int, default=2)
     parser.add_argument(
         "--docker-user",
-        default=os.environ.get("DOCKER_USER") or DEFAULT_DOCKER_USER,
-        help="Registry user of the release images (default: $DOCKER_USER, else muma).",
+        default=os.environ.get("DOCKER_USER", ""),
+        help="Registry user of the release images (default: $DOCKER_USER; required, no fallback).",
     )
     parser.add_argument(
         "--now",
@@ -169,6 +168,8 @@ def main() -> int:
         help="ISO timestamp to treat as the current time (tests only).",
     )
     args = parser.parse_args()
+    if not args.docker_user:
+        parser.error("DOCKER_USER is not set; pass --docker-user or set the variable")
 
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)
     if now.tzinfo is None:

@@ -127,6 +127,18 @@ else
     # gone, so an unset value would reach the container as an empty password.
     # See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
     require_key "$env_content" "FIREFOX_PASSWORD" "PROD_ENV_FILE" || missing=1
+    # DOCKER_USER: the registry user the images are named under. deploy.sh finds the
+    # remote compose file by it and has no default; it must be the account the CI pushes to.
+    if require_key "$env_content" "DOCKER_USER" "PROD_ENV_FILE"; then
+        docker_user="$(printf '%s\n' "$env_content" | grep -E "^DOCKER_USER=" | tail -1 | cut -d'=' -f2- | tr -d "\"'")"
+        if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ "$docker_user" != "${DOCKERHUB_USERNAME}" ]; then
+            echo "Mismatch: DOCKER_USER in 'PROD_ENV_FILE' differs from the DOCKERHUB_USERNAME CI/CD variable."
+            echo "  Images are pushed as DOCKERHUB_USERNAME and pulled as DOCKER_USER; they must be the same account."
+            missing=1
+        fi
+    else
+        missing=1
+    fi
 fi
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then

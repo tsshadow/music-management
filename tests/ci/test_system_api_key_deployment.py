@@ -101,7 +101,7 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
 
 
 LMS_ENV = "VITE_GOOGLE_CLIENT_ID=some-client-id\n"
-BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\n"
+BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nDOCKER_USER=someone\n"
 
 
 def test_secrets_check_rejects_a_release_without_any_system_key():
@@ -146,3 +146,22 @@ def test_secrets_check_rejects_a_release_without_a_firefox_password():
     result = run_secrets_check(BASE_ENV.replace("FIREFOX_PASSWORD=not-admin\n", "") + "API_KEY=a-real-key\n", LMS_ENV)
     assert result.returncode != 0
     assert "FIREFOX_PASSWORD" in result.stdout
+
+
+def test_secrets_check_requires_docker_user_in_the_prod_env():
+    result = run_secrets_check(BASE_ENV.replace("DOCKER_USER=someone\n", "") + "API_KEY=k\n", LMS_ENV)
+    assert result.returncode != 0
+    assert "DOCKER_USER" in result.stdout
+
+
+def test_secrets_check_rejects_a_docker_user_that_differs_from_the_hub_account():
+    result = run_secrets_check(BASE_ENV + "API_KEY=k\n", LMS_ENV, DOCKERHUB_USERNAME="another-account")
+    assert result.returncode != 0
+    assert "DOCKERHUB_USERNAME" in result.stdout
+
+
+def test_secrets_check_accepts_a_quoted_docker_user_that_matches():
+    result = run_secrets_check(
+        BASE_ENV.replace("DOCKER_USER=someone", 'DOCKER_USER="someone"') + "API_KEY=k\n", LMS_ENV
+    )
+    assert result.returncode == 0, result.stdout

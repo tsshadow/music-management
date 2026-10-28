@@ -4,36 +4,39 @@ import java.net.URI
 import java.util.Locale
 
 /**
- * Host matching for "is this server one of ours": an install made with an older server address
- * (another subdomain of the same domain, or the pre-rebrand name) must still reach the MuMa API.
+ * Host matching for "is this server ours": an install made with an older server address (another
+ * subdomain of the owner's domain) must still reach the MuMa API. What counts as the owner's
+ * domain is a build setting, never guessed from the host, because a suffix such as `duckdns.org`
+ * or `co.uk` is shared by unrelated parties.
  */
 object ServerHosts {
+    private val hostPattern = Regex("^(?:[a-z][a-z0-9+.-]*://)?(?:[^/?#@]*@)?(\\[[^\\]]*]|[^/?#:]*)", RegexOption.IGNORE_CASE)
+
     /** The lower-case host of [url], or `""`. Scheme, port, path and trailing slash do not count. */
     fun hostOf(url: String): String {
         val trimmed = url.trim()
         if (trimmed.isEmpty()) return ""
         val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
-        return try {
-            URI(withScheme).host?.lowercase(Locale.ROOT)?.trimEnd('.').orEmpty()
+        val parsed = try {
+            URI(withScheme).host
         } catch (_: java.net.URISyntaxException) {
-            ""
+            null
         }
+        // URI has no host for a name with an underscore (my_nas.example.org); read it by hand.
+        val host = parsed ?: hostPattern.find(trimmed)?.groupValues?.get(1).orEmpty()
+        return host.lowercase(Locale.ROOT).trimEnd('.')
     }
 
     /**
-     * The registrable parent of [host]: its last two labels. `localhost`, a single label and an IP
-     * address stand for themselves, so two different IPs are never "the same party".
+     * Whether the host of [url] belongs to the owner: it equals the host of [ownServerUrl], equals
+     * [ownDomain], or is a subdomain of it. An empty [ownDomain] leaves the exact host match only.
+     * False if [url] has no host.
      */
-    private fun partyOf(host: String): String {
-        val labels = host.split('.')
-        val isIp = host.contains(':') || labels.all { it.isNotEmpty() && it.all(Char::isDigit) }
-        return if (isIp || labels.size < 3) host else labels.takeLast(2).joinToString(".")
-    }
-
-    /** Whether the hosts of [a] and [b] are equal or share a parent domain. False if either is empty. */
-    fun sameParty(a: String, b: String): Boolean {
-        val hostA = hostOf(a)
-        val hostB = hostOf(b)
-        return hostA.isNotEmpty() && hostB.isNotEmpty() && partyOf(hostA) == partyOf(hostB)
+    fun isOwn(url: String, ownServerUrl: String, ownDomain: String = ""): Boolean {
+        val host = hostOf(url)
+        if (host.isEmpty()) return false
+        if (host == hostOf(ownServerUrl)) return true
+        val domain = ownDomain.trim().lowercase(Locale.ROOT).trim('.')
+        return domain.isNotEmpty() && (host == domain || host.endsWith(".$domain"))
     }
 }

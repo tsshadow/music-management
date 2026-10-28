@@ -22,6 +22,13 @@ def test_release_tasks_depend_on_the_config_check():
     assert 'dependsOn "checkMumaReleaseConfig"' in text
 
 
+def test_config_check_runs_in_the_mobile_unit_job():
+    ci = (ROOT / ".gitlab-ci.yml").read_text()
+    unit = ci[ci.index("\nmobile:unit:") :]
+    unit = unit[: unit.index("after_script")]
+    assert "./scripts/test/muma-mobile-config-check.sh" in unit
+
+
 def test_values_are_validated_before_they_reach_buildconfig():
     assert "has an invalid value" in GRADLE.read_text()
 

@@ -26,7 +26,7 @@ if [[ "$BUILD_TYPE" != "release" && "$BUILD_TYPE" != "debug" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
     echo "Error: APK_HOSTER_URL / APK_HOSTER_PASSWORD are not set. See docs/deployment.md."
@@ -34,15 +34,19 @@ if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
 fi
 
 # The server address and the Google OAuth Web client id are compiled into the APK from the CI/CD
-# variables MUMA_SERVER_URL and MUMA_GOOGLE_CLIENT_ID (optional: MUMA_API_URL, a separate host for
-# the MuMa API). app/build.gradle reads them from the environment as the Gradle properties
-# muma.serverUrl, muma.googleClientId and muma.apiUrl; no value goes on a command line (bug
+# variables MUMA_SERVER_URL and MUMA_GOOGLE_CLIENT_ID, plus MUMA_API_URL (a separate host for the
+# MuMa API) and MUMA_OWN_DOMAIN (the owner's domain: servers on it route to that API).
+# app/build.gradle reads them from the environment as the Gradle properties muma.serverUrl,
+# muma.googleClientId, muma.apiUrl and muma.ownDomain; no value goes on a command line (bug
 # report 125). The Google client id is the same Web client the backend verifies (GOOGLE_CLIENT_ID),
 # so the ID token has an audience the backend accepts.
 # A build that lacks them gets the neutral defaults (https://music.example.org, no Google button).
 # That is fine for a debug build and wrong for a release, so a release stops here instead.
 if [ "$BUILD_TYPE" == "release" ]; then
-    for required in MUMA_SERVER_URL MUMA_GOOGLE_CLIENT_ID; do
+    # The owner's release must route to his API: without MUMA_API_URL and MUMA_OWN_DOMAIN an
+    # install with an older server address would fall back to <server>/muma. Gradle keeps both
+    # optional, so a public build can use the default.
+    for required in MUMA_SERVER_URL MUMA_GOOGLE_CLIENT_ID MUMA_API_URL MUMA_OWN_DOMAIN; do
         if [ -z "${!required}" ]; then
             echo "Error: $required is not set. A release without it would ship the neutral default (see docs/designs/public-edition/)." >&2
             exit 1
@@ -132,6 +136,7 @@ docker run --rm \
     -e APK_HOSTER_PASSWORD \
     -e MUMA_SERVER_URL \
     -e MUMA_API_URL \
+    -e MUMA_OWN_DOMAIN \
     -e MUMA_GOOGLE_CLIENT_ID \
     -e DIST_DIR="dist" \
     "$ANDROID_CI_IMAGE" \

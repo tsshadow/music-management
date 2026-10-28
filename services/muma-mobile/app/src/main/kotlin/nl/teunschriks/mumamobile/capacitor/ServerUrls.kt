@@ -28,8 +28,9 @@ data class ServerUrls(val subsonic: String, val mumaApi: String)
 fun serverUrlsOf(
     serverBaseUrl: String,
     ownServerUrl: String = StaticServers.SERVER_URL,
-    mumaApiUrl: String = BuildConfig.MUMA_API_URL
+    mumaApiUrl: String = BuildConfig.MUMA_API_URL,
+    ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
 ): ServerUrls {
     val subsonic = serverBaseUrl.removeSuffix("/")
-    return ServerUrls(subsonic, StaticServers.mumaBaseUrlFor(subsonic, ownServerUrl, mumaApiUrl).removeSuffix("/"))
+    return ServerUrls(subsonic, StaticServers.mumaBaseUrlFor(subsonic, ownServerUrl, mumaApiUrl, ownDomain).removeSuffix("/"))
 }

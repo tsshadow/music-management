@@ -76,7 +76,8 @@ val musicServiceModule = module {
             // one and retries the request once (issue #73).
             tokenRecovery = if (offline) null else SubsonicTokenRefresher.recovery,
             ownServerUrl = nl.teunschriks.mumamobile.data.StaticServers.SERVER_URL,
-            mumaApiUrl = BuildConfig.MUMA_API_URL
+            mumaApiUrl = BuildConfig.MUMA_API_URL,
+            ownDomain = BuildConfig.MUMA_OWN_DOMAIN
         )
     }
 

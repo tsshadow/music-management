@@ -140,11 +140,12 @@ class CapacitorContractTest {
     fun `serverUrl follows a configured muma host`() {
         val own = "https://music.example.org"
         val api = "https://muma.example.org"
-        serverUrlsOf("https://music.example.org/", own, api).mumaApi shouldBeEqualTo api
+        val domain = "example.org"
+        serverUrlsOf("https://music.example.org/", own, api, domain).mumaApi shouldBeEqualTo api
         // An install made with an older address on the same domain (the upgrade path).
-        serverUrlsOf("https://lms.example.org", own, api).mumaApi shouldBeEqualTo api
-        serverUrlsOf("https://LMS.Example.org:8443/", own, api).mumaApi shouldBeEqualTo api
-        serverUrlsOf("https://other.example.net", own, api).mumaApi shouldBeEqualTo "https://other.example.net/muma"
+        serverUrlsOf("https://lms.example.org", own, api, domain).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://LMS.Example.org:8443/", own, api, domain).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://other.example.net", own, api, domain).mumaApi shouldBeEqualTo "https://other.example.net/muma"
         serverUrlsOf("https://lms.example.org", own, "").mumaApi shouldBeEqualTo "https://lms.example.org/muma"
     }
 

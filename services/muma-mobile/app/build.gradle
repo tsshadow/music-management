@@ -29,10 +29,10 @@ android {
         return System.getenv(key) ?: signingProperties.getProperty(key, defVal)
     }
 
-    // The server address, the Google OAuth Web client id and an optional own MuMa API host are
-    // build settings: a Gradle property (muma.serverUrl, muma.googleClientId, muma.apiUrl, e.g. in
-    // ~/.gradle/gradle.properties) or the environment (MUMA_SERVER_URL, MUMA_GOOGLE_CLIENT_ID,
-    // MUMA_API_URL). Prefer those over -P on the command line, where the value shows in `ps`
+    // The server address, the Google OAuth Web client id, an optional own MuMa API host and the
+    // owner's domain are build settings: a Gradle property (muma.serverUrl, muma.googleClientId,
+    // muma.apiUrl, muma.ownDomain, e.g. in ~/.gradle/gradle.properties) or the environment
+    // (MUMA_SERVER_URL, MUMA_GOOGLE_CLIENT_ID, MUMA_API_URL, MUMA_OWN_DOMAIN). Prefer those over -P on the command line, where the value shows in `ps`
     // (bug report 125). Without them: https://music.example.org and no Google button. Values are
     // validated, so none can break the generated Java string. A release build refuses the
     // defaults (checkMumaReleaseConfig below).
@@ -48,6 +48,7 @@ android {
     def mumaDefaultServer = 'https://music.example.org'
     def mumaServerUrl = mumaConfig('muma.serverUrl', 'MUMA_SERVER_URL', mumaDefaultServer, urlPattern)
     def mumaApiUrl = mumaConfig('muma.apiUrl', 'MUMA_API_URL', '', urlPattern)
+    def mumaOwnDomain = mumaConfig('muma.ownDomain', 'MUMA_OWN_DOMAIN', '', /[A-Za-z0-9.\-]*/)
     def mumaGoogleClientId = mumaConfig('muma.googleClientId', 'MUMA_GOOGLE_CLIENT_ID', '', /[A-Za-z0-9._\-]*/)
 
     tasks.register("checkMumaReleaseConfig") {
@@ -85,6 +86,7 @@ android {
         // The server and the sign-in client are not in the source: see mumaConfig above.
         buildConfigField "String", "MUMA_SERVER_URL", "\"${mumaServerUrl}\""
         buildConfigField "String", "MUMA_API_URL", "\"${mumaApiUrl}\""
+        buildConfigField "String", "MUMA_OWN_DOMAIN", "\"${mumaOwnDomain}\""
         buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${mumaGoogleClientId}\""
     }
 

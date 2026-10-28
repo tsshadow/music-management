@@ -84,7 +84,7 @@ If you are modifying the code and need to rebuild and redeploy the system:
 
 ### Server address and Google sign-in
 
-The APK does not carry a server in its source. `app/build.gradle` compiles three values into
+The APK does not carry a server in its source. `app/build.gradle` compiles four values into
 `BuildConfig` from a Gradle property, or from an environment variable when the property is absent:
 
 | Gradle property | Environment | Default | Effect |
@@ -92,6 +92,7 @@ The APK does not carry a server in its source. `app/build.gradle` compiles three
 | `muma.serverUrl` | `MUMA_SERVER_URL` | `https://music.example.org` | The one server the app talks to (`StaticServers.SERVER_URL`). |
 | `muma.googleClientId` | `MUMA_GOOGLE_CLIENT_ID` | empty | The Google OAuth Web client id of "Sign in with Google". Empty hides the button. |
 | `muma.apiUrl` | `MUMA_API_URL` | empty | Own host for the MuMa API. Empty means `<server>/muma`. |
+| `muma.ownDomain` | `MUMA_OWN_DOMAIN` | empty | The owner's domain. A stored server whose host equals the server's host, the domain, or ends in `.<domain>` gets `muma.apiUrl`. Empty means exact host match only. |
 
 Locally: export the environment variables, or put the properties in `~/.gradle/gradle.properties`.
 Do not pass them with `-P` on the command line: the value then shows in the process list of a

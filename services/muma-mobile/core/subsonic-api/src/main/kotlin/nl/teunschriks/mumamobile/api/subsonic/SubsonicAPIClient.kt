@@ -134,7 +134,7 @@ class SubsonicAPIClient(
     val api: SubsonicAPIDefinition get() = wrappedApi
 
     val mumaApi: MumaAPIClient by lazy {
-        MumaAPIClient(mumaBaseUrlFor(config.baseUrl, config.ownServerUrl, config.mumaApiUrl), baseOkClient, config.tokenStorage, config.apiKey, config.debug, okLogger)
+        MumaAPIClient(mumaBaseUrlFor(config.baseUrl, config.ownServerUrl, config.mumaApiUrl, config.ownDomain), baseOkClient, config.tokenStorage, config.apiKey, config.debug, okLogger)
     }
 
     private fun OkHttpClient.Builder.addLogging() {
@@ -201,9 +201,14 @@ class SubsonicAPIClient(
          * known-good server URL rather than whatever server happens to be currently active
          * (e.g. the "Sign in with Google" button on the very first, pre-setup welcome screen).
          */
-        fun mumaBaseUrlFor(serverBaseUrl: String, ownServerUrl: String = "", mumaApiUrl: String = ""): String {
+        fun mumaBaseUrlFor(
+            serverBaseUrl: String,
+            ownServerUrl: String = "",
+            mumaApiUrl: String = "",
+            ownDomain: String = ""
+        ): String {
             val base = serverBaseUrl.removeSuffix("/")
-            return if (mumaApiUrl.isNotBlank() && ServerHosts.sameParty(base, ownServerUrl)) {
+            return if (mumaApiUrl.isNotBlank() && ServerHosts.isOwn(base, ownServerUrl, ownDomain)) {
                 mumaApiUrl.trim().removeSuffix("/")
             } else {
                 "$base/muma"

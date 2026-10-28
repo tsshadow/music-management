@@ -35,7 +35,37 @@ def test_release_without_google_client_id_stops():
     assert "MUMA_GOOGLE_CLIENT_ID is not set" in result.stderr
 
 
+def test_release_without_api_url_stops():
+    result = _run(
+        "release",
+        MUMA_SERVER_URL="https://music.example.org",
+        MUMA_GOOGLE_CLIENT_ID="id",
+        MUMA_OWN_DOMAIN="example.org",
+    )
+    assert result.returncode == 1
+    assert "MUMA_API_URL is not set" in result.stderr
+
+
+def test_release_without_own_domain_stops():
+    result = _run(
+        "release",
+        MUMA_SERVER_URL="https://music.example.org",
+        MUMA_GOOGLE_CLIENT_ID="id",
+        MUMA_API_URL="https://muma.example.org",
+    )
+    assert result.returncode == 1
+    assert "MUMA_OWN_DOMAIN is not set" in result.stderr
+
+
 def test_gradle_reads_the_properties_the_script_names():
     text = GRADLE.read_text()
-    for name in ("muma.serverUrl", "muma.googleClientId", "muma.apiUrl", "MUMA_SERVER_URL", "MUMA_GOOGLE_CLIENT_ID"):
+    for name in (
+        "muma.serverUrl",
+        "muma.googleClientId",
+        "muma.apiUrl",
+        "MUMA_SERVER_URL",
+        "MUMA_GOOGLE_CLIENT_ID",
+        "muma.ownDomain",
+        "MUMA_OWN_DOMAIN",
+    ):
         assert name in text

@@ -31,7 +31,7 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 if [ ! -e /dev/kvm ]; then
     echo "Error: /dev/kvm is not available on this host; the emulator cannot run." >&2
@@ -91,6 +91,7 @@ docker run --rm \
     -e SMOKE_EXPECTED_SERVER="$SMOKE_EXPECTED_SERVER" \
     -e MUMA_SERVER_URL \
     -e MUMA_API_URL \
+    -e MUMA_OWN_DOMAIN \
     -e MUMA_GOOGLE_CLIENT_ID \
     -e MUMA_ALLOW_DEFAULTS=true \
     "$ANDROID_CI_IMAGE" \

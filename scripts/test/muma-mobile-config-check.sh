@@ -4,24 +4,25 @@
 #   1. a debug build configures without MUMA_* variables;
 #   2. checkMumaReleaseConfig fails without them;
 #   3. it passes with MUMA_SERVER_URL and MUMA_GOOGLE_CLIENT_ID;
-#   4. a value with a quote is refused.
+#   4. a value with a quote is refused (server URL and own domain).
 # Values are placeholders on the documentation domain, never real ones.
 
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
 
 gradle_in_image() {
     docker run --rm \
+        --label "ci.job=${CI_JOB_ID:-local}" \
         -u "$(id -u):$(id -g)" \
         -v "$ROOT_DIR:/workspace" \
         -v "$GRADLE_HOME_DIR:/gradle_home" \
         -w "/workspace/services/muma-mobile" \
         -e GRADLE_USER_HOME="/gradle_home" \
         -e SIGNING_STORE_PASSWORD=dummy -e SIGNING_KEY_ALIAS=dummy -e SIGNING_KEY_PASSWORD=dummy \
-        -e MUMA_SERVER_URL -e MUMA_GOOGLE_CLIENT_ID -e MUMA_API_URL -e MUMA_ALLOW_DEFAULTS \
+        -e MUMA_SERVER_URL -e MUMA_GOOGLE_CLIENT_ID -e MUMA_API_URL -e MUMA_OWN_DOMAIN -e MUMA_ALLOW_DEFAULTS \
         "$ANDROID_CI_IMAGE" \
         /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew --console=plain -q "$@"' _ "$@" \
         >/tmp/muma-config-check.log 2>&1
@@ -38,7 +39,7 @@ expect() { # expect <ok|fail> <label> -- gradle args
     fi
 }
 
-unset MUMA_SERVER_URL MUMA_GOOGLE_CLIENT_ID MUMA_API_URL MUMA_ALLOW_DEFAULTS
+unset MUMA_SERVER_URL MUMA_GOOGLE_CLIENT_ID MUMA_API_URL MUMA_OWN_DOMAIN MUMA_ALLOW_DEFAULTS
 expect ok   "debug configures without variables" -- :app:generateDebugBuildConfig
 expect fail "release check fails without variables" -- :app:checkMumaReleaseConfig
 MUMA_SERVER_URL=https://music.example.org expect fail "release check fails with the default server" -- :app:checkMumaReleaseConfig
@@ -46,4 +47,5 @@ MUMA_SERVER_URL=https://lms.example.net MUMA_GOOGLE_CLIENT_ID=abc-123.apps.examp
     "release check passes with both" -- :app:checkMumaReleaseConfig
 MUMA_ALLOW_DEFAULTS=true expect ok "release check passes for an unshipped build" -- :app:checkMumaReleaseConfig
 MUMA_SERVER_URL='https://x.example.net"; evil' expect fail "a quote in the value is refused" -- :app:generateDebugBuildConfig
+MUMA_OWN_DOMAIN='example.net"; evil' expect fail "a quote in the own domain is refused" -- :app:generateDebugBuildConfig
 exit $fail

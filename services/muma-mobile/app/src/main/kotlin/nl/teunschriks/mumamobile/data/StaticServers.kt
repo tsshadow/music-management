@@ -32,19 +32,23 @@ object StaticServers {
     val SERVER_URL: String = BuildConfig.MUMA_SERVER_URL
 
     /**
-     * The MuMa API base for [serverUrl]: the build's `muma.apiUrl` when [serverUrl] is on the
-     * domain of [SERVER_URL] (so an install made with an older address of the same server keeps
+     * The MuMa API base for [serverUrl]: the build's `muma.apiUrl` when [serverUrl] is the host of
+     * [SERVER_URL] or on `muma.ownDomain` (so an install made with an older address of the same server keeps
      * working), else `<server>/muma`. Reads the build values itself, nothing to initialise.
      */
     fun mumaBaseUrlFor(
         serverUrl: String,
         ownServerUrl: String = SERVER_URL,
-        mumaApiUrl: String = BuildConfig.MUMA_API_URL
-    ): String = SubsonicAPIClient.mumaBaseUrlFor(serverUrl, ownServerUrl, mumaApiUrl)
+        mumaApiUrl: String = BuildConfig.MUMA_API_URL,
+        ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
+    ): String = SubsonicAPIClient.mumaBaseUrlFor(serverUrl, ownServerUrl, mumaApiUrl, ownDomain)
 
-    /** Whether [serverUrl] is the build's own server or another host on its domain. */
-    fun isOwnServer(serverUrl: String, ownServerUrl: String = SERVER_URL): Boolean =
-        ServerHosts.sameParty(serverUrl, ownServerUrl)
+    /** Whether [serverUrl] is the build's own server or a host on `muma.ownDomain`. */
+    fun isOwnServer(
+        serverUrl: String,
+        ownServerUrl: String = SERVER_URL,
+        ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
+    ): Boolean = ServerHosts.isOwn(serverUrl, ownServerUrl, ownDomain)
 
     /**
      * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].

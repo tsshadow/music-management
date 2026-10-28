@@ -112,13 +112,13 @@ describe("PresetGrid", () => {
 
 describe("PresetView", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });
-    mumaUser.set({ id: 7, username: "user" });
+    mumaUser.set({ id: 7, username: "demo-user" });
     mumaApiKey.set("key");
     presets.set([RANDOM_UPTEMPO, RECENT]);
     globalThis.fetch = lms([SONGS]);

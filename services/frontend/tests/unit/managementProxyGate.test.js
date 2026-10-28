@@ -21,7 +21,12 @@ const STATS = {
   recently_added: [],
 };
 
-const USER = { id: 1, username: "user", display_name: "Teun", permissions: ["users.read"] };
+const USER = {
+  id: 1,
+  username: "demo-user",
+  display_name: "Demo-User",
+  permissions: ["users.read"],
+};
 
 const BODIES = {
   "/api/config": { version: "0.0.57" },
@@ -82,9 +87,9 @@ function gatedApi(limit) {
 
 describe("Management behind the LMS proxy gate", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     mumaApiKey.set("key-1");
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
     userPermissions.set(["users.read"]);
   });
 

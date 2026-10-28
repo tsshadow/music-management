@@ -18,7 +18,7 @@ const ARTIST_RULES = [
     artist_id: 9,
     track_count: 300,
     created_at: "2026-09-18 10:00:00",
-    created_by: "user",
+    created_by: "demo-user",
   },
   {
     id: 2,
@@ -115,7 +115,7 @@ describe("GenreRulesPanel", () => {
 
     await waitFor(() => expect(screen.getByText("Angerfist")).toBeTruthy());
     expect(screen.getByText("300")).toBeTruthy();
-    expect(screen.getByText(/user ·/)).toBeTruthy();
+    expect(screen.getByText(/demo-user ·/)).toBeTruthy();
     // A rule whose artist left the library says so and cannot be opened.
     expect(screen.getByText("niet in bibliotheek")).toBeTruthy();
     expect(screen.getAllByText("Bewerken")).toHaveLength(1);

@@ -4,7 +4,7 @@ import { get } from "svelte/store";
 import PlaylistsTab from "../../src/lib/management/tabs/PlaylistsTab.svelte";
 import { notifications, dismissAll } from "../../src/lib/notifications.js";
 
-const USER = { id: 1, username: "user" };
+const USER = { id: 1, username: "demo-user" };
 const PLAYLIST = {
   id: 7,
   name: "Hardcore Favorites",

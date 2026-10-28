@@ -56,7 +56,7 @@ vi.mock("../../src/lib/genreTints.js", () => ({
 
 describe("DailyMixesShelf", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     globalThis.__loadDailyMixCards = vi.fn(async () => ({ cards: CARDS, refine: vi.fn() }));
   });
 

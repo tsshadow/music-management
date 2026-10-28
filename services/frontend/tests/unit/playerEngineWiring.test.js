@@ -51,7 +51,7 @@ function fakeContext() {
  */
 describe("Player and the playback engine", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     playlist.set([TRACK]);
     currentTrack.set(TRACK);
     playerState.set({ playing: false, repeat: "none", shuffle: false, volume: 50, progress: 0 });

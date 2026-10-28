@@ -39,8 +39,8 @@ function mockDelete(status, body) {
 
 describe("UsersTab -- deleting an account", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user" });
-    subsonicToken.set({ username: "user", token: "t" });
+    credentials.set({ url: "", username: "demo-user" });
+    subsonicToken.set({ username: "demo-user", token: "t" });
     mumaUser.set({ id: 1, is_admin: true, role_name: "admin" });
     userPermissions.set(["users.update"]);
     vi.spyOn(window, "confirm").mockReturnValue(true);

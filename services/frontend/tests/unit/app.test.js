@@ -103,8 +103,8 @@ function modeChip(label) {
 
 describe("App", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     mumaSessionActive.set(false);
     activeView.set("home");
     activeModal.set(null);
@@ -421,7 +421,7 @@ describe("App", () => {
   });
 
   it("a management tab in the URL is opened on arrival", async () => {
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
     window.history.replaceState({}, "", "/management/scanner");
 
     render(App);

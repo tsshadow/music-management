@@ -254,12 +254,12 @@ describe("ArtistCurationTab", () => {
   it("undoes a decision on a decided row", async () => {
     globalThis.fetch = mockApi({
       rows: [
-        { ...PREMIERE, state: "black", decided_at: "2026-09-16 04:00:00", decided_by: "user" },
+        { ...PREMIERE, state: "black", decided_at: "2026-09-16 04:00:00", decided_by: "demo-user" },
       ],
     });
     render(ArtistCurationTab, props());
     await waitFor(() => expect(screen.getByText("Premiere")).toBeTruthy());
-    expect(screen.getByText(/door user/)).toBeTruthy();
+    expect(screen.getByText(/door demo-user/)).toBeTruthy();
 
     await fireEvent.click(screen.getByLabelText("Beslissing over Premiere ongedaan maken"));
 

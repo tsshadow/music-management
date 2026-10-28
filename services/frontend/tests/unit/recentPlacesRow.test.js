@@ -7,7 +7,7 @@ import RecentPlacesRow from "../../src/lib/RecentPlacesRow.svelte";
 describe("RecentPlacesRow", () => {
   beforeEach(() => {
     localStorage.clear();
-    credentials.set({ url: "https://muma.test", username: "user", password: "pw" });
+    credentials.set({ url: "https://muma.test", username: "demo-user", password: "pw" });
     clearRecentPlaces();
   });
 

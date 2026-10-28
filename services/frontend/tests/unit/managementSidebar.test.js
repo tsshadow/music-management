@@ -8,7 +8,7 @@ import { MANAGEMENT_TABS } from "../../src/lib/router.js";
 describe("ManagementSidebar", () => {
   beforeEach(() => {
     activeManagementTab.set("overview");
-    mumaUser.set({ id: 1, username: "user", is_admin: false });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: false });
     userPermissions.set([]);
     localStorage.clear();
     globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
@@ -53,7 +53,7 @@ describe("ManagementSidebar", () => {
   });
 
   it("an administrator sees every tab", async () => {
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
 
     render(ManagementSidebar, { onnavigate: vi.fn() });
     await fireEvent.click(screen.getByText("Toegang"));
@@ -71,7 +71,7 @@ describe("ManagementSidebar", () => {
   });
 
   it("every tab an administrator can open has a route", async () => {
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
     userPermissions.set(["users.read", "user-requests.read", "radio.manage"]);
     const { container } = render(ManagementSidebar, { onnavigate: vi.fn() });
 

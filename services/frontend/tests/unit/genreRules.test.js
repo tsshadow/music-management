@@ -142,8 +142,8 @@ describe("describeRule", () => {
   });
 
   it("names who and when", () => {
-    const described = describeRule({ created_at: "2026-09-18 10:00:00", created_by: "user" });
-    expect(described.by).toBe("user");
+    const described = describeRule({ created_at: "2026-09-18 10:00:00", created_by: "demo-user" });
+    expect(described.by).toBe("demo-user");
     expect(described.when).toContain("2026");
   });
 });

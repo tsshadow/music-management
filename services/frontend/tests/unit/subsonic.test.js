@@ -59,8 +59,8 @@ function unreachable() {
 
 describe("subsonicJson", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     offline.set(false);
   });
 
@@ -80,7 +80,7 @@ describe("subsonicJson", () => {
 
     const url = fetchImpl.mock.calls[0][0];
     expect(url).toContain("https://lms.example/rest/getSpotifyTracks?");
-    expect(url).toContain("u=user");
+    expect(url).toContain("u=demo-user");
     expect(url).toContain("sort=recent");
     expect(url).toContain("count=50");
     expect(body).toBe(body);
@@ -363,11 +363,11 @@ describe("watchConnectivity", () => {
  */
 describe("subsonicJson - failed answers", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "old" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "old" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     mumaApiKey.set("key-1");
     mumaSessionActive.set(true);
-    mumaUser.set({ id: 1, username: "user" });
+    mumaUser.set({ id: 1, username: "demo-user" });
   });
 
   afterEach(() => {
@@ -395,7 +395,7 @@ describe("subsonicJson - failed answers", () => {
     expect(error.code).toBe(70);
     expect(error.message).toBe("Artist not found");
     // Any other error leaves the session alone.
-    expect(get(credentials).username).toBe("user");
+    expect(get(credentials).username).toBe("demo-user");
     expect(get(mumaApiKey)).toBe("key-1");
   });
 
@@ -430,7 +430,7 @@ describe("subsonicJson - failed answers", () => {
  */
 describe("subsonicJson without a stored token", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "hunter2" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "hunter2" });
     subsonicToken.set({ username: "", token: "" });
     subsonicTokenProblem.set("");
     mumaApiUrl.set("https://muma.example/muma");
@@ -442,7 +442,7 @@ describe("subsonicJson without a stored token", () => {
       if (String(url).includes("/api/auth/subsonic-token")) {
         return {
           ok: true,
-          json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+          json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
         };
       }
       return { json: async () => ({ "subsonic-response": { status: "ok", genres: {} } }) };
@@ -471,6 +471,6 @@ describe("subsonicJson without a stored token", () => {
     );
     expect(fetchImpl.mock.calls.some(([url]) => String(url).includes("/rest/"))).toBe(false);
     // Not ended as a rejected session: the credentials stay, only the token is missing.
-    expect(get(credentials).username).toBe("user");
+    expect(get(credentials).username).toBe("demo-user");
   });
 });

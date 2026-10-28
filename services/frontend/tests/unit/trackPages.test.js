@@ -155,7 +155,7 @@ describe("getSongsContinuation", () => {
 
 describe("history", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
   });
 
   function historyFetch(pages) {
@@ -170,7 +170,7 @@ describe("history", () => {
   it("reads one page of the history", async () => {
     const fetchImpl = historyFetch({ 0: { entry: { id: "a" }, moreResults: true } });
 
-    expect(await fetchHistoryPage(0, 2, "u=user", { fetchImpl })).toEqual({
+    expect(await fetchHistoryPage(0, 2, "u=demo-user", { fetchImpl })).toEqual({
       entries: ids(["a"]),
       hasMore: true,
     });

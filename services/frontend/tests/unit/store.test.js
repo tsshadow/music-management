@@ -81,10 +81,10 @@ describe("store - authParams", () => {
   });
 
   it("should encode special characters in the name", () => {
-    credentials.set({ username: "user@example.com", password: "pass word" });
-    subsonicToken.set({ username: "user@example.com", token: "the-subsonic-token" });
+    credentials.set({ username: "user@example.org", password: "pass word" });
+    subsonicToken.set({ username: "user@example.org", token: "the-subsonic-token" });
     const params = get(authParams);
-    expect(params).toContain("u=user%40example.com");
+    expect(params).toContain("u=user%40example.org");
     expect(params).not.toContain("pass");
   });
 });
@@ -99,12 +99,12 @@ describe("store - authParams with a Subsonic token", () => {
   });
 
   it("signs with the token, never the password, once one is stored for this user", () => {
-    credentials.set({ username: "user", password: "hunter2" });
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    credentials.set({ username: "demo-user", password: "hunter2" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
 
     const params = new URLSearchParams(get(authParams));
 
-    expect(params.get("u")).toBe("user");
+    expect(params.get("u")).toBe("demo-user");
     expect(params.has("p")).toBe(false);
     expect(get(authParams)).not.toContain("hunter2");
     expect(params.get("t")).toBe(md5(`the-subsonic-token${params.get("s")}`));
@@ -112,14 +112,14 @@ describe("store - authParams with a Subsonic token", () => {
   });
 
   it("keeps one salt per session, so the URLs a page builds stay cacheable", () => {
-    credentials.set({ username: "user", password: "hunter2" });
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    credentials.set({ username: "demo-user", password: "hunter2" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
 
     expect(get(authParams)).toBe(get(authParams));
   });
 
   it("ignores a token issued for another account -- and signs nothing at all then", () => {
-    credentials.set({ username: "user", password: "hunter2" });
+    credentials.set({ username: "demo-user", password: "hunter2" });
     subsonicToken.set({ username: "alice", token: "alices-token" });
 
     expect(get(authParams)).toBe("");
@@ -127,18 +127,18 @@ describe("store - authParams with a Subsonic token", () => {
 
   /** Issue #72: no token, no Subsonic request -- the password is never the signature. */
   it("never puts the password in the query, with or without a token", () => {
-    credentials.set({ username: "user", password: "hunter2" });
+    credentials.set({ username: "demo-user", password: "hunter2" });
     subsonicToken.set({ username: "", token: "" });
     expect(get(authParams)).toBe("");
 
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
     expect(get(authParams)).not.toContain("p=");
     expect(get(authParams)).not.toContain("hunter2");
   });
 
   it("signs nothing when signed out, token or not", () => {
     credentials.set({ username: "", password: "" });
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
 
     expect(get(authParams)).toBe("");
   });
@@ -150,8 +150,8 @@ describe("store - authParams with a Subsonic token", () => {
   });
 
   it("a rejected session drops the token with the password", () => {
-    credentials.set({ username: "user", password: "hunter2" });
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    credentials.set({ username: "demo-user", password: "hunter2" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
 
     endRejectedSession();
 
@@ -169,24 +169,24 @@ describe("store - refreshSubsonicToken", () => {
   it("asks with the user's own key and stores the answer", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
     }));
 
     const answer = await refreshSubsonicToken(fetchImpl);
 
-    expect(answer).toEqual({ username: "user", token: "the-subsonic-token" });
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(answer).toEqual({ username: "demo-user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
     const [url, options] = fetchImpl.mock.calls[0];
     expect(url).toBe("https://muma.example/muma/api/auth/subsonic-token");
     expect(options.headers["X-API-Key"]).toBe("own-key");
   });
 
   it("a server without the endpoint leaves the stored token alone, and says try later", async () => {
-    subsonicToken.set({ username: "user", token: "kept" });
+    subsonicToken.set({ username: "demo-user", token: "kept" });
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) }));
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "kept" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "kept" });
     expect(get(subsonicTokenProblem)).toBe("offline");
   });
 
@@ -217,23 +217,23 @@ describe("store - refreshSubsonicToken", () => {
   });
 
   it("adopts LMS's spelling of the signed-in name, so the token signs for it", async () => {
-    credentials.set({ username: "Teun", password: "pw" });
+    credentials.set({ username: "Demo-User", password: "pw" });
     const fetchImpl = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
     }));
 
     await refreshSubsonicToken(fetchImpl);
 
-    expect(get(credentials).username).toBe("user");
-    expect(get(authParams)).toContain("u=user");
+    expect(get(credentials).username).toBe("demo-user");
+    expect(get(authParams)).toContain("u=demo-user");
     expect(get(subsonicAccess)).toBe("ok");
   });
 
   it("an answer without a token stores nothing", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ status: "ok", username: "user" }),
+      json: async () => ({ status: "ok", username: "demo-user" }),
     }));
 
     expect(await refreshSubsonicToken(fetchImpl)).toBe(null);
@@ -251,13 +251,17 @@ describe("store - ensureSubsonicToken and subsonicAccess", () => {
     subsonicTokenProblem.set("");
     mumaApiUrl.set("https://muma.example/muma");
     mumaApiKey.set("own-key");
-    credentials.set({ username: "user", password: "pw" });
+    credentials.set({ username: "demo-user", password: "pw" });
   });
 
   const answering = (body) => vi.fn(async () => ({ ok: true, json: async () => body }));
 
   it("fetches a missing token and reports access once it is there", async () => {
-    const fetchImpl = answering({ status: "ok", username: "user", token: "the-subsonic-token" });
+    const fetchImpl = answering({
+      status: "ok",
+      username: "demo-user",
+      token: "the-subsonic-token",
+    });
 
     expect(get(subsonicAccess)).toBe("pending");
     expect(await ensureSubsonicToken(fetchImpl)).toBe(true);
@@ -267,7 +271,7 @@ describe("store - ensureSubsonicToken and subsonicAccess", () => {
   });
 
   it("does not fetch when a token already signs for the name", async () => {
-    subsonicToken.set({ username: "user", token: "kept" });
+    subsonicToken.set({ username: "demo-user", token: "kept" });
     const fetchImpl = vi.fn();
 
     expect(await ensureSubsonicToken(fetchImpl)).toBe(true);
@@ -275,7 +279,11 @@ describe("store - ensureSubsonicToken and subsonicAccess", () => {
   });
 
   it("concurrent callers share one fetch", async () => {
-    const fetchImpl = answering({ status: "ok", username: "user", token: "the-subsonic-token" });
+    const fetchImpl = answering({
+      status: "ok",
+      username: "demo-user",
+      token: "the-subsonic-token",
+    });
 
     const results = await Promise.all([
       ensureSubsonicToken(fetchImpl),
@@ -334,7 +342,7 @@ describe("store - keepSubsonicTokenFresh", () => {
     subsonicTokenProblem.set("");
     mumaApiUrl.set("https://muma.example/muma");
     mumaApiKey.set("own-key");
-    credentials.set({ username: "user", password: "pw" });
+    credentials.set({ username: "demo-user", password: "pw" });
   });
 
   afterEach(() => {
@@ -371,7 +379,7 @@ describe("store - keepSubsonicTokenFresh", () => {
     const stop = keepSubsonicTokenFresh({ intervalMs: 30_000, target: fakeTarget() });
     answer = () => ({
       ok: true,
-      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
     });
     await vi.advanceTimersByTimeAsync(30_000);
 
@@ -385,7 +393,7 @@ describe("store - keepSubsonicTokenFresh", () => {
   it("asks again when the page becomes visible or the device comes back online", async () => {
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
-      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
     }));
     const target = fakeTarget();
     const stop = keepSubsonicTokenFresh({ intervalMs: 3_600_000, target });
@@ -725,7 +733,7 @@ describe("store - hydrateMumaUserFromApiKey", () => {
 
   it("publishes the user behind an accepted key", async () => {
     mumaApiKey.set("good-key");
-    const user = { id: 1, username: "user", is_admin: true, permissions: ["users.read"] };
+    const user = { id: 1, username: "demo-user", is_admin: true, permissions: ["users.read"] };
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({ type: "user", user }),
@@ -757,10 +765,10 @@ describe("store - hydrateMumaUserFromApiKey", () => {
   // Issue #101: no password is stored to log in again with, so a refused key is the end of the
   // session and the login page comes back -- not a silent re-login.
   it("ends the session when MuMa answers 401 to the key, which shows the login page", async () => {
-    credentials.set({ url: "", username: "user" });
+    credentials.set({ url: "", username: "demo-user" });
     mumaApiKey.set("revoked-key");
     mumaSessionActive.set(true);
-    subsonicToken.set({ username: "user", token: "the-token" });
+    subsonicToken.set({ username: "demo-user", token: "the-token" });
     globalThis.fetch = vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }));
 
     await hydrateMumaUserFromApiKey();
@@ -790,7 +798,7 @@ describe("store - hydrateMumaUserFromApiKey", () => {
     // verifies as a system key, and startup then set `is_admin: true` for
     // whoever held it. The login now hands out the user's own key, so a system
     // key in storage is a leftover: the session goes and the user signs in once.
-    credentials.set({ url: "", username: "user" });
+    credentials.set({ url: "", username: "demo-user" });
     mumaApiKey.set("lms-shared-key");
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
@@ -992,29 +1000,29 @@ describe("store - account settings write queue", () => {
 describe("store - no stored password", () => {
   it("drops a password persisted by an older build and keeps the rest", () => {
     expect(
-      withoutPassword({ url: "https://lms.example", username: "user", password: "hunter2" }),
+      withoutPassword({ url: "https://lms.example", username: "demo-user", password: "hunter2" }),
     ).toEqual({
       url: "https://lms.example",
-      username: "user",
+      username: "demo-user",
     });
   });
 
   it("fills in what a stored value lacks", () => {
     expect(withoutPassword(null)).toMatchObject({ username: "" });
-    expect(withoutPassword({ username: "user" })).toMatchObject({ username: "user" });
-    expect(withoutPassword({ username: "user" })).not.toHaveProperty("password");
+    expect(withoutPassword({ username: "demo-user" })).toMatchObject({ username: "demo-user" });
+    expect(withoutPassword({ username: "demo-user" })).not.toHaveProperty("password");
   });
 
   it("rewrites localStorage without the password when the store loads", async () => {
     vi.resetModules();
     localStorage.setItem(
       "lms_credentials",
-      JSON.stringify({ url: "https://lms.example", username: "user", password: "hunter2" }),
+      JSON.stringify({ url: "https://lms.example", username: "demo-user", password: "hunter2" }),
     );
 
     const fresh = await import("../../src/lib/store.js");
 
-    expect(get(fresh.credentials)).toEqual({ url: "https://lms.example", username: "user" });
+    expect(get(fresh.credentials)).toEqual({ url: "https://lms.example", username: "demo-user" });
     expect(localStorage.getItem("lms_credentials")).not.toContain("hunter2");
     expect(get(fresh.signedIn)).toBe(true);
   });
@@ -1028,7 +1036,7 @@ describe("store - no stored password", () => {
     expect(get(signedIn)).toBe(true);
 
     mumaSessionActive.set(false);
-    credentials.set({ url: "", username: "user" });
+    credentials.set({ url: "", username: "demo-user" });
     expect(get(signedIn)).toBe(true);
 
     endRejectedSession();

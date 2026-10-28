@@ -14,8 +14,8 @@ function props(overrides = {}) {
 
 describe("LibrariesTab", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => LIBRARIES,
@@ -41,7 +41,7 @@ describe("LibrariesTab", () => {
     await waitFor(() => expect(screen.getByText("Muziek")).toBeTruthy());
     const url = globalThis.fetch.mock.calls[0][0];
     expect(url).toContain("/api/admin/libraries");
-    expect(url).toContain("u=user");
+    expect(url).toContain("u=demo-user");
   });
 
   it("deletes a library after confirmation", async () => {

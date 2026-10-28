@@ -67,15 +67,19 @@ describe("randomTracksUrl", () => {
   // Ten minutes is the boundary the track list uses. A "play something" from a
   // car at the moment somebody asked for a set must not answer with pop songs.
   it("asks for sets in sets mode and for tracks otherwise", () => {
-    expect(randomTracksUrl({ mode: "sets", auth: "u=user", seed: 7 })).toContain("minDuration=10");
-    expect(randomTracksUrl({ mode: "songs", auth: "u=user", seed: 7 })).toContain("maxDuration=10");
+    expect(randomTracksUrl({ mode: "sets", auth: "u=demo-user", seed: 7 })).toContain(
+      "minDuration=10",
+    );
+    expect(randomTracksUrl({ mode: "songs", auth: "u=demo-user", seed: 7 })).toContain(
+      "maxDuration=10",
+    );
   });
 
   it("is one page of random tracks, signed", () => {
-    const url = randomTracksUrl({ mode: "songs", auth: "u=user&p=x", seed: 7, count: 25 });
+    const url = randomTracksUrl({ mode: "songs", auth: "u=demo-user&p=x", seed: 7, count: 25 });
 
     expect(url).toBe(
-      "/rest/getSpotifyTracks?sort=random&seed=7&offset=0&count=25&maxDuration=10&u=user&p=x",
+      "/rest/getSpotifyTracks?sort=random&seed=7&offset=0&count=25&maxDuration=10&u=demo-user&p=x",
     );
   });
 });

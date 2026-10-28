@@ -29,12 +29,12 @@ import { md5 } from "../../src/lib/md5.js";
 
 const MUMA_ANSWER = {
   status: "ok",
-  api_key: "own-key-of-user",
-  access_token: "own-key-of-user",
+  api_key: "own-key-of-demo-user",
+  access_token: "own-key-of-demo-user",
   refresh_token: "refresh-1",
   user: {
     id: 3,
-    username: "user",
+    username: "demo-user",
     is_admin: false,
     role_name: "user",
     permissions: ["music.play"],
@@ -62,9 +62,9 @@ describe("login - startManagementSession", () => {
   it("stores the user's own key, refresh token, permissions and account", async () => {
     globalThis.fetch = loginAnswering(MUMA_ANSWER);
 
-    expect(await startManagementSession("user", "pw")).toBe(true);
+    expect(await startManagementSession("demo-user", "pw")).toBe(true);
 
-    expect(get(mumaApiKey)).toBe("own-key-of-user");
+    expect(get(mumaApiKey)).toBe("own-key-of-demo-user");
     expect(get(mumaRefreshToken)).toBe("refresh-1");
     expect(get(userPermissions)).toEqual(["music.play"]);
     expect(get(mumaUser)).toEqual(MUMA_ANSWER.user);
@@ -74,18 +74,18 @@ describe("login - startManagementSession", () => {
   it("posts the pair to the muma login", async () => {
     globalThis.fetch = loginAnswering(MUMA_ANSWER);
 
-    await startManagementSession("user", "pw");
+    await startManagementSession("demo-user", "pw");
 
     const [url, options] = globalThis.fetch.mock.calls[0];
     expect(url).toMatch(/\/api\/auth\/login$/);
     expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual({ username: "user", password: "pw" });
+    expect(JSON.parse(options.body)).toEqual({ username: "demo-user", password: "pw" });
   });
 
   it("an account that is not an administrator does not become one", async () => {
     globalThis.fetch = loginAnswering(MUMA_ANSWER);
 
-    await startManagementSession("user", "pw");
+    await startManagementSession("demo-user", "pw");
 
     expect(get(mumaUser).is_admin).toBe(false);
     expect(get(isAdmin)).not.toBe(true);
@@ -97,7 +97,7 @@ describe("login - startManagementSession", () => {
       user: { ...MUMA_ANSWER.user, is_admin: true, role_name: "admin" },
     });
 
-    await startManagementSession("user", "pw");
+    await startManagementSession("demo-user", "pw");
 
     expect(get(isAdmin)).toBe(true);
   });
@@ -106,13 +106,13 @@ describe("login - startManagementSession", () => {
     // What LMS used to send: no `user`, and its own api-key for everybody.
     globalThis.fetch = loginAnswering({
       id: 3,
-      username: "user",
-      display_name: "user",
+      username: "demo-user",
+      display_name: "demo-user",
       is_admin: true,
       api_key: "lms-shared-key",
     });
 
-    expect(await startManagementSession("user", "pw")).toBe(false);
+    expect(await startManagementSession("demo-user", "pw")).toBe(false);
 
     expect(get(mumaApiKey)).toBe("");
     expect(get(mumaUser)).toBe(null);
@@ -122,7 +122,7 @@ describe("login - startManagementSession", () => {
   it("an answer without a key starts no session", async () => {
     globalThis.fetch = loginAnswering({ ...MUMA_ANSWER, api_key: "" });
 
-    expect(await startManagementSession("user", "pw")).toBe(false);
+    expect(await startManagementSession("demo-user", "pw")).toBe(false);
     expect(get(mumaApiKey)).toBe("");
   });
 
@@ -131,14 +131,14 @@ describe("login - startManagementSession", () => {
     delete user.permissions;
     globalThis.fetch = loginAnswering({ ...MUMA_ANSWER, user });
 
-    expect(await startManagementSession("user", "pw")).toBe(true);
+    expect(await startManagementSession("demo-user", "pw")).toBe(true);
     expect(get(userPermissions)).toEqual([]);
   });
 
   it("a refused login starts no session", async () => {
     globalThis.fetch = loginAnswering({ detail: "Invalid username or password" }, false);
 
-    expect(await startManagementSession("user", "wrong")).toBe(false);
+    expect(await startManagementSession("demo-user", "wrong")).toBe(false);
     expect(get(mumaApiKey)).toBe("");
   });
 
@@ -147,15 +147,15 @@ describe("login - startManagementSession", () => {
       throw new Error("network down");
     });
 
-    expect(await startManagementSession("user", "pw")).toBe(false);
+    expect(await startManagementSession("demo-user", "pw")).toBe(false);
     expect(get(mumaSessionActive)).toBe(false);
   });
 });
 
 /**
  * Account names are case-insensitive, and the account's own spelling is the one
- * that is stored and signed in with afterwards -- never the typed one. "Teun"
- * typed for "user" used to travel on as Subsonic `u=`, and LMS created a second
+ * that is stored and signed in with afterwards -- never the typed one. "Demo-User"
+ * typed for "demo-user" used to travel on as Subsonic `u=`, and LMS created a second
  * user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
  */
 describe("login - the account's own spelling", () => {
@@ -187,19 +187,19 @@ describe("login - the account's own spelling", () => {
   }
 
   it("stores the name MuMa returned, not the case it was typed in", async () => {
-    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "user" });
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "demo-user" });
 
-    const result = await signIn("Teun", "pw");
+    const result = await signIn("Demo-User", "pw");
 
-    expect(result).toEqual({ ok: true, username: "user" });
-    expect(get(credentials).username).toBe("user");
+    expect(result).toEqual({ ok: true, username: "demo-user" });
+    expect(get(credentials).username).toBe("demo-user");
   });
 
   // Issue #101: the password signs nothing after the sign-in, so it is not kept anywhere.
   it("keeps no copy of the password after a sign-in, in the store or in localStorage", async () => {
-    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "user" });
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "demo-user" });
 
-    expect((await signIn("user", "hunter2-secret")).ok).toBe(true);
+    expect((await signIn("demo-user", "hunter2-secret")).ok).toBe(true);
 
     expect(get(credentials)).not.toHaveProperty("password");
     for (let i = 0; i < localStorage.length; i++) {
@@ -210,20 +210,20 @@ describe("login - the account's own spelling", () => {
   });
 
   it("takes LMS's spelling from the token when MuMa's answer had none to go by", async () => {
-    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "" }, "user");
+    globalThis.fetch = serverAnswering({ ...MUMA_ANSWER.user, username: "" }, "demo-user");
 
-    const result = await signIn("Teun", "pw");
+    const result = await signIn("Demo-User", "pw");
 
-    expect(result).toEqual({ ok: true, username: "user" });
-    expect(get(credentials).username).toBe("user");
+    expect(result).toEqual({ ok: true, username: "demo-user" });
+    expect(get(credentials).username).toBe("demo-user");
   });
 
   it("adopts only a spelling of the same name", () => {
-    expect(canonicalUsername("Teun", { username: "user" })).toBe("user");
-    expect(canonicalUsername("TEUN", { username: "user" })).toBe("user");
-    expect(canonicalUsername("user", { username: "someone-else" })).toBe("user");
-    expect(canonicalUsername("user", null)).toBe("user");
-    expect(canonicalUsername("user", { username: "" })).toBe("user");
+    expect(canonicalUsername("Demo-User", { username: "demo-user" })).toBe("demo-user");
+    expect(canonicalUsername("DEMO-USER", { username: "demo-user" })).toBe("demo-user");
+    expect(canonicalUsername("demo-user", { username: "someone-else" })).toBe("demo-user");
+    expect(canonicalUsername("demo-user", null)).toBe("demo-user");
+    expect(canonicalUsername("demo-user", { username: "" })).toBe("demo-user");
   });
 });
 
@@ -248,7 +248,7 @@ describe("login - signing the ping with the Subsonic token", () => {
 
   /** A server whose login, token endpoint and ping answer as given. */
   function server({
-    token = { username: "user", token: "the-subsonic-token" },
+    token = { username: "demo-user", token: "the-subsonic-token" },
     pingAccepts = () => true,
   } = {}) {
     return vi.fn(async (url) => {
@@ -280,20 +280,20 @@ describe("login - signing the ping with the Subsonic token", () => {
   it("never puts the password in a URL when a token comes back", async () => {
     globalThis.fetch = server();
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
-    expect(result).toEqual({ ok: true, username: "user" });
+    expect(result).toEqual({ ok: true, username: "demo-user" });
     for (const [url] of globalThis.fetch.mock.calls) expect(url).not.toContain("hunter2");
     const [ping] = pings();
     expect(ping.searchParams.has("p")).toBe(false);
     expect(ping.searchParams.get("t")).toBe(md5(`the-subsonic-token${ping.searchParams.get("s")}`));
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
   });
 
   it("fails as unreachable, and sends no ping, when no token can be had", async () => {
     globalThis.fetch = server({ token: null });
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
     expect(result).toEqual({ ok: false, reason: "offline", message: "" });
     expect(pings()).toHaveLength(0);
@@ -304,7 +304,7 @@ describe("login - signing the ping with the Subsonic token", () => {
   it("a token LMS refuses is dropped and the sign-in fails -- no second ping with the password", async () => {
     globalThis.fetch = server({ pingAccepts: () => false });
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("rejected");
@@ -319,7 +319,7 @@ describe("login - signing the ping with the Subsonic token", () => {
       subsonicToken.set({ username: "", token: "" });
       globalThis.fetch = server(setup);
 
-      await signIn("user", "hunter2");
+      await signIn("demo-user", "hunter2");
 
       for (const [url] of globalThis.fetch.mock.calls) expect(url).not.toContain("hunter2");
     }
@@ -339,7 +339,7 @@ describe("login - signing the ping with the Subsonic token", () => {
       };
     });
 
-    const result = await signIn("user", "wrong");
+    const result = await signIn("demo-user", "wrong");
 
     expect(result).toEqual({ ok: false, reason: "rejected", message: "" });
     expect(get(credentials).password).toBe("");
@@ -354,16 +354,16 @@ describe("login - signing the ping with the Subsonic token", () => {
       return base(url, options);
     });
 
-    await signIn("user", "hunter2");
+    await signIn("demo-user", "hunter2");
 
     expect(keyAtPing).toBe("");
-    expect(get(mumaApiKey)).toBe("own-key-of-user");
+    expect(get(mumaApiKey)).toBe("own-key-of-demo-user");
   });
 
   it("a rejected ping publishes no management session", async () => {
     globalThis.fetch = server({ token: null, pingAccepts: () => false });
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
     expect(result.ok).toBe(false);
     expect(get(mumaApiKey)).toBe("");
@@ -373,7 +373,7 @@ describe("login - signing the ping with the Subsonic token", () => {
   it("a token for another name is not used, and the sign-in fails", async () => {
     globalThis.fetch = server({ token: { username: "alice", token: "alices-token" } });
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
     expect(result.ok).toBe(false);
     expect(pings()).toHaveLength(0);
@@ -386,7 +386,7 @@ describe("login - signing the ping with the Subsonic token", () => {
       throw new Error(`unexpected ${url}`);
     });
 
-    const result = await signIn("user", "hunter2");
+    const result = await signIn("demo-user", "hunter2");
 
     expect(result).toEqual({ ok: false, reason: "offline", message: "" });
     // Asked again before giving up, and never anything but MuMa's login.
@@ -417,7 +417,7 @@ describe("login - asking for the token more than once", () => {
   const refused = () => ({ ok: false, status: 401, json: async () => ({}) });
   const token = () => ({
     ok: true,
-    json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+    json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
   });
   const tokenCalls = () =>
     globalThis.fetch.mock.calls.filter(([url]) => url.includes("/api/auth/subsonic-token")).length;
@@ -425,14 +425,18 @@ describe("login - asking for the token more than once", () => {
   it("signs in when the endpoint answers on a later attempt", async () => {
     globalThis.fetch = server([busy, token]);
 
-    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect((await signIn("demo-user", "hunter2")).ok).toBe(true);
     expect(tokenCalls()).toBe(2);
   });
 
   it("gives up as unreachable after the last attempt", async () => {
     globalThis.fetch = server(Array.from({ length: TOKEN_ATTEMPTS }, () => busy));
 
-    expect(await signIn("user", "hunter2")).toEqual({ ok: false, reason: "offline", message: "" });
+    expect(await signIn("demo-user", "hunter2")).toEqual({
+      ok: false,
+      reason: "offline",
+      message: "",
+    });
     expect(tokenCalls()).toBe(TOKEN_ATTEMPTS);
   });
 
@@ -449,14 +453,14 @@ describe("login - asking for the token more than once", () => {
       return { json: async () => ({ "subsonic-response": { status: "ok" } }) };
     });
 
-    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect((await signIn("demo-user", "hunter2")).ok).toBe(true);
     expect(logins).toBe(2);
   });
 
   it("does not ask again after a refusal", async () => {
     globalThis.fetch = server([refused, token]);
 
-    expect((await signIn("user", "hunter2")).reason).toBe("rejected");
+    expect((await signIn("demo-user", "hunter2")).reason).toBe("rejected");
     expect(tokenCalls()).toBe(1);
   });
 });

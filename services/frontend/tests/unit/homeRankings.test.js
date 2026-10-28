@@ -76,8 +76,8 @@ describe("loadTopLabels", () => {
 
 describe("resolveArtistView", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
   });
 
   /** A search3 response carrying the given artist entries. */

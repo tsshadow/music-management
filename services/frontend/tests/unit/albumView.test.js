@@ -78,8 +78,8 @@ async function renderLoaded(props = {}) {
 
 describe("AlbumView", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     playlist.set([]);
     currentTrack.set(null);
@@ -244,8 +244,8 @@ describe("AlbumView - failures", () => {
   });
 
   it("shows an error, not a blank page, when the album cannot be loaded", async () => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     vi.spyOn(console, "error").mockImplementation(() => {});
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
@@ -263,7 +263,7 @@ describe("AlbumView - failures", () => {
 /** The album page draws what the tapped tile knew at once (docs/designs/perceived-performance/). */
 describe("AlbumView - optimistic page", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     viewMode.set("songs");
     entityCache.clear();
     clearSeeds();

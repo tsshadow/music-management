@@ -199,7 +199,7 @@ describe("Player on the native shell", () => {
   // The service scrobbles every track itself (source `mobile`/`auto`). A second scrobble from the
   // WebView recorded each listen twice on production, under timestamps the server cannot pair.
   it("leaves scrobbling to the service -- no /rest/scrobble from the WebView", async () => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({ "subsonic-response": { status: "ok" } }),

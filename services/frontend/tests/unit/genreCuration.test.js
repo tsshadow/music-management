@@ -195,8 +195,8 @@ describe("describeDecision", () => {
   });
 
   it("names who decided", () => {
-    const decided = row({ decided_at: "2026-08-01 12:00:00", decided_by: "user" });
-    expect(describeDecision(decided)).toContain("door user");
+    const decided = row({ decided_at: "2026-08-01 12:00:00", decided_by: "demo-user" });
+    expect(describeDecision(decided)).toContain("door demo-user");
   });
 });
 

@@ -70,11 +70,11 @@ async function renderApp() {
 
 describe("mobile sidebar drawer", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     mumaSessionActive.set(false);
     // Every step seen, or the setup tour opens over the drawer under test.
     setupStepsSeen.set(SETUP_STEPS.map((step) => step.id));
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
     activeView.set("home");
     activeManagementTab.set("overview");
     activeSettingsTab.set("general");

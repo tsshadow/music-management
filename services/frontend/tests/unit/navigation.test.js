@@ -76,7 +76,7 @@ describe("navigation sections", () => {
  */
 describe("sidebar and browse grid agree", () => {
   it.each(["songs", "sets"])("in %s mode", async (mode) => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     viewMode.set(mode);
     localStorage.setItem("muma_sidebar_library_open", "true");
     globalThis.fetch = vi.fn(async () => ({

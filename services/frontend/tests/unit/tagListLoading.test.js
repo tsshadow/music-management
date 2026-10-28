@@ -85,8 +85,8 @@ describe("tag track lists (issue #109)", () => {
   let server;
 
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);
@@ -262,8 +262,8 @@ describe("search results page (issue #112)", () => {
   let server;
 
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     resetFeedsCache();

@@ -58,12 +58,14 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The release images live under the registry user DOCKER_USER. There is no default:
-# without it the janitor would prune the wrong repositories, or none.
+# The release images live under the registry user DOCKER_USER. There is no default, and
+# without it only that one step is skipped: the android-ci, muma-test-* and build-cache
+# sweeps still run, because a janitor that stops entirely is how the disk filled up
+# (bug report 073). The plan helper reads DOCKER_USER from the environment.
 if [ -z "${DOCKER_USER:-}" ]; then
-    echo "Error: DOCKER_USER is not set. Set it to the registry user of the release images" >&2
-    echo "  (CI/CD variable for the runner:disk-janitor job; Environment= in muma-disk-janitor.service)." >&2
-    exit 2
+    echo "WARNING: DOCKER_USER is not set: old release image tags are NOT pruned this run." >&2
+    echo "  Set it to the registry user of the release images (the runner:disk-janitor job" >&2
+    echo "  takes it from DOCKERHUB_USERNAME; the timer reads /etc/muma-disk-janitor.env)." >&2
 fi
 
 THRESHOLD=75

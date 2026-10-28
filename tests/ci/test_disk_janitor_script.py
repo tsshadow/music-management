@@ -83,17 +83,19 @@ def test_the_timer_unit_can_get_docker_user_from_a_file_or_a_drop_in():
     assert "EnvironmentFile=-/etc/muma-disk-janitor.env" in text
 
 
-def test_without_docker_user_the_script_stops_and_names_it():
+def test_without_docker_user_the_script_warns_and_does_not_stop_on_exit_2():
+    """The systemd unit treats only exit 0 and 1 as success, so exit 2 would stop all cleanup."""
     env = {k: v for k, v in os.environ.items() if k != "DOCKER_USER"}
     result = subprocess.run(["bash", str(SCRIPT), "--dry-run"], env=env, capture_output=True, text=True, check=False)
-    assert result.returncode == 2
-    assert "DOCKER_USER" in result.stderr
+    assert result.returncode != 2
+    assert "WARNING: DOCKER_USER is not set" in result.stderr
 
 
-def test_an_empty_docker_user_is_refused_too():
+def test_an_empty_docker_user_warns_too():
     env = {**os.environ, "DOCKER_USER": ""}
     result = subprocess.run(["bash", str(SCRIPT), "--dry-run"], env=env, capture_output=True, text=True, check=False)
-    assert result.returncode == 2
+    assert result.returncode != 2
+    assert "WARNING: DOCKER_USER is not set" in result.stderr
 
 
 # --- Behaviour against a fake daemon -----------------------------------------

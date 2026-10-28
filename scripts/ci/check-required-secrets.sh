@@ -104,6 +104,17 @@ require_var "SIGNING_STORE_FILE" \
 require_var "PROD_REMOTE_HOST" \
     "every job that connects to the production host stops before it connects" || missing=1
 
+# The production host needs a pinned SSH key (or a PROD_SSH_KNOWN_HOSTS file, or an explicit
+# PROD_SSH_ACCEPT_NEW_HOST_KEY=true). Checked here so a host name without one fails this job,
+# not muma:deploy after the images are built.
+if [ -n "${PROD_REMOTE_HOST:-}" ]; then
+    # shellcheck source=scripts/lib/ssh_host_keys.sh
+    . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
+    if [ -z "${PROD_SSH_KNOWN_HOSTS:-}" ] && ssh_pinned_host_missing "$PROD_REMOTE_HOST"; then
+        missing=1
+    fi
+fi
+
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
     missing=1

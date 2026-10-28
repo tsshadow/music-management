@@ -118,9 +118,10 @@ def select_removals(
     the most likely to hold layers nothing else shares.
 
     `docker_user` is the registry user the release images are pushed under; its repositories
-    are the ones whose old version tags may go.
+    are the ones whose old version tags may go. Empty means none are selected.
     """
-    versioned_prefixes = (f"{docker_user}/", SHARED_CI_PREFIX)
+    # An empty docker_user leaves the release images alone: only the shared CI prefix is versioned.
+    versioned_prefixes = (f"{docker_user}/", SHARED_CI_PREFIX) if docker_user else (SHARED_CI_PREFIX,)
     doomed: list[Image] = []
     by_repository: dict[str, list[Image]] = {}
     for image in images:
@@ -160,7 +161,7 @@ def main() -> int:
     parser.add_argument(
         "--docker-user",
         default=os.environ.get("DOCKER_USER", ""),
-        help="Registry user of the release images (default: $DOCKER_USER; required, no fallback).",
+        help="Registry user of the release images (default: $DOCKER_USER). Without it the release images are left alone.",
     )
     parser.add_argument(
         "--now",
@@ -169,7 +170,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     if not args.docker_user:
-        parser.error("DOCKER_USER is not set; pass --docker-user or set the variable")
+        print("WARNING: DOCKER_USER is not set; release image tags are not selected.", file=sys.stderr)
 
     now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)
     if now.tzinfo is None:

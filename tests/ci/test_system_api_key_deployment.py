@@ -88,6 +88,8 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
         "PROD_ENV_FILE": env_content,
         "PROD_ENV_FILE_LMS": lms_env_content,
         **GATING_VARS,
+        # The example host has no pinned key; the pinning check has its own tests below.
+        "PROD_SSH_ACCEPT_NEW_HOST_KEY": "true",
         **overrides,
     }
     env = {k: v for k, v in env.items() if v is not None}
@@ -165,3 +167,20 @@ def test_secrets_check_accepts_a_quoted_docker_user_that_matches():
         BASE_ENV.replace("DOCKER_USER=someone", 'DOCKER_USER="someone"') + "API_KEY=k\n", LMS_ENV
     )
     assert result.returncode == 0, result.stdout
+
+
+def test_secrets_check_fails_early_for_a_production_host_without_a_pinned_key():
+    result = run_secrets_check(
+        BASE_ENV + "API_KEY=k\n", LMS_ENV, PROD_SSH_ACCEPT_NEW_HOST_KEY=None, PROD_SSH_KNOWN_HOSTS=None
+    )
+    assert result.returncode != 0
+    assert "PROD_SSH_ACCEPT_NEW_HOST_KEY" in result.stderr or "PROD_SSH_KNOWN_HOSTS" in result.stderr
+
+
+def test_secrets_check_accepts_a_production_host_with_a_known_hosts_file(tmp_path):
+    known = tmp_path / "known_hosts"
+    known.write_text("")
+    result = run_secrets_check(
+        BASE_ENV + "API_KEY=k\n", LMS_ENV, PROD_SSH_ACCEPT_NEW_HOST_KEY=None, PROD_SSH_KNOWN_HOSTS=str(known)
+    )
+    assert result.returncode == 0, result.stderr

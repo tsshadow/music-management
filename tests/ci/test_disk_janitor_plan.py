@@ -196,7 +196,17 @@ def test_the_release_prefix_comes_from_the_docker_user():
     assert removals(lines, keep_versions=1) == ["muma/music-manager:0.1.0"]
 
 
-def test_the_plan_refuses_to_run_without_a_docker_user():
+def test_without_a_docker_user_no_release_image_is_selected_but_ci_images_still_are():
+    lines = listing(
+        ("muma/music-manager:0.1.0", days_ago(399)),
+        ("muma/music-manager:0.2.0", days_ago(398)),
+        ("muma-ci/tools:1", days_ago(399)),
+        ("muma-ci/tools:2", days_ago(398)),
+    )
+    assert removals(lines, keep_versions=1, docker_user="") == ["muma-ci/tools:1"]
+
+
+def test_the_plan_warns_but_runs_without_a_docker_user():
     import os
     import subprocess
 
@@ -204,5 +214,5 @@ def test_the_plan_refuses_to_run_without_a_docker_user():
     result = subprocess.run(
         ["python3", str(MODULE_PATH)], input="", env=env, capture_output=True, text=True, check=False
     )
-    assert result.returncode == 2
+    assert result.returncode == 0
     assert "DOCKER_USER" in result.stderr

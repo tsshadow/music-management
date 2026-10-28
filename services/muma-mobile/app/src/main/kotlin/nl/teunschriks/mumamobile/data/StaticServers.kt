@@ -8,6 +8,7 @@
 package nl.teunschriks.mumamobile.data
 
 import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.api.subsonic.ServerHosts
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 
 /**
@@ -31,16 +32,19 @@ object StaticServers {
     val SERVER_URL: String = BuildConfig.MUMA_SERVER_URL
 
     /**
-     * Tells the API module where the MuMa API of [SERVER_URL] lives when it has its own host
-     * (`muma.apiUrl` at build time, [apiUrl] here). Empty keeps the `<server>/muma` default.
+     * The MuMa API base for [serverUrl]: the build's `muma.apiUrl` when [serverUrl] is on the
+     * domain of [SERVER_URL] (so an install made with an older address of the same server keeps
+     * working), else `<server>/muma`. Reads the build values itself, nothing to initialise.
      */
-    fun applyMumaApiOverride(serverUrl: String = SERVER_URL, apiUrl: String = BuildConfig.MUMA_API_URL) {
-        SubsonicAPIClient.mumaApiOverrides = if (apiUrl.isBlank()) {
-            emptyMap()
-        } else {
-            mapOf(serverUrl.removeSuffix("/") to apiUrl.trim().removeSuffix("/"))
-        }
-    }
+    fun mumaBaseUrlFor(
+        serverUrl: String,
+        ownServerUrl: String = SERVER_URL,
+        mumaApiUrl: String = BuildConfig.MUMA_API_URL
+    ): String = SubsonicAPIClient.mumaBaseUrlFor(serverUrl, ownServerUrl, mumaApiUrl)
+
+    /** Whether [serverUrl] is the build's own server or another host on its domain. */
+    fun isOwnServer(serverUrl: String, ownServerUrl: String = SERVER_URL): Boolean =
+        ServerHosts.sameParty(serverUrl, ownServerUrl)
 
     /**
      * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].

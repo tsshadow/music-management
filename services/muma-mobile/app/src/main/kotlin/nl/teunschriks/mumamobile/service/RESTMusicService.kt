@@ -84,7 +84,7 @@ open class RESTMusicService(
     override fun ping() {
         API.ping().execute().throwOnFailure()
         val activeServer = activeServerProvider.getActiveServer()
-        if (activeServer.url.removeSuffix("/") == StaticServers.SERVER_URL.removeSuffix("/")) {
+        if (StaticServers.isOwnServer(activeServer.url)) {
             // Primes the MuMa client with the stored key; a missing or refused key is not a failed
             // Subsonic ping.
             try {

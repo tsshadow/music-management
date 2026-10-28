@@ -25,5 +25,9 @@ data class SubsonicClientConfiguration(
     val isRealProtocolVersion: Boolean = false,
     val mumaUserId: Int? = null,
     val tokenStorage: MumaTokenStorage? = null,
-    val tokenRecovery: SubsonicTokenRecovery? = null
+    val tokenRecovery: SubsonicTokenRecovery? = null,
+    /** The build's own server; a server on its domain gets [mumaApiUrl] as its MuMa API. */
+    val ownServerUrl: String = "",
+    /** Own host of the MuMa API, or empty for `<server>/muma`. */
+    val mumaApiUrl: String = ""
 )

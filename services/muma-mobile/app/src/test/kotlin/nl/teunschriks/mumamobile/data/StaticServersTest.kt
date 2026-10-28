@@ -7,10 +7,9 @@
 
 package nl.teunschriks.mumamobile.data
 
-import nl.teunschriks.mumamobile.BuildConfig
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
+import org.amshove.kluent.shouldBeTrue
 import org.amshove.kluent.shouldStartWith
 import org.junit.Test
 
@@ -40,24 +39,25 @@ class StaticServersTest {
         server.forcePlainTextPassword.shouldBeFalse()
     }
 
-    /** The address is the build's `muma.serverUrl`, not a literal in the source. */
+    /** The build's own server and the hosts on its domain are ours; a lookalike or an IP is not. */
     @Test
-    fun `the server address is the one the build was given`() {
-        StaticServers.SERVER_URL shouldBeEqualTo BuildConfig.MUMA_SERVER_URL
-        server.url shouldBeEqualTo BuildConfig.MUMA_SERVER_URL
+    fun `own server means the same host or the same parent domain`() {
+        val own = "https://music.example.org"
+        StaticServers.isOwnServer("https://music.example.org/", own).shouldBeTrue()
+        StaticServers.isOwnServer("https://lms.example.org", own).shouldBeTrue()
+        StaticServers.isOwnServer("HTTPS://music.Example.org:8443", own).shouldBeTrue()
+        StaticServers.isOwnServer("https://example.org.evil.net", own).shouldBeFalse()
+        StaticServers.isOwnServer("https://music.example.net", own).shouldBeFalse()
+        StaticServers.isOwnServer("", own).shouldBeFalse()
+        StaticServers.isOwnServer("http://10.0.0.5", "http://10.0.0.6").shouldBeFalse()
+        StaticServers.isOwnServer("http://localhost", "http://localhost:8080").shouldBeTrue()
     }
 
     @Test
-    fun `a build with a separate muma host routes the server to it, and no other`() {
-        val before = SubsonicAPIClient.mumaApiOverrides
-        try {
-            StaticServers.applyMumaApiOverride("https://lms.example.org/", "https://muma.example.org/")
-            SubsonicAPIClient.mumaBaseUrlFor("https://lms.example.org") shouldBeEqualTo "https://muma.example.org"
-            SubsonicAPIClient.mumaBaseUrlFor("https://other.example.org") shouldBeEqualTo "https://other.example.org/muma"
-            StaticServers.applyMumaApiOverride("https://lms.example.org", "")
-            SubsonicAPIClient.mumaBaseUrlFor("https://lms.example.org") shouldBeEqualTo "https://lms.example.org/muma"
-        } finally {
-            SubsonicAPIClient.mumaApiOverrides = before
-        }
+    fun `the muma API base depends on the build values only`() {
+        val own = "https://music.example.org"
+        StaticServers.mumaBaseUrlFor("https://lms.example.org", own, "https://muma.example.org/") shouldBeEqualTo
+            "https://muma.example.org"
+        StaticServers.mumaBaseUrlFor("https://lms.example.org", own, "") shouldBeEqualTo "https://lms.example.org/muma"
     }
 }

@@ -93,11 +93,17 @@ The APK does not carry a server in its source. `app/build.gradle` compiles three
 | `muma.googleClientId` | `MUMA_GOOGLE_CLIENT_ID` | empty | The Google OAuth Web client id of "Sign in with Google". Empty hides the button. |
 | `muma.apiUrl` | `MUMA_API_URL` | empty | Own host for the MuMa API. Empty means `<server>/muma`. |
 
-Locally: `./gradlew :app:assembleDebug -Pmuma.serverUrl=https://music.example.org`, or put the
-variables in the shell. In CI they are CI/CD variables with the same names, and
-`scripts/ci/muma-mobile-build-upload.sh release` stops when the first two are missing, so a release
-never ships with the neutral server. `mobile:smoke` builds with the same variables and expects that
-server on the login page.
+Locally: export the environment variables, or put the properties in `~/.gradle/gradle.properties`.
+Do not pass them with `-P` on the command line: the value then shows in the process list of a
+shared runner (bug report 125). In CI they are CI/CD variables with the same names. Values are
+checked (a URL, and letters, digits, `.`, `_`, `-` for the client id), so a quote cannot break the
+generated code.
+
+A release (`assembleRelease`, `bundleRelease`, `packageRelease`) fails in Gradle when the server is
+the example default or the client id is empty, and `scripts/ci/muma-mobile-build-upload.sh release`
+stops earlier for the same reason. `MUMA_ALLOW_DEFAULTS=true` lifts the Gradle check for a build that
+is never shipped; `mobile:smoke` sets it and expects the server from `MUMA_SERVER_URL` on the login
+page. `./scripts/test/muma-mobile-config-check.sh` runs the cases in the Android image.
 
 ### Release-build smoke test
 The shipped APK is R8-minified (`app/minify/*.pro`), and a missing keep rule only fails in that

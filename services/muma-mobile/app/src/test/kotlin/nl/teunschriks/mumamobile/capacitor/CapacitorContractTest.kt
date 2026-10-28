@@ -1,6 +1,5 @@
 package nl.teunschriks.mumamobile.capacitor
 
-import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import androidx.media3.common.Player
 import nl.teunschriks.mumamobile.service.DownloadState
 import org.amshove.kluent.shouldBeEqualTo
@@ -139,14 +138,14 @@ class CapacitorContractTest {
     /** A server whose muma API runs on its own host: the shell and the client must agree on it. */
     @Test
     fun `serverUrl follows a configured muma host`() {
-        val before = SubsonicAPIClient.mumaApiOverrides
-        try {
-            SubsonicAPIClient.mumaApiOverrides = mapOf("https://lms.example.org" to "https://muma.example.org")
-            serverUrlsOf("https://lms.example.org/").mumaApi shouldBeEqualTo "https://muma.example.org"
-            serverUrlsOf("https://other.example.org").mumaApi shouldBeEqualTo "https://other.example.org/muma"
-        } finally {
-            SubsonicAPIClient.mumaApiOverrides = before
-        }
+        val own = "https://music.example.org"
+        val api = "https://muma.example.org"
+        serverUrlsOf("https://music.example.org/", own, api).mumaApi shouldBeEqualTo api
+        // An install made with an older address on the same domain (the upgrade path).
+        serverUrlsOf("https://lms.example.org", own, api).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://LMS.Example.org:8443/", own, api).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://other.example.net", own, api).mumaApi shouldBeEqualTo "https://other.example.net/muma"
+        serverUrlsOf("https://lms.example.org", own, "").mumaApi shouldBeEqualTo "https://lms.example.org/muma"
     }
 
     // ------------------------------------------------------------ queue indices

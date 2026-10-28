@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.AuthenticationFailureNotifier
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
-import nl.teunschriks.mumamobile.data.StaticServers
 import nl.teunschriks.mumamobile.di.DB_FILENAME
 import nl.teunschriks.mumamobile.di.appPermanentStorage
 import nl.teunschriks.mumamobile.di.applicationModule
@@ -74,7 +73,6 @@ class UApp : Application() {
         }
 
         Timber.d("onCreate called")
-        StaticServers.applyMumaApiOverride()
 
         // The API module reports credential rejections through a plain callback, because it cannot
         // see RxBus. Bridging it here (rather than in an Activity) means a rejection is noticed no

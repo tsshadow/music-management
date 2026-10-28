@@ -92,6 +92,7 @@ docker run --rm \
     -e MUMA_SERVER_URL \
     -e MUMA_API_URL \
     -e MUMA_GOOGLE_CLIENT_ID \
+    -e MUMA_ALLOW_DEFAULTS=true \
     "$ANDROID_CI_IMAGE" \
     /bin/bash /workspace/scripts/test/muma-mobile-emulator-smoke-inner.sh
 

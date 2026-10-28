@@ -1,0 +1,1 @@
+- **pytest is pinned below 9.2 for the BDD suite.** pytest 9.2 removed a private attribute that pytest-bdd 8.1 uses, so `muma:e2e` failed every test in setup with `AttributeError: 'FixtureManager' object has no attribute '_arg2fixturedefs'`. The pin lives in `requirements.txt` and `tests/bdd/requirements.txt`, and Renovate is told to keep to it.

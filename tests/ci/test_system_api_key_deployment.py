@@ -103,7 +103,10 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
 
 
 LMS_ENV = "VITE_GOOGLE_CLIENT_ID=some-client-id\n"
-BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nDOCKER_USER=someone\n"
+BASE_ENV = (
+    "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nDOCKER_USER=someone\n"
+    "COMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n"
+)
 
 
 def test_secrets_check_rejects_a_release_without_any_system_key():

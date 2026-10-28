@@ -26,6 +26,10 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/compose_profiles.sh
+. "$SCRIPT_DIR/../lib/compose_profiles.sh"
+
 read_env_value() {
     # $1: CI/CD variable value (either file content, or a path to a file
     #     containing it, since GitLab "file" type variables inject a path).
@@ -148,6 +152,16 @@ else
             missing=1
         fi
     else
+        missing=1
+    fi
+    # The source workers (importer, youtube, soundcloud, telegram) sit behind
+    # compose profiles. Without COMPOSE_PROFILES a deploy starts none of them,
+    # and a compose v2 host removes the running ones as orphans.
+    # See docs/deployment.md#source-workers-are-compose-profiles.
+    if compose_profiles_value "$env_content" >/dev/null; then
+        echo "OK: 'COMPOSE_PROFILES' is set in 'PROD_ENV_FILE'."
+    else
+        echo "Missing required secret: 'COMPOSE_PROFILES' is not set (or empty) in the 'PROD_ENV_FILE' CI/CD variable."
         missing=1
     fi
 fi

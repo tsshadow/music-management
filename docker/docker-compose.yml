@@ -397,6 +397,9 @@ services:
   #     - music-management_db
 
   importer_worker:
+    # Opt-in source worker: runs only when this profile is enabled (COMPOSE_PROFILES,
+    # docs/deployment.md#source-workers-are-compose-profiles).
+    profiles: ["importer"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -440,6 +443,7 @@ services:
       - music-management_db
 
   youtube_worker:
+    profiles: ["youtube"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -486,6 +490,7 @@ services:
       - music-management_db
 
   soundcloud_worker:
+    profiles: ["soundcloud"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -532,6 +537,7 @@ services:
       - music-management_db
 
   telegram_worker:
+    profiles: ["telegram"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -634,6 +640,7 @@ services:
   #     - music-management_db
 
   soundcloud-fetcher:
+    profiles: ["soundcloud"]
     security_opt:
       - no-new-privileges:true
     cap_drop:

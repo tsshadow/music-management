@@ -152,8 +152,8 @@ function urlsFor(fragment) {
 
 describe("Dashboard", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);
@@ -577,7 +577,14 @@ describe("Dashboard - collection sorting and filtering", () => {
     { value: "Anjunadeep", songCount: 120, albumCount: 8 },
   ];
   const PLAYLISTS = [
-    { id: "pl-1", name: "Gabber", songCount: 12, duration: 2400, owner: "user", public: false },
+    {
+      id: "pl-1",
+      name: "Gabber",
+      songCount: 12,
+      duration: 2400,
+      owner: "demo-user",
+      public: false,
+    },
     { id: "pl-2", name: "Chill", songCount: 300, duration: 36000, owner: "gast", public: "true" },
   ];
 
@@ -594,8 +601,8 @@ describe("Dashboard - collection sorting and filtering", () => {
   }
 
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     favoriteGenres.set([]);

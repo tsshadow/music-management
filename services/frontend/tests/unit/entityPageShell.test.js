@@ -9,7 +9,7 @@ import { credentials } from "../../src/lib/store.js";
 describe("EntityPageShell", () => {
   beforeEach(() => {
     clearSeeds();
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
   });
 
   it("draws an artist's seeded name as the heading, with skeleton rows below", () => {

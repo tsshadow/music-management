@@ -53,12 +53,12 @@ describe("ProfileButton logout", () => {
   let reload;
 
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
     mumaRefreshToken.set("refresh-1");
     mumaSessionActive.set(true);
     userPermissions.set(["admin"]);
-    mumaUser.set({ username: "user" });
+    mumaUser.set({ username: "demo-user" });
     signedOut.set(false);
     window.localStorage.clear();
     window.localStorage.setItem("lms_active_view", "albums");
@@ -92,7 +92,7 @@ describe("ProfileButton logout", () => {
     // awaiting it first.
     expect(signOut).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
-    expect(get(credentials).username).toBe("user");
+    expect(get(credentials).username).toBe("demo-user");
 
     resolveSignOut();
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
@@ -242,7 +242,7 @@ describe("ProfileButton logout", () => {
       expect(container.contains(dialog)).toBe(false);
       expect(signOut).not.toHaveBeenCalled();
       expect(reload).not.toHaveBeenCalled();
-      expect(get(credentials).username).toBe("user");
+      expect(get(credentials).username).toBe("demo-user");
     });
 
     it("cancel keeps everything as it was", async () => {
@@ -260,7 +260,7 @@ describe("ProfileButton logout", () => {
       await waitFor(() => expect(queryByRole("dialog")).toBeNull());
       expect(signOut).not.toHaveBeenCalled();
       expect(reload).not.toHaveBeenCalled();
-      expect(get(credentials).username).toBe("user");
+      expect(get(credentials).username).toBe("demo-user");
       expect(get(mumaApiKey)).toBe("key-1");
       expect(get(playlist)).toEqual([{ id: "t1" }]);
       expect(get(signedOut)).toBe(false);

@@ -43,7 +43,7 @@ vi.mock("../../src/lib/mumaApi.js", () => ({
   restUrl: (pathAndQuery) => pathAndQuery,
 }));
 
-const AUTH = "u=user&p=secret&v=1.16.1&c=test&f=json";
+const AUTH = "u=demo-user&p=secret&v=1.16.1&c=test&f=json";
 
 function feedOf(...paths) {
   return {

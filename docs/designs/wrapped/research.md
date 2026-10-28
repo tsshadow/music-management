@@ -33,7 +33,7 @@ page is not.**
 | Genre coverage | 19,93 % | `/api/analytics/summary` |
 | Artist coverage | 71,25 % | `/api/analytics/summary` |
 | Ratings, user `user` | 1.357 (61×1, 179×2, 235×3, 559×4, **323×5**) | `/api/rating/ratings/user` |
-| Ratings, user `someuser` | 0 | `/api/rating/ratings/someuser` |
+| Ratings, user `listener-2` | 0 | `/api/rating/ratings/listener-2` |
 | BPM peak of the collection | 150–160 (18.491 + 12.686 tracks) | `/api/analytics/bpm-histogram` |
 | Release years present | 1992 – 2026 | `/api/analytics/year-histogram` |
 
@@ -113,7 +113,7 @@ sample size triples.
 | **Discovery of the year** | Artist first heard in 2026 with the most plays after. | listens | now |
 | **The loyal one** | Artist played in the most *distinct months* — consistency instead of volume. Usually a different name than the top-5, which is what makes it worth showing. | listens | now |
 | **One-hit fever** | Artist whose plays all land inside a single day. | listens | now |
-| **Two of you** | `user` and `someuser` both exist. Shared tracks, and the one record only you defended. | listens per user | now, thin (someuser has 0 ratings) |
+| **Two of you** | `user` and `listener-2` both exist. Shared tracks, and the one record only you defended. | listens per user | now, thin (listener-2 has 0 ratings) |
 | **Night shift** | Share of listens between 00:00 and 05:00. | `listened_at` | now |
 | **Seasons** | Dominant genre per season. "Your summer was uptempo, your winter was raw." | listens × genres | now |
 | **Longest session** | Consecutive listens with gaps under 15 minutes. | `listened_at` | now |
@@ -215,7 +215,7 @@ only (`summary`, `genre-distribution`, `bpm-histogram`, `year-histogram`, `top-a
 
 ## Open questions
 
-- Scope: user-facing feature for both users, or a personal page for `user`? `someuser` has zero ratings,
+- Scope: user-facing feature for both users, or a personal page for `user`? `listener-2` has zero ratings,
   which makes the shared cards thin.
 - Web only, or also a mobile screen? Car mode is where the listening happens but not where a Wrapped
   is read.

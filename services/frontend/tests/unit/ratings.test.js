@@ -50,7 +50,7 @@ describe("ratings store", () => {
   beforeEach(() => {
     resetRatings();
     dismissAll();
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     currentTrack.set(null);
   });
 
@@ -162,7 +162,7 @@ describe("one rating, every view", () => {
   beforeEach(() => {
     resetRatings();
     dismissAll();
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     currentTrack.set({ ...TRACK });
     playlist.set([]);
     favoriteGenres.set([]);

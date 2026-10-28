@@ -18,7 +18,7 @@ const playlist = (over = {}) => ({
   name: "Roadtrip",
   songCount: 20,
   duration: 3600,
-  owner: "user",
+  owner: "demo-user",
   public: false,
   created: "2026-01-01T00:00:00Z",
   changed: "2026-02-01T00:00:00Z",
@@ -179,14 +179,14 @@ describe("queryCollection - playlists", () => {
 
   it('filters on owner for the "van mij" chip', () => {
     const items = [
-      playlist({ id: "1", name: "Mijn", owner: "user" }),
+      playlist({ id: "1", name: "Mijn", owner: "demo-user" }),
       playlist({ id: "2", name: "Andermans", owner: "gast" }),
     ];
     const result = queryCollection(
       items,
       "playlists",
       { ...state(), visibility: "mine" },
-      { username: "user" },
+      { username: "demo-user" },
     );
     expect(names(result)).toEqual(["Mijn"]);
   });

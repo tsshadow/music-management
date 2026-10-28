@@ -37,8 +37,8 @@ async function renderLoaded(props = {}) {
 
 describe("FilterBar", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     visibleSortOptions.set({
       songs: ["recent", "alpha"],
       albums: ["newest"],
@@ -220,8 +220,8 @@ describe("FilterBar", () => {
 
 describe("FilterBar phone chips", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     visibleSortOptions.set({
       songs: ["recent", "alpha"],
       albums: ["newest"],

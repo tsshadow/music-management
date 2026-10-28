@@ -71,7 +71,7 @@ describe("imageLoads", () => {
 });
 
 describe("loadDailyMixCards", () => {
-  const AUTH = "u=user&p=secret&v=1.16.1&c=test&f=json";
+  const AUTH = "u=demo-user&p=secret&v=1.16.1&c=test&f=json";
 
   beforeEach(() => {
     globalThis.__listFeeds = vi.fn(async () => [

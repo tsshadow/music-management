@@ -26,7 +26,7 @@ async function submitPassword(newPassword, confirmation = newPassword) {
 
 describe("Advanced settings", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     visibleSortOptions.set(structuredClone(DEFAULT_SORT_OPTIONS));
     globalThis.fetch = subsonic("ok");
   });
@@ -61,7 +61,7 @@ describe("Advanced settings", () => {
     await waitFor(() => expect(screen.getByText("Wachtwoord succesvol gewijzigd!")).toBeTruthy());
     const url = globalThis.fetch.mock.calls[0][0];
     expect(url).toContain("/rest/updateUser?");
-    expect(url).toContain("username=user");
+    expect(url).toContain("username=demo-user");
     expect(url).toContain("password=hardcore");
     expect(screen.getByLabelText("Nieuw Wachtwoord").value).toBe("");
     expect(screen.getByLabelText("Bevestig Wachtwoord").value).toBe("");

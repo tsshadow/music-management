@@ -217,7 +217,11 @@ describe("the MuMa call gate", () => {
     // bare `fetch` calls beside the feeds, so the home screen's first burst
     // counted past the cap however careful the feed loaders were.
     mumaApiKey.set("key-1");
-    const api = gatedApi(9, { type: "user", user: { id: 1, username: "user" }, settings: null });
+    const api = gatedApi(9, {
+      type: "user",
+      user: { id: 1, username: "demo-user" },
+      settings: null,
+    });
     globalThis.fetch = api.fetchMock;
 
     await Promise.all([

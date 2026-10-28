@@ -13,7 +13,7 @@ const manyTracks = (n) => Array.from({ length: n }, (_, i) => ({ id: `tr-${1000 
 
 describe("subsonicPost", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
   });
 
   it("puts the fields in a form body and only the credentials in the URL", async () => {
@@ -28,12 +28,12 @@ describe("subsonicPost", () => {
         ["playing", true],
         ["position", undefined],
       ],
-      "u=user&t=x",
+      "u=demo-user&t=x",
       { fetchImpl },
     );
 
     const [url, init] = fetchImpl.mock.calls[0];
-    expect(url).toBe("https://lms.example/rest/savePlayQueue?u=user&t=x");
+    expect(url).toBe("https://lms.example/rest/savePlayQueue?u=demo-user&t=x");
     expect(init.method).toBe("POST");
     expect(init.body).toBeInstanceOf(URLSearchParams);
     expect(init.body.getAll("id")).toEqual(["a", "b"]);
@@ -45,17 +45,17 @@ describe("subsonicPost", () => {
 
 describe("saveTracksAsPlaylist", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
   });
 
   it("sends a long queue in the body, keeping the URL short", async () => {
     const fetchImpl = vi.fn(async () => ok());
     const tracks = manyTracks(2000);
 
-    await saveTracksAsPlaylist("Road trip", tracks, "u=user&t=x", { fetchImpl });
+    await saveTracksAsPlaylist("Road trip", tracks, "u=demo-user&t=x", { fetchImpl });
 
     const [url, init] = fetchImpl.mock.calls[0];
-    expect(url).toBe("https://lms.example/rest/createPlaylist?u=user&t=x");
+    expect(url).toBe("https://lms.example/rest/createPlaylist?u=demo-user&t=x");
     expect(url.length).toBeLessThan(200);
     expect(init.method).toBe("POST");
     expect(init.body.get("name")).toBe("Road trip");
@@ -70,16 +70,16 @@ describe("saveTracksAsPlaylist", () => {
       }),
     }));
 
-    await expect(saveTracksAsPlaylist("x", manyTracks(1), "u=user", { fetchImpl })).rejects.toThrow(
-      "missing",
-    );
+    await expect(
+      saveTracksAsPlaylist("x", manyTracks(1), "u=demo-user", { fetchImpl }),
+    ).rejects.toThrow("missing");
   });
 
   it("throws on an HTTP failure", async () => {
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 414, statusText: "URI Too Long" }));
 
-    await expect(saveTracksAsPlaylist("x", manyTracks(1), "u=user", { fetchImpl })).rejects.toThrow(
-      "URI Too Long",
-    );
+    await expect(
+      saveTracksAsPlaylist("x", manyTracks(1), "u=demo-user", { fetchImpl }),
+    ).rejects.toThrow("URI Too Long");
   });
 });

@@ -49,7 +49,7 @@ describe("TrackList", () => {
   beforeEach(() => {
     // The rating store outlives a render; a star set in one test would toggle off in the next.
     resetRatings();
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     playlist.set([FIRST, SECOND]);
     currentTrack.set(null);
     playerState.set({ playing: false });

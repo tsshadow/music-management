@@ -416,7 +416,7 @@ def _write_env_file(tmp_path: Path) -> Path:
     backups.mkdir(exist_ok=True)
     env_file.write_text(
         f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDB_USER=muma\nDOCKER_USER=tester\nDB_PASS=unused#x\n'
-        f"HOST_BACKUP_PATH={backups}\n",
+        f"HOST_BACKUP_PATH={backups}\nCOMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n",
         encoding="utf-8",
     )
     return env_file
@@ -702,7 +702,8 @@ def test_a_missing_backup_destination_aborts_the_deploy(tmp_path: Path) -> None:
     bin_dir, log_dir = _fake_bin(tmp_path)
     env_file = tmp_path / "prod.env"
     env_file.write_text(
-        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDOCKER_USER=tester\nHOST_BACKUP_PATH={tmp_path / "not-mounted"}\n',
+        f'MYSQL_ROOT_PASSWORD="{SECRET}"\nDB_DB=music-management\nDOCKER_USER=tester\nHOST_BACKUP_PATH={tmp_path / "not-mounted"}\n'
+        "COMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n",
         encoding="utf-8",
     )
     env = _env(tmp_path, bin_dir, log_dir, DEPLOY_TARGET_NAME="order-test", LOCAL_ENV_FILE=str(env_file))

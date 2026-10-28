@@ -104,8 +104,11 @@ describe("describing a row", () => {
 
   it("names who decided and when", () => {
     expect(describeDecision({})).toBeNull();
-    const decision = describeDecision({ decided_at: "2026-09-16 04:00:00", decided_by: "user" });
-    expect(decision.by).toBe("user");
+    const decision = describeDecision({
+      decided_at: "2026-09-16 04:00:00",
+      decided_by: "demo-user",
+    });
+    expect(decision.by).toBe("demo-user");
     expect(decision.when).toContain("2026");
   });
 });

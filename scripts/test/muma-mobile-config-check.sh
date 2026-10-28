@@ -14,6 +14,8 @@ source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
 
 gradle_in_image() {
+    # Dummy signing values go in by name only, never on argv (bug report 125).
+    SIGNING_STORE_PASSWORD=dummy SIGNING_KEY_ALIAS=dummy SIGNING_KEY_PASSWORD=dummy \
     docker run --rm \
         --label "ci.job=${CI_JOB_ID:-local}" \
         -u "$(id -u):$(id -g)" \
@@ -21,7 +23,7 @@ gradle_in_image() {
         -v "$GRADLE_HOME_DIR:/gradle_home" \
         -w "/workspace/services/muma-mobile" \
         -e GRADLE_USER_HOME="/gradle_home" \
-        -e SIGNING_STORE_PASSWORD=dummy -e SIGNING_KEY_ALIAS=dummy -e SIGNING_KEY_PASSWORD=dummy \
+        -e SIGNING_STORE_PASSWORD -e SIGNING_KEY_ALIAS -e SIGNING_KEY_PASSWORD \
         -e MUMA_SERVER_URL -e MUMA_GOOGLE_CLIENT_ID -e MUMA_API_URL -e MUMA_OWN_DOMAIN -e MUMA_ALLOW_DEFAULTS \
         "$ANDROID_CI_IMAGE" \
         /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew --console=plain -q "$@"' _ "$@" \

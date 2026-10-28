@@ -80,7 +80,8 @@
       "matchPackageNames": [
         "pytest"
       ],
-      "allowedVersions": "<9.2"
+      "allowedVersions": "<9.2",
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",

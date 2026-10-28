@@ -77,7 +77,7 @@ def test_declared_profiles_are_the_four_sources():
 
 
 def test_deploy_guard_reads_flow_style_profiles():
-    """deploy.sh greps `profiles: ["x"]` lines; the compose file must keep that shape."""
+    """The shared parser reads `profiles: ["x"]` lines; the compose file must keep that shape."""
     text = PROD.read_text(encoding='utf-8')
     lines = re.findall(r'^ +profiles: *\[.*\]$', text, flags=re.M)
     assert len(lines) == len(EXPECTED)
@@ -86,7 +86,7 @@ def test_deploy_guard_reads_flow_style_profiles():
 
 def test_prod_env_must_carry_compose_profiles():
     """The release pipeline fails when PROD_ENV_FILE lacks COMPOSE_PROFILES."""
-    assert 'require_key "$env_content" "COMPOSE_PROFILES" "PROD_ENV_FILE"' in SECRETS_SH.read_text(encoding='utf-8')
+    assert 'compose_profiles_value "$env_content"' in SECRETS_SH.read_text(encoding='utf-8')
 
 
 def _run_secrets_check(tmp_path, env_lines):
@@ -154,4 +154,124 @@ def test_deploy_refuses_an_env_file_without_compose_profiles(tmp_path):
         ['bash', str(DEPLOY_SH)], env=env, capture_output=True, text=True, cwd=tmp_path, check=False, timeout=60
     )
     assert result.returncode == 1
-    assert 'no COMPOSE_PROFILES line' in result.stdout
+    assert 'no non-empty COMPOSE_PROFILES line' in result.stdout
+
+
+LIB = ROOT / 'scripts' / 'lib' / 'compose_profiles.sh'
+ALL = 'soundcloud,youtube,telegram,importer'
+
+
+def _bash(snippet, *args):
+    """Run a snippet with compose_profiles.sh sourced; return the completed process."""
+    return subprocess.run(
+        ['bash', '-c', f'. {LIB}; {snippet}', '_', *args], capture_output=True, text=True, check=False, timeout=60
+    )
+
+
+@pytest.mark.parametrize(
+    'content, expected',
+    [
+        (f'COMPOSE_PROFILES={ALL}\n', ALL),
+        (f'COMPOSE_PROFILES={ALL}\r\n', ALL),
+        (f'export COMPOSE_PROFILES={ALL}\n', ALL),
+        (f'   COMPOSE_PROFILES={ALL}\n', ALL),
+        (f'COMPOSE_PROFILES="{ALL}"\n', ALL),
+        (f"COMPOSE_PROFILES='{ALL}'\n", ALL),
+        (f'COMPOSE_PROFILES={ALL} # all four\n', ALL),
+        (f'COMPOSE_PROFILES=youtube\nCOMPOSE_PROFILES={ALL}\n', ALL),
+        ('COMPOSE_PROFILES=\n', None),
+        ('COMPOSE_PROFILES=""\n', None),
+        ('COMPOSE_PROFILES= # nothing\n', None),
+        ('# COMPOSE_PROFILES=youtube\n', None),
+        ('OTHER=1\n', None),
+        (f'COMPOSE_PROFILES={ALL}\nCOMPOSE_PROFILES=\n', None),
+    ],
+)
+def test_shared_parser(content, expected):
+    """compose_profiles_value accepts the .env spellings compose accepts and rejects empty values."""
+    result = _bash('compose_profiles_value "$1"', content)
+    if expected is None:
+        assert result.returncode == 1
+    else:
+        assert (result.returncode, result.stdout) == (0, expected)
+
+
+def test_disabled_services_follow_the_profile_list():
+    """A service is disabled when none of its profiles is enabled; services without profiles never are."""
+    text = PROD.read_text(encoding='utf-8')
+    off = _bash('compose_disabled_services "$1" "$2"', text, 'importer,youtube').stdout.split()
+    assert sorted(off) == ['soundcloud-fetcher', 'soundcloud_worker', 'telegram_worker']
+    assert _bash('compose_disabled_services "$1" "$2"', text, ALL).stdout == ''
+    assert sorted(_bash('compose_disabled_services "$1" "$2"', text, 'other').stdout.split()) == sorted(EXPECTED)
+
+
+def test_deploy_skips_services_of_disabled_profiles():
+    """The update loop skips the services the shared parser reports for the disabled profiles."""
+    text = DEPLOY_SH.read_text(encoding='utf-8')
+    assert 'case \\" $SKIP_SERVICES $PROFILE_SKIPPED_SERVICES \\" in' in text
+    assert 'compose_disabled_services "$COMPOSE_CONTENT"' in text
+
+
+def _run_verify_check(env_extra, sample):
+    """Source post-deploy-verify.sh's check function in isolation."""
+    text = VERIFY_SH.read_text(encoding='utf-8')
+    start = text.index('PROFILE_WORKERS=')
+    end = text.index('# restarts_increased')
+    snippet = text[start:end]
+    return subprocess.run(
+        ['bash', '-c', f'. {LIB}; {snippet}\ncheck_profile_workers "$SAMPLE"'],
+        env={'PATH': os.environ['PATH'], 'SAMPLE': sample, **env_extra},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+RUNNING = ''.join(
+    f'music-management|/{c}|unless-stopped|running|none|0\n'
+    for c in ('muma-soundcloud-worker', 'muma-youtube-worker', 'muma-telegram-worker', 'muma-importer-worker')
+)
+
+
+def test_verify_check_skips_loudly_outside_the_deploy_jobs():
+    """No PROD_ENV_FILE or no COMPOSE_PROFILES: SKIPPED, exit 0 locally, exit 1 in muma:deploy and muma:verify."""
+    local = _run_verify_check({}, RUNNING)
+    assert local.returncode == 0 and 'SKIPPED' in local.stdout
+    for job in ('muma:deploy', 'muma:verify'):
+        failing = _run_verify_check({'CI_JOB_NAME': job}, RUNNING)
+        assert failing.returncode == 1 and 'SKIPPED' in failing.stdout
+        no_key = _run_verify_check({'CI_JOB_NAME': job, 'PROD_ENV_FILE': 'OTHER=1\n'}, RUNNING)
+        assert no_key.returncode == 1 and 'COMPOSE_PROFILES' in no_key.stdout
+
+
+def test_verify_check_flags_a_worker_that_is_not_running():
+    """A worker of an enabled profile that is exited or missing fails the check."""
+    env = {'PROD_ENV_FILE': f'COMPOSE_PROFILES={ALL}\r\n'}
+    assert _run_verify_check(env, RUNNING).returncode == 0
+    exited = RUNNING.replace(
+        '/muma-telegram-worker|unless-stopped|running', '/muma-telegram-worker|unless-stopped|exited'
+    )
+    result = _run_verify_check(env, exited)
+    assert result.returncode == 1 and 'telegram' in result.stdout
+    assert _run_verify_check({'PROD_ENV_FILE': 'COMPOSE_PROFILES=youtube\n'}, exited).returncode == 0
+
+
+def test_move_import_queue_recreates_the_stopped_services_by_name():
+    """A bare `up -d` would leave the profiled workers down; the script names what it stopped."""
+    text = (ROOT / 'scripts' / 'prod' / 'person' / 'move-import-queue.sh').read_text(encoding='utf-8')
+    assert 'com.docker.compose.service' in text
+    assert 'up -d --no-deps ${svcs% }' in text
+
+
+def test_one_off_commands_on_profiled_services_pass_the_profile():
+    """run/logs/up of a profiled service names its profile, or compose says the service does not exist."""
+    telegram = (ROOT / 'run_telegram_auth.sh').read_text(encoding='utf-8')
+    assert '--profile telegram run --rm' in telegram
+    assert '--profile telegram up -d telegram_worker' in telegram
+    readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+    assert '--profile importer logs -f importer_worker' in readme
+    for profile in ALL_PROFILES:
+        assert f'--profile {profile}' in readme
+    assert '--profile soundcloud run --rm soundcloud-fetcher' in (ROOT / 'docs' / 'deployment.md').read_text(
+        encoding='utf-8'
+    )

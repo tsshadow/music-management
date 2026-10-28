@@ -163,17 +163,19 @@ Backups are stored in `/muma/backups` on the host machine. The script uses `dock
 
 **Start the entire stack:**
 ```bash
-docker-compose -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up -d
+docker-compose -f docker/docker-compose.yml -f docker/docker-compose.tools.yml \
+  --profile importer --profile soundcloud --profile youtube --profile telegram up -d
 ```
+(or `COMPOSE_PROFILES=importer,soundcloud,youtube,telegram` in `.env`, then a plain `up -d`)
 
-**Start only core services:**
+**Start only core services (no source workers):**
 ```bash
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml up -d
 ```
 
 **View logs for a specific service:**
 ```bash
-docker-compose -f docker/docker-compose.yml logs -f importer_worker
+docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
 
 ---

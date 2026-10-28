@@ -178,7 +178,7 @@ if grep -q "The web bundle was not built" app/src/main/assets/public/index.html 
     echo "WARNING: this APK carries the placeholder page, not the Svelte bundle; only the WebView is checked." >&2
 else
     if [ -z "$SMOKE_EXPECTED_SERVER" ]; then
-        echo "Error: SMOKE_EXPECTED_SERVER is not set (the wrapper reads it from StaticServers.kt)." >&2
+        echo "Error: SMOKE_EXPECTED_SERVER is not set (the wrapper sets it from MUMA_SERVER_URL)." >&2
         exit 1
     fi
     EXPECT_TEXT="$SMOKE_EXPECTED_SERVER"

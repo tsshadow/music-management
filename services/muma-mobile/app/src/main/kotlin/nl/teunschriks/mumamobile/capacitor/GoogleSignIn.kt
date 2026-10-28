@@ -31,14 +31,15 @@ import timber.log.Timber
  * browser's button does -- one backend path, two ways to obtain the token.
  *
  * The token's audience is [serverClientId]: the Web OAuth client ID the backend already verifies
- * against (`GOOGLE_CLIENT_ID`, baked in as `BuildConfig.GOOGLE_WEB_CLIENT_ID`). Google only issues
+ * against (`GOOGLE_CLIENT_ID`, baked in as `BuildConfig.GOOGLE_WEB_CLIENT_ID` from the Gradle property
+ * `muma.googleClientId`; empty when the build set none). Google only issues
  * one to this app when an Android-type OAuth client for its package name and signing-certificate
  * SHA-1 exists in the same Google Cloud project (bug report 011); that registration is outside the
  * code, see `scripts/prod/person/register-android-google-client.sh`.
  */
 object GoogleSignIn {
 
-    /** What `app/build.gradle` compiles in when no client ID was available at build time. */
+    /** The value older builds compiled in when no client ID was available; still treated as none. */
     const val PLACEHOLDER_CLIENT_ID = "placeholder-id"
 
     /** Why a sign-in produced no token; sent to the page as the rejection's `code`. */

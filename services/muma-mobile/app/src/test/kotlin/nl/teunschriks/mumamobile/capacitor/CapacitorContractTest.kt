@@ -1,5 +1,6 @@
 package nl.teunschriks.mumamobile.capacitor
 
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import androidx.media3.common.Player
 import nl.teunschriks.mumamobile.service.DownloadState
 import org.amshove.kluent.shouldBeEqualTo
@@ -135,10 +136,17 @@ class CapacitorContractTest {
         urls.mumaApi shouldBeEqualTo "https://lms.example.org/muma"
     }
 
-    /** The production host has muma on its own name, and the shell must agree with the client. */
+    /** A server whose muma API runs on its own host: the shell and the client must agree on it. */
     @Test
-    fun `serverUrl follows the production exception`() {
-        serverUrlsOf("https://lms.example.com").mumaApi shouldBeEqualTo "https://muma.example.com"
+    fun `serverUrl follows a configured muma host`() {
+        val before = SubsonicAPIClient.mumaApiOverrides
+        try {
+            SubsonicAPIClient.mumaApiOverrides = mapOf("https://lms.example.org" to "https://muma.example.org")
+            serverUrlsOf("https://lms.example.org/").mumaApi shouldBeEqualTo "https://muma.example.org"
+            serverUrlsOf("https://other.example.org").mumaApi shouldBeEqualTo "https://other.example.org/muma"
+        } finally {
+            SubsonicAPIClient.mumaApiOverrides = before
+        }
     }
 
     // ------------------------------------------------------------ queue indices

@@ -82,6 +82,23 @@ If you are modifying the code and need to rebuild and redeploy the system:
 5.  **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh [debug|release]` (defaults to debug)
     - Use `patch`, `minor`, or `major` as mode for version increments (e.g., `./install patch`).
 
+### Server address and Google sign-in
+
+The APK does not carry a server in its source. `app/build.gradle` compiles three values into
+`BuildConfig` from a Gradle property, or from an environment variable when the property is absent:
+
+| Gradle property | Environment | Default | Effect |
+| --- | --- | --- | --- |
+| `muma.serverUrl` | `MUMA_SERVER_URL` | `https://music.example.org` | The one server the app talks to (`StaticServers.SERVER_URL`). |
+| `muma.googleClientId` | `MUMA_GOOGLE_CLIENT_ID` | empty | The Google OAuth Web client id of "Sign in with Google". Empty hides the button. |
+| `muma.apiUrl` | `MUMA_API_URL` | empty | Own host for the MuMa API. Empty means `<server>/muma`. |
+
+Locally: `./gradlew :app:assembleDebug -Pmuma.serverUrl=https://music.example.org`, or put the
+variables in the shell. In CI they are CI/CD variables with the same names, and
+`scripts/ci/muma-mobile-build-upload.sh release` stops when the first two are missing, so a release
+never ships with the neutral server. `mobile:smoke` builds with the same variables and expects that
+server on the login page.
+
 ### Release-build smoke test
 The shipped APK is R8-minified (`app/minify/*.pro`), and a missing keep rule only fails in that
 build -- the 6.21.0 startup crash (`docs/bug-reports/029`) was invisible to every unit test.

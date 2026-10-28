@@ -7,6 +7,9 @@
 
 package nl.teunschriks.mumamobile.data
 
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldStartWith
 import org.junit.Test
@@ -35,5 +38,26 @@ class StaticServersTest {
     @Test
     fun `the server entry does not put the password in the URL`() {
         server.forcePlainTextPassword.shouldBeFalse()
+    }
+
+    /** The address is the build's `muma.serverUrl`, not a literal in the source. */
+    @Test
+    fun `the server address is the one the build was given`() {
+        StaticServers.SERVER_URL shouldBeEqualTo BuildConfig.MUMA_SERVER_URL
+        server.url shouldBeEqualTo BuildConfig.MUMA_SERVER_URL
+    }
+
+    @Test
+    fun `a build with a separate muma host routes the server to it, and no other`() {
+        val before = SubsonicAPIClient.mumaApiOverrides
+        try {
+            StaticServers.applyMumaApiOverride("https://lms.example.org/", "https://muma.example.org/")
+            SubsonicAPIClient.mumaBaseUrlFor("https://lms.example.org") shouldBeEqualTo "https://muma.example.org"
+            SubsonicAPIClient.mumaBaseUrlFor("https://other.example.org") shouldBeEqualTo "https://other.example.org/muma"
+            StaticServers.applyMumaApiOverride("https://lms.example.org", "")
+            SubsonicAPIClient.mumaBaseUrlFor("https://lms.example.org") shouldBeEqualTo "https://lms.example.org/muma"
+        } finally {
+            SubsonicAPIClient.mumaApiOverrides = before
+        }
     }
 }

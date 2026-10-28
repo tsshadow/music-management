@@ -201,9 +201,17 @@ class SubsonicAPIClient(
          * known-good server URL rather than whatever server happens to be currently active
          * (e.g. the "Sign in with Google" button on the very first, pre-setup welcome screen).
          */
-        fun mumaBaseUrlFor(serverBaseUrl: String): String = when {
-            serverBaseUrl.contains("example.com") -> "https://muma.example.com"
-            else -> "${serverBaseUrl.removeSuffix("/")}/muma"
+        fun mumaBaseUrlFor(serverBaseUrl: String): String {
+            val base = serverBaseUrl.removeSuffix("/")
+            return mumaApiOverrides[base] ?: "$base/muma"
         }
+
+        /**
+         * Servers whose MuMa API runs on its own host instead of under `<server>/muma`, by server
+         * base URL without a trailing slash. The app fills it at start from the build's
+         * `muma.apiUrl` setting; it is empty for a build that has no such host.
+         */
+        @Volatile
+        var mumaApiOverrides: Map<String, String> = emptyMap()
     }
 }

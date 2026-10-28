@@ -7,6 +7,9 @@
 
 package nl.teunschriks.mumamobile.data
 
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+
 /**
  * The one server the app talks to.
  *
@@ -20,7 +23,24 @@ object StaticServers {
 
     /** Pre-rebrand name of the same server; kept so upgraded installs still match. */
     const val LEGACY_SERVER_NAME = "LMS"
-    const val SERVER_URL = "https://music.example.com"
+
+    /**
+     * The server's address, compiled in from the Gradle property `muma.serverUrl` (CI:
+     * `MUMA_SERVER_URL`); `https://music.example.org` when the build set none.
+     */
+    val SERVER_URL: String = BuildConfig.MUMA_SERVER_URL
+
+    /**
+     * Tells the API module where the MuMa API of [SERVER_URL] lives when it has its own host
+     * (`muma.apiUrl` at build time, [apiUrl] here). Empty keeps the `<server>/muma` default.
+     */
+    fun applyMumaApiOverride(serverUrl: String = SERVER_URL, apiUrl: String = BuildConfig.MUMA_API_URL) {
+        SubsonicAPIClient.mumaApiOverrides = if (apiUrl.isBlank()) {
+            emptyMap()
+        } else {
+            mapOf(serverUrl.removeSuffix("/") to apiUrl.trim().removeSuffix("/"))
+        }
+    }
 
     /**
      * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].

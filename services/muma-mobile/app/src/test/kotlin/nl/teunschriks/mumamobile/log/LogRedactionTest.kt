@@ -31,12 +31,12 @@ class LogRedactionTest {
     /** The INFO line `CachedDataSource.open` wrote for every stream (bug report 054). */
     @Test
     fun `the credentials in a logged stream DataSpec are masked`() {
-        val line = "CachedDatasource: Open: DataSpec[GET https://music.example.com/rest/stream.view" +
+        val line = "CachedDatasource: Open: DataSpec[GET https://music.example.org/rest/stream.view" +
             "?id=tr-1&u=user&c=MuMa&f=json&v=1.16.1&p=enc:68756e74657232&maxBitRate=0, 0, -1, null, 0]"
 
         val redacted = LogRedaction.redactUrl(line)
 
-        redacted shouldBeEqualTo "CachedDatasource: Open: DataSpec[GET https://music.example.com/rest/stream.view" +
+        redacted shouldBeEqualTo "CachedDatasource: Open: DataSpec[GET https://music.example.org/rest/stream.view" +
             "?id=tr-1&u=<redacted>&c=MuMa&f=json&v=1.16.1&p=<redacted>&maxBitRate=0, 0, -1, null, 0]"
     }
 

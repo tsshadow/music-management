@@ -61,10 +61,10 @@ echo "The session will be saved in the persistent volume."
 echo ""
 
 # Interactive with a TTY by default for `run`; --no-deps leaves the database container alone.
-$DOCKER_CMD "${ENV_ARGS[@]}" -f "$COMPOSE_FILE_PATH" run --rm --no-deps telegram_worker \
+$DOCKER_CMD "${ENV_ARGS[@]}" -f "$COMPOSE_FILE_PATH" --profile telegram run --rm --no-deps telegram_worker \
     python services/downloader/downloader_service.py --step telegram --account "$CHANNEL"
 
 echo ""
 echo "--- Authentication Complete ---"
 echo "You can now start the worker in the background using:"
-echo "$DOCKER_CMD ${ENV_ARGS[*]} -f $COMPOSE_FILE_PATH up -d telegram_worker"
+echo "$DOCKER_CMD ${ENV_ARGS[*]} -f $COMPOSE_FILE_PATH --profile telegram up -d telegram_worker"

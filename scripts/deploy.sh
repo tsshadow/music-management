@@ -74,6 +74,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/dotenv.sh"
 # shellcheck source=scripts/lib/ssh_host_keys.sh
 . "$SCRIPT_DIR/lib/ssh_host_keys.sh"
+# shellcheck source=scripts/lib/compose_profiles.sh
+. "$SCRIPT_DIR/lib/compose_profiles.sh"
 
 # The env file is both the configuration of this script and the file shipped
 # to the host for the stack. It may be absolute: ci-deploy.sh materialises it in
@@ -250,6 +252,29 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     if [ -z "$COMPOSE_CONTENT" ]; then
         echo "Error: No docker-compose configuration found."
         exit 1
+    fi
+
+    # Source workers sit behind compose profiles: without COMPOSE_PROFILES in the
+    # env file a deploy starts none of them, and compose v2 removes the running
+    # ones as orphans. Refuse before anything changes. A declared profile that the
+    # value leaves out is skipped in the update loop below on v1 and v2 alike
+    # (v1 would otherwise start it, because it is named on the command line); a
+    # container of it that is already running is left running.
+    # docs/deployment.md#source-workers-are-compose-profiles
+    PROFILE_SKIPPED_SERVICES=""
+    DECLARED_PROFILES=$(compose_service_profiles "$COMPOSE_CONTENT" | awk '{print $2}' | sort -u | tr '\n' ' ')
+    if [ -n "$DECLARED_PROFILES" ] && [ -f "$ENV_PATH" ]; then
+        if ! ENABLED_PROFILES=$(compose_profiles_value "$(cat "$ENV_PATH")"); then
+            echo "Error: the compose file declares the profiles ${DECLARED_PROFILES}but the env file has no non-empty COMPOSE_PROFILES line, so no source worker would be started. Add e.g. COMPOSE_PROFILES=soundcloud,youtube,telegram,importer (docs/deployment.md#source-workers-are-compose-profiles)."
+            exit 1
+        fi
+        PROFILE_SKIPPED_SERVICES=$(compose_disabled_services "$COMPOSE_CONTENT" "$ENABLED_PROFILES")
+        for P in $DECLARED_PROFILES; do
+            case ",$ENABLED_PROFILES," in
+                *",$P,"*) ;;
+                *) echo "Note: profile '$P' is not in COMPOSE_PROFILES; its services are not updated or started here. A container of it that already runs is left running; stop it by hand." ;;
+            esac
+        done
     fi
 
     # The compose file is no secret (it is the tracked file), so it may ride on
@@ -727,8 +752,8 @@ $1" < /dev/null
             SERVICES=\"$SERVICE_NAME\"
         else
             for SVC in \$(\$DOCKER_CMD config --services); do
-                case \" $SKIP_SERVICES \" in
-                    *\" \$SVC \"*) echo \"Leaving \$SVC alone (see DEPLOY_DB / DEPLOY_ONESHOTS in scripts/deploy.sh)\" ;;
+                case \" $SKIP_SERVICES $PROFILE_SKIPPED_SERVICES \" in
+                    *\" \$SVC \"*) echo \"Leaving \$SVC alone (see DEPLOY_DB / DEPLOY_ONESHOTS in scripts/deploy.sh, and COMPOSE_PROFILES)\" ;;
                     *) SERVICES=\"\$SERVICES \$SVC\" ;;
                 esac
             done

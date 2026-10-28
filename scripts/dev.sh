@@ -49,6 +49,8 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+# The source workers are compose profiles; the dev stack runs all of them (up and down).
+export COMPOSE_PROFILES="${COMPOSE_PROFILES:-soundcloud,youtube,telegram,importer}"
 COMPOSE_FILES="-f docker/docker-compose.yml -f docker/docker-compose.workers.yml -f docker/docker-compose.tools.yml -f docker/docker-compose.dev.yml"
 
 stop_dev() {

@@ -252,6 +252,25 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         exit 1
     fi
 
+    # Source workers sit behind compose profiles: without COMPOSE_PROFILES in the
+    # env file a deploy starts none of them, and compose v2 removes the running
+    # ones as orphans. Refuse before anything changes. Profiles that the file
+    # lists too few of are only reported. docs/deployment.md#source-workers-are-compose-profiles
+    DECLARED_PROFILES=$(printf '%s\n' "$COMPOSE_CONTENT" | grep -E '^ +profiles: *\[' | grep -oE '"[^"]+"' | tr -d '"' | sort -u | tr '\n' ' ')
+    if [ -n "$DECLARED_PROFILES" ] && [ -f "$ENV_PATH" ]; then
+        if ! grep -qE '^COMPOSE_PROFILES=' "$ENV_PATH"; then
+            echo "Error: the compose file declares the profiles ${DECLARED_PROFILES}but the env file has no COMPOSE_PROFILES line, so no source worker would be started. Add e.g. COMPOSE_PROFILES=soundcloud,youtube,telegram,importer (docs/deployment.md#source-workers-are-compose-profiles)."
+            exit 1
+        fi
+        ENABLED_PROFILES=$(grep -E '^COMPOSE_PROFILES=' "$ENV_PATH" | tail -n 1 | cut -d= -f2- | tr -d "\"' ")
+        for P in $DECLARED_PROFILES; do
+            case ",$ENABLED_PROFILES," in
+                *",$P,"*) ;;
+                *) echo "Note: profile '$P' is not in COMPOSE_PROFILES; its services are not started." ;;
+            esac
+        done
+    fi
+
     # The compose file is no secret (it is the tracked file), so it may ride on
     # the command line; the env file may not.
     B64_DATA=$(echo "$COMPOSE_CONTENT" | base64 -w 0)

@@ -136,6 +136,22 @@ The system is split into modular Docker Compose files for better resource manage
    workers depend on a `db` only `docker-compose.yml` defines). Production never reads it.
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
 
+#### Source workers are opt-in
+
+The workers that bring music into the library are Compose profiles. Without a profile, `up` starts
+the database, the manager and the other core services, and none of them:
+
+| Profile      | Services                            | For                                                                  |
+|--------------|-------------------------------------|----------------------------------------------------------------------|
+| `importer`   | `importer_worker`                   | Music you bought or got as a label promo, placed into your library.  |
+| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher` | Tracks an artist or label published on their own SoundCloud channel. |
+| `youtube`    | `youtube_worker`                    | Tracks an artist or label published on their own YouTube channel.    |
+| `telegram`   | `telegram_worker`                   | Files from Telegram chats you take part in.                          |
+
+Turn them on with `COMPOSE_PROFILES` in `.env`, for example `COMPOSE_PROFILES=importer,youtube`, or per
+command with `docker-compose --profile importer up -d`. See
+[docs/deployment.md](docs/deployment.md#source-workers-are-compose-profiles).
+
 ### Database Backups
 A SQL dump of the MariaDB database is automatically created during every deployment. Manual backups can be triggered using:
 ```bash

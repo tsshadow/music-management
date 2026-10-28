@@ -123,6 +123,11 @@ else
     # gone, so an unset value would reach the container as an empty password.
     # See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
     require_key "$env_content" "FIREFOX_PASSWORD" "PROD_ENV_FILE" || missing=1
+    # The source workers (importer, youtube, soundcloud, telegram) sit behind
+    # compose profiles. Without COMPOSE_PROFILES a deploy starts none of them,
+    # and a compose v2 host removes the running ones as orphans.
+    # See docs/deployment.md#source-workers-are-compose-profiles.
+    require_key "$env_content" "COMPOSE_PROFILES" "PROD_ENV_FILE" || missing=1
 fi
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then

@@ -128,6 +128,32 @@ check_states() {
     return "$failed"
 }
 
+# check_profile_workers SAMPLE: every source worker whose compose profile the
+# production env file enables (COMPOSE_PROFILES in PROD_ENV_FILE) must be in
+# SAMPLE and running. Profiles decide which workers `up` starts, so a profile
+# dropped from that file would otherwise just remove a worker without a red
+# check (docs/deployment.md#source-workers-are-compose-profiles). The profile
+# to container map is pinned against docker/docker-compose.yml by
+# tests/ci/test_compose_profiles.py. Skipped when PROD_ENV_FILE is not set.
+PROFILE_WORKERS="soundcloud:muma-soundcloud-worker youtube:muma-youtube-worker telegram:muma-telegram-worker importer:muma-importer-worker"
+check_profile_workers() {
+    local sample="$1" content profiles entry profile container state failed=0
+    [ -n "${PROD_ENV_FILE:-}" ] || return 0
+    if [ -f "$PROD_ENV_FILE" ]; then content="$(cat "$PROD_ENV_FILE")"; else content="$PROD_ENV_FILE"; fi
+    profiles="$(printf '%s\n' "$content" | grep -E '^COMPOSE_PROFILES=' | tail -1 | cut -d= -f2- | tr -d '"'"'"' ')"
+    for entry in $PROFILE_WORKERS; do
+        profile="${entry%%:*}"
+        container="${entry#*:}"
+        case ",${profiles}," in *",${profile},"*) ;; *) continue ;; esac
+        state="$(printf '%s\n' "$sample" | awk -F'|' -v n="/${container}" '$2 == n { print $4; exit }')"
+        if [ "$state" != "running" ]; then
+            echo "  ERROR: profile '${profile}' is enabled but ${container} is ${state:-missing}, not running."
+            failed=1
+        fi
+    done
+    return "$failed"
+}
+
 # restarts_increased BEFORE AFTER: print every container whose RestartCount
 # grew between the two samples, and return 0 when there is at least one.
 restarts_increased() {
@@ -145,7 +171,7 @@ restarts_increased() {
 
 echo "--- Verifying container state on $REMOTE_HOST ---"
 FIRST_SAMPLE="$(sample_containers)"
-if ! check_states "$FIRST_SAMPLE"; then
+if ! check_states "$FIRST_SAMPLE" || ! check_profile_workers "$FIRST_SAMPLE"; then
     echo "--- Post-deploy verification FAILED: container state ---"
     exit 1
 fi

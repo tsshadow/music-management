@@ -58,27 +58,30 @@ describe("getArtistImageUrl", () => {
   });
 
   it("prefers the Subsonic cover art when the artist has one", () => {
-    const url = getArtistImageUrl({ coverArt: "ar-1", name: "Angerfist", id: 7 }, "u=user&t=x");
-    expect(url).toBe(`${window.location.origin}/rest/getCoverArt?id=ar-1&size=300&u=user&t=x`);
+    const url = getArtistImageUrl(
+      { coverArt: "ar-1", name: "Angerfist", id: 7 },
+      "u=demo-user&t=x",
+    );
+    expect(url).toBe(`${window.location.origin}/rest/getCoverArt?id=ar-1&size=300&u=demo-user&t=x`);
   });
 
   it("falls back to the MuMa image endpoint, keyed on the name", () => {
-    const url = getArtistImageUrl({ name: "Angerfist", id: 7 }, "u=user");
-    expect(url).toBe(`${get(mumaApiUrl)}/api/artists/Angerfist/image?u=user`);
+    const url = getArtistImageUrl({ name: "Angerfist", id: 7 }, "u=demo-user");
+    expect(url).toBe(`${get(mumaApiUrl)}/api/artists/Angerfist/image?u=demo-user`);
   });
 
   it("escapes a name that is not URL-safe", () => {
-    const url = getArtistImageUrl({ name: "A/B & C" }, "u=user");
+    const url = getArtistImageUrl({ name: "A/B & C" }, "u=demo-user");
     expect(url).toContain(encodeURIComponent("A/B & C"));
   });
 
   it("falls back to the stored primary image when only an id is known", () => {
-    expect(getArtistImageUrl({ id: 7 }, "u=user")).toBe("/media/artist-images/7/primary.jpg");
+    expect(getArtistImageUrl({ id: 7 }, "u=demo-user")).toBe("/media/artist-images/7/primary.jpg");
   });
 
   it("falls back to the placeholder when nothing identifies the artist", () => {
-    expect(getArtistImageUrl({}, "u=user")).toBe("/images/unknown-artist.svg");
-    expect(getArtistImageUrl(null, "u=user")).toBe("/images/unknown-artist.svg");
+    expect(getArtistImageUrl({}, "u=demo-user")).toBe("/images/unknown-artist.svg");
+    expect(getArtistImageUrl(null, "u=demo-user")).toBe("/images/unknown-artist.svg");
   });
 });
 

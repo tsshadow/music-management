@@ -107,8 +107,8 @@ const THUNDERDOME_TRACKS = [{ id: "t1", title: "Thunderdome Anthem", artist: "Va
 
 describe("VoiceView", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     mumaApiKey.set("key");
     playlist.set([]);
     currentTrack.set(null);

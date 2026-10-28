@@ -85,8 +85,8 @@ const queueIds = () => get(playlist).map((t) => t.id);
 beforeEach(() => {
   // Lists are cached per query; every test starts from the network.
   trackListCache.clear();
-  credentials.set({ url: "", username: "user", password: "pw" });
-  subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+  credentials.set({ url: "", username: "demo-user", password: "pw" });
+  subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
   viewMode.set("songs");
   deduplicateEnabled.set(false);
   favoriteGenres.set([]);

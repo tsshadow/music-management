@@ -35,7 +35,7 @@ function subsonic({ song = [SONG], artist = [ARTIST], album = [ALBUM] } = {}) {
 
 describe("SearchMoreModal", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     activeModal.set({ type: "search-results", data: { query: "angerfist", category: "tracks" } });

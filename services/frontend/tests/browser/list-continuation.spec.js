@@ -1,7 +1,7 @@
 // A song list continues in the queue, on the phone and on the tablet
 // (docs/designs/list-continuation/, issue #100).
 //
-// Teun: "Stel je hebt 'recent uitgebracht' en bent bij het eind." The songs list sorted by
+// Demo-User: "Stel je hebt 'recent uitgebracht' en bent bij het eind." The songs list sorted by
 // "Recent uitgebracht" is 105 tracks here, in pages of 50. A tapped row starts a queue of what the
 // page shows; the queue sheet ends in "Meer laden", which grows it page by page, and in "Einde van
 // de lijst" once the list ran out. jsdom proves the pill is rendered; this proves it is on screen

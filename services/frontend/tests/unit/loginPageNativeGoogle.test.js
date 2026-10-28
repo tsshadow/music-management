@@ -21,7 +21,12 @@ import {
  * `isNative` is flipped on the browser platform singleton to stand in for the shell.
  */
 
-const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: ["music.play"] };
+const MUMA_USER = {
+  id: 1,
+  username: "demo-user",
+  display_name: "Demo-User",
+  permissions: ["music.play"],
+};
 
 function server(
   google = { status: "ok", api_key: "key-1", refresh_token: "r-1", user: MUMA_USER },
@@ -88,11 +93,11 @@ describe("LoginPage native Google sign-in", () => {
     await waitFor(() => expect(get(mumaSessionActive)).toBe(true));
     const [, request] = global.fetch.mock.calls.find(([url]) => url.includes("/api/auth/google"));
     expect(JSON.parse(request.body)).toEqual({ id_token: "an-id-token" });
-    expect(get(credentials)).toMatchObject({ username: "user" });
+    expect(get(credentials)).toMatchObject({ username: "demo-user" });
     expect(get(credentials)).not.toHaveProperty("password");
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
-      username: "user",
+      username: "demo-user",
       mumaApiKey: "key-1",
       mumaUserId: 1,
     });

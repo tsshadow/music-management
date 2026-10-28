@@ -60,8 +60,8 @@ export async function signIn(username, password) {
     return { ok: false, reason: sessionFailure, message: "" };
   }
   // Account names are case-insensitive, and the account's own spelling is the
-  // one every later call signs in with -- not the one typed. "Teun" typed for
-  // the account "user" used to be stored as typed and sent as Subsonic `u=` on
+  // one every later call signs in with -- not the one typed. "Demo-User" typed for
+  // the account "demo-user" used to be stored as typed and sent as Subsonic `u=` on
   // every request, and LMS, comparing names byte for byte, created a second
   // user for it (docs/bug-reports/074-login-case-forks-user-identity.md).
   let canonical = canonicalUsername(username, session.user);

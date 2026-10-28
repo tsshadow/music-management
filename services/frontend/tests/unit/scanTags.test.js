@@ -20,7 +20,7 @@ describe("loadIndexedTags", () => {
       }),
     );
 
-    expect(await loadIndexedTags("u=user")).toEqual(["FESTIVAL", "PODCAST"]);
+    expect(await loadIndexedTags("u=demo-user")).toEqual(["FESTIVAL", "PODCAST"]);
   });
 
   it("accepts a single tag that the server did not wrap in an array", async () => {
@@ -33,7 +33,7 @@ describe("loadIndexedTags", () => {
       }),
     );
 
-    expect(await loadIndexedTags("u=user")).toEqual(["FESTIVAL"]);
+    expect(await loadIndexedTags("u=demo-user")).toEqual(["FESTIVAL"]);
   });
 
   // A non-admin gets a scanStatus without any scanSettings at all. Reading that as
@@ -42,7 +42,7 @@ describe("loadIndexedTags", () => {
   it("answers null when the response carries no settings, as it does for a non-admin", async () => {
     vi.stubGlobal("fetch", respond({ "subsonic-response": { scanStatus: { scanning: false } } }));
 
-    expect(await loadIndexedTags("u=user")).toBeNull();
+    expect(await loadIndexedTags("u=demo-user")).toBeNull();
   });
 
   it("answers null when the request fails rather than throwing at the caller", async () => {
@@ -53,7 +53,7 @@ describe("loadIndexedTags", () => {
       }),
     );
 
-    expect(await loadIndexedTags("u=user")).toBeNull();
+    expect(await loadIndexedTags("u=demo-user")).toBeNull();
   });
 
   it("answers null without calling the server when there is no session yet", async () => {

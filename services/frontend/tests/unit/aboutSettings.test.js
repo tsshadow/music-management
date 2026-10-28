@@ -29,7 +29,7 @@ function nativePlatform({ update = null, notes = "" } = {}) {
         version: "6.36.0",
         versionCode: 313,
         buildType: "debug",
-        packageName: "nl.teunschriks.mumamobile.debug",
+        packageName: "org.example.mumamobile.debug",
         androidVersion: "15 (API 35)",
         device: "Google Pixel 8",
       })),
@@ -181,7 +181,7 @@ describe("About", () => {
 
     await waitFor(() => expect(screen.getByText("Versie 6.36.0 (313)")).toBeInTheDocument());
     expect(screen.getByTestId("about-app")).toHaveTextContent("debug");
-    expect(screen.getByTestId("about-app")).toHaveTextContent("nl.teunschriks.mumamobile.debug");
+    expect(screen.getByTestId("about-app")).toHaveTextContent("org.example.mumamobile.debug");
     expect(screen.getByTestId("about-app")).toHaveTextContent("15 (API 35)");
     expect(screen.getByTestId("about-app")).toHaveTextContent("Google Pixel 8");
     expect(screen.getByText("Het rijscherm loopt weer mee.")).toBeInTheDocument();

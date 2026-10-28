@@ -353,7 +353,7 @@ describe("capacitor system", () => {
           version: "6.36.0",
           versionCode: 313,
           buildType: "debug",
-          packageName: "nl.teunschriks.mumamobile.debug",
+          packageName: "org.example.mumamobile.debug",
           androidVersion: "15 (API 35)",
           device: "Google Pixel 8",
         },
@@ -364,7 +364,7 @@ describe("capacitor system", () => {
       version: "6.36.0",
       versionCode: 313,
       buildType: "debug",
-      packageName: "nl.teunschriks.mumamobile.debug",
+      packageName: "org.example.mumamobile.debug",
       androidVersion: "15 (API 35)",
       device: "Google Pixel 8",
     });
@@ -467,7 +467,7 @@ describe("capacitor system", () => {
     const { platform } = nativePlatform({
       MumaSystem: {
         credentials: {
-          username: "user",
+          username: "demo-user",
           signedIn: true,
           password: "leftover",
           clientId: "Ultrasonic",
@@ -476,7 +476,7 @@ describe("capacitor system", () => {
     });
 
     expect(await platform.system.credentials()).toEqual({
-      username: "user",
+      username: "demo-user",
       signedIn: true,
       clientId: "Ultrasonic",
       serverId: 0,
@@ -491,10 +491,10 @@ describe("capacitor system", () => {
     const { platform } = nativePlatform({
       MumaSystem: {
         credentials: {
-          username: "user",
+          username: "demo-user",
           signedIn: true,
           subsonicToken: "the-subsonic-token",
-          subsonicTokenUser: "user",
+          subsonicTokenUser: "demo-user",
         },
       },
     });
@@ -502,7 +502,7 @@ describe("capacitor system", () => {
     const answer = await platform.system.credentials();
 
     expect(answer.subsonicToken).toBe("the-subsonic-token");
-    expect(answer.subsonicTokenUser).toBe("user");
+    expect(answer.subsonicTokenUser).toBe("demo-user");
     expect(answer).not.toHaveProperty("forcePlainTextPassword");
   });
 
@@ -638,7 +638,7 @@ describe("capacitor system", () => {
     const { platform, plugins } = nativePlatform();
     const creds = {
       url: "https://lms.example",
-      username: "user",
+      username: "demo-user",
       mumaApiKey: "key-1",
       mumaUserId: 7,
     };

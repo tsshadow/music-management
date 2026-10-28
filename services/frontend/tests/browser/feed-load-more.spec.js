@@ -1,7 +1,7 @@
 // "Meer laden" under a daily mix, on the phone and on the tablet
 // (docs/bug-reports/122-feed-load-more-not-visible.md).
 //
-// Teun saw Harder with 98 tracks and no way to load more. jsdom applies no CSS, so the unit tests
+// Demo-User saw Harder with 98 tracks and no way to load more. jsdom applies no CSS, so the unit tests
 // can prove the button is rendered but not that it is on screen in either touch layout; this is
 // the check with the real stylesheet. MuMa's feed and LMS's path lookup are both answered here --
 // the test stack has one fixture track and no listening history, so it has no feed of its own:

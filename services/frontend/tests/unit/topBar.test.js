@@ -29,8 +29,8 @@ function subsonic({
 
 describe("TopBar", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     activeView.set("home");
     activeModal.set(null);
     isMobile.set(false);
@@ -138,8 +138,8 @@ describe("TopBar", () => {
 // the content.
 describe("TopBar on the phone", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     activeModal.set(null);
     isMobile.set(true);
     viewMode.set("songs");
@@ -228,8 +228,8 @@ describe("TopBar on a tablet in landscape", () => {
       removeListener: () => {},
       dispatchEvent: () => false,
     });
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     activeModal.set(null);
     activeView.set("home");
     isMobile.set(true);

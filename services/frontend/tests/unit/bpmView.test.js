@@ -85,8 +85,8 @@ function page(extra = {}) {
 
 describe("BpmView", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });
@@ -109,7 +109,7 @@ describe("BpmView", () => {
     await waitFor(() => expect(screen.getByText("Coarse One")).toBeTruthy());
     const [params, auth] = globalThis.__loadBpmPage.mock.calls[0];
     expect(params).toEqual({ bpm: 150, tol: null, min_confidence: null, genre: null });
-    expect(auth).toContain("u=user");
+    expect(auth).toContain("u=demo-user");
     const pills = screen.getAllByTestId("bpm-pill").map((pill) => pill.textContent.trim());
     expect(pills).toEqual(["≈152 BPM", "150 BPM"]);
     expect(screen.getByTestId("bpm-coarse-note")).toBeTruthy();

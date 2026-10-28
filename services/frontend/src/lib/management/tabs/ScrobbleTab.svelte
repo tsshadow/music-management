@@ -108,7 +108,7 @@
               type="text" 
               id="lb-user" 
               bind:value={importLbUser}
-              placeholder={lbUsername ? $t('management.scrobble.linkedPlaceholder', { name: lbUsername }) : "someuser"}
+              placeholder={lbUsername ? $t('management.scrobble.linkedPlaceholder', { name: lbUsername }) : "demo-user"}
               class="w-full bg-muma-spotify-dark border border-muma-spotify-panel rounded-md p-3 focus:outline-none focus:border-brand transition-colors"
             />
             {#if !importLbUser && lbUsername}

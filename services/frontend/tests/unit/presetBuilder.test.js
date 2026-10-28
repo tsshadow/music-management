@@ -105,10 +105,10 @@ describe("MultiPicker", () => {
 describe("PresetBuilder", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
-    mumaUser.set({ id: 7, username: "user" });
+    mumaUser.set({ id: 7, username: "demo-user" });
     mumaApiKey.set("key");
     presets.set([]);
     globalThis.fetch = server();

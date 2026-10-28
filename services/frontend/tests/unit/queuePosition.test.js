@@ -33,7 +33,7 @@ describe("queuePosition", () => {
 
 describe("TrackList queue position", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     playlist.set(tracks);
     currentTrack.set(null);
     isMobile.set(true);

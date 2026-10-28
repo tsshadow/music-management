@@ -34,19 +34,19 @@ describe("localDateString", () => {
 
 describe("memoriesUrl", () => {
   it("asks for a handful per year, since the server already ranks them", () => {
-    expect(memoriesUrl("u=user&p=pw", { date: "2026-08-23" })).toBe(
-      "/rest/getMemories?date=2026-08-23&maxPerYear=12&u=user&p=pw",
+    expect(memoriesUrl("u=demo-user&p=pw", { date: "2026-08-23" })).toBe(
+      "/rest/getMemories?date=2026-08-23&maxPerYear=12&u=demo-user&p=pw",
     );
   });
 
   it("asks for one whole year when a year is named", () => {
-    expect(memoriesUrl("u=user&p=pw", { date: "2026-08-23", year: 2025 })).toBe(
-      "/rest/getMemories?date=2026-08-23&maxPerYear=1000&year=2025&u=user&p=pw",
+    expect(memoriesUrl("u=demo-user&p=pw", { date: "2026-08-23", year: 2025 })).toBe(
+      "/rest/getMemories?date=2026-08-23&maxPerYear=1000&year=2025&u=demo-user&p=pw",
     );
   });
 
   it("falls back to the device's own today", () => {
-    expect(memoriesUrl("u=user")).toContain(`date=${localDateString()}`);
+    expect(memoriesUrl("u=demo-user")).toContain(`date=${localDateString()}`);
   });
 });
 
@@ -297,7 +297,7 @@ describe("playMemoryYear", () => {
   const summaryGroups = [{ year: 2018, songs: [{ id: "fallback-1", title: "Old page" }] }];
 
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     playlist.set([]);
     currentTrack.set(null);
     playerState.set({ playing: false });

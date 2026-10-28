@@ -37,8 +37,8 @@ const ids = (list) => list.map((t) => ({ id: t }));
 
 describe("extendQueue", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     currentTrack.set(null);
     startQueue([], { view: null });
   });
@@ -176,8 +176,8 @@ describe("arrayContinuation", () => {
   });
 
   it("continues a memories-style queue to the end of the year", async () => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     startQueue(QUEUE, {
       continuation: arrayContinuation(ids(["m1", "m2", "m3"]), { pageSize: 2 }),
     });

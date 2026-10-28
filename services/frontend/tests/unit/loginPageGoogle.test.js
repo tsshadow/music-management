@@ -12,12 +12,17 @@ import {
   userPermissions,
 } from "../../src/lib/store.js";
 
-const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: ["music.play"] };
+const MUMA_USER = {
+  id: 1,
+  username: "demo-user",
+  display_name: "Demo-User",
+  permissions: ["music.play"],
+};
 const GOOGLE_IDENTITY = {
   subject: "google-sub-1",
-  email: "user@example.com",
-  display_name: "Teun",
-  avatar_url: "https://example.com/user.jpg",
+  email: "demo-user@example.org",
+  display_name: "Demo-User",
+  avatar_url: "https://example.org/demo-user.jpg",
 };
 const REQUEST = { id: 7, status: "pending", requested_at: "2026-01-01T01:00:00Z" };
 
@@ -106,7 +111,7 @@ describe("LoginPage with Google sign-in", () => {
 
     await signIn("an-id-token");
 
-    await waitFor(() => expect(get(credentials).username).toBe("user"));
+    await waitFor(() => expect(get(credentials).username).toBe("demo-user"));
     expect(get(credentials)).not.toHaveProperty("password");
     expect(localStorage.getItem("lms_credentials")).not.toContain("key-1");
   });
@@ -117,7 +122,7 @@ describe("LoginPage with Google sign-in", () => {
 
     await signIn("an-id-token");
 
-    await waitFor(() => expect(screen.getByText(/Hallo Teun/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Hallo Demo-User/)).toBeTruthy());
     expect(screen.getByText("Toegang aanvragen")).toBeTruthy();
   });
 

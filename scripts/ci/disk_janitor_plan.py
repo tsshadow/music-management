@@ -12,7 +12,7 @@ on stdin and writes one image reference per line to stdout, oldest first.
 The rules encode what three separate outages taught us (see the
 gitlab-runner-disk-fills-up notes):
 
-* Release images (`muma/*`) are the big win: every release build keeps its
+* Release images (`<DOCKER_USER>/*`, `muma/*` unless DOCKER_USER says otherwise) are the big win: every release build keeps its
   version tag forever, and they are all recoverable from Docker Hub.
 * `muma-ci/*` is the same story for the merge-request image builds. Those now
   build under a per-job `muma-ci-<job-id>/*` namespace instead, which
@@ -34,6 +34,7 @@ about.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -47,7 +48,9 @@ CREATED_AT = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{4})")
 # newest to keep. Moving tags (:latest, :stable, and :rc -- the newest release
 # build, which release:build-images pushes instead of :latest) are never
 # candidates.
-VERSIONED_PREFIXES = ("muma/", "muma-ci/")
+DEFAULT_DOCKER_USER = "muma"
+#: Prefix of the old shared merge-request build images; the release prefix comes from DOCKER_USER.
+SHARED_CI_PREFIX = "muma-ci/"
 MOVING_TAGS = frozenset({"latest", "stable", "rc"})
 ANDROID_CI_REPO = "music-management/android-ci"
 TEST_STACK_PREFIX = "muma-test-"
@@ -107,13 +110,18 @@ def select_removals(
     keep_versions: int,
     keep_android: int,
     test_stack_min_age_hours: int,
+    docker_user: str = DEFAULT_DOCKER_USER,
 ) -> list[Image]:
     """The images that may be removed, oldest first.
 
     Oldest first matters: the script stops caring once it is back under the
     threshold, and the oldest tag is both the least likely to be wanted and
     the most likely to hold layers nothing else shares.
+
+    `docker_user` is the registry user the release images are pushed under; its repositories
+    are the ones whose old version tags may go.
     """
+    versioned_prefixes = (f"{docker_user}/", SHARED_CI_PREFIX)
     doomed: list[Image] = []
     by_repository: dict[str, list[Image]] = {}
     for image in images:
@@ -135,7 +143,7 @@ def select_removals(
             doomed.extend(_newest_first(group)[keep_android:])
             continue
 
-        if repository.startswith(VERSIONED_PREFIXES):
+        if repository.startswith(versioned_prefixes):
             versioned = [image for image in group if image.tag not in MOVING_TAGS]
             doomed.extend(_newest_first(versioned)[keep_versions:])
             continue
@@ -150,6 +158,11 @@ def main() -> int:
     parser.add_argument("--keep-versions", type=int, default=3)
     parser.add_argument("--keep-android", type=int, default=2)
     parser.add_argument("--test-stack-min-age-hours", type=int, default=2)
+    parser.add_argument(
+        "--docker-user",
+        default=os.environ.get("DOCKER_USER") or DEFAULT_DOCKER_USER,
+        help="Registry user of the release images (default: $DOCKER_USER, else muma).",
+    )
     parser.add_argument(
         "--now",
         default=None,
@@ -168,6 +181,7 @@ def main() -> int:
         keep_versions=args.keep_versions,
         keep_android=args.keep_android,
         test_stack_min_age_hours=args.test_stack_min_age_hours,
+        docker_user=args.docker_user,
     ):
         print(image.ref)
     return 0

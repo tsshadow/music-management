@@ -19,8 +19,10 @@
 #
 # SSH_PINNED_KNOWN_HOSTS overrides the pinned file, e.g. with a file-type CI/CD
 # variable after the host was reinstalled and before the repository caught up.
+# PROD_SSH_KNOWN_HOSTS (a file-type CI/CD variable) does the same and wins over
+# the repository file, so an installation can keep its host keys out of the tree.
 
-SSH_PINNED_KNOWN_HOSTS="${SSH_PINNED_KNOWN_HOSTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../ssh" && pwd)/known_hosts}"
+SSH_PINNED_KNOWN_HOSTS="${SSH_PINNED_KNOWN_HOSTS:-${PROD_SSH_KNOWN_HOSTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../ssh" && pwd)/known_hosts}}"
 export SSH_PINNED_KNOWN_HOSTS
 
 # ssh_host_key_opts HOST: print the ssh -o options for HOST, one argument per

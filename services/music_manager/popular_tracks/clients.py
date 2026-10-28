@@ -21,6 +21,7 @@ from typing import Any
 
 import requests
 
+from services.common.user_agent import build_user_agent
 from services.music_manager.scrobble_matching import normalize
 
 logger = logging.getLogger('music-manager.popular-tracks')
@@ -38,7 +39,7 @@ MAX_RETRIES = 3
 #: The first backoff after a throttled request; doubles per retry.
 FIRST_BACKOFF_SECONDS = 5.0
 TIMEOUT_SECONDS = 20
-USER_AGENT = 'muma-popular-tracks/0.1 (https://gitlab.com/muma/music-management)'
+USER_AGENT = build_user_agent('muma-popular-tracks', '0.1')
 #: How many top tracks are asked for per artist.
 TOP_LIMIT = 50
 

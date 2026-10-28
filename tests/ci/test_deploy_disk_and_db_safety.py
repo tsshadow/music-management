@@ -137,7 +137,7 @@ def test_deploy_db_without_a_bind_address_warns_about_the_mcp(tmp_path: Path) ->
     assert result.returncode == 0, result.stdout + result.stderr
     assert "DB_BIND_ADDRESS is not set" in result.stdout
     (tmp_path / "bound").mkdir()
-    bound, _ = _run_deploy(tmp_path / "bound", DEPLOY_DB="1", DB_BIND_ADDRESS="192.0.2.27")
+    bound, _ = _run_deploy(tmp_path / "bound", DEPLOY_DB="1", DB_BIND_ADDRESS="198.51.100.7")
     assert "DB_BIND_ADDRESS is not set" not in bound.stdout
 
 

@@ -546,7 +546,7 @@ def test_prod_ssh_setup_agent_dies_with_the_sourcing_shell(tmp_path: Path) -> No
     keyscan.chmod(0o755)
     key = tmp_path / "id_test"
     subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
-    env = _env(tmp_path, bin_dir, log_dir, SSH_PRIVATE_KEY=str(key))
+    env = _env(tmp_path, bin_dir, log_dir, SSH_PRIVATE_KEY=str(key), PROD_REMOTE_HOST="prod.example.org")
     env["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '/usr/bin:/bin')}"
     pid_file = tmp_path / "agent.pid"
     script = 'set -e; . "$1"; echo "$SSH_AGENT_PID" > "$2"; ssh-add -l >/dev/null'

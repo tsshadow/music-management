@@ -19,11 +19,13 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from services.common.user_agent import build_user_agent
+
 #: Bump when a threshold or a normalisation rule changes: verdicts stored under an older
 #: policy are recomputed from the cached responses, nothing is fetched again.
 POLICY = 'v1'
 DECIDED_BY = 'auto-external'
-USER_AGENT = 'muma-artist-auto-approve/0.1 (https://gitlab.com/muma/music-management)'
+USER_AGENT = build_user_agent('muma-artist-auto-approve', '0.1')
 
 DEEZER = 'deezer'
 MUSICBRAINZ = 'musicbrainz'

@@ -4,7 +4,11 @@ import time
 import requests
 from requests.exceptions import Timeout
 
+from services.common.user_agent import build_user_agent
+
 from .base import ArtistImageProvider, ProviderRateLimited, ProviderUnavailable, has_retry_after, parse_retry_after
+
+USER_AGENT = build_user_agent('MusicManagementArtistImageFetcher', '1.0')
 
 
 class MusicBrainzArtistProvider(ArtistImageProvider):
@@ -91,7 +95,7 @@ class MusicBrainzArtistProvider(ArtistImageProvider):
         here: the fetcher counts the non-answers into its run summary.
         """
         self._rate_limit()
-        headers = {'User-Agent': 'MusicManagementArtistImageFetcher/1.0 (https://github.com/muma/music-management)'}
+        headers = {'User-Agent': USER_AGENT}
         if mbid:
             url = f'{self.API_URL}/{mbid}'
             params = {'inc': 'url-rels', 'fmt': 'json'}

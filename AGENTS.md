@@ -317,6 +317,11 @@ snapshot from the day of the first save beat every later deploy. Such a legacy f
 `__format__` marker) still loads, except entries equal to env/default, secrets the environment
 also sets, and read-only fields; it is rewritten in the new format on the first start.
 
+Outgoing HTTP requests to public APIs (MusicBrainz, Deezer, store pages) send a User-Agent built by
+`services/common/user_agent.py` (`build_user_agent(product, version)`); the address in it is the
+`project_url` setting (`PROJECT_URL`, group About), empty by default. A module under `services/`
+never writes its own User-Agent text (`services/common/user_agentTest.py` enforces it).
+
 Secrets leave the process only as `SECRET_SENTINEL`, on reads and in the `POST` response alike.
 The `db_*` fields are `read_only`: the database connection is opened from the environment
 (`DatabaseConnector`, `database.py`), so the page shows them for information and the API refuses

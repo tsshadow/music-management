@@ -28,7 +28,7 @@
 # Called by ci-deploy.sh once post-deploy-verify.sh has passed -- never before:
 # until the new release is verified, the images it replaced are the way back.
 # Also safe to run by hand from a machine with the production ssh key:
-#   REMOTE_HOST=192.0.2.27 REMOTE_USER=root ./scripts/ci/prune-prod-images.sh
+#   REMOTE_HOST=prod.example.org REMOTE_USER=root ./scripts/ci/prune-prod-images.sh
 #
 # Knobs: PRUNE_KEEP_RELEASES=3, PRUNE_IMAGES=0 (skip entirely),
 #        PRUNE_DRY_RUN=1 (list what would go, remove nothing).

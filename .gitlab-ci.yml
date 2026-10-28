@@ -98,7 +98,7 @@ stages:
 #   server     the C++ playback server (services/music-management-server)
 #   frontend   the Svelte web UI. Not a deployable of its own: it is built in
 #              the first stage of the server's Dockerfile-release and ends up
-#              inside that image, under docroot/spotify.
+#              inside that image, under its web docroot.
 #   mobile     the Android app
 #
 # `backend` and `server` are both server-side, so to be explicit: `server` is
@@ -201,8 +201,8 @@ stages:
 # Jobs that may run on either CI host, so two of them can run at once.
 #
 # There are two runners and both carry the `fast` tag: the always-on LXC
-# (debian-dev-192.0.2.40, also picks up untagged jobs) and Teun's workstation
-# (minipc-debian13-192.0.2.227), which is tagged-only and often powered off.
+# (the CI LXC runner, which also picks up untagged jobs) and the owner's
+# workstation runner, which is tagged-only and often powered off.
 # GitLab hands a `fast` job to whichever runner polls first, so tagging a job
 # here buys parallelism when the workstation is up and changes nothing when it
 # is not -- the LXC still carries the same tag, so nothing ever queues waiting

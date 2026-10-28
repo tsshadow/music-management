@@ -111,7 +111,7 @@ for arg in "$@"; do
     esac
 done
 TAG="${TAG:-latest}"
-SEARCH_STRING="${SEARCH_STRING:-muma/muma}"
+SEARCH_STRING="${SEARCH_STRING:-${DOCKER_USER:-muma}/muma}"
 LOCAL_COMPOSE_FILE="${LOCAL_COMPOSE_FILE:-docker/docker-compose.yml}"
 
 # Deploy-order knobs, see the header.

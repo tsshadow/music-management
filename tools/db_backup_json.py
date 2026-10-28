@@ -4,14 +4,17 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
+from tools.env_required import require_env
+
 load_dotenv()
 
 
 def backup_db():
-    host = os.getenv("DB_HOST", "192.0.2.27")
+    required = require_env("DB_HOST", "DB_USER", "DB_PASS")
+    host = required["DB_HOST"]
     port = os.getenv("DB_PORT", "3306")
-    user = os.getenv("DB_USER", "music-management")
-    password = os.getenv("DB_PASS", "")
+    user = required["DB_USER"]
+    password = required["DB_PASS"]
     db_name = os.getenv("DB_DB", "music-management")
 
     url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{db_name}"

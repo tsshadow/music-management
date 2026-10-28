@@ -20,12 +20,19 @@
 # defence. A caller that needs an EXIT trap of its own must call
 # prod_ssh_teardown from it, since a second `trap ... EXIT` replaces this one.
 #
-# Required CI/CD variable:
-#   - SSH_PRIVATE_KEY: private key (file type) authorized on the production
-#                      host (see docs/deployment.md).
+# Required CI/CD variables:
+#   - SSH_PRIVATE_KEY:  private key (file type) authorized on the production
+#                       host (see docs/deployment.md).
+#   - PROD_REMOTE_HOST: host name or address of the production host. There is
+#                       no default: a missing value stops the job here.
+# Optional: PROD_REMOTE_USER (default root).
 
 # Target configuration for Production.
-export REMOTE_HOST="${PROD_REMOTE_HOST:-192.0.2.27}"
+if [ -z "${PROD_REMOTE_HOST:-}" ]; then
+    echo "Error: PROD_REMOTE_HOST CI/CD variable is not set. See docs/deployment.md." >&2
+    exit 1
+fi
+export REMOTE_HOST="${PROD_REMOTE_HOST}"
 export REMOTE_USER="${PROD_REMOTE_USER:-root}"
 
 echo "--- Setting up SSH access to $REMOTE_HOST ---"

@@ -60,7 +60,7 @@ class AddressCheckTest(unittest.TestCase):
             '::ffff:100.64.0.1',
             '::ffff:192.0.2.27',
             '::127.0.0.1',  # IPv4-compatible
-            '2002:c0a8:011b::1',  # 6to4 around 192.0.2.27
+            '2002:c0a8:001b::1',  # 6to4 around 192.0.2.27
             '64:ff9b::a00:1',  # NAT64 around 10.0.0.1
             '2001:db8::1',
         ):

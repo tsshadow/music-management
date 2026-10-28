@@ -55,21 +55,53 @@ def test_the_ci_setup_no_longer_learns_the_key_from_ssh_keyscan():
     assert not any("ssh-keyscan" in line for line in _code_lines(PROD_SSH_SETUP))
 
 
-def test_the_default_production_host_is_pinned():
-    default = re.search(r'PROD_REMOTE_HOST:-([^}"]+)', PROD_SSH_SETUP.read_text(encoding="utf-8"))
-    assert default, "prod-ssh-setup.sh no longer has a default host"
-    hosts = {line.split()[0] for line in PINNED.read_text(encoding="utf-8").splitlines() if line and line[0] != "#"}
-    assert default.group(1) in hosts
+def test_the_ci_setup_has_no_default_production_host():
+    """A missing PROD_REMOTE_HOST stops the job and names the variable; nothing is guessed."""
+    assert not re.search(r"PROD_REMOTE_HOST:-[^}]", PROD_SSH_SETUP.read_text(encoding="utf-8"))
+    result = subprocess.run(
+        ["bash", "-c", '. "$1"; echo reached', "_", str(PROD_SSH_SETUP)],
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "SSH_PRIVATE_KEY": "unused"},
+    )
+    assert result.returncode == 1
+    assert "PROD_REMOTE_HOST" in result.stderr
+    assert "reached" not in result.stdout
+
+
+@pytest.fixture
+def pinned(tmp_path: Path) -> Path:
+    """A known_hosts file with one throwaway key for prod.example.org."""
+    key = tmp_path / "key"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+    line = f"prod.example.org {key.with_suffix('.pub').read_text(encoding='utf-8').split()[0]} "
+    line += key.with_suffix(".pub").read_text(encoding="utf-8").split()[1]
+    path = tmp_path / "known_hosts"
+    path.write_text(line + "\n", encoding="utf-8")
+    return path
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_a_pinned_host_is_checked_strictly_against_the_pinned_file_only():
-    assert _opts("192.0.2.27") == [
+def test_a_pinned_host_is_checked_strictly_against_the_pinned_file_only(pinned: Path):
+    assert _opts("prod.example.org", pinned) == [
         "-o",
         "StrictHostKeyChecking=yes",
         "-o",
-        f"UserKnownHostsFile={PINNED}",
+        f"UserKnownHostsFile={pinned}",
     ]
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_the_known_hosts_ci_variable_replaces_the_repository_file(pinned: Path):
+    """PROD_SSH_KNOWN_HOSTS is a file-type variable: the pinned file comes from there."""
+    result = subprocess.run(
+        ["bash", "-c", '. "$1"; ssh_host_key_opts "$2"', "_", str(LIB), "prod.example.org"],
+        capture_output=True,
+        text=True,
+        check=True,
+        env={"PATH": "/usr/bin:/bin", "PROD_SSH_KNOWN_HOSTS": str(pinned)},
+    )
+    assert result.stdout.splitlines()[-1] == f"UserKnownHostsFile={pinned}"
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
@@ -78,7 +110,7 @@ def test_an_unpinned_host_learns_once_and_refuses_a_changed_key():
 
 
 def test_a_missing_pinned_file_never_means_accept_anything(tmp_path: Path):
-    assert _opts("192.0.2.27", tmp_path / "absent") == ["-o", "StrictHostKeyChecking=accept-new"]
+    assert _opts("prod.example.org", tmp_path / "absent") == ["-o", "StrictHostKeyChecking=accept-new"]
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")

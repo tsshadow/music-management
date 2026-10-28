@@ -182,3 +182,15 @@ def test_a_malformed_line_does_not_take_the_whole_sweep_down():
     lines.insert(1, "garbage-without-tabs")
     lines.insert(2, "repo:tag\tnot-a-timestamp\tsha")
     assert removals(lines, keep_versions=1) == ["muma/a:0.1.0"]
+
+
+def test_the_release_prefix_comes_from_the_docker_user():
+    """Only the configured registry user's repositories are release images; another user's are not ours."""
+    lines = listing(
+        ("acme/music-manager:0.1.0", days_ago(399)),
+        ("acme/music-manager:0.2.0", days_ago(398)),
+        ("muma/music-manager:0.1.0", days_ago(399)),
+        ("muma/music-manager:0.2.0", days_ago(398)),
+    )
+    assert removals(lines, keep_versions=1, docker_user="acme") == ["acme/music-manager:0.1.0"]
+    assert removals(lines, keep_versions=1) == ["muma/music-manager:0.1.0"]

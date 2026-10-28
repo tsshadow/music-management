@@ -5,7 +5,7 @@
 # Fully automated, idempotent deployment of BOTH production stacks:
 #   1. "music-management" (db, music-manager, importer/downloader workers, ...)
 #      -> docker/docker-compose.yml
-#   2. "lms" (the Spotify UI + reverse-proxy, serving spotify.<domain> and the
+#   2. "lms" (the web player + reverse-proxy, serving the web-player host name and the
 #      OpenSubsonic API used by MuMa Mobile/other Subsonic clients)
 #      -> services/music-management-server/docker-compose.yml
 #

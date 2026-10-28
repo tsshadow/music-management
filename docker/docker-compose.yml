@@ -178,7 +178,7 @@ services:
     # Loopback by default: every client of this database is a container on the
     # music-management_db network and reaches it as db:3306. Anything on the
     # LAN that needs it directly (the workstation's read-only MCP,
-    # tools/muma_mcp, connects to 192.0.2.27:3306) sets DB_BIND_ADDRESS to
+    # tools/muma_mcp, connects to the production host's port 3306) sets DB_BIND_ADDRESS to
     # the host's LAN address in the stack's .env -- a deliberate opt-in rather
     # than MariaDB root being reachable from every device on the network.
     # Takes effect only when `db` is recreated, i.e. on a DEPLOY_DB=1 deploy.
@@ -338,7 +338,7 @@ services:
     networks:
       - music-management_db
 
-  # NOTE: LMS (the "Spotify UI" + Subsonic API, spotify.<domain>/lms.<domain>)
+  # NOTE: LMS (the web player + Subsonic API, on the web-player and LMS host names)
   # is NOT defined here. It is deployed as its own, separate stack from
   # services/music-management-server/docker-compose.yml ("lms" project: "lms"
   # + "reverse-proxy" services), which is why it joins this stack's

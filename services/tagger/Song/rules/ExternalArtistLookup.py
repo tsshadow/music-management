@@ -4,6 +4,9 @@ from typing import cast
 import requests
 
 from services.common.config_store import credential
+from services.common.user_agent import build_user_agent
+
+USER_AGENT = build_user_agent('MusicManagement', '1.0')
 
 
 class DiscogsLookup:
@@ -40,7 +43,7 @@ class MusicBrainzLookup:
             response = requests.get(
                 self.API_URL,
                 params=cast(dict[str, str | int], {'query': name, 'fmt': 'json', 'limit': 1}),
-                headers={'User-Agent': 'MusicManagement/1.0 (codex@example.com)'},
+                headers={'User-Agent': USER_AGENT},
                 timeout=5,
             )
             if response.status_code != 200:

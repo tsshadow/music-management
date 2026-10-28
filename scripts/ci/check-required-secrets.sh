@@ -21,7 +21,7 @@
 # Required GitLab CI/CD variables (same ones deploy already needs, see
 # docs/deployment.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS -- plus the four
 # variables that gate release jobs at the `rules:` level (DOCKERHUB_USERNAME,
-# DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE), because a job gated on
+# DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE) and PROD_REMOTE_HOST, because a job gated on
 # a missing variable is silently absent rather than red.
 
 set -e
@@ -99,6 +99,10 @@ require_var "APK_HOSTER_URL" \
     "mobile:build-release vanishes and the release ships without an APK" || missing=1
 require_var "SIGNING_STORE_FILE" \
     "mobile:build-release vanishes and the release ships without an APK" || missing=1
+# scripts/ci/prod-ssh-setup.sh has no default production host: without this the deploy job stops
+# at its first line, after the images are already built.
+require_var "PROD_REMOTE_HOST" \
+    "every job that connects to the production host stops before it connects" || missing=1
 
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."

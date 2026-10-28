@@ -78,6 +78,7 @@ GATING_VARS = {
     "DOCKERHUB_TOKEN": "a-token",
     "APK_HOSTER_URL": "https://apk.example",
     "SIGNING_STORE_FILE": "/tmp/keystore",
+    "PROD_REMOTE_HOST": "prod.example.org",
 }
 
 

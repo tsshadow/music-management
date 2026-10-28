@@ -34,6 +34,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from services.common.release_nfo import StoreLink
+from services.common.user_agent import build_user_agent
 
 logger = logging.getLogger('importer.store-lookup')
 
@@ -46,7 +47,7 @@ DEEZER_NO_DATA_CODE = 800
 #: Seconds between two requests from this process: four a second.
 MIN_INTERVAL_SECONDS = 0.25
 TIMEOUT_SECONDS = 15
-USER_AGENT = 'muma-importer/0.1 (+https://gitlab.example.com/muma/music-management)'
+USER_AGENT = build_user_agent('muma-importer', '0.1')
 #: How long a gone album stays gone before it is asked about again.
 NOT_FOUND_RETRY_DAYS = 30
 #: Albums kept in memory per process, so a tagging round does not query the table per track.

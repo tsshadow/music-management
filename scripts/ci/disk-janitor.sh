@@ -16,7 +16,7 @@
 #     survives; what goes is cache nothing has built from in three days. On
 #     2026-09-25 that was 62 of the 124GB that had filled the workstation to
 #     98% and failed release pipeline 3607 (docs/bug-reports/073).
-#   - muma/* and muma-ci/* per-version tags, keeping the 3 newest per
+#   - $DOCKER_USER/* (muma/* when unset) and muma-ci/* per-version tags, keeping the 3 newest per
 #     repository plus :latest and :stable. All recoverable from Docker Hub.
 #   - music-management/android-ci:<hash>, keeping the 2 newest (>5GB each).
 #   - muma-test-<job-id>-* leftovers older than two hours.

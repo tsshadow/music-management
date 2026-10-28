@@ -13,6 +13,11 @@ cd "$ROOT_DIR" || exit 1
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
 
+# One log per run: a fixed /tmp path belongs to whoever wrote it first, and on the shared runner
+# that was another user, so the redirect failed and tail printed that user's old output.
+LOG_FILE="$(mktemp "${TMPDIR:-/tmp}/muma-config-check.XXXXXX")" || exit 1
+trap 'rm -f "$LOG_FILE"' EXIT
+
 gradle_in_image() {
     # Dummy signing values go in by name only, never on argv (bug report 125).
     SIGNING_STORE_PASSWORD=dummy SIGNING_KEY_ALIAS=dummy SIGNING_KEY_PASSWORD=dummy \
@@ -27,7 +32,7 @@ gradle_in_image() {
         -e MUMA_SERVER_URL -e MUMA_GOOGLE_CLIENT_ID -e MUMA_API_URL -e MUMA_OWN_DOMAIN -e MUMA_ALLOW_DEFAULTS \
         "$ANDROID_CI_IMAGE" \
         /bin/bash -c '. /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./gradlew --console=plain -q "$@"' _ "$@" \
-        >/tmp/muma-config-check.log 2>&1
+        >"$LOG_FILE" 2>&1
 }
 
 fail=0
@@ -37,7 +42,7 @@ expect() { # expect <ok|fail> <label> -- gradle args
     if { [ "$want" = ok ] && [ $rc -eq 0 ]; } || { [ "$want" = fail ] && [ $rc -ne 0 ]; }; then
         echo "ok: $label"
     else
-        echo "FAILED: $label (exit $rc)"; tail -20 /tmp/muma-config-check.log; fail=1
+        echo "FAILED: $label (exit $rc)"; tail -20 "$LOG_FILE"; fail=1
     fi
 }
 

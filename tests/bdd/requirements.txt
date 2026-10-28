@@ -4,6 +4,7 @@
 # requirements.txt is the source of truth for the first two pins; they are
 # repeated rather than pulled in because installing the whole runtime here would
 # drag numpy, yt-dlp and telethon into a container that runs three HTTP calls.
-pytest>=8.4.0
+# <9.2: pytest 9.2 removed FixtureManager._arg2fixturedefs, which pytest-bdd 8.1 uses. Lift when pytest-bdd supports it.
+pytest>=8.4.0,<9.2
 requests~=2.33.0
 pytest-bdd~=8.1

@@ -73,6 +73,16 @@
       "groupName": "yt-dlp"
     },
     {
+      "description": "pytest is capped below 9.2 in requirements.txt and tests/bdd/requirements.txt: 9.2 removed FixtureManager._arg2fixturedefs, which pytest-bdd 8.1 uses, and every BDD test fails in setup. Without this rule Renovate proposes the 9.2 bump again on every run. Lift the cap (and this rule) when pytest-bdd supports pytest 9.2.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "pytest"
+      ],
+      "allowedVersions": "<9.2"
+    },
+    {
       "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",
       "matchFileNames": [
         "requirements-dev.txt"

@@ -56,3 +56,4 @@ ssh_host_key_opts_into() {
     out="$(ssh_host_key_opts "$2")" || return 1
     mapfile -t _into <<<"$out"
 }
+export -f ssh_host_key_opts_into

@@ -277,6 +277,8 @@ services:
       # an inline service here.
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # Where users get the source (AGPL-3.0 section 13); the About and login screens link to it.
+      PUBLIC_SOURCE_URL: ${PUBLIC_SOURCE_URL:-https://github.com/OWNER/music-management}
       # The artist-image fetcher's and the tagger's third-party keys. Until 2026-09-21
       # nothing carried these into the container: they came along inside the .env the
       # image used to COPY, and when that COPY went (2026-07-24) the fetcher ran blind

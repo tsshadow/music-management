@@ -1760,6 +1760,8 @@
       "releaseNotesApp": "Wat is er nieuw in de app",
       "server": "Server",
       "serverUrl": "Adres",
+      "sourceCode": "Broncode",
+      "sourceCodeBody": "MuMa is vrije software onder de GNU AGPL-3.0. Hier haal je de broncode op van de versie die deze server draait.",
       "subtitle": "Welke versie je gebruikt en wat er onlangs is veranderd.",
       "title": "Over MuMa",
       "unknown": "onbekend",

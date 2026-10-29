@@ -4,6 +4,8 @@
   import { credentials, mumaApiUrl, mumaApiKey, mumaRefreshToken, mumaSessionActive, userPermissions, mumaUser, signedOut, ensureSubsonicToken, withoutPassword } from './store.js';
   import { signIn } from './login.js';
   import { platform } from './platform/index.js';
+  import SourceCodeLink from './SourceCodeLink.svelte';
+  import { fetchSourceUrl } from './sourceLink.js';
 
   let username = $state('');
   let password = $state('');
@@ -239,7 +241,10 @@
   }
 
   import { onMount } from 'svelte';
+  /** Where the source code is (AGPL-3.0 section 13); empty hides the link. */
+  let sourceUrl = $state('');
   onMount(async () => {
+    fetchSourceUrl($mumaApiUrl, { native: isNative }).then((url) => { sourceUrl = url; });
     if ($credentials.username) {
         username = $credentials.username;
     }
@@ -373,6 +378,7 @@
       {/if}
     {/if}
   </div>
+  <div class="mt-4 flex"><SourceCodeLink url={sourceUrl} {platform} /></div>
 </div>
 
 <style>

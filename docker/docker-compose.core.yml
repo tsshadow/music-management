@@ -86,6 +86,7 @@ services:
       - AUTH_SERVICE_URL=http://music-manager:8000
       - LMS_HOSTS=${LMS_HOSTS}
       - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+      - PUBLIC_SOURCE_URL=${PUBLIC_SOURCE_URL:-https://github.com/OWNER/music-management}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /docker/lms/var/lms:/app/data:rw

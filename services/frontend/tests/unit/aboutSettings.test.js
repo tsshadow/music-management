@@ -151,6 +151,53 @@ describe("About", () => {
     expect(screen.getByText("0.0.60")).toBeInTheDocument();
   });
 
+  it("links to the source code the server reports in /health (AGPL-3.0 section 13)", async () => {
+    globalThis.fetch = respond({
+      "/rest/ping": PING_OK,
+      "/health": () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: "0.61.0", source_url: "https://git.example/muma" }),
+      }),
+      "release-notes.json": NO_RELEASE_NOTES,
+    });
+    render(About);
+    const link = await screen.findByRole("link", { name: "https://git.example/muma" });
+    expect(link).toHaveAttribute("href", "https://git.example/muma");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("shows no source link when /health reports none", async () => {
+    globalThis.fetch = respond({
+      "/rest/ping": PING_OK,
+      "/health": () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: "0.61.0", source_url: "" }),
+      }),
+      "release-notes.json": NO_RELEASE_NOTES,
+    });
+    render(About);
+    await waitFor(() => expect(screen.getByText("Versie 0.61.0")).toBeInTheDocument());
+    expect(screen.queryByTestId("about-source")).toBeNull();
+  });
+
+  it("opens the source link through the shell in the app", async () => {
+    globalThis.fetch = respond({
+      "/rest/ping": PING_OK,
+      "/health": () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ source_url: "https://git.example/muma" }),
+      }),
+      "release-notes.json": NO_RELEASE_NOTES,
+    });
+    const platform = nativePlatform();
+    render(About, { props: { platform } });
+    await fireEvent.click(await screen.findByRole("link", { name: "https://git.example/muma" }));
+    expect(platform.system.openUrl).toHaveBeenCalledWith("https://git.example/muma");
+  });
+
   it("lists the bundle's git hash and build time when version.json is there", async () => {
     globalThis.fetch = respond({
       "/rest/ping": PING_OK,

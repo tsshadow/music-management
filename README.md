@@ -319,6 +319,23 @@ pipeline fails as early and as cheaply as possible:
 
 ---
 
+## Source code and license
+
+MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)). Section 13 says that anyone who uses a
+modified version over a network can get its source code. The About screen (Settings > About) of the
+web player and of the Android app, which shows the same screen, has a **Source code** section with a
+link for that.
+
+The link comes from the setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, also on
+Beheer > Config > General). The default is the placeholder `https://github.com/OWNER/music-management`.
+If you run your own fork, set it to the address of your repository, at the revision you deploy. An
+empty value hides the section. Only `http://` and `https://` addresses are shown. The About screen
+reads the value from `source_url` in the `GET /health` answer.
+
+The music server (`services/music-management-server`) is a fork of LMS and has its own, older Wt
+interface with an About window that links to the upstream LMS homepage. The web player is the interface
+this project serves to listeners, so the source link lives there.
+
 ## 📂 Repository Structure
 
 ```text

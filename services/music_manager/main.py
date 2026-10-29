@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from services.common.config_store import ConfigStore
 from services.common.db_init import ensure_tables_exist
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
@@ -214,6 +215,19 @@ async def database_busy_handler(_request: Request, exc: RuntimeError):
     return JSONResponse(status_code=503, content={'detail': str(exc)}, headers={'Retry-After': '5'})
 
 
+def _public_source_url() -> str:
+    """The `public_source_url` setting if it is an http(s) address, else an empty string.
+
+    /health is unauthenticated and the About screen turns this value into a link, so any
+    other scheme (`javascript:`, `data:`) is dropped here instead of in every client.
+    """
+    try:
+        url = str(ConfigStore().get('public_source_url') or '').strip()
+    except Exception:  # pylint: disable=broad-except  # /health must always answer
+        return ''
+    return url if url.lower().startswith(('http://', 'https://')) else ''
+
+
 @app.get('/health')
 def health(response: Response):
     """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
@@ -249,6 +263,7 @@ def health(response: Response):
         'status': 'ok' if healthy else 'degraded',
         'service': 'music-manager',
         'version': get_version(),
+        'source_url': _public_source_url(),
         'database': database,
         'threads': threads,
         'heartbeats': heartbeats,

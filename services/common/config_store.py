@@ -779,6 +779,14 @@ def _config_fields() -> list[ConfigField]:
             description='Topic for warnings and errors. Subscribe separately so alerts can have their own sound.',
         ),
         ConfigField(
+            key='public_source_url',
+            type='string',
+            default='https://github.com/OWNER/music-management',
+            env='PUBLIC_SOURCE_URL',
+            group='General',
+            description='Where users of this server can get its source code (AGPL-3.0 section 13). Shown as the Source code link on the About screen. Replace the placeholder with the address of your repository or fork; empty hides the link.',
+        ),
+        ConfigField(
             key='crash_hook_url',
             type='string',
             default='',

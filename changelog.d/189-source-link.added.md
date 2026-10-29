@@ -1,0 +1,1 @@
+- The About screen of the web player and the app has a Source code section that links to the address in the new setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, default the placeholder `https://github.com/OWNER/music-management`), so users of the server can get its source as AGPL-3.0 section 13 requires. `GET /health` reports it as `source_url` (#189).

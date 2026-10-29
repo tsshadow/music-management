@@ -145,7 +145,7 @@ The system is split into specialized services, each handling a specific part of 
       sink, not the source of truth — see [Events & Alerts](#-events--alerts) below.
     - Dashboard API for the Svelte frontend.
     - **Integrated Services**: Hosts the `tagger` and `scanner` logic to enforce library standards.
-- **See Also**: [docs/architecture/responsibilities.md](docs/architecture/responsibilities.md) for data boundary details.
+- **See Also**: [docs/architecture.md](docs/architecture.md) for data boundary details.
 
 ### 7. `bpm-analyzer` (`services/music_manager/bpm/worker.py`, container `muma-bpm-analyzer`)
 - **Purpose**: Measures every track's tempo (0.01 BPM) from a 60 s excerpt, newest tracks first, into

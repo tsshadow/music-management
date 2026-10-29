@@ -141,6 +141,6 @@ corrected by hand or by a re-download, since the original string is gone.
 
 ## Related Docs
 
-- [docs/architecture/responsibilities.md](../../architecture/responsibilities.md) — Data boundaries between services.
+- [docs/architecture.md](../../architecture.md) — Data boundaries between services.
 - [docs/api-specification.md](../../api-specification.md) — Full API reference for `music-manager`.
 - [services/tagger/README.md](../../../services/tagger/README.md) — Detailed list of tagging rules and their logic.

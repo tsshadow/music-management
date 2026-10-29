@@ -128,10 +128,9 @@ MuMa database and drive the filters. LMS holds a copy for playback.
 
 The accepted consequence: rebuilding or wiping the LMS database loses the stars in the player, on
 the phone included, while MuMa still holds every one of them. Nothing pushes them back today, and
-that is a deliberate position rather than an unfinished feature. `docs/architecture/responsibilities.md`
-claims MuMa "can re-push" ratings to LMS and
-`docs/designs/ratings-scrobbling/functional.md` leaves bidirectional sync as an open question; both
-are outdated by this line.
+that is a deliberate position rather than an unfinished feature.
+`docs/designs/ratings-scrobbling/functional.md` leaves bidirectional sync as an open question; it
+is outdated by this line.
 
 ## What the ML analyzer is for
 

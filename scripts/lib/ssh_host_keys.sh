@@ -10,17 +10,19 @@
 # received the root key's signature, every production secret on stdin, and the
 # database migrations. See docs/bug-reports/081-compose-logs-grow-without-bound.md.
 #
-# The production host's keys are pinned in scripts/ssh/known_hosts. A host listed
-# there is checked against that file only, with StrictHostKeyChecking=yes: a key
+# The production host's keys are pinned in a known_hosts file: the file-type CI/CD variable
+# PROD_SSH_KNOWN_HOSTS in a pipeline, scripts/ssh/known_hosts (linked from the private muma-ops
+# repository) on a workstation. A host listed there is checked against that file only, with StrictHostKeyChecking=yes: a key
 # that differs fails the connection instead of being learned. A host that is not
 # listed (a Portainer host, a developer's own target) falls back to accept-new
 # against the user's own known_hosts, which learns a key once and refuses it if it
 # changes later -- still never "accept anything".
 #
-# SSH_PINNED_KNOWN_HOSTS overrides the pinned file, e.g. with a file-type CI/CD
-# variable after the host was reinstalled and before the repository caught up.
+# SSH_PINNED_KNOWN_HOSTS overrides both, e.g. for a one-off run after the host was reinstalled.
+# Without any of the three files every host falls back to accept-new, so a pipeline checks
+# for the file itself (scripts/ci/prod-ssh-setup.sh).
 
-SSH_PINNED_KNOWN_HOSTS="${SSH_PINNED_KNOWN_HOSTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../ssh" && pwd)/known_hosts}"
+SSH_PINNED_KNOWN_HOSTS="${SSH_PINNED_KNOWN_HOSTS:-${PROD_SSH_KNOWN_HOSTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ssh/known_hosts}}"
 export SSH_PINNED_KNOWN_HOSTS
 
 # ssh_host_key_opts HOST: print the ssh -o options for HOST, one argument per

@@ -1,6 +1,6 @@
 # Database backups
 
-Implements `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md`. Read
+Implements `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` (in the private muma-ops repository). Read
 that for the reasoning; this is the operating manual.
 
 Three timers, one job each:

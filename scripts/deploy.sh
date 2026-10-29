@@ -5,7 +5,7 @@
 # Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
 # dump -> db recreate (DEPLOY_DB=1 only) -> migrations -> DEPLOY_PRE_UP_HOOK ->
 # pull + up of what changed. See the comment above step 2 below and
-# docs/deployment.md. Unused images are pruned afterwards by
+# docs/self-hosting.md. Unused images are pruned afterwards by
 # scripts/ci/prune-prod-images.sh, once post-deploy verification has passed.
 #
 # Knobs (environment; all optional):
@@ -270,12 +270,12 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     # value leaves out is skipped in the update loop below on v1 and v2 alike
     # (v1 would otherwise start it, because it is named on the command line); a
     # container of it that is already running is left running.
-    # docs/deployment.md#source-workers-are-compose-profiles
+    # docs/self-hosting.md#source-workers-are-compose-profiles
     PROFILE_SKIPPED_SERVICES=""
     DECLARED_PROFILES=$(compose_service_profiles "$COMPOSE_CONTENT" | awk '{print $2}' | sort -u | tr '\n' ' ')
     if [ -n "$DECLARED_PROFILES" ] && [ -f "$ENV_PATH" ]; then
         if ! ENABLED_PROFILES=$(compose_profiles_value "$(cat "$ENV_PATH")"); then
-            echo "Error: the compose file declares the profiles ${DECLARED_PROFILES}but the env file has no non-empty COMPOSE_PROFILES line, so no source worker would be started. Add e.g. COMPOSE_PROFILES=soundcloud,youtube,telegram,importer (docs/deployment.md#source-workers-are-compose-profiles)."
+            echo "Error: the compose file declares the profiles ${DECLARED_PROFILES}but the env file has no non-empty COMPOSE_PROFILES line, so no source worker would be started. Add e.g. COMPOSE_PROFILES=soundcloud,youtube,telegram,importer (docs/self-hosting.md#source-workers-are-compose-profiles)."
             exit 1
         fi
         PROFILE_SKIPPED_SERVICES=$(compose_disabled_services "$COMPOSE_CONTENT" "$ENABLED_PROFILES")
@@ -304,7 +304,7 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
         MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
     fi
 
-    # IMAGE_TAG is the one-variable rollback (docs/deployment.md#rollback):
+    # IMAGE_TAG is the one-variable rollback (docs/self-hosting.md#roll-back):
     # docker/docker-compose.yml names every image this repository builds as
     # ${IMAGE_TAG:-latest}. Not a secret, so it may travel on the command line,
     # but it is checked to be a tag and nothing else before it is interpolated
@@ -437,7 +437,7 @@ $1" < /dev/null
             esac
             AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
             if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
-                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/deployment.md#disk-space-on-the-production-host).\"
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
                 exit 1
             fi
             echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"
@@ -520,7 +520,7 @@ $1" < /dev/null
                 # producing output, almost certainly waiting on a metadata lock. A
                 # second dump would queue behind the same lock (bug report 068).
                 if [ \"\$BACKUP_RC\" = 3 ]; then
-                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/deployment.md#when-a-deploy-stops-on-a-lock-wait.'
+                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.'
                     exit 1
                 fi
                 echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
@@ -588,7 +588,7 @@ $1" < /dev/null
                     LAST_SIZE=\$SIZE
                 fi
                 if [ \"\$STILL\" -ge $PREDEPLOY_DUMP_STALL_SECONDS ]; then
-                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/deployment.md#when-a-deploy-stops-on-a-lock-wait.\"
+                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.\"
                     if [ -s \"\$PID_FILE\" ]; then
                         kill \"\$(cat \"\$PID_FILE\")\" 2>/dev/null || true
                     fi
@@ -646,7 +646,7 @@ $1" < /dev/null
         # Not a failure: nothing in either stack needs the published port. But
         # the workstation's read-only MCP does, and this is the moment it goes.
         if [ -z "${DB_BIND_ADDRESS:-}" ]; then
-            echo "Note: DB_BIND_ADDRESS is not set in the env file; a recreated db publishes 3306 on 127.0.0.1 only, and the read-only MCP (tools/muma_mcp) stops reaching it (docs/deployment.md#ports-logs-and-memory-limits)."
+            echo "Note: DB_BIND_ADDRESS is not set in the env file; a recreated db publishes 3306 on 127.0.0.1 only, and the read-only MCP (tools/muma_mcp) stops reaching it (docs/self-hosting.md#configure-the-stack)."
         fi
         remote_compose_step "
             if ! \$DOCKER_CMD config --services | grep -qx db; then

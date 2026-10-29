@@ -22,7 +22,7 @@ How a pass works:
 
 Deliberately absent: `OPTIMIZE TABLE`. InnoDB does not hand the space of deleted rows
 back to the filesystem, but rebuilding a multi-gigabyte table locks it and doubles the
-disk use while it runs; reclaiming space is an operator step, see docs/deployment.md.
+disk use while it runs; reclaiming space is an operator step, see muma-ops docs/deployment-production.md.
 """
 
 from __future__ import annotations

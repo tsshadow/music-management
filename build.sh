@@ -58,7 +58,7 @@ fi
 
 # Also load services/music-management-server/.env, which holds
 # VITE_GOOGLE_CLIENT_ID (the frontend build-arg counterpart of the root
-# .env's GOOGLE_CLIENT_ID). See docs/deployment.md.
+# .env's GOOGLE_CLIENT_ID). See docs/self-hosting.md.
 if [ -f services/music-management-server/.env ]; then
     dotenv_load services/music-management-server/.env
 fi

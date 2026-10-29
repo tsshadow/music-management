@@ -4,7 +4,7 @@
 # Builds and pushes ALL Docker images that production actually pulls, from CI,
 # on a release/* branch, *before* muma:deploy runs. This closes the gap that
 # caused muma:deploy to only ever "docker compose pull" whatever image was
-# last pushed manually (often stale/old) - see docs/release-management.md and
+# last pushed manually (often stale/old) - see muma-ops docs/release-management.md and
 # CHANGELOG.md 0.0.2 for the full story.
 #
 # NOTE: this originally only covered music-manager/lms (bullets 1-2 below).
@@ -47,7 +47,7 @@
 #   7. muma-tools (docker/Dockerfile.tools) -> "${DOCKER_USER}/${IMAGE_TOOLS}"
 #      (soundcloud-fetcher, process_genres tools).
 #
-# Required CI/CD variables (see docs/deployment.md):
+# Required CI/CD variables (see docs/self-hosting.md):
 #   - DOCKERHUB_USERNAME, DOCKERHUB_TOKEN: Docker Hub login used to push.
 #   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables muma:deploy
 #     already uses, needed here too so IMAGE_CORE/IMAGE_NAME/IMAGE_* resolve
@@ -152,7 +152,7 @@ docker_push() {
 }
 
 if [ "$PUSH_IMAGES" = "true" ] && { [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; }; then
-    echo "Error: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN CI/CD variables are not set. See docs/deployment.md."
+    echo "Error: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN CI/CD variables are not set. See docs/self-hosting.md."
     exit 1
 fi
 
@@ -177,13 +177,13 @@ write_env_file() {
 
 if [ "$PUSH_IMAGES" = "true" ]; then
     if [ -z "${PROD_ENV_FILE}" ]; then
-        echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
+        echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/self-hosting.md."
         exit 1
     fi
     write_env_file "${PROD_ENV_FILE}" "$ROOT_ENV_FILE"
 
     if [ -z "${PROD_ENV_FILE_LMS}" ]; then
-        echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
+        echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/self-hosting.md."
         exit 1
     fi
     write_env_file "${PROD_ENV_FILE_LMS}" "$LMS_ENV_FILE"

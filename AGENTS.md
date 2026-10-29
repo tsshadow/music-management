@@ -238,7 +238,7 @@ day, so a backlog is worked off in hourly passes. If the table still holds more 
 `ERROR` rows go; `CRITICAL` is never removed by size, and a pass that needed the cap logs a
 `WARNING`. Each pass logs one summary line at `INFO` on `music-manager.events-retention`. Every
 `WARNING`+ still reaches the table; retention only decides how long it stays. Deleted rows do not
-shrink the InnoDB file — reclaiming the space is an operator step, see `docs/deployment.md`
+shrink the InnoDB file — reclaiming the space is an operator step, see `docs/deployment-production.md` in muma-ops
 ("Reclaiming space in the events table") and bug report 072.
 
 ### Deployment prerequisite: `upstream-base-url`
@@ -398,7 +398,7 @@ To maintain high code quality, the system employs an automated test suite:
       is treated as a hard requirement by project convention, on par with any other required check in this
       list** — a release is not "done" if this job was skipped, allowed to fail, or removed without a
       replacement check covering the same secrets. Add new required keys to that script (and to
-      `docs/deployment.md`) whenever a new secret becomes load-bearing for production.
+      `docs/self-hosting.md`) whenever a new secret becomes load-bearing for production.
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).
@@ -472,7 +472,7 @@ To maintain high code quality, the system employs an automated test suite:
   The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous
   release is still running, before the new containers start. Dropping, renaming or narrowing
   what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,
-  `docs/deployment.md#deploy-order-and-migrations`).
+  `docs/self-hosting.md#migrations`).
 - **Multi-statement writes go through `transaction(conn)`** from `services/music_manager/database.py`:
   the pool runs autocommit, so a DELETE-then-INSERT (or any write that must land whole) without it
   is two separate commits, and `conn.commit()` does not change that. Test it with

@@ -134,7 +134,7 @@ check_states() {
 # production env file enables (COMPOSE_PROFILES in PROD_ENV_FILE) must be in
 # SAMPLE and running. Profiles decide which workers `up` starts, so a profile
 # dropped from that file would otherwise just remove a worker without a red
-# check (docs/deployment.md#source-workers-are-compose-profiles). The profile
+# check (docs/self-hosting.md#source-workers-are-compose-profiles). The profile
 # to container map is pinned against docker/docker-compose.yml by
 # tests/ci/test_compose_profiles.py. Without PROD_ENV_FILE or COMPOSE_PROFILES it
 # prints SKIPPED, and fails when run as the muma:deploy or muma:verify job.

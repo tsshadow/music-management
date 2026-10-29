@@ -40,6 +40,6 @@ Added explicit `catch` branches, in both `NavigationActivity.performWelcomeGoogl
 To fully resolve the "no Google account" case end-to-end (as opposed to just reporting it
 clearly), a Google account still needs to be added to the test device/emulator, and
 `GOOGLE_WEB_CLIENT_ID` must be a real, non-placeholder client ID at build time (see
-`docs/deployment.md` / the `release:check-secrets` CI job for where this is wired in from
+`muma-ops docs/deployment-production.md` / the `release:check-secrets` CI job for where this is wired in from
 `PROD_ENV_FILE`'s `GOOGLE_CLIENT_ID`) — those are environment/device setup steps outside of
 this app-code fix.

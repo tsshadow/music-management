@@ -26,7 +26,7 @@
 # Deleting a branch that is already merged into master is safe no matter what
 # the tag or the deploy did, so this job depends on neither. Recovering a
 # release that did not deploy means cutting the next one from develop, not
-# re-running the old branch's pipeline - see docs/release-management.md.
+# re-running the old branch's pipeline - see muma-ops docs/release-management.md.
 #
 # Uses the same TAG_CREATION_TOKEN (Maintainer, api scope) as release:tag.
 # The token goes to curl through a process substitution (`--header @<(...)`), never as
@@ -36,7 +36,7 @@
 set -e
 
 if [ -z "$TAG_CREATION_TOKEN" ]; then
-    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 

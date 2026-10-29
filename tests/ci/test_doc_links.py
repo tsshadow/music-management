@@ -22,16 +22,7 @@ TOP_LEVEL = ("AGENTS.md", "README.md", "CONTRIBUTING.md", "SECURITY.md")
 # Broken links in files that other merge requests rewrite right now. Each entry is
 # (source file, link target as written) and is removed by the follow-up named in its comment.
 # An entry that no longer matches a broken link fails the test, so stale entries cannot stay.
-ALLOWED_BROKEN = {
-    # removed by step 7c-2 (docs/release-management.md moves to muma-ops)
-    ("docs/release-management.md", "branch-hygiene.md"),
-    # removed by step 7c-2 (docs/deployment.md is split into docs/self-hosting.md)
-    (
-        "docs/deployment.md",
-        # Written in two pieces so a grep for the old plans folder stays empty once 7c-2 lands.
-        "superpowers" + "/specs/2026-08-02-daily-db-backups-design.md",
-    ),
-}
+ALLOWED_BROKEN: set[tuple[str, str]] = set()
 
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 _REFERENCE = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(<[^>]*>|\S+)")

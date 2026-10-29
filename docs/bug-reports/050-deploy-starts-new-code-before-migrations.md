@@ -20,7 +20,7 @@ reach production in the wrong order, with nothing to fall back on:
    `:latest` in the `release` stage. Watchtower on the production host pulls `:latest` of the
    downloader images whenever it changes, so it could start a release's worker code minutes before
    `muma:deploy` had migrated — and did so even when `muma:deploy` was skipped altogether (a red
-   mobile job skips it; see release 0.19.0 in `docs/release-management.md`).
+   mobile job skips it; see release 0.19.0 in `muma-ops docs/release-management.md`).
 4. **Post-deploy verification could pass while services were broken.**
    `scripts/ci/post-deploy-verify.sh` sampled container state once, right after the migrations. A
    container that crashes twenty seconds after start and is brought back by
@@ -72,7 +72,7 @@ path of least resistance, and a green job never said which interpreter it was gr
   `ON UPDATE` from `listened_at`.
 - **Rollback (1).** Every image this repository builds is `${IMAGE_TAG:-latest}` in
   `docker/docker-compose.yml` (a single-level default, rendered correctly by docker-compose 1.29.2 —
-  checked). `IMAGE_TAG=<previous> ./scripts/deploy.sh` rolls back; see `docs/deployment.md#rollback`.
+  checked). `IMAGE_TAG=<previous> ./scripts/deploy.sh` rolls back; see `docs/self-hosting.md#roll-back`.
   CI deliberately does **not** pin `IMAGE_TAG=${VERSION}`: the running containers must stay on
   `:latest`, or `muma:refresh-downloader`'s weekly yt-dlp rebuild — which republishes `:latest` for
   Watchtower — would never reach them again.

@@ -121,7 +121,7 @@ and fail on an unformatted file. The whole-tree reformat is listed in
 
 `feature/*` → `develop` → `release/x.y.z` → `master`. The release branch is where
 stabilisation and the production deploy happen; `master` is the tagged record.
-[docs/release-management.md](docs/release-management.md) has the full policy,
+`docs/release-management.md` in the private muma-ops repository has the full policy,
 including what the `release:check-secrets` job guarantees.
 
 ## Commit messages

@@ -4283,7 +4283,7 @@ model, and marks the point where this project became one single, unified monorep
   every `develop` merge (for day-to-day testing on your own device), with official signed builds
   reserved for `release/*` branches going forward.
 
-See [docs/release-management.md](docs/release-management.md) for the full branching/release model.
+See `docs/release-management.md` (private muma-ops repository) for the full branching/release model.
 
 ## Global Version 2.5.0 (2026-07-11)
 ### 🚀 Structural Modernization & Path Migration

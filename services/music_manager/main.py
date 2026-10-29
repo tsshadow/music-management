@@ -136,19 +136,10 @@ def startup_event():
     if conn:
         try:
             with conn.cursor() as cursor:
-                users.init_db(cursor)  # also seeds RBAC roles/permissions, see rbac.init_db
-                scrobbler.init_db(cursor)
-                rating.init_db(cursor)
-                management.init_db(cursor)
-                artist_images.init_db(cursor)
-                user_requests.init_db(cursor)
+                # The tables come from ensure_tables_exist(); these seed the rows they need.
+                users.init_db(cursor)  # roles and permissions, see rbac.init_db
                 radio.init_db(cursor)
                 news.init_db(cursor)
-                downloaders.init_db(cursor)
-                diagnostics.init_db(cursor)
-                events.init_db(cursor)
-                feeds.init_db(cursor)
-                feeds_snapshot.init_db(cursor)
                 # Idempotent: only ever fills a genre whose hardness is still NULL, so a
                 # curator's own edit from the genre edit page is never overwritten. Cheap
                 # on every later restart -- almost every row already has a value after

@@ -20,7 +20,6 @@ from __future__ import annotations
 import base64
 import contextlib
 import gzip
-import hashlib
 import os
 import shutil
 import signal
@@ -93,10 +92,10 @@ def test_the_remote_env_file_is_private_and_removed(script: Path) -> None:
     assert "trap 'rm -rf" in text
 
 
-def test_the_migration_password_travels_through_the_environment() -> None:
+def test_the_dump_password_travels_through_the_environment() -> None:
     text = _text(DEPLOY_SH)
     assert "docker exec -i -e MYSQL_PWD music-management-db-1" in text
-    assert "read -r MYSQL_PWD" in text
+    assert "read -r DUMP_PWD" in text
 
 
 def test_docker_login_happens_only_inside_a_throwaway_docker_config() -> None:
@@ -258,28 +257,6 @@ case "$1" in
                 exit 0
                 ;;
         esac
-        echo migrate >> "$FAKE_LOG/events"
-        n=$(ls "$FAKE_LOG" | grep -c '^exec-stdin' || true)
-        cat > "$FAKE_LOG/exec-stdin.$n"
-        printf '%s' "${MYSQL_PWD-<unset>}" > "$FAKE_LOG/exec-pwd.$n"
-        # tools/apply_migrations.py's own statements: the ledger read, the
-        # processlist on failure, the ledger write.
-        if grep -q "SELECT 'ledger'" "$FAKE_LOG/exec-stdin.$n"; then
-            printf 'kind\tfilename\tsha256\n'
-            [ -f "$FAKE_LOG/ledger" ] && cat "$FAKE_LOG/ledger"
-            exit 0
-        fi
-        if grep -q 'information_schema.PROCESSLIST' "$FAKE_LOG/exec-stdin.$n"; then
-            printf 'kind\tID\n'
-            printf 'proc\t42\troot\t18000\tQuery\tSending data\t\tSELECT COUNT(*) FROM tagger_processed_files t JOIN\n'
-            exit 0
-        fi
-        grep -q '^INSERT INTO schema_migrations' "$FAKE_LOG/exec-stdin.$n" && exit 0
-        [ "${FAKE_FAIL_MIGRATION:-0}" = 1 ] && exit 3
-        if [ "${FAKE_LOCK_TIMEOUT:-0}" = 1 ]; then
-            echo 'ERROR 1205 (HY000) at line 2: Lock wait timeout exceeded; try restarting transaction' >&2
-            exit 1
-        fi
         ;;
     buildx)
         # `docker buildx version` fails unless the test asks for buildx.
@@ -335,6 +312,14 @@ while [ $# -gt 0 ]; do
         -f) printf '%s' "$2" > "$FAKE_LOG/compose-path"; shift 2 ;;
         config) printf '%s\n' ${FAKE_SERVICES:-music-manager}; exit 0 ;;
         run)
+            # The schema step: the release's schema-reconcile one-shot.
+            case "$*" in
+                *schema-reconcile*)
+                    echo schema >> "$FAKE_LOG/events"
+                    printf '%s\n' "${SCHEMA_IMAGE_TAG-<unset>} $*" >> "$FAKE_LOG/schema-runs"
+                    [ "${FAKE_FAIL_SCHEMA:-0}" = 1 ] && exit 3
+                    exit 0 ;;
+            esac
             # FAKE_BACKUP_SERVICE_ORPHAN: what Watchtower did on 2026-09-27 -- the
             # run fails, but a copy of its container keeps dumping and writes
             # into the pre-deploy partial files beside it (bug report 123).
@@ -391,9 +376,8 @@ def _env(tmp_path: Path, bin_dir: Path, log_dir: Path, **extra: str) -> dict[str
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
     env = {
-        # The interpreter running these tests comes along: deploy.sh runs
-        # tools/apply_migrations.py with python3, which in the CI image lives in
-        # /usr/local/bin rather than /usr/bin.
+        # The interpreter running these tests comes along: python3 in the CI image
+        # lives in /usr/local/bin rather than /usr/bin.
         "PATH": f"{bin_dir}:{Path(sys.executable).parent}:/usr/bin:/bin",
         "HOME": str(home),
         "FAKE_LOG": str(log_dir),
@@ -462,28 +446,23 @@ def test_deploy_sh_streams_env_and_password_over_stdin(tmp_path: Path) -> None:
 
     _assert_remote_env_handling(tmp_path, log_dir, env_file, "hygiene-test")
 
-    migrations = sorted(REPO_ROOT.glob("migrate_*.sql"))
-    assert migrations, "expected migrate_*.sql files in the repository root"
     docker_argv = (log_dir / "docker-argv").read_text(encoding="utf-8")
     assert SECRET not in docker_argv
-    assert (log_dir / "exec-pwd.0").read_text() == SECRET
-    # exec 0 reads the (empty) ledger; then each file runs and is recorded.
-    assert b"SELECT 'ledger'" in (log_dir / "exec-stdin.0").read_bytes()
-    first = (log_dir / "exec-stdin.1").read_text(encoding="utf-8")
-    assert first.startswith("SET SESSION lock_wait_timeout = 120; SET SESSION innodb_lock_wait_timeout = 120;\n")
-    assert first.endswith(migrations[0].read_text(encoding="utf-8"))
-    assert f"'{migrations[0].name}'" in (log_dir / "exec-stdin.2").read_text(encoding="utf-8")
-    assert len(list(log_dir.glob("exec-stdin.*"))) == 1 + 2 * len(migrations)
-    assert all(p.read_text() == SECRET for p in log_dir.glob("exec-pwd.*"))
+    assert SECRET not in (log_dir / "compose-argv").read_text(encoding="utf-8")
+    version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    runs = (log_dir / "schema-runs").read_text(encoding="utf-8").splitlines()
+    assert len(runs) == 1, runs
+    assert runs[0].startswith(f"{version} ")
+    assert runs[0].endswith(" run --rm --no-deps -T schema-reconcile --lock-wait-timeout 120")
 
 
-def test_deploy_sh_fails_when_a_migration_fails(tmp_path: Path) -> None:
+def test_deploy_sh_fails_when_the_schema_step_fails(tmp_path: Path) -> None:
     bin_dir, log_dir = _fake_bin(tmp_path)
     env = _env(
         tmp_path,
         bin_dir,
         log_dir,
-        FAKE_FAIL_MIGRATION="1",
+        FAKE_FAIL_SCHEMA="1",
         DEPLOY_TARGET_NAME="hygiene-test",
         LOCAL_COMPOSE_FILE="docker/docker-compose.yml",
         LOCAL_ENV_FILE=str(_write_env_file(tmp_path)),
@@ -494,7 +473,7 @@ def test_deploy_sh_fails_when_a_migration_fails(tmp_path: Path) -> None:
     assert result.returncode != 0
     assert "Remote deployment completed successfully" not in result.stdout
     assert "--remove-orphans" not in (log_dir / "compose-argv").read_text(), (
-        "a failed migration must stop the deploy before up"
+        "a failed schema step must stop the deploy before up"
     )
 
 
@@ -579,7 +558,7 @@ def test_prod_ssh_setup_agent_dies_with_the_sourcing_shell(tmp_path: Path) -> No
 # --- deploy order (bug report 050) ------------------------------------------
 #
 # The deploy used to recreate every container -- `db` included, with
-# --force-recreate -- and migrate afterwards, with no backup, while
+# --force-recreate -- and changed the schema afterwards, with no backup, while
 # release:build-images had already pushed :latest for Watchtower to find. The
 # tests below run the real scripts against the fakes above and read the order
 # of what happened out of $FAKE_LOG/events.
@@ -604,7 +583,7 @@ def _run_deploy(tmp_path: Path, **extra: str) -> tuple[subprocess.CompletedProce
 
 
 def _events(log_dir: Path) -> list[str]:
-    """The ordered list of dumps, migrations and compose calls the deploy made."""
+    """The ordered list of dumps, schema runs and compose calls the deploy made."""
     path = log_dir / "events"
     return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
 
@@ -622,17 +601,17 @@ def _is_service_up(event: str) -> bool:
     return event.startswith("compose") and " up " in event and "--remove-orphans" in event
 
 
-def test_migrations_run_after_the_dump_and_before_any_container_is_recreated(tmp_path: Path) -> None:
+def test_the_schema_step_runs_after_the_dump_and_before_any_container_is_recreated(tmp_path: Path) -> None:
     result, log_dir = _run_deploy(tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     events = _events(log_dir)
 
     dump = _index(events, lambda e: e == "dump")
-    first_migration = _index(events, lambda e: e == "migrate")
-    last_migration = len(events) - 1 - events[::-1].index("migrate")
+    schema = _index(events, lambda e: e == "schema")
+    assert events.count("schema") == 1, events
     up = _index(events, _is_service_up)
-    pull = _index(events, lambda e: e.startswith("compose") and " pull " in e + " ")
-    assert dump < first_migration <= last_migration < pull < up, events
+    pull = _index(events, lambda e: e.startswith("compose") and " pull " in e + " " and "schema-reconcile" not in e)
+    assert dump < schema < pull < up, events
 
     backups = list((tmp_path / "backups").glob("muma_db_pre-deploy_*.sql.gz"))
     assert len(backups) == 1, "the verified dump must land in HOST_BACKUP_PATH"
@@ -640,13 +619,13 @@ def test_migrations_run_after_the_dump_and_before_any_container_is_recreated(tmp
     assert SECRET not in (log_dir / "docker-argv").read_text(encoding="utf-8")
 
 
-def test_the_database_is_ready_before_the_first_migration(tmp_path: Path) -> None:
-    result, log_dir = _run_deploy(tmp_path)
+def test_the_schema_step_uses_the_deployed_image_tag(tmp_path: Path) -> None:
+    result, log_dir = _run_deploy(tmp_path, IMAGE_TAG="0.94.0", SCHEMA_LOCK_WAIT_SECONDS="7")
     assert result.returncode == 0, result.stdout + result.stderr
-    docker_argv = (log_dir / "docker-argv").read_text(encoding="utf-8").splitlines()
-    ping = next(i for i, line in enumerate(docker_argv) if "mariadb-admin --protocol=tcp -h 127.0.0.1 ping" in line)
-    migration = next(i for i, line in enumerate(docker_argv) if line.startswith("exec") and " mariadb -u" in line)
-    assert ping < migration
+    runs = (log_dir / "schema-runs").read_text(encoding="utf-8").splitlines()
+    assert runs == ["0.94.0 run --rm --no-deps -T schema-reconcile --lock-wait-timeout 7"], runs
+    events = _events(log_dir)
+    assert _index(events, lambda e: " pull schema-reconcile" in e) < _index(events, lambda e: e == "schema")
 
 
 def test_no_container_is_force_recreated_and_db_is_left_alone_by_default(tmp_path: Path) -> None:
@@ -686,14 +665,14 @@ def test_deploy_db_and_deploy_oneshots_opt_in(tmp_path: Path) -> None:
     ],
     ids=["dump-fails", "dump-truncated", "dump-too-small"],
 )
-def test_a_failed_dump_aborts_before_anything_is_migrated_or_recreated(
+def test_a_failed_dump_aborts_before_the_schema_is_changed_or_anything_recreated(
     tmp_path: Path, knob: dict[str, str], reason: str
 ) -> None:
     result, log_dir = _run_deploy(tmp_path, **knob)
     assert result.returncode != 0
     assert reason in result.stdout + result.stderr
     events = _events(log_dir)
-    assert "migrate" not in events
+    assert "schema" not in events
     assert not any(_is_service_up(e) for e in events)
     assert not list((tmp_path / "backups").glob("*.sql.gz*")), "a failed dump must not leave a file behind"
 
@@ -712,7 +691,7 @@ def test_a_missing_backup_destination_aborts_the_deploy(tmp_path: Path) -> None:
     )
     assert result.returncode != 0
     assert "is the backup share mounted" in result.stdout
-    assert "migrate" not in _events(log_dir)
+    assert "schema" not in _events(log_dir)
 
 
 def test_the_installed_backup_service_is_the_first_choice(tmp_path: Path) -> None:
@@ -726,7 +705,7 @@ def test_the_installed_backup_service_is_the_first_choice(tmp_path: Path) -> Non
     backup = _index(events, lambda e: " run --rm -T --name order-test-predeploy-backup-" in e)
     run = events[backup]
     assert "-l com.centurylinklabs.watchtower.enable=false -e BACKUP_LABEL=pre-deploy db-backup" in run, run
-    assert backup < _index(events, lambda e: e == "migrate")
+    assert backup < _index(events, lambda e: e == "schema")
     assert "dump" not in events, "the docker-exec fallback must not run when the service succeeded"
 
 
@@ -738,18 +717,19 @@ def test_a_failing_backup_service_falls_back_to_the_verified_dump(tmp_path: Path
     result, log_dir = _run_deploy(tmp_path, BACKUP_COMPOSE_DIR=str(backup_dir), FAKE_FAIL_BACKUP_SERVICE="1")
     assert result.returncode == 0, result.stdout + result.stderr
     events = _events(log_dir)
-    assert _index(events, lambda e: e == "dump") < _index(events, lambda e: e == "migrate")
+    assert _index(events, lambda e: e == "dump") < _index(events, lambda e: e == "schema")
 
 
-def test_the_pre_up_hook_runs_between_the_migrations_and_up(tmp_path: Path) -> None:
+def test_the_pre_up_hook_runs_between_the_schema_step_and_up(tmp_path: Path) -> None:
     hook = tmp_path / "hook.sh"
     hook.write_text('#!/bin/bash\necho hook >> "$FAKE_LOG/events"\n', encoding="utf-8")
     hook.chmod(0o755)
     result, log_dir = _run_deploy(tmp_path, DEPLOY_PRE_UP_HOOK=str(hook))
     assert result.returncode == 0, result.stdout + result.stderr
     events = _events(log_dir)
-    last_migration = len(events) - 1 - events[::-1].index("migrate")
-    assert last_migration < _index(events, lambda e: e == "hook") < _index(events, _is_service_up)
+    assert (
+        _index(events, lambda e: e == "schema") < _index(events, lambda e: e == "hook") < _index(events, _is_service_up)
+    )
 
 
 def test_a_failing_pre_up_hook_stops_the_deploy_before_up(tmp_path: Path) -> None:
@@ -941,55 +921,6 @@ def test_verify_fails_on_the_wrong_version(tmp_path: Path) -> None:
     assert "not the 1.2.3 this pipeline deployed" in result.stdout
 
 
-# --- migration ledger and lock timeout (bug report 068) -------------------------
-
-
-def _ledger_line(path: Path, digest: str | None = None) -> str:
-    """One row of the fake ledger, in the client's batch format."""
-    return f"ledger\t{path.name}\t{digest or hashlib.sha256(path.read_bytes()).hexdigest()}\n"
-
-
-def test_recorded_unchanged_migrations_are_skipped(tmp_path: Path) -> None:
-    migrations = sorted(REPO_ROOT.glob("migrate_*.sql"))
-    changed = migrations[-1]
-    ledger = "".join(_ledger_line(p) for p in migrations[:-1]) + _ledger_line(changed, "0" * 64)
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    (log_dir / "ledger").write_text(ledger, encoding="utf-8")
-    env = _env(
-        tmp_path,
-        bin_dir,
-        log_dir,
-        DEPLOY_TARGET_NAME="ledger-test",
-        LOCAL_COMPOSE_FILE="docker/docker-compose.yml",
-        LOCAL_ENV_FILE=str(_write_env_file(tmp_path)),
-    )
-    result = subprocess.run(
-        ["bash", str(DEPLOY_SH)], capture_output=True, text=True, env=env, cwd=tmp_path, check=False
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    # The ledger read, then only the file whose hash differs: run and record.
-    stdins = sorted(log_dir.glob("exec-stdin.*"), key=lambda p: int(p.suffix[1:]))
-    assert len(stdins) == 3, [p.read_text()[:80] for p in stdins]
-    assert stdins[1].read_text(encoding="utf-8").endswith(changed.read_text(encoding="utf-8"))
-    assert f"{len(migrations) - 1} migration(s) recorded" in result.stdout
-    assert f"{changed.name} (changed)" in result.stdout
-
-
-def test_a_migration_blocked_on_a_lock_stops_the_deploy_before_up(tmp_path: Path) -> None:
-    result, log_dir = _run_deploy(tmp_path, FAKE_LOCK_TIMEOUT="1", MIGRATION_LOCK_WAIT_SECONDS="7")
-    assert result.returncode != 0
-    output = result.stdout + result.stderr
-    first = sorted(REPO_ROOT.glob("migrate_*.sql"))[0].name
-    assert f"{first} waited more than 7s for a lock" in output
-    # The client's line number counts the one-line prelude; the report counts the file's.
-    assert "at line 1:" in output
-    assert "Sessions on the database server" in output
-    assert "SELECT COUNT(*) FROM tagger_processed_files" in output
-    assert "7; SET SESSION innodb_lock_wait_timeout = 7;" in (log_dir / "exec-stdin.1").read_text()
-    assert not any(_is_service_up(e) for e in _events(log_dir))
-    assert SECRET not in output
-
-
 def test_a_stalled_fallback_dump_is_stopped_and_refuses_the_deploy(tmp_path: Path) -> None:
     started = time.monotonic()
     result, log_dir = _run_deploy(tmp_path, FAKE_DUMP_STALL="1", PREDEPLOY_DUMP_STALL_SECONDS="2")
@@ -1000,7 +931,7 @@ def test_a_stalled_fallback_dump_is_stopped_and_refuses_the_deploy(tmp_path: Pat
     assert time.monotonic() - started < 300, "the watchdog must not wait for the stalled dump"
     assert "wrote nothing for 2 s" in result.stdout + result.stderr
     events = _events(log_dir)
-    assert "migrate" not in events
+    assert "schema" not in events
     assert not any(_is_service_up(e) for e in events)
     assert not list((tmp_path / "backups").glob("*.sql.gz*")), "a stalled dump must not leave a file behind"
 
@@ -1018,7 +949,7 @@ def test_a_stalled_backup_service_does_not_fall_back(tmp_path: Path) -> None:
     assert "pre-deploy dump stalled" in result.stdout + result.stderr
     events = _events(log_dir)
     assert "dump" not in events
-    assert "migrate" not in events
+    assert "schema" not in events
 
 
 # --- one dump writer at a time (bug report 123) ------------------------------
@@ -1060,7 +991,7 @@ def test_a_failed_backup_run_is_gone_before_the_fallback_dump_starts(tmp_path: P
     orphan = _index(events, lambda e: e.startswith("orphan order-test-predeploy-backup-"))
     name = events[orphan].split(" ", 1)[1]
     removed = _index(events, lambda e: e == f"rm {name}")
-    assert orphan < removed < _index(events, lambda e: e == "dump") < _index(events, lambda e: e == "migrate")
+    assert orphan < removed < _index(events, lambda e: e == "dump") < _index(events, lambda e: e == "schema")
     assert not (log_dir / "containers" / name).exists()
     finished = list(backups.glob("muma_db_pre-deploy_*_fallback.sql.gz"))
     assert len(finished) == 1, list(backups.iterdir())
@@ -1084,7 +1015,7 @@ def test_a_backup_container_that_will_not_go_refuses_the_deploy(tmp_path: Path) 
     assert "would be a second writer" in result.stdout
     events = _events(log_dir)
     assert "dump" not in events, "the fallback must never start beside a live backup container"
-    assert "migrate" not in events
+    assert "schema" not in events
     assert not any(_is_service_up(e) for e in events)
 
 
@@ -1094,7 +1025,7 @@ def test_another_running_backup_container_refuses_the_fallback(tmp_path: Path) -
     assert "another db-backup container is still running" in result.stdout
     events = _events(log_dir)
     assert "dump" not in events
-    assert "migrate" not in events
+    assert "schema" not in events
 
 
 def test_the_fallback_dump_writes_under_names_of_its_own(tmp_path: Path) -> None:
@@ -1112,7 +1043,7 @@ def test_a_slow_but_growing_fallback_dump_is_not_stopped(tmp_path: Path) -> None
     result, log_dir = _run_deploy(tmp_path, FAKE_DUMP_SLOW="5", PREDEPLOY_DUMP_STALL_SECONDS="3")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "wrote nothing" not in result.stdout
-    assert _index(_events(log_dir), lambda e: e == "dump") < _index(_events(log_dir), lambda e: e == "migrate")
+    assert _index(_events(log_dir), lambda e: e == "dump") < _index(_events(log_dir), lambda e: e == "schema")
 
 
 def test_deploy_has_no_default_registry_user() -> None:

@@ -573,24 +573,9 @@ class ChannelAdminTest(unittest.TestCase):
 
 
 class RadioInitDbTest(unittest.TestCase):
-    def test_init_db_creates_tables_and_seeds_default_channel(self):
+    def test_init_db_seeds_the_default_channel_and_touches_no_schema(self):
         cursor = MagicMock()
         radio_router.init_db(cursor)
         statements = [call[0][0] for call in cursor.execute.call_args_list]
-        self.assertTrue(any('CREATE TABLE IF NOT EXISTS radio_channels' in s for s in statements))
-        self.assertTrue(any('CREATE TABLE IF NOT EXISTS radio_timeline' in s for s in statements))
         self.assertTrue(any('INSERT IGNORE INTO radio_channels' in s for s in statements))
-
-    def test_init_db_adds_the_filter_column_when_it_is_missing(self):
-        cursor = MagicMock()
-        cursor.fetchone.return_value = None
-        radio_router.init_db(cursor)
-        statements = [call[0][0] for call in cursor.execute.call_args_list]
-        self.assertTrue(any('ADD COLUMN filter_json' in s for s in statements))
-
-    def test_init_db_leaves_an_existing_filter_column_alone(self):
-        cursor = MagicMock()
-        cursor.fetchone.return_value = {'Field': 'filter_json'}
-        radio_router.init_db(cursor)
-        statements = [call[0][0] for call in cursor.execute.call_args_list]
-        self.assertFalse(any('ADD COLUMN filter_json' in s for s in statements))
+        self.assertFalse(any('CREATE TABLE' in s or 'ALTER TABLE' in s for s in statements))

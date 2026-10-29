@@ -37,6 +37,7 @@ EXPECTED_CAPS = {
     (PROD, 'soundcloud-fetcher'): ROOT_FILE_CAPS,
     (PROD, 'genre-processor'): ROOT_FILE_CAPS,
     (PROD, 'bpm-analyzer'): ROOT_FILE_CAPS,
+    (PROD, 'schema-reconcile'): None,
     (LMS, 'lms'): ROOT_FILE_CAPS,
     (LMS, 'autoheal'): None,
     (LMS, 'reverse-proxy'): {'CHOWN', 'KILL', 'NET_BIND_SERVICE', 'SETGID', 'SETUID'},

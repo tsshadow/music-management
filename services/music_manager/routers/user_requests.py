@@ -33,11 +33,6 @@ _DUPLICATE_ENTRY = 1062
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 
 
-def init_db(_cursor):
-    # Tables are created by rbac.init_db (called from routers/users.py init_db).
-    pass
-
-
 class GoogleAuthRequest(BaseModel):
     id_token: str
 

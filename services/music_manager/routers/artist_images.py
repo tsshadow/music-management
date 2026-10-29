@@ -54,28 +54,6 @@ def download_public_image(url: str) -> bytes:
 STORAGE_PATH = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 
 
-def init_db(cursor):
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS library_artist_images (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            artist_id INT NOT NULL,\n            source VARCHAR(50),\n            source_id VARCHAR(255),\n            original_url TEXT,\n            cached_path TEXT,\n            public_path TEXT,\n            width INT,\n            height INT,\n            mime_type VARCHAR(50),\n            file_size INT,\n            confidence INT DEFAULT 0,\n            is_primary TINYINT(1) DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            INDEX (artist_id),\n            INDEX (is_primary)\n        )\n    '
-    )
-    # external_url and verified are in production but were missing here, so a fresh
-    # database got a narrower table than the code reads from. See migrate_v13 for the
-    # matching ALTER on databases that already have the narrow shape.
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS artist_external_ids (\n            artist_id INT NOT NULL,\n            source VARCHAR(50) NOT NULL,\n            external_id VARCHAR(255) NOT NULL,\n            external_url TEXT NULL,\n            verified TINYINT(1) NOT NULL DEFAULT 0,\n            created_at DATETIME,\n            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            PRIMARY KEY (artist_id, source)\n        )\n    '
-    )
-    columns_to_add = [
-        ('primary_image_id', 'INT NULL'),
-        ('image_updated_at', 'DATETIME NULL'),
-        ('image_status', 'VARCHAR(50) NULL'),
-        ('mbid', 'VARCHAR(100) NULL'),
-    ]
-    for col_name, col_type in columns_to_add:
-        cursor.execute(f"SHOW COLUMNS FROM library_artists LIKE '{col_name}'")
-        if not cursor.fetchone():
-            cursor.execute(f'ALTER TABLE library_artists ADD COLUMN {col_name} {col_type}')
-
-
 @router.get('/search')
 def search_artist_images(q: str = '', _auth: dict = Depends(verify_api_key)):
     conn = get_db_connection()

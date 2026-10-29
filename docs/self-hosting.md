@@ -104,25 +104,32 @@ docker-compose -f docker/docker-compose.yml --profile soundcloud run --rm soundc
 docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
 
-## Migrations
+## Schema changes
 
-`scripts/deploy.sh` applies every `migrate_*.sql` file in the repository root before it starts the
-new containers. `tools/apply_migrations.py` does the work.
+`services/common/schema_tables.py` declares every table and view of the database. A new stack gets
+them from it, with the seed rows in `services/common/seeds/`, when music-manager starts.
 
-- Files run in byte-wise order of their names. That puts `migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`.
-  A migration must not depend on a higher-numbered one.
-- The `schema_migrations` table records each file with its sha256. A recorded file is skipped, a
-  changed file runs again. Every migration must still be safe to run twice.
-- Each file runs under a lock wait timeout of `MIGRATION_LOCK_WAIT_SECONDS` (default 120). A
-  statement that waits longer fails, and the deploy stops while the old release keeps serving. Find
-  the session that holds the lock with `SHOW PROCESSLIST` as the database root user, end it, and
-  deploy again.
-- Migrations are expand-only. The old release is still running while they apply, so add tables,
-  columns and indexes, and drop, rename or narrow nothing the old code reads. Do that in a later
-  release. `tests/ci/test_migration_ordering.py` enforces it.
+On each deploy, `scripts/deploy.sh` runs the `schema-reconcile` one-shot from the image it deploys,
+before it starts the new containers. It builds the declaration in a scratch database
+(`<DB_DB>_schema_probe`), compares it with the live database, and adds the tables, columns, indexes
+and views the live database does not have. It changes and drops nothing. It prints every other
+difference as a `report:` line and leaves it alone. `--dry-run` prints the statements and runs none.
 
-A schema change needs the `CREATE TABLE` in `services/common/db_init.py` and a re-runnable
-`migrate_*.sql` with the same shape. See [AGENTS.md](../AGENTS.md).
+- Each statement waits at most `SCHEMA_LOCK_WAIT_SECONDS` (default 120) for a lock. A statement that
+  waits longer fails, and the deploy stops while the old release keeps serving. Find the session
+  that holds the lock with `SHOW PROCESSLIST` as the database root user, end it, and deploy again.
+- A unique index that the data violates also stops the deploy. The error names the table and the
+  index. Remove the duplicate rows and deploy again.
+- The old release still runs while the reconcile adds, so a new column needs a default or must
+  allow `NULL`.
+
+A change the reconcile cannot make (drop, rename, change a type, a new foreign key on existing
+data) needs a script in `tools/` with a dry run and a backup, like `tools/schema_cleanup_2026_11.py`.
+Change the declaration in the same merge request, and list the difference in
+`tests/integration/test_schema_snapshot.py` until the script has run on production.
+
+**Upgrade from 0.93 or older.** The migration files are gone. An installation older than 0.93.0
+must deploy a 0.93.x release first, then this one.
 
 ## Backups
 
@@ -166,8 +173,8 @@ project next to yours. The script takes one optional argument, a service name (`
 ./scripts/deploy.sh manager
 ```
 
-The order is: check the disk, start `db` if it is missing, take a verified dump, apply the
-migrations, then pull and recreate the containers whose image or definition changed.
+The order is: check the disk, start `db` if it is missing, take a verified dump, add what the
+schema lacks, then pull and recreate the containers whose image or definition changed.
 
 | Variable | Effect |
 |---|---|
@@ -186,7 +193,7 @@ deploy with the old tag, from the same `.env` as above:
 IMAGE_TAG=0.72.0 ./scripts/deploy.sh
 ```
 
-The old release runs on the current schema because migrations are expand-only. The deploy takes its
+The old release runs on the current schema because the reconcile only adds. The deploy takes its
 own pre-deploy dump first.
 
 ## Deploy from GitLab CI

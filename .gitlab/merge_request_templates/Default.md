@@ -20,8 +20,8 @@
 
 - [ ] New or changed behaviour has a test that fails without the change
 - [ ] A new endpoint that reads the database is in `tests/integration/test_router_sql.py`
-- [ ] A schema change touches `services/common/db_init.py`, a re-runnable
-      `migrate_*.sql`, and the expected-tables list in `tests/integration/test_schema.py`
+- [ ] A schema change is in `services/common/schema_tables.py`; a drop, rename or type
+      change has a script in `tools/` and is listed in `tests/integration/test_schema_snapshot.py`
 - [ ] A new dependency is pinned with `~=` in the requirements file that owns it
 - [ ] Nothing secret is in the diff; new configuration is in `.env.example`
 

@@ -2,8 +2,7 @@
 
 What is proved here is the SQL the unit tests mock away: which names the tagger's
 trusted-artist helper loads (TRUSTED_ARTISTS_SQL), that a name the scanner records is
-pending rather than trusted, that migrate_v40 grandfathers the library once and never
-again, and that the auto-approve run still sees a pending name as a candidate.
+pending rather than trusted, and that the auto-approve run still sees a pending name as a candidate.
 See docs/designs/artist-curation/technical.md, "Wiring the queue".
 """
 
@@ -11,12 +10,10 @@ import pytest
 
 from services.common.Helpers.TrustedArtistHelper import TRUSTED_ARTISTS_SQL
 from services.music_manager.routers import scanner as scanner_router
-from tests.integration.conftest import ROOT, _split_statements, run_sql
+from tests.integration.conftest import run_sql
 from tools.artist_auto_approve import SNAPSHOT_SQL
 
 pytestmark = pytest.mark.integration
-
-MIGRATION = ROOT / 'migrate_v40_artist_curation_wired.sql'
 
 
 class FakeSong:
@@ -50,12 +47,6 @@ def trusted(db) -> set[str]:
     return {row['name'] for row in run_sql(db, TRUSTED_ARTISTS_SQL)}
 
 
-def apply_migration(db):
-    with db.cursor() as cursor:
-        for statement in _split_statements(MIGRATION.read_text(encoding='utf-8')):
-            cursor.execute(statement)
-
-
 def add_artists(db, *names):
     with db.cursor() as cursor:
         cursor.executemany('INSERT IGNORE INTO library_artists (name) VALUES (%s)', [(n,) for n in names])
@@ -77,29 +68,6 @@ def scan_fixture(db, tmp_path, monkeypatch):
         assert manager.process_file(db, str(path), force=True)
 
     return _scan
-
-
-class GrandfatherSeedTest:
-    def test_the_first_run_grandfathers_the_library_and_a_rerun_adds_nothing(self, db):
-        add_artists(db, 'Angerfist', 'Premiere')
-        apply_migration(db)
-        assert {r['name'] for r in run_sql(db, 'SELECT name FROM rules_artist_legacy_trust')} == {
-            'Angerfist',
-            'Premiere',
-        }
-        add_artists(db, 'Tagger Guess')
-        apply_migration(db)
-        assert 'Tagger Guess' not in {r['name'] for r in run_sql(db, 'SELECT name FROM rules_artist_legacy_trust')}
-
-    def test_an_emptied_table_is_not_reseeded_once_the_ledger_records_the_file(self, db):
-        add_artists(db, 'Angerfist')
-        run_sql(
-            db,
-            "INSERT INTO schema_migrations (filename, sha256) VALUES ('migrate_v40_artist_curation_wired.sql', %s)",
-            ('0' * 64,),
-        )
-        apply_migration(db)
-        assert not run_sql(db, 'SELECT name FROM rules_artist_legacy_trust')
 
 
 class TrustedArtistsTest:

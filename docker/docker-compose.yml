@@ -340,6 +340,38 @@ services:
     networks:
       - music-management_db
 
+  # One-shot, never started by `up`: scripts/deploy.sh runs it before the new containers
+  # start, with the image of the release being deployed (SCHEMA_IMAGE_TAG). It adds the
+  # tables, columns and indexes that release declares and drops or changes nothing
+  # (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes). It connects as
+  # root: it builds the declaration in a scratch database first, which the application user
+  # may not create.
+  # One-shot: scripts/deploy.sh runs it in step (d), before the new containers
+  # start, and leaves it out of `up`. It adds what the database lacks and reports
+  # the rest (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes).
+  schema-reconcile:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    image: ${DOCKER_USER}/${IMAGE_CORE}:${SCHEMA_IMAGE_TAG:-latest}
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *default-logging
+    restart: "no"
+    entrypoint: ["python", "-m", "services.common.schema_reconcile"]
+    command: []
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DB: ${DB_DB}
+      DB_USER: root
+      DB_PASS: ${MYSQL_ROOT_PASSWORD}
+      PYTHONPATH: /app
+    networks:
+      - music-management_db
+
   # NOTE: LMS (the web player + Subsonic API, on the web-player and LMS host names)
   # is NOT defined here. It is deployed as its own, separate stack from
   # services/music-management-server/docker-compose.yml ("lms" project: "lms"

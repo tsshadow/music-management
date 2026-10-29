@@ -1440,7 +1440,8 @@ class ScrobblingTest:
 class DownloadAccountsTest:
     def test_a_soundcloud_account_round_trip(self, api, headers, db):
         api.post('/api/soundcloud', headers=headers, json={'name': 'artist', 'soundcloud_id': '7'})
-        assert api.get('/api/soundcloud', headers=headers).json() == [{'name': 'artist', 'soundcloud_id': '7'}]
+        # soundcloud_id is a BIGINT, as on production, so it comes back as a number.
+        assert api.get('/api/soundcloud', headers=headers).json() == [{'name': 'artist', 'soundcloud_id': 7}]
         api.delete('/api/soundcloud/artist', headers=headers)
         assert api.get('/api/soundcloud', headers=headers).json() == []
 

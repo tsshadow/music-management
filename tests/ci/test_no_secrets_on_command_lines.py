@@ -207,7 +207,7 @@ def test_scanner_flags(line):
     [
         'MYSQL_PWD="$DB_PASS" docker exec -e MYSQL_PWD "$DB_CONTAINER" mysql -u"$DB_USER" db',
         "docker exec -i \"$c\" sh -c 'MYSQL_PWD=\"$MARIADB_ROOT_PASSWORD\" exec mariadb -uroot -N'",
-        'python3 tools/apply_migrations.py --password-stdin --exec run_remote_sql',
+        'python3 tools/db_backup.py --password-stdin --exec run_remote_sql',
         'SSHPASS="${pass}" sshpass -e ssh host',
         '    -e SIGNING_KEY_PASSWORD \\',
         "curl -sf --header @<(printf 'PRIVATE-TOKEN: %s\\n' \"$TAG_CREATION_TOKEN\") \"$API\"",

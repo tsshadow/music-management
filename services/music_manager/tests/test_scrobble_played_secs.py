@@ -22,9 +22,9 @@ import services.music_manager.database
 services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
+from services.common import schema_tables
 from services.music_manager.api_key import resolve_system_api_key
 from services.music_manager.main import app
-from services.music_manager.routers.scrobbler import init_db
 from services.music_manager.scrobble_matching import MatchTier
 from services.music_manager.tests.scripted_cursor import ScriptedCursor
 
@@ -131,76 +131,28 @@ class ScrobbleEventTest(unittest.TestCase):
         self.assertEqual(first, second)
 
 
-class InitDbTest(unittest.TestCase):
-    """The column has to appear on a database that predates it, not only on a fresh one."""
+class ScrobbleDeclarationTest(unittest.TestCase):
+    """What the scrobble tables declare in services/common/schema_tables.py."""
 
-    @staticmethod
-    def _column_alters(cursor):
-        """Only the played_secs ALTERs. The index ALTERs beside them are
-        unconditional -- `ADD INDEX IF NOT EXISTS` needs no guard -- so counting
-        every ALTER would make this test fail whenever an index is added."""
-        return [sql for sql, _params in cursor.executed if 'ALTER TABLE' in sql and 'played_secs' in sql]
+    def statement(self, table):
+        return dict(schema_tables.TABLES)[table]
 
-    def test_the_column_is_added_when_it_is_missing(self):
-        cursor = ScriptedCursor()  # every SHOW COLUMNS reads as "no such column"
-        init_db(cursor)
-        altered = self._column_alters(cursor)
-        self.assertEqual(len(altered), 2, altered)
+    def test_both_listen_tables_declare_played_secs(self):
+        for table in ('scrobble_listens', 'scrobble_unmatched_listens'):
+            self.assertIn('`played_secs` int(10) unsigned DEFAULT NULL', self.statement(table))
 
-    def test_it_is_a_no_op_when_the_column_is_already_there(self):
-        cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
-        init_db(cursor)
-        self.assertEqual(self._column_alters(cursor), [])
-
-    def test_the_listened_at_indexes_are_created_on_an_existing_database(self):
-        """Reading history back scans on listened_at with no username to seek on;
-        the unique keys lead on username and cannot serve that."""
-        cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
-        init_db(cursor)
-        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql and 'listened_at' in sql]
-        self.assertEqual(len(indexed), 2, indexed)
-
-    def test_the_track_index_is_created_on_an_existing_database(self):
-        """Per-track listen questions seek on track_id, which no key led with."""
-        cursor = ScriptedCursor(rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'})])
-        init_db(cursor)
-        indexed = [sql for sql, _params in cursor.executed if 'ADD INDEX' in sql and 'idx_listens_track_user' in sql]
-        self.assertEqual(len(indexed), 1, indexed)
-        self.assertIn('(track_id, username)', indexed[0])
-
-    def test_a_fresh_table_declares_its_listened_at_default(self):
+    def test_listened_at_has_a_default_and_no_on_update(self):
         """An undeclared DEFAULT on the first TIMESTAMP column means ON UPDATE on MariaDB
-        < 10.10 (docs/bug-reports/039)."""
-        cursor = ScriptedCursor()
-        init_db(cursor)
-        creates = [sql for sql, _params in cursor.executed if 'CREATE TABLE IF NOT EXISTS scrobble_' in sql]
-        listens = [sql for sql in creates if 'listened_at' in sql]
-        self.assertEqual(len(listens), 2, creates)
-        for sql in listens:
-            self.assertIn('listened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,', sql)
-            self.assertNotIn('ON UPDATE', sql)
+        < 10.10, and every UPDATE would move the listen to now (docs/bug-reports/039)."""
+        for table in ('scrobble_listens', 'scrobble_unmatched_listens'):
+            line = next(line for line in self.statement(table).splitlines() if '`listened_at`' in line)
+            self.assertIn('NOT NULL DEFAULT current_timestamp()', line)
+            self.assertNotIn('ON UPDATE', line)
 
-    @staticmethod
-    def _listened_at_modifies(cursor):
-        return [sql for sql, _params in cursor.executed if 'MODIFY listened_at' in sql]
-
-    def test_an_old_table_loses_its_on_update_at_start_up(self):
-        cursor = ScriptedCursor(
-            rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'}), ('information_schema', None, {'n': 1})]
-        )
-        init_db(cursor)
-        modified = self._listened_at_modifies(cursor)
-        self.assertEqual(len(modified), 2, modified)
-        self.assertTrue(all('ON UPDATE' not in sql for sql in modified), modified)
-
-    def test_a_repaired_table_is_not_altered_again(self):
-        """The MODIFY copies the whole table (the long UNIQUE key is a hash key), so it
-        must only run while the attribute is still there."""
-        cursor = ScriptedCursor(
-            rules=[("SHOW COLUMNS", None, {'Field': 'played_secs'}), ('information_schema', None, {'n': 0})]
-        )
-        init_db(cursor)
-        self.assertEqual(self._listened_at_modifies(cursor), [])
+    def test_history_is_indexed_on_listened_at_and_per_track(self):
+        self.assertIn('KEY `idx_listens_listened_at` (`listened_at`)', self.statement('scrobble_listens'))
+        self.assertIn('KEY `idx_listens_track_user` (`track_id`,`username`)', self.statement('scrobble_listens'))
+        self.assertIn('KEY `idx_unmatched_listened_at` (`listened_at`)', self.statement('scrobble_unmatched_listens'))
 
 
 if __name__ == '__main__':

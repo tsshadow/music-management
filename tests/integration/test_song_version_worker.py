@@ -77,8 +77,8 @@ def library(database):
             size=12_000_000,
         )
         cursor.execute(
-            'INSERT INTO downloads_soundcloud_archive (url, filename) VALUES (%s, %s)',
-            ('https://soundcloud.example/x', 'Angerfist - Raise Your Fist.mp3'),
+            'INSERT INTO downloads_soundcloud_archive (account, video_id, url, filename) VALUES (%s, %s, %s, %s)',
+            ('angerfist', '1', 'https://soundcloud.example/x', 'Angerfist - Raise Your Fist.mp3'),
         )
         remix = _add_track(
             cursor,

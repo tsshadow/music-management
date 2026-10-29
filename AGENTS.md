@@ -416,7 +416,7 @@ To maintain high code quality, the system employs an automated test suite:
     - `./scripts/ci/public-check.sh` — `public:check`: gitleaks over the working tree plus the
       patterns in `scripts/ci/public-patterns.txt` (owner names, personal hosts,
       private LAN addresses; the Android package and the contact address pass). A hit fails the pipeline;
-      use a placeholder (`example.com`, RFC 5737 `192.0.2.x`) instead. `migrate_*.sql` is exempt.
+      use a placeholder (`example.com`, RFC 5737 `192.0.2.x`) instead. SQL files are scanned too.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole
@@ -444,12 +444,11 @@ To maintain high code quality, the system employs an automated test suite:
       `PYTHON_TOOLING_FORCE_CONTAINER=1` does the same locally. A test dependency therefore has
       to be in `requirements.txt`.
     - `./scripts/test/db-integration.sh` — every endpoint's SQL against a throwaway MariaDB
-      (13.0, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema
-      bootstrap and every `migrate_*.sql` applied twice. The unit suite mocks the cursor, so this
-      is the only thing that proves MariaDB accepts the queries. It also builds the schema twice
-      from nothing — the fresh-stack way and the migrations way — and fails on any column or
-      index that differs (`tests/integration/test_schema_drift.py`). In CI a database it cannot
-      reach is a failure, not a skip.
+      (13.0, like production; `MARIADB_VERSION=10.6` for the old server), plus the schema. The
+      unit suite mocks the cursor, so this is the only thing that proves MariaDB accepts the
+      queries. It builds a database from nothing the way a new stack does and compares it line
+      by line with production's schema (`tests/integration/test_schema_snapshot.py`), and runs
+      the deploy's reconcile against it. In CI a database it cannot reach is a failure, not a skip.
     - `./scripts/test/muma-server-unit.sh` — LMS C++ unit tests (existing upstream CTest/GTest suite).
     - `./scripts/test/frontend-unit.sh` — frontend lint + svelte-check + vitest with coverage.
     - `./scripts/test/android-unit.sh` — MuMa Mobile JVM unit tests.
@@ -458,25 +457,23 @@ To maintain high code quality, the system employs an automated test suite:
     - `./scripts/test/frontend-browser.sh` — Playwright browser tests (login, fixture track visible) against the test stack.
     - `./scripts/test/core-e2e.sh` — the server chain, as Gherkin under `tests/bdd/features/`: the scan-to-listen walk, the listen that matches nothing, the rating hop from LMS, genre curation, and access control. Gates every pipeline as `muma:e2e`. 45s to 90s, almost all of it waiting for three containers to report healthy — that wait swings with how loaded the runner is, while the tests themselves are ~4s. Needs `pytest-bdd`, and falls back to the tooling container when it is missing, as the runners' Python is.
       - The feature files are the description; the step code is not. If they disagree the feature file is right and the code is the bug.
-      - Most of the setup is other people's state. LMS has no users of its own, so an account is created in `music-manager` and synced across, a library declared and scanned. Every `migrate_*.sql` is applied, because that is what a deploy does and what seeds `rules_genres`. And the tagger runs before either index is built — it is the only thing that registers a genre for curation, and it rewrites the file, so indexing before it leaves LMS serving new bytes under an old size.
+      - Most of the setup is other people's state. LMS has no users of its own, so an account is created in `music-manager` and synced across, a library declared and scanned. The deploy's schema reconcile runs and must find nothing to add or report; the seed rows a new database gets include `rules_genres`. And the tagger runs before either index is built — it is the only thing that registers a genre for curation, and it rewrites the file, so indexing before it leaves LMS serving new bytes under an old size.
 - **Test stack**: `docker/compose.test.yml` — temporary MariaDB, `music-manager` and `music-management-server`, all built from the current checkout, disposable volumes, healthchecks. Never mounts real music/library paths or production data. LMS's disposable `lms-data` volume is also mounted into `music-manager` at `/app/data/stable`, where production mounts the real one, so everything that opens `lms.db` directly (the hourly sync, the listen backfill, `GET /api/auth/subsonic-token`) runs against the file LMS serves from; `music-manager` therefore starts only once LMS is healthy.
 - **Fixture track**: `tests/fixtures/music/ci-test-track-001.mp3` (generated tone, no commercial audio) with expected metadata documented in `tests/fixtures/expected/ci-test-track-001.json`.
 - **A new endpoint that reads the database** belongs in `tests/integration/test_router_sql.py`
-  as well as in a unit test. **A schema change needs two edits**: the `CREATE TABLE` in
-  `services/common/db_init.py`, a re-runnable `migrate_*.sql` in the repository root (applied
-  on every deploy by `scripts/deploy.sh`), and the same shape in both — the expected-table
-  set is read from the `CREATE TABLE` statements themselves, and `test_schema_drift.py` fails if
-  the two paths end in different columns or index names (name an index in the CREATE the way the
-  migration names it). `CREATE TABLE IF NOT EXISTS` never alters an existing
-  table -- that is how `downloads_youtube_accounts.channel_id` and
-  `library_track_ml_labels.updated_at` went missing until the integration suite caught them.
-  The deploy records each applied file with its sha256 in `schema_migrations` and skips it while
-  it is unchanged (`tools/apply_migrations.py`), so editing an applied migration re-runs it on the
-  next deploy -- it must stay re-runnable all the same.
-  The migration must also be **expand-only**: `scripts/deploy.sh` applies it while the previous
-  release is still running, before the new containers start. Dropping, renaming or narrowing
-  what the running code reads waits for a later release (`tests/ci/test_migration_ordering.py`,
-  `docs/self-hosting.md#migrations`).
+  as well as in a unit test. **A schema change is one edit**: the table in
+  `services/common/schema_tables.py`, the one file that may declare a table
+  (`tests/integration/test_schema.py` fails on a `CREATE TABLE` anywhere else). Seed rows a new
+  database needs go in `services/common/seeds/` (`db_seeds.py`). On each deploy
+  `scripts/deploy.sh` runs `services/common/schema_reconcile.py` from the new image, while the
+  previous release still runs: it adds missing tables, columns, indexes and views, and only
+  reports every other difference. A new column therefore needs a default or `NULL`. A change it
+  cannot make (drop, rename, a type change, a foreign key over existing data) needs a script in
+  `tools/` with a dry run and a backup, such as `tools/schema_cleanup_2026_11.py`, and the
+  difference listed in `tests/integration/test_schema_snapshot.py` until it has run. That test
+  compares a fresh database with `tests/integration/schema/production.tsv`
+  (`python -m services.common.schema_reconcile --snapshot` on production); refresh the file
+  after a release that changes the schema (`docs/self-hosting.md#schema-changes`).
 - **Multi-statement writes go through `transaction(conn)`** from `services/music_manager/database.py`:
   the pool runs autocommit, so a DELETE-then-INSERT (or any write that must land whole) without it
   is two separate commits, and `conn.commit()` does not change that. Test it with

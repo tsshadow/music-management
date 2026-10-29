@@ -95,20 +95,6 @@ _TRACK_FIELDS = (
 )
 
 
-def init_db(cursor):
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS feeds_profile_exclusions (
-            username    VARCHAR(255) NOT NULL,
-            entity_type ENUM('artist', 'label', 'genre') NOT NULL,
-            entity_name VARCHAR(255) NOT NULL,
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (username, entity_type, entity_name)
-        )
-        """
-    )
-
-
 def _resolve_username(auth: dict, username: str | None) -> str:
     """A user key is always about its own account -- a `username` it passes is
     ignored, never honoured. Only the system key may ask for someone else's."""

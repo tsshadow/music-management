@@ -16,9 +16,6 @@ from tests.ci.conftest import REPO_ROOT
 
 TOP_LEVEL = ("AGENTS.md", "README.md", "CONTRIBUTING.md", "SECURITY.md")
 
-# migrate_*.sql are not Markdown and are not read here. Applied migrations must not change: the
-# deploy re-runs a migration whose sha256 changed, so they keep their old comments.
-
 # Broken links in files that other merge requests rewrite right now. Each entry is
 # (source file, link target as written) and is removed by the follow-up named in its comment.
 # An entry that no longer matches a broken link fails the test, so stale entries cannot stay.

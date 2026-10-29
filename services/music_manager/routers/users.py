@@ -170,62 +170,10 @@ class LoginRequest(BaseModel):
 
 
 def init_db(cursor):
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS users (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            username VARCHAR(255) UNIQUE NOT NULL,\n            display_name VARCHAR(255),\n            is_admin BOOLEAN DEFAULT FALSE,\n            password_hash VARCHAR(255),\n            api_key VARCHAR(255),\n            server_user_id VARCHAR(255),\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )\n    '
-    )
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'server_user_id'")
-    if not cursor.fetchone():
-        cursor.execute("SHOW COLUMNS FROM users LIKE 'lms_user_id'")
-        if cursor.fetchone():
-            cursor.execute('ALTER TABLE users CHANGE lms_user_id server_user_id VARCHAR(255)')
-        else:
-            cursor.execute('ALTER TABLE users ADD COLUMN server_user_id VARCHAR(255) AFTER api_key')
+    """Seed the rows the user tables need: the roles and permissions (rbac.init_db).
 
-    # Check for is_admin column
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'is_admin'")
-    if not cursor.fetchone():
-        try:
-            cursor.execute('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE AFTER display_name')
-        except Exception as e:
-            if "Duplicate column name" not in str(e):
-                raise e
-
-    # Check for password_hash column
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'password_hash'")
-    if not cursor.fetchone():
-        try:
-            cursor.execute('ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) AFTER display_name')
-        except Exception as e:
-            if "Duplicate column name" not in str(e):
-                raise e
-
-    # Check for api_key column
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'api_key'")
-    if not cursor.fetchone():
-        try:
-            cursor.execute('ALTER TABLE users ADD COLUMN api_key VARCHAR(255) AFTER password_hash')
-        except Exception as e:
-            if "Duplicate column name" not in str(e):
-                raise e
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS user_listenbrainz_accounts (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            lb_username VARCHAR(255) NOT NULL,\n            lb_token VARCHAR(255) NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
-    )
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS dynamic_playlists (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            remote_id INT,\n            source VARCHAR(50),\n            name VARCHAR(255) NOT NULL,\n            params TEXT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
-    )
-    cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'remote_id'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE dynamic_playlists ADD COLUMN remote_id INT AFTER user_id')
-    cursor.execute("SHOW COLUMNS FROM dynamic_playlists LIKE 'source'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE dynamic_playlists ADD COLUMN source VARCHAR(50) AFTER remote_id')
-    with contextlib.suppress(Exception):
-        cursor.execute('ALTER TABLE dynamic_playlists ADD UNIQUE INDEX uq_source_remote_id (source, remote_id)')
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS user_app_settings (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            user_id INT NOT NULL,\n            app_id VARCHAR(50) NOT NULL,\n            settings_json LONGTEXT NOT NULL,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (user_id, app_id),\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )\n    '
-    )
-
-    # Roles/permissions, Google identities, access requests, refresh tokens, audit log.
+    The tables are declared in services/common/schema_tables.py.
+    """
     rbac.init_db(cursor)
 
 

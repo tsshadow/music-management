@@ -27,24 +27,6 @@ _RELATIVE = re.compile(r'^-(\d+)([mhd])$')
 _UNITS = {'m': 'minutes', 'h': 'hours', 'd': 'days'}
 
 
-def init_db(cursor):
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS events (
-            id BIGINT AUTO_INCREMENT PRIMARY KEY,
-            created_at TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP(3),
-            level VARCHAR(10) NOT NULL,
-            source VARCHAR(50) NOT NULL,
-            logger VARCHAR(120),
-            title VARCHAR(255),
-            message TEXT,
-            context JSON NULL,
-            KEY idx_created (created_at),
-            KEY idx_level_created (level, created_at),
-            KEY idx_source_created (source, created_at)
-        )
-    ''')
-
-
 def parse_since(value: str) -> datetime:
     """Accepteert zowel '-1h' als een volledige ISO-tijdstempel."""
     match = _RELATIVE.match(value)

@@ -1,88 +1,38 @@
-"""The schema this project ships can actually be built, and rebuilt.
+"""The schema this project declares can actually be built, and it holds what the code reads.
 
-Nothing else in the suite checks this: the unit tests mock the cursor, so a
-CREATE TABLE that MariaDB rejects, or a migrate_*.sql that only works on a
-database that has already been migrated, would go unnoticed until a deploy.
+Nothing else in the suite checks this: the unit tests mock the cursor, so a CREATE TABLE
+that MariaDB rejects would go unnoticed until a deploy. The tables are declared once, in
+services/common/schema_tables.py; test_schema_snapshot.py compares them with production.
 """
-
-import contextlib
 
 import pytest
 
 from tests.integration import schema_sources
-from tests.integration.conftest import ROOT, _apply_migrations, _split_statements
 
 pytestmark = pytest.mark.integration
 
-# Every table the code or a migration declares, read from their CREATE TABLE
-# statements. This used to be a hand-kept list, and some twenty tables -- channels,
-# the feed snapshot, radio, news, the festival and podcast rules, the downloader's
-# own tables -- never made it onto it. See tests/integration/schema_sources.py.
 EXPECTED_TABLES = schema_sources.declared_tables()
 
 
-def table_names(connection):
-    with connection.cursor() as cursor:
-        cursor.execute('SHOW TABLES')
-        return {next(iter(row.values())) for row in cursor.fetchall()}
+def test_every_declared_table_and_view_exists_in_a_fresh_database(fresh_schema):
+    """Checked against a schema built from nothing, the way a fresh stack gets it."""
+    assert len(EXPECTED_TABLES) > 60, 'schema_tables.TABLES looks suspiciously short'
+    missing = EXPECTED_TABLES - set(fresh_schema.tables)
+    assert not missing, f'the init does not create: {sorted(missing)}'
+    assert schema_sources.declared_views() <= set(fresh_schema.views)
 
 
-def test_every_table_the_code_reads_exists(built_schemas):
-    """Checked against a schema built from nothing by the code alone, the way a fresh
-    stack gets it -- not against the session database, which also ran every migration
-    and so would hide a table that only a migration creates."""
-    assert len(EXPECTED_TABLES) > 60, 'the CREATE TABLE extraction found suspiciously little'
-    missing = EXPECTED_TABLES - set(built_schemas['code'])
-    assert not missing, f'schema bootstrap does not create: {sorted(missing)}'
+def test_no_other_file_declares_a_table():
+    """One declaration per table: a CREATE TABLE elsewhere would never reach the snapshot test."""
+    assert schema_sources.stray_declarations() == {}
 
 
-def test_the_migration_ledger_is_an_expected_table():
-    """schema_migrations is the deploy's ledger (tools/apply_migrations.py, bug report 068):
-    db_init creates it, migrate_v39 declares it, and a deployed stack must have it."""
-    assert 'schema_migrations' in EXPECTED_TABLES
-    assert 'schema_migrations' in schema_sources.code_declared_tables()
-    assert 'schema_migrations' in schema_sources.migration_declared_tables()
-
-
-def test_the_channel_link_proposals_are_an_expected_table():
-    """docs/designs/channel-links: db_init creates it and migrate_v41 declares it."""
-    assert 'channel_link_proposals' in schema_sources.code_declared_tables()
-    assert 'channel_link_proposals' in schema_sources.migration_declared_tables()
-
-
-def test_the_importer_conflicts_are_an_expected_table():
-    """Bug report 091: db_init creates it and migrate_v43 declares it."""
-    assert 'importer_conflicts' in schema_sources.code_declared_tables()
-    assert 'importer_conflicts' in schema_sources.migration_declared_tables()
-
-
-def test_the_artist_evidence_tables_are_expected_tables():
-    """The scheduled artist evidence run: db_init creates both and migrate_v47 declares them."""
-    for table in ('rules_artist_evidence', 'rules_artist_evidence_runs'):
-        assert table in schema_sources.code_declared_tables()
-        assert table in schema_sources.migration_declared_tables()
-
-
-def test_the_popular_tracks_tables_are_expected_tables():
-    """The "Oude hitjes" feed's external popularity: db_init creates both and migrate_v49 declares them."""
-    for table in ('artist_popularity_fetches', 'artist_popular_tracks'):
-        assert table in EXPECTED_TABLES
-        assert table in schema_sources.code_declared_tables()
-        assert table in schema_sources.migration_declared_tables()
-
-
-def test_the_track_bpm_table_is_an_expected_table():
-    """BPM browse: db_init creates library_track_bpm and migrate_v50 declares it."""
-    assert 'library_track_bpm' in EXPECTED_TABLES
-    assert 'library_track_bpm' in schema_sources.code_declared_tables()
-    assert 'library_track_bpm' in schema_sources.migration_declared_tables()
-
-
-def test_the_effective_bpm_table_is_an_expected_table():
-    """Issue #141: db_init creates library_track_effective_bpm and migrate_v51 declares it."""
-    assert 'library_track_effective_bpm' in EXPECTED_TABLES
-    assert 'library_track_effective_bpm' in schema_sources.code_declared_tables()
-    assert 'library_track_effective_bpm' in schema_sources.migration_declared_tables()
+def test_every_init_db_runs_at_startup():
+    """An init_db that main.py never calls seeds nothing."""
+    # users.init_db calls rbac.init_db, so that one is reached all the same.
+    called_indirectly = {'services.music_manager.rbac'}
+    orphaned = schema_sources.modules_defining_init_db() - schema_sources.startup_init_db_modules()
+    assert orphaned <= called_indirectly, f'init_db never called at startup: {sorted(orphaned)}'
 
 
 def test_the_bpm_tag_writeback_columns_exist(database):
@@ -94,11 +44,9 @@ def test_the_bpm_tag_writeback_columns_exist(database):
 
 
 def test_the_bpm_octave_tables_are_expected_tables():
-    """Bug report 140: db_init creates the priors and the manual-tempo tables, migrate_v53 declares them."""
+    """Bug report 140: the priors and the manual-tempo tables are declared."""
     for table in ('library_bpm_priors', 'library_track_bpm_manual'):
         assert table in EXPECTED_TABLES
-        assert table in schema_sources.code_declared_tables()
-        assert table in schema_sources.migration_declared_tables()
 
 
 def test_the_bpm_octave_columns_and_the_manual_source_exist(database):
@@ -127,22 +75,7 @@ def test_the_extractor_can_file_a_standing_file(db):
     assert rows == [{'step': 'extractor', 'reason': 'not-music-video', 'target': ''}]
 
 
-def test_the_migrations_are_re_runnable(database):
-    """scripts/deploy.sh applies every migrate_*.sql on each deploy, so the
-    second run must be a no-op rather than an error."""
-    _apply_migrations(database)
-    _apply_migrations(database)
-
-
-def test_every_migration_parses_into_statements():
-    migrations = sorted(ROOT.glob('migrate_*.sql'))
-    assert migrations, 'no migrate_*.sql found; the deploy applies these'
-    for migration in migrations:
-        statements = _split_statements(migration.read_text(encoding='utf-8'))
-        assert statements, f'{migration.name} contains no statements'
-
-
-def test_the_curated_genre_columns_survived_the_migrations(database):
+def test_the_curated_genre_columns_exist(database):
     """migrate_v3 introduces the white/black/unknown model the tagger depends on."""
     with database.cursor() as cursor:
         cursor.execute('SHOW COLUMNS FROM rules_genres')
@@ -282,52 +215,6 @@ def test_an_account_name_is_unique_whatever_its_case(db):
         assert [row['username'] for row in cursor.fetchall()] == ['user']
 
 
-def test_a_blind_image_verdict_is_undone_but_a_real_one_survives(database):
-    """migrate_v32: migrate_v30 asked "has any portrait landed since the blackout?" once, for
-    the whole table, and 22 hand-fetched ones answered yes before it first ran -- so 45.044
-    artists kept a `failed` a fetcher without credentials had written for them."""
-    with database.cursor() as cursor:
-        cursor.execute("INSERT INTO library_artists (name) VALUES ('Blind Verdict')")
-        blind_id = cursor.lastrowid
-        cursor.execute("INSERT INTO library_artists (name) VALUES ('Real Verdict')")
-        real_id = cursor.lastrowid
-        cursor.execute("INSERT INTO library_artists (name) VALUES ('Older Verdict')")
-        older_id = cursor.lastrowid
-        # One portrait from a provider closes the window at the moment it landed.
-        cursor.execute(
-            "INSERT INTO library_artist_images (artist_id, source, created_at) "
-            "VALUES (%s, 'spotify', '2026-09-21 12:56:40')",
-            (blind_id,),
-        )
-        cursor.execute(
-            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
-            'primary_image_id = NULL WHERE id = %s',
-            ('2026-08-23 04:00:00', blind_id),
-        )
-        cursor.execute(
-            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
-            'primary_image_id = NULL WHERE id = %s',
-            ('2026-09-22 09:00:00', real_id),
-        )
-        cursor.execute(
-            "UPDATE library_artists SET image_status = 'failed', image_updated_at = %s, "
-            'primary_image_id = NULL WHERE id = %s',
-            ('2026-07-01 09:00:00', older_id),
-        )
-
-    _apply_migrations(database)
-
-    with database.cursor() as cursor:
-        cursor.execute(
-            'SELECT id, image_status FROM library_artists WHERE id IN (%s, %s, %s)',
-            (blind_id, real_id, older_id),
-        )
-        status = {row['id']: row['image_status'] for row in cursor.fetchall()}
-    assert status[blind_id] is None, 'a verdict written while the fetcher was blind must be undone'
-    assert status[real_id] == 'failed', 'a verdict written after sight returned is real'
-    assert status[older_id] == 'failed', 'a verdict from before the blackout was never blind'
-
-
 def test_the_tagger_stores_the_mtime_it_read(database):
     """migrate_v29: a FLOAT mtime has a 128 s step at today's epoch, so the value written
     back was never the real one and 70% of the library read as changed on every walk."""
@@ -358,52 +245,6 @@ def test_listened_at_is_never_rewritten_by_an_update(database):
     TIMESTAMP column ON UPDATE CURRENT_TIMESTAMP, and every UPDATE of a listen moved it."""
     for table in LISTEN_TABLES:
         assert 'on update' not in _listened_at_extra(database, table), table
-
-
-@contextlib.contextmanager
-def _listen_tables_created_the_old_way(connection):
-    """Give both listened_at columns the ON UPDATE production's 10.6-era tables carry,
-    and put back exactly what was there afterwards, so no other test is masked."""
-    before = {table: _listened_at_extra(connection, table) for table in LISTEN_TABLES}
-    try:
-        with connection.cursor() as cursor:
-            for table in LISTEN_TABLES:
-                cursor.execute(
-                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL '
-                    'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
-                )
-        assert all('on update' in _listened_at_extra(connection, table) for table in LISTEN_TABLES)
-        yield
-    finally:
-        with connection.cursor() as cursor:
-            for table in LISTEN_TABLES:
-                on_update = ' ON UPDATE CURRENT_TIMESTAMP' if 'on update' in before[table] else ''
-                cursor.execute(
-                    f'ALTER TABLE {table} MODIFY listened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP{on_update}'
-                )
-
-
-def test_migrate_v33_repairs_a_table_created_the_old_way(database):
-    """The CREATE fix alone never reaches production's existing tables; the migration
-    has to -- and twice in a row, as every deploy reapplies it."""
-    with _listen_tables_created_the_old_way(database):
-        _apply_migrations(database)
-        _apply_migrations(database)
-
-        for table in LISTEN_TABLES:
-            assert 'on update' not in _listened_at_extra(database, table), table
-
-
-def test_start_up_repairs_a_table_created_the_old_way(database):
-    """A stack that never runs the migrations gets the same repair from init_db."""
-    from services.music_manager.routers import scrobbler
-
-    with _listen_tables_created_the_old_way(database):
-        with database.cursor() as cursor:
-            scrobbler.init_db(cursor)
-
-        for table in LISTEN_TABLES:
-            assert 'on update' not in _listened_at_extra(database, table), table
 
 
 def _index_columns(connection, table, index):
@@ -470,11 +311,10 @@ def test_a_deleted_audio_less_folder_takes_only_its_open_proposal_off_the_list(d
     assert rows['DECIDED123 - Release']['status'] == 'rejected'
 
 
-def test_a_track_carries_its_form_and_performance_date(built_schemas):
-    """migrate_v42 and db_init both give library_tracks the two columns the form filter and the
-    year filter read (docs/designs/track-form/), and the form is indexed on both paths."""
-    for kind in ('code', 'migrated'):
-        table = built_schemas[kind]['library_tracks']
-        assert {'form', 'performance_date'} <= set(table['columns']), kind
-        assert table['columns']['form']['nullable'] == 'YES', kind
-        assert 'idx_tracks_form' in table['indexes'], kind
+def test_a_track_carries_its_form_and_performance_date(fresh_schema):
+    """library_tracks has the two columns the form filter and the year filter read
+    (docs/designs/track-form/), and the form is indexed."""
+    table = fresh_schema.tables['library_tracks']
+    assert {'form', 'performance_date'} <= set(table.columns)
+    assert table.columns['form'].nullable == 'YES'
+    assert any(index.columns == ('form',) for index in table.indexes.values())

@@ -146,10 +146,6 @@ REASONS = {
         'The real weakness is that a password in argv is visible to a local '
         'process listing, which is acceptable on a workstation deploy script.'
     ),
-    'detected-generic-api-key': (
-        '.gitleaksignore lists commit:path:rule:line references to past '
-        'findings, not the secrets themselves.'
-    ),
     'detected-jwt-token': 'Test fixtures for the Subsonic API client.',
     'exported_activity': (
         'Android activities that are launched by the system or by another app '

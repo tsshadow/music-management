@@ -16,13 +16,15 @@ PATTERNS = REPO_ROOT / "scripts" / "ci" / "public-patterns.txt"
 
 OWNER = "user" + "schriks"
 HANDLE = "tssha" + "dow"
+# Written reversed: a banned word must not sit in the source either.
+PARTNER = "leppaslohtesil"[::-1]
 LAN = "192." + "168."
 
 FORBIDDEN = {
     "owner domain": f"see https://{OWNER}.nl/x",
     "owner host": f"https://muma.{OWNER}.nl/api",
     "handle": f"git clone {HANDLE}/repo",
-    "partner name": "from " + "lisetholsappe" + "l",
+    "partner name": "from " + PARTNER,
     "oauth project": "7144609033" + "1-abc.apps.googleusercontent.com",
     "password manager": "the " + "vaultwar" + "den host",
     "lan host": f"ssh root@{LAN}1.40",
@@ -80,5 +82,5 @@ def test_migrations_are_not_scanned(tmp_path):
 
 def test_patterns_file_names_no_forbidden_word():
     text = PATTERNS.read_text(encoding="utf-8").lower()
-    for word in (OWNER, HANDLE, "someuser"[:-1] + "l", "7144609033" + "1", "vaultwar" + "den", LAN + "1."):
+    for word in (OWNER, HANDLE, PARTNER, "7144609033" + "1", "vaultwar" + "den", LAN + "1."):
         assert word not in text

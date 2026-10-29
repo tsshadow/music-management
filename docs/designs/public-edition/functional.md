@@ -16,10 +16,10 @@ credentials.
 The public edition has one repository and one history. After it, `master` and `develop` contain no
 personal value. Every value that differs per installation is configuration with a neutral default.
 Operations material (production scripts, runbooks, agent skills) lives in a new private repository,
-`muma/muma-ops`. A CI job, `public:check`, fails a merge request when a personal value comes back.
+the private ops repository. A CI job, `public:check`, fails a merge request when a personal value comes back.
 The history is rewritten once, so no commit, tag or commit message ever contained one.
 
-Out of scope: renaming the Android package `nl.teunschriks.mumamobile`, creating the GitHub repository,
+Out of scope: renaming the Android package id, creating the GitHub repository,
 pushing or mirroring to GitHub, the module split of the downloaders (#190).
 
 The numbers below were measured on `origin/develop` and in `git log --all` on 2026-10-27. The
@@ -31,7 +31,7 @@ inventory files are in the scratchpad of the session that did step 0.
 | Tags | 495 (the plan said 204; 495 is the measured number) |
 | Tree hits of the owner's domain, excluding the Android package and the allowed contact address | 73 files, 457 lines |
 | Tree hits of the owner's user name | 76 files, 190 lines |
-| Tree hits of `192.0.2.` | 85 files, 207 lines |
+| Tree hits of a private LAN address | 85 files, 207 lines |
 | Tree hits of the media-player brand name | 53 files, 126 lines |
 | Commit messages with the owner's user name | 971 |
 | Commit messages with a `#N` or `!N` GitLab reference | about 1,080 |
@@ -64,7 +64,7 @@ or CI/CD variables.
 | Backend: phpMyAdmin link in the management router | Owner's domain on port 8002 | Empty, the link is hidden | `PHPMYADMIN_URL` |
 | Backend: LMS endpoint comment and defaults that name a LAN address | Prose only | Reworded, no address | none |
 | Scripts and tools (`scripts/*.py`, `tools/*.py`, `scripts/import_lms_users.py`, `scripts/ci/prod-ssh-setup.sh`, crash-triage env example) | Default host is the production LAN address; `quick_inspect.py` and `cleanup_redundant_indices.py` hold it literally, the second with a password | No default. The script exits with a message naming the missing variable (`DB_HOST`, `DB_USER`, `DB_PASS`, `REMOTE_HOST`) | Environment, CI/CD variables |
-| Docker user | `muma` in `.env.example`, `Dockerfile.music-manager`, `scripts/dev.sh` | `muma` | `DOCKER_USER` |
+| Docker user | the owner's user name in `.env.example`, `Dockerfile.music-manager`, `scripts/dev.sh` | `muma` | `DOCKER_USER` |
 | Frontend fixtures and placeholders | The owner's user name as a placeholder in the scrobble tab; the owner's domain in tests | `demo-user`, `example.org` | none |
 | Frontend and docs: the name "Spotify UI" | Names the web player in UI text, code comments and docs | "Web player". The Subsonic endpoint file that implements the Spotify-style paging keeps its name in the C++ server, because it is an API shape, not branding. Calls to Spotify's own API (artist images) stay | none |
 | Android: `StaticServers.SERVER_URL` | The owner's server URL | `BuildConfig.SERVER_URL`, default `https://example.org` | Gradle property `muma.serverUrl` |
@@ -74,7 +74,7 @@ or CI/CD variables.
 | AGPL source offer | Not present | Setting `public_source_url`, shown as "Source code" on the web About screen and the app About screen | Beheer > Config |
 | Renovate, CODEOWNERS, `.gitlab-ci.yml` comments | Owner's user name and host names | CODEOWNERS uses a team alias placeholder. Comments name roles ("the workstation runner"), not hosts | none |
 
-### What moves to the private repository `muma/muma-ops`
+### What moves to the private ops repository
 
 | Moves | Why |
 |---|---|
@@ -127,8 +127,7 @@ not leaks, and stay.
 ### The `public:check` job
 
 A required merge request job. It fails when gitleaks finds a secret in the tree, or when a pattern list
-finds a personal value. Two exceptions are allowed: the Android package name and the contact address
-`github@teunschriks.nl`.
+finds a personal value. Two exceptions are allowed: the Android package id and the GitHub contact address.
 
 ### The history rewrite
 
@@ -163,10 +162,10 @@ After step 2 everyone re-clones. Open merge requests are retargeted or closed.
 ## Open Questions / Not Yet Decided
 
 1. Two more identities are in the history besides the three in the plan. A work address (about 296
-   commits, authored or committed) and the display names `muma`, `Teun` and `Teun.Schriks` with the
+   commits, authored or committed) and the owner's display-name variants with the
    same gmail address, and the bot names `Claude (nightly)` and `Claude (nightly prod check)` with that
    address. Proposal: map the work address and every spelling of the personal identities to
-   `Teun Schriks <github@teunschriks.nl>`, and map the two bot names to `Claude (nightly) <github@teunschriks.nl>`.
+   the owner's name and the GitHub contact address, and map the two bot names to `Claude (nightly)` with the GitHub contact address.
    Is the work address to be removed from the public history? The commits stay either way.
 2. One commit has the committer `root@lms.<LAN address>`. Proposal: map it to the same identity.
 3. Which GitHub Actions workflow names and ghcr.io namespace should the public images use? The plan

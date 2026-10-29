@@ -67,23 +67,22 @@ is `Up` after the deploy. `docker/compose.test.yml` is unchanged.
 
 1. `gitleaks dir` over the tree with `.gitleaks.toml`. `.gitleaksignore` is emptied in step 12.
 2. `git grep -n -I -E -f scripts/ci/public-patterns.txt` over tracked files. The pattern file holds one
-   regular expression per class: the owner's domain, the owner's GitLab and Docker user name, `192\.168\.`,
-   the brand word followed by a dot, the OAuth client id prefix, the password manager name, and a
+   regular expression per class: the owner's domain, the owner's GitLab and Docker user name, private LAN addresses,
+   the brand word followed by a dot, the OAuth project number, the password manager name, and a
    third person's name found by the privacy step.
-3. Allowed exceptions are removed from the output before it is judged: the Android package
-   `nl.teunschriks.mumamobile` and the contact address `github@teunschriks.nl`. They are listed in
-   `scripts/ci/public-allowlist.txt`, one pattern each. A new entry needs a reason on the line above it.
-4. The pattern file, the allowlist and `docs/designs/public-edition/` (which names three patterns
-   literally) are excluded from the grep, and a unit test in
-   `tests/ci/` checks that every pattern in the file matches at least one string in a fixture list,
+3. Allowed exceptions are written into the patterns with lookarounds: the Android package id and the
+   GitHub contact address. `scripts/ci/public-patterns.txt` is the only list; there is no allowlist file.
+4. Two paths are excluded from the grep: the pattern file itself, and `migrate_*.sql`. A deploy re-runs a
+   migration whose sha256 changed, so a migration is never edited, even to remove a name. A unit test in
+   `tests/ci/` feeds the script a temporary repository with one fixture per forbidden and per allowed form,
    so a typo cannot disable a check.
 5. Exit 1 prints file, line and pattern class, never the matched value when the class is a credential.
 
 The RFC 5737 and RFC 1918 addresses in tests (`203.0.113.9`, `198.51.100.7`, `10.0.0.0/8`,
-`192.168.0.0/16` in a trusted-proxy default) are legitimate. The pattern is therefore `192\.168\.1\.`
-for host addresses, and the allowlist names the `192.168.0.0/16` network literals by file.
+a private-block CIDR written in a trusted-proxy default) are legitimate. The LAN pattern therefore matches any
+host address and skips only that CIDR.
 
-### Moving files to `muma/muma-ops`
+### Moving files to the private ops repository
 
 The repository is private, created in step 8. Layout:
 
@@ -180,9 +179,9 @@ One file per mode, `filter-repo/replace-text.txt` and `replace-message.txt`, kep
 | Owner's domain, as `host.domain` | `example.org` with the same subdomain, for example `host.example.org` |
 | Owner's GitLab host | `gitlab.example.org` |
 | Owner's push host | `ntfy.example.org` |
-| `muma/music-management` (path, merge messages) | `muma/music-management` |
+| the owner's GitLab path (path, merge messages) | `muma/music-management` |
 | Owner's Docker and GitLab user name as a standalone word | `muma` |
-| `192.0.2.1.<n>` | `192.0.2.<n>` (RFC 5737, keeps scripts readable) |
+| a private LAN host address | `192.0.2.<n>` (RFC 5737, keeps scripts readable) |
 | Google OAuth client id | `<google-client-id>.apps.googleusercontent.com` placeholder |
 | Every credential in `.gitleaksignore` and the prod DB password | `<redacted>` |
 | The brand word followed by a dot in a host name | `player.` |
@@ -190,7 +189,7 @@ One file per mode, `filter-repo/replace-text.txt` and `replace-message.txt`, kep
 | A third person's address (bug report 020) | `user@example.org` |
 
 Regular expressions go first and literals second, longest match first. The Android package
-`nl.teunschriks.mumamobile` and `github@teunschriks.nl` are protected with a first rule that maps them to
+The Android package id and the GitHub contact address are protected with a first rule that maps them to
 themselves with a sentinel, and a last rule that restores the sentinel.
 
 `--replace-message` uses the same mapping for messages. It adds the GitLab references below.
@@ -223,12 +222,12 @@ cross-check: the two sets must agree on all but a reported handful of commits.
 
 ### Identities (`--mailmap`)
 
-`filter-repo/mailmap` maps to `Teun Schriks <github@teunschriks.nl>`:
+`filter-repo/mailmap` maps to the owner's name with the GitHub contact address:
 
-- the three identities of the plan (two gmail addresses with the names `Teun Schriks` and `muma`),
-- the display variants `muma`, `Teun`, `Teun.Schriks` with the personal address,
+- the three identities of the plan (two gmail addresses under the owner's name and user name),
+- the owner's display-name variants with the personal address,
 - the two `Claude (nightly)` names with the personal address (name kept, address mapped),
-- the work address (`Teun Schriks` and `user.schriks`, 296 commits), if Teun agrees (open question 1),
+- the work address (296 commits), if Teun agrees (open question 1),
 - the committer `root@lms.<LAN address>`.
 
 Upstream authors and committers, `GitHub <noreply@github.com>`, `Hosted Weblate` and the other

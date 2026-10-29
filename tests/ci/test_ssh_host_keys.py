@@ -40,23 +40,6 @@ def pinned(tmp_path: Path) -> Path:
     return path
 
 
-def test_the_ci_variable_is_the_pinned_file_when_no_override_is_set(pinned: Path):
-    result = subprocess.run(
-        ["bash", "-c", '. "$1"; printf %s "$SSH_PINNED_KNOWN_HOSTS"', "_", str(LIB)],
-        capture_output=True,
-        text=True,
-        check=True,
-        env={"PATH": "/usr/bin:/bin", "PROD_SSH_KNOWN_HOSTS": str(pinned)},
-    )
-    assert result.stdout == str(pinned)
-
-
-def test_the_ci_setup_stops_when_the_pinned_file_is_missing():
-    code = "\n".join(_code_lines(PROD_SSH_SETUP))
-    assert "PROD_SSH_KNOWN_HOSTS" in PROD_SSH_SETUP.read_text(encoding="utf-8")
-    assert '[ ! -f "$SSH_PINNED_KNOWN_HOSTS" ]' in code
-
-
 def _code_lines(path: Path) -> list[str]:
     """The lines of a shell script that are not comments."""
     return [line for line in path.read_text(encoding="utf-8").splitlines() if not line.lstrip().startswith("#")]
@@ -101,3 +84,63 @@ def test_an_unpinned_host_learns_once_and_refuses_a_changed_key(pinned: Path):
 
 def test_a_missing_pinned_file_never_means_accept_anything(tmp_path: Path):
     assert _opts(HOST, tmp_path / "absent") == ["-o", "StrictHostKeyChecking=accept-new"]
+
+
+def _into(env_extra: dict[str, str], pinned: Path | None, host: str = HOST):
+    """Run ssh_host_key_opts_into the way a pipeline script does; return (status, options, stderr)."""
+    env = {"PATH": "/usr/bin:/bin", **env_extra}
+    if pinned is not None:
+        env["PROD_SSH_KNOWN_HOSTS"] = str(pinned)
+    script = '. "$1"; ssh_host_key_opts_into OPTS "$2" || exit 7; printf "%s\\n" "${OPTS[@]}"'
+    result = subprocess.run(["bash", "-c", script, "_", str(LIB), host], capture_output=True, text=True, env=env)
+    return result.returncode, result.stdout.splitlines(), result.stderr
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+class TestPipelineFailsClosed:
+    """With CI set, a host that is not pinned stops the script instead of being learned."""
+
+    def test_a_missing_file_stops(self, tmp_path: Path):
+        status, _, err = _into({"CI": "1"}, tmp_path / "absent")
+        assert status == 7 and "PROD_SSH_KNOWN_HOSTS" in err
+
+    def test_an_empty_file_stops(self, tmp_path: Path):
+        empty = tmp_path / "known_hosts"
+        empty.write_text("", encoding="utf-8")
+        assert _into({"CI": "1"}, empty)[0] == 7
+
+    def test_a_file_without_the_host_stops(self, pinned: Path):
+        assert _into({"CI": "1"}, pinned, "198.51.100.7")[0] == 7
+
+    def test_a_file_with_the_host_pins_it(self, pinned: Path):
+        status, opts, _ = _into({"CI": "1"}, pinned)
+        assert status == 0
+        assert opts == ["-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={pinned}"]
+
+    def test_the_opt_in_variable_allows_accept_new(self, tmp_path: Path):
+        status, opts, _ = _into({"CI": "1", "PROD_SSH_ACCEPT_NEW_HOST_KEY": "true"}, tmp_path / "absent")
+        assert status == 0 and opts == ["-o", "StrictHostKeyChecking=accept-new"]
+
+    def test_outside_a_pipeline_an_unpinned_host_still_falls_back(self, tmp_path: Path):
+        status, opts, _ = _into({}, tmp_path / "absent")
+        assert status == 0 and opts == ["-o", "StrictHostKeyChecking=accept-new"]
+
+    def test_prod_ssh_setup_stops_in_a_pipeline_without_the_file(self, tmp_path: Path):
+        """The real script, with a fake ssh-add so only the host key decides."""
+        fake = tmp_path / "bin"
+        fake.mkdir()
+        (fake / "ssh-add").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (fake / "ssh-add").chmod(0o755)
+        key = tmp_path / "id"
+        key.write_text("x\n", encoding="utf-8")
+        env = {
+            "PATH": f"{fake}:/usr/bin:/bin",
+            "CI": "1",
+            "SSH_PRIVATE_KEY": str(key),
+            "SSH_AUTH_SOCK": "/nonexistent",
+            "PROD_REMOTE_HOST": HOST,
+            "PROD_SSH_KNOWN_HOSTS": str(tmp_path / "absent"),
+        }
+        result = subprocess.run(["bash", str(PROD_SSH_SETUP)], capture_output=True, text=True, env=env)
+        assert result.returncode != 0
+        assert "no pinned host key" in result.stderr

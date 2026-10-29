@@ -75,12 +75,8 @@ KEY_FILE=""
 # accepts any key at all. PROD_SSH_OPTS is what every caller passes to ssh/scp.
 # shellcheck source=scripts/lib/ssh_host_keys.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
-if [ -n "${CI:-}" ] && [ ! -f "$SSH_PINNED_KNOWN_HOSTS" ]; then
-    echo "Error: no pinned host key. Set the file-type CI/CD variable PROD_SSH_KNOWN_HOSTS" >&2
-    echo "  (the production host's public keys in known_hosts format)." >&2
-    exit 1
-fi
-mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+# In a pipeline this stops when the pinned file is missing, empty or does not list the host.
+ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 
 # Ensure SSH is working.
 if ! ssh_error="$(ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "docker version" 2>&1 >/dev/null)"; then

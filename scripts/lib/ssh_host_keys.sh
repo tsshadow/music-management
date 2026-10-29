@@ -19,21 +19,40 @@
 # changes later -- still never "accept anything".
 #
 # SSH_PINNED_KNOWN_HOSTS overrides both, e.g. for a one-off run after the host was reinstalled.
-# Without any of the three files every host falls back to accept-new, so a pipeline checks
-# for the file itself (scripts/ci/prod-ssh-setup.sh).
+# Outside a pipeline, without any of the three files every host falls back to accept-new.
 
 SSH_PINNED_KNOWN_HOSTS="${SSH_PINNED_KNOWN_HOSTS:-${PROD_SSH_KNOWN_HOSTS:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ssh/known_hosts}}"
 export SSH_PINNED_KNOWN_HOSTS
 
 # ssh_host_key_opts HOST: print the ssh -o options for HOST, one argument per
 # line (read them with `mapfile -t`, so a path with spaces stays one argument).
+#
+# In a pipeline (CI is set) a host that the pinned file does not list is an error: the
+# function prints why on stderr and returns 1, because accept-new would learn whatever key
+# answers. PROD_SSH_ACCEPT_NEW_HOST_KEY=true is the one explicit opt-in. Outside a pipeline
+# an unlisted host falls back to accept-new.
 ssh_host_key_opts() {
     local host="$1"
-    if [ -f "$SSH_PINNED_KNOWN_HOSTS" ] \
-        && ssh-keygen -F "$host" -f "$SSH_PINNED_KNOWN_HOSTS" >/dev/null 2>&1; then
+    if [ -s "$SSH_PINNED_KNOWN_HOSTS" ] \
+        && ssh-keygen -F "$host" -f "$SSH_PINNED_KNOWN_HOSTS" 2>/dev/null | grep -q .; then
         printf '%s\n' -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$SSH_PINNED_KNOWN_HOSTS"
+    elif [ -n "${CI:-}" ] && [ "${PROD_SSH_ACCEPT_NEW_HOST_KEY:-}" != "true" ]; then
+        echo "Error: no pinned host key for $host in '$SSH_PINNED_KNOWN_HOSTS'." >&2
+        echo "  Set the file-type CI/CD variable PROD_SSH_KNOWN_HOSTS to the host's public keys," >&2
+        echo "  or set PROD_SSH_ACCEPT_NEW_HOST_KEY=true to learn the key on first use." >&2
+        return 1
     else
         printf '%s\n' -o StrictHostKeyChecking=accept-new
     fi
 }
 export -f ssh_host_key_opts
+
+# ssh_host_key_opts_into ARRAY HOST: fill the array named ARRAY with the options for HOST.
+# Unlike `mapfile -t A < <(ssh_host_key_opts ...)` it passes the failure on, so callers
+# can stop: `ssh_host_key_opts_into OPTS "$host" || exit 1`.
+ssh_host_key_opts_into() {
+    local -n _into="$1"
+    local out
+    out="$(ssh_host_key_opts "$2")" || return 1
+    mapfile -t _into <<<"$out"
+}

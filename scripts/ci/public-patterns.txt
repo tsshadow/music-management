@@ -2,8 +2,8 @@
 # One PCRE per line, used as `git grep -P -i -n -I -f` (see public-check.sh).
 # The words are written with a character class so that this file does not match itself.
 
-# The owner's name. Allowed: the Android package (dotted and source-path form) and the contact address.
-(?<!nl\.)(?<!nl/)(?<!github@)teun[s]chriks(?!\.mumamobile)(?!/mumamobile)
+# The owner's name. Allowed, exactly: the Android package id (dotted and source-path form) and the GitHub contact address.
+(?<!nl\.)(?<!nl/)(?<!github@)teun[s]chriks|(?<=nl\.)teun[s]chriks(?!\.mumamobile(?![a-z0-9]))|(?<=nl/)teun[s]chriks(?!/mumamobile(?![a-z0-9]))|(?<=github@)teun[s]chriks(?!\.nl(?![a-z0-9-]|\.[a-z0-9]))
 # The owner's GitLab and GitHub handle.
 tssha[d]ow
 lisetholsappe[l]
@@ -11,6 +11,6 @@ lisetholsappe[l]
 7144609033[1]
 vaultwar[d]en
 # LAN addresses. Allowed: the RFC 1918 block 192.168.0.0/16 written as a CIDR.
-192\.168\.(?!0\.0/16)
+192\.168\.(?!0\.0/16(?![0-9]))
 # A personal host reached by its old name: a hostname starting with the music-service word.
-(?-i)(?<![A-Za-z0-9.])[sS]potif[y]\.[a-z0-9-]+\.[a-z]{2,}
+(?<![a-z0-9.])spotif[y]\.[a-z0-9-]+\.[a-z]{2,}(?![a-z0-9_(])

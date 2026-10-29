@@ -7,6 +7,10 @@
 
 package nl.teunschriks.mumamobile.data
 
+import nl.teunschriks.mumamobile.BuildConfig
+import nl.teunschriks.mumamobile.api.subsonic.ServerHosts
+import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+
 /**
  * The one server the app talks to.
  *
@@ -20,7 +24,31 @@ object StaticServers {
 
     /** Pre-rebrand name of the same server; kept so upgraded installs still match. */
     const val LEGACY_SERVER_NAME = "LMS"
-    const val SERVER_URL = "https://music.example.com"
+
+    /**
+     * The server's address, compiled in from the Gradle property `muma.serverUrl` (CI:
+     * `MUMA_SERVER_URL`); `https://music.example.org` when the build set none.
+     */
+    val SERVER_URL: String = BuildConfig.MUMA_SERVER_URL
+
+    /**
+     * The MuMa API base for [serverUrl]: the build's `muma.apiUrl` when [serverUrl] is the host of
+     * [SERVER_URL] or on `muma.ownDomain` (so an install made with an older address of the same server keeps
+     * working), else `<server>/muma`. Reads the build values itself, nothing to initialise.
+     */
+    fun mumaBaseUrlFor(
+        serverUrl: String,
+        ownServerUrl: String = SERVER_URL,
+        mumaApiUrl: String = BuildConfig.MUMA_API_URL,
+        ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
+    ): String = SubsonicAPIClient.mumaBaseUrlFor(serverUrl, ownServerUrl, mumaApiUrl, ownDomain)
+
+    /** Whether [serverUrl] is the build's own server or a host on `muma.ownDomain`. */
+    fun isOwnServer(
+        serverUrl: String,
+        ownServerUrl: String = SERVER_URL,
+        ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
+    ): Boolean = ServerHosts.isOwn(serverUrl, ownServerUrl, ownDomain)
 
     /**
      * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].

@@ -7,7 +7,9 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
+import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.data.StaticServers
 
 /**
  * The two bases the web player builds every URL on, as `platform.system.serverUrl()` returns them.
@@ -23,7 +25,12 @@ data class ServerUrls(val subsonic: String, val mumaApi: String)
  * repeating its rule -- the shell and the native client must never disagree about which muma
  * backend belongs to which LMS.
  */
-fun serverUrlsOf(serverBaseUrl: String): ServerUrls {
+fun serverUrlsOf(
+    serverBaseUrl: String,
+    ownServerUrl: String = StaticServers.SERVER_URL,
+    mumaApiUrl: String = BuildConfig.MUMA_API_URL,
+    ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
+): ServerUrls {
     val subsonic = serverBaseUrl.removeSuffix("/")
-    return ServerUrls(subsonic, SubsonicAPIClient.mumaBaseUrlFor(subsonic).removeSuffix("/"))
+    return ServerUrls(subsonic, StaticServers.mumaBaseUrlFor(subsonic, ownServerUrl, mumaApiUrl, ownDomain).removeSuffix("/"))
 }

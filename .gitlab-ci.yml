@@ -949,6 +949,8 @@ mobile:unit:
     - changes: *mobile_paths
   script:
     - ./scripts/test/muma-mobile-unit.sh
+    # Same Android image: the Gradle side of the build settings (issue #189).
+    - ./scripts/test/muma-mobile-config-check.sh
   after_script: !reference [.mobile_container, after_script]
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:

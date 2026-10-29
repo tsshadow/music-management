@@ -26,28 +26,34 @@ if [[ "$BUILD_TYPE" != "release" && "$BUILD_TYPE" != "debug" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
     echo "Error: APK_HOSTER_URL / APK_HOSTER_PASSWORD are not set. See docs/deployment.md."
     exit 1
 fi
 
-# MuMa Mobile's native "Sign in with Google" flow (EditServerFragment.startGoogleSignIn())
-# intentionally reuses the SAME Google OAuth Web Client ID already configured for the web
-# frontend/backend (GOOGLE_CLIENT_ID) as its Credential Manager `serverClientId`, so the ID
-# token it produces has the same audience the backend already verifies against - no separate
-# Android OAuth client/SHA-1 registration or extra CI/CD variable is needed. GOOGLE_CLIENT_ID
-# itself isn't a plain CI/CD variable but a key inside the PROD_ENV_FILE file-type variable
-# (same one release:build-images/muma:deploy already require), so extract it from there.
-# NOTE: PROD_ENV_FILE may not be available/set for a debug build on develop (only APK_HOSTER_URL
-# is required by .gitlab-ci.yml's mobile:build-debug rule) - fall back to the app's own
-# "placeholder-id" default in that case rather than failing the build.
-if [ -n "$PROD_ENV_FILE" ] && [ -f "$PROD_ENV_FILE" ]; then
-    GOOGLE_WEB_CLIENT_ID=$(grep -E '^GOOGLE_CLIENT_ID=' "$PROD_ENV_FILE" | tail -n1 | cut -d= -f2- | xargs)
-fi
-if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
-    echo "Warning: GOOGLE_CLIENT_ID not found in PROD_ENV_FILE; building with Google Sign-In disabled (placeholder client ID)."
+# The server address and the Google OAuth Web client id are compiled into the APK from the CI/CD
+# variables MUMA_SERVER_URL and MUMA_GOOGLE_CLIENT_ID, plus MUMA_API_URL (a separate host for the
+# MuMa API) and MUMA_OWN_DOMAIN (the owner's domain: servers on it route to that API).
+# app/build.gradle reads them from the environment as the Gradle properties muma.serverUrl,
+# muma.googleClientId, muma.apiUrl and muma.ownDomain; no value goes on a command line (bug
+# report 125). The Google client id is the same Web client the backend verifies (GOOGLE_CLIENT_ID),
+# so the ID token has an audience the backend accepts.
+# A build that lacks them gets the neutral defaults (https://music.example.org, no Google button).
+# That is fine for a debug build and wrong for a release, so a release stops here instead.
+if [ "$BUILD_TYPE" == "release" ]; then
+    # The owner's release must route to his API: without MUMA_API_URL and MUMA_OWN_DOMAIN an
+    # install with an older server address would fall back to <server>/muma. Gradle keeps both
+    # optional, so a public build can use the default.
+    for required in MUMA_SERVER_URL MUMA_GOOGLE_CLIENT_ID MUMA_API_URL MUMA_OWN_DOMAIN; do
+        if [ -z "${!required}" ]; then
+            echo "Error: $required is not set. A release without it would ship the neutral default (see docs/designs/public-edition/)." >&2
+            exit 1
+        fi
+    done
+elif [ -z "$MUMA_SERVER_URL" ] || [ -z "$MUMA_GOOGLE_CLIENT_ID" ]; then
+    echo "Warning: MUMA_SERVER_URL / MUMA_GOOGLE_CLIENT_ID not set; building with the neutral server and without Google Sign-In."
 fi
 
 # Gradle home (outside the project tree, to avoid git checkout permission
@@ -128,7 +134,10 @@ docker run --rm \
     -e SIGNING_KEY_PASSWORD \
     -e APK_HOSTER_URL="${APK_HOSTER_URL}" \
     -e APK_HOSTER_PASSWORD \
-    -e GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}" \
+    -e MUMA_SERVER_URL \
+    -e MUMA_API_URL \
+    -e MUMA_OWN_DOMAIN \
+    -e MUMA_GOOGLE_CLIENT_ID \
     -e DIST_DIR="dist" \
     "$ANDROID_CI_IMAGE" \
     /bin/bash -c ". /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE && ./scripts/deploy.sh $BUILD_TYPE"

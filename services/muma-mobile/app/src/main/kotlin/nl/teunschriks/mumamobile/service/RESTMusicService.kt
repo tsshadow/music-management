@@ -20,6 +20,7 @@ import nl.teunschriks.mumamobile.api.subsonic.toStreamResponse
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.shouldUseId3Tags
 import nl.teunschriks.mumamobile.data.SignOutEpoch
+import nl.teunschriks.mumamobile.data.StaticServers
 import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.data.isUsableMumaUserId
 import nl.teunschriks.mumamobile.domain.Album
@@ -83,7 +84,7 @@ open class RESTMusicService(
     override fun ping() {
         API.ping().execute().throwOnFailure()
         val activeServer = activeServerProvider.getActiveServer()
-        if (activeServer.url.contains("example.com")) {
+        if (StaticServers.isOwnServer(activeServer.url)) {
             // Primes the MuMa client with the stored key; a missing or refused key is not a failed
             // Subsonic ping.
             try {

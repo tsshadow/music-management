@@ -182,5 +182,5 @@ def test_the_order_is_byte_wise_lexical_not_by_version_number() -> None:
     names = [p.name for p in sorted(REPO_ROOT.glob("migrate_*.sql"), key=lambda p: p.name.encode())]
     assert names.index("migrate_v10_audio_features_relink.sql") < names.index("migrate_v2.sql")
     assert names.index("migrate_v2.sql") < names.index("migrate_v29_processed_mtime_double.sql")
-    deployment = (REPO_ROOT / "docs" / "self-hosting.md").read_text(encoding="utf-8")
-    assert "`migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`" in deployment
+    self_hosting = (REPO_ROOT / "docs" / "self-hosting.md").read_text(encoding="utf-8")
+    assert "`migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`" in self_hosting

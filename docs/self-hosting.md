@@ -12,8 +12,21 @@ Two Docker Compose stacks:
 - `services/music-management-server/docker-compose.yml` holds the player (`lms`) and its reverse
   proxy. It is its own stack and has its own `.env`.
 
-Both join the external Docker network `music-management_db`, so `music-manager` reaches `lms` by
+The main stack creates the Docker network `music-management_db`. The player stack declares it as
+`external`, so start the main stack first. Then `music-manager` and `lms` reach each other by
 container name.
+
+## Host requirements
+
+- Docker, and either the Compose plugin (`docker compose`) or `docker-compose` 1.28 or later. Profiles
+  need 1.28. `scripts/deploy.sh` uses the plugin when it exists.
+- For a deploy over SSH: a login that can run `docker` on the host (root in the examples), and the
+  `ssh` client (plus `sshpass` only if you use `REMOTE_PASS` instead of a key) on the machine that
+  runs the script.
+- The host needs no checkout. `scripts/deploy.sh` ships the compose file and the env file itself and
+  keeps them under `~/.muma-deploy/<stack>/` of the deploy user. A checkout of this repository is only
+  needed on the machine you deploy from, and for the backup timers (see Backups).
+- The directories `HOST_MUSIC_PATH`, `HOST_DATA_PATH` and `HOST_BACKUP_PATH` exist on the host.
 
 ## Configure the stack
 
@@ -21,9 +34,12 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 
 | Key | What it is |
 |---|---|
-| `DB_PASS`, `MYSQL_ROOT_PASSWORD` | Database passwords. |
+| `DB_DB`, `DB_USER`, `DB_PASS` | Name, user and password of the application database. |
+| `MYSQL_ROOT_PASSWORD` | Database root password. Migrations and the fallback dump use root when it is set. |
+| `DB_BIND_ADDRESS` | Address MariaDB publishes port 3306 on. Default `127.0.0.1`. Set a LAN address, for example `203.0.113.10`, only if another machine must reach the database. |
 | `MUMA_API_KEY` (or `API_KEY`) | The shared key between services. Without it every service call is refused. |
 | `HOST_MUSIC_PATH`, `HOST_DATA_PATH` | Where your music and the database files live on the host. |
+| `HOST_BACKUP_PATH` | Where the database dumps go. Required by `scripts/backup/install-systemd.sh`, and it must be on another disk than `HOST_DATA_PATH`. |
 | `DOCKER_USER` | The registry account the images are named under, for example `example-user`. |
 | `GOOGLE_CLIENT_ID` | Only for "Sign in with Google". Must equal `VITE_GOOGLE_CLIENT_ID` in the player's `.env`. |
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
@@ -32,10 +48,30 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 `.env.example` lists the other keys with a comment each. Settings you can change at runtime are on
 the Beheer > Config page and win over the environment.
 
-Start the stack:
+Start the main stack first:
 
 ```
 docker-compose -f docker/docker-compose.yml --env-file .env up -d
+```
+
+### The player stack
+
+`services/music-management-server/docker-compose.yml` has its own env file. Keys it reads:
+
+| Key | What it is |
+|---|---|
+| `IMAGE_NAME`, `LMS_TAG` | The player image and its tag, for example `example-user/lms` and `0.72.0`. |
+| `MUSIC_PATH` | Your music folder on the host. Default `/music`. |
+| `DOCKER_DATA_PATH` | Parent of the player's data (`lms/var/lms`, `lms/usr/local/etc`, `lms/nginx`). Default `/docker`. |
+| `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` | Keys of the player's own API and of the Subsonic API. |
+| `MUSIC_MANAGEMENT_URL`, `MUSIC_MANAGEMENT_API_KEY` | Where `music-manager` answers (`http://music-manager:8000/api`) and the shared key, the same value as `MUMA_API_KEY` above. |
+| `LMS_PORT`, `LMS_SUBSONIC_PORT` | Published ports of the web UI (default 80) and the Subsonic API (default 8080). |
+| `VITE_GOOGLE_CLIENT_ID` | Build-time only, for "Sign in with Google". |
+
+Start it after the main stack:
+
+```
+docker-compose -f services/music-management-server/docker-compose.yml --env-file lms.env up -d
 ```
 
 ## Source workers are compose profiles
@@ -106,9 +142,44 @@ scripts/restore_db.sh /mnt/backups/muma/muma_db_<stamp>.sql.gz <target-database>
 
 The script refuses to restore over the live database (`DB_DB`) or into a non-empty one without `--force`.
 
+## Deploy by hand
+
+`scripts/deploy.sh` deploys the main stack to a remote host over SSH. It reads `.env` in the
+repository root (or the file named in `LOCAL_ENV_FILE`) and needs these keys in it:
+
+```
+REMOTE_HOST=203.0.113.10
+REMOTE_USER=root
+DOCKER_USER=example-user
+DEPLOY_TARGET_NAME=music-management
+```
+
+`REMOTE_PASS` is optional, without it SSH uses your key. Set `DEPLOY_TARGET_NAME` to
+`music-management`: without it the script uses the project name `muma`, which is a second compose
+project next to yours. The script takes one optional argument, a service name (`manager` stands for
+`music-manager`), to update only that service. It exits with an error when `REMOTE_HOST` or
+`REMOTE_USER` is missing.
+
+```
+./scripts/deploy.sh
+./scripts/deploy.sh manager
+```
+
+The order is: check the disk, start `db` if it is missing, take a verified dump, apply the
+migrations, then pull and recreate the containers whose image or definition changed.
+
+| Variable | Effect |
+|---|---|
+| `DEPLOY_DB=1` | Also recreates the `db` container when its definition changed, after the dump. Without it `db` is never recreated. |
+| `DEPLOY_MIN_FREE_GB` | Refuses to start when less than this is free (default 8) on `DEPLOY_DISK_CHECK_PATH` (default `/`). Free space first: `docker system df`, then `docker image prune -a -f --filter until=72h` on the host. |
+| `DEPLOY_ONESHOTS=1` | Also starts the one-shot containers `soundcloud-fetcher` and `genre-processor`. |
+| `IMAGE_TAG=<tag>` | Deploys that tag of every image instead of `:latest`. |
+| `PREDEPLOY_BACKUP=0` | Skips the dump, loudly. For an emergency only. |
+
 ## Roll back
 
-Every image is referenced as `${IMAGE_TAG:-latest}` and each release pushes `:<version>`. To go back:
+Every image is referenced as `${IMAGE_TAG:-latest}` and each release pushes `:<version>`. Run the
+deploy with the old tag, from the same `.env` as above:
 
 ```
 IMAGE_TAG=0.72.0 ./scripts/deploy.sh
@@ -134,7 +205,18 @@ required one is missing.
 | `PROD_ENV_FILE` | File type. The full `.env` of the `music-management` stack. |
 | `PROD_ENV_FILE_LMS` | File type. The full `.env` of the player stack. |
 | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | Registry login the images are pushed with. The username must equal `DOCKER_USER` in `PROD_ENV_FILE`. |
+| `APK_HOSTER_URL`, `APK_HOSTER_PASSWORD` | Address and password of the service that hosts the APK. Only for the Android jobs. |
+| `SIGNING_STORE_FILE` | File type. The release keystore, base64-encoded (`base64 -w0`). Only for the Android release job. |
+| `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Keystore password, key alias and key password. Only for the Android release job. |
 | `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that creates release tags and the back-merge. |
+
+`release:check-secrets` requires `PROD_REMOTE_HOST`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
+`APK_HOSTER_URL` and `SIGNING_STORE_FILE`, because a job gated on a missing variable silently
+drops out of the pipeline instead of failing. The Android jobs (`mobile:build-debug`,
+`mobile:build-release`) run only when `APK_HOSTER_URL` is set, and the release job also needs
+`SIGNING_STORE_FILE`. If you do not ship an Android app, remove that part of the check in
+`scripts/ci/check-required-secrets.sh` (the `APK_HOSTER_URL` and `SIGNING_STORE_FILE` lines) and
+leave both variables unset.
 
 Keys the check requires inside `PROD_ENV_FILE`: `GOOGLE_CLIENT_ID`, `API_KEY` or `MUMA_API_KEY`,
 `DOCKER_USER`, `COMPOSE_PROFILES` and `FIREFOX_PASSWORD`. Inside `PROD_ENV_FILE_LMS`:

@@ -437,7 +437,7 @@ $1" < /dev/null
             esac
             AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
             if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
-                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (muma-ops docs/deployment-production.md#disk-space-on-the-production-host).\"
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
                 exit 1
             fi
             echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"
@@ -520,7 +520,7 @@ $1" < /dev/null
                 # producing output, almost certainly waiting on a metadata lock. A
                 # second dump would queue behind the same lock (bug report 068).
                 if [ \"\$BACKUP_RC\" = 3 ]; then
-                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see muma-ops docs/deployment-production.md#when-a-deploy-stops-on-a-lock-wait.'
+                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.'
                     exit 1
                 fi
                 echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
@@ -588,7 +588,7 @@ $1" < /dev/null
                     LAST_SIZE=\$SIZE
                 fi
                 if [ \"\$STILL\" -ge $PREDEPLOY_DUMP_STALL_SECONDS ]; then
-                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see muma-ops docs/deployment-production.md#when-a-deploy-stops-on-a-lock-wait.\"
+                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.\"
                     if [ -s \"\$PID_FILE\" ]; then
                         kill \"\$(cat \"\$PID_FILE\")\" 2>/dev/null || true
                     fi
@@ -646,7 +646,7 @@ $1" < /dev/null
         # Not a failure: nothing in either stack needs the published port. But
         # the workstation's read-only MCP does, and this is the moment it goes.
         if [ -z "${DB_BIND_ADDRESS:-}" ]; then
-            echo "Note: DB_BIND_ADDRESS is not set in the env file; a recreated db publishes 3306 on 127.0.0.1 only, and the read-only MCP (tools/muma_mcp) stops reaching it (muma-ops docs/deployment-production.md#ports-logs-and-memory-limits)."
+            echo "Note: DB_BIND_ADDRESS is not set in the env file; a recreated db publishes 3306 on 127.0.0.1 only, and the read-only MCP (tools/muma_mcp) stops reaching it (docs/self-hosting.md#configure-the-stack)."
         fi
         remote_compose_step "
             if ! \$DOCKER_CMD config --services | grep -qx db; then

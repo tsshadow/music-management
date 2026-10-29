@@ -182,7 +182,7 @@ if [ "$missing" -ne 0 ]; then
     echo ""
     echo "One or more required secrets are missing for this release. Fix the CI/CD"
     echo "variables above (Project > Settings > CI/CD > Variables) before re-running"
-    echo "this pipeline -- see docs/self-hosting.md and .production for the values."
+    echo "this pipeline -- see docs/self-hosting.md."
     exit 1
 fi
 

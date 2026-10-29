@@ -130,7 +130,7 @@ echo "--- Deploying stack: lms ---"
 #    images it replaced. A failed prune is a warning, not a failed deploy --
 #    the next deploy's disk pre-check is what stops on a full disk.
 if ! "$SCRIPT_DIR/ci/prune-prod-images.sh"; then
-    echo "WARNING: pruning old images on $REMOTE_HOST failed; the deploy itself succeeded. See muma-ops docs/deployment-production.md#disk-space-on-the-production-host."
+    echo "WARNING: pruning old images on $REMOTE_HOST failed; the deploy itself succeeded. See docs/self-hosting.md#deploy-by-hand."
 fi
 
 echo "--- CI Deployment finished successfully ---"

@@ -27,6 +27,11 @@ if [ "${SKIP_HOOK_TESTS:-0}" = "1" ]; then
 fi
 
 echo "--- pre-commit: Python unit tests ---"
+# Git runs this hook with GIT_INDEX_FILE (and in a worktree GIT_DIR) set. A
+# test that runs git in a throw-away repo inherits them and writes that repo's
+# files into this commit's index (bug report 152).
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 ./scripts/test/music-management-unit.sh
 
 echo "--- pre-commit: all checks passed ---"

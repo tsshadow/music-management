@@ -150,7 +150,7 @@ the database, the manager and the other core services, and none of them:
 
 Turn them on with `COMPOSE_PROFILES` in `.env`, for example `COMPOSE_PROFILES=importer,youtube`, or per
 command with `docker-compose --profile importer up -d`. See
-[docs/deployment.md](docs/deployment.md#source-workers-are-compose-profiles).
+[docs/self-hosting.md](docs/self-hosting.md#source-workers-are-compose-profiles).
 
 ### Database Backups
 A SQL dump of the MariaDB database is automatically created during every deployment. Manual backups can be triggered using:
@@ -236,7 +236,7 @@ meaningful; no change is needed on the Kuma side.
 Everything is driven by one GitLab pipeline definition (`.gitlab-ci.yml`), but *which* jobs
 actually run depends entirely on the branch you push to. There are effectively four kinds of
 pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`
-(see [Release Management](docs/release-management.md) for the full policy).
+(see Release Management, in the private muma-ops repository, for the full policy).
 
 ### The four pipelines at a glance
 
@@ -347,8 +347,7 @@ For specific information on each module, please refer to their respective README
 - [Ecosystem Architecture](docs/architecture.md)
 - [API Specification](docs/api-specification.md)
 - [System Overview](docs/OVERVIEW.md)
-- [Deployment Guide](docs/deployment.md)
-- [Release Management & Branching](docs/release-management.md)
+- [Self-Hosting Guide](docs/self-hosting.md)
 - [Testing Inventory](docs/testing-inventory.md)
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)

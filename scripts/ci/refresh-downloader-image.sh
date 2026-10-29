@@ -44,12 +44,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
-    echo "Error: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN CI/CD variables are not set. See docs/deployment.md."
+    echo "Error: DOCKERHUB_USERNAME / DOCKERHUB_TOKEN CI/CD variables are not set. See docs/self-hosting.md."
     exit 1
 fi
 
 if [ -z "${PROD_ENV_FILE}" ]; then
-    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 

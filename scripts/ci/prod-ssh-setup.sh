@@ -22,14 +22,14 @@
 #
 # Required CI/CD variables:
 #   - SSH_PRIVATE_KEY:  private key (file type) authorized on the production
-#                       host (see docs/deployment.md).
+#                       host (see docs/self-hosting.md).
 #   - PROD_REMOTE_HOST: host name or address of the production host. There is
 #                       no default: a missing value stops the job here.
 # Optional: PROD_REMOTE_USER (default root).
 
 # Target configuration for Production.
 if [ -z "${PROD_REMOTE_HOST:-}" ]; then
-    echo "Error: PROD_REMOTE_HOST CI/CD variable is not set. See docs/deployment.md." >&2
+    echo "Error: PROD_REMOTE_HOST CI/CD variable is not set. See docs/self-hosting.md." >&2
     exit 1
 fi
 export REMOTE_HOST="${PROD_REMOTE_HOST}"
@@ -38,7 +38,7 @@ export REMOTE_USER="${PROD_REMOTE_USER:-root}"
 echo "--- Setting up SSH access to $REMOTE_HOST ---"
 
 if [ -z "${SSH_PRIVATE_KEY}" ]; then
-    echo "Error: SSH_PRIVATE_KEY CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: SSH_PRIVATE_KEY CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 

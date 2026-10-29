@@ -267,6 +267,6 @@ def test_one_off_commands_on_profiled_services_pass_the_profile():
     assert '--profile importer logs -f importer_worker' in readme
     for profile in ALL_PROFILES:
         assert f'--profile {profile}' in readme
-    assert '--profile soundcloud run --rm soundcloud-fetcher' in (ROOT / 'docs' / 'deployment.md').read_text(
+    assert '--profile soundcloud run --rm soundcloud-fetcher' in (ROOT / 'docs' / 'self-hosting.md').read_text(
         encoding='utf-8'
     )

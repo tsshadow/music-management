@@ -19,7 +19,7 @@
 # passing, even though GitLab has no built-in mechanism to require it.
 #
 # Required GitLab CI/CD variables (same ones deploy already needs, see
-# docs/deployment.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS -- plus the four
+# docs/self-hosting.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS -- plus the four
 # variables that gate release jobs at the `rules:` level (DOCKERHUB_USERNAME,
 # DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE) and PROD_REMOTE_HOST, because a job gated on
 # a missing variable is silently absent rather than red.
@@ -121,7 +121,7 @@ if [ -n "${PROD_REMOTE_HOST:-}" ]; then
 fi
 
 if [ -z "${PROD_ENV_FILE}" ]; then
-    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/self-hosting.md."
     missing=1
 else
     env_content="$(read_env_value "${PROD_ENV_FILE}")"
@@ -158,7 +158,7 @@ else
     # The source workers (importer, youtube, soundcloud, telegram) sit behind
     # compose profiles. Without COMPOSE_PROFILES a deploy starts none of them,
     # and a compose v2 host removes the running ones as orphans.
-    # See docs/deployment.md#source-workers-are-compose-profiles.
+    # See docs/self-hosting.md#source-workers-are-compose-profiles.
     if compose_profiles_value "$env_content" >/dev/null; then
         echo "OK: 'COMPOSE_PROFILES' is set in 'PROD_ENV_FILE'."
     else
@@ -168,7 +168,7 @@ else
 fi
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then
-    echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/self-hosting.md."
     missing=1
 else
     env_content_lms="$(read_env_value "${PROD_ENV_FILE_LMS}")"
@@ -182,7 +182,7 @@ if [ "$missing" -ne 0 ]; then
     echo ""
     echo "One or more required secrets are missing for this release. Fix the CI/CD"
     echo "variables above (Project > Settings > CI/CD > Variables) before re-running"
-    echo "this pipeline -- see docs/deployment.md and .production for the values."
+    echo "this pipeline -- see docs/self-hosting.md and .production for the values."
     exit 1
 fi
 

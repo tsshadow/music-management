@@ -60,7 +60,7 @@ deliberately":
 # solution
 
 **Memory limits**, each with its reasoning in a comment on the service and overridable in the
-stack's `.env` (the table is in `docs/deployment.md`, "Ports, logs and memory limits"):
+stack's `.env` (the table is in `muma-ops docs/deployment-production.md`, "Ports, logs and memory limits"):
 
 - `db` 2g (`MUMA_MEM_LIMIT_DB`): three times what it uses and twice the ~1 GiB peak its settings
   allow at the highest connection count seen (470 MiB static + 29 x ~18 MiB). A mariadb-dump or the

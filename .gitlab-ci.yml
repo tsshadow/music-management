@@ -1257,7 +1257,7 @@ frontend:e2e:
 # --- Release stabilization ---------------------------------------------------
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
 # (stabilization + prod deploy) -> master (tagged production record).
-# See docs/release-management.md for the full policy.
+# See muma-ops docs/release-management.md for the full policy.
 
 release:version-check:
   stage: release

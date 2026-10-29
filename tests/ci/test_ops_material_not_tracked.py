@@ -4,6 +4,7 @@ Issue #189 step 8a. A checkout may hold these paths as symlinks made by muma-ops
 git must never track them, or the public history carries hosts, runbooks and agent plans again.
 """
 
+import re
 import subprocess
 
 from tests.ci.conftest import REPO_ROOT
@@ -46,13 +47,20 @@ def test_claude_worktrees_stay_ignored():
     assert result.returncode == 0
 
 
-OWNER_ONLY_PATTERNS = ["muma", "192.0.2.", "spotify.", "ntfy.someuser", "password manager", "gitlab.example.com"]
+OWNER_ONLY_PATTERNS = [
+    r"muma",
+    r"192\.168\.",
+    r"\bspotify\.[a-z0-9-]+\.[a-z]{2,}",
+    r"password manager",
+    r"gitlab\.example\.com",
+    r"/home/user",
+    r"\bTeun\b",
+]
 
 
 def test_agents_md_names_no_owner_host():
     """AGENTS.md is public: host-specific rules live in muma-ops AGENTS.private.md (issue #189 step 8b)."""
     text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    found = [p for p in OWNER_ONLY_PATTERNS if p in text]
+    found = [p for p in OWNER_ONLY_PATTERNS if re.search(p, text, re.IGNORECASE)]
     assert not found, f"AGENTS.md names owner-only values {found}; move them to muma-ops AGENTS.private.md"
-    leftover = text.replace("nl.teunschriks.mumamobile", "")
-    assert "someuser" not in leftover
+    assert "someuser" not in text.replace("nl.teunschriks.mumamobile", "").lower()

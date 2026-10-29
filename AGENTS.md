@@ -16,7 +16,7 @@ The owner's operations material (production scripts, agent skills and plans, run
 this repository. Without it, ignore references to `scripts/prod/` and the production runbooks; the build,
 the tests and merge requests do not need it. When the owner's setup links an `AGENTS.local.md` into the
 checkout, it holds the host-specific rules of that installation: read it when it exists, and ignore it
-otherwise.
+otherwise. A rule in `AGENTS.local.md` takes precedence over the generic rule it names.
 
 ## 🏗 Core Modules & Responsibilities
 
@@ -549,7 +549,7 @@ rule 11).
    under [Repository Layout](#-repository-layout).
 8. **No secrets, ever, in code, commits, or docs**: credentials, tokens, and keys are never committed or
    written into `AGENTS.md`/`docs/`; they live only in a gitignored `.env` or in a password manager, referenced by
-   name only. Treat `AGENTS.md` and everything under `docs/` as potentially public.
+   name only. An agent never creates or fills a local credentials file itself. Treat `AGENTS.md` and everything under `docs/` as potentially public.
 9. **Changelog required**: every functional change adds a fragment under `changelog.d/` in the same
    change (see [changelog.d/README.md](changelog.d/README.md)); `CHANGELOG.md` and `RELEASE_NOTES.md`
    are assembled from the fragments at release time and are not edited on a feature branch.
@@ -577,7 +577,7 @@ rule 11).
     script where the detail lives: a bug report describes a fix, so it cannot carry a plan, and a merge
     request description is not a record. A merge request that finishes an issue says `Closes #N` in its
     description; one that leaves something open files a new issue. A stale open issue is a bug, same as a
-    stale design doc (rule 3).
+    stale design doc (rule 3). Do not keep a list of open work in a file.
 15. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/muma-mobile`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
 16. **Ask which environment before touching live data**: any question that involves live data — the
     database, running containers, logs, checking whether something "actually works" — is ambiguous between

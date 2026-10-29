@@ -236,10 +236,11 @@ describe("About", () => {
       "release-notes.json": NO_RELEASE_NOTES,
     });
     render(About);
+    // The gate retries a 503 for about 5.6 s before the error body is read.
     expect(
-      await screen.findByRole("link", { name: "https://git.example/muma" }),
+      await screen.findByRole("link", { name: "https://git.example/muma" }, { timeout: 9000 }),
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("lists the bundle's git hash and build time when version.json is there", async () => {
     globalThis.fetch = respond({

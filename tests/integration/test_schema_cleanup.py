@@ -99,7 +99,7 @@ def test_a_listen_outlives_its_track(live):
     _run(
         live,
         "INSERT INTO library_tracks (id, title) VALUES (7, 'Track')",
-        "INSERT INTO scrobble_listens (username, track_id, listened_at) VALUES ('user', 7, NOW())",
+        "INSERT INTO scrobble_listens (username, track_id, listened_at) VALUES ('listener', 7, NOW())",
         'DELETE FROM library_tracks WHERE id = 7',
     )
     with live.cursor() as cursor:

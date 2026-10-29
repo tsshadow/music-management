@@ -17,7 +17,7 @@ __pycache__/
 services/ml-analyzer/.env
 node_modules/
 .pytest_cache/
-.production
+/.production
 
 # Operations and agent material lives in the private repository muma/muma-ops.
 # Its install.sh links these paths into a checkout; ignoring them keeps a linked
@@ -27,6 +27,7 @@ node_modules/
 /.claude
 /.ai
 /.junie
+/services/muma-mobile/.junie
 /scripts/prod
 /scripts/crash-triage
 /scripts/nightly-prod-check

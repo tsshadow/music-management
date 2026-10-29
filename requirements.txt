@@ -46,7 +46,7 @@ librosa~=1.0.0
 #
 # Once the images are off 3.11, 2.5 becomes available and this can move again.
 numpy~=2.5.2
-Pillow~=12.3
+Pillow~=13.0
 
 # --- Ingestion ---------------------------------------------------------------
 # An exact pin, kept fresh by Renovate rather than by the build. It used to be a

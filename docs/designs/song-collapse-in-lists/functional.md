@@ -4,7 +4,7 @@
 
 The library holds several files of one song: the official release, a radio edit, a SoundCloud or
 YouTube rip. MuMa groups them into one song and names the best version, the canonical (see
-[the song-versions design](../../superpowers/specs/2026-08-23-song-versions-and-canonical-design.md)).
+[the song-versions design](../song-versions/technical.md)).
 Until now the feeds and most lists ignored that grouping, so a song could appear twice, and a feed
 could play the rip while the official version sat in the library (bug report 096). This makes every
 surface outside the song's own page show one entry per song, and that entry is the canonical.

@@ -1,8 +1,7 @@
 """The pipeline policy, as executable assertions.
 
 Every rule here exists because breaking it has a concrete production
-consequence, named in the test's docstring. See
-docs/superpowers/plans/2026-08-02-ci-release-hardening.md.
+consequence, named in the test's docstring.
 """
 
 import re

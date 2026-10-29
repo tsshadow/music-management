@@ -7,7 +7,7 @@ from the scanner and the ml-analyzer today and from somewhere else tomorrow, and
 a grouping that hangs off one writer misses the rest in silence. Same reasoning
 as backfill_normalized() in scrobble_rematch.py.
 
-Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md, and for the
+Design: docs/designs/song-versions/technical.md, and for the
 ranking and the rescore docs/designs/song-versions/.
 """
 

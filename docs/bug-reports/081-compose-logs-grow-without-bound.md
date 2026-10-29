@@ -105,7 +105,7 @@ file, for the window between a host reinstall and the repository catching up. Th
   `admin` default is now also gone from `.tools.yml` and `.full.yml`.
 - Memory limits: music-manager and the four workers have them since 050. `db`, `phpmyadmin`,
   `firefox`, the one-shots and the `lms` stack have none. This is left open deliberately, because
-  there is no measured basis for a ceiling on MariaDB or LMS; see `docs/open-work.md`.
+  there is no measured basis for a ceiling on MariaDB or LMS; see the GitLab issues.
 - `.env` parser truncating at `#`: fixed in 038 (`scripts/lib/dotenv.sh`, tested in
   `tests/ci/test_deploy_script_hygiene.py`).
 - Worker healthchecks for the post-deploy check: done in 050 (`x-worker-healthcheck`, and

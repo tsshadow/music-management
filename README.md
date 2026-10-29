@@ -352,7 +352,6 @@ For specific information on each module, please refer to their respective README
 - [Database Schema](docs/database-design.md)
 - [Data Flow](docs/system-data-flow.md)
 - [Style Guide](docs/styleguide.md)
-- [Machine Learning: an unbuilt proposal](docs/machine-learning.md)
 
 ---
 

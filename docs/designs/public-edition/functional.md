@@ -112,7 +112,7 @@ artist or label published on their own channel.
 
 | Action | Paths |
 |---|---|
-| Delete | `docs/superpowers/` (89 agent plans), `docs/branding/candidates/`, `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md` |
+| Delete | `docs/superpowers` (89 agent plans), `docs/branding/candidates/`, `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md` |
 | Fold into `services/ml-analyzer/DEPRECATED.md`, then delete | `docs/machine-learning.md`, `docs/ml-tutorial.md` |
 | Move to `muma-ops` | `docs/release-management.md`, production part of `docs/deployment.md` |
 | Write | `docs/self-hosting.md` (compose, `.env`, profiles, migrations, backups) |

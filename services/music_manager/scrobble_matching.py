@@ -4,8 +4,6 @@ Pure functions, no database. Everything that touches SQL lives in
 scrobble_rematch.py, so the rules here can be pinned down by ordinary unit tests
 rather than against a fixture -- which matters, because the bug this exists to
 fix was invisible to a mocked cursor.
-
-Design and measurements: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 """
 
 from __future__ import annotations

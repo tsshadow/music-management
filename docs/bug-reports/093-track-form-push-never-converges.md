@@ -63,7 +63,7 @@ UPDATE statement on the second run via SQLite's trace callback, the guarded UPDA
 `test_scanner_tagger_routers.py` (a length-less row is read again), and
 `tests/integration/test_router_sql.py` (the sort and SHA2 preference on real MariaDB).
 
-Left open (docs/open-work.md): deleting the 1,493 stale media rows and their stub tracks, and
+Left open (the GitLab issues): deleting the 1,493 stale media rows and their stub tracks, and
 checking on production that the push writes 0 on its second hourly run.
 
 The stale rows (GitLab issue #124): `scripts/prod/person/merge-stale-media-rows.sh` folds each

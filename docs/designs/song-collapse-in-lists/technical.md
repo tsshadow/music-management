@@ -67,6 +67,6 @@ Not breaking for any client: every field keeps its meaning; lists are shorter.
 
 ## Related Docs
 
-- [Song versions and canonical design](../../superpowers/specs/2026-08-23-song-versions-and-canonical-design.md)
+- [Song versions and canonical design](../song-versions/technical.md)
 - [Feeds technical design](../feeds/technical.md)
 - [Bug report 096](../../bug-reports/096-feeds-collapse-per-song.md)

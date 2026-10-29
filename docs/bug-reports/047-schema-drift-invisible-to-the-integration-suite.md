@@ -111,10 +111,10 @@ without Docker and nobody noticed it also applied in CI; the 10.6 image predates
   reproduces bug report 039's implicit `ON UPDATE`. The suite passes on both.
 - **Type checking and docstrings.** `typecheck.sh --all` runs with `--explicit-package-bases` and
   is a new `backend:typecheck-all` job, `allow_failure` while its 299 errors are worked down
-  ([open-work](../open-work.md)). `scripts/lint.sh` fails a module on the strict type-check list
+  (the open GitLab issues). `scripts/lint.sh` fails a module on the strict type-check list
   that has an undocumented public function or class; the 80 that had one are documented.
 
-Still open, in [open-work](../open-work.md): the drift test cannot see a difference that exists
+Still open, in the open GitLab issues: the drift test cannot see a difference that exists
 only in production's older tables, because both of its paths start from the same `db_init.py`.
 The `rules_ignored_artists` unique key and the absent audio columns rest on what the code and the
 migrations say about production, not on a query against it.

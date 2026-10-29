@@ -82,15 +82,15 @@ database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in
 `tests/integration/test_router_sql.py` as well.
 
-**A schema change needs two edits that agree.** The `CREATE TABLE` in
-`services/common/db_init.py` (or the router's `init_db`), and a `migrate_*.sql` in
-the repository root (which `scripts/deploy.sh` applies on every deploy, so it must
-be re-runnable). `tests/integration/test_schema_drift.py` builds the schema both
-ways from an empty database and fails on any column or index that differs, so give
-an index in the CREATE the name the migration gives it. The expected-table set is
-read from the `CREATE TABLE` statements, not kept by hand. `CREATE TABLE IF NOT
-EXISTS` never alters an existing table -- that is how two columns the code
-selected went missing until the integration suite caught them.
+**A schema change is one edit.** Declare the table in
+`services/common/schema_tables.py`, the only file that may hold a `CREATE TABLE`.
+Seed rows a new database needs go in `services/common/seeds/`. Each deploy runs
+`services/common/schema_reconcile.py`, which adds missing tables, columns, indexes
+and views and reports everything else, so a new column needs a default or must
+allow `NULL`. A drop, a rename or a type change needs a script in `tools/` with a
+dry run and a backup. `tests/integration/test_schema_snapshot.py` compares a fresh
+database with production's schema (`tests/integration/schema/production.tsv`) and
+fails on any difference it does not list with a reason.
 
 **A write of more than one statement goes through `transaction(conn)`.** The pool
 in `services/music_manager/database.py` runs autocommit, so a DELETE followed by

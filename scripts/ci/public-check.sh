@@ -6,9 +6,7 @@
 #   1. gitleaks over the working tree (skipped when PUBLIC_CHECK_SKIP_GITLEAKS=1 or no docker).
 #   2. git grep with scripts/ci/public-patterns.txt: names, hosts, LAN addresses.
 #
-# Excluded: scripts/ci/public-patterns.txt (it holds the
-# patterns), and migrate_*.sql. A deploy re-runs a migration whose sha256 changed, so these
-# files are never edited, even to remove a name.
+# Excluded: scripts/ci/public-patterns.txt, which holds the patterns.
 #
 # Usage: ./scripts/ci/public-check.sh      (exit 0 clean, exit 1 on a hit)
 # Env:   PUBLIC_CHECK_SKIP_GITLEAKS=1   skip the gitleaks step (used by the unit test)
@@ -48,7 +46,7 @@ if [ ! -s "$CLEAN" ]; then
 fi
 # git grep exits 0 on a hit, 1 on no hit, anything else on an error (bad PCRE, unreadable file).
 rc=0
-git grep -P -i -n -I -f "$CLEAN" -- . ':!migrate_*.sql' ':!**/migrate_*.sql' ':!scripts/ci/public-patterns.txt' || rc=$?
+git grep -P -i -n -I -f "$CLEAN" -- . ':!scripts/ci/public-patterns.txt' || rc=$?
 case "$rc" in
     0)
         echo "ERROR: personal data in tracked files (see hits above)." >&2

@@ -24,7 +24,6 @@ class TaggerTestCase(unittest.TestCase):
         patches = [
             patch.object(tagger_module, 's', self.settings),
             patch.object(tagger_module, 'processed_files_helper', MagicMock()),
-            patch.object(tagger_module, 'broken_song_helper', MagicMock()),
             # parse_song asks the archive what the download knew. Stubbed for the whole
             # suite so no dispatch test reaches a database, and set per test where the
             # lookup itself is what is under test.
@@ -752,11 +751,11 @@ class TryParseTest(TaggerTestCase):
             Tagger._parse_worker(str(song), 'SOUNDCLOUD')
         self.assertEqual(self.processed.mark_processed.call_args.args[1], 2000.0)
 
-    def test_an_unreadable_file_is_recorded_as_broken(self):
+    def test_an_unreadable_file_is_left_unmarked(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         with patch.object(Tagger, 'parse_song', side_effect=PermissionError('denied')), self.assertLogs(level='ERROR'):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
-        tagger_module.broken_song_helper.add.assert_called_once()
+        self.processed.mark_failed.assert_called_once()
         self.processed.mark_processed.assert_not_called()
 
     def test_an_unexpected_failure_is_logged_and_the_file_left_unmarked(self):
@@ -923,7 +922,7 @@ class FailedAttemptTest(TaggerTestCase):
         _, records = self.run_failing(0)
         self.assertEqual(self.levels(records), ['ERROR'])
 
-    def test_a_broken_file_is_counted_as_well_as_recorded(self):
+    def test_a_broken_file_is_counted(self):
         song = self.make_song(self.music / 'Soundcloud' / 'artist')
         self.processed.mark_failed.return_value = 1
         with (
@@ -932,7 +931,6 @@ class FailedAttemptTest(TaggerTestCase):
         ):
             self.tagger._try_parse(song, SongTypeEnum.SOUNDCLOUD)
         self.processed.mark_failed.assert_called_once()
-        tagger_module.broken_song_helper.add.assert_called_once_with(str(song), 'PermissionError')
 
 
 class TagSingleFileTest(TaggerTestCase):

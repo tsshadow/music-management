@@ -1,9 +1,9 @@
 #!/bin/bash
 # Comprehensive Docker Stack Deployment Script
-# Handles: Webhooks, Remote SSH updates, and Database Migrations.
+# Handles: Webhooks, Remote SSH updates, and the database schema.
 #
 # Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
-# dump -> db recreate (DEPLOY_DB=1 only) -> migrations -> DEPLOY_PRE_UP_HOOK ->
+# dump -> db recreate (DEPLOY_DB=1 only) -> schema reconcile -> DEPLOY_PRE_UP_HOOK ->
 # pull + up of what changed. See the comment above step 2 below and
 # docs/self-hosting.md. Unused images are pruned afterwards by
 # scripts/ci/prune-prod-images.sh, once post-deploy verification has passed.
@@ -23,8 +23,8 @@
 #   DEPLOY_ONESHOTS=1     also start the one-shot tool containers
 #                         (soundcloud-fetcher, genre-processor)
 #   PREDEPLOY_BACKUP=0    skip the pre-deploy dump (loudly); for emergencies
-#   DEPLOY_PRE_UP_HOOK=<cmd>  run locally after the migrations, before `up`
-#   MIGRATION_LOCK_WAIT_SECONDS=120  how long one migration may wait for a lock
+#   DEPLOY_PRE_UP_HOOK=<cmd>  run locally after the schema step, before `up`
+#   SCHEMA_LOCK_WAIT_SECONDS=120  how long one schema change may wait for a lock
 #                         before it errors and the deploy stops (bug report 068)
 #   PREDEPLOY_DUMP_STALL_SECONDS=300  how long the fallback pre-deploy dump may
 #                         produce no output before it is stopped (bug report 068)
@@ -130,9 +130,9 @@ BACKUP_COMPOSE_DIR="${BACKUP_COMPOSE_DIR:-/opt/muma-backup}"
 PREDEPLOY_DUMP_MIN_BYTES="${PREDEPLOY_DUMP_MIN_BYTES:-1048576}"
 PREDEPLOY_DUMPS_KEPT="${PREDEPLOY_DUMPS_KEPT:-3}"
 DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-180}"
-# A migration waiting longer than this for a lock errors instead of hanging the
+# A schema change waiting longer than this for a lock errors instead of hanging the
 # job until its timeout (docs/bug-reports/068-deploy-hangs-on-no-op-alter-metadata-lock.md).
-MIGRATION_LOCK_WAIT_SECONDS="${MIGRATION_LOCK_WAIT_SECONDS:-120}"
+SCHEMA_LOCK_WAIT_SECONDS="${SCHEMA_LOCK_WAIT_SECONDS:-120}"
 # The fallback dump is stopped once its file has not grown for this long; the
 # db-backup service has the same watchdog in tools/db_backup.py (BACKUP_STALL_SECONDS).
 PREDEPLOY_DUMP_STALL_SECONDS="${PREDEPLOY_DUMP_STALL_SECONDS:-300}"
@@ -147,8 +147,8 @@ DEPLOY_DISK_CHECK_PATH="${DEPLOY_DISK_CHECK_PATH:-/}"
 # A recreated db on a new major runs mariadb-upgrade (MARIADB_AUTO_UPGRADE) on a
 # temporary server before the real one listens; give that its own, longer wait.
 DB_UPGRADE_WAIT_SECONDS="${DB_UPGRADE_WAIT_SECONDS:-600}"
-case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$MIGRATION_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS$PREDEPLOY_BACKUP_RM_WAIT_SECONDS$DEPLOY_MIN_FREE_GB$DB_UPGRADE_WAIT_SECONDS" in
-    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, MIGRATION_LOCK_WAIT_SECONDS, PREDEPLOY_DUMP_STALL_SECONDS, PREDEPLOY_BACKUP_RM_WAIT_SECONDS, DEPLOY_MIN_FREE_GB and DB_UPGRADE_WAIT_SECONDS must be numbers."; exit 1 ;;
+case "$PREDEPLOY_DUMP_MIN_BYTES$PREDEPLOY_DUMPS_KEPT$DB_WAIT_SECONDS$SCHEMA_LOCK_WAIT_SECONDS$PREDEPLOY_DUMP_STALL_SECONDS$PREDEPLOY_BACKUP_RM_WAIT_SECONDS$DEPLOY_MIN_FREE_GB$DB_UPGRADE_WAIT_SECONDS" in
+    *[!0-9]*) echo "Error: PREDEPLOY_DUMP_MIN_BYTES, PREDEPLOY_DUMPS_KEPT, DB_WAIT_SECONDS, SCHEMA_LOCK_WAIT_SECONDS, PREDEPLOY_DUMP_STALL_SECONDS, PREDEPLOY_BACKUP_RM_WAIT_SECONDS, DEPLOY_MIN_FREE_GB and DB_UPGRADE_WAIT_SECONDS must be numbers."; exit 1 ;;
 esac
 # Interpolated into the remote shell, so held to plain path characters.
 if ! printf '%s' "$DEPLOY_DISK_CHECK_PATH" | grep -Eq '^/[A-Za-z0-9_./-]*$'; then
@@ -190,9 +190,9 @@ fi
 #                recreate `db`, wait for the real server (not the entrypoint's
 #                temporary upgrade server) and check mariadb-upgrade ran.
 #                After (b), so the newest backup predates the new MariaDB
-#   d. migrate   every migrate_*.sql, while the *old* containers still run --
-#                migrations are expand-only (tests/ci/test_migration_ordering.py),
-#                so the old code keeps working on the new schema
+#   d. schema    the release's schema-reconcile adds what the database lacks,
+#                while the *old* containers still run -- it only adds, so the
+#                old code keeps working on the new schema
 #   e. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
 #                to :latest here (scripts/ci/promote-release-images.sh), so
 #                Watchtower cannot start new code before (d) has finished
@@ -296,12 +296,12 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
     fi
 
     # Root when the env carries its password, the application user otherwise.
-    # Used by the migrations and by the fallback dump.
-    MIGRATION_USER="$DB_USER"
-    MIGRATION_PASS="$DB_PASS"
+    # Used by the fallback dump.
+    DUMP_USER="$DB_USER"
+    DUMP_PASS="$DB_PASS"
     if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
-        MIGRATION_USER="root"
-        MIGRATION_PASS="$MYSQL_ROOT_PASSWORD"
+        DUMP_USER="root"
+        DUMP_PASS="$MYSQL_ROOT_PASSWORD"
     fi
 
     # IMAGE_TAG is the one-variable rollback (docs/self-hosting.md#roll-back):
@@ -321,7 +321,8 @@ if [ -n "${REMOTE_HOST}" ] && [ -n "${REMOTE_USER}" ]; then
 
     # Services the final `up` leaves alone (see the header of this block). `db`
     # always: step (c) is the only place it is ever recreated, after the dump.
-    SKIP_SERVICES="db"
+    # schema-reconcile always: step (d) runs it, once.
+    SKIP_SERVICES="db schema-reconcile"
     if [ "$DEPLOY_ONESHOTS" != "1" ]; then
         SKIP_SERVICES="$SKIP_SERVICES $ONESHOT_SERVICES"
     fi
@@ -394,7 +395,7 @@ $1" < /dev/null
     # credential. It asks over TCP, not the socket: the image's entrypoint runs
     # mariadb-upgrade (MARIADB_AUTO_UPGRADE) on a temporary server started with
     # --skip-networking on the very same socket, which a socket ping would take
-    # for the real one -- and the migrations would then start against a server
+    # for the real one -- and the schema step would then start against a server
     # the entrypoint is about to shut down. The temporary server never listens on
     # TCP, the real one does. (healthcheck.sh --connect makes the same
     # distinction; this spelling works on every image version.)
@@ -418,7 +419,7 @@ $1" < /dev/null
     # The disk pre-check comes first (bug report 094): images piled up until
     # the root disk was 95% full, and a pull into a full disk fails halfway
     # through `up`, with some containers on the new release and some on the old.
-    # Refusing here, before anything is dumped, pulled or migrated, changes
+    # Refusing here, before anything is dumped, pulled or changed, changes
     # nothing on the host. DEPLOY_MIN_FREE_GB=0 switches it off.
     #
     # `db` is started when it is missing but never recreated here, not even
@@ -437,14 +438,14 @@ $1" < /dev/null
             esac
             AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
             if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
-                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or migrated. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or changed. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
                 exit 1
             fi
             echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"
         fi
         if \$DOCKER_CMD config --services | grep -qx db; then
             \$DOCKER_CMD up -d --no-deps --no-recreate db
-            $(wait_for_db_cmd "$DB_WAIT_SECONDS" "nothing was migrated or recreated.")
+            $(wait_for_db_cmd "$DB_WAIT_SECONDS" "nothing was changed or recreated.")
         else
             echo 'No db service in this compose file; skipping the database wait.'
         fi
@@ -463,17 +464,17 @@ $1" < /dev/null
     #
     # When that is not installed or fails, the fallback is mariadb-dump through
     # `docker exec` into the same destination, held to the same three checks.
-    # The password travels as on the migrations: first line of stdin, into
+    # The password travels on stdin: its first line, into
     # MYSQL_PWD, `docker exec -e MYSQL_PWD` without a value.
     #
-    # Either way, no verified dump means no deploy: nothing has been migrated
+    # Either way, no verified dump means no deploy: nothing has been changed
     # or recreated yet at this point, so stopping here changes nothing.
     if [ "$PREDEPLOY_BACKUP" = "1" ]; then
         echo "--- [2/6] Pre-deploy database backup ---"
         Q_BACKUP_COMPOSE_DIR=$(printf '%q' "$BACKUP_COMPOSE_DIR")
         Q_BACKUP_DEST=$(printf '%q' "${HOST_BACKUP_PATH:-/mnt/backups/muma}")
         Q_DB_DB=$(printf '%q' "$DB_DB")
-        Q_MIGRATION_USER=$(printf '%q' "$MIGRATION_USER")
+        Q_DUMP_USER=$(printf '%q' "$DUMP_USER")
         REMOTE_BACKUP_CMD="
             set -e
             IFS= read -r DUMP_PWD || true
@@ -520,7 +521,7 @@ $1" < /dev/null
                 # producing output, almost certainly waiting on a metadata lock. A
                 # second dump would queue behind the same lock (bug report 068).
                 if [ \"\$BACKUP_RC\" = 3 ]; then
-                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.'
+                    echo 'Error: the pre-deploy dump stalled (waiting on a table lock?); refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#schema-changes.'
                     exit 1
                 fi
                 echo 'WARNING: the db-backup service failed; falling back to mariadb-dump through docker exec.'
@@ -568,7 +569,7 @@ $1" < /dev/null
             # ends by itself once the lock clears and it finds its output gone.
             {
                 MYSQL_PWD=\"\$DUMP_PWD\" docker exec -i -e MYSQL_PWD music-management-db-1 mariadb-dump \\
-                    -u $Q_MIGRATION_USER --single-transaction --quick --routines --triggers --events \\
+                    -u $Q_DUMP_USER --single-transaction --quick --routines --triggers --events \\
                     --default-character-set=utf8mb4 $Q_DB_DB < /dev/null &
                 echo \$! > \"\$PID_FILE\"
                 DUMP_RC=0
@@ -588,7 +589,7 @@ $1" < /dev/null
                     LAST_SIZE=\$SIZE
                 fi
                 if [ \"\$STILL\" -ge $PREDEPLOY_DUMP_STALL_SECONDS ]; then
-                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#migrations.\"
+                    echo \"Error: the pre-deploy dump wrote nothing for $PREDEPLOY_DUMP_STALL_SECONDS s (stuck at \$SIZE bytes), most likely waiting on a table metadata lock; stopped it and refusing to deploy without a backup. Find the lock holder in SHOW PROCESSLIST as root, see docs/self-hosting.md#schema-changes.\"
                     if [ -s \"\$PID_FILE\" ]; then
                         kill \"\$(cat \"\$PID_FILE\")\" 2>/dev/null || true
                     fi
@@ -620,7 +621,7 @@ $1" < /dev/null
             ls -1t \"\$DEST\"/muma_db_pre-deploy_*.sql.gz 2>/dev/null | tail -n +$((PREDEPLOY_DUMPS_KEPT + 1)) | xargs -r rm -f
             echo \"PREDEPLOY_BACKUP_OK \$FILE (\$SIZE bytes)\"
         "
-        printf '%s\n' "$MIGRATION_PASS" \
+        printf '%s\n' "$DUMP_PASS" \
             | run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_BACKUP_CMD"
     else
         echo "--- [2/6] WARNING: PREDEPLOY_BACKUP=0, deploying WITHOUT a pre-deploy backup ---"
@@ -640,7 +641,7 @@ $1" < /dev/null
     # wait asks over TCP, so it only ends once that is done and the real server
     # listens; the entrypoint's upgrade log is printed; and the version recorded
     # in mariadb_upgrade_info must then match the server's, or the deploy stops
-    # before any migration touches a data directory that was not upgraded.
+    # before the schema step touches a data directory that was not upgraded.
     if [ "$DEPLOY_DB" = "1" ]; then
         echo "--- [3/6] DEPLOY_DB=1: pulling and, if its definition changed, recreating db ---"
         # Not a failure: nothing in either stack needs the published port. But
@@ -674,7 +675,7 @@ $1" < /dev/null
             UPGRADE_INFO=\$(docker exec music-management-db-1 cat /var/lib/mysql/mariadb_upgrade_info 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
             echo \"MariaDB server \${SERVER_VERSION:-unknown}, data directory upgraded for \${UPGRADE_INFO:-unknown}.\"
             if [ -z \"\$SERVER_VERSION\" ] || [ \"\${SERVER_VERSION%.*}\" != \"\${UPGRADE_INFO%.*}\" ]; then
-                echo 'Error: the data directory was not upgraded to this server version (is MARIADB_AUTO_UPGRADE set on db?); nothing was migrated. Run mariadb-upgrade in the container, or roll the db image back and restore the pre-deploy dump.'
+                echo 'Error: the data directory was not upgraded to this server version (is MARIADB_AUTO_UPGRADE set on db?); nothing was changed. Run mariadb-upgrade in the container, or roll the db image back and restore the pre-deploy dump.'
                 exit 1
             fi
         "
@@ -682,60 +683,35 @@ $1" < /dev/null
         echo "--- [3/6] db left as it is (DEPLOY_DB=1 recreates it here, after the dump) ---"
     fi
 
-    # d. migrate -------------------------------------------------------------
+    # d. schema --------------------------------------------------------------
     #
-    # Glob is migrate_*.sql, matching the !migrate_*.sql exception in .gitignore
-    # exactly: one naming rule decides both what gets committed and what gets
-    # applied, so a migration can no longer be silently skipped by one of the two
-    # (see docs/bug-reports/021-genre-migration-never-shipped.md). The helper
-    # sorts the files byte-wise by name -- bash's glob order follows the runner's
-    # locale -- so migrate_v10_* runs before migrate_v2.sql, which runs before
-    # migrate_v29_*; no migration may depend on a higher-numbered one having run
-    # first. Because they run before
-    # the new containers start, migrations are expand-only: the release that is
-    # still running has to keep working on the migrated schema.
+    # The schema-reconcile one-shot (docker/docker-compose.yml) runs the release's own
+    # services/common/schema_reconcile.py against the database, while the *old*
+    # containers still run: it builds the declared tables in a scratch database,
+    # compares, and adds the tables, columns, indexes and views the live database
+    # lacks. It never drops, renames or changes anything; every other difference is
+    # printed as a "report:" line and left alone, so the release that is still running
+    # keeps working on the schema (docs/self-hosting.md#schema-changes).
     #
-    # tools/apply_migrations.py decides what runs (docs/bug-reports/068-deploy-
-    # hangs-on-no-op-alter-metadata-lock.md):
-    #   - the schema_migrations ledger records each file's name and sha256 once it
-    #     applied; a recorded, unchanged file is skipped, a changed or unrecorded
-    #     one runs. Every file stays re-runnable -- the ledger only saves work;
-    #   - each file runs with lock_wait_timeout and innodb_lock_wait_timeout set to
-    #     MIGRATION_LOCK_WAIT_SECONDS, so a statement queued behind another
-    #     session's lock errors instead of hanging the job, naming the file and
-    #     printing the server's sessions. The deploy stops here, before `up`.
+    # The image is the one being deployed: IMAGE_TAG when set, else this checkout's
+    # VERSION -- the build job pushes :VERSION, and :latest only moves in (e). It
+    # connects as root with MYSQL_ROOT_PASSWORD, which compose reads from the env file
+    # on stdin, so the password is on no command line (bug report 038).
     #
-    # How the SQL gets there is unchanged. stdin carries the password on its
-    # first line and the SQL after it (the helper prepends the password to every
-    # batch). The remote shell reads the first line into MYSQL_PWD (the mariadb
-    # client's password variable) and hands the rest of stdin straight to the
-    # client; `docker exec -e MYSQL_PWD` without a value copies it from the
-    # environment, so the password is on no command line -- not the ssh one here,
-    # not docker's or mariadb's there -- and no SQL file is left in /tmp either.
-    # Same idea as the --defaults-extra-file in tools/db_backup.py. The function
-    # and the variables the helper's `bash -c` needs are exported; the
-    # environment, unlike argv, is not readable by other accounts.
-    #
-    # The migration's exit status is the remote command's status, because docker
-    # exec is its last command (bug report 021). `mariadb`, not `mysql`: MariaDB
-    # dropped the old client name in 12.
-    echo "--- [4/6] Applying database migrations (old containers still running) ---"
-    # shellcheck disable=SC2089 # the quotes are for the remote shell that runs this string
-    REMOTE_MIGRATE_CMD="
-        IFS= read -r MYSQL_PWD
-        export MYSQL_PWD
-        docker exec -i -e MYSQL_PWD music-management-db-1 mariadb -u \"$MIGRATION_USER\" \"$DB_DB\"
+    # Each statement waits at most SCHEMA_LOCK_WAIT_SECONDS for a lock, then errors
+    # and the deploy stops here, before `up` (bug report 068). A unique index the data
+    # violates stops it the same way, naming the table and the index.
+    SCHEMA_IMAGE_TAG="${IMAGE_TAG:-$(tr -d '[:space:]' < "$PROJECT_ROOT/VERSION")}"
+    if ! printf '%s' "$SCHEMA_IMAGE_TAG" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'; then
+        echo "Error: schema image tag '$SCHEMA_IMAGE_TAG' is not a valid image tag."
+        exit 1
+    fi
+    echo "--- [4/6] Reconciling the database schema (image tag $SCHEMA_IMAGE_TAG, old containers still running) ---"
+    remote_compose_step "
+        export SCHEMA_IMAGE_TAG='$SCHEMA_IMAGE_TAG'
+        \$DOCKER_CMD pull schema-reconcile
+        \$DOCKER_CMD run --rm --no-deps -T schema-reconcile --lock-wait-timeout $SCHEMA_LOCK_WAIT_SECONDS
     "
-    # run_remote_sql: run the SQL on stdin (password first) against production.
-    run_remote_sql() {
-        run_ssh "$REMOTE_HOST" "$REMOTE_USER" "$REMOTE_PASS" "$REMOTE_MIGRATE_CMD"
-    }
-    export -f run_ssh run_remote_sql
-    # shellcheck disable=SC2090 # see SC2089 above: quoting is for the remote shell
-    export REMOTE_HOST REMOTE_USER REMOTE_PASS REMOTE_MIGRATE_CMD
-    printf '%s\n' "$MIGRATION_PASS" \
-        | python3 "$PROJECT_ROOT/tools/apply_migrations.py" --password-stdin --exec run_remote_sql \
-            --lock-wait-timeout "$MIGRATION_LOCK_WAIT_SECONDS" "$PROJECT_ROOT"/migrate_*.sql
 
     # e. hook ----------------------------------------------------------------
     if [ -n "${DEPLOY_PRE_UP_HOOK:-}" ]; then

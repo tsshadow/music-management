@@ -93,9 +93,9 @@ def test_allowed_form_passes(tmp_path, label):
     assert result.returncode == 0, result.stdout
 
 
-def test_migrations_are_not_scanned(tmp_path):
-    result = _run(tmp_path, {"migrate_v1.sql": f"-- {HANDLE}"})
-    assert result.returncode == 0, result.stdout
+def test_sql_files_are_scanned_too(tmp_path):
+    result = _run(tmp_path, {"seed.sql": f"-- {HANDLE}"})
+    assert result.returncode == 1, result.stdout
 
 
 def test_patterns_file_names_no_forbidden_word():

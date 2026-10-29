@@ -15,10 +15,16 @@ Read-only, against production on 2026-10-29 (MariaDB 13.0.2, database `music-man
 - `test_schema_drift.py` passes: the init and "init plus all migrations" give the same schema. It
   never compares with production, so it did not see any of the 64.
 
-### One source: the `CREATE TABLE` statements
+### One source: `services/common/schema_tables.py`
 
-The `CREATE TABLE` statements in `services/common/db_init.py` and the routers' `init_db` stay the
-declaration. Every statement gets an explicit table option:
+Every table and view of the shared database is declared once, in
+`services/common/schema_tables.py`: `TABLES` holds `(name, CREATE TABLE IF NOT EXISTS ...)` pairs
+in the order to create them, `VIEWS` the two views. `db_init.create_tables()` runs them, and the
+reconcile builds its probe from them. The routers' `init_db` keep only their data (roles,
+permissions, radio channels, news sources). `tests/integration/test_schema.py` fails on a
+`CREATE TABLE` in any other file under `services/`.
+
+Every statement is the shape production has, with an explicit table option:
 
 ```sql
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
@@ -26,8 +32,8 @@ declaration. Every statement gets an explicit table option:
 
 Production has `utf8mb4_general_ci` on 83 tables and 263 columns. A fresh MariaDB 13 server gives
 `utf8mb4_uca1400_ai_ci` when nothing is named, so a local database and production sort and compare
-text differently today. The pin makes the declaration the production value. A change to
-`uca1400` is a rebuild of every text column and is out of scope.
+text differently without the pin. A change to `uca1400` is a rebuild of every text column and is
+out of scope.
 
 ### Seeds move into the init
 
@@ -77,8 +83,9 @@ new installation never has. They are deleted, not moved.
 
 Every statement runs with `lock_wait_timeout` and `innodb_lock_wait_timeout` set, the same as
 `apply_migrations.py` does today (bug report 068). `--dry-run` prints the statements and runs none.
-The account needs `CREATE` and `DROP` on `<db>_schema_probe`, which the migration user does not
-have today; the deploy grants it once (see Cross-App Impact).
+The deploy runs it as the database root user (`MYSQL_ROOT_PASSWORD` from the env file, which
+reaches compose on stdin), so it can create and drop the probe. `--snapshot` prints the live
+schema in the format of `production.tsv` and changes nothing.
 
 ### Drift Decisions
 
@@ -93,7 +100,7 @@ the open items on 2026-10-29 (issue #43).
 | Foreign key names | `channels_ibfk_1` and similar | `1` and similar | Ignore: the reconcile compares content. |
 | `downloads_soundcloud_queue` (1348 rows), `downloads_youtube_queue` (724) | exists | absent, no code reads it | Drop in the cleanup script (decided 2026-10-29). |
 | `rules_genres_new` (246), `rules_genres_old` (233) | exists | absent, no code reads it | Drop in the cleanup script (decided). |
-| `library_broken_songs` (0), `library_broken_song_artist_lookup` (21) | exists | absent; `BrokenSongHelper` is built in `tagger.py` and never called | Drop the tables and both helpers (decided). |
+| `library_broken_songs` (0), `library_broken_song_artist_lookup` (21) | exists | absent; `BrokenSongHelper` wrote a row on a failed tag that nothing read, `BrokenSongArtistLookupHelper` was never called | Drop the tables and both helpers (decided). The tagger's failure count (`record_failure`) already keeps the failure. |
 | `library_track_ml_predictions` (0) | exists | read by the deprecated ml-analyzer | Declare it, so ml-analyzer keeps a table. |
 | `downloads_soundcloud_archive` unique `(account, video_id)` | exists | two plain indexes | Declare the unique index. Without it a fresh database records a download twice. |
 | `downloads_youtube_archive` primary key | `(video_id, download_type)`, `video_id VARCHAR(32)`, `filename`/`title`/`url VARCHAR(255) NOT NULL` | `id` auto-increment, `TEXT` | Declare the production shape. |
@@ -121,8 +128,8 @@ reports those objects as "extra" and nothing breaks.
 
 `tests/integration/schema/production.tsv` is the output of the `information_schema` queries from
 step 2 against production, one object per line, sorted. Table, column, index and constraint names
-only: no rows, no hosts. `tools/schema_snapshot.py` writes it read-only, through the same
-`docker exec` path the deploy uses. It is refreshed after each release that changes the schema.
+only: no rows, no hosts. `python -m services.common.schema_reconcile --snapshot` writes it,
+read-only. It is refreshed after each release that changes the schema.
 
 ## API Contract
 
@@ -134,22 +141,24 @@ No endpoint changes.
 
 ## Cross-App Impact
 
-- `scripts/deploy.sh`, step d: replaces `apply_migrations.py` with a one-shot run of the new
-  music-manager image, before `up`:
-  `docker compose run --rm --no-deps music-manager python -m services.common.schema_reconcile`.
-  The old containers still run, and the reconcile only adds, so the expand-only rule holds without a
-  test of its own. A failure stops the deploy before `up`, as today.
-- The migration user gets `GRANT CREATE, DROP ON \`music-management_schema_probe\`.*` once. The
-  deploy checks the grant and prints the statement when it is missing.
+- `scripts/deploy.sh`, step d: replaces `apply_migrations.py` with the `schema-reconcile` one-shot
+  in `docker/docker-compose.yml`, run before `up`:
+  `docker-compose run --rm --no-deps -T schema-reconcile --lock-wait-timeout 120`. Its image is the
+  core image at `SCHEMA_IMAGE_TAG` (the `IMAGE_TAG` being deployed, else `VERSION`), so the new
+  release's declaration runs while the old containers still serve. The reconcile only adds, so the
+  expand-only rule holds without a test of its own. A failure stops the deploy before `up`, as
+  before. `up` always skips the service.
 - `schema_migrations` stays in production, unread, as a record. A later cleanup may drop it.
-- `tests/bdd/conftest.py` applies every migration to seed `rules_genres`. It calls the init instead.
+- `scripts/lib/e2e-stack.sh` applied every migration to seed `rules_genres`. The stack's init seeds
+  it now, and the script runs the reconcile in the music-manager container and requires
+  `schema in sync, 0 reported`.
 - `services/ml-analyzer`, the downloader and the importer: no change. They read the same tables.
 - `docs/self-hosting.md`, `AGENTS.md` (Testing & Stability, the schema-change paragraph) and
   `CONTRIBUTING.md`: the "two edits" rule becomes "one edit; a change the reconcile cannot do needs
   a script and a snapshot refresh".
 - Removed: the 61 `migrate_*.sql`, `tools/apply_migrations.py` and its tests,
-  `tests/ci/test_migration_ordering.py`, the migrated half of `test_schema_drift.py` and
-  `tests/integration/schema_sources.py`, the `!migrate_*.sql` exception in `.gitignore`, and the
+  `tests/ci/test_migration_ordering.py`, `test_schema_drift.py`, `test_migration_ledger.py`, the
+  `BrokenSong*Helper` classes, the `!migrate_*.sql` exception in `.gitignore`, and the
   `migrate_*.sql` exemption in `scripts/ci/public-check.sh`.
 
 **Upgrade path, breaking for self-hosters.** An installation must run 0.93.x, or any release that
@@ -159,7 +168,7 @@ still has the migrations, before it upgrades past this change. The changelog say
 ## Technical Acceptance Criteria
 
 1. `tests/integration/test_schema_snapshot.py`: a fresh database from the init equals
-   `production.tsv`, except the entries in its `ALLOWED` list, each with a reason. Run in
+   `production.tsv`, except the differences it lists, each with a reason. Run in
    `backend:integration`.
 2. The same test fails, and names the object, when a declaration changes a type, a primary key or
    drops a column.
@@ -173,12 +182,12 @@ still has the migrations, before it upgrades past this change. The changelog say
    inserts nothing; a changed seed row stays changed.
 8. `--dry-run` against production prints only the additions from the Drift Decisions table and the
    reported items, and changes nothing.
-9. `grep -r migrate_ --include=*.py --include=*.sh --include=*.yml` finds nothing outside the
-   changelog and the bug reports.
+9. No script, compose file, CI job or test reads a `migrate_*.sql` file. Comments that name one as
+   history stay.
 
 ## Related Docs
 
 - [db-transactions](../db-transactions/technical.md)
 - `docs/bug-reports/021-genre-migration-never-shipped.md`
 - `docs/bug-reports/068-deploy-hangs-on-no-op-alter-metadata-lock.md`
-- `docs/self-hosting.md#migrations`
+- `docs/self-hosting.md#schema-changes`

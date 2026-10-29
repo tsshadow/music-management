@@ -4,8 +4,9 @@
 #
 # These are the tests the unit suite cannot be: everything under services/ mocks
 # the database cursor, so it proves the right SQL string is produced, not that
-# MariaDB accepts it. This suite builds the real schema (db_init + every
-# router's init_db + every migrate_*.sql) and runs the endpoints against it.
+# MariaDB accepts it. This suite builds the real schema the way a fresh stack does
+# (services/common/schema_tables.py, the seed rows, the startup init_dbs), compares it
+# with production's snapshot, and runs the endpoints against it.
 #
 # The container matches docker/compose.test.yml's test-db: same image, same
 # credentials, tmpfs storage so nothing survives the run.

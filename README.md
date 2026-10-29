@@ -272,7 +272,7 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | --- | --- | --- |
 | `backend:format` / `:lint` / `:typecheck` | the Python services changed | ruff format, ruff + pylint, mypy. Fix formatting with `./scripts/format.sh`. |
 | `backend:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
-| `backend:integration` | the manager's SQL, a migration or the integration suite changed | Runs every endpoint's SQL against a real MariaDB. |
+| `backend:integration` | the manager's SQL, the schema declaration or the integration suite changed | Runs every endpoint's SQL against a real MariaDB. |
 | `server:format` | the server sources changed | clang-format check, pinned to one clang version. Fix with `./scripts/test/muma-server-format.sh --fix`. |
 | `server:lint` | the server sources changed | clang-tidy over 307 translation units against a baseline of accepted findings. ~12 minutes, so it is deliberately not on every pipeline. |
 | `server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |

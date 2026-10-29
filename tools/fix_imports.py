@@ -21,8 +21,6 @@ MODULE_MAP = {
     "postprocessing.Song.Helpers.LookupTableHelper": "services.common.Helpers.LookupTableHelper",
     "postprocessing.Song.Helpers.Cache": "services.common.Helpers.Cache",
     "postprocessing.Song.Helpers.FestivalHelper": "services.common.Helpers.FestivalHelper",
-    "postprocessing.Song.Helpers.BrokenSongHelper": "services.common.Helpers.BrokenSongHelper",
-    "postprocessing.Song.Helpers.BrokenSongArtistLookupHelper": "services.common.Helpers.BrokenSongArtistLookupHelper",
     # Song classes -> services/tagger/Song/*
     "postprocessing.Song.BaseSong": "services.tagger.Song.BaseSong",
     "postprocessing.Song.Tag": "services.tagger.Song.Tag",

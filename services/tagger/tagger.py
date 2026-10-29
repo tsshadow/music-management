@@ -8,18 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from mutagen import MutagenError
-
 from services.common.config_store import ConfigStore as Settings
 from services.common.Helpers import RoundScope
-from services.common.Helpers.BrokenSongHelper import BrokenSongHelper
 from services.common.Helpers.Cache import reload as reload_rule_caches
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.import_queue import ImportQueue
 from services.tagger import download_info, ingestion
 from services.tagger.constants import SongTypeEnum
-from services.tagger.Song.BaseSong import BaseSong, ExtensionNotSupportedException
+from services.tagger.Song.BaseSong import BaseSong
 from services.tagger.Song.GenericSong import GenericSong
 from services.tagger.Song.LabelSong import LabelSong
 from services.tagger.Song.SoundcloudSong import SoundcloudSong
@@ -34,7 +31,6 @@ parse_flac = True
 parse_m4a = True
 parse_wav = False
 parse_aac = False
-broken_song_helper = BrokenSongHelper()
 processed_files_helper = ProcessedFilesHelper()
 
 
@@ -555,9 +551,6 @@ class Tagger:
         except KeyboardInterrupt:
             logging.info('KeyboardInterrupt')
             sys.exit(1)
-        except (PermissionError, MutagenError, FileNotFoundError, ExtensionNotSupportedException) as e:
-            record_failure(str(file), e)
-            broken_song_helper.add(str(file), type(e).__name__)
         except Exception as e:
             record_failure(str(file), e)
         return False

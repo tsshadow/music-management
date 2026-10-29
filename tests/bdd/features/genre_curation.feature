@@ -5,7 +5,7 @@ Feature: A genre tag becomes something you can curate
   its files were tagged has no genres at all, which looks exactly like a
   collection whose files carry no genre.
 
-  A fresh database hides that. Every genre the migrations seed is blacklisted --
+  A fresh database hides that. Every genre a new database is seeded with is blacklisted --
   they are the YouTube category names -- so before the tagger has run, no genre
   in any file resolves to anything, and the emptiness reads as the library
   having nothing to say rather than as a step that has not happened.

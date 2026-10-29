@@ -254,12 +254,12 @@ def _plan_table(name: str, want: Table, have: Table, create_statement: str, resu
     # Secondary indexes match by what they cover, not by name.
     existing = {definition for index, definition in have.indexes.items() if index != 'PRIMARY'}
     wanted = {definition for index, definition in want.indexes.items() if index != 'PRIMARY'}
-    for index, definition in want.indexes.items():
-        if index != 'PRIMARY' and definition not in existing:
+    for index, covers in want.indexes.items():
+        if index != 'PRIMARY' and covers not in existing:
             result.statements.append(f'ALTER TABLE `{name}` ADD {index_sql[index]}')
-    for index, definition in have.indexes.items():
-        if index != 'PRIMARY' and definition not in wanted:
-            result.reports.append(f'extra index: {name}.{index} {definition}')
+    for index, covers in have.indexes.items():
+        if index != 'PRIMARY' and covers not in wanted:
+            result.reports.append(f'extra index: {name}.{index} {covers}')
     for fk in sorted(want.foreign_keys - have.foreign_keys, key=str):
         result.reports.append(f'missing foreign key: {name} {fk}')
     for fk in sorted(have.foreign_keys - want.foreign_keys, key=str):

@@ -1005,8 +1005,8 @@ release:check-secrets:
 # column that does not exist, or a table the schema bootstrap never creates,
 # passes there and fails in production. This job is what caught the missing
 # downloads_youtube_accounts.channel_id and library_track_ml_labels.updated_at
-# columns. It also applies every migrate_*.sql twice, so a migration that is not
-# re-runnable fails here rather than on deploy.
+# columns. It also compares a fresh database with production's schema snapshot
+# (tests/integration/test_schema_snapshot.py) and runs the deploy's schema reconcile.
 # The three jobs below declare `needs:` instead of waiting for the whole unit
 # stage. Nothing here depends on the Android build, but stage ordering made them
 # wait for it anyway: on the 0.19.0 release pipeline the Android jobs ran for
@@ -1028,11 +1028,13 @@ backend:integration:
     - changes:
         - services/music_manager/**/*
         - services/common/db_init.py
-        # The other places a table is declared (tests/integration/schema_sources.py
-        # reads them all): the downloader's own tables and the tagger's.
+        # Where every table is declared, the seed rows and the deploy's reconcile.
+        - services/common/schema_tables.py
+        - services/common/schema_reconcile.py
+        - services/common/db_seeds.py
+        - services/common/seeds/*
         - services/downloader/db_schema.py
         - services/common/Helpers/ProcessedFilesHelper.py
-        - migrate_*.sql
         - tests/integration/**/*
         - .gitlab-ci.yml
         # A job has to run when the script it runs changes. Without this line a

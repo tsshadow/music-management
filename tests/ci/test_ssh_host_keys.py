@@ -3,7 +3,7 @@
 Every deploy and verify script used to connect with StrictHostKeyChecking=no
 after appending whatever ssh-keyscan returned to the runner's known_hosts, so
 anything answering on the production address got the root key's signature,
-the production env file on stdin and the migrations
+the production env file on stdin and the schema changes
 (docs/bug-reports/081-compose-logs-grow-without-bound.md).
 """
 

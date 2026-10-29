@@ -30,7 +30,7 @@ DROPPED_TABLES = {
     'downloads_youtube_queue': f'never read since the queue moved into the archive; {CLEANUP}',
     'rules_genres_new': f'left behind by the genre-state rebuild; {CLEANUP}',
     'rules_genres_old': f'left behind by the genre-state rebuild; {CLEANUP}',
-    'library_broken_songs': f'BrokenSongHelper was never called; {CLEANUP}',
+    'library_broken_songs': f'written on a failed tag and never read, 0 rows; {CLEANUP}',
     'library_broken_song_artist_lookup': f'BrokenSongArtistLookupHelper was never called; {CLEANUP}',
     'schema_migrations': 'the ledger of the migration files, kept on production as a record',
 }

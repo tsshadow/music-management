@@ -82,10 +82,9 @@ def _connect(**overrides):
 def database():
     """A connection to the test database, with the production schema applied.
 
-    The schema comes from the same code paths a real deployment uses -- the
-    shared ensure_tables_exist(), then every router's own init_db(), then the
-    migrate_*.sql files scripts/deploy.sh applies. If any of those drift from
-    the SQL the endpoints run, this suite is where it shows up.
+    The schema comes from the same code path a fresh stack uses: the declared tables
+    (services/common/schema_tables.py), the seed rows and the startup init_dbs. If the
+    declarations drift from the SQL the endpoints run, this suite is where it shows up.
     """
     try:
         connection = _connect()
@@ -98,50 +97,11 @@ def database():
 
 
 def _apply_schema(connection):
-    from services.common import db_init
-    from services.music_manager import rbac
-    from services.music_manager.routers import artist_images, events, news, scrobbler, users
+    """Build the session database the way a fresh stack does: the declared tables, the
+    seed rows and the startup init_dbs (tests/integration/schema_sources.py)."""
+    from tests.integration import schema_sources
 
-    db_init.ensure_tables_exist()
-    with connection.cursor() as cursor:
-        # Order matters: rbac.init_db creates `roles`, which users.init_db's
-        # foreign keys and the user_requests table depend on.
-        for init in (
-            users.init_db,
-            rbac.init_db,
-            scrobbler.init_db,
-            artist_images.init_db,
-            events.init_db,
-            news.init_db,
-        ):
-            init(cursor)
-    _apply_migrations(connection)
-
-
-def _apply_migrations(connection):
-    """Run every migrate_*.sql, exactly as scripts/deploy.sh does on each deploy."""
-    for migration in sorted(ROOT.glob('migrate_*.sql')):
-        statements = _split_statements(migration.read_text(encoding='utf-8'))
-        with connection.cursor() as cursor:
-            for statement in statements:
-                try:
-                    cursor.execute(statement)
-                except pymysql.err.MySQLError as exc:
-                    # Migrations are written to be re-runnable on a deployed
-                    # database, so "already exists"/"duplicate" is expected on a
-                    # schema ensure_tables_exist() already brought up to date.
-                    if exc.args[0] not in _IDEMPOTENT_ERRORS:
-                        raise AssertionError(f'{migration.name}: {statement[:120]}... -> {exc}') from exc
-
-
-# Duplicate column/key/table, unknown column on DROP, cannot drop what is not there.
-_IDEMPOTENT_ERRORS = {1050, 1060, 1061, 1091, 1826, 1146, 1054}
-
-
-def _split_statements(sql: str) -> list[str]:
-    """Split on `;` at statement level, dropping comments and empty fragments."""
-    cleaned = '\n'.join(line for line in sql.splitlines() if not line.strip().startswith('--') and line.strip() != '')
-    return [statement.strip() for statement in cleaned.split(';') if statement.strip()]
+    schema_sources.build_fresh(connection, _connection_settings()['database'])
 
 
 @pytest.fixture
@@ -229,6 +189,10 @@ def api(db, monkeypatch):
         if hasattr(module, 'get_db_connection'):
             monkeypatch.setattr(module, 'get_db_connection', real_connection)
 
+    # The app's startup seeds the reference rows (services/common/db_seeds.py). Each test here
+    # starts from empty tables instead; test_db_seeds.py covers the seeds themselves.
+    monkeypatch.setattr('services.common.db_seeds.seed', lambda cursor: None)
+
     with TestClient(app) as client:
         yield client
 
@@ -307,37 +271,30 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope='session')
-def built_schemas(database):
-    """The schema built twice from nothing, once per path, as snapshots.
+def fresh_schema(database):
+    """The schema a fresh stack builds from nothing, read back from information_schema.
 
-    ``code`` is what a fresh stack creates (db_init, every init_db main.py's startup
-    runs, the tagger's own table); ``migrated`` is what the deploy produces (db_init,
-    then every migrate_*.sql twice). Each is built in a database of its own, so the
-    shared session database -- and every test that relies on its rows -- is left
-    alone. db-integration.sh grants the test user the muma_test_* databases this
-    needs.
+    Built in a database of its own, so the shared session database -- and every test that
+    relies on its rows -- is left alone. db-integration.sh grants the test user the
+    muma_test_* databases this needs.
     """
+    from services.common import schema_reconcile
     from tests.integration import schema_sources
 
-    names = {'code': 'muma_test_schema_code', 'migrated': 'muma_test_schema_migrated'}
-    snapshots = {}
-    for kind, name in names.items():
-        try:
-            with database.cursor() as cursor:
-                cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')
-                cursor.execute(f'CREATE DATABASE `{name}`')
-        except pymysql.err.MySQLError as exc:
-            _unavailable(f'cannot create the scratch database {name} ({exc}); see scripts/test/db-integration.sh')
-        connection = _connect(database=name)
-        try:
-            if kind == 'code':
-                schema_sources.build_from_code(connection, name)
-            else:
-                schema_sources.build_from_migrations(connection, name, _apply_migrations)
-            snapshots[kind] = schema_sources.snapshot(connection, name)
-        finally:
-            connection.close()
-    yield snapshots
-    with database.cursor() as cursor:
-        for name in names.values():
+    name = 'muma_test_schema_fresh'
+    try:
+        with database.cursor() as cursor:
             cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')
+            cursor.execute(f'CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci')
+    except pymysql.err.MySQLError as exc:
+        _unavailable(f'cannot create the scratch database {name} ({exc}); see scripts/test/db-integration.sh')
+    connection = _connect(database=name)
+    try:
+        schema_sources.build_fresh(connection, name)
+        with connection.cursor() as cursor:
+            schema = schema_reconcile.read_schema(cursor, name)
+    finally:
+        connection.close()
+    yield schema
+    with database.cursor() as cursor:
+        cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')

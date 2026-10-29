@@ -2,6 +2,7 @@ import logging
 import math
 import struct
 
+from services.common import schema_tables
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
 
@@ -90,38 +91,11 @@ class ProcessedFilesHelper:
         self._snapshot: dict[str, float] | None = None
 
     def create_table(self):
-        """Creates the table if it doesn't exist."""
-        # filepath is utf8mb4_bin: the table default, utf8mb4_general_ci, folds case and
-        # accents and weighs every emoji the same, so two files whose paths differ only in
-        # such a character shared one row and overwrote each other's mtime. The snapshot
-        # matches exactly; the key has to as well. See migrate_v37_processed_files_binary_path.sql.
-        # attempts/last_attempt drive the retry backoff of a file that keeps failing.
-        query = (
-            f'CREATE TABLE IF NOT EXISTS {self.table_name} ('
-            'filepath VARCHAR(767) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin PRIMARY KEY, '
-            'mtime DOUBLE, '
-            'last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, '
-            'needs_rescan BOOLEAN DEFAULT FALSE, '
-            'rescan_reason VARCHAR(64) NULL, '
-            'attempts INT NOT NULL DEFAULT 0, '
-            'last_attempt TIMESTAMP NULL DEFAULT NULL'
-            ')'
-        )
-        # pending_paths pages through the queued rows by primary key; without this the
-        # table is scanned once per page, and there are 327k rows on production. The
-        # reason is not in the key on purpose: filepath is VARCHAR(767) in utf8mb4, 3068
-        # of the 3072 bytes a key may have, so nothing wider than a flag fits beside it.
-        # A per-reason page filters on the reason while it walks this index, and because
-        # the cursor only ever moves forward, one reason's pages together read each
-        # queued row once.
-        index = (
-            f'CREATE INDEX IF NOT EXISTS idx_{self.table_name}_pending ON {self.table_name} (needs_rescan, filepath)'
-        )
+        """Create tagger_processed_files if it does not exist (declared in schema_tables.py)."""
         connection = self.db_connector.connect()
         try:
             with connection.cursor() as cursor:
-                cursor.execute(query)
-                cursor.execute(index)
+                cursor.execute(dict(schema_tables.TABLES)['tagger_processed_files'])
             connection.commit()
         except Exception as e:
             logging.error(f'Error creating {self.table_name}: {e}')

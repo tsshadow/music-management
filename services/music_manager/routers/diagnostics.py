@@ -32,36 +32,6 @@ class CrashReportStatusUpdate(BaseModel):
     status: Literal['new', 'analyzing', 'mr_open', 'done', 'failed']
 
 
-def init_db(cursor):
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS crash_reports (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
-            device_model VARCHAR(255),
-            os_version VARCHAR(50),
-            app_version_name VARCHAR(50),
-            app_version_code INT,
-            build_type VARCHAR(20),
-            stacktrace_text LONGTEXT,
-            ring_buffer_text LONGTEXT,
-            status VARCHAR(20) NOT NULL DEFAULT 'new',
-            stacktrace_hash CHAR(64),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-        )
-    ''')
-    # status/stacktrace_hash on installations that predate them. The CREATE TABLE above
-    # only runs for a fresh database. Mirrors migrate_v17_crash_report_status.sql.
-    cursor.execute("SHOW COLUMNS FROM crash_reports LIKE 'status'")
-    if not cursor.fetchone():
-        cursor.execute(
-            "ALTER TABLE crash_reports ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'new' AFTER ring_buffer_text"
-        )
-    cursor.execute("SHOW COLUMNS FROM crash_reports LIKE 'stacktrace_hash'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE crash_reports ADD COLUMN stacktrace_hash CHAR(64) AFTER status')
-
-
 def _post_crash_hook(report_id: int) -> None:
     url = _settings.get('crash_hook_url')
     if not url:

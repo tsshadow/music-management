@@ -12,8 +12,6 @@ import hashlib
 
 import pytest
 
-from tests.integration.conftest import _apply_migrations
-
 pytestmark = pytest.mark.integration
 
 
@@ -67,32 +65,6 @@ def test_two_files_that_differ_only_in_case_accent_or_emoji_get_two_rows(db, hel
     assert set(stored) == {first, second}
     assert stored[first][0] == 100.0, 'the second file no longer overwrites the first one mtime'
     assert stored[second][0] == 200.0
-
-
-def test_the_migration_queues_a_row_that_stood_for_two_files(db):
-    """The old collation merged the pair into one row carrying either file's mtime; the
-    migration flags that row before the collation changes, and is a no-op afterwards.
-    Under Livesets: migrate_v7 queues the Youtube tree on its own conditions."""
-    with db.cursor() as cursor:
-        cursor.execute(
-            'ALTER TABLE tagger_processed_files MODIFY filepath VARCHAR(767) '
-            'CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL'
-        )
-        cursor.execute(
-            'INSERT INTO tagger_processed_files (filepath, mtime, needs_rescan) VALUES (%s, 1, FALSE), (%s, 1, FALSE)',
-            ('/music/Livesets/Chan/Track.m4a', '/music/Livesets/Chan/Other.m4a'),
-        )
-    add_media_file(db, '/music/Livesets/Chan/Track.m4a')
-    add_media_file(db, '/music/Livesets/Chan/track.m4a')
-    add_media_file(db, '/music/Livesets/Chan/Other.m4a')
-
-    _apply_migrations(db)
-    _apply_migrations(db)
-
-    stored = rows(db)
-    assert stored['/music/Livesets/Chan/Track.m4a'][1:3] == (True, 'binary_path')
-    assert stored['/music/Livesets/Chan/Other.m4a'][1:3] == (False, None)
-    test_the_path_column_compares_byte_for_byte(db)
 
 
 def test_the_case_twin_the_table_never_had_is_queued_as_new(db, helper):

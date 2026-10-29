@@ -105,10 +105,6 @@ class PodcastAliasRequest(BaseModel):
     alias: str
 
 
-def init_db(_cursor):
-    pass
-
-
 # Changes rules the tagger applies to every file, or moves releases on disk.
 require_rules_manage = require_permission('rules.manage')
 # Operating the installation itself: container logs, downloader sources.

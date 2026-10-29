@@ -60,16 +60,10 @@ class ChangedOnDiskTest(unittest.TestCase):
 class CreateTableTest(ProcessedFilesHelperTestCase):
     def test_the_table_is_created_if_it_is_missing(self):
         self.helper.create_table()
-        self.assertIn('CREATE TABLE IF NOT EXISTS tagger_processed_files', self.executed()[0])
-        self.assertIn('CREATE INDEX IF NOT EXISTS', self.executed()[1])
-        self.assertIn('(needs_rescan, filepath)', self.executed()[1])
+        self.assertIn('CREATE TABLE IF NOT EXISTS `tagger_processed_files`', self.executed()[0])
+        self.assertIn('KEY `idx_tagger_processed_files_pending` (`needs_rescan`,`filepath`)', self.executed()[0])
         self.connection.commit.assert_called_once()
         self.connection.close.assert_called_once()
-
-    def test_a_custom_table_name_is_used(self):
-        helper = self.module.ProcessedFilesHelper(table_name='other_table')
-        helper.create_table()
-        self.assertIn('other_table', self.executed()[0])
 
     def test_a_failure_still_closes_the_connection(self):
         self.cursor.execute.side_effect = RuntimeError('database gone')

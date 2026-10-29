@@ -8,6 +8,8 @@ work-context/
 # Without this rule "git add" silently skips them and the deploy runs new code
 # against an old schema - see docs/bug-reports/021-genre-migration-never-shipped.md.
 !migrate_*.sql
+# The seed rows a fresh database gets (services/common/db_seeds.py).
+!services/common/seeds/*.sql
 *.log
 .output.txt
 venv/

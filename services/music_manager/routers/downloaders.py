@@ -297,10 +297,3 @@ def get_coverage(source: str, _auth: dict = Depends(verify_api_key)):
     return downloader_coverage.build_coverage(
         source, configured, checks, last_downloads, week, month, write_offs, rate_state, datetime.now(), channels
     )
-
-
-def init_db(cursor) -> None:
-    """Create the downloader tables at startup, alongside the other routers."""
-    from services.downloader.db_schema import ensure_downloader_tables
-
-    ensure_downloader_tables(cursor)

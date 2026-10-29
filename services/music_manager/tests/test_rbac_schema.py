@@ -1,4 +1,4 @@
-"""Coverage for the RBAC helpers and the schema bootstrap in services/music_manager/rbac.py."""
+"""Coverage for the RBAC helpers and the role seeding in services/music_manager/rbac.py."""
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -15,30 +15,17 @@ from services.music_manager import rbac
 class InitDbTest(unittest.TestCase):
     def setUp(self):
         self.cursor = MagicMock()
-        # Roles resolve to ids; every SHOW COLUMNS answers "column already there".
-        self.cursor.fetchone.side_effect = self.fetchone_sequence()
+        # The two role lookups resolve to ids.
+        self.cursor.fetchone.side_effect = [{'id': 1}, {'id': 2}]
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'music.read'}, {'id': 2, 'name': 'users.read'}]
-
-    def fetchone_sequence(self, columns_present=True):
-        column_answer = {'Field': 'x'} if columns_present else None
-        return [{'id': 1}, {'id': 2}] + [column_answer] * 20
 
     def statements(self):
         return [call.args[0] for call in self.cursor.execute.call_args_list]
 
-    def test_every_rbac_table_is_created(self):
+    def test_no_schema_is_touched(self):
+        """The tables are declared in services/common/schema_tables.py; init_db only seeds."""
         rbac.init_db(self.cursor)
-        statements = ' '.join(self.statements())
-        for table in (
-            'roles',
-            'permissions',
-            'role_permissions',
-            'user_identities',
-            'user_requests',
-            'user_refresh_tokens',
-            'audit_events',
-        ):
-            self.assertIn(f'CREATE TABLE IF NOT EXISTS {table}', statements)
+        self.assertFalse(any('CREATE TABLE' in s or 'ALTER TABLE' in s for s in self.statements()))
 
     def test_both_roles_and_every_permission_are_seeded(self):
         rbac.init_db(self.cursor)
@@ -60,17 +47,6 @@ class InitDbTest(unittest.TestCase):
         ]
         # Both permissions go to admin (role 1); only 'music.read' also goes to user (role 2).
         self.assertEqual(grants, [(1, 1), (2, 1), (1, 2)])
-
-    def test_missing_columns_are_added(self):
-        self.cursor.fetchone.side_effect = self.fetchone_sequence(columns_present=False)
-        rbac.init_db(self.cursor)
-        statements = ' '.join(self.statements())
-        for column in ('role_id', 'enabled', 'email', 'avatar_url', 'updated_at', 'last_login_at', 'linked_existing'):
-            self.assertIn(f'ADD COLUMN {column}', statements)
-
-    def test_existing_columns_are_left_alone(self):
-        rbac.init_db(self.cursor)
-        self.assertFalse(any('ADD COLUMN' in s for s in self.statements()))
 
     def test_the_legacy_admin_flag_is_migrated_into_a_role(self):
         rbac.init_db(self.cursor)

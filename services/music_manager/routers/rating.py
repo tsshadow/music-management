@@ -56,12 +56,6 @@ class MuMaServerEvent(BaseModel):
     path: str | None = None
 
 
-def init_db(cursor):
-    cursor.execute(
-        '\n        CREATE TABLE IF NOT EXISTS rating_tracks (\n            id INT AUTO_INCREMENT PRIMARY KEY,\n            entity_type VARCHAR(50) NOT NULL,\n            entity_id VARCHAR(255) NOT NULL,\n            username VARCHAR(255) NOT NULL,\n            rating INT NOT NULL,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n            UNIQUE KEY (entity_type, entity_id, username)\n        )\n    '
-    )
-
-
 @router.post('/lms-event')
 def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_system_key)):
     """Mirror one LMS rating event into ``rating_tracks``: upsert a rating, or delete the

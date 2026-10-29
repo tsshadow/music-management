@@ -61,33 +61,10 @@ DEFAULT_ROLE_NAME = 'user'
 
 
 def init_db(cursor):
-    """Create RBAC tables, seed roles/permissions and migrate users.is_admin."""
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS roles (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL,
-            description VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS permissions (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL,
-            description VARCHAR(255)
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS role_permissions (
-            role_id INT NOT NULL,
-            permission_id INT NOT NULL,
-            PRIMARY KEY (role_id, permission_id),
-            FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-            FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
-        )
-    ''')
+    """Seed the roles and permissions, and give every user without a role one.
 
+    The tables are declared in services/common/schema_tables.py.
+    """
     for name, description in (('admin', 'Full administrative access'), ('user', 'Standard application user')):
         cursor.execute(
             'INSERT INTO roles (name, description) VALUES (%s, %s) ON DUPLICATE KEY UPDATE description = VALUES(description)',
@@ -98,12 +75,10 @@ def init_db(cursor):
             'INSERT INTO permissions (name, description) VALUES (%s, %s) ON DUPLICATE KEY UPDATE description = VALUES(description)',
             (name, description),
         )
-
     cursor.execute('SELECT id FROM roles WHERE name = %s', (ADMIN_ROLE_NAME,))
     admin_role_id = cursor.fetchone()['id']
     cursor.execute('SELECT id FROM roles WHERE name = %s', (DEFAULT_ROLE_NAME,))
     user_role_id = cursor.fetchone()['id']
-
     cursor.execute('SELECT id, name FROM permissions')
     for perm in cursor.fetchall():
         cursor.execute(
@@ -114,95 +89,10 @@ def init_db(cursor):
                 'INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)',
                 (user_role_id, perm['id']),
             )
-
-    # users.role_id: the single source of truth for a user's authorization.
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'role_id'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN role_id INT AFTER is_admin')
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'enabled'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN enabled BOOLEAN DEFAULT TRUE AFTER role_id')
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'email'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN email VARCHAR(255) AFTER username')
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'avatar_url'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN avatar_url VARCHAR(1024) AFTER display_name')
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'updated_at'")
-    if not cursor.fetchone():
-        cursor.execute(
-            'ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at'
-        )
-    cursor.execute("SHOW COLUMNS FROM users LIKE 'last_login_at'")
-    if not cursor.fetchone():
-        cursor.execute('ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL AFTER updated_at')
-
-    # Migrate legacy is_admin flag into role_id exactly once (only rows without a role yet).
+    # users.role_id is the single source of truth for a user's authorization. A user created
+    # without one (the legacy is_admin flag, or a row written by hand) gets it here.
     cursor.execute('UPDATE users SET role_id = %s WHERE role_id IS NULL AND is_admin = TRUE', (admin_role_id,))
     cursor.execute('UPDATE users SET role_id = %s WHERE role_id IS NULL', (user_role_id,))
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_identities (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            provider VARCHAR(50) NOT NULL,
-            provider_subject VARCHAR(255) NOT NULL,
-            email_at_provider VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uq_provider_subject (provider, provider_subject),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_requests (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            google_subject VARCHAR(255) UNIQUE NOT NULL,
-            email VARCHAR(255),
-            display_name VARCHAR(255),
-            avatar_url VARCHAR(1024),
-            status VARCHAR(20) NOT NULL DEFAULT 'pending',
-            requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            reviewed_at TIMESTAMP NULL,
-            reviewed_by_user_id INT,
-            created_user_id INT,
-            linked_existing BOOLEAN DEFAULT FALSE,
-            FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-            FOREIGN KEY (created_user_id) REFERENCES users(id) ON DELETE SET NULL
-        )
-    ''')
-    cursor.execute("SHOW COLUMNS FROM user_requests LIKE 'linked_existing'")
-    if not cursor.fetchone():
-        cursor.execute(
-            'ALTER TABLE user_requests ADD COLUMN linked_existing BOOLEAN DEFAULT FALSE AFTER created_user_id'
-        )
-
-    # Internal refresh tokens issued alongside an access token (api_key) so
-    # clients (Android, web) can obtain a fresh access token without
-    # re-authenticating with Google/local credentials every time.
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_refresh_tokens (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            token VARCHAR(255) UNIQUE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            revoked_at TIMESTAMP NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS audit_events (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            event_type VARCHAR(100) NOT NULL,
-            actor_user_id INT,
-            target_user_id INT,
-            details TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
 
 
 def get_role_by_name(cursor, name):

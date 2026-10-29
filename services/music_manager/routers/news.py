@@ -57,34 +57,7 @@ RANGE_PATTERN = re.compile(r'bytes=(\d*)-(\d*)')
 
 
 def init_db(cursor):
-    cursor.execute(
-        'CREATE TABLE IF NOT EXISTS news_sources ('
-        ' id INT AUTO_INCREMENT PRIMARY KEY,'
-        ' slug VARCHAR(64) NOT NULL UNIQUE,'
-        ' name VARCHAR(128) NOT NULL,'
-        ' stream_url VARCHAR(512) NOT NULL,'
-        ' minute_of_hour TINYINT NOT NULL DEFAULT 0,'
-        ' duration_seconds INT NOT NULL DEFAULT 600,'
-        ' lead_seconds INT NOT NULL DEFAULT 5,'
-        ' retention_count INT NOT NULL DEFAULT 12,'
-        ' enabled TINYINT(1) NOT NULL DEFAULT 1,'
-        ' last_error VARCHAR(512) NULL,'
-        ' last_success_at DOUBLE NULL,'
-        ' created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-        ')'
-    )
-    cursor.execute(
-        'CREATE TABLE IF NOT EXISTS news_bulletins ('
-        ' id BIGINT AUTO_INCREMENT PRIMARY KEY,'
-        ' source_id INT NOT NULL,'
-        ' started_at DOUBLE NOT NULL,'
-        ' duration_ms INT NOT NULL,'
-        ' size_bytes BIGINT NOT NULL,'
-        ' filename VARCHAR(255) NOT NULL,'
-        ' created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,'
-        ' INDEX idx_source_started (source_id, started_at)'
-        ')'
-    )
+    """Seed the one news source. The tables are declared in services/common/schema_tables.py."""
     # The one seeded source: the hourly bulletin on NPO Radio 1.
     cursor.execute(
         'INSERT IGNORE INTO news_sources'

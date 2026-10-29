@@ -10,7 +10,6 @@ from datetime import datetime
 import pytest
 
 from services.music_manager import orphan_purge, song_version_worker, track_relink
-from services.music_manager.routers import rating
 from services.music_manager.routers import scanner as scanner_router
 from tests.integration.conftest import run_sql
 
@@ -51,8 +50,6 @@ class FakeSong:
 @pytest.fixture
 def library(db, tmp_path, monkeypatch):
     """A scanner rooted at a temporary music folder, reading tags from `tags[path]`."""
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     tags = {}
     monkeypatch.setattr(scanner_router, 'ReadonlySong', lambda path: tags[str(path)])
     manager = scanner_router.ScannerManager()
@@ -214,8 +211,6 @@ def _seed_orphan(db):
 
 
 def test_relink_orphaned_tracks_repairs_a_seeded_orphan_and_is_idempotent(db):
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     old, new = _seed_orphan(db)
 
     first = track_relink.relink_orphaned_tracks(db)
@@ -231,8 +226,6 @@ def test_relink_orphaned_tracks_repairs_a_seeded_orphan_and_is_idempotent(db):
 
 
 def test_the_relink_endpoint_runs_the_repair(api, headers, db):
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     _old, new = _seed_orphan(db)
 
     response = api.post('/api/scanner/relink-orphans', headers=headers)
@@ -308,8 +301,6 @@ def _seed_first_scan_stubs(db):
 
 
 def test_a_first_scan_stub_is_relinked_by_its_file_name(db):
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     seeded = _seed_first_scan_stubs(db)
     _rate_and_listen(db, seeded['unique'])
 
@@ -330,8 +321,6 @@ def test_a_first_scan_stub_is_relinked_by_its_file_name(db):
 
 
 def test_the_purge_deletes_unreferenced_orphans_and_keeps_the_rest(db):
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     run_sql(db, "INSERT INTO library_artists (name) VALUES ('Angerfist')")
     artist = run_sql(db, "SELECT id FROM library_artists WHERE name = 'Angerfist'")[0]['id']
     free = _track(db, 'free', 'free stub')
@@ -380,8 +369,6 @@ def test_the_purge_deletes_unreferenced_orphans_and_keeps_the_rest(db):
 
 
 def test_the_dry_run_endpoints_write_nothing(api, headers, db):
-    with db.cursor() as cursor:
-        rating.init_db(cursor)
     _seed_first_scan_stubs(db)
 
     relink = api.post('/api/scanner/relink-orphans?dry_run=1', headers=headers)

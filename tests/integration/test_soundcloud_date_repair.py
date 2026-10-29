@@ -41,12 +41,8 @@ def test_candidates_are_the_window_rows_with_a_full_upload_date(db):
 
 
 def test_the_queue_upsert_creates_and_requeues(db):
-    from services.common import db_init
     from services.tagger import soundcloud_date_repair as repair
 
-    # migrate_v7 creates a bare tagger_processed_files after ensure_tables_exist() ran, so its
-    # ALTERs (rescan_reason, attempts, ...) only land on a second pass -- as on every deploy.
-    db_init.ensure_tables_exist()
     with db.cursor() as cursor:
         cursor.execute(
             'INSERT INTO tagger_processed_files (filepath, mtime, needs_rescan, rescan_reason, attempts) '

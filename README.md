@@ -344,13 +344,11 @@ pipeline fails as early and as cheaply as possible:
 For specific information on each module, please refer to their respective READMEs:
 
 - [Product Goal](docs/product-goal.md) — what the system is for, and what it deliberately is not
-- [Ecosystem Architecture](docs/architecture.md)
+- [Architecture](docs/architecture.md) — services, data flow and data ownership
 - [API Specification](docs/api-specification.md)
-- [System Overview](docs/OVERVIEW.md)
 - [Self-Hosting Guide](docs/self-hosting.md)
 - [Testing Inventory](docs/testing-inventory.md)
 - [Database Schema](docs/database-design.md)
-- [Data Flow](docs/system-data-flow.md)
 - [Style Guide](docs/styleguide.md)
 
 ---

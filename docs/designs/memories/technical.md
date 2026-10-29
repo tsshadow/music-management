@@ -268,7 +268,7 @@ already swallows the throw.
 ## Related Docs
 
 - [functional.md](functional.md) — user-observable behaviour and acceptance criteria.
-- [../../architecture/responsibilities.md](../../architecture/responsibilities.md) — the data boundary
+- [../../architecture.md](../../architecture.md) — the data boundary
   between `music_manager` and LMS that determines where this feature lives.
 - [../favorite-genres/](../favorite-genres/) — precedent for a client-side, persisted display preference.
 

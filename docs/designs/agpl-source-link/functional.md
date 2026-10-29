@@ -21,6 +21,7 @@ and the Android app.
 | A listener opens Settings > About | A Source code section shows the address as a link. |
 | The listener taps the link in a browser | The address opens in a new tab. |
 | The listener taps the link in the app | The address opens in the system browser. |
+| A person opens the login screen | A small Source code link is under the form. |
 | The administrator clears the setting | The section is not shown. |
 | The setting holds a non-web address such as `javascript:` | The section is not shown. |
 | MuMa cannot be reached | The section is not shown, like the MuMa version. |

@@ -7,6 +7,7 @@
   import { apiBase, fetchMumaJson } from '../mumaApi.js';
   import { fetchBundleVersion } from '../diagnosticsLog.js';
   import { parseMobileChangelog } from '../mobileReleaseNotes.js';
+  import { safeSourceUrl } from '../sourceLink.js';
   import { checkForAppUpdate, isOtherSeries } from '../appUpdate.js';
 
   /**
@@ -82,11 +83,11 @@
     try {
       const health = await fetchMumaJson(`${apiBase()}/health`);
       if (typeof health?.version === 'string') mumaVersion = health.version;
-      if (typeof health?.source_url === 'string') sourceUrl = health.source_url;
+      sourceUrl = safeSourceUrl(health?.source_url);
     } catch (e) {
       // An unhealthy MuMa answers /health with 503 and the full report, version included.
       if (typeof e?.body?.version === 'string') mumaVersion = e.body.version;
-      if (typeof e?.body?.source_url === 'string') sourceUrl = e.body.source_url;
+      sourceUrl = safeSourceUrl(e?.body?.source_url);
       console.warn('Could not read the MuMa API version', e);
     }
   }
@@ -140,7 +141,9 @@
   function openSource(event) {
     if (!isNative) return;
     event.preventDefault();
-    platform.system.openUrl(sourceUrl).catch((e) => console.warn('Could not open the source code link', e));
+    const target = safeSourceUrl(sourceUrl);
+    if (!target) return;
+    platform.system.openUrl(target).catch((e) => console.warn('Could not open the source code link', e));
   }
 
   /**
@@ -251,7 +254,7 @@
       </dl>
     </section>
 
-    {#if sourceUrl}
+    {#if safeSourceUrl(sourceUrl)}
       <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-source">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.sourceCode')}</h2>
         <p class="text-muma-spotify-text text-sm mb-3">{$t('settings.about.sourceCodeBody')}</p>

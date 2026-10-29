@@ -324,7 +324,7 @@ pipeline fails as early and as cheaply as possible:
 MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)). Section 13 says that anyone who uses a
 modified version over a network can get its source code. The About screen (Settings > About) of the
 web player and of the Android app, which shows the same screen, has a **Source code** section with a
-link for that.
+link for that, and the login screen has the same link, so it reaches people before they sign in.
 
 The link comes from the setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, also on
 Beheer > Config > General). The default is the placeholder `https://github.com/OWNER/music-management`.

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import uvicorn
 from dotenv import load_dotenv
@@ -216,16 +217,22 @@ async def database_busy_handler(_request: Request, exc: RuntimeError):
 
 
 def _public_source_url() -> str:
-    """The `public_source_url` setting if it is an http(s) address, else an empty string.
+    """The `public_source_url` setting if it is a plain http(s) address, else an empty string.
 
-    /health is unauthenticated and the About screen turns this value into a link, so any
-    other scheme (`javascript:`, `data:`) is dropped here instead of in every client.
+    /health is unauthenticated and the About and login screens turn this value into a link, so
+    it is checked here instead of in every client: the scheme must be http or https (any case),
+    there must be a host, and no user info (`https://a@evil.example` hides the real host).
     """
     try:
         url = str(ConfigStore().get('public_source_url') or '').strip()
+        parts = urlsplit(url)
+        if parts.scheme.lower() not in ('http', 'https') or not parts.hostname:
+            return ''
+        if parts.username is not None or parts.password is not None:
+            return ''
     except Exception:  # pylint: disable=broad-except  # /health must always answer
         return ''
-    return url if url.lower().startswith(('http://', 'https://')) else ''
+    return url
 
 
 @app.get('/health')

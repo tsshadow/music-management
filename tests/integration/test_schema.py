@@ -277,8 +277,8 @@ def test_an_account_name_is_unique_whatever_its_case(db):
     with db.cursor() as cursor:
         cursor.execute("INSERT INTO users (username, api_key) VALUES ('user', 'k1')")
         with pytest.raises(pymysql.err.IntegrityError):
-            cursor.execute("INSERT INTO users (username, api_key) VALUES ('Teun', 'k2')")
-        cursor.execute("SELECT username FROM users WHERE LOWER(username) = LOWER('TEUN')")
+            cursor.execute("INSERT INTO users (username, api_key) VALUES ('User', 'k2')")
+        cursor.execute("SELECT username FROM users WHERE LOWER(username) = LOWER('USER')")
         assert [row['username'] for row in cursor.fetchall()] == ['user']
 
 

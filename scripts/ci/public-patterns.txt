@@ -14,3 +14,6 @@ vaultwar[d]en
 192\.168\.(?!0\.0/16(?![0-9]))
 # A personal host reached by its old name: a hostname starting with the music-service word.
 (?<![a-z0-9.])spotif[y]\.[a-z0-9-]+\.[a-z]{2,}(?![a-z0-9_(])
+# The owner's login name, lower case and as a whole word. The inline (?-i) overrides the -i of git grep, so
+# the capitalised first name (the copyright holder) and the package id stay allowed.
+(?-i)(?<![A-Za-z0-9_])teu[n](?![A-Za-z0-9_])

@@ -120,7 +120,7 @@ def handle_scrobble_event(event: ScrobbleEvent, auth: dict = Depends(verify_api_
 
     What is stored is the account's own spelling, never the one in the body: a user key
     stores its own `users.username`, the system key and admins the canonical spelling of
-    the name they sent. LMS relayed a case-variant login ("Teun" for "user") verbatim,
+    the name they sent. LMS relayed a case-variant login ("User" for "user") verbatim,
     which split one listener's history in two for everything that groups in Python and
     for LMS itself (docs/bug-reports/074-login-case-forks-user-identity.md).
     """

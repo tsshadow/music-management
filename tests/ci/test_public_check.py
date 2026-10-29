@@ -14,11 +14,12 @@ from tests.ci.conftest import REPO_ROOT
 SCRIPT = REPO_ROOT / "scripts" / "ci" / "public-check.sh"
 PATTERNS = REPO_ROOT / "scripts" / "ci" / "public-patterns.txt"
 
-OWNER = "user" + "schriks"
+OWNER = "teu" + "n" + "schriks"
 HANDLE = "tssha" + "dow"
 # Written reversed: a banned word must not sit in the source either.
 PARTNER = "leppaslohtesil"[::-1]
 LAN = "192." + "168."
+LOGIN = "teu" + "n"
 
 FORBIDDEN = {
     "owner domain": f"see https://{OWNER}.nl/x",
@@ -35,6 +36,8 @@ FORBIDDEN = {
     "old personal host upper case": "curl https://SPOTI" + "FY.example.org/rest",
     "lan host other subnet": f"ping {LAN}0.27",
     "old personal host": "curl https://spoti" + "fy.example.org/rest",
+    "owner login in a query": f"/rest/ping.view?u={LOGIN}&p=x",
+    "owner login as home directory": f"/home/{LOGIN}/Music",
 }
 
 ALLOWED = {
@@ -46,6 +49,8 @@ ALLOWED = {
     "spotify source": "Spoti" + "fy.cpp",
     "spotify attribute access": "spoti" + "fy.SpotifyArtistImageProvider.SEARCH_URL",
     "spotify provider path": "providers/spoti" + "fy.py",
+    "capitalised first name": "Copyright (C) 2026 " + LOGIN.capitalize() + " Schriks",
+    "login inside a longer word": f"x{LOGIN}y and {LOGIN}2 and {LOGIN}_a",
 }
 
 

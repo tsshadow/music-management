@@ -93,7 +93,7 @@ namespace lms::db
 
         static std::size_t getCount(Session& session);
         static pointer find(Session& session, UserId id);
-        // Case-insensitive: "Teun" finds "user". Prefers the MuMa-linked user, then the oldest.
+        // Case-insensitive: "User" finds "user". Prefers the MuMa-linked user, then the oldest.
         static pointer find(Session& session, std::string_view loginName);
         static pointer findByMumaId(Session& session, int mumaId);
         static UserId findAdminUserId(Session& session);

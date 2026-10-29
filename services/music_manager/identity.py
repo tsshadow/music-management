@@ -3,7 +3,7 @@
 The rule (docs/authentication.md, "Account names are case-insensitive"): an account name
 is compared case-insensitively everywhere, and whatever stores or compares a username uses
 the one spelling in `users.username`. MariaDB already compares `users.username` that way
-(utf8mb4_general_ci), so the login accepted "Teun" for the account "user" -- but LMS
+(utf8mb4_general_ci), so the login accepted "User" for the account "user" -- but LMS
 (SQLite, BINARY) and every Python-side comparison did not, and the typed spelling forked
 the account in two. See docs/bug-reports/074-login-case-forks-user-identity.md.
 

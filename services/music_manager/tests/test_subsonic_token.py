@@ -122,7 +122,7 @@ class OwnSubsonicTokenTest(unittest.TestCase):
         # Bug report 074 left a second LMS user for a case variant; the account's own spelling wins.
         make_lms_db(
             self.path,
-            users=[(1, 'Teun', None), (2, 'user', None)],
+            users=[(1, 'User', None), (2, 'user', None)],
             tokens=[(1, 'the-forked-users-token-1'), (2, 'the-real-users-token-22')],
         )
 
@@ -132,11 +132,11 @@ class OwnSubsonicTokenTest(unittest.TestCase):
         self.assertEqual(result.username, 'user')
 
     def test_a_case_variant_is_found_when_it_is_the_only_one(self):
-        make_lms_db(self.path, users=[(1, 'Teun', None)])
+        make_lms_db(self.path, users=[(1, 'User', None)])
 
         result = subsonic_token.own_subsonic_token([(self.path, 'server-direct')], None, 'user')
 
-        self.assertEqual(result.username, 'Teun')
+        self.assertEqual(result.username, 'User')
 
     def test_a_too_short_token_is_not_handed_out(self):
         make_lms_db(self.path, users=[(1, 'user', 7)], tokens=[(1, 'short')])

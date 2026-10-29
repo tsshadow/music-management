@@ -454,7 +454,7 @@ class UserLifecycleTest:
         """The e-mail becomes the username; an account already carrying it, in any case,
         used to hit the unique index and answer a 500 (bug report 079)."""
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
-        assert api.post('/api/users', headers=headers, json={'username': 'Teun@Example.com'}).status_code == 200
+        assert api.post('/api/users', headers=headers, json={'username': 'User@Example.com'}).status_code == 200
         run_sql(
             db,
             "INSERT INTO user_requests (google_subject, email, display_name, status) "

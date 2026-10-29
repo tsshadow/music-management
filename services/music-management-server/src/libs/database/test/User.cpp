@@ -51,7 +51,7 @@ namespace lms::db::tests
         }
     }
 
-    // One account, whatever case its login name is typed in. music-manager accepts "Teun" for the
+    // One account, whatever case its login name is typed in. music-manager accepts "User" for the
     // account "user"; an exact match here found nobody, and the authentication path created a
     // second user for the same person (docs/bug-reports/074-login-case-forks-user-identity.md).
     TEST_F(DatabaseFixture, User_findByLoginNameIgnoresCase)
@@ -60,15 +60,15 @@ namespace lms::db::tests
 
         auto transaction{ session.createReadTransaction() };
 
-        const User::pointer typedCapitalised{ User::find(session, std::string_view{ "Teun" }) };
+        const User::pointer typedCapitalised{ User::find(session, std::string_view{ "User" }) };
         ASSERT_TRUE(typedCapitalised);
         EXPECT_EQ(typedCapitalised->getId(), user.getId());
 
-        const User::pointer typedUpper{ User::find(session, std::string_view{ "TEUN" }) };
+        const User::pointer typedUpper{ User::find(session, std::string_view{ "USER" }) };
         ASSERT_TRUE(typedUpper);
         EXPECT_EQ(typedUpper->getId(), user.getId());
 
-        EXPECT_FALSE(User::find(session, std::string_view{ "teun2" }));
+        EXPECT_FALSE(User::find(session, std::string_view{ "user2" }));
     }
 
     // Where the bug already left two case variants behind, the lookup must not throw (more than one
@@ -79,7 +79,7 @@ namespace lms::db::tests
         // where migrateFromV123 had to skip the index still holds one.
         ScopedNoLoginNameUniqueIndex noUniqueIndex{ session };
         ScopedUser canonical{ session, "user" };
-        ScopedUser fork{ session, "Teun" };
+        ScopedUser fork{ session, "User" };
         {
             auto transaction{ session.createWriteTransaction() };
             canonical.get().modify()->setMumaId(1);
@@ -87,7 +87,7 @@ namespace lms::db::tests
 
         auto transaction{ session.createReadTransaction() };
 
-        const User::pointer found{ User::find(session, std::string_view{ "Teun" }) };
+        const User::pointer found{ User::find(session, std::string_view{ "User" }) };
         ASSERT_TRUE(found);
         EXPECT_EQ(found->getId(), canonical.getId());
         EXPECT_NE(found->getId(), fork.getId());
@@ -107,8 +107,8 @@ namespace lms::db::tests
         }
 
         auto transaction{ session.createWriteTransaction() };
-        EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'TEUN' WHERE login_name = 'other'"));
+        EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'USER' WHERE login_name = 'other'"));
         EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'user' WHERE login_name = 'other'"));
-        session.execute("UPDATE user SET login_name = 'Teun' WHERE login_name = 'user'");
+        session.execute("UPDATE user SET login_name = 'User' WHERE login_name = 'user'");
     }
 } // namespace lms::db::tests

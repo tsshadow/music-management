@@ -2074,7 +2074,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
 
         void migrateFromV123(Session& session)
         {
-            // Login names become unique case-insensitively (bug 074 left a "Teun" beside
+            // Login names become unique case-insensitively (bug 074 left a "User" beside
             // "user"). Production was repaired on 2026-09-25 and holds no case variants, but a
             // database that still does keeps starting: the index is then skipped and logged,
             // see createUserLoginNameUniqueIndexIfPossible(). The version is bumped either

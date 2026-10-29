@@ -123,6 +123,7 @@ Builds from this project are automatically synced to the hoster's storage if con
 You can configure where builds are saved and how they are served:
 - `DIST_DIR`: Local path where APKs and `index.html` are saved (e.g., `/mnt/user/ultrasonic-builds`).
 - `REMOTE_DIST_PATH`: Path on the remote server where builds are located.
+- `BUILDS_MOUNT`: Mount of the builds share, default `/mnt/$USER`; `REMOTE_DIST_PATH` and the local fallback live under it.
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

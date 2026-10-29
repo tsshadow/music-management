@@ -18,6 +18,23 @@ services/ml-analyzer/.env
 node_modules/
 .pytest_cache/
 .production
+
+# Operations and agent material lives in the private repository muma/muma-ops.
+# Its install.sh links these paths into a checkout; ignoring them keeps a linked
+# checkout clean. No trailing slashes: they are symlinks, which "dir/" never matches.
+# .claude is ignored as a whole, so .claude/worktrees stays local state.
+# tests/ci/test_ops_material_not_tracked.py fails when any of them is tracked again.
+/.claude
+/.ai
+/.junie
+/scripts/prod
+/scripts/crash-triage
+/scripts/nightly-prod-check
+/scripts/ssh
+/scripts/vw.sh
+/services/music-management-server/scripts/remote-build.sh
+/docs/superpowers
+/AGENTS.local.md
 # Coverage reports
 coverage/
 coverage-python.xml

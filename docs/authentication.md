@@ -88,7 +88,7 @@ it is enforced (bug report [074](bug-reports/074-login-case-forks-user-identity.
   (`user_login_name_nocase_unique_idx`, LMS schema version 124), the same collation the lookup
   uses so SQLite answers it from the index. A database that still holds two case variants keeps
   starting: the index is skipped with an error naming them, and retried on every start until
-  they are merged (`scripts/prod/repair-username-case.sh`). See
+  they are merged (`scripts/prod/repair-username-case.sh`, in the private muma-ops repository). See
   `docs/bug-reports/102-lms-login-unique-index.md`.
 - **Server-to-server names are resolved, not trusted for spelling.** The scrobble relay and the
   ListenBrainz import store the authenticated account's own spelling for a user key, and the

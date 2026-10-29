@@ -55,7 +55,7 @@ fi
 if [ "${#PROD_SSH_OPTS[@]}" -eq 0 ]; then
     # shellcheck source=scripts/lib/ssh_host_keys.sh
     . "$PROJECT_ROOT/scripts/lib/ssh_host_keys.sh"
-    mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+    ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 fi
 
 EXPECTED_VERSION="${1:-}"

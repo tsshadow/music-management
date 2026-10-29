@@ -256,13 +256,6 @@ def test_verify_check_flags_a_worker_that_is_not_running():
     assert _run_verify_check({'PROD_ENV_FILE': 'COMPOSE_PROFILES=youtube\n'}, exited).returncode == 0
 
 
-def test_move_import_queue_recreates_the_stopped_services_by_name():
-    """A bare `up -d` would leave the profiled workers down; the script names what it stopped."""
-    text = (ROOT / 'scripts' / 'prod' / 'person' / 'move-import-queue.sh').read_text(encoding='utf-8')
-    assert 'com.docker.compose.service' in text
-    assert 'up -d --no-deps ${svcs% }' in text
-
-
 def test_one_off_commands_on_profiled_services_pass_the_profile():
     """run/logs/up of a profiled service names its profile, or compose says the service does not exist."""
     telegram = (ROOT / 'run_telegram_auth.sh').read_text(encoding='utf-8')

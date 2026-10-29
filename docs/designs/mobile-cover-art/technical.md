@@ -116,8 +116,8 @@ Covered by `ContentStyleTest` and `SearchableRootParamsTest` in
 | 1 | Tint per genre from the server, and a renderer that draws a cover from name, kind and tint | **Delivered** |
 | 2 | Content-style hints | **Delivered** |
 | 3 | Artwork URI on browsable items in `MediaLibraryBrowser` | **Delivered** for genres and artists |
-| 4 | Home strips on the phone made cover-first | **Delivered** for genres, festivals and artists |
-| 5 | Link family B to real festival images where they exist and may be used | Open |
+| 4 | Home strips on the phone made cover-first, like the web UI | **Delivered** for genres, festivals and artists |
+| 5 | Link the festival family (B) to real festival images where they exist and may be used | Open |
 
 Step 3 deliberately does not touch **playlists and tiles**. They are browsable and have no image, so their
 level stays a list. A fourth cover family for "a playlist" does not exist in the design. Inventing one to

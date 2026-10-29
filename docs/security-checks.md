@@ -59,7 +59,7 @@ This works because almost nothing calls the API from another origin:
   same origin, CORS does not apply.
 - The **Android app** is not a browser. CORS exists only in browsers, and the app never touches it.
 
-**The way out, and it matters.** If there turns out to be a browser client I do not know about, set
+**The way out, and it matters.** If there turns out to be a browser client that we do not know about, set
 `MUMA_CORS_ORIGINS=*`. The old behavior is back exactly. It needs no new rollout, only a restart. At
 startup, the app writes to the log which case applies. So diagnosis is one look at the log, not a guess.
 
@@ -132,7 +132,7 @@ All existing findings are in `security/accepted-sast-findings.txt`, with a reaso
 identical line in the same place counts as new. "We do that elsewhere too" does not cover new code.
 
 **A telling detail:** on its very first run, this task flagged a finding in the script that implements
-it. I used SHA-1 for a fingerprint. That is technically harmless. But an exception as the first line in
+it. It used SHA-1 for a fingerprint. That is technically harmless. But an exception as the first line in
 a file whose job is to let nothing through is the wrong start. It uses SHA-256 now.
 
 Details: `scripts/ci/sast.sh`, job `security:sast`.
@@ -158,7 +158,7 @@ It runs as part of the existing Android check. It has no job of its own. All And
 working directory behind one lock, so a second job would only sit and wait.
 
 The 74 existing findings (44 in the app, 30 in the Subsonic client) are in baselines per module. The one
-finding in code from that same day was fixed, not recorded.
+finding, in code added with the detekt rollout, was fixed, not recorded.
 
 Details: `scripts/test/muma-mobile-detekt.sh`, included in `mobile:unit`.
 
@@ -166,7 +166,7 @@ Details: `scripts/test/muma-mobile-detekt.sh`, included in `mobile:unit`.
 
 ## Gitleaks: looks for leaked passwords and keys
 
-This ran before my time. Gitleaks scans the code for things that look like a key or a password.
+This check ran before the current setup. Gitleaks scans the code for things that look like a key or a password.
 
 This job is deliberately **not** `allow_failure`. Unlike the dependency audit, it does not depend on an
 external service. So a failure is a finding, not an outage.
@@ -231,7 +231,7 @@ There are two deliberate exceptions:
 
 ## What this does *not* cover
 
-One thing matters more than the rest of this document, because it recently caused real pain.
+One thing matters more than the rest of this document, because it caused real pain in September 2026 (version 6.21.0).
 
 **Nothing ever starts the Android app.** The pipeline builds the release APK and stops there. All Android
 tests run on the JVM without shrinking. A bug that exists only in the shrunk release build passes through
@@ -270,4 +270,4 @@ the middle can be requested. That is what a player does when you skip into a tra
 | `mobile:unit` (incl. detekt) | yes | Same reasoning as above |
 | `muma:e2e` | yes | The only check that proves the whole chain, and it takes 45 to 90 s |
 
-Open work arising from this lives in [GitLab issues](https://gitlab.example.org/example/music-management/-/issues) (see [docs/open-work.md](open-work.md)).
+Open work is tracked in the project's issue tracker.

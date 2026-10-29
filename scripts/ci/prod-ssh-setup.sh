@@ -76,16 +76,14 @@ ssh-add -t "$PROD_SSH_KEY_LIFETIME" "$KEY_FILE"
 rm -f "$KEY_FILE"
 KEY_FILE=""
 
-# Host key: pinned in scripts/ssh/known_hosts, not learned from ssh-keyscan.
+# Host key: pinned in the PROD_SSH_KNOWN_HOSTS file variable, not learned from ssh-keyscan.
 # This used to append whatever answered on $REMOTE_HOST to the shared runner's
 # known_hosts and then connect with StrictHostKeyChecking=no anyway, which
 # accepts any key at all. PROD_SSH_OPTS is what every caller passes to ssh/scp.
 # shellcheck source=scripts/lib/ssh_host_keys.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
-if ssh_pinned_host_missing "$REMOTE_HOST"; then
-    exit 1
-fi
-mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+# In a pipeline this stops when the pinned file is missing, empty or does not list the host.
+ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 
 # Ensure SSH is working.
 if ! ssh_error="$(ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "docker version" 2>&1 >/dev/null)"; then

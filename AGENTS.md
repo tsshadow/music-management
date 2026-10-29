@@ -12,6 +12,12 @@ player and the Android client) is made and committed as a single, atomic change 
 its own independent build/deploy pipeline (see `build.sh`, `docker/`, and each service's own `scripts/`), only
 the source code and history are shared.
 
+Operations material is in a private repository (`muma/muma-ops`): production scripts, agent
+skills and plans, runbooks. Without it, ignore references to `scripts/prod/` and the production
+runbooks; the build, the tests and merge requests do not need it. Its `install.sh <checkout>` links it
+into a checkout, and it may add an `AGENTS.local.md` with the homelab sections, which you read when it
+exists.
+
 ## 🏗 Core Modules & Responsibilities
 
 The system is split into specialized services, each handling a specific part of the music lifecycle:

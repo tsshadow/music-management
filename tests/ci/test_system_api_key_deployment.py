@@ -181,8 +181,11 @@ def test_secrets_check_fails_early_for_a_production_host_without_a_pinned_key():
 
 
 def test_secrets_check_accepts_a_production_host_with_a_known_hosts_file(tmp_path):
+    key = tmp_path / "key"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+    public = key.with_suffix(".pub").read_text(encoding="utf-8").split()
     known = tmp_path / "known_hosts"
-    known.write_text("")
+    known.write_text(f"prod.example.org {public[0]} {public[1]}\n", encoding="utf-8")
     result = run_secrets_check(
         BASE_ENV + "API_KEY=k\n", LMS_ENV, PROD_SSH_ACCEPT_NEW_HOST_KEY=None, PROD_SSH_KNOWN_HOSTS=str(known)
     )

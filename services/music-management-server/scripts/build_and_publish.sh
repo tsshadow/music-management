@@ -36,6 +36,11 @@ if [ "$REMOTE" == "true" ]; then
     CURRENT_CONTEXT=$(docker context show)
     if [ "$CURRENT_CONTEXT" != "remote-lxc" ]; then
         echo "=== OFFLOADING TO REMOTE LXC ==="
+        if [ ! -x ./scripts/remote-build.sh ]; then
+            echo "--remote needs scripts/remote-build.sh, which lives in the private muma-ops repository" >&2
+            echo "(run its install.sh to link it), or build without --remote." >&2
+            exit 1
+        fi
         exec ./scripts/remote-build.sh bup "${NEW_ARGS[@]}"
     fi
     

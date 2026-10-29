@@ -229,7 +229,7 @@ goal makes them load-bearing, not because they are new.
   above cannot be applied.
 - **The release-date backfill has not been run against production.**
   `scripts/backfill_release_dates.py` exists and its design is in
-  `docs/superpowers/specs/2026-08-17-release-date-precision-design.md`; the run itself is not
+  `docs/superpowers/specs/2026-08-17-release-date-precision-design.md` (in the private muma-ops repository); the run itself is not
   recorded as done, and file ACLs on the NAS blocked it when attempted. The year axis is only as
   good as this coverage.
 - **Festival coverage is partial.** The performance-date fallback and every festival filter depend

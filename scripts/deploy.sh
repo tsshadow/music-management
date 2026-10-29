@@ -54,7 +54,7 @@ run_ssh() {
 
     # Pinned host key for production, accept-new elsewhere (scripts/lib/ssh_host_keys.sh).
     local -a key_opts
-    mapfile -t key_opts < <(ssh_host_key_opts "$host")
+    ssh_host_key_opts_into key_opts "$host" || return 1
 
     if [ -z "$pass" ]; then
         ssh "${key_opts[@]}" "${user}@${host}" "${cmd}"

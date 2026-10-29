@@ -83,29 +83,29 @@ have today; the deploy grants it once (see Cross-App Impact).
 ### Drift Decisions
 
 Rule: production runs, so its shape is the truth. The declaration changes to match it. Where the
-code is better and the change is an addition, the reconcile adds it to production. Every item
-marked **decide** needs Teun.
+code is better and the change is an addition, the reconcile adds it to production. Teun decided
+the open items on 2026-10-29 (issue #43).
 
 | Item | Production | Code | Proposal |
 |---|---|---|---|
 | Collation, 83 tables, 263 columns | `utf8mb4_general_ci` | server default | Pin `utf8mb4_general_ci` in every declaration. |
 | 40 `TIMESTAMP` columns | `NOT NULL` | `NULL` | Declare `NOT NULL` (a MariaDB 10.6 effect production kept). |
 | Foreign key names | `channels_ibfk_1` and similar | `1` and similar | Ignore: the reconcile compares content. |
-| `downloads_soundcloud_queue` (1348 rows), `downloads_youtube_queue` (724) | exists | absent, no code reads it | **decide**: drop in the cleanup script. |
-| `rules_genres_new` (246), `rules_genres_old` (233) | exists | absent, no code reads it | **decide**: drop in the cleanup script. |
-| `library_broken_songs` (0), `library_broken_song_artist_lookup` (21) | exists | absent; `BrokenSongHelper` is built in `tagger.py` and never called | **decide**: drop the tables and both helpers. |
+| `downloads_soundcloud_queue` (1348 rows), `downloads_youtube_queue` (724) | exists | absent, no code reads it | Drop in the cleanup script (decided 2026-10-29). |
+| `rules_genres_new` (246), `rules_genres_old` (233) | exists | absent, no code reads it | Drop in the cleanup script (decided). |
+| `library_broken_songs` (0), `library_broken_song_artist_lookup` (21) | exists | absent; `BrokenSongHelper` is built in `tagger.py` and never called | Drop the tables and both helpers (decided). |
 | `library_track_ml_predictions` (0) | exists | read by the deprecated ml-analyzer | Declare it, so ml-analyzer keeps a table. |
 | `downloads_soundcloud_archive` unique `(account, video_id)` | exists | two plain indexes | Declare the unique index. Without it a fresh database records a download twice. |
 | `downloads_youtube_archive` primary key | `(video_id, download_type)`, `video_id VARCHAR(32)`, `filename`/`title`/`url VARCHAR(255) NOT NULL` | `id` auto-increment, `TEXT` | Declare the production shape. |
 | `downloads_soundcloud_accounts.soundcloud_id` | `BIGINT` | `VARCHAR(255)` | Declare `BIGINT`. |
 | `downloads_youtube_accounts.channel_id` | `TEXT` | `VARCHAR(255)` | Declare `TEXT`. |
-| `downloads_soundcloud_accounts.account_type`, `image_enrichment_hint`, `linked_artist_id` | exists | no code reads them | **decide**: drop in the cleanup script. |
-| `artist_external_ids` | primary key `id`, unique `(artist_id, source, external_id)`, `confidence` | primary key `(artist_id, source)` | Declare the production shape. Production allows two ids per source; the code shape does not. |
+| `downloads_soundcloud_accounts.account_type`, `image_enrichment_hint`, `linked_artist_id` | exists | no code reads them | Drop in the cleanup script (decided). |
+| `artist_external_ids` | primary key `id`, unique `(artist_id, source, external_id)`, `confidence` | primary key `(artist_id, source)` | Declare the production shape without `confidence`, which the cleanup script drops. Production allows two ids per source; the code shape does not. |
 | `library_track_audio_features`, `library_track_ml_labels` | primary key `id`, unique or plain `track_id`, foreign key to `library_tracks` `SET NULL` | primary key `track_id` | Declare the production shape. |
-| `library_artist_images` | `status`, `error_message`, `NOT NULL` on `cached_path` and `source`, `mime_type VARCHAR(100)`, unique `(artist_id, source, source_id)` | without them | Declare the production shape. The two extra columns: **decide**, drop or keep. |
+| `library_artist_images` | `status`, `error_message`, `NOT NULL` on `cached_path` and `source`, `mime_type VARCHAR(100)`, unique `(artist_id, source, source_id)` | without them | Declare the production shape. The two extra columns `status` and `error_message`, and `artist_external_ids.confidence`: drop in the cleanup script (decided). |
 | `library_artists.created_at`, `library_labels.created_at` | absent | declared | The reconcile adds them. |
 | `rules_genres.canonical_id` index and self foreign key `SET NULL` | absent | declared | Index: the reconcile adds it. Foreign key: the cleanup script adds it after it clears orphans. |
-| `scrobble_listens.track_id` foreign key `ON DELETE CASCADE` | exists | absent | **decide**: drop. A deleted track row takes its listen history with it. |
+| `scrobble_listens.track_id` foreign key `ON DELETE CASCADE` | exists | absent | Change to `ON DELETE SET NULL` and declare it (decided). The listen stays when its track row goes; `track_id` is already nullable. |
 | `scrobble_listens` index `idx_listens_match_method`, `scrobble_unmatched_listens` index `idx_unmatched_retry`, `rules_catid_label` unique `catid` | exists | absent | Declare them. |
 | `rules_ignored_artists` unique `name` | named `idx_ignored_name` | named `name` | Declare the production name. |
 
@@ -113,8 +113,8 @@ marked **decide** needs Teun.
 
 `scripts/prod/` is outside this repository, so the one-off goes to `tools/schema_cleanup_2026_11.py`
 with `--dry-run` as default. It dumps every table it changes with `tools/db_backup.py` first, then
-drops the tables and columns marked "drop" above and the `scrobble_listens` foreign key, and adds
-the `rules_genres` foreign key. Teun runs it once after the release. Until it runs, the reconcile
+drops the tables and columns marked "drop" above, replaces the `scrobble_listens` foreign key with
+one that has `ON DELETE SET NULL`, and adds the `rules_genres` foreign key. Teun runs it once after the release. Until it runs, the reconcile
 reports those objects as "extra" and nothing breaks.
 
 ### The production snapshot

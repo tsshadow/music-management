@@ -54,16 +54,17 @@ separate script that a person runs with a backup.
 5. A deploy after a new column in the code adds that column, and only that.
 6. No deploy step drops, renames or changes the type of anything.
 
-## Open Questions / Not Yet Decided
+## Decisions
 
-- Which side is the truth per drift item. The proposal per item is in
-  [technical.md, Drift Decisions](technical.md#drift-decisions). Most items follow one rule:
-  production runs, so its shape is the truth. The exceptions need a decision.
-- The 7 tables that exist only in production (none is used by running code): drop them in a
-  cleanup script with a backup, or keep them and list them as allowed extras.
-- The foreign key `scrobble_listens.track_id` to `library_tracks` with `ON DELETE CASCADE` exists
-  only in production. It deletes the listen history of a track when the track row goes. Proposal:
-  drop it in the cleanup script.
-- Self-hosters on an old release: the 17 migrations that repaired data are gone after this change.
-  Proposal: state in the changelog that an installation must run 0.93.x (the last release with
-  migrations) before it upgrades past this change.
+Teun decided these on 2026-10-29 (issue #43):
+
+- Which side is the truth per drift item: production, except where the code adds something. The
+  table is in [technical.md, Drift Decisions](technical.md#drift-decisions).
+- The 6 unused production-only tables are dropped in a cleanup script with a backup.
+  `library_track_ml_predictions` is declared, so the deprecated ml-analyzer keeps its table.
+- The 6 unused production-only columns are dropped in the same script.
+- The foreign key `scrobble_listens.track_id` to `library_tracks` changes from `ON DELETE CASCADE`
+  to `ON DELETE SET NULL`, and the code declares it. A deleted track row no longer takes its
+  listen history with it.
+- An installation must run 0.93.x (the last release with migrations) before it upgrades past this
+  change. The changelog says so under "Breaking", and `docs/self-hosting.md` too.

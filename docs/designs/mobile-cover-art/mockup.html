@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MuMa — cover art voor playlists (app + Android Auto)</title>
+<title>MuMa: cover art for playlists (app + Android Auto)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Tokens uit services/frontend/src/app.css — exact dezelfde waarden als de web UI */
+  /* Tokens from services/frontend/src/app.css, exactly the same values as the web UI */
   --black:#191414;
   --dark:#121212;
   --panel:#181818;
@@ -33,7 +33,7 @@ a{color:inherit}
 
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
 
-/* ---------- kop ---------- */
+/* ---------- header ---------- */
 header{padding:72px 0 40px;max-width:62ch}
 header h1{
   font-family:var(--display);font-size:clamp(34px,5vw,58px);line-height:.98;
@@ -55,12 +55,12 @@ h2 + p{color:var(--muted);max-width:70ch;line-height:1.6;margin:0 0 28px}
 h3{font-size:15px;margin:34px 0 14px;font-weight:600}
 h3 small{color:var(--muted);font-weight:400;margin-left:8px}
 
-/* ---------- cover art motor ---------- */
+/* ---------- cover art engine ---------- */
 .cover{
   position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;
   background:var(--tint-dark);isolation:isolate;
 }
-/* laag 1: de foto, duotone geknepen naar de genre-kleuren */
+/* layer 1: the photo, duotone squeezed to the genre colors */
 .cover .photo{
   position:absolute;inset:0;
   background-image:var(--photo);
@@ -75,7 +75,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   position:absolute;inset:0;
   background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.15) 55%,transparent 100%);
 }
-/* laag 2: de kleurbaan die het genre draagt */
+/* layer 2: the color band that carries the genre */
 .cover .band{
   position:absolute;left:0;right:0;bottom:0;height:38%;
   background:var(--tint);
@@ -86,7 +86,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   position:absolute;left:0;right:0;bottom:0;padding:14px 14px 12px;
 }
 
-/* familie A — genre */
+/* family A: genre */
 .cover.genre figcaption strong{
   display:block;font-family:var(--condensed);font-weight:800;
   font-size:38px;line-height:.86;letter-spacing:-.01em;
@@ -96,7 +96,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   display:block;margin-top:4px;font-size:11px;color:rgba(0,0,0,.62);font-weight:600;
 }
 
-/* familie B — festival / stage */
+/* family B: festival / stage */
 .cover.stage .lockup{
   position:absolute;inset:0;display:flex;flex-direction:column;
   justify-content:flex-end;padding:16px;
@@ -112,7 +112,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   position:absolute;left:16px;top:16px;width:34px;height:5px;background:var(--tint);
 }
 
-/* familie C — DJ */
+/* family C: DJ */
 .cover.dj .photo{filter:grayscale(.2) contrast(1.1) brightness(.85)}
 .cover.dj .floor{background:linear-gradient(0deg,rgba(0,0,0,.9) 6%,transparent 62%)}
 .cover.dj figcaption strong{
@@ -125,14 +125,14 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   position:absolute;left:0;bottom:0;width:6px;height:46%;background:var(--tint);
 }
 
-/* ---------- rij met covers, web-UI stijl ---------- */
+/* ---------- row of covers, web UI style ---------- */
 .rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
 .rail .card{background:transparent}
 .rail .card .cover{box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .rail .card .label{margin-top:10px;font-size:14px;font-weight:600}
 .rail .card .sub{font-size:12px;color:var(--muted);margin-top:2px}
 
-/* ---------- telefoon ---------- */
+/* ---------- phone ---------- */
 .devices{display:grid;grid-template-columns:288px 1fr;gap:44px;align-items:start}
 @media (max-width:900px){.devices{grid-template-columns:1fr}}
 
@@ -174,7 +174,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
 .phone .np div{font-size:11px;font-weight:600;line-height:1.3}
 .phone .np div em{display:block;font-style:normal;font-size:10px;color:var(--muted);font-weight:400}
 
-/* ---------- auto ---------- */
+/* ---------- car ---------- */
 .car{
   border-radius:14px;background:var(--dark);border:1px solid #2a2a2a;overflow:hidden;
   box-shadow:0 30px 70px rgba(0,0,0,.6);
@@ -208,7 +208,7 @@ h3 small{color:var(--muted);font-weight:400;margin-left:8px}
   padding:10px 20px 18px;color:var(--muted);font-size:13px;border-top:1px solid #222;
 }
 
-/* ---------- code + tabel ---------- */
+/* ---------- code + table ---------- */
 pre{
   background:var(--panel);border:1px solid #232323;border-radius:8px;
   padding:16px 18px;overflow:auto;font-size:12.5px;line-height:1.6;
@@ -232,28 +232,28 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
 <div class="wrap">
 
 <header>
-  <h1>Playlists met een gezicht</h1>
-  <p>De web UI heeft de Spotify-tokens al. De Android app en Android Auto tonen dezelfde
-     playlists als tekstregels met een generiek icoon. Dit voorstel geeft elke playlist
-     een cover die de app zelf maakt — uit het genre, het festival of de DJ — zodat één
-     beeldsysteem web, telefoon en auto bedient.</p>
+  <h1>Playlists with a face</h1>
+  <p>The web UI already has the Spotify tokens. The Android app and Android Auto show the same
+     playlists as text rows with a generic icon. This proposal gives every playlist a cover that
+     the app makes itself, from the genre, the festival or the DJ. That way one image system
+     serves the web, the phone and the car.</p>
   <div class="tokens">
-    <span class="swatch"><i style="background:#191414"></i>#191414 achtergrond</span>
-    <span class="swatch"><i style="background:#121212"></i>#121212 vlak</span>
-    <span class="swatch"><i style="background:#282828"></i>#282828 verhoogd</span>
+    <span class="swatch"><i style="background:#191414"></i>#191414 background</span>
+    <span class="swatch"><i style="background:#121212"></i>#121212 surface</span>
+    <span class="swatch"><i style="background:#282828"></i>#282828 raised</span>
     <span class="swatch"><i style="background:#1db954"></i>#1db954 songs</span>
     <span class="swatch"><i style="background:#2d5afc"></i>#2d5afc sets</span>
   </div>
 </header>
 
-<!-- ================= 1. het beeldsysteem ================= -->
+<!-- ================= 1. the image system ================= -->
 <section id="system">
-  <h2>Eén motor, drie families</h2>
-  <p>De cover wordt lokaal gerenderd op een 320×320dp canvas: een duotone-foto, een
-     kleurvlak dat het genre draagt, en een woordmerk. De kleur is niet gekozen maar
-     afgeleid — dezelfde genre-naam geeft altijd dezelfde kleur, op elk apparaat.</p>
+  <h2>One engine, three families</h2>
+  <p>The cover is rendered locally on a 320×320dp canvas: a duotone photo, a color surface
+     that carries the genre, and a wordmark. The color is not chosen but derived. The same
+     genre name always gives the same color, on every device.</p>
 
-  <h3>A — Genre <small>hardstyle krijgt hardstyle-oranje, niet grijs</small></h3>
+  <h3>A: Genre <small>hardstyle gets hardstyle orange, not grey</small></h3>
   <div class="rail">
     <div class="card">
       <figure class="cover genre" style="--tint:#ff4d00;--tint-dark:#1a0700;--photo:radial-gradient(120% 90% at 30% 10%,#8a8a8a,#101010)">
@@ -289,7 +289,7 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
     </div>
   </div>
 
-  <h3>B — Festival en stage <small>het label dat de collectie echt draagt</small></h3>
+  <h3>B: Festival and stage <small>the label that really carries the collection</small></h3>
   <div class="rail">
     <div class="card">
       <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b 0%,#3a3a3a 45%,#0a0a0a 100%)">
@@ -300,7 +300,7 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
           <div class="meta">Red · 2025</div>
         </div>
       </figure>
-      <div class="label">Defqon.1 — Red</div><div class="sub">Festival · 34 sets</div>
+      <div class="label">Defqon.1 Red</div><div class="sub">Festival · 34 sets</div>
     </div>
     <div class="card">
       <figure class="cover stage" style="--tint:#ffb400;--tint-dark:#140d00;--photo:linear-gradient(170deg,#a0a0a0,#2b2b2b 55%,#080808)">
@@ -311,7 +311,7 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
           <div class="meta">Blue · 2025</div>
         </div>
       </figure>
-      <div class="label">Defqon.1 — Blue</div><div class="sub">Festival · 28 sets</div>
+      <div class="label">Defqon.1 Blue</div><div class="sub">Festival · 28 sets</div>
     </div>
     <div class="card">
       <figure class="cover stage" style="--tint:#00b3ff;--tint-dark:#001018;--photo:linear-gradient(210deg,#8d8d8d,#242424 60%,#060606)">
@@ -337,58 +337,58 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
     </div>
   </div>
 
-  <h3>C — DJ <small>portret uit de artiestafbeelding, kleur van diens hoofdgenre</small></h3>
+  <h3>C: DJ <small>portrait from the artist image, color of their main genre</small></h3>
   <div class="rail">
     <div class="card">
       <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 50% 32%,#c9c9c9,#4a4a4a 45%,#0b0b0b)">
         <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
         <figcaption><strong>Headhunterz</strong><span>Hardstyle · 22 sets</span></figcaption>
       </figure>
-      <div class="label">Headhunterz</div><div class="sub">Artiest</div>
+      <div class="label">Headhunterz</div><div class="sub">Artist</div>
     </div>
     <div class="card">
       <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 48% 30%,#bdbdbd,#414141 48%,#090909)">
         <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
         <figcaption><strong>Wildstylez</strong><span>Hardstyle · 17 sets</span></figcaption>
       </figure>
-      <div class="label">Wildstylez</div><div class="sub">Artiest</div>
+      <div class="label">Wildstylez</div><div class="sub">Artist</div>
     </div>
     <div class="card">
       <figure class="cover dj" style="--tint:#e5002b;--tint-dark:#150003;--photo:radial-gradient(75% 65% at 52% 34%,#c4c4c4,#3c3c3c 46%,#080808)">
         <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
         <figcaption><strong>Angerfist</strong><span>Hardcore · 14 sets</span></figcaption>
       </figure>
-      <div class="label">Angerfist</div><div class="sub">Artiest</div>
+      <div class="label">Angerfist</div><div class="sub">Artist</div>
     </div>
     <div class="card">
       <figure class="cover dj" style="--tint:#00e0c7;--tint-dark:#001513;--photo:radial-gradient(75% 65% at 46% 31%,#c0c0c0,#3f3f3f 47%,#070707)">
         <div class="photo"></div><div class="floor"></div><div class="stripe"></div>
         <figcaption><strong>Charlotte de Witte</strong><span>Techno · 19 sets</span></figcaption>
       </figure>
-      <div class="label">Charlotte de Witte</div><div class="sub">Artiest</div>
+      <div class="label">Charlotte de Witte</div><div class="sub">Artist</div>
     </div>
   </div>
 
   <p class="note" style="margin-top:30px">
-    Geen artiestfoto? Dan valt familie C terug op familie A met de initialen als woordmerk.
-    De cover is nooit leeg en nooit een grijs notenbalk-icoon.
+    No artist photo? Then family C falls back to family A, with the initials as the wordmark.
+    The cover is never empty and never a grey music-staff icon.
   </p>
 </section>
 
-<!-- ================= 2. de telefoon ================= -->
+<!-- ================= 2. the phone ================= -->
 <section id="phone">
-  <h2>Op de telefoon</h2>
-  <p>Dezelfde rijen als de web UI: een horizontale strip per bron, cover boven, twee
-     regels tekst eronder. Nu draagt de cover de betekenis, dus de tweede tekstregel
-     mag korter.</p>
+  <h2>On the phone</h2>
+  <p>The same rows as the web UI: one horizontal strip per source, cover on top, two lines of
+     text underneath. The cover now carries the meaning, so the second line of text can be
+     shorter.</p>
 
   <div class="devices">
     <div class="phone">
       <div class="status"><span>09:41</span><span>▮▮▮ 5G</span></div>
-      <div class="head"><h4>Goedemorgen</h4></div>
-      <div class="chips"><b class="on">Sets</b><b>Nummers</b><b>Podcasts</b></div>
+      <div class="head"><h4>Good morning</h4></div>
+      <div class="chips"><b class="on">Sets</b><b>Songs</b><b>Podcasts</b></div>
 
-      <div class="rowlabel">Op genre <em>Alles</em></div>
+      <div class="rowlabel">By genre <em>All</em></div>
       <div class="strip">
         <div class="card">
           <figure class="cover genre" style="--tint:#ff4d00;--tint-dark:#1a0700;--photo:radial-gradient(120% 90% at 30% 10%,#8a8a8a,#101010)">
@@ -438,7 +438,7 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
         </div>
       </div>
 
-      <div class="rowlabel">DJ's die je draait <em>90 dagen</em></div>
+      <div class="rowlabel">DJs you play <em>90 days</em></div>
       <div class="strip">
         <div class="card">
           <figure class="cover dj" style="--tint:#ff4d00;--tint-dark:#140700;--photo:radial-gradient(75% 65% at 50% 32%,#c9c9c9,#4a4a4a 45%,#0b0b0b)">
@@ -465,25 +465,25 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
 
       <div class="np" style="--tint:#ff4d00;margin-top:16px">
         <div class="art"></div>
-        <div>Defqon.1 2025 — Red<em>Sub Zero Project</em></div>
+        <div>Defqon.1 2025: Red<em>Sub Zero Project</em></div>
       </div>
       <div class="tabbar">
-        <span class="on">Start</span><span>Zoeken</span><span>Bibliotheek</span><span>Instellingen</span>
+        <span class="on">Start</span><span>Search</span><span>Library</span><span>Settings</span>
       </div>
     </div>
 
     <div>
-      <h3>Wat er verandert ten opzichte van nu</h3>
+      <h3>What changes compared to now</h3>
       <table>
-        <tr><th style="width:34%">Nu</th><th>Voorstel</th></tr>
-        <tr><td>Genre is een tekstregel in een lijst</td><td>Genre is een tegel met eigen kleur en woordmerk — herkenbaar op afstand</td></tr>
-        <tr><td>Playlist zonder cover krijgt het notenbalk-icoon</td><td><code>PlaylistArt</code> rendert altijd iets, uit naam + type</td></tr>
-        <tr><td>Rijen zijn tekstlijsten onder elkaar</td><td>Horizontale strips zoals de web UI, cover-first</td></tr>
-        <tr><td>Elke lijst dezelfde grijstint</td><td>Kleur komt uit het genre, deterministisch, dus stabiel over apparaten</td></tr>
+        <tr><th style="width:34%">Now</th><th>Proposal</th></tr>
+        <tr><td>Genre is a text line in a list</td><td>Genre is a tile with its own color and wordmark, recognizable at a distance</td></tr>
+        <tr><td>A playlist without a cover gets the music-staff icon</td><td><code>PlaylistArt</code> always renders something, from name + type</td></tr>
+        <tr><td>Rows are text lists stacked on each other</td><td>Horizontal strips like the web UI, cover first</td></tr>
+        <tr><td>Every list has the same grey tint</td><td>Color comes from the genre, deterministic, so stable across devices</td></tr>
       </table>
 
-      <h3>De kleur is afgeleid, niet gekozen</h3>
-      <pre><span class="c">// Vaste tabel voor de genres die de collectie dragen, hash voor de rest.</span>
+      <h3>The color is derived, not chosen</h3>
+      <pre><span class="c">// Fixed table for the genres the collection carries, hash for the rest.</span>
 <span class="k">object</span> GenrePalette {
     <span class="k">private val</span> known = mapOf(
         <span class="s">"hardstyle"</span> to 0xFFFF4D00,
@@ -496,15 +496,15 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
     <span class="k">fun</span> tintFor(name: String): Int {
         <span class="k">val</span> key = name.lowercase().trim()
         known[key]?.let { <span class="k">return</span> it.toInt() }
-        <span class="c">// Zelfde naam, zelfde kleur -- op telefoon en in de auto.</span>
+        <span class="c">// Same name, same color, on the phone and in the car.</span>
         <span class="k">val</span> hue = (key.hashCode().absoluteValue % 360).toFloat()
         <span class="k">return</span> Color.HSVToColor(floatArrayOf(hue, 0.82f, 0.95f))
     }
 }</pre>
       <p class="note">
-        Dezelfde tabel hoort in de web UI te staan, anders is Hardstyle daar oranje en
-        hier magenta. Zet hem in de server-response naast de genre-naam, dan hoeft geen
-        van beide clients hem te kennen.
+        The same table should be in the web UI, otherwise Hardstyle is orange there and magenta
+        here. Put it in the server response next to the genre name, so that neither client needs
+        to know it.
       </p>
     </div>
   </div>
@@ -512,16 +512,16 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
 
 <!-- ================= 3. android auto ================= -->
 <section id="auto">
-  <h2>In de auto</h2>
-  <p>Android Auto rendert wat de app aanlevert. Nu levert MuMa geen content-style hint
-     en geen artwork voor browsable items, dus het hoofd wordt een tekstlijst met
-     standaardicoontjes. Met een grid-hint en een artwork-URI wordt het ditzelfde beeld —
-     zonder dat er een schermontwerp voor de auto bestaat.</p>
+  <h2>In the car</h2>
+  <p>Android Auto renders what the app delivers. Right now MuMa delivers no content-style hint
+     and no artwork for browsable items. So the main menu becomes a text list with default icons.
+     With a grid hint and an artwork URI it becomes this same picture, without a screen design
+     for the car existing.</p>
 
   <div class="car">
     <div class="bar">
       <div class="title">MuMa</div>
-      <div class="tabs"><b>Bladeren</b><span>Zoeken</span><span>Radio</span><span>Nieuws</span></div>
+      <div class="tabs"><b>Browse</b><span>Search</span><span>Radio</span><span>News</span></div>
     </div>
     <div class="grid">
       <div class="card">
@@ -554,14 +554,14 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
       </div>
     </div>
     <div class="caption">
-      Vier tegels per rij is het maximum dat Android Auto rendert. Bij méér items scrollt
-      de bestuurder — daarom staat op het hoofdscherm alleen wat vandaag gedraaid wordt.
+      Four tiles per row is the maximum that Android Auto renders. With more items the driver has
+      to scroll, so the home screen only shows what is being played today.
     </div>
   </div>
 
-  <h3 style="margin-top:44px">Tracks blijven een lijst</h3>
+  <h3 style="margin-top:44px">Tracks stay a list</h3>
   <div class="car">
-    <div class="bar"><div class="title">Defqon.1 2025 — Red</div></div>
+    <div class="bar"><div class="title">Defqon.1 2025: Red</div></div>
     <div class="listmode">
       <div class="row">
         <figure class="cover stage" style="--tint:#ff4d00;--tint-dark:#12060a;--photo:linear-gradient(200deg,#9b9b9b,#3a3a3a 45%,#0a0a0a)">
@@ -583,15 +583,15 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
       </div>
     </div>
     <div class="caption">
-      Grid voor kiezen, lijst voor afspelen: een grid van 40 tracks kost de bestuurder
-      meer blikken dan een lijst met dezelfde 40 regels.
+      Grid for choosing, list for playing. A grid of 40 tracks costs the driver more glances than
+      a list of the same 40 rows.
     </div>
   </div>
 
-  <h3>De twee regels code die dit aanzetten</h3>
+  <h3>The code that turns this on</h3>
   <div class="split">
     <div>
-      <pre><span class="c">// MediaItemConverter.kt -- deze constanten staan er nog niet in.</span>
+      <pre><span class="c">// MediaItemConverter.kt: these constants are not in it yet.</span>
 <span class="k">private const val</span> CONTENT_STYLE_BROWSABLE =
     <span class="s">"android.media.browse.CONTENT_STYLE_BROWSABLE_HINT"</span>
 <span class="k">private const val</span> CONTENT_STYLE_PLAYABLE =
@@ -599,12 +599,12 @@ td code{background:var(--light);padding:2px 6px;border-radius:4px;font-size:12px
 <span class="k">private const val</span> GRID_ITEM = 2
 <span class="k">private const val</span> LIST_ITEM = 1
 
-extras.putInt(CONTENT_STYLE_BROWSABLE, GRID_ITEM)  <span class="c">// genres, festivals, DJ's</span>
-extras.putInt(CONTENT_STYLE_PLAYABLE,  LIST_ITEM)  <span class="c">// tracks en sets</span></pre>
+extras.putInt(CONTENT_STYLE_BROWSABLE, GRID_ITEM)  <span class="c">// genres, festivals, DJs</span>
+extras.putInt(CONTENT_STYLE_PLAYABLE,  LIST_ITEM)  <span class="c">// tracks and sets</span></pre>
     </div>
     <div>
-      <pre><span class="c">// De cover komt van dezelfde content provider als album art,</span>
-<span class="c">// zodat Auto hem zonder netwerkrechten mag laden.</span>
+      <pre><span class="c">// The cover comes from the same content provider as album art,</span>
+<span class="c">// so Auto may load it without network permissions.</span>
 <span class="k">val</span> art = AlbumArtContentProvider.mapPlaylistArtUri(
     kind = PlaylistArtKind.GENRE,
     key  = genre.name,
@@ -621,43 +621,43 @@ buildMediaItem(
   </div>
 
   <p class="note">
-    Zonder <code>CONTENT_STYLE_BROWSABLE_HINT</code> negeert Auto de artwork-URI voor
-    browsable items grotendeels: het valt terug op een lijst met een klein icoon.
-    De cover renderen zonder de hint te zetten levert dus geen zichtbaar verschil op.
+    Without <code>CONTENT_STYLE_BROWSABLE_HINT</code>, Auto mostly ignores the artwork URI for
+    browsable items. It falls back to a list with a small icon. Rendering the cover without
+    setting the hint therefore makes no visible difference.
   </p>
 </section>
 
-<!-- ================= 4. volgorde ================= -->
+<!-- ================= 4. build order ================= -->
 <section id="plan">
-  <h2>Volgorde van bouwen</h2>
-  <p>Elke stap is los waardevol en los te releasen.</p>
+  <h2>Build order</h2>
+  <p>Each step is valuable on its own and can be released on its own.</p>
   <table>
-    <tr><th style="width:8%">Stap</th><th style="width:46%">Wat</th><th>Waarom eerst</th></tr>
+    <tr><th style="width:8%">Step</th><th style="width:46%">What</th><th>Why first</th></tr>
     <tr>
       <td>1</td>
-      <td><code>GenrePalette</code> + <code>PlaylistArtRenderer</code> in de app, en de tint
-          meesturen vanuit de server naast de genre-naam</td>
-      <td>Zonder gedeelde kleurbron gaan web en app uit elkaar lopen</td>
+      <td><code>GenrePalette</code> + <code>PlaylistArtRenderer</code> in the app, and send the tint
+          from the server next to the genre name</td>
+      <td>Without a shared color source, web and app drift apart</td>
     </tr>
     <tr>
       <td>2</td>
       <td>Content-style hints in <code>MediaItemConverter</code></td>
-      <td>Twee regels; maakt Auto meteen een grid, ook met de huidige artwork</td>
+      <td>Two lines; makes Auto a grid right away, even with the current artwork</td>
     </tr>
     <tr>
       <td>3</td>
-      <td>Artwork-URI voor browsable items in <code>MediaLibraryBrowser</code></td>
-      <td>Vult het grid dat stap 2 opent</td>
+      <td>Artwork URI for browsable items in <code>MediaLibraryBrowser</code></td>
+      <td>Fills the grid that step 2 opens</td>
     </tr>
     <tr>
       <td>4</td>
-      <td>Home-strips op de telefoon omzetten naar cover-first</td>
-      <td>Meeste werk, en profiteert van 1 t/m 3</td>
+      <td>Turn the home strips on the phone cover-first</td>
+      <td>Most of the work, and it benefits from steps 1 to 3</td>
     </tr>
     <tr>
       <td>5</td>
-      <td>Familie B koppelen aan echte festivalbeelden waar die er zijn</td>
-      <td>Optioneel; de gegenereerde cover is al compleet</td>
+      <td>Link family B to real festival images where they exist</td>
+      <td>Optional; the generated cover is already complete</td>
     </tr>
   </table>
 </section>

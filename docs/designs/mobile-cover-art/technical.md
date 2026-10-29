@@ -1,135 +1,128 @@
-# Cover art voor playlists in de app en de auto — Technical Design
+# Cover art for playlists in the app and the car: Technical Design
 
-Implementeert [`functional.md`](functional.md).
+Implements [`functional.md`](functional.md).
 
 ## Data Model
 
-Geen schemawijziging. De tint is afgeleid van de genrenaam en wordt niet opgeslagen: hem bewaren
-zou een tweede waarheid opleveren die kan verlopen ten opzichte van de afleiding.
+No schema change. The tint is derived from the genre name and is not stored. Storing it would create a
+second source of truth that can drift from the derivation.
 
 ## API Contract
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/library/genres` | geen | rijen `{genre, state, count, tint}` | 401 zonder API-key; 500 als de database onbereikbaar is |
+| `GET /api/library/genres` | none | rows `{genre, state, count, tint}` | 401 without an API key; 500 if the database is unreachable |
 
-`tint` is nieuw en additief: een `#rrggbb`-string naast de bestaande velden. Bestaande consumers
-negeren het veld; geen breaking change.
+`tint` is new and additive: a `#rrggbb` string next to the existing fields. Existing consumers ignore the
+field. This is not a breaking change.
 
-De kleur komt uit `services/music_manager/genre_tint.py`. De genres die deze collectie dragen staan
-in een korte tabel — Hardstyle verdient het oranje van de festivals waar het vandaan komt, en dat is
-geen hash-uitkomst. Alles daarbuiten wordt uit de naam afgeleid met blake2b (níet `hash()`: CPython
-zout string-hashing per proces, dus dezelfde genre zou na elke herstart een andere kleur krijgen).
-Verzadiging en helderheid liggen vast, zodat de genrenaam in bijna-zwart over de tint leesbaar
-blijft, welke tint er ook uitkomt.
+The color comes from `services/music_manager/genre_tint.py`. The genres this collection carries are in a
+short table. Hardstyle deserves the orange of the festivals it comes from, and that is not a hash result.
+Everything outside the table is derived from the name with blake2b. Do not use `hash()`: CPython salts
+string hashing per process, so the same genre would get a different color after every restart.
+Saturation and brightness are fixed. So the genre name in near-black stays readable over the tint, whatever
+tint comes out.
 
-### Wie leest hem
+### Who reads it
 
-- **Web UI** — `src/lib/genreTints.js` haalt de lijst één keer op en plakt de tint op de
-  genre-items die van Subsonic's `getGenres` komen. `getGenres` kent geen kleur; deze join is de
-  reden dat de web UI de kleur niet zelf hoeft te kennen.
-- **App** — `MumaAPIDefinition.getLibraryGenres()`, gecachet door `GenreTintCache` (een uur). De
-  media browser antwoordt op de deadline van de beller, dus een netwerkcall per bladerniveau zou
-  een lijst laten wachten waar iemand naar kijkt. Een mislukte fetch behoudt wat er al was: de auto
-  is precies de plek waar MuMa het minst bereikbaar is, en een leeg raster is erger dan een oud.
+- **Web UI**: `src/lib/genreTints.js` fetches the list once and attaches the tint to the genre items that
+  come from Subsonic's `getGenres`. `getGenres` has no color. This join is why the web UI does not need to
+  know the colors itself.
+- **App**: `MumaAPIDefinition.getLibraryGenres()`, cached by `GenreTintCache` for one hour. The media
+  browser must answer within the caller's deadline. One network call per browse level would make a list
+  wait while someone is looking at it. A failed fetch keeps what was already there. The car is exactly
+  where MuMa is least reachable, and an empty grid is worse than an old one.
 
-Geen van beide clients heeft een eigen tabel. Dat is het hele punt: Hardstyle oranje in het ene en
-magenta in het andere is onzichtbaar tot beide naast elkaar openstaan, en van geen van beide kanten
-te testen.
+Neither client has its own table. That is the whole point. Hardstyle orange in one client and magenta in
+the other is invisible until both are open side by side, and it cannot be tested from either side.
 
-## Hoe Android Auto een niveau tekent
+## How Android Auto draws a level
 
-De auto beslist de indeling **per niveau, niet per item**. De hints reizen daarom op de
-`LibraryParams` van het niveau, niet op de items:
+The car decides the layout **per level, not per item**. So the hints travel on the `LibraryParams` of the
+level, not on the items:
 
-| Extra | Waarde | Betekenis |
+| Extra | Value | Meaning |
 |---|---|---|
-| `android.media.browse.CONTENT_STYLE_BROWSABLE_HINT` | `1` = lijst, `2` = raster | indeling van de bladerbare kinderen |
-| `android.media.browse.CONTENT_STYLE_PLAYABLE_HINT` | `1` = lijst, `2` = raster | indeling van de afspeelbare kinderen |
+| `android.media.browse.CONTENT_STYLE_BROWSABLE_HINT` | `1` = list, `2` = grid | layout of the browsable children |
+| `android.media.browse.CONTENT_STYLE_PLAYABLE_HINT` | `1` = list, `2` = grid | layout of the playable children |
 
-De sleutels komen uit `androidx.media.utils.MediaConstants`. Die bibliotheek staat niet op het
-classpath; de waarden liggen vast, dus ze zijn overgenomen als letterlijke constante — zoals
-`BROWSER_SEARCH_SUPPORTED` er al stond.
+The keys come from `androidx.media.utils.MediaConstants`. That library is not on the classpath. The values
+are fixed, so they were copied in as literal constants, the same way `BROWSER_SEARCH_SUPPORTED` already was.
 
-**Zonder deze hints negeert de auto de artwork-URI van bladerbare items grotendeels.** Cover art
-renderen zonder de hint te zetten levert dus geen zichtbaar verschil op. Dat is de reden dat stap 2
-vóór stap 3 gaat.
+**Without these hints, the car mostly ignores the artwork URI of browsable items.** So rendering cover art
+without setting the hint makes no visible difference. That is why step 2 comes before step 3.
 
-## De regel
+## The rule
 
 `contentStyleParams(items)` in
 `services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/service/androidauto/ContentStyle.kt`
-beslist over de hele lijst:
+decides over the whole list:
 
-- **Bladerbaar wordt een raster** zodra minstens één bladerbaar kind cover art draagt.
-- **Cover art is niet hetzelfde als een icoon.** Een URI met scheme `android.resource` is een
-  vector uit de APK — het hoofdmenu draagt die — en telt niet mee. Als tegel is dat een klein glyph
-  op een leeg vlak, en de naam die de ingangen onderscheidt krijgt minder ruimte dan in de lijst.
-- **Eén cover is genoeg.** Een albumpagina voorbij de eerste voegt een bladerbare "Meer"-ingang
-  zonder eigen beeld toe. Die ene ingang mag de pagina niet terugtrekken naar een lijst, juist waar
-  de collectie het grootst is.
-- **Afspeelbaar blijft altijd een lijst.** Een raster van veertig tracks kost de bestuurder meer
-  blikken dan veertig regels.
+- **A browsable level becomes a grid** as soon as at least one browsable child carries cover art.
+- **Cover art is not the same as an icon.** A URI with the scheme `android.resource` is a vector from the
+  APK. The main menu carries those, and they do not count. As a tile, such a vector is a small glyph on an
+  empty surface. The name that tells the entries apart then gets less room than it does in a list.
+- **One cover is enough.** An album page past the first one adds a browsable "More" entry with no image of
+  its own. That one entry must not pull the page back to a list. That is exactly where the collection is
+  largest.
+- **Playable always stays a list.** A grid of forty tracks costs the driver more glances than forty rows.
 
-De regel leest de items zelf, dus niveaus die in stap 3 cover art krijgen — genres, festivals —
-worden vanzelf een raster zonder dat er een lijst met media-ids onderhouden hoeft te worden.
+The rule reads the items itself. So levels that get cover art in step 3 (genres, festivals) become a grid
+automatically. No list of media ids has to be maintained.
 
-## Waar het is aangesloten
+## Where it is connected
 
-Stap 4 zit in `HomeCardAdapter`: `HomeCardArt.kindFor(card)` beslist of een kaart een getekende
-cover krijgt, en dezelfde drie families gelden als in de auto. Een kaart waar de server wél een
-plaat voor heeft houdt die plaat, en een soort zonder cover-familie (label, jaar, playlist) houdt
-zijn icoon. De kleur komt uit `AppGenreTints.cache`, één cache voor de hele app: twee caches
-zouden een venster geven waarin de auto en de telefoon het oneens zijn over Hardstyle.
+Step 4 sits in `HomeCardAdapter`. `HomeCardArt.kindFor(card)` decides whether a card gets a drawn cover, and
+the same three families apply as in the car. A card for which the server does have an image keeps that
+image. A kind without a cover family (label, year, playlist) keeps its icon. The color comes from
+`AppGenreTints.cache`, one cache for the whole app. Two caches would open a window in which the car and the
+phone disagree about Hardstyle.
 
-- `MediaLibraryBase.itemListResult(items)` bouwt het antwoord mét params. Alle 27 plekken in
-  `MediaLibraryBrowser` die `LibraryResult.ofItemList(..., null)` teruggaven, gaan er nu doorheen,
-  net als `emptyResult`. Een niveau kan het dus niet meer vergeten.
-- `searchableRootParams` zet lijst/lijst als globale terugval, naast de bestaande zoekclaim. Dat is
-  wat de auto gebruikt voor alles wat niet via `itemListResult` loopt.
+- `MediaLibraryBase.itemListResult(items)` builds the answer with its params. All 27 places in
+  `MediaLibraryBrowser` that returned `LibraryResult.ofItemList(..., null)` now pass through it, and so does
+  `emptyResult`. A level can therefore no longer forget them.
+- `searchableRootParams` sets list/list as the global fallback, next to the existing search claim. The car
+  uses that for everything that does not go through `itemListResult`.
 
 ## Cross-App Impact
 
-Stap 2: geen. Alleen `services/muma-mobile`.
+Step 2: none. Only `services/muma-mobile`.
 
-Stap 1 en 3 raken `music-management-server` (tint naast de genrenaam) en `frontend` (dezelfde tint
-gebruiken in plaats van een eigen tabel) tegelijk met de app.
+Steps 1 and 3 touch `music-management-server` (the tint next to the genre name) and `frontend` (which uses
+the same tint instead of its own table). They ship at the same time as the app.
 
 ## Technical Acceptance Criteria
 
-1. `contentStyleParams` geeft `CONTENT_STYLE_GRID_ITEM` als een bladerbaar item een `content://`-URI
-   als artwork heeft.
-2. `contentStyleParams` geeft `CONTENT_STYLE_LIST_ITEM` als geen enkel bladerbaar item artwork heeft.
-3. `contentStyleParams` geeft `CONTENT_STYLE_LIST_ITEM` als het enige artwork een
-   `android.resource://`-URI is.
-4. Eén item met artwork tussen bladerbare items zonder artwork levert `CONTENT_STYLE_GRID_ITEM`.
-5. De hint voor afspeelbare items is altijd `CONTENT_STYLE_LIST_ITEM`, ook als die items artwork
-   dragen.
-6. Artwork op een afspeelbaar item verandert de bladerbare hint niet.
-7. Een leeg niveau levert `CONTENT_STYLE_LIST_ITEM`.
-8. `browser.getChildren(...)` voor het hoofdmenu geeft een resultaat met niet-lege `params`, met
-   `CONTENT_STYLE_LIST_ITEM` als bladerbare hint.
-9. `searchableRootParams` zet beide hints op `CONTENT_STYLE_LIST_ITEM` en behoudt
-   `BROWSER_SEARCH_SUPPORTED`.
+1. `contentStyleParams` returns `CONTENT_STYLE_GRID_ITEM` when a browsable item has a `content://` URI as its
+   artwork.
+2. `contentStyleParams` returns `CONTENT_STYLE_LIST_ITEM` when no browsable item has artwork.
+3. `contentStyleParams` returns `CONTENT_STYLE_LIST_ITEM` when the only artwork is an `android.resource://`
+   URI.
+4. One item with artwork among browsable items without artwork returns `CONTENT_STYLE_GRID_ITEM`.
+5. The hint for playable items is always `CONTENT_STYLE_LIST_ITEM`, even when those items carry artwork.
+6. Artwork on a playable item does not change the browsable hint.
+7. An empty level returns `CONTENT_STYLE_LIST_ITEM`.
+8. `browser.getChildren(...)` for the main menu returns a result with non-empty `params`, with
+   `CONTENT_STYLE_LIST_ITEM` as the browsable hint.
+9. `searchableRootParams` sets both hints to `CONTENT_STYLE_LIST_ITEM` and keeps `BROWSER_SEARCH_SUPPORTED`.
 
-Gedekt door `ContentStyleTest` en `SearchableRootParamsTest` in
+Covered by `ContentStyleTest` and `SearchableRootParamsTest` in
 `services/muma-mobile/app/src/test/kotlin/nl/teunschriks/mumamobile/service/androidauto/`.
 
-## Nog te bouwen
+## Still to build
 
-| Stap | Wat | Status |
+| Step | What | Status |
 |---|---|---|
-| 1 | Tint per genre vanaf de server; renderer die een cover tekent uit naam, soort en tint | **Geleverd** |
-| 2 | Content-style hints | **Geleverd** |
-| 3 | Artwork-URI bij bladerbare items in `MediaLibraryBrowser` | **Geleverd** voor genres en artiesten |
-| 4 | Home-strips op de telefoon cover-first maken, zoals de web UI | **Geleverd** voor genres, festivals en artiesten |
-| 5 | Echte festivalbeelden koppelen waar die er zijn en gebruikt mogen worden | Open |
+| 1 | Tint per genre from the server, and a renderer that draws a cover from name, kind and tint | **Delivered** |
+| 2 | Content-style hints | **Delivered** |
+| 3 | Artwork URI on browsable items in `MediaLibraryBrowser` | **Delivered** for genres and artists |
+| 4 | Home strips on the phone made cover-first | **Delivered** for genres, festivals and artists |
+| 5 | Link family B to real festival images where they exist and may be used | Open |
 
-Wat stap 3 bewust niet raakt: **playlists en tegels**. Die zijn bladerbaar en hebben geen beeld, dus
-hun niveau blijft een lijst. Een vierde cover-familie voor "een playlist" bestaat niet in het
-ontwerp, en er een verzinnen om het raster te vullen zou de lijst vervangen door tegels zonder
-betekenis. De festival-familie is wél gebouwd en getest, maar er is nog geen bladerniveau in de auto
-dat festivals toont — die komt met stap 5.
+Step 3 deliberately does not touch **playlists and tiles**. They are browsable and have no image, so their
+level stays a list. A fourth cover family for "a playlist" does not exist in the design. Inventing one to
+fill the grid would replace the list with tiles that mean nothing. The festival family is built and tested,
+but no browse level in the car shows festivals yet. That comes with step 5.
 
 ## Related Docs
 

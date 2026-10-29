@@ -105,7 +105,7 @@ class ClientKeyTest(unittest.TestCase):
         self.assertEqual(rate_limit.client_key(self.make_request()), '172.18.0.5')
 
     def test_a_trusted_proxy_is_believed(self):
-        """LMS (or the nginx in front of spotify.<domain>) on the Docker network reports the client."""
+        """LMS (or the nginx in front of the web-player host) on the Docker network reports the client."""
         request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'})
         self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
 
@@ -233,7 +233,7 @@ def _widen_windows(test):
 
 class AuthEndpointRateLimitTest(unittest.TestCase):
     def setUp(self):
-        # A peer on the Docker network, like LMS or the nginx in front of spotify.<domain>:
+        # A peer on the Docker network, like LMS or the nginx in front of the web-player host:
         # its X-Forwarded-For is believed, so a test can present a different client.
         self.client = TestClient(app, client=('172.18.0.5', 50000))
         rate_limit.reset_limiters()

@@ -100,6 +100,15 @@ class ConfigAndDocsTest(ManagementTestCase):
         self.assertEqual(body['DB_NAME'], 'muma')
         self.assertIn('VERSION', body)
 
+    def test_the_phpmyadmin_link_is_empty_until_configured(self):
+        with patch.dict('os.environ', {}, clear=False):
+            management_router.os.environ.pop('PHPMYADMIN_URL', None)
+            body = self.client.get('/api/config', headers=self.headers).json()
+        self.assertEqual(body['PHPMYADMIN_URL'], '')
+        with patch.dict('os.environ', {'PHPMYADMIN_URL': 'http://db.example.org:8002'}):
+            body = self.client.get('/api/config', headers=self.headers).json()
+        self.assertEqual(body['PHPMYADMIN_URL'], 'http://db.example.org:8002')
+
     def test_a_missing_version_file_falls_back_to_a_default(self):
         with patch('builtins.open', side_effect=FileNotFoundError):
             body = self.client.get('/api/config', headers=self.headers).json()
@@ -200,7 +209,7 @@ class SystemTest(ManagementTestCase):
     def test_a_listed_name_resolving_to_another_container_is_refused(self):
         # Docker resolves id prefixes too; the resolved container's own name decides.
         with patch.object(management_router, 'docker') as docker:
-            docker.from_env.return_value.containers.get.return_value.name = 'password manager'
+            docker.from_env.return_value.containers.get.return_value.name = 'unrelated-container'
             response = self.client.get('/api/system/logs/db', headers=self.headers)
         self.assertEqual(response.status_code, 404)
 

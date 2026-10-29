@@ -340,7 +340,7 @@ def get_config(_auth: dict = Depends(verify_api_key)):
         'DB_HOST': os.getenv('DB_HOST'),
         'DB_NAME': os.getenv('DB_DB'),
         'VERSION': version,
-        'PHPMYADMIN_URL': os.getenv('PHPMYADMIN_URL', 'http://muma.example.com:8002'),
+        'PHPMYADMIN_URL': os.getenv('PHPMYADMIN_URL', ''),
     }
 
 

@@ -74,7 +74,7 @@ def parse_args():
     parser.add_argument('--batch', type=int, default=5000, help='Rows per page (default 5000).')
     parser.add_argument('--api-base', default=None,
                         help='Base URL of the running music-manager API, e.g. '
-                             'http://192.0.2.27:8000/api. Without it the two settings are only '
+                             'http://localhost:8000/api. Without it the two settings are only '
                              'reported, not changed.')
     parser.add_argument('--api-key', default=os.environ.get('MUMA_API_KEY') or os.environ.get('API_KEY'),
                         help='API key for --api-base. Defaults to MUMA_API_KEY from the environment, '

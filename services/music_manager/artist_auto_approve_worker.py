@@ -60,12 +60,12 @@ from services.common.Helpers.ArtistEvidence import (
     SOURCES,
     TIMEOUT,
     UNRESOLVED,
-    USER_AGENT,
     Verdict,
     _deezer_error,
     fold,
     resolve,
     titles_hash,
+    user_agent,
 )
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.thread_registry import default_stale_after, run_forever
@@ -235,7 +235,7 @@ def _default_session() -> Any:
     import requests  # pylint: disable=import-outside-toplevel  # only the loop needs it
 
     session = requests.Session()
-    session.headers['User-Agent'] = USER_AGENT
+    session.headers['User-Agent'] = user_agent()
     return session
 
 

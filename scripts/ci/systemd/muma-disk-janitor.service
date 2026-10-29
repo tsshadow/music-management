@@ -9,6 +9,10 @@ Type=oneshot
 # that is the runner user; on Teun's workstation it is user. Both are in the
 # docker group, so no root is required and none is taken.
 User=gitlab-runner
+# DOCKER_USER (the registry user of the release images) has no default: the janitor
+# exits 2 without it. Put it in /etc/muma-disk-janitor.env (DOCKER_USER=...), or in a
+# drop-in with Environment=DOCKER_USER=... ; the file is optional so the unit still loads.
+EnvironmentFile=-/etc/muma-disk-janitor.env
 ExecStart=/opt/muma-disk-janitor/disk-janitor.sh
 # A full disk is not an emergency worth a failed unit in the journal every
 # hour: the script exits 1 only when it has swept all it safely can and is

@@ -2,7 +2,7 @@
 
 Seven scripts in this directory each carried the same block:
 
-    host = os.getenv("DB_HOST", "192.0.2.27")
+    host = os.getenv("DB_HOST", "<the production address>")
     user = "root"
     password = "<the production root password, in plain text>"
 

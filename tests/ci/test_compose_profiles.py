@@ -103,13 +103,15 @@ def _run_secrets_check(tmp_path, env_lines):
         'SIGNING_STORE_FILE': 'f',
         'PROD_ENV_FILE': str(env),
         'PROD_ENV_FILE_LMS': str(lms),
+        'PROD_REMOTE_HOST': 'prod.example.org',
+        'PROD_SSH_ACCEPT_NEW_HOST_KEY': 'true',
     }
     return subprocess.run(['bash', str(SECRETS_SH)], env=base, capture_output=True, text=True, check=False)
 
 
 def test_secrets_check_behaviour(tmp_path):
     """Missing COMPOSE_PROFILES fails the check; the full set passes it."""
-    common = ['GOOGLE_CLIENT_ID=g', 'API_KEY=k', 'FIREFOX_PASSWORD=p']
+    common = ['GOOGLE_CLIENT_ID=g', 'API_KEY=k', 'FIREFOX_PASSWORD=p', 'DOCKER_USER=u']
     bad = _run_secrets_check(tmp_path, common)
     assert bad.returncode == 1
     assert "'COMPOSE_PROFILES'" in bad.stdout
@@ -141,7 +143,7 @@ def test_dev_stack_enables_all_profiles():
 def test_deploy_refuses_an_env_file_without_compose_profiles(tmp_path):
     """deploy.sh stops before touching the host when the env file has no COMPOSE_PROFILES."""
     env_file = tmp_path / 'prod.env'
-    env_file.write_text('DB_DB=music-management\n', encoding='utf-8')
+    env_file.write_text('DB_DB=music-management\nDOCKER_USER=tester\n', encoding='utf-8')
     env = {
         **os.environ,
         'LOCAL_ENV_FILE': str(env_file),

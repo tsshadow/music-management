@@ -475,6 +475,18 @@ def _config_fields() -> list[ConfigField]:
             description='Path delimiter used when parsing artist/title strings.',
         ),
         ConfigField(
+            key='project_url',
+            type='string',
+            default='',
+            env='PROJECT_URL',
+            group='About',
+            description=(
+                'Address of this installation\'s project page. Goes into the User-Agent of requests to '
+                'MusicBrainz, Deezer and other public APIs, so their operators can reach you. '
+                'Empty sends no address. Read at start-up.'
+            ),
+        ),
+        ConfigField(
             key='tagger_deep_run_days',
             type='integer',
             default=30,

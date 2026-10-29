@@ -21,7 +21,7 @@
 # Required GitLab CI/CD variables (same ones deploy already needs, see
 # docs/deployment.md): PROD_ENV_FILE, PROD_ENV_FILE_LMS -- plus the four
 # variables that gate release jobs at the `rules:` level (DOCKERHUB_USERNAME,
-# DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE), because a job gated on
+# DOCKERHUB_TOKEN, APK_HOSTER_URL, SIGNING_STORE_FILE) and PROD_REMOTE_HOST, because a job gated on
 # a missing variable is silently absent rather than red.
 
 set -e
@@ -103,6 +103,22 @@ require_var "APK_HOSTER_URL" \
     "mobile:build-release vanishes and the release ships without an APK" || missing=1
 require_var "SIGNING_STORE_FILE" \
     "mobile:build-release vanishes and the release ships without an APK" || missing=1
+# scripts/ci/prod-ssh-setup.sh has no default production host: without this the deploy job stops
+# at its first line, after the images are already built.
+require_var "PROD_REMOTE_HOST" \
+    "every job that connects to the production host stops before it connects" || missing=1
+
+# The production host needs a key in PROD_SSH_KNOWN_HOSTS (a file-type variable; or the linked
+# scripts/ssh/known_hosts, or an explicit
+# PROD_SSH_ACCEPT_NEW_HOST_KEY=true). Checked here so a host name without one fails this job,
+# not muma:deploy after the images are built.
+if [ -n "${PROD_REMOTE_HOST:-}" ]; then
+    # shellcheck source=scripts/lib/ssh_host_keys.sh
+    . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
+    if ssh_pinned_host_missing "$PROD_REMOTE_HOST"; then
+        missing=1
+    fi
+fi
 
 if [ -z "${PROD_ENV_FILE}" ]; then
     echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
@@ -127,6 +143,18 @@ else
     # gone, so an unset value would reach the container as an empty password.
     # See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
     require_key "$env_content" "FIREFOX_PASSWORD" "PROD_ENV_FILE" || missing=1
+    # DOCKER_USER: the registry user the images are named under. deploy.sh finds the
+    # remote compose file by it and has no default; it must be the account the CI pushes to.
+    if require_key "$env_content" "DOCKER_USER" "PROD_ENV_FILE"; then
+        docker_user="$(printf '%s\n' "$env_content" | grep -E "^DOCKER_USER=" | tail -1 | cut -d'=' -f2- | tr -d "\"'")"
+        if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ "$docker_user" != "${DOCKERHUB_USERNAME}" ]; then
+            echo "Mismatch: DOCKER_USER in 'PROD_ENV_FILE' differs from the DOCKERHUB_USERNAME CI/CD variable."
+            echo "  Images are pushed as DOCKERHUB_USERNAME and pulled as DOCKER_USER; they must be the same account."
+            missing=1
+        fi
+    else
+        missing=1
+    fi
     # The source workers (importer, youtube, soundcloud, telegram) sit behind
     # compose profiles. Without COMPOSE_PROFILES a deploy starts none of them,
     # and a compose v2 host removes the running ones as orphans.

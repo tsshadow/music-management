@@ -9,6 +9,7 @@ container runtime. This test just imports/exercises them to catch that early.
 
 import importlib
 import pathlib
+import re
 
 
 def test_soundcloud_fetcher_imports():
@@ -75,7 +76,7 @@ def test_ad_hoc_db_tools_have_no_credentials_of_their_own():
     ):
         source = (tools_dir / f'{name}.py').read_text(encoding='utf-8')
         assert 'mysql+mysqlconnector://' not in source, f'tools/{name}.py builds its own database URL again'
-        assert '192.0.2.27' not in source, f'tools/{name}.py defaults to the production host again'
+        assert not re.search(r'192\.168\.\d', source), f'tools/{name}.py defaults to a LAN host again'
         assert 'from tools.db_url import database_url' in source, (
             f'tools/{name}.py no longer takes its URL from the shared helper'
         )

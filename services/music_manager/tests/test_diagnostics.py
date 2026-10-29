@@ -135,11 +135,11 @@ class TestDiagnostics(unittest.TestCase):
         from services.music_manager.routers import diagnostics
 
         with patch.object(diagnostics, '_settings') as mock_settings:
-            mock_settings.get.return_value = 'http://192.0.2.40:9876/crash'
+            mock_settings.get.return_value = 'http://198.51.100.40:9876/crash'
             diagnostics._post_crash_hook(12)
 
         args, kwargs = mock_post.call_args
-        self.assertEqual(args[0], 'http://192.0.2.40:9876/crash')
+        self.assertEqual(args[0], 'http://198.51.100.40:9876/crash')
         self.assertEqual(kwargs['json'], {'id': 12})
 
     @patch('services.music_manager.routers.diagnostics.get_db_connection')

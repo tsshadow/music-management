@@ -50,9 +50,14 @@ if [ -z "${RENOVATE_TOKEN:-}" ]; then
     exit 1
 fi
 
-# $CI_API_V4_URL is set by GitLab; the fallback is for running this by hand.
-ENDPOINT="${RENOVATE_ENDPOINT:-${CI_API_V4_URL:-https://gitlab.example.com/api/v4}}"
-REPOSITORY="${RENOVATE_REPOSITORIES:-${CI_PROJECT_PATH:-muma/music-management}}"
+# GitLab CI sets $CI_API_V4_URL and $CI_PROJECT_PATH. There is no default for either.
+ENDPOINT="${RENOVATE_ENDPOINT:-${CI_API_V4_URL:-}}"
+REPOSITORY="${RENOVATE_REPOSITORIES:-${CI_PROJECT_PATH:-}}"
+if [ -z "$ENDPOINT" ] || [ -z "$REPOSITORY" ]; then
+    echo "ERROR: set RENOVATE_ENDPOINT (the GitLab API v4 URL) and RENOVATE_REPOSITORIES (group/project)." >&2
+    echo "  GitLab CI sets CI_API_V4_URL and CI_PROJECT_PATH itself; a run by hand has to set them." >&2
+    exit 1
+fi
 
 # Renovate reads release notes for the dependencies it proposes from github.com
 # and is rate-limited to 60 requests an hour without a token. Optional: without

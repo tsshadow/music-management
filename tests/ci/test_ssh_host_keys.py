@@ -7,6 +7,7 @@ the production env file on stdin and the migrations
 (docs/bug-reports/081-compose-logs-grow-without-bound.md).
 """
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -65,6 +66,20 @@ def test_no_production_ssh_call_disables_host_key_checking(path: Path):
 
 def test_the_ci_setup_no_longer_learns_the_key_from_ssh_keyscan():
     assert not any("ssh-keyscan" in line for line in _code_lines(PROD_SSH_SETUP))
+
+
+def test_the_ci_setup_has_no_default_production_host():
+    """A missing PROD_REMOTE_HOST stops the job and names the variable; nothing is guessed."""
+    assert not re.search(r"PROD_REMOTE_HOST:-[^}]", PROD_SSH_SETUP.read_text(encoding="utf-8"))
+    result = subprocess.run(
+        ["bash", "-c", '. "$1"; echo reached', "_", str(PROD_SSH_SETUP)],
+        capture_output=True,
+        text=True,
+        env={"PATH": "/usr/bin:/bin", "SSH_PRIVATE_KEY": "unused"},
+    )
+    assert result.returncode == 1
+    assert "PROD_REMOTE_HOST" in result.stderr
+    assert "reached" not in result.stdout
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
@@ -144,3 +159,47 @@ class TestPipelineFailsClosed:
         result = subprocess.run(["bash", str(PROD_SSH_SETUP)], capture_output=True, text=True, env=env)
         assert result.returncode != 0
         assert "no pinned host key" in result.stderr
+
+
+def _opts_env(host: str, pinned: Path, **extra: str):
+    """Run ssh_host_key_opts with PROD_REMOTE_HOST set; return the completed process."""
+    return subprocess.run(
+        ["bash", "-c", '. "$1"; ssh_host_key_opts "$2"', "_", str(LIB), host],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PATH": "/usr/bin:/bin", "SSH_PINNED_KNOWN_HOSTS": str(pinned), "PROD_REMOTE_HOST": host, **extra},
+    )
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_the_production_host_without_a_pinned_key_does_not_fall_back_to_accept_new(tmp_path: Path, pinned: Path):
+    result = _opts_env("other-name.example.org", pinned)
+    assert result.returncode == 1
+    assert "accept-new" not in result.stdout
+    assert "PROD_SSH_KNOWN_HOSTS" in result.stderr
+    assert "PROD_SSH_ACCEPT_NEW_HOST_KEY" in result.stderr
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_accepting_a_new_production_key_needs_an_explicit_switch(tmp_path: Path, pinned: Path):
+    result = _opts_env("other-name.example.org", pinned, PROD_SSH_ACCEPT_NEW_HOST_KEY="true")
+    assert result.stdout.splitlines() == ["-o", "StrictHostKeyChecking=accept-new"]
+    assert result.stderr == ""
+
+
+@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
+def test_the_ci_setup_stops_when_the_production_host_is_not_pinned(pinned: Path):
+    result = subprocess.run(
+        ["bash", "-c", '. "$1"; echo reached', "_", str(PROD_SSH_SETUP)],
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "SSH_PRIVATE_KEY": "unused",
+            "PROD_REMOTE_HOST": "unlisted.example.org",
+            "SSH_PINNED_KNOWN_HOSTS": str(pinned),
+        },
+    )
+    assert "reached" not in result.stdout
+    assert result.returncode != 0

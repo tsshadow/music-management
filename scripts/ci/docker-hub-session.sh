@@ -6,7 +6,7 @@
 # `docker login` writes the token into $DOCKER_CONFIG/config.json, which is
 # ~/.docker/config.json of the runner account unless told otherwise. The runner
 # is a shell executor shared by every pipeline, merge requests included, so a
-# plain login left the push token of the muma account readable by any later
+# plain login left the push token of the registry account readable by any later
 # job on that machine. docker_hub_login points DOCKER_CONFIG at a fresh private
 # directory first; docker_hub_logout logs out and removes it. Callers run the
 # logout from their EXIT trap. See

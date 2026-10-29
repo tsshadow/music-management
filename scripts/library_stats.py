@@ -12,14 +12,8 @@ def get_db_connection():
         conn = pymysql.connect(host=host, port=int(os.getenv('DB_PORT', '3306')), user=os.getenv('DB_USER', 'music-management'), password=os.getenv('DB_PASS', ''), database=os.getenv('DB_DB', 'music-management'), cursorclass=pymysql.cursors.DictCursor, connect_timeout=5)
         return conn
     except Exception as e:
-        if host == 'localhost':
-            try:
-                conn = pymysql.connect(host='192.0.2.27', port=int(os.getenv('DB_PORT', '3306')), user=os.getenv('DB_USER', 'music-management'), password=os.getenv('DB_PASS', ''), database=os.getenv('DB_DB', 'music-management'), cursorclass=pymysql.cursors.DictCursor, connect_timeout=2)
-                return conn
-            except:
-                pass
-        print(f'\x1b[31mFout: Kon geen verbinding maken met de database op {host}.\x1b[0m')
-        print('Zorg ervoor dat de database container draait of dat de SSH tunnel actief is.')
+        print(f'\x1b[31mFout: Kon geen verbinding maken met de database op {host}: {e}\x1b[0m')
+        print('Zorg ervoor dat de database container draait, of zet DB_HOST naar de database (bijvoorbeeld via een SSH tunnel).')
         return None
 
 def print_stats():

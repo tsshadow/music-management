@@ -78,6 +78,7 @@ GATING_VARS = {
     "DOCKERHUB_TOKEN": "a-token",
     "APK_HOSTER_URL": "https://apk.example",
     "SIGNING_STORE_FILE": "/tmp/keystore",
+    "PROD_REMOTE_HOST": "prod.example.org",
 }
 
 
@@ -87,6 +88,8 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
         "PROD_ENV_FILE": env_content,
         "PROD_ENV_FILE_LMS": lms_env_content,
         **GATING_VARS,
+        # The example host has no pinned key; the pinning check has its own tests below.
+        "PROD_SSH_ACCEPT_NEW_HOST_KEY": "true",
         **overrides,
     }
     env = {k: v for k, v in env.items() if v is not None}
@@ -100,7 +103,10 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
 
 
 LMS_ENV = "VITE_GOOGLE_CLIENT_ID=some-client-id\n"
-BASE_ENV = "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nCOMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n"
+BASE_ENV = (
+    "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nDOCKER_USER=someone\n"
+    "COMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n"
+)
 
 
 def test_secrets_check_rejects_a_release_without_any_system_key():
@@ -145,3 +151,42 @@ def test_secrets_check_rejects_a_release_without_a_firefox_password():
     result = run_secrets_check(BASE_ENV.replace("FIREFOX_PASSWORD=not-admin\n", "") + "API_KEY=a-real-key\n", LMS_ENV)
     assert result.returncode != 0
     assert "FIREFOX_PASSWORD" in result.stdout
+
+
+def test_secrets_check_requires_docker_user_in_the_prod_env():
+    result = run_secrets_check(BASE_ENV.replace("DOCKER_USER=someone\n", "") + "API_KEY=k\n", LMS_ENV)
+    assert result.returncode != 0
+    assert "DOCKER_USER" in result.stdout
+
+
+def test_secrets_check_rejects_a_docker_user_that_differs_from_the_hub_account():
+    result = run_secrets_check(BASE_ENV + "API_KEY=k\n", LMS_ENV, DOCKERHUB_USERNAME="another-account")
+    assert result.returncode != 0
+    assert "DOCKERHUB_USERNAME" in result.stdout
+
+
+def test_secrets_check_accepts_a_quoted_docker_user_that_matches():
+    result = run_secrets_check(
+        BASE_ENV.replace("DOCKER_USER=someone", 'DOCKER_USER="someone"') + "API_KEY=k\n", LMS_ENV
+    )
+    assert result.returncode == 0, result.stdout
+
+
+def test_secrets_check_fails_early_for_a_production_host_without_a_pinned_key():
+    result = run_secrets_check(
+        BASE_ENV + "API_KEY=k\n", LMS_ENV, PROD_SSH_ACCEPT_NEW_HOST_KEY=None, PROD_SSH_KNOWN_HOSTS=None
+    )
+    assert result.returncode != 0
+    assert "PROD_SSH_ACCEPT_NEW_HOST_KEY" in result.stderr or "PROD_SSH_KNOWN_HOSTS" in result.stderr
+
+
+def test_secrets_check_accepts_a_production_host_with_a_known_hosts_file(tmp_path):
+    key = tmp_path / "key"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+    public = key.with_suffix(".pub").read_text(encoding="utf-8").split()
+    known = tmp_path / "known_hosts"
+    known.write_text(f"prod.example.org {public[0]} {public[1]}\n", encoding="utf-8")
+    result = run_secrets_check(
+        BASE_ENV + "API_KEY=k\n", LMS_ENV, PROD_SSH_ACCEPT_NEW_HOST_KEY=None, PROD_SSH_KNOWN_HOSTS=str(known)
+    )
+    assert result.returncode == 0, result.stderr

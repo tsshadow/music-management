@@ -214,6 +214,20 @@ class ConfigStoreEnvironmentTest(ConfigStoreTestCase):
         self.assertEqual(self.store.get('telegram_max_concurrent'), 4)
 
 
+class ConfigStoreProjectUrlTest(ConfigStoreTestCase):
+    def test_project_url_is_empty_by_default_and_belongs_to_about(self):
+        self.assertEqual(self.store.get('project_url'), '')
+        entry = next(item for item in self.store.describe() if item['key'] == 'project_url')
+        self.assertEqual(entry['group'], 'About')
+
+
+class ConfigStoreProjectUrlEnvironmentTest(ConfigStoreTestCase):
+    env = {'PROJECT_URL': 'https://example.org/muma'}
+
+    def test_project_url_comes_from_the_environment(self):
+        self.assertEqual(self.store.get('project_url'), 'https://example.org/muma')
+
+
 class ConfigStoreUppercaseEnvironmentTest(ConfigStoreTestCase):
     env = {'DEBUG': 'yes'}
 

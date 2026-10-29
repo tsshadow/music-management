@@ -26,7 +26,7 @@ one. What is kept, and why, goes to stderr.
 
 Production pulls `:latest`, so a previous release is usually not a version tag
 on the host but an image whose tag moved on: it keeps its repository only in its
-RepoDigests (`muma/music-manager@sha256:...`). That is
+RepoDigests (`<user>/music-manager@sha256:...`). That is
 why the rollback set is chosen by build time, not by tag. An image is kept when
 any of these holds:
 

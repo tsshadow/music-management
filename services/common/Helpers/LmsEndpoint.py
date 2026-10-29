@@ -43,8 +43,8 @@ def lms_base_url() -> str:
     that is right -- ``lms`` is the container_name of the separately deployed LMS
     stack, on the shared ``music-management_db`` network -- and that is exactly
     what made it dangerous everywhere else: a bare hostname is resolved by
-    whatever DNS the host has. On the office LAN ``lms`` resolves to
-    192.0.2.27, so a container started without LMS configuration called
+    whatever DNS the host has. On the owner's LAN ``lms`` resolves to
+    the production host, so a container started without LMS configuration called
     *production* every five seconds, and neither end said so. Production's LMS
     logs the rejection without a client address, so it reads as a fault in
     production's own radio thread; it took reading the reverse proxy's access log

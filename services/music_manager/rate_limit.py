@@ -20,8 +20,8 @@ Who the caller is
 -----------------
 `client_key` names the caller by address. The TCP peer is almost never the
 client: every login arrives through a proxy -- the nginx in front of
-spotify.<domain> (/muma/api/auth/login), or LMS itself for everything on
-lms.<domain>, whose password checks and proxied logins are made from the LMS
+the web-player host (/muma/api/auth/login), or LMS itself for everything on
+the LMS host, whose password checks and proxied logins are made from the LMS
 container. So an X-Forwarded-For header is read, but only when whoever wrote it
 can be believed:
 

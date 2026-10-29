@@ -17,3 +17,5 @@ vaultwar[d]en
 # The owner's login name, lower case and as a whole word. The inline (?-i) overrides the -i of git grep, so
 # the capitalised first name (the copyright holder) and the package id stay allowed.
 (?-i)(?<![A-Za-z0-9_])teu[n](?![A-Za-z0-9_])
+# The owner's employer, in any case and as a whole word.
+(?<![A-Za-z0-9_])mob[a](?![A-Za-z0-9_])

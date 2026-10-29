@@ -13,13 +13,13 @@
 # in the history either -- split it.
 
 # style(frontend): apply oxfmt to the whole frontend
-ed050f0d8dc49d217f86f7885a912b27aa9fd062
+39d1f2a5ea7cc20d0c44f454c372bb703f67c2f2
 
 # style(python): apply ruff format to services/, tools/ and tests/
-61917176a07fa340edf5efc801a7e38225c03205
+19c75d25a907a8d7524612f8a55e8850631d9155
 
 # style(mobile): apply ktlintFormat to every Kotlin module
-0a2d36b48284bd9413ecc66e88d1e412b4eb8efb
+5c97b6d9ab625854852b394b858d027e313c101e
 
 # style(server): apply clang-format to the MuMa Server sources
-594acfbbd6d038cc273cc449b8aaa83ab5b24df9
+ff0b1462b07f4138207d6407fa288bffb648b78f

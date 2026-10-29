@@ -231,6 +231,11 @@ clone still holds it, and `git log -S'<the value>'` finds it in seconds. Deletio
 is the second step; the first is always to rotate the credential at its source,
 after which the copy in history is worthless.
 
+The history of this repository was rewritten once, on 2026-10-29 (#189), after every
+credential committed until then had been rotated: `.env`, `.server-env.json` and the
+personal data in old commits are gone, and `.gitleaksignore` is empty. A rewrite is not
+the answer to a new leak; rotation is.
+
 The system API key described above is in this position. It was committed until
 the `api_key.py` change, so it must be replaced in `.env` (`API_KEY` and
 `MUMA_API_KEY`) and in every consumer configured with it -- the LMS integration's

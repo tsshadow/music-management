@@ -43,7 +43,7 @@ sudo systemctl enable --now muma-disk-janitor.timer
 ```
 
 Set `User=` in the unit to whichever account can talk to the Docker socket on that host — the unit
-ships with `gitlab-runner`, which is wrong on a workstation (`user` there). Neither needs root.
+ships with `gitlab-runner`, which is wrong on a workstation (the login user there). Neither needs root.
 
 Create `/etc/muma-disk-janitor.env` with `DOCKER_USER=<registry user of the release images>`; the unit
 reads it. Without it the janitor still prunes build cache, `android-ci` and `muma-test-*` images, and

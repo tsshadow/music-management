@@ -13,7 +13,7 @@ export ANDROID_HOME="$ANDROID_SDK_ROOT"
 export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
 # AVDs and adb keys must land somewhere this uid can write. NOT the image's
 # /home/ci: the image tag hashes only the Dockerfile, so a runner can inherit
-# an image built under a different uid (the workstation did - user's local
+# an image built under a different uid (the workstation did - the local
 # build, gitlab-runner's job) and /home/ci then belongs to someone else. The
 # wrapper therefore sets HOME=/tmp/emu-home, writable for any uid.
 mkdir -p "$HOME"

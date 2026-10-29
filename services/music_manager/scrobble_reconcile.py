@@ -65,7 +65,7 @@ LMS listens whose file muma does not know are counted as `lms_unmapped` and othe
 
 **Usernames are compared case-insensitively** (bug report 070). LMS's `login_name` and muma's
 `users.username` are the same account, but not always the same spelling: since a login-case bug
-(bug report 074) production has one person as both `user` and `Teun`, in LMS and in muma's
+(bug report 074) production has one person as both `user` and `User`, in LMS and in muma's
 listens, and a case-sensitive comparison split that person into two users whose plays could
 never pair. `classify()` therefore groups, pairs and applies the same-play guard on
 `str.casefold()`, and `_analyse()` rewrites every name -- LMS's, muma's listens', unmatched
@@ -243,7 +243,7 @@ def _pair_greedily(
 
 
 def _user_key(username: str) -> str:
-    """The form two usernames are compared in: `user` and `Teun` are one account."""
+    """The form two usernames are compared in: `user` and `User` are one account."""
     return username.casefold()
 
 

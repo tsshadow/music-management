@@ -123,7 +123,7 @@ def _canonical(username: str) -> str:
     """The account's own spelling of a name the system key sent.
 
     The spelling is part of the feed, not just a lookup key: the daily picks are seeded on
-    it (feeds/scoring.py), so "Teun" and "user" were two different mixes for one listener
+    it (feeds/scoring.py), so "User" and "user" were two different mixes for one listener
     (docs/bug-reports/074-login-case-forks-user-identity.md). A database that does not
     answer leaves the name as sent -- the build that follows needs the database anyway.
     """

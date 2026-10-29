@@ -250,27 +250,27 @@ class ClassifyTest(unittest.TestCase):
 
 
 class UsernameCaseTest(unittest.TestCase):
-    """`user` and `Teun` are one account on both sides (bug reports 070 and 074)."""
+    """`user` and `User` are one account on both sides (bug reports 070 and 074)."""
 
     def test_the_same_play_pairs_as_exact_across_spellings(self):
-        result = rec.classify([muma(1, T0 + 1, user='user')], [lms(10, T0, user='Teun')])
+        result = rec.classify([muma(1, T0 + 1, user='user')], [lms(10, T0, user='User')])
         self.assertEqual([(m.id, listen.id) for m, listen in result.exact], [(1, 10)])
         self.assertEqual(result.lms_only, [])
 
     def test_the_same_play_guard_ignores_case(self):
         result = rec.classify(
-            [muma(1, T0 + 55, track=2, user='user', created=T0 + 55)], [lms(10, T0, track=1, user='Teun')]
+            [muma(1, T0 + 55, track=2, user='user', created=T0 + 55)], [lms(10, T0, track=1, user='User')]
         )
         self.assertEqual([ok for _, ok in result.lms_only], [False])
-        result = rec.classify([], [lms(10, T0, user='Teun')], {'user': [T0 + 55]})
+        result = rec.classify([], [lms(10, T0, user='User')], {'user': [T0 + 55]})
         self.assertEqual([ok for _, ok in result.lms_only], [False])
 
     def test_canonicalize_uses_muma_s_users_spelling(self):
         muma_rows, lms_rows, unmatched = rec.canonicalize(
             {'user': 'user'},
-            [muma(1, T0, user='Teun'), muma(2, T0, user='anna')],
-            [lms(10, T0, user='Teun'), lms(11, T0, user='ANNA'), lms(12, T0, user='ghost')],
-            {'Teun': [T0], 'user': [T0 + 1]},
+            [muma(1, T0, user='User'), muma(2, T0, user='anna')],
+            [lms(10, T0, user='User'), lms(11, T0, user='ANNA'), lms(12, T0, user='ghost')],
+            {'User': [T0], 'user': [T0 + 1]},
         )
         self.assertEqual([m.username for m in muma_rows], ['user', 'anna'])
         self.assertEqual([listen.username for listen in lms_rows], ['user', 'anna', 'ghost'])
@@ -278,12 +278,12 @@ class UsernameCaseTest(unittest.TestCase):
 
     def test_load_canonical_usernames_keeps_the_oldest_account(self):
         cursor = MagicMock()
-        cursor.fetchall.return_value = [{'username': 'user'}, {'username': 'Teun'}, {'username': 'anna'}]
+        cursor.fetchall.return_value = [{'username': 'user'}, {'username': 'User'}, {'username': 'anna'}]
         self.assertEqual(rec.load_canonical_usernames(cursor), {'user': 'user', 'anna': 'anna'})
         self.assertIn('ORDER BY id', cursor.execute.call_args[0][0])
 
     def test_an_insert_carries_muma_s_spelling_and_an_unknown_user_is_never_insertable(self):
-        lms_rows = [lms(10, T0, user='Teun'), lms(11, T0 + 99999, user='ghost')]
+        lms_rows = [lms(10, T0, user='User'), lms(11, T0 + 99999, user='ghost')]
         with (
             patch.object(rec, 'load_lms_listens', return_value=lms_rows),
             patch.object(rec, 'load_muma_listens', return_value=[]),
@@ -299,9 +299,9 @@ class UsernameCaseTest(unittest.TestCase):
         self.assertEqual([params[2] for params in inserted], ['user'])
 
     def test_an_lms_username_filter_ignores_case(self):
-        server = lms_db([('2026-08-21T19:02:05.000', 0, 1, 1, 1)], [(1, '/music/a/b.mp3')], users=(('Teun',),))
+        server = lms_db([('2026-08-21T19:02:05.000', 0, 1, 1, 1)], [(1, '/music/a/b.mp3')], users=(('User',),))
         rows = rec.read_lms_listens(server, 'server-a', 'user')
-        self.assertEqual([row['username'] for row in rows], ['Teun'])
+        self.assertEqual([row['username'] for row in rows], ['User'])
 
 
 class FakeCursor:

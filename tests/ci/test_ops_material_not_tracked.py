@@ -52,8 +52,8 @@ OWNER_ONLY_PATTERNS = [
     r"192\.168\.",
     r"\bspotify\.[a-z0-9-]+\.[a-z]{2,}",
     "vaultwar" + "den",
-    "gitlab\\.user" + "schriks\\.nl",
-    r"/home/user",
+    "gitlab\\.teu" + "n" + "schriks\\.nl",
+    r"/home/teu" + "n",
     r"\bTeun\b",
 ]
 
@@ -63,4 +63,4 @@ def test_agents_md_names_no_owner_host():
     text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     found = [p for p in OWNER_ONLY_PATTERNS if re.search(p, text, re.IGNORECASE)]
     assert not found, f"AGENTS.md names owner-only values {found}; move them to muma-ops AGENTS.private.md"
-    assert "user" + "schriks" not in text.replace("nl.user" + "schriks.mumamobile", "").lower()
+    assert "teu" + "n" + "schriks" not in text.replace("nl.teu" + "n" + "schriks.mumamobile", "").lower()

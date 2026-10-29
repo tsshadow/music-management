@@ -6,7 +6,7 @@ Wants=docker.service
 [Service]
 Type=oneshot
 # Runs as the user whose Docker socket access it needs. On a GitLab runner host
-# that is the runner user; on Teun's workstation it is user. Both are in the
+# that is the runner user; on the workstation it is the login user. Both are in the
 # docker group, so no root is required and none is taken.
 User=gitlab-runner
 # DOCKER_USER (the registry user of the release images) has no default: the janitor

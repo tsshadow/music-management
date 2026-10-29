@@ -1,5 +1,4 @@
--- Proposals for releases the importer could not place. See
--- docs/superpowers/specs/2026-08-19-label-proposals-design.md
+-- Proposals for releases the importer could not place.
 --
 -- `folder` is unique so a later import cycle refreshes the row instead of adding a
 -- second one. `catid` is nullable because "no catalogue number in the name at all" is

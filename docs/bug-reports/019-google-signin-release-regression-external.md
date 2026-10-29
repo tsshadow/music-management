@@ -41,8 +41,7 @@ No code fix was possible without a confirmed code-level root cause. Instead:
 - The welcome dialog is no longer a hard lockout on login failure regardless of cause: a
   secondary, confirmed "skip" action switches to the app's existing offline mode, and an
   always-visible connectivity status line makes it clear up front whether the *server* or the
-  *login* is the problem. See
-  `docs/superpowers/specs/2026-07-30-ultrasonic-login-flow-design.md`.
+  *login* is the problem. See `docs/designs/ultrasonic-session-and-loading/technical.md`.
 
 # manual verification still needed (outside this repository)
 - In Google Cloud Console, confirm the Android-type OAuth client for `nl.teunschriks.mumamobile`

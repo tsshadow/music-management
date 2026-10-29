@@ -152,4 +152,4 @@ state, not an error. No breaking change: the existing label endpoints are untouc
 
 - [`docs/designs/importer/`](../importer/) — where the release-folder layout comes from.
 - [`services/tagger/Song/LabelPath.py`](../../../services/tagger/Song/LabelPath.py) — the path split reused here.
-- `docs/superpowers/specs/2026-08-23-curation-edit-pages-design.md` — the label edit page this extends.
+- [`../genre-curation/technical.md`](../genre-curation/technical.md) — the curation edit pages this extends.

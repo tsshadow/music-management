@@ -76,7 +76,7 @@ fails and stops:
   `playlistrandom`, so the key did nothing, and newest-first is the order `break_on_existing` needs.
 - `YoutubeArchive.insert` no longer writes to `downloads_youtube_accounts`. Following a channel is
   done only in the management screen. The rows the old insert already created are still in the
-  database (see `docs/open-work.md`).
+  database (see the GitLab issues).
 - Tests: `tests/unit/test_downloader_real_ytdlp.py` runs the real `yt_dlp.YoutubeDL` in a child
   interpreter with fake extractors. It checks that a 403 `ExtractorError` parks the YouTube source
   and reaches `logging`, that a refused flat listing raises, that `ShuttingDown` from a progress hook

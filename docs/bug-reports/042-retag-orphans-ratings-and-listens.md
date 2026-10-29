@@ -56,6 +56,6 @@ one it had just abandoned.
 
 Still open: the repair has not been run on production. An orphan whose title changed beyond
 normalisation (not just case or punctuation) has no match and is reported as `unmatched`; those
-need a person. See [open-work.md](../open-work.md).
+need a person. See the open GitLab issues.
 
 Follow-up: the first scan's file-name titles, which this key can never match, are relinked by a file-name key, and what no key matches is purged or listed. See bug report 104.

@@ -41,4 +41,4 @@ Two more things in the same reports:
 - The car layout is logged as published (`custom layout: CYCLE_RATING(icon=…), …`) and `onConnect`
   names the controller, so the next report after a drive shows whether the buttons left the app.
 
-The Android Auto buttons themselves are not fixed by this; see [open-work.md](../open-work.md).
+The Android Auto buttons themselves are not fixed by this; see the open GitLab issues.

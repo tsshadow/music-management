@@ -3,7 +3,7 @@
 # status: fixed
 
 The code side is fixed. The downloads only come back after a person logs in to YouTube again. That
-step is in `docs/open-work.md`, and a guided script is at `/tmp/muma-person/relogin-youtube-firefox.sh`.
+step is in the GitLab issues, and a guided script is at `/tmp/muma-person/relogin-youtube-firefox.sh`.
 
 # reported problem
 The production `events` table holds yt-dlp ERROR events that read

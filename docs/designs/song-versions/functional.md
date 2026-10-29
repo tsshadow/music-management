@@ -1,7 +1,7 @@
 # Song versions: best-version ranking and the Versions page — Functional Design
 
 Date: 2026-09-26. Decision by Teun (owner). Replaces the ranking order in
-[the original song-versions design](../../superpowers/specs/2026-08-23-song-versions-and-canonical-design.md#ranking);
+[the original song-versions design](../song-versions/technical.md);
 grouping, the pin, the split and the LMS sync from that design are unchanged.
 
 ## Overview

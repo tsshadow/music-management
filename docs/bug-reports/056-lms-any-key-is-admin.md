@@ -78,4 +78,4 @@ talks to MuMa directly on production and uses none of LMS's own routes. MuMa's
 Not changed here, and worth a separate decision: `/muma/api/auth/login` still answers every
 successful Subsonic login with LMS's `api-key` as the `api_key`. Where that value equals MuMa's
 system key, every user who logs in on the web holds the system key for MuMa itself. This fix stops
-that key from opening LMS's own admin routes, but not MuMa's. See docs/open-work.md.
+that key from opening LMS's own admin routes, but not MuMa's. See the GitLab issues.

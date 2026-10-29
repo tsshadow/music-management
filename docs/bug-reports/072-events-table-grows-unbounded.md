@@ -119,7 +119,7 @@ Not done on purpose: an automatic `OPTIMIZE TABLE`. InnoDB keeps the freed pages
 `events.ibd`, so the file stays at ~7 GB after the clean-up. A rebuild copies the whole table and
 needs that much free disk. A person runs it once retention has caught up, see
 `docs/deployment.md`, "Reclaiming space in the events table". It is listed under "Needs a person"
-in `docs/open-work.md`.
+in the GitLab issues.
 
 Tests: `services/music_manager/tests/test_events_retention.py` runs the pass against an in-memory
 table. It checks the per-level windows, the primary-key batches with pauses, the stop at the time

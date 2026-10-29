@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Daily database backup: dump, verify, prune, and alert when it did not work.
 
-Implements docs/superpowers/specs/2026-08-02-daily-db-backups-design.md. Three
-things deviate from that document, each for a reason recorded here:
+Operating manual: scripts/backup/README.md. Three things differ from the
+original plan, each for a reason recorded here:
 
 - **The alert is pushed synchronously.** The design assumed
   ``NotificationService`` still read ``notify_url`` itself. It does not: the push

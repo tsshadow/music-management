@@ -84,5 +84,5 @@ never ran half-migrated: the job stopped before `up` both times.
   applies anything.
 - **Docs:** `docs/deployment.md` explains the ledger, the timeout, the order, and what to do when a
   deploy stops on a lock wait: find the holder in the printed processlist, `KILL QUERY` it, retry the
-  job. The `PROCESS` grant for `muma-readonly` is in `docs/open-work.md`, because it needs a person
+  job. The `PROCESS` grant for `muma-readonly` is in the GitLab issues, because it needs a person
   on production.

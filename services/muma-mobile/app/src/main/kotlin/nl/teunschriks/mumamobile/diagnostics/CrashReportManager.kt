@@ -29,7 +29,7 @@ import timber.log.Timber
  * (either an explicit [UncaughtExceptionHandler] file, or an implicit one
  * inferred from [SessionMarker] after a silent kill) and gets it off the
  * device via local storage and the backend, per the debug/release consent
- * rules described in docs/superpowers/specs/2026-07-30-android-crash-log-reporting-design.md.
+ * rules for crash reports.
  *
  * The whole mechanism is gated on [Settings.crashDetectionEnabled], which is off by default.
  */

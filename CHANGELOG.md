@@ -4631,8 +4631,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.40.0] - 2026-09-01
 
 ### Added
-- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
-  `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`
+- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp is gebouwd: `tools/db_backup.py`
   dumpt, verifieert, schoont op en klaagt als dat niet lukte. Drie systemd-timers in
   `scripts/backup/systemd/` doen 's nachts de dump, 's ochtends een verval-controle en zondags de
   herstelproef. Waarom het nodig was: het nieuwste bestand in `/muma/backups` was van 23 juli, er
@@ -4937,8 +4936,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   achter de system-API-key: `GET /api/diagnostics/crash-reports/{id}` en
   `PATCH /api/diagnostics/crash-reports/{id}/status`. Migratie: `migrate_v17_crash_report_status.sql`,
   met de gebruikelijke kolomguard in de router voor bestaande installaties. Dit is de serverhelft
-  van de crash-triage-automatisering; het ontwerp staat in
-  `docs/superpowers/specs/2026-08-31-crash-triage-automation-design.md`.
+  van de crash-triage-automatisering; het ontwerp staat in de private muma-ops-repository.
 
 ### Fixed
 - **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
@@ -6845,8 +6843,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source, so they cannot drift apart; the adaptive foreground scales the disc to 83% so a round or
   square mask cannot clip it, and the monochrome layer carries only the bars, since themed icons
   get one colour. `applicationId` deliberately stays `nl.teunschriks.mumamobile`, so updates keep
-  landing on the existing install. Written up in
-  `docs/superpowers/specs/2026-08-05-muma-brand-design.md`.
+  landing on the existing install. Written up in the private muma-ops repository.
 
 ### Fixed
 - **"Recently played" remembers what was played, not only what was opened.** The home grid recorded

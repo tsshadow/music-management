@@ -4,7 +4,7 @@
 
 Code fixed on both sides. For the per-client limit to see real clients on `lms.<domain>`, LMS has
 to look behind Nginx Proxy Manager, which is a setting in production's `lms.conf` and is tracked in
-`docs/open-work.md`.
+the GitLab issues.
 
 # reported problem
 Found in the September 2026 repository audit (items C13 and the rest of A1.13).

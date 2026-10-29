@@ -26,7 +26,7 @@ the same and which were meant to differ.
 # Possible reason
 
 **C5.** Routes outlived the UI that used them. The About tab and the old Tagger tab were removed
-from the management page (docs/superpowers/specs/2026-08-24-browse-and-management-overhaul-design.md),
+from the management page (an agent plan, since removed),
 and the artist curation page took over redirects. Aliases were kept "for compatibility" after the
 LMS -> MuMa server rename, and nobody went back to remove them. Two of the listed routes turned out
 to have a consumer after all. The audit's grep looked for literal paths, but the web player builds

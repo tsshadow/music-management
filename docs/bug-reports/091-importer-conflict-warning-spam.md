@@ -61,4 +61,4 @@ same pair was compared again — reading the length of every track over CIFS —
 
 Expected effect on production: 49 WARNINGs once after the deploy (the table starts empty), then ~10
 INFO summary lines an hour instead of ~490 WARNINGs. The 49 pairs themselves still need a person;
-see `docs/open-work.md`.
+see the GitLab issues.

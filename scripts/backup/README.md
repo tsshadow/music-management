@@ -1,7 +1,6 @@
 # Database backups
 
-Implements `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` (in the private muma-ops repository). Read
-that for the reasoning; this is the operating manual.
+This is the operating manual for `tools/db_backup.py`.
 
 Three timers, one job each:
 

@@ -22,7 +22,7 @@ together on every affected row, and the NULLs form one unbroken id range: every 
 No write path ever filled them. The scanner's `INSERT INTO library_tracks` in
 `routers/scanner.py::process_file` has never named the two columns; git history has no commit that
 removed them (`git log -S normalized_title -- services/music_manager/routers/scanner.py` is empty).
-The design of the scrobble rematcher (docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md)
+The design of the scrobble rematcher (an agent plan, since removed)
 left them to `scrobble_rematch.backfill_normalized()`, run at the start of each `scrobble-rematch`
 tick: one `SELECT … WHERE normalized_title IS NULL LIMIT 500` per hour, plus one tick per restart.
 

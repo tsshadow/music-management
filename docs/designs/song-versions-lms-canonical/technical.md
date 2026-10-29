@@ -56,7 +56,7 @@ Covered by `services/music_manager/tests/test_song_version_sync.py` and
 
 ## Related Docs
 
-- `docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md` — the version model.
+- `docs/designs/song-versions/technical.md` — the version model.
 - [Bug report 093](../../bug-reports/093-track-form-push-never-converges.md) — duplicate media rows,
   compare-before-write.
 - [Bug report 097](../../bug-reports/097-lms-canonical-one-per-work.md).

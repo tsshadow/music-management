@@ -3,7 +3,7 @@
 # status: fixed
 
 # reported problem
-Three items bug report 030 left open, carried in `docs/open-work.md`:
+Three items bug report 030 left open, carried in the GitLab issues:
 
 1. Files tagged before 2026-07-28 still carry `publisher = __TODO` -- the import queue's name -- and
    often `copyright = __TODO (<year>)`.

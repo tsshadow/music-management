@@ -25,8 +25,6 @@ TOP_LEVEL = ("AGENTS.md", "README.md", "CONTRIBUTING.md", "SECURITY.md")
 ALLOWED_BROKEN = {
     # removed by step 7c-2 (docs/release-management.md moves to muma-ops)
     ("docs/release-management.md", "branch-hygiene.md"),
-    # removed by step 7c-4 (docs/security-en-controles.md becomes docs/security-checks.md)
-    ("docs/security-en-controles.md", "open-work.md"),
     # removed by step 7c-2 (docs/deployment.md is split into docs/self-hosting.md)
     (
         "docs/deployment.md",

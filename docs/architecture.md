@@ -11,10 +11,16 @@ The system has three groups of components.
 
 | Group | Component | What it does |
 | --- | --- | --- |
-| Management | `music-manager` | One FastAPI service (port 8000). It handles login, ratings, listens, statistics, curation, the event log and the dashboard API. It also runs the tagger, the scanner and the radio scheduler as threads. |
+| Management | `music-manager` | One FastAPI service (port 8000). It handles login, ratings, listens, statistics, curation, the event log and the dashboard API. It also runs background threads: the tagger and scanner loops, the radio scheduler, the news recorder, a sync of users with LMS, the event retention, the listen rematch, the LMS listen backfill, the song-version grouping, the artist auto-approval and the popular-tracks worker. |
 | Management | Source workers | `downloader` (YouTube, SoundCloud, Telegram) and `importer` run as separate containers. Each source worker is a compose profile you switch on or off. |
+| Management | One-shot jobs | `soundcloud-fetcher` and `genre-processor` run on demand (`run --rm`), not as daemons. |
+| Management | `firefox` | A browser you reach through noVNC. It holds the logged-in cookie profile that the downloaders read through `yt-dlp`. |
 | Management | `bpm-analyzer` | A container that measures the tempo of every track and stores it in the database. |
 | Management | `ml-analyzer` | Deprecated and not deployed. Its code and tables stay. See `services/ml-analyzer/DEPRECATED.md`. |
+| Data | MariaDB (`db`) | The permanent record, described under data ownership. |
+| Data | phpMyAdmin | A database browser for admins. |
+| Playback | Nginx (`lms-reverse-proxy`) | The reverse proxy in front of LMS and `music-manager`. It routes each request to one of them. |
+| Playback | `lms-autoheal` | Restarts an LMS container that its health check marks unhealthy. |
 | Playback | `music-management-server` (LMS) | A hard fork of the Lightweight Music Server (C++, SQLite). It indexes the files, streams audio, serves the Subsonic API and hosts the web player. |
 | Clients | Web player | A Svelte app in `services/frontend`, served with LMS. |
 | Clients | `muma-mobile` | The Android app. It talks to LMS over Subsonic and to `music-manager` over HTTP. |
@@ -66,7 +72,7 @@ sequenceDiagram
     participant MM as music-manager scanner
     participant LMS as LMS
 
-    W->>FS: Write the file
+    W->>FS: Put the file in its place (the importer moves it first)
     W->>T: Tag it (rules from the database)
     T->>FS: Write the tags
     W->>DB: Mark the file as processed
@@ -76,26 +82,29 @@ sequenceDiagram
     LMS->>FS: Read the file into lms.db
 ```
 
-1. A worker downloads a track (`yt-dlp` for YouTube and SoundCloud, a Telegram client for
-   Telegram), or the importer finds a release in the import queue, unpacks it and works out its
-   label and catalogue number from the folder name, the `.nfo` file and store lookups.
+1. A downloader fetches a track (`yt-dlp` for YouTube and SoundCloud, a Telegram client for
+   Telegram), tags it and announces it. The importer takes a different route, in steps 4 and 5.
 2. The tagger applies the rules in `services/tagger/Song/rules/`. It picks a song type from the
    file's location (`SoundcloudSong`, `YoutubeSong`, `LabelSong` and others), normalizes artists,
    maps genres, extracts remixers and fills the publisher, album and release date. It writes the
    tags into the file.
-3. After tagging, the worker (`services/tagger/announce.py`) records the file as processed, asks LMS
-   to scan the folder and asks the `music-manager` scanner to scan the file. Each step is best
-   effort. A slow server never fails a download.
-4. The importer then moves the release to its place in the label tree. The importer, not the
-   downloader, pushes one notification per release.
-5. `music-manager` also tags and scans on its own schedule, so a file that missed a step is caught
+3. After tagging, the downloader calls `announce` (`services/tagger/announce.py`). It records the
+   file as processed, asks LMS to scan the folder and asks the `music-manager` scanner to scan the
+   file. Each step is best effort. A slow server never fails a download.
+4. The importer finds a release in the import queue, unpacks it and works out its label and
+   catalogue number from the folder name, the `.nfo` file and store lookups. It then moves the
+   release to its place in the label tree and asks LMS to scan the old and the new folder.
+5. After the move the importer tags each file of the release as a `LabelSong` and calls `announce`
+   for it, so the same three steps run per file at the new path. The importer, not the downloader,
+   pushes one notification per release.
+6. `music-manager` also tags and scans on its own schedule, so a file that missed a step is caught
    by the next folder walk. The tagger loop walks the library, and the scanner loop reconciles the
    `library_*` tables with the disk. After a full walk the scanner deletes the `library_media_files`
    row of a file that is gone, never the track, when `scanner_drop_vanished_media` is on.
-6. The `bpm-analyzer` measures tempo from a 60 s excerpt and stores it. A later step in the tagger
+7. The `bpm-analyzer` measures tempo from a 60 s excerpt and stores it. A later step in the tagger
    round writes confident values into the file's BPM tag.
 
-Every step writes events to the `events` table. A `WARNING` or higher also goes to a push
+The services write events to the `events` table. A `WARNING` or higher also goes to a push
 notification topic, so the log is complete even when the push service is down.
 
 ## How a track is played
@@ -119,7 +128,9 @@ While you listen:
 
 Beyond the player, `music-manager` serves its own API to the dashboard: library browsing, curation
 of genres, artists and labels, statistics, the radio schedule and the event log. Nginx sends
-`/muma/api/` calls straight to `music-manager` and the rest to LMS. See
+`/muma/api/` calls straight to `music-manager`, except an allowlist of paths that LMS owns (admin
+calls, artist images, track refresh and `/muma/users/`), and sends everything else to LMS. The list
+is in `services/music-management-server/nginx/reverse-proxy.conf`. See
 [authentication.md](authentication.md) for the routing and the key types.
 
 ## How the services talk

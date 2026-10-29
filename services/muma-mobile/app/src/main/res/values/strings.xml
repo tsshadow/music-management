@@ -129,7 +129,6 @@
     <string name="shortcut_play_random_songs_short">Random songs</string>
     <string name="shortcut_play_random_songs_long">Play random songs</string>
 
-    <!-- muma -->
     <string name="setting_key_last_seen_version" translatable="false">last_seen_version</string>
 
     <string name="muma_voice_title">MuMa Voice</string>

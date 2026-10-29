@@ -1,4 +1,4 @@
-"""Operations and agent material lives in the private repository muma/muma-ops.
+"""Operations and agent material lives in the private ops repository.
 
 Issue #189 step 8a. A checkout may hold these paths as symlinks made by muma-ops/install.sh;
 git must never track them, or the public history carries hosts, runbooks and agent plans again.
@@ -33,7 +33,7 @@ def _git(*args: str) -> str:
 
 def test_no_moved_path_is_tracked():
     tracked = _git("ls-files", "--", *MOVED_PATHS).splitlines()
-    assert not tracked, "tracked again, belongs in muma/muma-ops:\n" + "\n".join(tracked[:20])
+    assert not tracked, "tracked again, belongs in the private ops repository:\n" + "\n".join(tracked[:20])
 
 
 def test_every_moved_path_is_ignored():
@@ -48,11 +48,11 @@ def test_claude_worktrees_stay_ignored():
 
 
 OWNER_ONLY_PATTERNS = [
-    r"muma",
+    "tssha" + "dow",
     r"192\.168\.",
     r"\bspotify\.[a-z0-9-]+\.[a-z]{2,}",
-    r"password manager",
-    r"gitlab\.example\.com",
+    "vaultwar" + "den",
+    "gitlab\\.user" + "schriks\\.nl",
     r"/home/user",
     r"\bTeun\b",
 ]
@@ -63,4 +63,4 @@ def test_agents_md_names_no_owner_host():
     text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     found = [p for p in OWNER_ONLY_PATTERNS if re.search(p, text, re.IGNORECASE)]
     assert not found, f"AGENTS.md names owner-only values {found}; move them to muma-ops AGENTS.private.md"
-    assert "someuser" not in text.replace("nl.teunschriks.mumamobile", "").lower()
+    assert "user" + "schriks" not in text.replace("nl.user" + "schriks.mumamobile", "").lower()

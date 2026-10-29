@@ -59,6 +59,6 @@ play ends and whatever the network is doing. Bug report 071 has the evidence and
   listens of 2026-09-25 reached LMS; LMS's relay to MuMa gave up on them. This design makes the
   app's side durable and makes relay retries harmless (the start time is fixed). LMS's relay is
   now durable as well. MuMa pulls recent LMS-only listens on a schedule (bug report 075), and
-  since issue [#67](https://gitlab.example.com/muma/music-management/-/issues/67) LMS also
+  since issue #67 LMS also
   keeps an outbox of listens it has not yet delivered; see
   [docs/designs/lms-listen-outbox/](../lms-listen-outbox/functional.md). Settled.

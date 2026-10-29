@@ -1,7 +1,7 @@
 # Interviews and previews as non-music — Functional Design
 
 > Status: **agreed** (2026-10-03). Issue
-> [#157](https://gitlab.example.com/muma/music-management/-/issues/157). The decisions are
+> #157. The decisions are
 > at the end.
 
 ## Overview

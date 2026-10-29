@@ -54,7 +54,7 @@ phone, and `restoreSession` on the next boot would sign straight back in with it
   ID is available to release builds.
 - Production confirms nobody reached the backend: `docker logs --since 7d music-manager` has no
   `/api/auth/google` request.
-- The release APK's signing certificate is `CN=Ultrasonic, OU=MuMa, O=example.com`, SHA-1
+- The release APK's signing certificate is `CN=Ultrasonic, OU=MuMa, O=<owner domain>`, SHA-1
   `C2:5C:21:2B:E3:BC:25:00:88:FA:6A:9D:86:C0:2E:AD:EC:B2:D9:5A` (public fingerprint, read with
   `keytool -printcert -jarfile`). Native Google sign-in only works when an Android-type OAuth
   client for `nl.teunschriks.mumamobile` with that SHA-1 exists in the same Google Cloud project as

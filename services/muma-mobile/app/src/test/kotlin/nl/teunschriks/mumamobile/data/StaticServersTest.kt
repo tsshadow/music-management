@@ -46,7 +46,7 @@ class StaticServersTest {
         val domain = "example.org"
         StaticServers.isOwnServer("https://music.example.org/", own, domain).shouldBeTrue()
         StaticServers.isOwnServer("https://lms.example.org", own, domain).shouldBeTrue()
-        StaticServers.isOwnServer("HTTPS://music.Example.org:8443", own, domain).shouldBeTrue()
+        StaticServers.isOwnServer("HTTPS://Music.Example.org:8443", own, domain).shouldBeTrue()
         StaticServers.isOwnServer("https://example.org.evil.net", own, domain).shouldBeFalse()
         StaticServers.isOwnServer("https://music.example.net", own, domain).shouldBeFalse()
         StaticServers.isOwnServer("https://lms.example.org", own, "").shouldBeFalse()

@@ -116,7 +116,7 @@ login page shows the static server, which only arrives through a Capacitor plugi
 `/dev/kvm`; run it locally after touching a keep rule. Details in `docs/testing-inventory.md`.
 
 ### APK Hoster
-The `apk-hoster` service is managed in its own repository: [muma/apk-hoster](https://github.com/muma/apk-hoster).
+The `apk-hoster` service is managed in its own repository: a separate `apk-hoster` repository.
 Builds from this project are automatically synced to the hoster's storage if configured in `.env`.
 
 #### Distribution and Custom Paths

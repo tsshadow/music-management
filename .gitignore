@@ -19,7 +19,7 @@ node_modules/
 .pytest_cache/
 /.production
 
-# Operations and agent material lives in the private repository muma/muma-ops.
+# Operations and agent material lives in the private ops repository.
 # Its install.sh links these paths into a checkout; ignoring them keeps a linked
 # checkout clean. No trailing slashes: they are symlinks, which "dir/" never matches.
 # .claude is ignored as a whole, so .claude/worktrees stays local state.

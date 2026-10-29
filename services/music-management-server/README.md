@@ -6,8 +6,6 @@ Lightweight MuMa Server (LMS) is a self-hosted music streaming software: access 
 
 `MuMa` stands for **Music Management**.
 
-A [demo instance](http://lms-demo.muma.dev) is available. Note the administration settings are not available.
-
 ## Key Differences from Upstream (`epoupon/lms`)
 
 This fork, developed as part of the **MuMa (Music Management)** ecosystem, introduces several significant enhancements to the original `epoupon/lms` project. It features **extended custom OpenSubsonic implementations, deeply coupled with a custom Ultrasonic client**.

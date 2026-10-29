@@ -98,7 +98,7 @@ not decided here.
 - **Restructuring the music folders** (`/music/labels/<label>/<ep>`, `/music/songs/…`,
   `/music/import`). Agreed to be the correct end state, but it moves files on disk and therefore
   touches the keys ratings and listens are stored against. It gets its own design and its own
-  migration; see issue [#61](https://gitlab.example.com/muma/music-management/-/issues/61).
+  migration; see issue #61.
 - **Wider BPM detection.** Wanted, and independent of everything here.
 - **Genre completeness.** Where the rules do not cover something and the download carried no genre,
   a missing genre is accepted.

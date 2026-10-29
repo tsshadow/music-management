@@ -1,4 +1,4 @@
-- **Operations and agent material moved to the private repository `muma/muma-ops`.** The production
+- **Operations and agent material moved to the private ops repository.** The production
   scripts (`scripts/prod/`), the crash-triage and nightly-check services, the Claude skills and agent
   plans (`.claude/`, `.ai/`, `.junie/`, the agent plans under `docs/`), `scripts/vw.sh`, `scripts/ssh/known_hosts`
   and the LMS `remote-build.sh` are no longer tracked here, and their tests moved with them. The

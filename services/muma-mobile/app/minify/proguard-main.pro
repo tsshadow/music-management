@@ -33,4 +33,3 @@
 ## stored model still does, and the next one added will too.
 -keep class nl.teunschriks.mumamobile.home.HomeCard { *; }
 -keep class nl.teunschriks.mumamobile.home.HomeCardType { *; }
--keep class nl.teunschriks.mumamobile.fragment.muma.TileInfo { *; }

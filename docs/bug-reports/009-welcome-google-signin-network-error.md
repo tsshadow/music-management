@@ -23,6 +23,6 @@ surfacing as the generic network-error toast/message.
 `performWelcomeGoogleSignIn()` now builds a dedicated `MumaAPIClient` targeting the fixed,
 known-good production server address (`ServerSettingsModel.STATIC_SERVERS[0].url`) instead of
 reusing the shared, potentially-stale `subsonicAPIClient.mumaApi`. The Muma base-URL derivation
-logic (including the `example.com` -> `https://muma.example.com` special case) was
+logic (including the the owner's domain -> `https://muma.example.com` special case) was
 extracted from `SubsonicAPIClient.mumaApi` into a reusable `SubsonicAPIClient.mumaBaseUrlFor()`
 companion function so both call sites stay consistent.

@@ -801,7 +801,7 @@ class CachedMusicService(private val musicService: MusicService) :
  * The cache is [ArtistDao.get] - a plain `SELECT * FROM artists` with no `LIMIT`/`OFFSET`/
  * `ORDER BY`, and its result is never clamped to a requested [count]. It can only stand in for
  * a request that wants the *whole* library in whatever order the table happens to hold it, e.g.
- * [nl.teunschriks.mumamobile.fragment.muma.SelectFragment]'s `getArtists(refresh, null, null)`.
+ * the artist list screen's `getArtists(refresh, null, null)`.
  * Any *paged* request - one that passes a [count] - needs the server to do the limiting,
  * ordering and offsetting, because the DAO has no way to answer any of that: serving it from
  * cache would return the entire table as "page 1" and then let the pager append rows it already

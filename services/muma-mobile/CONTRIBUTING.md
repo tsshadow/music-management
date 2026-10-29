@@ -1,8 +1,8 @@
 # Contributing
 
 MuMa Mobile is developed inside the `music-management` repository. Issues and
-merge requests live in [this project's
-tracker](https://gitlab.example.com/muma/music-management/-/issues) —
+merge requests live in this project's
+tracker —
 the upstream Ultrasonic project it was forked from is discontinued, so nothing
 is reported or merged there.
 

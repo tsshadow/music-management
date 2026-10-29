@@ -413,6 +413,10 @@ To maintain high code quality, the system employs an automated test suite:
       plugin `tools/pylint_plugins/muma_test_layout.py` turns off `wrong-import-position`,
       `import-outside-toplevel` and `redefined-outer-name`: a test imports after its mock_base
       stubs and names arguments after pytest fixtures. Production code keeps all three.
+    - `./scripts/ci/public-check.sh` — `public:check`: gitleaks over the working tree plus the
+      patterns in `scripts/ci/public-patterns.txt` (owner names, personal hosts,
+      private LAN addresses; the Android package and the contact address pass). A hit fails the pipeline;
+      use a placeholder (`example.com`, RFC 5737 `192.0.2.x`) instead. `migrate_*.sql` is exempt.
     - `./scripts/typecheck.sh` — mypy. Rolled out per module: `pyproject.toml` holds a loose
       floor for the whole tree and lists the strictly-checked modules. That list only grows.
       `backend:typecheck` runs the strict list; `backend:typecheck-all` runs `--all`, the whole

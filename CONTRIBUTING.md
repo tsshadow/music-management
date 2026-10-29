@@ -28,6 +28,7 @@ two can never drift apart.
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
+./scripts/ci/public-check.sh             # public:check: no personal names, hosts or LAN addresses in tracked files
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
@@ -140,7 +141,7 @@ directory is the most useful documentation in this repository; keep it fed.
 ## Open work
 
 Anything decided but not done, or done but not verified, becomes a
-[GitLab issue](https://gitlab.example.com/muma/music-management/-/issues)
+GitLab issue
 right away (`glab issue create`), with one kind label (`needs-person`,
 `decision`, `verify`, `code`, `deferred`) and one area label (`area-backend`,
 `area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a

@@ -172,7 +172,6 @@ RUN \
 
 ## Release Stage
 FROM		alpine:3.23 AS release
-LABEL		maintainer="muma"
 
 ARG	RUNTIME_PACKAGES=" \
 	boost-iostreams \

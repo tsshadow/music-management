@@ -1260,7 +1260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mariadb:13.0.2@sha256:...` with `MARIADB_AUTO_UPGRADE=1`, so the coming 12.3 -> 13.0 move runs
   `mariadb-upgrade`. The deploy waits for the real server over TCP, logs the upgrade and checks
   it before any migration. Renovate now keeps the MariaDB digest current. `docs/deployment.md` no
-  longer offers an ssh tunnel for the read-only MCP, because the `muma-readonly@'192.0.2.1.%'`
+  longer offers an ssh tunnel for the read-only MCP, because the `muma-readonly@'192.0.2.%'`
   account cannot log in through one. Bug report 094.
 
 - **Two quick taps on "next" in the app no longer leave the player flickering between two tracks.**
@@ -3477,7 +3477,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `claude-nightly-fix` — maximaal twee per nacht, nooit gemerged zonder approval. Elke
   nacht eindigt in één ntfy-bericht op `music-management-claude`, verstuurd door de
   shell-supervisor uit een gevalideerd resultaat, dus ook een vastgelopen run meldt
-  zichzelf. De MR-watcher merget nu alleen op approval van `muma` en een groene
+  zichzelf. De MR-watcher merget nu alleen op approval van de eigenaar en een groene
   pipeline voor exact de te mergen revisie, en de drie automaten delen één lock op de
   clone.
 
@@ -7304,8 +7304,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 - **The Android About page still linked to upstream Ultrasonic.** "Visit webpage" opened
   `ultrasonic.gitlab.io` and "Report a bug" opened `gitlab.com/ultrasonic/ultrasonic/issues`,
   neither of which has anything to do with this fork. They now point at `https://muma.example.com`
-  and the project's own issue tracker at
-  `https://gitlab.example.com/muma/music-management/-/issues`.
+  and the project's own issue tracker.
 
 ## [0.0.56] - 2026-08-01
 

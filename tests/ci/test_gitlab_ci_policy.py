@@ -185,6 +185,7 @@ JOB_SCOPES = COMPONENT_SCOPES | {
     "deps",
     "runner",
     "release",
+    "public",  # what the public mirror may contain (personal data check)
 }
 
 # What each component is checked for. Every component has all three; anything

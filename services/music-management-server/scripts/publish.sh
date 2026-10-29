@@ -26,7 +26,7 @@ fi
 # Check for docker registry authentication
 if ! docker info | grep -q "Username:"; then
     echo "WARNING: You don't seem to be logged into Docker Hub."
-    echo "Pushing images to 'muma/' will likely fail."
+    echo "Pushing images to the 'muma/' namespace will likely fail."
     echo "Please run: docker login"
     echo ""
     read -p "Do you want to continue anyway? (y/N) " -n 1 -r

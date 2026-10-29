@@ -465,7 +465,7 @@ To maintain clean design governance and prevent ad-hoc style drift:
   rounded dialog card (`ThemeOverlay.MuMa Mobile.WelcomeDialog`, scoped to this one dialog only via the
   `MaterialAlertDialogBuilder` theme resId), and a circular avatar on the Google access-request screen
   (`google_auth_fragment.xml`).
-- **Done** — Android filter/search panel (`muma_filters.xml`, `muma_search.xml`,
+- **Done** — Android filter/search panel (the filter and search layouts and
   `filter_button_bar.xml`) had its buttons, the favorite-star icon tint, and the "show filters" FAB
   hardcoded to `design_default_color_primary_dark` (a generic Material default color, not a brand token) -
   an actual style-guide violation ("Don't introduce unauthorized color palettes"). Recolored to

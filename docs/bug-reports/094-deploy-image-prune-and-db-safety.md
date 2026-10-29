@@ -22,7 +22,7 @@ A rehearsal-script review of `scripts/deploy.sh` in the same session found two m
 
 And `muma-ops docs/deployment-production.md` offered an ssh tunnel (`ssh -L 3306:127.0.0.1:3306`) as the alternative
 to `DB_BIND_ADDRESS=203.0.113.10` for the workstation's read-only MCP. That cannot work: the MCP's
-account is `muma-readonly@'192.0.2.1.%'`, and through the tunnel the database sees the connection
+account is `muma-readonly@'192.0.2.%'`, and through the tunnel the database sees the connection
 coming from the docker bridge gateway (172.22.0.1), so it refuses the login.
 
 # Possible reason

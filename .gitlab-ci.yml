@@ -561,6 +561,25 @@ security:secret-scan:
   script:
     - ./scripts/ci/secret-scan.sh
 
+# Personal-data check for the public mirror (issue #189 step 10): gitleaks over the working tree
+# plus the patterns in scripts/ci/public-patterns.txt (owner names, personal hosts, LAN addresses).
+# No allow_failure: a hit is a finding, and the script needs no network.
+public:check:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  # gitleaks runs as a container, like in security:secret-scan.
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
+    - !reference [.release_rule, rules]
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - "**/*"
+  script:
+    - ./scripts/ci/public-check.sh
+
 # Runs Renovate against this repository. renovate.json has been in the tree
 # since 0.24.0 and describes exactly which updates are grouped and which merge
 # themselves -- but nothing ever executed it, so it produced no merge requests

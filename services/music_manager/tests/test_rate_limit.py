@@ -142,13 +142,13 @@ class ClientKeyTest(unittest.TestCase):
     def test_the_client_written_left_end_of_the_chain_is_not_believed(self):
         """A trusted proxy appends the real client; anything left of it is the client's own claim.
         Taking the left-most entry used to let every guess arrive under a fresh address."""
-        request = self.make_request(headers={'x-forwarded-for': '1.2.3.4, 203.0.113.9, 192.0.2.10'})
+        request = self.make_request(headers={'x-forwarded-for': '1.2.3.4, 203.0.113.9, 172.16.0.10'})
         self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
 
     def test_a_chain_of_trusted_hops_falls_back_to_the_left_most(self):
         """LMS not looking behind the proxy in front of it reports that proxy: the best there is."""
-        request = self.make_request(headers={'x-forwarded-for': '192.0.2.10, 10.0.0.2'})
-        self.assertEqual(rate_limit.client_key(request), '192.0.2.10')
+        request = self.make_request(headers={'x-forwarded-for': '172.16.0.10, 10.0.0.2'})
+        self.assertEqual(rate_limit.client_key(request), '172.16.0.10')
 
     def test_an_ipv4_mapped_peer_is_recognised_as_trusted(self):
         request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'}, host='::ffff:172.18.0.5')

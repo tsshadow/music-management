@@ -135,13 +135,13 @@ before this app's backend is ever contacted, which is why the app could only sho
 which should let any Google account sign in.
 
 Along the way the other configuration suspects were checked and ruled out, for the project number
-`000000000000`:
+`<project-number>`:
 
 - The Android OAuth client for `nl.teunschriks.mumamobile` exists, with SHA-1
   `C2:5C:21:2B:E3:BC:25:00:88:FA:6A:9D:86:C0:2E:AD:EC:B2:D9:5A`. It is *not* the local debug
   keystore's fingerprint (`39:2B:26:CF:...`), consistent with it being the release keystore.
 - The Web client ID served by the live frontend
-  (`000000000000-drld1n0bs77fvk88s0dskf8pp298u14e.apps.googleusercontent.com`) is in that *same*
+  (`<client-id>.apps.googleusercontent.com`) is in that *same*
   project, so the `serverClientId` the app passes and the Android client match up.
 - The OAuth user cap sits at **1 / 100**, so the cap has not been exhausted either — that single
   user is the project owner, the only account Testing mode ever let through.

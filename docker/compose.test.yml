@@ -43,7 +43,7 @@ services:
       - SETGID
       - SETUID
     pids_limit: 1024
-    image: mariadb:13.0.2@sha256:0e4bb0f339feba125d1154fbacd36c16ec8518f52e44e1f82ecec7d6771caf39
+    image: mariadb:13.0.2@sha256:f4054da26e3a9dd6c8b5cc97363e544408b15c0fb369d7359c25dc04826eb6e1
     # Same pin as the production compose files: without it CI runs on MariaDB
     # 12's utf8mb4_uca1400_ai_ci default while production runs
     # utf8mb4_general_ci, so a collation mismatch would pass here and fail there.

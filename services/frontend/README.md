@@ -36,4 +36,4 @@ The build artifacts will be located in the `dist/` directory. These files are ty
 
 This UI communicates with the LMS backend using the **Subsonic API**.
 For design principles and visual standards, see the [STYLEGUIDE.md](STYLEGUIDE.md).
-For more information on contributing, see the central [CONTRIBUTING.md](../../../../CONTRIBUTING.md).
+For more information on contributing, see the central [CONTRIBUTING.md](../../CONTRIBUTING.md).

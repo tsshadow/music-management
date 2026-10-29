@@ -160,7 +160,7 @@ is full.
 - Everything that moves to `muma-ops`, at every historic path: `scripts/prod/`, `.claude/`, `.ai/`,
   `.junie/`, `scripts/ssh/known_hosts`, `scripts/nightly-prod-check/`, `scripts/crash-triage/`,
   `scripts/vw.sh`, `docs/release-management.md`, `services/music-management-server/scripts/remote-build.sh`.
-- Everything deleted by the docs cleanup: `docs/superpowers/`, `docs/branding/candidates/`,
+- Everything deleted by the docs cleanup: `docs/superpowers`, `docs/branding/candidates/`,
   `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md`,
   `docs/machine-learning.md`, `docs/ml-tutorial.md`, `docs/OVERVIEW.md`, `docs/system-data-flow.md`,
   `docs/architecture/responsibilities.md`.

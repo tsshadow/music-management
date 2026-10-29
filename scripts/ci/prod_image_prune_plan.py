@@ -35,7 +35,7 @@ any of these holds:
   `docker rmi` without -f refuses anyway;
 * it is one of the ``keep`` most recently built images of its repository that
   no container uses: the previous releases, which the IMAGE_TAG rollback lever
-  (docs/deployment.md#rollback) redeploys. Pulling a tag whose digest is still
+  (docs/self-hosting.md#roll-back) redeploys. Pulling a tag whose digest is still
   on the host downloads nothing, so a rollback stays fast and works while
   Docker Hub does not;
 * it carries a moving tag (``latest``, ``stable``, ``rc``): the db-backup

@@ -250,7 +250,7 @@ def apply_migration(run: SqlRunner, migration: Migration, lock_wait_seconds: int
             f'Error: {migration.name} waited more than {lock_wait_seconds}s for a lock and was aborted. '
             'Another session holds a lock on a table it touches -- usually the oldest session below '
             'that reads or writes the same table. Find it, `KILL QUERY <Id>` it (or wait for it), '
-            'then retry the job; see docs/deployment.md#when-a-deploy-stops-on-a-lock-wait.'
+            'then retry the job; see docs/self-hosting.md#migrations.'
         )
     else:
         headline = f'Error: {migration.name} failed.'

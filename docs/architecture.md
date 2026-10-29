@@ -145,5 +145,5 @@ is in `services/music-management-server/nginx/reverse-proxy.conf`. See
 | `music-manager` | LMS | Subsonic calls, and direct reads and writes on `lms.db` through a shared volume |
 | All Python services | MariaDB | Direct connection on the internal Docker network |
 
-The API reference is [api-specification.md](api-specification.md). How to run and release each
-part is in [deployment.md](deployment.md) and [release-management.md](release-management.md).
+The API reference is [api-specification.md](api-specification.md). How to run the
+stack yourself is in [self-hosting.md](self-hosting.md).

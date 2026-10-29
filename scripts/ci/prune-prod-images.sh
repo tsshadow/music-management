@@ -15,7 +15,7 @@
 #   - every image a container uses, running or stopped;
 #   - per repository, the PRUNE_KEEP_RELEASES (default 3) most recently built
 #     images no container uses: the previous releases the IMAGE_TAG rollback
-#     lever redeploys (docs/deployment.md#rollback);
+#     lever redeploys (docs/self-hosting.md#roll-back);
 #   - anything tagged :latest, :stable or :rc (the nightly db-backup runs
 #     muma-tools:latest with `run --rm`, so no container holds it in between).
 #

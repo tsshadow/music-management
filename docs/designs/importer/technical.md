@@ -150,6 +150,6 @@ read is compared by size; one readable and one unreadable is a difference. A dup
 
 ## Related Docs
 
-- [docs/architecture.md](../../docs/architecture.md) — System-wide module responsibilities.
-- [docs/database-design.md](../../docs/database-design.md) — Schema details for `rules` domain.
-- [AGENTS.md](../../AGENTS.md) — Development guidelines and monorepo structure.
+- [docs/architecture.md](../../architecture.md) — System-wide module responsibilities.
+- [docs/database-design.md](../../database-design.md) — Schema details for `rules` domain.
+- [AGENTS.md](../../../AGENTS.md) — Development guidelines and monorepo structure.

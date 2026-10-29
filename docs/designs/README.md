@@ -76,9 +76,7 @@ the retroactive documentation above):
 | [`deferred-queue-restore/`](deferred-queue-restore/) | The app mounting before its queue restore (issue #113): the mini player shows the restore, a track started meanwhile cancels it, and nothing reaches `PlaybackService` while it runs. Frontend only (ships in the APK). |
 | [`app-start-reachability/`](app-start-reachability/) | The Android app asks the server once before restoring the queue; when it does not answer, the boot screen offers "Opnieuw proberen", "Wachten op server" and "Offline verder". Offline mode keeps only downloaded tracks in the queue, marks the app with a banner, and switches back with the full queue when the server returns. App only. |
 
-## Relationship to `.ai/docs` and `.ai/requirements`
+## Where agent tools look
 
-Some AI-agent tools look for design/requirement content under a conventional `.ai/` directory. This repo
-keeps exactly one copy of the actual content, here in `docs/designs/`; [`.ai/docs/README.md`](../../.ai/docs/README.md)
-and [`.ai/requirements/README.md`](../../.ai/requirements/README.md) are thin pointer files that simply
-redirect here, so no content has to be duplicated or kept in sync between two trees.
+This directory holds the one copy of the design and requirement content. Tools that expect it under a
+conventional `.ai/` directory read it from here.

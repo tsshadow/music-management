@@ -99,5 +99,5 @@ Pinned by `PlaybackServiceRulesTest`, `PlaybackResumptionTest`, `PlaybackStateSe
 
 **What no test covers.** Robolectric draws nothing and nothing starts the release build. Whether
 music survives a swipe, whether a Bluetooth play resumes, and whether a channel actually plays on a
-phone are unverified until someone tries them on a device, which is listed in `docs/open-work.md`.
+phone are unverified until someone tries them on a device, which is listed in the GitLab issues.
 Item 8 was reached by reading the code, not by watching it fail on a phone.

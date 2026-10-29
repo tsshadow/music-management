@@ -41,14 +41,13 @@ No code fix was possible without a confirmed code-level root cause. Instead:
 - The welcome dialog is no longer a hard lockout on login failure regardless of cause: a
   secondary, confirmed "skip" action switches to the app's existing offline mode, and an
   always-visible connectivity status line makes it clear up front whether the *server* or the
-  *login* is the problem. See
-  `docs/superpowers/specs/2026-07-30-ultrasonic-login-flow-design.md`.
+  *login* is the problem. See `docs/designs/ultrasonic-session-and-loading/technical.md`.
 
 # manual verification still needed (outside this repository)
 - In Google Cloud Console, confirm the Android-type OAuth client for `nl.teunschriks.mumamobile`
   still exists and its SHA-1 fingerprint matches the current `SIGNING_STORE_FILE` CI/CD variable
   (`keytool -list -v -keystore <keystore.jks> -storepass <password> -alias <alias> | grep SHA1`,
-  see `docs/deployment.md`'s "Google Sign-In on Ultrasonic (Android)" section).
+  see `muma-ops docs/deployment-production.md`'s "Google Sign-In on Ultrasonic (Android)" section).
 - Confirm the OAuth consent screen's publishing status and test-user list haven't changed.
 - Capture `adb logcat` from a failing device the next time this reproduces, now that the failure
   path logs the concrete exception type/HTTP status.

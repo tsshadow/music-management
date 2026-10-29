@@ -121,7 +121,7 @@ and fail on an unformatted file. The whole-tree reformat is listed in
 
 `feature/*` → `develop` → `release/x.y.z` → `master`. The release branch is where
 stabilisation and the production deploy happen; `master` is the tagged record.
-[docs/release-management.md](docs/release-management.md) has the full policy,
+`docs/release-management.md` in the private muma-ops repository has the full policy,
 including what the `release:check-secrets` job guarantees.
 
 ## Commit messages
@@ -146,5 +146,4 @@ right away (`glab issue create`), with one kind label (`needs-person`,
 `area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a
 link to the bug report or design that holds the detail. A `verify` issue states
 the exact check. A merge request that finishes an issue says `Closes #N` in its
-description. `docs/open-work.md` is only a pointer to the issues now; do not add
-lines to it. AGENTS.md rule 14 is the rule.
+description. Do not keep a list of open work in a file. AGENTS.md rule 14 is the rule.

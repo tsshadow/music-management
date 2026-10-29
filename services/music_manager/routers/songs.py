@@ -8,7 +8,7 @@ The curation list (`GET /api/songs/curation`) feeds the Versions page in Beheer:
 song with more than one version, the automatic choice, and a flag on the songs whose
 choice a rescore changed. Reads need an API key, every write needs `rules.manage`.
 
-Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md and, for
+Design: docs/designs/song-versions/technical.md and, for
 the ranking, the rescore and the Versions page, docs/designs/song-versions/.
 """
 

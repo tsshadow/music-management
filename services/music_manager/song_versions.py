@@ -7,7 +7,7 @@ original and remove it from the library.
 
 Pure functions, no database. The worker owns the SQL.
 
-Design: docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md
+Design: docs/designs/song-versions/technical.md
 """
 
 from __future__ import annotations

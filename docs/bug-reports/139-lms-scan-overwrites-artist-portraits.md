@@ -92,7 +92,7 @@ against music-manager's: `services/music-management-server/docker-compose.yml` p
 `tests/ci/test_managed_portrait_directory.py` derives the expected value from music-manager's
 `STORAGE_PATH` (`/mnt/music/artists`) and the two music mounts (`/mnt/music`, `/music`), and fails
 when either compose file (or `docker/compose.test.yml`) moves on its own. Documented in
-`docs/deployment.md`.
+`muma-ops docs/deployment-production.md`.
 
 **music-manager**: `sync_artist_images_to_server(muma_conn, server_conn, source)` takes the server
 name and hands it to `repair_portrait_paths`; `sync_single_server_db` passes its `source`.

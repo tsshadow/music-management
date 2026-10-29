@@ -112,12 +112,12 @@ artist or label published on their own channel.
 
 | Action | Paths |
 |---|---|
-| Delete | `docs/superpowers/` (89 agent plans), `docs/branding/candidates/`, `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md` |
+| Delete | `docs/superpowers` (89 agent plans), `docs/branding/candidates/`, `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md` |
 | Fold into `services/ml-analyzer/DEPRECATED.md`, then delete | `docs/machine-learning.md`, `docs/ml-tutorial.md` |
 | Move to `muma-ops` | `docs/release-management.md`, production part of `docs/deployment.md` |
 | Write | `docs/self-hosting.md` (compose, `.env`, profiles, migrations, backups) |
 | Merge into one `docs/architecture.md`, written for people, every claim checked against the code | `docs/OVERVIEW.md`, `docs/architecture.md`, `docs/system-data-flow.md`, `docs/architecture/responsibilities.md` |
-| Translate to English | `docs/security-en-controles.md` (as `docs/security-checks.md`), `docs/designs/mobile-cover-art/` |
+| Translate to English | `docs/security-checks.md`, `docs/designs/mobile-cover-art/` |
 | Keep and scrub | `docs/bug-reports/` (532 files refer to them), `docs/designs/` |
 | Remove third-party personal data | `docs/bug-reports/020-*` and any other file where the inventory finds a third person's address |
 

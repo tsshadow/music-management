@@ -1,7 +1,6 @@
 # Database backups
 
-Implements `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` (in the private muma-ops repository). Read
-that for the reasoning; this is the operating manual.
+This is the operating manual for `tools/db_backup.py`.
 
 Three timers, one job each:
 
@@ -16,7 +15,7 @@ A fourth caller is the deploy. `scripts/deploy.sh` runs the same `db-backup` ser
 `muma_db_pre-deploy_<stamp>.sql.gz`, verified like a nightly one, kept in a rotation of three, and
 never written to `latest.json` (so it neither resets the staleness clock nor becomes the restore
 check's subject). When the service is not installed or fails, the deploy falls back to its own
-verified `mariadb-dump` into the same directory. See `docs/deployment.md#backups`.
+verified `mariadb-dump` into the same directory. See `docs/self-hosting.md#backups`.
 
 ## Why a restore check, and not just a checksum
 

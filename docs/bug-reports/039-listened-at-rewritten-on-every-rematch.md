@@ -14,7 +14,7 @@ scrobble-rematch: pass failed: (1062, "Duplicate entry
 The value has the shape of `scrobble_unmatched_listens`' UNIQUE key (username, listened_at,
 artist_name, track_title). `scrobble_rematch.py` only DELETEs and UPDATEs that table, and both INSERT
 sites carry `ON DUPLICATE KEY UPDATE`, so a plain 1062 looked unreachable. It was filed in
-`docs/open-work.md` with a guess: that the over-long key had been silently truncated to a prefix.
+the GitLab issues with a guess: that the over-long key had been silently truncated to a prefix.
 
 # Possible reason
 The guess was wrong; the key is not truncated. Past InnoDB's index length limit MariaDB builds it as a

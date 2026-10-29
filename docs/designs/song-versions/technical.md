@@ -1,7 +1,7 @@
 # Song versions: best-version ranking and the Versions page — Technical Design
 
 Implements [functional.md](functional.md). The model, grouping, pin, split and LMS sync are those of
-[the original design](../../superpowers/specs/2026-08-23-song-versions-and-canonical-design.md);
+[the original design](../song-versions/technical.md);
 this document covers what changed on 2026-09-26.
 
 ## Ranking (`services/music_manager/song_versions.py`)
@@ -118,5 +118,5 @@ The pin's auth change is breaking in principle; it had no consumer outside tests
 
 ## Related Docs
 
-- [Original design](../../superpowers/specs/2026-08-23-song-versions-and-canonical-design.md)
+- [Original design](../song-versions/technical.md)
 - [Bug report 097](../../bug-reports/097-lms-canonical-one-per-work.md) — one canonical per work in LMS

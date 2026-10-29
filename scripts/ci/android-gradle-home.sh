@@ -44,7 +44,7 @@ fi
 
 # Drop the per-slot Gradle homes this helper replaced. They are ~2 GB each and
 # nothing reads them any more; leaving them behind would keep filling the
-# runner LXC's disk (see docs/deployment.md on runner disk pressure).
+# runner LXC's disk (see muma-ops docs/deployment-production.md on runner disk pressure).
 #
 # The age guard is not cosmetic. Until this commit is merged everywhere, a
 # pipeline built from an older commit - a long-lived release/* branch, say -

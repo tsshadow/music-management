@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir "yt-dlp[default,curl-cffi]==${YT_DLP_VERSION}"
 # Pinned to a release and to the sha256 of its zip (the same value upstream publishes
 # as deno-x86_64-unknown-linux-gnu.zip.sha256sum). Renovate opens the version bump,
 # but cannot compute the new checksum: that merge request fails on `sha256sum -c`
-# until DENO_SHA256 is updated by hand. See docs/deployment.md, "Pinned build inputs".
+# until DENO_SHA256 is updated by hand. See muma-ops docs/deployment-production.md, "Pinned build inputs".
 # renovate: datasource=github-releases depName=denoland/deno
 ARG DENO_VERSION=v2.9.7
 ARG DENO_SHA256=c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490

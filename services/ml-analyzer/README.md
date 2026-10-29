@@ -124,7 +124,7 @@ python analyzer.py --all --save --parallel
 
 ## 📅 Future Roadmap
 
-From [docs/machine-learning.md](../../docs/machine-learning.md), which is an unbuilt proposal:
+Ideas from an earlier proposal, never built (see [DEPRECATED.md](DEPRECATED.md)):
 
 1. **Audio Chunking**: Splitting library_tracks into smaller fragments for better training data.
 2. **Genre Classification**: Training custom models based on the high-quality labeled library.

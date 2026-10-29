@@ -54,4 +54,4 @@ from qemu, minutes into the job.
 
 The timer on the workstation runs a copy in `/opt/muma-disk-janitor/`. That copy has to be
 installed again before the workstation gets the cache prune (`scripts/ci/systemd/README.md`). This
-is tracked in [open work](../open-work.md).
+is tracked in the open GitLab issues.

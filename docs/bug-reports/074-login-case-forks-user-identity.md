@@ -103,7 +103,7 @@ MuMa's `users.username` (`docs/authentication.md`, "Account names are case-insen
   (tested against a fixture lms.db and a fake cursor). It rewrites MuMa rows under a case
   variant and merges LMS user 13 into user 1, taking listens, ratings, stars, play queue,
   playlists, bookmarks and tokens with it, then deletes user 13. Backups come first and
-  there is a dry-run plan. See `docs/open-work.md`.
+  there is a dry-run plan. See the GitLab issues.
 
 Left open, on purpose: a unique index on `lower(login_name)` in LMS. A versioned LMS
 migration adding it would fail on production for as long as the fork exists, and then

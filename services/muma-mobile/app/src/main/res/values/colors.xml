@@ -16,8 +16,7 @@
     <color name="spotify_text_secondary">#b3b3b3</color>
 
     <!-- MuMa style. The Spotify style has one dark level under the panel; MuMa has three, so a
-         card visibly floats instead of sitting flush. Every contrast measurement behind these
-         values is in docs/designs/universal-ui/technical.md. -->
+         card visibly floats instead of sitting flush. -->
     <!-- The Home proposal specifies #5d5654, which measures 2.54:1 on muma_ground. In the app
          this rank colours the field labels in server_edit and share_details - text someone has
          to read to fill in a form - so it is lifted to 3.30:1. -->

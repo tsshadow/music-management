@@ -138,7 +138,7 @@ The four-step flow, run from `services/ml-analyzer/`:
    skips the audio analysis and reads tags only.
 2. `python approve.py` walks the scanned tracks (y/n) and sets `approved_for_training = 1`. The SQL
    alternative sets `approved_for_training = 1` and `ml_review_status = 'human_verified'` per genre.
-3. `python trainer.py` trains a Random Forest on the approved rows (10 to 20 per genre at least),
+3. `python trainer.py` trains a Random Forest on the approved rows (at least 10 labelled rows overall and at least 5 samples per genre, `_filter_genres` with `min_samples=5`),
    saves the model and scaler under `models/` and prints a report with the feature importances.
 4. `python predict.py <file>` analyses one file and stores the result in
    `library_track_ml_predictions`.

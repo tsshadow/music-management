@@ -244,7 +244,7 @@
   /** Where the source code is (AGPL-3.0 section 13); empty hides the link. */
   let sourceUrl = $state('');
   onMount(async () => {
-    fetchSourceUrl($mumaApiUrl).then((url) => { sourceUrl = url; });
+    fetchSourceUrl($mumaApiUrl, { native: isNative }).then((url) => { sourceUrl = url; });
     if ($credentials.username) {
         username = $credentials.username;
     }

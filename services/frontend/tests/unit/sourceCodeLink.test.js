@@ -12,10 +12,19 @@ describe("safeSourceUrl", () => {
     expect(safeSourceUrl("http://git.example")).toBe("http://git.example");
   });
 
-  it.each(["javascript:alert(1)", "intent://x", "data:text/html,x", "//git.example", "", null, 5])(
-    "drops %s",
-    (value) => expect(safeSourceUrl(value)).toBe(""),
-  );
+  it.each([
+    "javascript:alert(1)",
+    "intent://x",
+    "data:text/html,x",
+    "//git.example",
+    "https://a@evil.example",
+    "https://a:b@x.example",
+    "https:///path",
+    "https://",
+    "",
+    null,
+    5,
+  ])("drops %s", (value) => expect(safeSourceUrl(value)).toBe(""));
 });
 
 describe("fetchSourceUrl", () => {
@@ -28,7 +37,31 @@ describe("fetchSourceUrl", () => {
       json: async () => ({ source_url: "https://git.example/muma" }),
     }));
     expect(await fetchSourceUrl("https://api.example")).toBe("https://git.example/muma");
-    expect(globalThis.fetch).toHaveBeenCalledWith("https://api.example/health");
+    expect(globalThis.fetch).toHaveBeenCalledWith("https://api.example/health", expect.anything());
+  });
+
+  it("gives an empty string when the request does not answer within the timeout", async () => {
+    globalThis.fetch = vi.fn(
+      (_url, { signal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    expect(await fetchSourceUrl("https://api.example", { timeoutMs: 20 })).toBe("");
+  });
+
+  it("does not fetch a relative /health in the native shell without an API base", async () => {
+    globalThis.fetch = vi.fn();
+    expect(await fetchSourceUrl("", { native: true })).toBe("");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("still fetches a relative /health in a browser, where the origin is the server", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ source_url: "https://git.example/x" }),
+    }));
+    expect(await fetchSourceUrl("")).toBe("https://git.example/x");
   });
 
   it("gives an empty string when the request fails", async () => {
@@ -90,6 +123,20 @@ describe("LoginPage source link", () => {
     }));
     render(LoginPage);
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    // Let fetchSourceUrl resolve and the component re-render before asserting an absence.
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByTestId("source-link")).toBeNull();
+  });
+
+  it("shows the link in the same flow for a safe value, so the absence above means something", async () => {
+    globalThis.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () =>
+        String(url).endsWith("/health") ? { source_url: "https://git.example/ok" } : {},
+    }));
+    render(LoginPage);
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.getByTestId("source-link")).toBeTruthy();
   });
 });

@@ -10,7 +10,7 @@
   returns the setting only when `urlsplit` finds scheme http or https (any case), a host and no user info (`https://a@evil.example`), else `""`; a failing store also gives `""`. The endpoint is
   unauthenticated, and the web UI already reads it for the MuMa version, so no new request and no new
   endpoint exist. The field is added to the `503` answer too.
-- `services/frontend/src/lib/sourceLink.js` (`safeSourceUrl`, `fetchSourceUrl`) re-checks the value with `/^https?:\/\//i` before it becomes an `href` or reaches `openUrl`. `SourceCodeLink.svelte` is the small link on the login screen, where `/health` is public, so the offer reaches people before they sign in.
+- `services/frontend/src/lib/sourceLink.js` (`safeSourceUrl`, `fetchSourceUrl`) re-checks the value the way the server does (`new URL`: http or https, a host, no user info; `https:///path` is refused up front) before it becomes an `href` or reaches `openUrl`. `fetchSourceUrl` gives up after 5 s and, in the native shell with an empty API base, does not fetch a relative `/health` at all. `SourceCodeLink.svelte` is the small link on the login screen, where `/health` is public, so the offer reaches people before they sign in.
 - `docker/docker-compose*.yml` pass `PUBLIC_SOURCE_URL` (default the placeholder); `.env.example` and `docs/self-hosting.md` list it.
 - `services/frontend/src/lib/settings/About.svelte`: reads `source_url` from the same `/health` call and
   renders a Source code section with an anchor (`target="_blank"`, `rel="noopener noreferrer"`). In the

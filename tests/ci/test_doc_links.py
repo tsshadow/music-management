@@ -14,13 +14,16 @@ import pytest
 
 from tests.ci.conftest import REPO_ROOT
 
+# Applied migrate_*.sql files are immutable: the deploy re-runs a migration whose sha256 changed,
+# and re-running migrate_v7 re-queues the whole Youtube tree for the tagger. Their comments may
+# keep references to removed docs, so no link or `superpowers/` expectation covers them.
 TOP_LEVEL = ("AGENTS.md", "README.md", "CONTRIBUTING.md", "SECURITY.md")
 
 # Broken links in files that other merge requests rewrite right now. Each entry is
 # (source file, link target as written) and is removed by the follow-up named in its comment.
 # An entry that no longer matches a broken link fails the test, so stale entries cannot stay.
 ALLOWED_BROKEN = {
-    # removed by step 7c-3 (docs/release-management.md moves to muma-ops)
+    # removed by step 7c-2 (docs/release-management.md moves to muma-ops)
     ("docs/release-management.md", "branch-hygiene.md"),
     # removed by step 7c-4 (docs/security-en-controles.md becomes docs/security-checks.md)
     ("docs/security-en-controles.md", "open-work.md"),

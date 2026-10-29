@@ -4,6 +4,8 @@
 -- production 2026-08-17 that left 16.830 matched against 35.761 unmatched, and
 -- the loss is almost entirely in imported history: live LMS loses 6%, the
 -- ListenBrainz import 73%. Same music, different system's spelling.
+--
+-- Design: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 
 -- Normalized keys, indexed, so the middle tiers are lookups rather than scans.
 -- 191 is the indexable VARCHAR length under utf8mb4; rules_festivals uses the

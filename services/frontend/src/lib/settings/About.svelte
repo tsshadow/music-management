@@ -7,6 +7,7 @@
   import { apiBase, fetchMumaJson } from '../mumaApi.js';
   import { fetchBundleVersion } from '../diagnosticsLog.js';
   import { parseMobileChangelog } from '../mobileReleaseNotes.js';
+  import { safeSourceUrl } from '../sourceLink.js';
   import { checkForAppUpdate, isOtherSeries } from '../appUpdate.js';
 
   /**
@@ -28,6 +29,8 @@
   let lmsVersion = $state('');
   let mumaVersion = $state('');
   let serverUrl = $state('');
+  /** Where the source code lives (AGPL-3.0 section 13); empty hides the link. */
+  let sourceUrl = $state('');
   /** @type {{version: string, builtAt: string|null}|null} */
   let bundle = $state(null);
   let isLoading = $state(true);
@@ -80,9 +83,11 @@
     try {
       const health = await fetchMumaJson(`${apiBase()}/health`);
       if (typeof health?.version === 'string') mumaVersion = health.version;
+      sourceUrl = safeSourceUrl(health?.source_url);
     } catch (e) {
       // An unhealthy MuMa answers /health with 503 and the full report, version included.
       if (typeof e?.body?.version === 'string') mumaVersion = e.body.version;
+      sourceUrl = safeSourceUrl(e?.body?.source_url);
       console.warn('Could not read the MuMa API version', e);
     }
   }
@@ -126,6 +131,19 @@
     } finally {
       checking = false;
     }
+  }
+
+  /**
+   * Opens the source link. In the app it goes to the system browser, as every other external
+   * link does, instead of navigating the WebView away from the player.
+   * @param {MouseEvent} event
+   */
+  function openSource(event) {
+    if (!isNative) return;
+    event.preventDefault();
+    const target = safeSourceUrl(sourceUrl);
+    if (!target) return;
+    platform.system.openUrl(target).catch((e) => console.warn('Could not open the source code link', e));
   }
 
   /**
@@ -235,6 +253,20 @@
         </dd>
       </dl>
     </section>
+
+    {#if safeSourceUrl(sourceUrl)}
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5" data-testid="about-source">
+        <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.sourceCode')}</h2>
+        <p class="text-muma-spotify-text text-sm mb-3">{$t('settings.about.sourceCodeBody')}</p>
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-brand text-sm font-bold break-all hover:underline"
+          onclick={openSource}
+        >{sourceUrl}</a>
+      </section>
+    {/if}
 
     <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
       <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.about.howItWorksTitle')}</h2>

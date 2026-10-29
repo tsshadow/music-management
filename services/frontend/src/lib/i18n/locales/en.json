@@ -1760,6 +1760,8 @@
       "releaseNotesApp": "What's new in the app",
       "server": "Server",
       "serverUrl": "Address",
+      "sourceCode": "Source code",
+      "sourceCodeBody": "MuMa is free software under the GNU AGPL-3.0. You can get the source code of the version this server runs here.",
       "subtitle": "Which version you are on, and what changed recently.",
       "title": "About MuMa",
       "unknown": "unknown",

@@ -42,6 +42,7 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `HOST_BACKUP_PATH` | Where the database dumps go. Required by `scripts/backup/install-systemd.sh`, and it must be on another disk than `HOST_DATA_PATH`. |
 | `DOCKER_USER` | The registry account the images are named under, for example `example-user`. |
 | `GOOGLE_CLIENT_ID` | Only for "Sign in with Google". Must equal `VITE_GOOGLE_CLIENT_ID` in the player's `.env`. |
+| `PUBLIC_SOURCE_URL` | Where users get the source code (AGPL-3.0 section 13), shown as the Source code link on the About and login screens. Default `https://github.com/OWNER/music-management`, a placeholder: set your own repository or fork. |
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 

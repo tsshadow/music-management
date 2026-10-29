@@ -339,3 +339,78 @@ class BackupHealthTest(unittest.TestCase):
             response = self.client.get('/health/backup')
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()['status'], 'unreadable')
+
+
+class SourceUrlHealthTest(unittest.TestCase):
+    """AGPL-3.0 section 13: /health tells the About screen where the source is."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        thread_registry.reset()
+
+    def tearDown(self):
+        thread_registry.reset()
+
+    def _body(self, configured):
+        with (
+            patch('services.music_manager.main.event_service') as events,
+            patch('services.music_manager.main.check_database', return_value=True),
+            patch('services.music_manager.main.ConfigStore') as store,
+        ):
+            events.is_alive.return_value = True
+            store.return_value.get.return_value = configured
+            return self.client.get('/health').json()
+
+    def test_reports_the_configured_address(self):
+        self.assertEqual(self._body('https://git.example/muma')['source_url'], 'https://git.example/muma')
+
+    def test_an_empty_setting_reports_an_empty_string(self):
+        self.assertEqual(self._body('')['source_url'], '')
+
+    def test_a_non_http_address_is_dropped(self):
+        self.assertEqual(self._body('javascript:alert(1)')['source_url'], '')
+        self.assertEqual(self._body('data:text/html,x')['source_url'], '')
+
+    def test_the_scheme_is_case_insensitive(self):
+        self.assertEqual(self._body(' HTTPS://git.example/muma ')['source_url'], 'HTTPS://git.example/muma')
+
+    def test_a_scheme_relative_address_is_dropped(self):
+        self.assertEqual(self._body('//git.example/muma')['source_url'], '')
+
+    def test_an_address_with_user_info_is_dropped(self):
+        self.assertEqual(self._body('https://a@evil.example')['source_url'], '')
+        self.assertEqual(self._body('https://a:b@evil.example')['source_url'], '')
+
+    def test_an_address_without_a_host_is_dropped(self):
+        self.assertEqual(self._body('https:///path')['source_url'], '')
+
+    def test_a_failing_store_gives_an_empty_string(self):
+        with (
+            patch('services.music_manager.main.event_service') as events,
+            patch('services.music_manager.main.check_database', return_value=True),
+            patch('services.music_manager.main.ConfigStore', side_effect=RuntimeError('boom')),
+        ):
+            events.is_alive.return_value = True
+            response = self.client.get('/health')
+        self.assertEqual(response.json()['source_url'], '')
+
+    def test_the_503_body_carries_it_too(self):
+        with (
+            patch('services.music_manager.main.event_service') as events,
+            patch('services.music_manager.main.check_database', return_value=False),
+            patch('services.music_manager.main.ConfigStore') as store,
+        ):
+            events.is_alive.return_value = True
+            store.return_value.get.return_value = 'https://git.example/muma'
+            response = self.client.get('/health')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['source_url'], 'https://git.example/muma')
+
+    def test_the_setting_has_a_neutral_placeholder_default(self):
+        from services.music_manager.tests.test_config_endpoint import load_real_config_store
+
+        with TemporaryDirectory() as tmp:
+            env = {k: v for k, v in os.environ.items() if k != 'PUBLIC_SOURCE_URL'}
+            with patch.dict(os.environ, env, clear=True):
+                store = load_real_config_store(os.path.join(tmp, 'config.json'))
+                self.assertEqual(store.get('public_source_url'), 'https://github.com/OWNER/music-management')

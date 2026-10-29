@@ -211,7 +211,7 @@ added alongside the existing settings in `Settings.kt`, following the `BooleanSe
 `music_manager` does not change.
 
 The memory card — the year-group card used by both carousels and by the group headers — is a new visual
-component on both clients. Per AGENTS.md rule 14 it is added to [docs/styleguide.md](../../styleguide.md)
+component on both clients. Per AGENTS.md rule 15 it is added to [docs/styleguide.md](../../styleguide.md)
 before it is implemented, so the web and Android versions are built against one agreed description rather
 than drifting apart.
 

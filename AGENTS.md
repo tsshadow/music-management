@@ -12,11 +12,11 @@ player and the Android client) is made and committed as a single, atomic change 
 its own independent build/deploy pipeline (see `build.sh`, `docker/`, and each service's own `scripts/`), only
 the source code and history are shared.
 
-Operations material is in a private repository (`muma/muma-ops`): production scripts, agent
-skills and plans, runbooks. Without it, ignore references to `scripts/prod/` and the production
-runbooks; the build, the tests and merge requests do not need it. Its `install.sh <checkout>` links it
-into a checkout, and it may add an `AGENTS.local.md` with the homelab sections, which you read when it
-exists.
+The owner's operations material (production scripts, agent skills and plans, runbooks) is kept outside
+this repository. Without it, ignore references to `scripts/prod/` and the production runbooks; the build,
+the tests and merge requests do not need it. When the owner's setup links an `AGENTS.local.md` into the
+checkout, it holds the host-specific rules of that installation: read it when it exists, and ignore it
+otherwise. A rule in `AGENTS.local.md` takes precedence over the generic rule it names.
 
 ## 🏗 Core Modules & Responsibilities
 
@@ -244,7 +244,7 @@ shrink the InnoDB file — reclaiming the space is an operator step, see `docs/d
 ### Deployment prerequisite: `upstream-base-url`
 Instant delivery on the phone depends on a setting outside this repository. The official ntfy
 Android app uses Firebase for push, but only for topics hosted on `ntfy.sh` itself; against a
-self-hosted server (`ntfy.example.com` here) the app falls back to periodic polling, so a
+self-hosted server the app falls back to periodic polling, so a
 `CRITICAL` could arrive minutes late — defeating the purpose of the alerts topic. The fix is one line
 in the self-hosted server's `server.yml`:
 
@@ -548,8 +548,8 @@ rule 11).
    *all* consumers in the same commit — matches the existing monorepo/atomic-change convention described
    under [Repository Layout](#-repository-layout).
 8. **No secrets, ever, in code, commits, or docs**: credentials, tokens, and keys are never committed or
-   written into `AGENTS.md`/`docs/`; they live only in a gitignored `.env` or in password manager, referenced by
-   name only. Treat `AGENTS.md` and everything under `docs/` as potentially public.
+   written into `AGENTS.md`/`docs/`; they live only in a gitignored `.env` or in a password manager, referenced by
+   name only. An agent never creates or fills a local credentials file itself. Treat `AGENTS.md` and everything under `docs/` as potentially public.
 9. **Changelog required**: every functional change adds a fragment under `changelog.d/` in the same
    change (see [changelog.d/README.md](changelog.d/README.md)); `CHANGELOG.md` and `RELEASE_NOTES.md`
    are assembled from the fragments at release time and are not edited on a feature branch.
@@ -570,31 +570,17 @@ rule 11).
     - `# reported problem`
     - `# Possible reason`
     - `# solution`
-14. **Open work lives in GitLab issues**: anything decided-but-not-done, or done-but-not-verified,
-    becomes an issue in `muma/music-management` the moment it is found (`glab issue create`),
-    not a line in a file. Each issue carries one kind label -- `needs-person` (Teun must run a
-    script, check a device, enter a secret), `decision` (a choice only Teun can make), `verify`
-    (check on production or a device after a release; state the exact check), `code` (buildable
-    work), `deferred` (consciously parked) -- and one area label (`area-backend`, `area-frontend`,
-    `area-mobile`, `area-lms`, `area-infra`, `area-data`). The issue links to the bug report,
-    design doc or script where the detail lives: a bug report describes a fix, so it cannot carry
-    a plan, and a merge request description is not a record. A merge request that finishes one
-    writes `Closes #N` in its description; one that leaves something open files a new issue. The
-    [Development board](https://gitlab.example.com/muma/music-management/-/boards/1) has a
-    column per kind. Do not keep a list of open work in a file. A stale open issue is a bug, same as a stale
-    design doc (rule 3).
+14. **Open work lives in the issue tracker**: anything decided-but-not-done, or done-but-not-verified,
+    becomes an issue the moment it is found, not a line in a file. Give it one kind (needs a person,
+    decision, verify after a release with the exact check, buildable code, or deferred on purpose) and one
+    area (backend, frontend, mobile, LMS, infra, data). The issue links to the bug report, design doc or
+    script where the detail lives: a bug report describes a fix, so it cannot carry a plan, and a merge
+    request description is not a record. A merge request that finishes an issue says `Closes #N` in its
+    description; one that leaves something open files a new issue. A stale open issue is a bug, same as a
+    stale design doc (rule 3). Do not keep a list of open work in a file.
 15. **Style Guide Adherence & Workflow**: All UI updates and new components across both the Web frontend (`services/frontend`) and the Android client (`services/muma-mobile`) must strictly adhere to [docs/styleguide.md](docs/styleguide.md). Any new styles or design changes (after dev approval) must first be updated in the style guide (or recorded as a pending item/todo in `docs/styleguide.md`) before being implemented in code.
 16. **Ask which environment before touching live data**: any question that involves live data — the
     database, running containers, logs, checking whether something "actually works" — is ambiguous between
-    production (192.0.2.27, see `.production`) and the local dev stack (localhost) until
-    stated otherwise. Ask which environment is meant before querying either one; do not assume localhost
-    just because that's where the checkout lives.
-
-## Production
-
-Production info can be found at .production
-
-Secrets not already in `.production` (or anything else in password manager) can be pulled via
-`scripts/vw.sh` — a wrapper around the `bw` CLI. It needs a one-time, human-only setup (see the
-script's header comment); an agent should never create or populate that local credentials file
-itself.
+    a production deployment and the local dev stack (localhost) until stated otherwise. Ask which
+    environment is meant before querying either one; do not assume localhost just because that's where
+    the checkout lives.

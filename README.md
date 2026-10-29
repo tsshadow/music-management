@@ -131,7 +131,7 @@ The system is split into modular Docker Compose files for better resource manage
 1. **`docker/docker-compose.yml`**: What production runs (`scripts/ci-deploy.sh`): MariaDB, phpMyAdmin,
    Music Manager (which hosts the tagger and scanner) and the importer, YouTube, SoundCloud and
    Telegram workers. LMS is its own stack (`services/music-management-server/docker-compose.yml`).
-2. **`docker/docker-compose.workers.yml`**: Local-only overlay used by `scripts/dev.sh`. It redefines
+2. **`docker/docker-compose.workers.yml`**: Local-only overlay used by `scripts/dev.sh` (which also reads the optional, gitignored `.production` file of the owner's checkout for `DOCKER_USER`). It redefines
    the same worker containers with a flat, older environment and is not valid on its own (its
    workers depend on a `db` only `docker-compose.yml` defines). Production never reads it.
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).

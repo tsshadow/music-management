@@ -359,6 +359,11 @@ dependencies {
     implementation libs.capacitorCore
     implementation libs.media3datasource
     implementation libs.media3okhttp
+    constraints {
+        implementation(libs.guava) {
+            because "media3 brings Guava 33.3.1, which has CVE-2026-102554"
+        }
+    }
     implementation libs.lifecycleLivedataKtx
     implementation libs.credentials
     implementation libs.credentialsPlayServicesAuth

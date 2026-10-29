@@ -38,6 +38,9 @@ detekt                 = "1.23.8"
 documentFile           = "1.1.0"
 preferences            = "1.2.1"
 media3                 = "1.11.1"
+# Not used directly: media3 pulls in Guava 33.3.1, which has CVE-2026-102554 (HIGH).
+# app/build.gradle raises it with a constraint. Drop both once media3 asks for 33.7.2+.
+guava                  = "33.7.2-android"
 # Capacitor 9 does not exist as a release: npm carries 9.0.0-alpha.6 under the `next`
 # tag and Maven Central has nothing above 8.5.2 for com.capacitorjs:core. 8.5.2 is the
 # current stable, and the web side must install @capacitor/core and @capacitor/cli at the
@@ -98,6 +101,7 @@ media3exoplayer         = { module = "androidx.media3:media3-exoplayer", version
 media3datasource        = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 media3okhttp            = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3session           = { module = "androidx.media3:media3-session", version.ref = "media3" }
+guava                   = { module = "com.google.guava:guava", version.ref = "guava" }
 capacitorCore           = { module = "com.capacitorjs:core", version.ref = "capacitor" }
 credentials            = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }

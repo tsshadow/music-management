@@ -171,9 +171,9 @@ This check ran before the current setup. Gitleaks scans the code for things that
 This job is deliberately **not** `allow_failure`. Unlike the dependency audit, it does not depend on an
 external service. So a failure is a finding, not an outage.
 
-Exceptions per path are in `security/gitleaks.toml`. Exceptions per finding are in `.gitleaksignore`.
-That last file contains no keys. It only holds references in the form `commit:file:line`. Semgrep flagged
-the file itself. That was a false alarm.
+Exceptions per path are in `security/gitleaks.toml`. Exceptions per finding go in `.gitleaksignore`,
+as references in the form `commit:file:rule:line`. That file is empty since the history rewrite of
+2026-10-29 removed every committed credential.
 
 ---
 

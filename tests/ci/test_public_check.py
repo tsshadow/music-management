@@ -20,6 +20,7 @@ HANDLE = "tssha" + "dow"
 PARTNER = "leppaslohtesil"[::-1]
 LAN = "192." + "168."
 LOGIN = "teu" + "n"
+EMPLOYER = "mob" + "a"
 
 FORBIDDEN = {
     "owner domain": f"see https://{OWNER}.nl/x",
@@ -38,6 +39,9 @@ FORBIDDEN = {
     "old personal host": "curl https://spoti" + "fy.example.org/rest",
     "owner login in a query": f"/rest/ping.view?u={LOGIN}&p=x",
     "owner login as home directory": f"/home/{LOGIN}/Music",
+    "employer": f"made at {EMPLOYER}",
+    "employer upper case": f"{EMPLOYER.upper()} icons",
+    "employer home directory": f"/home/{EMPLOYER}/git",
 }
 
 ALLOWED = {
@@ -51,6 +55,7 @@ ALLOWED = {
     "spotify provider path": "providers/spoti" + "fy.py",
     "capitalised first name": "Copyright (C) 2026 " + LOGIN.capitalize() + " Schriks",
     "login inside a longer word": f"x{LOGIN}y and {LOGIN}2 and {LOGIN}_a",
+    "employer inside a longer word": f"{EMPLOYER}xterm and auto{EMPLOYER}",
 }
 
 
@@ -95,7 +100,7 @@ def test_migrations_are_not_scanned(tmp_path):
 
 def test_patterns_file_names_no_forbidden_word():
     text = PATTERNS.read_text(encoding="utf-8").lower()
-    for word in (OWNER, HANDLE, PARTNER, "7144609033" + "1", "vaultwar" + "den", LAN + "1."):
+    for word in (OWNER, HANDLE, PARTNER, EMPLOYER, "7144609033" + "1", "vaultwar" + "den", LAN + "1."):
         assert word not in text
 
 

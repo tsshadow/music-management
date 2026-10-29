@@ -161,13 +161,10 @@ After step 2 everyone re-clones. Open merge requests are retargeted or closed.
 
 ## Open Questions / Not Yet Decided
 
-1. Two more identities are in the history besides the three in the plan. A work address (about 296
-   commits, authored or committed) and the owner's display-name variants with the
-   same gmail address, and the bot names `Claude (nightly)` and `Claude (nightly prod check)` with that
-   address. Proposal: map the work address and every spelling of the personal identities to
-   the owner's name and the GitHub contact address, and map the two bot names to `Claude (nightly)` with the GitHub contact address.
-   Is the work address to be removed from the public history? The commits stay either way.
-2. One commit has the committer `root@lms.<LAN address>`. Proposal: map it to the same identity.
+1. Decided 2026-10-29: the work address and every spelling of the personal identities map to
+   the owner's name and the GitHub contact address; the commits are the owner's own work. Every
+   mention of the employer is removed from the history and blocked by `public:check`.
+2. Decided: the `root@lms.<LAN address>` committer maps to a neutral `root@lms.example.com`.
 3. Which GitHub Actions workflow names and ghcr.io namespace should the public images use? The plan
    says ghcr.io; the namespace is needed for step 10.
 4. `CODEOWNERS` names the owner's user name. Proposal: replace it with a placeholder the GitHub owner

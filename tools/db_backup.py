@@ -272,7 +272,7 @@ def _copy_with_watchdog(process: subprocess.Popen, out, stall_limit: int) -> Non
             raise DumpStalled(
                 f'mariadb-dump produced no output for {stall_limit}s after {written} bytes{where} and was stopped. '
                 'It is almost certainly waiting on a table metadata lock held (or queued) by another session; '
-                'find it with SHOW PROCESSLIST as root and KILL QUERY it, see docs/deployment.md.'
+                'find it with SHOW PROCESSLIST as root and KILL QUERY it, see docs/self-hosting.md#migrations.'
             ) from None
         if chunk is None:
             return

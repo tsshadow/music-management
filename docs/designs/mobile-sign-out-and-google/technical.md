@@ -90,5 +90,5 @@ repository.
 ## Related Docs
 
 - [authentication/technical.md](../authentication/technical.md) -- MuMa Mobile section updated.
-- [docs/deployment.md](../../deployment.md) -- "Google Sign-In on MuMa Mobile (Android)".
+- `docs/deployment-production.md` in muma-ops -- "Google Sign-In on MuMa Mobile (Android)".
 - Bug reports 011, 013, 019, 020 (the earlier native Google sign-in history).

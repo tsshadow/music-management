@@ -50,7 +50,7 @@ would have been compiled into the LMS image without a word.
   `docker-compose.yml`, which is ours, not upstream's.
 - `tests/ci/test_pinned_build_inputs.py` fails on a new unchecked download, a `releases/latest` URL,
   a floating image reference, or yt-dlp pins that disagree.
-- `docs/deployment.md` "Pinned build inputs" says who bumps what, and how to bump a checksummed input
+- `muma-ops docs/deployment-production.md` "Pinned build inputs" says who bumps what, and how to bump a checksummed input
   by hand.
 
 Left open, for Teun to decide rather than this fix:

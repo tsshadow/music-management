@@ -6,7 +6,7 @@ That order is only safe when a migration leaves the schema usable by the code
 that is already running: adding tables, columns and indexes is fine; dropping,
 renaming or narrowing something the old code still reads is not. Such a
 "contract" step belongs in a later release, once no running code uses the old
-shape -- see docs/deployment.md#deploy-order-and-migrations.
+shape -- see docs/self-hosting.md#migrations.
 
 The files listed in ALREADY_APPLIED predate that order. Each contains a
 statement matched below, and each has long since been applied to production;
@@ -118,7 +118,7 @@ def test_new_migrations_are_expand_only() -> None:
     assert offenders == {}, (
         "these migrations drop, rename or narrow something while the previous release is still "
         f"running (scripts/deploy.sh migrates before `up`): {offenders}. "
-        "Ship the contract step in a later release; see docs/deployment.md."
+        "Ship the contract step in a later release; see docs/self-hosting.md."
     )
 
 
@@ -178,9 +178,9 @@ def test_every_migration_name_can_be_recorded() -> None:
 
 def test_the_order_is_byte_wise_lexical_not_by_version_number() -> None:
     """migrate_v10_* runs before migrate_v2.sql, which runs before migrate_v29_*. Documented in
-    docs/deployment.md; a migration must not depend on a higher-numbered one."""
+    docs/self-hosting.md; a migration must not depend on a higher-numbered one."""
     names = [p.name for p in sorted(REPO_ROOT.glob("migrate_*.sql"), key=lambda p: p.name.encode())]
     assert names.index("migrate_v10_audio_features_relink.sql") < names.index("migrate_v2.sql")
     assert names.index("migrate_v2.sql") < names.index("migrate_v29_processed_mtime_double.sql")
-    deployment = (REPO_ROOT / "docs" / "deployment.md").read_text(encoding="utf-8")
-    assert "`migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`" in deployment
+    self_hosting = (REPO_ROOT / "docs" / "self-hosting.md").read_text(encoding="utf-8")
+    assert "`migrate_v10_audio_features_relink.sql` before `migrate_v2.sql`" in self_hosting

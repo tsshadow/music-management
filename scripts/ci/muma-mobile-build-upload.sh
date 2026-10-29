@@ -5,7 +5,7 @@
 # automated equivalent of what used to be a fully manual, local-only step
 # (services/muma-mobile/scripts/build.sh + publish.sh + deploy.sh, run by hand).
 #
-# Required CI/CD variables (see docs/deployment.md):
+# Required CI/CD variables (see docs/self-hosting.md#deploy-from-gitlab-ci):
 #   - APK_HOSTER_URL, APK_HOSTER_PASSWORD: always required. The password is read only by
 #     scripts/deploy.sh for the upload; app/build.gradle no longer compiles it into the APK
 #     (bug report 054), so it must never be added back as a BuildConfig field.
@@ -29,7 +29,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
 if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
-    echo "Error: APK_HOSTER_URL / APK_HOSTER_PASSWORD are not set. See docs/deployment.md."
+    echo "Error: APK_HOSTER_URL / APK_HOSTER_PASSWORD are not set. See docs/self-hosting.md#deploy-from-gitlab-ci."
     exit 1
 fi
 
@@ -83,7 +83,7 @@ source "$ROOT_DIR/scripts/ci/android-image.sh"
 # whose package name + certificate SHA-1 match a registered Android-type OAuth
 # client (bug report 011), so with a per-build random certificate "Sign in with
 # Google" can never work on a CI debug APK. Signing debug builds with the same,
-# stable keystore makes that SHA-1 registerable once (see docs/deployment.md).
+# stable keystore makes that SHA-1 registerable once (see muma-ops docs/deployment-production.md).
 # It is still only *required* for release builds.
 STORE_FILE_NAME=""
 if [ "$BUILD_TYPE" == "release" ]; then

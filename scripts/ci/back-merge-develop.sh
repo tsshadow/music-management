@@ -4,7 +4,7 @@
 # Runs on `master` after release:tag, right after a release/* (or hotfix/*)
 # branch has been merged. Automatically merges `master` into `develop` via
 # the GitLab API so develop never drifts from what was actually released -
-# see docs/release-management.md for the full policy.
+# see muma-ops docs/release-management.md for the full policy.
 #
 # Uses the same TAG_CREATION_TOKEN (Maintainer, api scope) already used by
 # release:tag; no new secret needed.
@@ -15,7 +15,7 @@
 set -e
 
 if [ -z "$TAG_CREATION_TOKEN" ]; then
-    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 
@@ -47,7 +47,7 @@ else
         --data-urlencode "source_branch=master" \
         --data-urlencode "target_branch=develop" \
         --data-urlencode "title=Back-merge master into develop (${CI_COMMIT_SHORT_SHA})" \
-        --data-urlencode "description=Automated back-merge after release:tag, so develop stays in sync with what was actually released on master. See docs/release-management.md." \
+        --data-urlencode "description=Automated back-merge after release:tag, so develop stays in sync with what was actually released on master. See muma-ops docs/release-management.md." \
         --data-urlencode "remove_source_branch=false" \
         "${API}/merge_requests")
     MR_IID=$(echo "$MR_RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin)['iid'])")

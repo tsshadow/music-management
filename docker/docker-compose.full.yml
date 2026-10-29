@@ -132,7 +132,7 @@ services:
 
   importer_worker:
     # Opt-in source worker: runs only when this profile is enabled (COMPOSE_PROFILES,
-    # docs/deployment.md#source-workers-are-compose-profiles).
+    # docs/self-hosting.md#source-workers-are-compose-profiles).
     profiles: ["importer"]
     logging: *default-logging
     security_opt:

@@ -21,46 +21,21 @@ pytestmark = pytest.mark.integration
 
 SNAPSHOT = Path(__file__).parent / 'schema' / 'production.tsv'
 
-CLEANUP = 'tools/schema_cleanup_2026_11.py'
-
-# Tables production has and the code no longer declares. Nothing reads or writes them; the
-# cleanup script drops them with a backup.
+# Tables production has and the code no longer declares, each with its reason. A script in
+# tools/ with a dry run and a backup drops them (such as tools/schema_cleanup_2026_11.py).
 DROPPED_TABLES = {
-    'downloads_soundcloud_queue': f'never read since the queue moved into the archive; {CLEANUP}',
-    'downloads_youtube_queue': f'never read since the queue moved into the archive; {CLEANUP}',
-    'rules_genres_new': f'left behind by the genre-state rebuild; {CLEANUP}',
-    'rules_genres_old': f'left behind by the genre-state rebuild; {CLEANUP}',
-    'library_broken_songs': f'written on a failed tag and never read, 0 rows; {CLEANUP}',
-    'library_broken_song_artist_lookup': f'BrokenSongArtistLookupHelper was never called; {CLEANUP}',
     'schema_migrations': 'the ledger of the migration files, kept on production as a record',
 }
 
 # Columns production has and the code no longer declares, for the same reason.
-DROPPED_COLUMNS = {
-    ('artist_external_ids', 'confidence'): CLEANUP,
-    ('downloads_soundcloud_accounts', 'account_type'): CLEANUP,
-    ('downloads_soundcloud_accounts', 'image_enrichment_hint'): CLEANUP,
-    ('downloads_soundcloud_accounts', 'linked_artist_id'): CLEANUP,
-    ('library_artist_images', 'status'): CLEANUP,
-    ('library_artist_images', 'error_message'): CLEANUP,
-}
+DROPPED_COLUMNS: dict[tuple[str, str], str] = {}
 
 # Other lines production has and a fresh database does not, each with its reason.
-ONLY_ON_PRODUCTION = {
-    'F\tscrobble_listens\ttrack_id\tlibrary_tracks\tid\tCASCADE\tRESTRICT': (
-        f'a deleted track took its listens with it; the cleanup script makes it SET NULL ({CLEANUP})'
-    ),
-}
+ONLY_ON_PRODUCTION: dict[str, str] = {}
 
-# Lines a fresh database has and production does not, each with its reason. The deploy's
-# reconcile adds the columns and the index; the cleanup script adds the foreign keys.
-ONLY_ON_FRESH = {
-    'C\tlibrary_artists\tcreated_at\ttimestamp\tYES\tcurrent_timestamp()\t\t<none>': 'added by the reconcile',
-    'C\tlibrary_labels\tcreated_at\ttimestamp\tYES\tcurrent_timestamp()\t\t<none>': 'added by the reconcile',
-    'I\trules_genres\tcanonical_id\t0\tcanonical_id\tBTREE': 'added by the reconcile',
-    'F\trules_genres\tcanonical_id\trules_genres\tid\tSET NULL\tRESTRICT': CLEANUP,
-    'F\tscrobble_listens\ttrack_id\tlibrary_tracks\tid\tSET NULL\tRESTRICT': CLEANUP,
-}
+# Lines a fresh database has and production does not, each with its reason: a declaration the
+# next deploy's reconcile adds, or one a script in tools/ adds.
+ONLY_ON_FRESH: dict[str, str] = {}
 
 
 def _production_lines() -> set[str]:

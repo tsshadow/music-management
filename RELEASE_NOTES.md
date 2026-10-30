@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.95.0 (2026-10-30)
+
+- A release is deployed from its tag by the operations repository. The release pipeline here
+  builds and publishes the images and the APK, and tags only when both exist (#200).
+
+- **The web player shows a throbber on the play button while a track buffers**, so a slow start
+  no longer looks like a fault. The app is not changed.
+
 ## Global Version 0.94.1 (2026-10-30)
 
 - **A schema reconcile dry run no longer ends with "schema reconciled".** `--dry-run` changes nothing

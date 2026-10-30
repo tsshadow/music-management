@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## Global Version 7.18.4 (2026-10-30)
+
+- **A track that would not play stopped the music, also in Android Auto.** The app now tries the
+  track once more from the server, and then goes on to the next track.
+
 ## Global Version 7.18.3 (2026-10-30)
 
 - **The server address and the Google client id are build settings now.** `StaticServers.SERVER_URL`,

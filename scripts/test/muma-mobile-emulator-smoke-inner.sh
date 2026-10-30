@@ -13,7 +13,7 @@ export ANDROID_HOME="$ANDROID_SDK_ROOT"
 export PATH="$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
 # AVDs and adb keys must land somewhere this uid can write. NOT the image's
 # /home/ci: the image tag hashes only the Dockerfile, so a runner can inherit
-# an image built under a different uid (the workstation did - user's local
+# an image built under a different uid (the workstation did - the local
 # build, gitlab-runner's job) and /home/ci then belongs to someone else. The
 # wrapper therefore sets HOME=/tmp/emu-home, writable for any uid.
 mkdir -p "$HOME"
@@ -178,7 +178,7 @@ if grep -q "The web bundle was not built" app/src/main/assets/public/index.html 
     echo "WARNING: this APK carries the placeholder page, not the Svelte bundle; only the WebView is checked." >&2
 else
     if [ -z "$SMOKE_EXPECTED_SERVER" ]; then
-        echo "Error: SMOKE_EXPECTED_SERVER is not set (the wrapper reads it from StaticServers.kt)." >&2
+        echo "Error: SMOKE_EXPECTED_SERVER is not set (the wrapper sets it from MUMA_SERVER_URL)." >&2
         exit 1
     fi
     EXPECT_TEXT="$SMOKE_EXPECTED_SERVER"

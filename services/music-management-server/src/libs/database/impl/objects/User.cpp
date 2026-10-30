@@ -100,7 +100,7 @@ namespace lms::db
     {
         // Case-insensitive on purpose: an account is one identity whatever case its login name is
         // typed in. music-manager, which owns the accounts, matches login names case-insensitively
-        // (MariaDB's utf8mb4_general_ci), so it accepts "Teun" for "user"; an exact match here then
+        // (MariaDB's utf8mb4_general_ci), so it accepts "User" for "user"; an exact match here then
         // found nobody and getOrCreateUser() made a second, empty user for the same person
         // (docs/bug-reports/074-login-case-forks-user-identity.md). Where two case variants already
         // exist, the one linked to a MuMa account wins, then the oldest, so a fork left behind by

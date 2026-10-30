@@ -73,6 +73,17 @@
       "groupName": "yt-dlp"
     },
     {
+      "description": "pytest is capped below 9.2 in requirements.txt and tests/bdd/requirements.txt: 9.2 removed FixtureManager._arg2fixturedefs, which pytest-bdd 8.1 uses, and every BDD test fails in setup. Without this rule Renovate proposes the 9.2 bump again on every run. Lift the cap (and this rule) when pytest-bdd supports pytest 9.2.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchPackageNames": [
+        "pytest"
+      ],
+      "allowedVersions": "<9.2",
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Dev tooling is not shipped to production; an upgrade can only turn the pipeline red, never break a user.",
       "matchFileNames": [
         "requirements-dev.txt"
@@ -209,7 +220,7 @@
       "pinDigests": true
     },
     {
-      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- docs/deployment.md, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump, and held for a week rather than three days: a data-directory upgrade is the one update here that is hard to take back. Like every docker update here it never merges on its own.",
+      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- muma-ops docs/deployment-production.md, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump, and held for a week rather than three days: a data-directory upgrade is the one update here that is hard to take back. Like every docker update here it never merges on its own.",
       "matchManagers": [
         "docker-compose"
       ],
@@ -228,7 +239,7 @@
       ]
     },
     {
-      "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see docs/deployment.md, \"Pinned build inputs\". It never merges on its own.",
+      "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see muma-ops docs/deployment-production.md, \"Pinned build inputs\". It never merges on its own.",
       "matchPackageNames": [
         "denoland/deno"
       ],

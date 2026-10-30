@@ -53,7 +53,7 @@ STRICT_MODULES=(
     services/tagger/constants.py
     services/tagger/Song/rules/TagResult.py
     services/tagger/Song/rules/TagRule.py
-    tools/apply_migrations.py
+    services/common/schema_reconcile.py
 )
 
 if [ "${1:-}" = "--all" ]; then

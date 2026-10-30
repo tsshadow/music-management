@@ -37,8 +37,8 @@ def test_a_redownload_finds_its_source_by_the_exact_path_and_takes_the_name_lite
         assert _redownload_source(cursor, '/music/Soundcloud/a/Intro_1.mp3') == ('moved', 'soundcloud')
 
         cursor.execute(
-            'INSERT INTO downloads_youtube_archive (account, video_id, filename, path, url, download_type) '
-            "VALUES ('a', 'y', 'Intro_1.mp3', NULL, 'youtube', 'audio')"
+            'INSERT INTO downloads_youtube_archive (account, video_id, filename, path, url, title, download_type) '
+            "VALUES ('a', 'y', 'Intro_1.mp3', NULL, 'youtube', 'Intro', 'audio')"
         )
         with pytest.raises(AmbiguousSource):
             _redownload_source(cursor, '/music/Soundcloud/a/Intro_1.mp3')

@@ -40,6 +40,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=scripts/lib/compose_profiles.sh
+. "$PROJECT_ROOT/scripts/lib/compose_profiles.sh"
 
 # Standalone invocation (the muma:verify job) has no agent yet; being called
 # from ci-deploy.sh it already does, and re-running the setup would pointlessly
@@ -53,7 +55,7 @@ fi
 if [ "${#PROD_SSH_OPTS[@]}" -eq 0 ]; then
     # shellcheck source=scripts/lib/ssh_host_keys.sh
     . "$PROJECT_ROOT/scripts/lib/ssh_host_keys.sh"
-    mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+    ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 fi
 
 EXPECTED_VERSION="${1:-}"
@@ -128,6 +130,40 @@ check_states() {
     return "$failed"
 }
 
+# check_profile_workers SAMPLE: every source worker whose compose profile the
+# production env file enables (COMPOSE_PROFILES in PROD_ENV_FILE) must be in
+# SAMPLE and running. Profiles decide which workers `up` starts, so a profile
+# dropped from that file would otherwise just remove a worker without a red
+# check (docs/self-hosting.md#source-workers-are-compose-profiles). The profile
+# to container map is pinned against docker/docker-compose.yml by
+# tests/ci/test_compose_profiles.py. Without PROD_ENV_FILE or COMPOSE_PROFILES it
+# prints SKIPPED, and fails when run as the muma:deploy or muma:verify job.
+PROFILE_WORKERS="soundcloud:muma-soundcloud-worker youtube:muma-youtube-worker telegram:muma-telegram-worker importer:muma-importer-worker"
+check_profile_workers() {
+    local sample="$1" content profiles entry profile container state failed=0 required=0
+    case "${CI_JOB_NAME:-}" in muma:deploy | muma:verify) required=1 ;; esac
+    if [ -z "${PROD_ENV_FILE:-}" ]; then
+        echo "  SKIPPED: source worker check, PROD_ENV_FILE is not set."
+        return "$required"
+    fi
+    if [ -f "$PROD_ENV_FILE" ]; then content="$(cat "$PROD_ENV_FILE")"; else content="$PROD_ENV_FILE"; fi
+    if ! profiles="$(compose_profiles_value "$content")"; then
+        echo "  SKIPPED: source worker check, COMPOSE_PROFILES is missing or empty in PROD_ENV_FILE."
+        return "$required"
+    fi
+    for entry in $PROFILE_WORKERS; do
+        profile="${entry%%:*}"
+        container="${entry#*:}"
+        case ",${profiles}," in *",${profile},"*) ;; *) continue ;; esac
+        state="$(printf '%s\n' "$sample" | awk -F'|' -v n="/${container}" '$2 == n { print $4; exit }')"
+        if [ "$state" != "running" ]; then
+            echo "  ERROR: profile '${profile}' is enabled but ${container} is ${state:-missing}, not running."
+            failed=1
+        fi
+    done
+    return "$failed"
+}
+
 # restarts_increased BEFORE AFTER: print every container whose RestartCount
 # grew between the two samples, and return 0 when there is at least one.
 restarts_increased() {
@@ -145,7 +181,7 @@ restarts_increased() {
 
 echo "--- Verifying container state on $REMOTE_HOST ---"
 FIRST_SAMPLE="$(sample_containers)"
-if ! check_states "$FIRST_SAMPLE"; then
+if ! check_states "$FIRST_SAMPLE" || ! check_profile_workers "$FIRST_SAMPLE"; then
     echo "--- Post-deploy verification FAILED: container state ---"
     exit 1
 fi

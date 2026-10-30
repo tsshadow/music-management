@@ -29,10 +29,11 @@ export DB_NAME="music-management"
 export MUMA_API_KEY="dev-key"
 export FIREFOX_PASSWORD="dev"
 
-# Production info (optional for dev, used for image pulling)
+# .production is an optional file of the owner's checkout (gitignored). Without it, or without
+# the "Docker Hub User" line, DOCKER_USER falls back to the default below.
 PROD_FILE="$PROJECT_ROOT/.production"
 if [ -f "$PROD_FILE" ]; then
-    DOCKER_USER=$(grep "Docker Hub User" "$PROD_FILE" | awk '{print $NF}')
+    DOCKER_USER=$(grep "Docker Hub User" "$PROD_FILE" | awk '{print $NF}' || true)
 fi
 export DOCKER_USER="${DOCKER_USER:-muma}"
 
@@ -49,6 +50,8 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+# The source workers are compose profiles; the dev stack runs all of them (up and down).
+export COMPOSE_PROFILES="${COMPOSE_PROFILES:-soundcloud,youtube,telegram,importer}"
 COMPOSE_FILES="-f docker/docker-compose.yml -f docker/docker-compose.workers.yml -f docker/docker-compose.tools.yml -f docker/docker-compose.dev.yml"
 
 stop_dev() {

@@ -11,6 +11,103 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.94.0 (2026-10-30)
+
+- **A guided script rotates every credential that was ever committed.**
+  `scripts/prod/person/rotate-leaked-credentials.sh` reads the leaked values from git history
+  (the database password of #188 and the `.env` and `.server-env.json` values in
+  `.gitleaksignore`), checks by hash which ones production still uses, and replaces those. Only a
+  clear refusal counts as dead: an unreachable service or a 429 stops the run. It refuses to start
+  when a holder of a value cannot be handled. It backs up every GitLab variable and the database
+  account first, then changes the database user, the GitLab variables and the containers that
+  held an old value, in that order, checks `/health`, and puts everything back if a step fails.
+  It also refuses while a pipeline runs on develop, master or release/*. `--dry-run` only reads and
+  presents no credential. `--auto-fix` asks nothing, except for the root password and for a
+  database password held outside GitLab and the containers. Refs #188, #189.
+
+- Development fix: the pre-commit check no longer touches the commit it checks.
+
+- **Two helper scripts had the production database password in their code.**
+  `scripts/cleanup_redundant_indices.py` and `tools/quick_inspect.py` now read host, user and
+  password from `DB_HOST`, `DB_USER` and `DB_PASS` (optional `DB_PORT`, `DB_NAME`) and exit with a
+  message that names the missing variables. `quick_inspect.py` no longer retries on localhost when
+  the connection fails. A test in `tests/ci/` fails the build when a tracked Python file gives a
+  database `connect()` a string literal as password. Rotating the password itself is tracked in
+  #188.
+
+- The importer and the SoundCloud, YouTube and Telegram workers are now Compose profiles (`importer`, `soundcloud`, `youtube`, `telegram`), so a self-hosted stack starts them only when `COMPOSE_PROFILES` names them. Production keeps all four: `COMPOSE_PROFILES=soundcloud,youtube,telegram,importer` is a required key of `PROD_ENV_FILE`, checked by `release:check-secrets`, `scripts/deploy.sh` and the post-deploy verification (#189).
+
+- **A listener's e-mail address and account name are gone from the docs.** Bug report 020 and the
+  Wrapped research note now use `user@example.org` and `listener-2`. A test in `tests/ci/` fails
+  when the old values come back; it stores only their sha256 digests.
+
+- The About screen of the web player and the app has a Source code section that links to the address in the new setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, default the placeholder `https://github.com/OWNER/music-management`), so users of the server can get its source as AGPL-3.0 section 13 requires. `GET /health` reports it as `source_url` (#189).
+
+- **A CI job, `public:check`, fails a pipeline that brings a personal value back.** It runs gitleaks over the
+  working tree and greps the tracked files for the owner's names, personal hostnames, a Google OAuth project number
+  and LAN addresses (`scripts/ci/public-patterns.txt`; the Android package, the contact address and
+  `192.168.0.0/16` pass). The last 100 hits are gone: hosts in docs and bug reports are `example.com`
+  names, LAN addresses are RFC 5737 addresses, private GitLab links and badges are removed, and the LMS
+  fork's publish docs, maintainer label and test fixtures no longer name the owner. `migrate_*.sql` stays untouched. Refs #189.
+
+- **The owner's login no longer appears in the repository.** Examples, fixtures, test data, design
+  notes and old changelog entries named the lowercase login of the owner as a user. They now say
+  `user` (`alice` and `bob` where a test needs two names, `User` where a test checks that a login
+  in another case finds the same account). `public:check` fails a tracked file that has the login
+  as a whole word, in lower case; the capitalised first name in copyright lines, the Android
+  package id and the GitHub contact address stay allowed. Only comments, examples and test data
+  changed, no behavior.
+
+- **The repository history is rewritten without personal data.** Committed credentials, crash
+  dumps, ops material and personal names, hosts and addresses are gone from every commit (#189).
+  `.gitleaksignore` is empty, `.git-blame-ignore-revs` points at the new commits, and
+  `public:check` also rejects the name of the owner's employer. Existing clones must be made anew.
+
+- **Backend and scripts no longer name one person's hosts**: the User-Agent of the importer's store lookup, the artist image fetcher, MusicBrainz, the popular tracks client and the artist evidence client is built by `services/common/user_agent.py` from the new `project_url` setting (environment `PROJECT_URL`, group About). It is empty by default, and then the User-Agent carries no address. `PHPMYADMIN_URL` defaults to empty. `tools/` and `scripts/` take hosts from the environment (`tools/env_required.py`: exit 2 and the missing names) instead of a built-in LAN address. `scripts/ci/prod-ssh-setup.sh` needs the CI/CD variable `PROD_REMOTE_HOST`, and `release:check-secrets` checks it. `DOCKER_USER` defaults to `muma` only for local development (`.env.example`, `dev.sh`, the Dockerfile); `deploy.sh` exits with an error naming it when it is unset, the disk janitor skips only its release-image sweep with a warning (the other sweeps still run), and `release:check-secrets` requires it in `PROD_ENV_FILE` and equal to `DOCKERHUB_USERNAME`. A production host without a pinned SSH key stops `release:check-secrets` and the deploy unless `PROD_SSH_ACCEPT_NEW_HOST_KEY=true`. The User-Agent is built on first request, not at import, and a WARNING says once per process when `project_url` is empty. Also, and `renovate.sh` takes its endpoint and project from the CI environment. Production deploys behave the same while `PROD_REMOTE_HOST` and `DOCKER_USER` are set. Issue #189, step 4.
+
+- **The web frontend no longer uses the owner's name, domain or hosts in its placeholders and test fixtures.** The ScrobbleTab ListenBrainz placeholder reads `demo-user`, and the test fixtures use the user `demo-user` and the domain `example.org`. No behavior changes.
+
+- Docs cleanup for the public edition (#189, step 7c-1): `docs/branding/candidates/` (51 rejected logo
+  drafts), `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md`,
+  `docs/machine-learning.md` and `docs/ml-tutorial.md` are deleted. The facts worth keeping from the two
+  machine-learning documents are now in `services/ml-analyzer/DEPRECATED.md`. Links to the agent plans
+  that were already moved to the private muma-ops repository point at the design under `docs/designs/`
+  or are gone. `tests/ci/test_doc_links.py` fails on any broken relative Markdown link in `docs/`, `services/`, `scripts/`,
+  `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `SECURITY.md`.
+
+- **Public self-hosting guide; the production runbook moved to the private `muma-ops` repository.**
+  `docs/self-hosting.md` replaces `docs/deployment.md` and covers the compose stacks, the `.env`
+  keys, `COMPOSE_PROFILES`, migrations, backups, rollback and the generic CI deploy variables.
+  The owner's hosts, runbooks and incidents moved with `docs/release-management.md`. Scripts,
+  comments and tests that pointed at the old files point at the new ones (#189).
+
+- **One architecture document**: `docs/architecture.md` now covers what each service does, how a track travels from download to playback, how listens and ratings flow back, which component owns which data and how the apps talk. It replaces `docs/OVERVIEW.md`, `docs/system-data-flow.md` and `docs/architecture/responsibilities.md`, which are deleted, and every link to them points at the new file. The old text described analyzer and scrobbler modules that no longer exist and a rating path that does not exist. Refs #189, step 7c-3.
+
+- **Security checks and the mobile cover-art design are now in English.** The security checks page moved from `docs/security-en-controles.md` to `docs/security-checks.md`. Refs #189.
+
+- **Operations and agent material moved to the private ops repository.** The production
+  scripts (`scripts/prod/`), the crash-triage and nightly-check services, the Claude skills and agent
+  plans (`.claude/`, `.ai/`, `.junie/`, the agent plans under `docs/`), `scripts/vw.sh`, `scripts/ssh/known_hosts`
+  and the LMS `remote-build.sh` are no longer tracked here, and their tests moved with them. The
+  production host key now comes from the file-type CI/CD variable `PROD_SSH_KNOWN_HOSTS`; a pipeline
+  without it stops in `prod-ssh-setup.sh` instead of falling back to accept-new. Refs #189.
+
+- **Owner-only agent rules moved out of `AGENTS.md`.** The host-specific parts (production host and its
+  runbook pointers, the password-manager wrapper, the owner's issue board and labels, the self-hosted push
+  server) now live in the private `AGENTS.private.md`, which `muma-ops/install.sh` links as
+  `AGENTS.local.md`. The public rules 14 and 16 are generic. `services/muma-mobile/.junie/` moved to
+  muma-ops too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
+
+- **Upgrade through 0.93.x first.** The database schema is now declared in one place, and each
+  deploy adds what is missing. An installation older than 0.93.0 must deploy 0.93.x before this
+  release.
+
+- Security updates for the image library behind artist photos (Pillow 13.0) and for a build tool.
+
+- **pytest is pinned below 9.2 for the BDD suite.** pytest 9.2 removed a private attribute that pytest-bdd 8.1 uses, so `muma:e2e` failed every test in setup with `AttributeError: 'FixtureManager' object has no attribute '_arg2fixturedefs'`. The pin lives in `requirements.txt` and `tests/bdd/requirements.txt`, and Renovate is told to keep to it.
+
+- The security audit no longer fails on a build-tool library that the services do not use.
+
 ## Global Version 0.93.2 (2026-10-22)
 
 - Android Auto shows the Songs lists "Recent toegevoegd" and "Recent uitgebracht" again. Both were
@@ -4283,7 +4380,7 @@ model, and marks the point where this project became one single, unified monorep
   every `develop` merge (for day-to-day testing on your own device), with official signed builds
   reserved for `release/*` branches going forward.
 
-See [docs/release-management.md](docs/release-management.md) for the full branching/release model.
+See `docs/release-management.md` (private muma-ops repository) for the full branching/release model.
 
 ## Global Version 2.5.0 (2026-07-11)
 ### 🚀 Structural Modernization & Path Migration

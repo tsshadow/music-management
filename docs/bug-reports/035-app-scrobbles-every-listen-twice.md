@@ -40,4 +40,4 @@ plugin and asserts no `/rest/scrobble` leaves the WebView — it fails with thre
 the guard.
 
 The duplicate rows already on production are not removed by this change. Gaps in the native
-scrobbler that the web copy used to paper over are listed in [open-work.md](../open-work.md).
+scrobbler that the web copy used to paper over are listed in the open GitLab issues.

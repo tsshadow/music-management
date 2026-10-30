@@ -5,7 +5,7 @@
 # still open — see "still required outside this repository"
 
 # reported problem
-A new user (`someuser@example.com`) installed the latest Ultrasonic Android app and could not
+A new user (`user@example.org`) installed the latest Ultrasonic Android app and could not
 get in at all:
 1. "Sign in with Google" showed *"Inloggen met Google is mislukt"*
    (`welcome_google_signin_failed`).
@@ -135,13 +135,13 @@ before this app's backend is ever contacted, which is why the app could only sho
 which should let any Google account sign in.
 
 Along the way the other configuration suspects were checked and ruled out, for the project number
-`000000000000`:
+`<project-number>`:
 
 - The Android OAuth client for `nl.teunschriks.mumamobile` exists, with SHA-1
   `C2:5C:21:2B:E3:BC:25:00:88:FA:6A:9D:86:C0:2E:AD:EC:B2:D9:5A`. It is *not* the local debug
   keystore's fingerprint (`39:2B:26:CF:...`), consistent with it being the release keystore.
 - The Web client ID served by the live frontend
-  (`000000000000-drld1n0bs77fvk88s0dskf8pp298u14e.apps.googleusercontent.com`) is in that *same*
+  (`<client-id>.apps.googleusercontent.com`) is in that *same*
   project, so the `serverClientId` the app passes and the Android client match up.
 - The OAuth user cap sits at **1 / 100**, so the cap has not been exhausted either — that single
   user is the project owner, the only account Testing mode ever let through.
@@ -183,6 +183,6 @@ is the next thing to clear, not a new mystery.
    as far as the access-request screen; an admin still has to approve the request
    (`/api/user-requests`) or create the account directly. Until then, no login method can succeed.
 4. **Optionally** register the release keystore's SHA-1 for `nl.teunschriks.mumamobile.debug` too,
-   so debug builds from apk-hoster can do Google Sign-In at all (see docs/deployment.md). No such
+   so debug builds from apk-hoster can do Google Sign-In at all (see muma-ops docs/deployment-production.md). No such
    Android client currently exists, so Google Sign-In cannot work on a debug APK regardless of the
    above.

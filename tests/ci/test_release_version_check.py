@@ -6,6 +6,7 @@ a throw-away git repository with a develop and a master branch, checks out a
 release or hotfix branch, and runs the script the way CI runs it.
 """
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -15,8 +16,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "ci" / "release-version-check.sh"
 
 
+def _git_env() -> dict[str, str]:
+    """The environment without GIT_* variables.
+
+    Git runs the pre-commit hook with GIT_INDEX_FILE set, and this suite runs
+    from that hook. Inherited, it makes `git add` in the throw-away repo write
+    into the index of the commit being made (bug report 152).
+    """
+    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+
+
 def _git(repo: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, env=_git_env())
 
 
 def _write(repo: Path, name: str, body: str) -> None:
@@ -48,7 +59,7 @@ def repo(tmp_path: Path) -> Path:
     _git(origin, "config", "receive.denyCurrentBranch", "ignore")
 
     clone = tmp_path / "clone"
-    subprocess.run(["git", "clone", str(origin), str(clone)], check=True, capture_output=True)
+    subprocess.run(["git", "clone", str(origin), str(clone)], check=True, capture_output=True, env=_git_env())
     _git(clone, "config", "user.email", "ci@example.com")
     _git(clone, "config", "user.name", "CI")
     return clone
@@ -248,3 +259,16 @@ def test_an_app_change_passes_once_the_version_code_moved(repo: Path):
     result = _run(repo, "release/0.1.0")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "versionCode moved (1 -> 2)" in result.stdout
+
+
+def test_git_in_the_throw_away_repo_ignores_an_inherited_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Run from a pre-commit hook, the suite must not touch the hook's index."""
+    hook_index = tmp_path / "hook-index"
+    monkeypatch.setenv("GIT_INDEX_FILE", str(hook_index))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "--quiet")
+    _write(repo, "VERSION", "0.0.1\n")
+    _git(repo, "add", "VERSION")
+    assert not hook_index.exists()
+    assert (repo / ".git" / "index").exists()

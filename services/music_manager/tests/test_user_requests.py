@@ -579,14 +579,6 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
         self.assertEqual(response.status_code, 500)
 
 
-class InitDbTest(unittest.TestCase):
-    def test_the_tables_are_created_by_rbac_so_this_does_nothing(self):
-        cursor = ScriptedCursor()
-
-        self.assertIsNone(user_requests.init_db(cursor))
-        self.assertEqual(cursor.executed, [])
-
-
 class ApprovalAtomicityTest(UserRequestsTestCase):
     """Approving creates the account, its identity and the request update together or not at all."""
 

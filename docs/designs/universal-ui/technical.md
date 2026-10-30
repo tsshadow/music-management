@@ -177,7 +177,7 @@ filters `NavigationActivity` had), the services, Room, the Koin root `single`s,
 `voice/VoiceTileService`, the widget, the launcher shortcuts, and the parts of `home/` the
 services read: `RecentActivityStore`, `PlayHistoryRecorder`, `PlaybackSourceHolder`,
 `FavoriteGenres`, `HomeSorts`, `HomeCard` (the persisted shape of a shortcut), `HomeSectionId`
-(named in that shape) and `TileInfo`/`TileStorage`, moved from `fragment/muma` because Android
+(named in that shape) and `TileInfo`/`TileStorage`, moved from the old fragment package because Android
 Auto's "Afspeellijsten" root still lists the favourite tiles. Nothing writes tiles any more; that
 root keeps showing what the phone had and is the one Auto surface whose content the web cannot
 change -- see `functional.md`'s open questions.
@@ -319,8 +319,7 @@ because Path A's phase 0 needs the same reconciled token set.
 
 - [`functional.md`](functional.md)
 - [`../home-sections/`](../home-sections/) — the home model Path A ports into the web dashboard
-- [`../../styleguide.md`](../../styleguide.md), [`../../../services/frontend/STYLEGUIDE.md`](../../../services/frontend/STYLEGUIDE.md), [`../../../services/muma-mobile/STYLEGUIDE.md`](../../../services/muma-mobile/STYLEGUIDE.md) — the three style sources to reconcile into one
-- [`../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md`](../../superpowers/specs/2026-08-18-muma-mobile-style-themes-design.md) — the MuMa style this design retires
+- [`../../styleguide.md`](../../styleguide.md), [`../../../services/frontend/STYLEGUIDE.md`](../../../services/frontend/STYLEGUIDE.md) — the three style sources to reconcile into one
 - [`../url-routing/`](../url-routing/) — the routes the shell's deep links and back button follow
 
 ## Phone feedback round 3 — approved request, 2026-09-15

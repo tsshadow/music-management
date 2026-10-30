@@ -9,7 +9,7 @@
 # major does not. Renovate opens a merge request for updates (renovate.json).
 
 # --- Web/API -----------------------------------------------------------------
-fastapi~=0.142.1
+fastapi~=0.162.0
 uvicorn~=0.54.0
 pydantic~=2.13
 anyio~=4.15.0
@@ -46,7 +46,7 @@ librosa~=1.0.0
 #
 # Once the images are off 3.11, 2.5 becomes available and this can move again.
 numpy~=2.5.2
-Pillow~=12.3
+Pillow~=13.0
 
 # --- Ingestion ---------------------------------------------------------------
 # An exact pin, kept fresh by Renovate rather than by the build. It used to be a
@@ -56,7 +56,7 @@ Pillow~=12.3
 # docker/Dockerfile.tools, at any time and without the three-day cooldown, and
 # scripts/ci/refresh-downloader-image.sh ships develop's pin to production between
 # releases. See docs/bug-reports/067-image-builds-pull-unpinned-inputs.md.
-yt-dlp==2026.8.19
+yt-dlp==2026.10.26
 telethon~=1.45.0
 patool~=4.0
 
@@ -71,9 +71,10 @@ docker~=7.2.0
 # --- Test runner -------------------------------------------------------------
 # Kept here rather than in requirements-dev.txt: build.sh runs the suite inside
 # the built image, so these have to be present at runtime there.
-pytest>=8.4.0
+# <9.2: pytest 9.2 removed FixtureManager._arg2fixturedefs, which pytest-bdd 8.1 uses. Lift when pytest-bdd supports it.
+pytest>=8.4.0,<9.2
 pytest-cov>=4.1.0
-coverage~=7.16.0
+coverage~=7.17.0
 # fastapi.testclient (starlette.testclient) refuses to import without it, and
 # every router test uses TestClient. The CI runners' system Python had it
 # installed by hand, so nothing noticed this file did not list it until the

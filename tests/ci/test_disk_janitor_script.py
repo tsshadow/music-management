@@ -74,6 +74,15 @@ def test_the_ci_job_and_the_timer_run_the_script_without_overrides():
     assert exec_start == "ExecStart=/opt/muma-disk-janitor/disk-janitor.sh"
 
 
+def test_the_ci_job_takes_the_registry_user_from_the_docker_hub_variable():
+    assert load_ci()["runner:disk-janitor"]["variables"]["DOCKER_USER"] == "$DOCKERHUB_USERNAME"
+
+
+def test_the_timer_unit_can_get_docker_user_from_a_file_or_a_drop_in():
+    text = SERVICE.read_text()
+    assert "EnvironmentFile=-/etc/muma-disk-janitor.env" in text
+
+
 # --- Behaviour against a fake daemon -----------------------------------------
 
 FAKE_DOCKER = r"""#!/bin/bash
@@ -107,8 +116,14 @@ def _executable(path: Path, body: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
-def run_janitor(tmp_path: Path, usage: int, after_prunes: list[int], *args: str) -> tuple[int, list[str], str]:
-    """Run the real script with fake docker/df; return (exit, docker calls, output)."""
+def run_janitor(
+    tmp_path: Path, usage: int, after_prunes: list[int], *args: str, docker_user: str | None = "tester"
+) -> tuple[int, list[str], str]:
+    """Run the real script with fake docker/df; return (exit, docker calls, output).
+
+    docker_user None leaves DOCKER_USER unset. The daemon is always the fake one, so the result
+    does not depend on whether the machine running the test has Docker.
+    """
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     (tmp_path / "root").mkdir()
@@ -117,6 +132,9 @@ def run_janitor(tmp_path: Path, usage: int, after_prunes: list[int], *args: str)
     (tmp_path / "usage").write_text(f"{usage}\n")
     (tmp_path / "after_prune").write_text("".join(f"{value}\n" for value in after_prunes))
     env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "STATE": str(tmp_path)}
+    env.pop("DOCKER_USER", None)
+    if docker_user is not None:
+        env["DOCKER_USER"] = docker_user
     env.pop("DISK_JANITOR_CACHE_MAX_AGE_HOURS", None)
     env.pop("DISK_JANITOR_CACHE_FLOOR_AGE_HOURS", None)
     result = subprocess.run(
@@ -129,6 +147,15 @@ def run_janitor(tmp_path: Path, usage: int, after_prunes: list[int], *args: str)
 
 def prunes(calls: list[str]) -> list[str]:
     return [call for call in calls if call.startswith("builder prune")]
+
+
+@pytest.mark.parametrize("docker_user", [None, ""])
+def test_without_docker_user_the_script_warns_and_still_sweeps(tmp_path, docker_user):
+    """Exit 2 would stop all cleanup under systemd (only 0 and 1 count as success); only the release step may go."""
+    code, calls, output = run_janitor(tmp_path, 98, [60], docker_user=docker_user)
+    assert code == 0
+    assert "WARNING: DOCKER_USER is not set" in output
+    assert prunes(calls) == ["builder prune -f --filter until=72h"]
 
 
 def test_below_threshold_prunes_nothing(tmp_path):

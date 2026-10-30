@@ -135,10 +135,18 @@ class CapacitorContractTest {
         urls.mumaApi shouldBeEqualTo "https://lms.example.org/muma"
     }
 
-    /** The production host has muma on its own name, and the shell must agree with the client. */
+    /** A server whose muma API runs on its own host: the shell and the client must agree on it. */
     @Test
-    fun `serverUrl follows the production exception`() {
-        serverUrlsOf("https://lms.example.com").mumaApi shouldBeEqualTo "https://muma.example.com"
+    fun `serverUrl follows a configured muma host`() {
+        val own = "https://music.example.org"
+        val api = "https://muma.example.org"
+        val domain = "example.org"
+        serverUrlsOf("https://music.example.org/", own, api, domain).mumaApi shouldBeEqualTo api
+        // An install made with an older address on the same domain (the upgrade path).
+        serverUrlsOf("https://lms.example.org", own, api, domain).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://LMS.Example.org:8443/", own, api, domain).mumaApi shouldBeEqualTo api
+        serverUrlsOf("https://other.example.net", own, api, domain).mumaApi shouldBeEqualTo "https://other.example.net/muma"
+        serverUrlsOf("https://lms.example.org", own, "").mumaApi shouldBeEqualTo "https://lms.example.org/muma"
     }
 
     // ------------------------------------------------------------ queue indices

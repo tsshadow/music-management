@@ -95,20 +95,6 @@ _TRACK_FIELDS = (
 )
 
 
-def init_db(cursor):
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS feeds_profile_exclusions (
-            username    VARCHAR(255) NOT NULL,
-            entity_type ENUM('artist', 'label', 'genre') NOT NULL,
-            entity_name VARCHAR(255) NOT NULL,
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (username, entity_type, entity_name)
-        )
-        """
-    )
-
-
 def _resolve_username(auth: dict, username: str | None) -> str:
     """A user key is always about its own account -- a `username` it passes is
     ignored, never honoured. Only the system key may ask for someone else's."""
@@ -123,7 +109,7 @@ def _canonical(username: str) -> str:
     """The account's own spelling of a name the system key sent.
 
     The spelling is part of the feed, not just a lookup key: the daily picks are seeded on
-    it (feeds/scoring.py), so "Teun" and "user" were two different mixes for one listener
+    it (feeds/scoring.py), so "User" and "user" were two different mixes for one listener
     (docs/bug-reports/074-login-case-forks-user-identity.md). A database that does not
     answer leaves the name as sent -- the build that follows needs the database anyway.
     """

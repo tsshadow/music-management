@@ -63,7 +63,7 @@ Two new tables (db_init, `migrate_v49_artist_popular_tracks.sql`, `tests/integra
    earliest analyzer `release_year` (> 1900) over its versions is before the cutoff's year; else
    its primary artist has at least 3 dated tracks and at least 80% of them are old. The file's own
    age is **not** used: every `library_tracks.created_at` dates from the May 2026 rebuild and the
-   tagger rewrites files (mtime). Measured for user's 4-5★ songs: 329 old by date, 157 by year, 92
+   tagger rewrites files (mtime). Measured for the user's 4-5★ songs: 329 old by date, 157 by year, 92
    undated (half of those qualify through the artist).
 4. **Excluded everywhere** ("resting"): not old, rated 1-2, or any version played within
    `old_hits_rest_days` (90).

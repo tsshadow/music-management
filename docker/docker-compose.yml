@@ -77,7 +77,7 @@ x-worker-healthcheck: &worker-healthcheck
   retries: 3
   start_period: 60s
 
-# Container hardening (issue #32; docs/deployment.md, "Container hardening").
+# Container hardening (issue #32; muma-ops docs/deployment-production.md, "Container hardening").
 #
 # Every service drops all Linux capabilities and adds back only what it was
 # shown to need. The muma Python images (music-manager, the workers, the tools
@@ -97,7 +97,7 @@ x-worker-healthcheck: &worker-healthcheck
 # take LMS and the database down with it.
 #
 # Not applied here yet, and why, is listed under "Container hardening" in
-# docs/deployment.md: a read-only root filesystem and a non-root user for the
+# muma-ops docs/deployment-production.md: a read-only root filesystem and a non-root user for the
 # muma images, and any of it for Firefox. tests/ci/test_compose_hardening.py
 # pins what is applied.
 x-root-file-caps: &root-file-caps
@@ -132,7 +132,7 @@ services:
     # Renovate's pinDigests rule for `mariadb` (renovate.json) moves version and
     # digest together; it never merges on its own. A new major or minor needs
     # mariadb-upgrade, which MARIADB_AUTO_UPGRADE below has the entrypoint run.
-    image: mariadb:13.0.2@sha256:f1bba652ba57bea3099ca2fe1af692af537c27d96e0bcde39dce29e2ba1ec4f3
+    image: mariadb:13.0.2@sha256:f4054da26e3a9dd6c8b5cc97363e544408b15c0fb369d7359c25dc04826eb6e1
     container_name: music-management-db-1
     labels:
       # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
@@ -178,7 +178,7 @@ services:
     # Loopback by default: every client of this database is a container on the
     # music-management_db network and reaches it as db:3306. Anything on the
     # LAN that needs it directly (the workstation's read-only MCP,
-    # tools/muma_mcp, connects to 192.0.2.27:3306) sets DB_BIND_ADDRESS to
+    # tools/muma_mcp, connects to the production host's port 3306) sets DB_BIND_ADDRESS to
     # the host's LAN address in the stack's .env -- a deliberate opt-in rather
     # than MariaDB root being reachable from every device on the network.
     # Takes effect only when `db` is recreated, i.e. on a DEPLOY_DB=1 deploy.
@@ -206,7 +206,7 @@ services:
       - SETGID
       - SETUID
     pids_limit: 256
-    image: phpmyadmin:5.2.3@sha256:da3c72f9886fca93037b740c93fe1697a7924fe6790a58733814cee61ec49af8
+    image: phpmyadmin:5.2.3@sha256:fb0cb638f7d1c2529407921d86679b2b2faf5bb8542314821e9f16e7e3d2954f
     container_name: music-management-phpmyadmin-1
     labels:
       # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
@@ -273,10 +273,12 @@ services:
       API_KEY: ${API_KEY:-}
       MUMA_API_KEY: ${MUMA_API_KEY:-}
       # LMS host and keys come from the environment-lms anchor above. See
-      # docs/deployment.md for why LMS is deployed as its own stack instead of
+      # muma-ops docs/deployment-production.md for why LMS is deployed as its own stack instead of
       # an inline service here.
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # Where users get the source (AGPL-3.0 section 13); the About and login screens link to it.
+      PUBLIC_SOURCE_URL: ${PUBLIC_SOURCE_URL:-https://github.com/OWNER/music-management}
       # The artist-image fetcher's and the tagger's third-party keys. Until 2026-09-21
       # nothing carried these into the container: they came along inside the .env the
       # image used to COPY, and when that COPY went (2026-07-24) the fetcher ran blind
@@ -301,7 +303,7 @@ services:
       TAGGER_WORKERS: ${TAGGER_WORKERS:-}
       TAGGER_BATCH_PAUSE: ${TAGGER_BATCH_PAUSE:-}
       # The zone a daily mix's day is counted in. The container itself runs on UTC; empty
-      # means the code default, Europe/Amsterdam. See docs/deployment.md.
+      # means the code default, Europe/Amsterdam. See muma-ops docs/deployment-production.md.
       MUMA_TIMEZONE: ${MUMA_TIMEZONE:-}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
@@ -338,13 +340,45 @@ services:
     networks:
       - music-management_db
 
-  # NOTE: LMS (the "Spotify UI" + Subsonic API, spotify.<domain>/lms.<domain>)
+  # One-shot, never started by `up`: scripts/deploy.sh runs it before the new containers
+  # start, with the image of the release being deployed (SCHEMA_IMAGE_TAG). It adds the
+  # tables, columns and indexes that release declares and drops or changes nothing
+  # (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes). It connects as
+  # root: it builds the declaration in a scratch database first, which the application user
+  # may not create.
+  # One-shot: scripts/deploy.sh runs it in step (d), before the new containers
+  # start, and leaves it out of `up`. It adds what the database lacks and reports
+  # the rest (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes).
+  schema-reconcile:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    image: ${DOCKER_USER}/${IMAGE_CORE}:${SCHEMA_IMAGE_TAG:-latest}
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *default-logging
+    restart: "no"
+    entrypoint: ["python", "-m", "services.common.schema_reconcile"]
+    command: []
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DB: ${DB_DB}
+      DB_USER: root
+      DB_PASS: ${MYSQL_ROOT_PASSWORD}
+      PYTHONPATH: /app
+    networks:
+      - music-management_db
+
+  # NOTE: LMS (the web player + Subsonic API, on the web-player and LMS host names)
   # is NOT defined here. It is deployed as its own, separate stack from
   # services/music-management-server/docker-compose.yml ("lms" project: "lms"
   # + "reverse-proxy" services), which is why it joins this stack's
   # "music-management_db" network as an external network below. Both stacks
   # are deployed together by the CI "muma:deploy" job (scripts/ci-deploy.sh).
-  # See docs/deployment.md for the full rationale and rollback procedure.
+  # See muma-ops docs/deployment-production.md for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:
   # - control-center (management-api)
@@ -397,6 +431,9 @@ services:
   #     - music-management_db
 
   importer_worker:
+    # Opt-in source worker: runs only when this profile is enabled (COMPOSE_PROFILES,
+    # docs/self-hosting.md#source-workers-are-compose-profiles).
+    profiles: ["importer"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -440,6 +477,7 @@ services:
       - music-management_db
 
   youtube_worker:
+    profiles: ["youtube"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -486,6 +524,7 @@ services:
       - music-management_db
 
   soundcloud_worker:
+    profiles: ["soundcloud"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -532,6 +571,7 @@ services:
       - music-management_db
 
   telegram_worker:
+    profiles: ["telegram"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -634,6 +674,7 @@ services:
   #     - music-management_db
 
   soundcloud-fetcher:
+    profiles: ["soundcloud"]
     security_opt:
       - no-new-privileges:true
     cap_drop:

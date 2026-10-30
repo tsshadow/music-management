@@ -20,9 +20,9 @@ A rehearsal-script review of `scripts/deploy.sh` in the same session found two m
    `MARIADB_AUTO_UPGRADE`, so the image's entrypoint would have started 13.0 on 12.3 system tables
    without running `mariadb-upgrade`.
 
-And `docs/deployment.md` offered an ssh tunnel (`ssh -L 3306:127.0.0.1:3306`) as the alternative
-to `DB_BIND_ADDRESS=192.0.2.27` for the workstation's read-only MCP. That cannot work: the MCP's
-account is `muma-readonly@'192.0.2.1.%'`, and through the tunnel the database sees the connection
+And `muma-ops docs/deployment-production.md` offered an ssh tunnel (`ssh -L 3306:127.0.0.1:3306`) as the alternative
+to `DB_BIND_ADDRESS=203.0.113.10` for the workstation's read-only MCP. That cannot work: the MCP's
+account is `muma-readonly@'192.0.2.%'`, and through the tunnel the database sees the connection
 coming from the docker bridge gateway (172.22.0.1), so it refuses the login.
 
 # Possible reason
@@ -68,7 +68,7 @@ coming from the docker bridge gateway (172.22.0.1), so it refuses the login.
   `mariadb:13.0.2@sha256:...`, and `mariadb` is added to Renovate's `pinDigests` rule (it was not
   covered) with its own label for minor/major moves. The same pin is in the core, full and test
   compose files.
-- **Tunnel advice.** Dropped from `docs/deployment.md`. The MCP needs `DB_BIND_ADDRESS=192.0.2.27`.
+- **Tunnel advice.** Dropped from `muma-ops docs/deployment-production.md`. The MCP needs `DB_BIND_ADDRESS=203.0.113.10`.
   A second account at `'172.22.%'` would work, but it would let every container on that bridge
   log in as the read-only user, and the subnet is only stable until the network is recreated.
   `DB_BIND_ADDRESS` is **not** added to `release:check-secrets`: production works without it, and

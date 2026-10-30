@@ -74,8 +74,8 @@ beforeAll(() => loadLazy("nowPlaying"), LAZY_HOOK_TIMEOUT_MS);
 
 describe("Player", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     playlist.set([FIRST, SECOND]);
     currentTrack.set(FIRST);
     playerState.set({ playing: false, repeat: "none", shuffle: false, volume: 50 });

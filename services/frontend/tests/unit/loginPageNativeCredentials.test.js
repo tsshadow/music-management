@@ -23,13 +23,13 @@ function fakeServer({ ping = "ok" } = {}) {
     if (url.includes("/api/auth/login")) {
       return {
         ok: true,
-        json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+        json: async () => ({ api_key: "own-key", user: { id: 1, username: "demo-user" } }),
       };
     }
     if (url.includes("/api/auth/subsonic-token")) {
       return {
         ok: true,
-        json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+        json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
       };
     }
     if (url.includes("/api/auth/setup-status")) {
@@ -57,14 +57,14 @@ describe("LoginPage native credential save", () => {
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
 
     const { getByLabelText, getByText } = render(LoginPage);
-    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "user" } });
+    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "demo-user" } });
     await fireEvent.input(getByLabelText("Wachtwoord"), { target: { value: "hunter2" } });
     await fireEvent.click(getByText("Verbinden"));
 
     await waitFor(() => expect(saveCredentials).toHaveBeenCalledOnce());
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
-      username: "user",
+      username: "demo-user",
       mumaApiKey: "own-key",
       mumaUserId: 1,
     });
@@ -77,7 +77,7 @@ describe("LoginPage native credential save", () => {
       if (url.includes("/api/auth/login")) {
         return {
           ok: true,
-          json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+          json: async () => ({ api_key: "own-key", user: { id: 1, username: "demo-user" } }),
         };
       }
       return fakeServer()(url);
@@ -85,14 +85,14 @@ describe("LoginPage native credential save", () => {
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
 
     const { getByLabelText, getByText } = render(LoginPage);
-    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "Teun" } });
+    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "Demo-User" } });
     await fireEvent.input(getByLabelText("Wachtwoord"), { target: { value: "hunter2" } });
     await fireEvent.click(getByText("Verbinden"));
 
     await waitFor(() => expect(saveCredentials).toHaveBeenCalledOnce());
     expect(saveCredentials).toHaveBeenCalledWith({
       url: "https://lms.example",
-      username: "user",
+      username: "demo-user",
       mumaApiKey: "own-key",
       mumaUserId: 1,
     });
@@ -103,7 +103,7 @@ describe("LoginPage native credential save", () => {
     const saveCredentials = vi.spyOn(platform.system, "saveCredentials").mockResolvedValue();
 
     const { getByLabelText, getByText } = render(LoginPage);
-    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "user" } });
+    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "demo-user" } });
     await fireEvent.input(getByLabelText("Wachtwoord"), { target: { value: "wrong" } });
     await fireEvent.click(getByText("Verbinden"));
 
@@ -116,7 +116,7 @@ describe("LoginPage native credential save", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { getByLabelText, getByText, queryByText } = render(LoginPage);
-    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "user" } });
+    await fireEvent.input(getByLabelText("Gebruikersnaam"), { target: { value: "demo-user" } });
     await fireEvent.input(getByLabelText("Wachtwoord"), { target: { value: "hunter2" } });
     await fireEvent.click(getByText("Verbinden"));
 

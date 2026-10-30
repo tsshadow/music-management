@@ -72,4 +72,4 @@ once. All three tests fail against the unfixed code. `tests/unit/` now runs in `
   atoms and restores canonical artist order. It cannot restore slashes: a title already written as
   `AC;DC Tribute (Live 24;7)` is indistinguishable from a real three-part value.
 - Every reorder or title split changed that track's `track_uid`, so ratings and listens may be
-  attached to track rows that no longer match a file. See [open-work.md](../open-work.md).
+  attached to track rows that no longer match a file. See the open GitLab issues.

@@ -59,7 +59,7 @@ A security review of `services/muma-mobile` found six defects, all confirmed by 
    `StaticServers.FORCE_PLAIN_TEXT_PASSWORD`, pinned by `StaticServersTest`. What changes is its
    exposure: the password only travels over verified TLS (item 1) and is redacted from every log
    the app writes (item 6). Removing it from the URL needs the app to obtain the per-user Subsonic
-   token first; that is recorded in `docs/open-work.md`.
+   token first; that is recorded in the GitLab issues.
 3. `AlbumArtPath.resolve` refuses a key containing `/`, `\`, `..` or NUL and checks that the
    canonical path is strictly inside the canonical album-art directory; `openFile` returns null
    otherwise, before the key is used for a download or an open. The provider stays exported: its
@@ -74,7 +74,7 @@ A security review of `services/muma-mobile` found six defects, all confirmed by 
    401 without credentials). `APK_HOST_PASSWORD` and the unused `APK_HOST_USER` are removed from
    `BuildConfig`. `APK_HOSTER_PASSWORD` is still passed to the CI build container, where only
    `scripts/deploy.sh` reads it for the upload. Every APK published before this fix carries the
-   password, so it must be rotated — see `docs/open-work.md`.
+   password, so it must be rotated — see the GitLab issues.
 5. The key is removed from `capacitor.config.json`; Capacitor then enables WebView debugging only
    when the app is debuggable, i.e. in the debug build.
 6. `LogRedaction.redact` now also masks the `u`, `p`, `t`, `s` and `apiKey` query parameters and

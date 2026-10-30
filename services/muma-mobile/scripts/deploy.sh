@@ -30,7 +30,9 @@ BUILD_TYPE=$(echo "${1:-debug}" | tr '[:upper:]' '[:lower:]')
 # Configuration for deployment logic
 DIST_DIR="${DIST_DIR:-dist}"
 TARGET="${DEPLOY_TARGET_NAME:-MuMa Mobile}"
-REMOTE_DIST_PATH="${REMOTE_DIST_PATH:-/mnt/user/muma-mobile-builds}"
+# The builds share is mounted per login user, e.g. /mnt/<login>/muma-mobile-builds.
+BUILDS_MOUNT="${BUILDS_MOUNT:-/mnt/${USER:-$(id -un)}}"
+REMOTE_DIST_PATH="${REMOTE_DIST_PATH:-$BUILDS_MOUNT/muma-mobile-builds}"
 
 # Try to construct PUBLISH_REMOTE_PATH if not set but we have remote info
 if [ -z "$PUBLISH_REMOTE_PATH" ] && [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_DIST_PATH" ]; then
@@ -85,10 +87,10 @@ if [ "$APK_HOSTER_SUCCESS" = false ]; then
     
     # Check local path first
     LOCAL_FALLBACK=""
-    if [ -d "/mnt/user/muma-mobile-builds" ]; then
-        LOCAL_FALLBACK="/mnt/user/muma-mobile-builds"
-    elif [ -d "/mnt/user/muma-mobile_builds" ]; then
-        LOCAL_FALLBACK="/mnt/user/muma-mobile_builds"
+    if [ -d "$BUILDS_MOUNT/muma-mobile-builds" ]; then
+        LOCAL_FALLBACK="$BUILDS_MOUNT/muma-mobile-builds"
+    elif [ -d "$BUILDS_MOUNT/muma-mobile_builds" ]; then
+        LOCAL_FALLBACK="$BUILDS_MOUNT/muma-mobile_builds"
     fi
 
     if [ -n "$LOCAL_FALLBACK" ] && [ "$LOCAL_FALLBACK" != "$DIST_DIR" ]; then

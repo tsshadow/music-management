@@ -11,7 +11,7 @@ function mockUser(user = {}) {
       "subsonic-response": {
         status: "ok",
         user: {
-          username: "user",
+          username: "demo-user",
           uiArtistReleaseSortMethod: 8,
           subsonicArtistListMode: 0,
           feedbackBackend: 0,
@@ -37,7 +37,7 @@ async function saveAndGetQuery() {
 
 describe("GeneralSettings", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     globalThis.fetch = mockUser();
   });
 

@@ -1,5 +1,5 @@
 // Tapping an artist shows the artist page at once, on the phone and on the tablet
-// (docs/designs/perceived-performance/). Teun: "klikken op een artiest zou praktisch instant de
+// (docs/designs/perceived-performance/). Demo-User: "klikken op een artiest zou praktisch instant de
 // artist page moeten tonen".
 //
 // The artist list is answered here with one artist, and the artist's own requests (getArtist,

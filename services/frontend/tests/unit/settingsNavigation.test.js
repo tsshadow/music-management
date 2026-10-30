@@ -28,7 +28,7 @@ function mockUser() {
     json: async () => ({
       "subsonic-response": {
         status: "ok",
-        user: { username: "user", adminRole: true, uiArtistReleaseSortMethod: 8 },
+        user: { username: "demo-user", adminRole: true, uiArtistReleaseSortMethod: 8 },
       },
     }),
   }));
@@ -37,7 +37,7 @@ function mockUser() {
 describe("player settings navigation", () => {
   beforeEach(() => {
     globalThis.fetch = mockUser();
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     activeSettingsTab.set("general");
   });
 

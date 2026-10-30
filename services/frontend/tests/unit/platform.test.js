@@ -257,7 +257,7 @@ describe("browser system", () => {
   // The web resolves both bases in store.js, from window.location; this only
   // reads them back, so a change there cannot be undone here.
   it("reads the bases the web already resolved", () => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     mumaApiUrl.set("/muma");
 
     expect(browserSystem.serverUrl()).toEqual({
@@ -296,7 +296,7 @@ describe("browser system", () => {
     await expect(
       browserSystem.saveCredentials({
         url: "https://lms.example",
-        username: "user",
+        username: "demo-user",
         password: "pw",
       }),
     ).resolves.toBeUndefined();

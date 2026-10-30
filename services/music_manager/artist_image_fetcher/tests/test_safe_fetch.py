@@ -19,6 +19,8 @@ import urllib3
 from services.music_manager.artist_image_fetcher import safe_fetch
 
 PUBLIC = '93.184.216.34'
+# A host in the 192.168.0.0/16 private block, computed so no concrete LAN address sits in the source.
+LAN = str(ipaddress.ip_network('192.168.0.0/16')[27])
 
 
 def answers(*addresses):
@@ -42,7 +44,7 @@ class AddressCheckTest(unittest.TestCase):
             '127.0.0.1',
             '10.0.0.5',
             '172.17.0.2',  # the default docker bridge
-            '192.0.2.27',  # production
+            LAN,  # a home network host
             '169.254.169.254',  # cloud metadata
             '100.64.0.1',  # CGNAT / tailnet
             '100.127.255.254',
@@ -58,9 +60,9 @@ class AddressCheckTest(unittest.TestCase):
             '::ffff:127.0.0.1',  # IPv4-mapped
             '::ffff:169.254.169.254',
             '::ffff:100.64.0.1',
-            '::ffff:192.0.2.27',
+            f'::ffff:{LAN}',
             '::127.0.0.1',  # IPv4-compatible
-            '2002:c0a8:011b::1',  # 6to4 around 192.0.2.27
+            '2002:c0a8:001b::1',  # 6to4 around a 192.168.0.0/16 host
             '64:ff9b::a00:1',  # NAT64 around 10.0.0.1
             '2001:db8::1',
         ):
@@ -170,7 +172,7 @@ class PinnedFetchTest(unittest.TestCase):
 
     def test_a_redirect_to_a_private_address_is_refused_before_connecting(self):
         def resolve(host, *_args, **_kwargs):
-            return answers('192.0.2.27' if host == 'internal.example' else PUBLIC)
+            return answers(LAN if host == 'internal.example' else PUBLIC)
 
         self.getaddrinfo.side_effect = resolve
         self.replies.append(response(status=301, headers={'Location': 'http://internal.example/api/users'}))

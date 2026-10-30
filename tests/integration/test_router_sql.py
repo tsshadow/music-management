@@ -454,7 +454,7 @@ class UserLifecycleTest:
         """The e-mail becomes the username; an account already carrying it, in any case,
         used to hit the unique index and answer a 500 (bug report 079)."""
         api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
-        assert api.post('/api/users', headers=headers, json={'username': 'Teun@Example.com'}).status_code == 200
+        assert api.post('/api/users', headers=headers, json={'username': 'User@Example.com'}).status_code == 200
         run_sql(
             db,
             "INSERT INTO user_requests (google_subject, email, display_name, status) "
@@ -1440,7 +1440,8 @@ class ScrobblingTest:
 class DownloadAccountsTest:
     def test_a_soundcloud_account_round_trip(self, api, headers, db):
         api.post('/api/soundcloud', headers=headers, json={'name': 'artist', 'soundcloud_id': '7'})
-        assert api.get('/api/soundcloud', headers=headers).json() == [{'name': 'artist', 'soundcloud_id': '7'}]
+        # soundcloud_id is a BIGINT, as on production, so it comes back as a number.
+        assert api.get('/api/soundcloud', headers=headers).json() == [{'name': 'artist', 'soundcloud_id': 7}]
         api.delete('/api/soundcloud/artist', headers=headers)
         assert api.get('/api/soundcloud', headers=headers).json() == []
 

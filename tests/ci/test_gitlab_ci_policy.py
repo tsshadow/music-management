@@ -1,8 +1,7 @@
 """The pipeline policy, as executable assertions.
 
 Every rule here exists because breaking it has a concrete production
-consequence, named in the test's docstring. See
-docs/superpowers/plans/2026-08-02-ci-release-hardening.md.
+consequence, named in the test's docstring.
 """
 
 import re
@@ -186,6 +185,7 @@ JOB_SCOPES = COMPONENT_SCOPES | {
     "deps",
     "runner",
     "release",
+    "public",  # what the public mirror may contain (personal data check)
 }
 
 # What each component is checked for. Every component has all three; anything
@@ -939,17 +939,22 @@ def test_the_loose_type_floor_is_checked_somewhere():
     assert "--explicit-package-bases services/ tools/" in script
 
 
-def test_integration_job_runs_for_every_file_that_declares_a_table():
-    """tests/integration/test_schema_drift.py builds the schema from every file with a
-    CREATE TABLE; a change to one of them has to run that test."""
+def test_integration_job_runs_for_every_file_that_shapes_the_schema():
+    """tests/integration/ builds every database from schema_tables.py, its seed rows and
+    the reconcile; a change to one of them has to run that suite."""
     from tests.integration import schema_sources
 
     ci = load_ci()
     globs = _changes_globs(ci, "backend:integration")
-    declaring = sorted({path for paths in schema_sources.code_declared_tables().values() for path in paths})
-    assert declaring, "no CREATE TABLE found; the extraction in schema_sources broke"
-    missing = [path for path in declaring if not any(_matches_file(glob, path) for glob in globs)]
-    assert missing == [], f"these declare tables but do not trigger backend:integration: {missing}"
+    shaping = [
+        schema_sources.SCHEMA_FILE,
+        "services/common/schema_reconcile.py",
+        "services/common/db_seeds.py",
+        "services/common/db_init.py",
+        *sorted(str(p.relative_to(REPO_ROOT)) for p in (REPO_ROOT / "services/common/seeds").glob("*.sql")),
+    ]
+    missing = [path for path in shaping if not any(_matches_file(glob, path) for glob in globs)]
+    assert missing == [], f"these shape the schema but do not trigger backend:integration: {missing}"
 
 
 def test_db_integration_runs_the_mariadb_production_runs():

@@ -41,8 +41,8 @@ function fetchMock() {
 
 describe("CarModeView", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     resetRatings();
     currentTrack.set({ ...TRACK });
     playlist.set([]);

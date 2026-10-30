@@ -3,7 +3,7 @@
 # status: fixed
 
 The code is fixed. It reaches the runner only when the root-owned copy in
-`/opt/crash-triage/bin` is installed. That is a manual step, listed in `docs/open-work.md`,
+`/opt/crash-triage/bin` is installed. That is a manual step, listed in the GitLab issues,
 with a guided script at `/tmp/muma-person/install-nightly-allowlist.sh`.
 
 # reported problem
@@ -141,5 +141,5 @@ under `--restricted` and dontAsk:
 **Not covered.** `triage` can still read its secrets through a path this list did not foresee.
 The list narrows what an injected instruction can do directly. It does not replace privilege
 separation. That would mean wrappers that run as a second user holding the key, so the Claude
-process never has it in its environment. `docs/open-work.md` records that as the next step if
+process never has it in its environment. the GitLab issues records that as the next step if
 the threat grows.

@@ -475,6 +475,18 @@ def _config_fields() -> list[ConfigField]:
             description='Path delimiter used when parsing artist/title strings.',
         ),
         ConfigField(
+            key='project_url',
+            type='string',
+            default='',
+            env='PROJECT_URL',
+            group='About',
+            description=(
+                'Address of this installation\'s project page. Goes into the User-Agent of requests to '
+                'MusicBrainz, Deezer and other public APIs, so their operators can reach you. '
+                'Empty sends no address. Read at start-up.'
+            ),
+        ),
+        ConfigField(
             key='tagger_deep_run_days',
             type='integer',
             default=30,
@@ -765,6 +777,14 @@ def _config_fields() -> list[ConfigField]:
             env='notify_topic_alerts',
             group='Notifications',
             description='Topic for warnings and errors. Subscribe separately so alerts can have their own sound.',
+        ),
+        ConfigField(
+            key='public_source_url',
+            type='string',
+            default='https://github.com/OWNER/music-management',
+            env='PUBLIC_SOURCE_URL',
+            group='General',
+            description='Where users of this server can get its source code (AGPL-3.0 section 13). Shown as the Source code link on the About screen. Replace the placeholder with the address of your repository or fork; empty hides the link.',
         ),
         ConfigField(
             key='crash_hook_url',

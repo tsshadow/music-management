@@ -12,7 +12,7 @@ This document describes the steps to build and publish the LMS Docker image with
 1. **Login to Docker Hub**
    Use the following command to log in using the provided PAT:
    ```bash
-   echo "<DOCKER_HUB_PAT>" | docker login -u muma --password-stdin
+   echo "<DOCKER_HUB_PAT>" | docker login -u <docker-hub-user> --password-stdin
    ```
    *(Note: Replace `<DOCKER_HUB_PAT>` with your actual token)*
 
@@ -41,7 +41,7 @@ scripts/build_and_publish.sh
 Alternatively, to perform the steps manually:
 1. **Login to Docker Hub**
    ```bash
-   echo "<DOCKER_HUB_PAT>" | docker login -u muma --password-stdin
+   echo "<DOCKER_HUB_PAT>" | docker login -u <docker-hub-user> --password-stdin
    ```
 
 2. **Build and Push**

@@ -94,7 +94,7 @@ address. `scripts/lib/ssh_host_keys.sh` provides `ssh_host_key_opts HOST`:
 runs `ssh-keyscan`, and when its connection probe fails it now prints ssh's own error, because a
 changed host key and a refused login otherwise look the same. `SSH_PINNED_KNOWN_HOSTS` overrides the
 file, for the window between a host reinstall and the repository catching up. The procedure is in
-`docs/deployment.md`, "Production host key". `tests/ci/test_ssh_host_keys.py` guards all of this.
+`muma-ops docs/deployment-production.md`, "Production host key". `tests/ci/test_ssh_host_keys.py` guards all of this.
 
 **The smaller B12 items, state after this change:**
 
@@ -105,7 +105,7 @@ file, for the window between a host reinstall and the repository catching up. Th
   `admin` default is now also gone from `.tools.yml` and `.full.yml`.
 - Memory limits: music-manager and the four workers have them since 050. `db`, `phpmyadmin`,
   `firefox`, the one-shots and the `lms` stack have none. This is left open deliberately, because
-  there is no measured basis for a ceiling on MariaDB or LMS; see `docs/open-work.md`.
+  there is no measured basis for a ceiling on MariaDB or LMS; see the GitLab issues.
 - `.env` parser truncating at `#`: fixed in 038 (`scripts/lib/dotenv.sh`, tested in
   `tests/ci/test_deploy_script_hygiene.py`).
 - Worker healthchecks for the post-deploy check: done in 050 (`x-worker-healthcheck`, and

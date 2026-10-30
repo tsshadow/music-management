@@ -36,7 +36,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # binary URL would need a checksum Renovate cannot update. pip puts the same `yt-dlp`
 # entry point in /usr/local/bin.
 # renovate: datasource=pypi depName=yt-dlp
-ARG YT_DLP_VERSION=2026.8.19
+ARG YT_DLP_VERSION=2026.10.26
 RUN pip install --no-cache-dir "yt-dlp==${YT_DLP_VERSION}"
 
 # Zet de werkmap in de container

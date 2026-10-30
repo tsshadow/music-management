@@ -17,33 +17,36 @@ describe("artistImageFallback", () => {
   });
 
   it("points at the first artist's portrait", () => {
-    const url = artistImageFallback({ artist: "Angerfist, Outsiders", artistId: "a-1" }, "u=user");
-    expect(url).toBe("https://muma.test/api/artists/Angerfist/image?u=user");
+    const url = artistImageFallback(
+      { artist: "Angerfist, Outsiders", artistId: "a-1" },
+      "u=demo-user",
+    );
+    expect(url).toBe("https://muma.test/api/artists/Angerfist/image?u=demo-user");
   });
 
   it("prefers the artists array over the joined string", () => {
     const url = artistImageFallback(
       { artist: "Angerfist,Outsiders", artists: [{ id: "a-1", name: "Angerfist" }] },
-      "u=user",
+      "u=demo-user",
     );
-    expect(url).toBe("https://muma.test/api/artists/Angerfist/image?u=user");
+    expect(url).toBe("https://muma.test/api/artists/Angerfist/image?u=demo-user");
   });
 
   it("has nothing for a track without an artist", () => {
-    expect(artistImageFallback({ artist: "", artistId: null }, "u=user")).toBeNull();
-    expect(artistImageFallback(null, "u=user")).toBeNull();
+    expect(artistImageFallback({ artist: "", artistId: null }, "u=demo-user")).toBeNull();
+    expect(artistImageFallback(null, "u=demo-user")).toBeNull();
   });
 
   it("never hands out the unknown-artist placeholder as if it were a portrait", () => {
     // An artists entry with neither a name nor an id resolves to the placeholder path.
-    expect(artistImageFallback({ artists: [{ name: "" }], artist: "" }, "u=user")).toBeNull();
+    expect(artistImageFallback({ artists: [{ name: "" }], artist: "" }, "u=demo-user")).toBeNull();
   });
 
   it("answers null once a portrait URL is known to be missing", () => {
     const track = { artist: "Angerfist", artistId: "a-1" };
-    const url = artistImageFallback(track, "u=user");
+    const url = artistImageFallback(track, "u=demo-user");
     missingArtistImages.add(url);
 
-    expect(artistImageFallback(track, "u=user")).toBeNull();
+    expect(artistImageFallback(track, "u=demo-user")).toBeNull();
   });
 });

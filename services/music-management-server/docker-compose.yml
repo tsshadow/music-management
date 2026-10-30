@@ -29,7 +29,7 @@ services:
     logging: *request-logging
     container_name: lms
     image: ${IMAGE_NAME}:${LMS_TAG}
-    # Hardening (issue #32; docs/deployment.md, "Container hardening"). The
+    # Hardening (issue #32; muma-ops docs/deployment-production.md, "Container hardening"). The
     # image has no entrypoint script -- /usr/bin/lms is PID 1 -- and writes only
     # to its working directory /var/lms (a volume), so the root filesystem is
     # read-only with a small /tmp for anything a library spools; SQLite's own
@@ -58,7 +58,7 @@ services:
       # Port 80 is intentionally NOT bound here anymore: it is now served by the
       # "reverse-proxy" service below, which rewrites requests to /spotify so that
       # spotify.<domain> serves the actual frontend at "/" instead of LMS's bare
-      # Wt bootstrap page. See docs/deployment.md.
+      # Wt bootstrap page. See muma-ops docs/deployment-production.md.
       - "${LMS_SUBSONIC_PORT:-8080}:5082"
     volumes:
       - ${MUSIC_PATH:-/music}:/music
@@ -130,7 +130,7 @@ services:
     labels:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
-    image: willfarrell/autoheal:latest@sha256:da9e926d48f32021c94c2afd9a993f41da76446dc4a5288a9a4c8a69f8d49586
+    image: willfarrell/autoheal:latest@sha256:a4645c87683564c02154fbfb056eba3431cdb32b48c923359c3d55c4ec56ce89
     # A shell loop that talks to the Docker socket with curl: no capability
     # needed (the socket is root's own file), nothing written. 2 PIDs.
     security_opt:
@@ -156,14 +156,14 @@ services:
   # Serves spotify.<domain> at "/" by rewriting requests to LMS's "/spotify"
   # docroot mount, since Wt's WServer already reserves the deploy-path "/" for
   # its own WApplication routing and cannot serve the frontend there directly
-  # (see main.cpp SpotifyResource fallback). See docs/deployment.md.
+  # (see main.cpp SpotifyResource fallback). See muma-ops docs/deployment-production.md.
   reverse-proxy:
     logging: *request-logging
     container_name: lms-reverse-proxy
     labels:
       # Never updated by Watchtower: pinned by digest, changes only through a deploy (issue #68).
       com.centurylinklabs.watchtower.enable: "false"
-    image: nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+    image: nginx:1.31.8-alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606
     # nginx's master runs as root, binds :80 (NET_BIND_SERVICE), creates its
     # temp directories for the nginx user (CHOWN), starts workers as that user
     # (SETUID, SETGID) and signals them on reload/stop (KILL). Read-only root:
@@ -207,7 +207,7 @@ services:
 # production-lms-consolidation plan: production now runs a single LMS
 # instance (serving both the OpenSubsonic API and the frontend from its
 # docroot) on ${LMS_SUBSONIC_PORT:-8080}, fronted by "reverse-proxy" on
-# ${LMS_PORT:-80} for the frontend. See docs/deployment.md for the rollback
+# ${LMS_PORT:-80} for the frontend. See muma-ops docs/deployment-production.md for the rollback
 # procedure and .junie/plans/production-lms-consolidation.md for context.
 
 networks:

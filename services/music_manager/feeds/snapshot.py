@@ -69,23 +69,6 @@ _locks: dict[tuple[str, str], threading.Lock] = {}
 _locks_guard = threading.Lock()
 
 
-def init_db(cursor) -> None:
-    """Create feeds_snapshot if it does not exist yet."""
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS feeds_snapshot (
-            username     VARCHAR(255) NOT NULL,
-            slug         VARCHAR(64)  NOT NULL,
-            feed_date    DATE         NOT NULL,
-            generated_at DATETIME     NOT NULL,
-            params_key   VARCHAR(64)  NOT NULL,
-            payload      LONGTEXT     NOT NULL,
-            PRIMARY KEY (username, slug, feed_date)
-        )
-        """
-    )
-
-
 def _lock_for(username: str, slug: str) -> threading.Lock:
     """The one lock every build of `(username, slug)` in this process runs under."""
     with _locks_guard:

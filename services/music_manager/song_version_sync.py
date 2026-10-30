@@ -4,7 +4,7 @@ muma owns the model: it has the label provenance and the download archives that 
 which version of a song wins, and LMS has neither. So LMS gets four columns on `track`
 (migration 118) and muma fills them here, in the same lms.db pass that already syncs
 users, playlists and artist images. No endpoint, no API key, no HTTP in the browsing
-path -- see the design note in docs/superpowers/specs/2026-08-23-song-versions-and-canonical-design.md.
+path -- see the design note in docs/designs/song-versions/technical.md.
 
 **The bridge is the file path**, because the two id spaces are unrelated: an LMS track id
 and a muma track id have nothing to do with each other. LMS stores an absolute path in

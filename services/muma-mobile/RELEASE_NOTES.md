@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## Global Version 7.18.3 (2026-10-30)
+
+- **The server address and the Google client id are build settings now.** `StaticServers.SERVER_URL`,
+  the client id of "Sign in with Google", an optional own host for the MuMa API and the owner's
+  domain come from the Gradle properties `muma.serverUrl`, `muma.googleClientId`, `muma.apiUrl` and
+  `muma.ownDomain`, in CI from the variables `MUMA_SERVER_URL`, `MUMA_GOOGLE_CLIENT_ID`,
+  `MUMA_API_URL` and `MUMA_OWN_DOMAIN`. A build without them uses `https://music.example.org` and
+  hides the Google button. A release build stops when the first two are missing, in Gradle and in
+  CI; the CI script also needs the other two. A stored server gets the own API host only when its
+  host equals the configured server or is `muma.ownDomain` or a subdomain of it, so a sibling on a
+  shared suffix such as `duckdns.org` is never treated as the owner's. The app behaves the same for
+  a build that sets them (#189).
+
+- Security update for a library the player uses.
+
 ## Global Version 7.18.2 (2026-10-22)
 
 - The web player bundled in the app takes the frontend dependency updates of this release. No

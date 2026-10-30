@@ -1,9 +1,5 @@
 # 🎵 Music Management System
 
-[![pipeline develop](https://gitlab.example.com/muma/music-management/badges/develop/pipeline.svg?key_text=pipeline%20develop&key_width=104)](https://gitlab.example.com/muma/music-management/-/pipelines?ref=develop)
-[![coverage develop](https://gitlab.example.com/muma/music-management/badges/develop/coverage.svg?key_text=coverage%20develop&key_width=110)](https://gitlab.example.com/muma/music-management/-/graphs/develop/charts)
-[![pipeline master](https://gitlab.example.com/muma/music-management/badges/master/pipeline.svg?key_text=pipeline%20master&key_width=104)](https://gitlab.example.com/muma/music-management/-/pipelines?ref=master)
-[![coverage master](https://gitlab.example.com/muma/music-management/badges/master/coverage.svg?key_text=coverage%20master&key_width=110)](https://gitlab.example.com/muma/music-management/-/graphs/master/charts)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
 A comprehensive, modular system for automated music library management, featuring a unified "Spotify-style" UI, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
@@ -131,10 +127,26 @@ The system is split into modular Docker Compose files for better resource manage
 1. **`docker/docker-compose.yml`**: What production runs (`scripts/ci-deploy.sh`): MariaDB, phpMyAdmin,
    Music Manager (which hosts the tagger and scanner) and the importer, YouTube, SoundCloud and
    Telegram workers. LMS is its own stack (`services/music-management-server/docker-compose.yml`).
-2. **`docker/docker-compose.workers.yml`**: Local-only overlay used by `scripts/dev.sh`. It redefines
+2. **`docker/docker-compose.workers.yml`**: Local-only overlay used by `scripts/dev.sh` (which also reads the optional, gitignored `.production` file of the owner's checkout for `DOCKER_USER`). It redefines
    the same worker containers with a flat, older environment and is not valid on its own (its
    workers depend on a `db` only `docker-compose.yml` defines). Production never reads it.
 3. **`docker-compose.tools.yml`**: Utility services (Fetchers, ML Analyzer, Firefox).
+
+#### Source workers are opt-in
+
+The workers that bring music into the library are Compose profiles. Without a profile, `up` starts
+the database, the manager and the other core services, and none of them:
+
+| Profile      | Services                            | For                                                                  |
+|--------------|-------------------------------------|----------------------------------------------------------------------|
+| `importer`   | `importer_worker`                   | Music you bought or got as a label promo, placed into your library.  |
+| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher` | Tracks an artist or label published on their own SoundCloud channel. |
+| `youtube`    | `youtube_worker`                    | Tracks an artist or label published on their own YouTube channel.    |
+| `telegram`   | `telegram_worker`                   | Files from Telegram chats you take part in.                          |
+
+Turn them on with `COMPOSE_PROFILES` in `.env`, for example `COMPOSE_PROFILES=importer,youtube`, or per
+command with `docker-compose --profile importer up -d`. See
+[docs/self-hosting.md](docs/self-hosting.md#source-workers-are-compose-profiles).
 
 ### Database Backups
 A SQL dump of the MariaDB database is automatically created during every deployment. Manual backups can be triggered using:
@@ -147,17 +159,19 @@ Backups are stored in `/muma/backups` on the host machine. The script uses `dock
 
 **Start the entire stack:**
 ```bash
-docker-compose -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up -d
+docker-compose -f docker/docker-compose.yml -f docker/docker-compose.tools.yml \
+  --profile importer --profile soundcloud --profile youtube --profile telegram up -d
 ```
+(or `COMPOSE_PROFILES=importer,soundcloud,youtube,telegram` in `.env`, then a plain `up -d`)
 
-**Start only core services:**
+**Start only core services (no source workers):**
 ```bash
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml up -d
 ```
 
 **View logs for a specific service:**
 ```bash
-docker-compose -f docker/docker-compose.yml logs -f importer_worker
+docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
 
 ---
@@ -218,7 +232,7 @@ meaningful; no change is needed on the Kuma side.
 Everything is driven by one GitLab pipeline definition (`.gitlab-ci.yml`), but *which* jobs
 actually run depends entirely on the branch you push to. There are effectively four kinds of
 pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`
-(see [Release Management](docs/release-management.md) for the full policy).
+(see Release Management, in the private muma-ops repository, for the full policy).
 
 ### The four pipelines at a glance
 
@@ -258,7 +272,7 @@ MuMa Mobile-only change doesn't wait on the C++ or frontend suites:
 | --- | --- | --- |
 | `backend:format` / `:lint` / `:typecheck` | the Python services changed | ruff format, ruff + pylint, mypy. Fix formatting with `./scripts/format.sh`. |
 | `backend:unit` | the Python services changed | Unit tests for music-manager, importer, downloader, tagger, scanner and shared code. Reports coverage. |
-| `backend:integration` | the manager's SQL, a migration or the integration suite changed | Runs every endpoint's SQL against a real MariaDB. |
+| `backend:integration` | the manager's SQL, the schema declaration or the integration suite changed | Runs every endpoint's SQL against a real MariaDB. |
 | `server:format` | the server sources changed | clang-format check, pinned to one clang version. Fix with `./scripts/test/muma-server-format.sh --fix`. |
 | `server:lint` | the server sources changed | clang-tidy over 307 translation units against a baseline of accepted findings. ~12 minutes, so it is deliberately not on every pipeline. |
 | `server:unit` | the playback server (C++) changed | Builds and runs the LMS test suite. Reports coverage. |
@@ -301,6 +315,23 @@ pipeline fails as early and as cheaply as possible:
 
 ---
 
+## Source code and license
+
+MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)). Section 13 says that anyone who uses a
+modified version over a network can get its source code. The About screen (Settings > About) of the
+web player and of the Android app, which shows the same screen, has a **Source code** section with a
+link for that, and the login screen has the same link, so it reaches people before they sign in.
+
+The link comes from the setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, also on
+Beheer > Config > General). The default is the placeholder `https://github.com/OWNER/music-management`.
+If you run your own fork, set it to the address of your repository, at the revision you deploy. An
+empty value hides the section. Only `http://` and `https://` addresses are shown. The About screen
+reads the value from `source_url` in the `GET /health` answer.
+
+The music server (`services/music-management-server`) is a fork of LMS and has its own, older Wt
+interface with an About window that links to the upstream LMS homepage. The web player is the interface
+this project serves to listeners, so the source link lives there.
+
 ## 📂 Repository Structure
 
 ```text
@@ -326,16 +357,12 @@ pipeline fails as early and as cheaply as possible:
 For specific information on each module, please refer to their respective READMEs:
 
 - [Product Goal](docs/product-goal.md) — what the system is for, and what it deliberately is not
-- [Ecosystem Architecture](docs/architecture.md)
+- [Architecture](docs/architecture.md) — services, data flow and data ownership
 - [API Specification](docs/api-specification.md)
-- [System Overview](docs/OVERVIEW.md)
-- [Deployment Guide](docs/deployment.md)
-- [Release Management & Branching](docs/release-management.md)
+- [Self-Hosting Guide](docs/self-hosting.md)
 - [Testing Inventory](docs/testing-inventory.md)
 - [Database Schema](docs/database-design.md)
-- [Data Flow](docs/system-data-flow.md)
 - [Style Guide](docs/styleguide.md)
-- [Machine Learning: an unbuilt proposal](docs/machine-learning.md)
 
 ---
 

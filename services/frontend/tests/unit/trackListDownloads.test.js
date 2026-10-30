@@ -55,7 +55,7 @@ function shell({ states = { 1: "none", 2: "none" }, supported = true, ...rest } 
 
 describe("TrackList download state", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     playlist.set([]);
     currentTrack.set(null);
     offline.set(false);
@@ -192,7 +192,7 @@ describe("TrackList download state", () => {
 
 describe("TrackList cover art offline", () => {
   beforeEach(() => {
-    credentials.set({ url: "https://lms.example", username: "user", password: "pw" });
+    credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     offline.set(false);
   });
 

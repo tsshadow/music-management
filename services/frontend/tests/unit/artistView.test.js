@@ -47,7 +47,7 @@ function subsonic({
     biography: "Hardcore uit Amsterdam.",
     similarArtist: [{ id: "artist-2", name: "Outsiders" }],
   },
-  muma = { genre_rules: [{ genre_id: 12, name: "Hardcore", created_by: "user" }] },
+  muma = { genre_rules: [{ genre_id: 12, name: "Hardcore", created_by: "demo-user" }] },
   starOk = true,
 } = {}) {
   return vi.fn(async (url) => {
@@ -89,8 +89,8 @@ async function renderLoaded(props = {}) {
 
 describe("ArtistView", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     playlist.set([]);
@@ -328,8 +328,8 @@ describe("ArtistView - switching artists", () => {
   }
 
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     clearRecentPlaces();
@@ -420,7 +420,7 @@ describe("ArtistView - optimistic page", () => {
   }
 
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
     viewMode.set("songs");
     deduplicateEnabled.set(false);
     playlist.set([]);

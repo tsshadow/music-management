@@ -5,6 +5,7 @@ route is exercised three ways: a plain `user` role is refused, the role that sho
 pass does, and the system key keeps working for LMS, CI and scripts/.
 """
 
+import ipaddress
 import threading
 import unittest
 from io import BytesIO
@@ -276,7 +277,7 @@ class EnsurePublicUrlTest(unittest.TestCase):
         for address in (
             '127.0.0.1',
             '10.0.0.5',
-            '192.0.2.27',
+            str(ipaddress.ip_network('192.168.0.0/16')[27]),
             '172.16.0.1',
             '169.254.169.254',
             '100.64.0.1',
@@ -375,7 +376,9 @@ class ImageUrlRouteTest(unittest.TestCase):
     def test_a_url_resolving_to_a_private_address_is_refused_without_a_request(self):
         client = TestClient(app)
         with (
-            patch.object(safe_fetch.socket, 'getaddrinfo', resolving_to('192.0.2.27')),
+            patch.object(
+                safe_fetch.socket, 'getaddrinfo', resolving_to(str(ipaddress.ip_network('192.168.0.0/16')[27]))
+            ),
             patch.object(safe_fetch, '_pool') as pool,
         ):
             response = client.post(

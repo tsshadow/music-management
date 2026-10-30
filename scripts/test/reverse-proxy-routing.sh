@@ -169,7 +169,7 @@ expect_forwarded_for() {
 
 expect_forwarded_for "198.51.100.7"                          "198.51.100.7"
 expect_forwarded_for "203.0.113.9, 198.51.100.7"             "198.51.100.7"
-expect_forwarded_for "203.0.113.9, 198.51.100.7, 192.0.2.30" "198.51.100.7"
+expect_forwarded_for "203.0.113.9, 198.51.100.7, 172.16.0.30"   "198.51.100.7"
 
 if [ "$failures" -ne 0 ]; then
     echo "$failures routing case(s) failed"

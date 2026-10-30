@@ -8,7 +8,7 @@ protected by "is this an enabled account" rather than by a role or a permission.
 the plain `user` role -- every approved access request gets that role -- could:
 
 - read the logs of **any** container on the Docker host through `GET /api/system/logs/{name}`
-  (the name was passed to `docker.containers.get` unchecked, so `password manager` or a database
+  (the name was passed to `docker.containers.get` unchecked, so `the password manager` or a database
   container worked as well as `muma-manager`), and list the installation's containers;
 - add and delete SoundCloud and YouTube downloader sources;
 - decide genres and podcasts, write artist/label genre rules and artist redirects, queue the whole

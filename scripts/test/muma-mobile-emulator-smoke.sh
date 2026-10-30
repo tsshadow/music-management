@@ -31,7 +31,7 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR" || exit 1
 
 if [ ! -e /dev/kvm ]; then
     echo "Error: /dev/kvm is not available on this host; the emulator cannot run." >&2
@@ -54,14 +54,10 @@ fi
 
 echo "--- Running MuMa Mobile emulator smoke test (release build) ---"
 
-# The server the login page must show on a fresh install. Read from the source
-# rather than repeated here, so moving the server cannot break this silently.
-SMOKE_EXPECTED_SERVER="$(sed -n 's/.*const val SERVER_URL = "\(.*\)".*/\1/p' \
-    "$ROOT_DIR/services/muma-mobile/app/src/main/kotlin/nl/teunschriks/mumamobile/data/StaticServers.kt")"
-if [ -z "$SMOKE_EXPECTED_SERVER" ]; then
-    echo "Error: could not read SERVER_URL from StaticServers.kt." >&2
-    exit 1
-fi
+# The server the login page must show on a fresh install: the one the build was given
+# (MUMA_SERVER_URL, read by services/muma-mobile/app/build.gradle), else the neutral default
+# compiled in when it is unset. The same variable goes to the build below, so they cannot differ.
+SMOKE_EXPECTED_SERVER="${MUMA_SERVER_URL:-https://music.example.org}"
 
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"
@@ -93,6 +89,11 @@ docker run --rm \
     -e SIGNING_KEY_ALIAS=dummy-ci \
     -e SIGNING_KEY_PASSWORD=dummy-ci-password \
     -e SMOKE_EXPECTED_SERVER="$SMOKE_EXPECTED_SERVER" \
+    -e MUMA_SERVER_URL \
+    -e MUMA_API_URL \
+    -e MUMA_OWN_DOMAIN \
+    -e MUMA_GOOGLE_CLIENT_ID \
+    -e MUMA_ALLOW_DEFAULTS=true \
     "$ANDROID_CI_IMAGE" \
     /bin/bash /workspace/scripts/test/muma-mobile-emulator-smoke-inner.sh
 

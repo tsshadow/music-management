@@ -98,7 +98,7 @@ stages:
 #   server     the C++ playback server (services/music-management-server)
 #   frontend   the Svelte web UI. Not a deployable of its own: it is built in
 #              the first stage of the server's Dockerfile-release and ends up
-#              inside that image, under docroot/spotify.
+#              inside that image, under its web docroot.
 #   mobile     the Android app
 #
 # `backend` and `server` are both server-side, so to be explicit: `server` is
@@ -201,8 +201,8 @@ stages:
 # Jobs that may run on either CI host, so two of them can run at once.
 #
 # There are two runners and both carry the `fast` tag: the always-on LXC
-# (debian-dev-192.0.2.40, also picks up untagged jobs) and Teun's workstation
-# (minipc-debian13-192.0.2.227), which is tagged-only and often powered off.
+# (the CI LXC runner, which also picks up untagged jobs) and the owner's
+# workstation runner, which is tagged-only and often powered off.
 # GitLab hands a `fast` job to whichever runner polls first, so tagging a job
 # here buys parallelism when the workstation is up and changes nothing when it
 # is not -- the LXC still carries the same tag, so nothing ever queues waiting
@@ -561,6 +561,25 @@ security:secret-scan:
   script:
     - ./scripts/ci/secret-scan.sh
 
+# Personal-data check for the public mirror (issue #189 step 10): gitleaks over the working tree
+# plus the patterns in scripts/ci/public-patterns.txt (owner names, personal hosts, LAN addresses).
+# No allow_failure: a hit is a finding, and the script needs no network.
+public:check:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  # gitleaks runs as a container, like in security:secret-scan.
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    - !reference [.not_on_master, rules]
+    - !reference [.release_rule, rules]
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - "**/*"
+  script:
+    - ./scripts/ci/public-check.sh
+
 # Runs Renovate against this repository. renovate.json has been in the tree
 # since 0.24.0 and describes exactly which updates are grouped and which merge
 # themselves -- but nothing ever executed it, so it produced no merge requests
@@ -626,6 +645,9 @@ runner:disk-janitor:
   retry: !reference [.infra_retry, retry]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule" && $DISK_JANITOR == "true"'
+  variables:
+    # The release images are pushed under the Docker Hub user; the janitor has no default for it.
+    DOCKER_USER: $DOCKERHUB_USERNAME
   script:
     - ./scripts/ci/disk-janitor.sh
 
@@ -949,6 +971,8 @@ mobile:unit:
     - changes: *mobile_paths
   script:
     - ./scripts/test/muma-mobile-unit.sh
+    # Same Android image: the Gradle side of the build settings (issue #189).
+    - ./scripts/test/muma-mobile-config-check.sh
   after_script: !reference [.mobile_container, after_script]
   coverage: '/Total.*?(\d+(?:\.\d+)?\%)/'
   artifacts:
@@ -981,8 +1005,8 @@ release:check-secrets:
 # column that does not exist, or a table the schema bootstrap never creates,
 # passes there and fails in production. This job is what caught the missing
 # downloads_youtube_accounts.channel_id and library_track_ml_labels.updated_at
-# columns. It also applies every migrate_*.sql twice, so a migration that is not
-# re-runnable fails here rather than on deploy.
+# columns. It also compares a fresh database with production's schema snapshot
+# (tests/integration/test_schema_snapshot.py) and runs the deploy's schema reconcile.
 # The three jobs below declare `needs:` instead of waiting for the whole unit
 # stage. Nothing here depends on the Android build, but stage ordering made them
 # wait for it anyway: on the 0.19.0 release pipeline the Android jobs ran for
@@ -1004,11 +1028,13 @@ backend:integration:
     - changes:
         - services/music_manager/**/*
         - services/common/db_init.py
-        # The other places a table is declared (tests/integration/schema_sources.py
-        # reads them all): the downloader's own tables and the tagger's.
+        # Where every table is declared, the seed rows and the deploy's reconcile.
+        - services/common/schema_tables.py
+        - services/common/schema_reconcile.py
+        - services/common/db_seeds.py
+        - services/common/seeds/*
         - services/downloader/db_schema.py
         - services/common/Helpers/ProcessedFilesHelper.py
-        - migrate_*.sql
         - tests/integration/**/*
         - .gitlab-ci.yml
         # A job has to run when the script it runs changes. Without this line a
@@ -1252,7 +1278,7 @@ frontend:e2e:
 # --- Release stabilization ---------------------------------------------------
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
 # (stabilization + prod deploy) -> master (tagged production record).
-# See docs/release-management.md for the full policy.
+# See muma-ops docs/release-management.md for the full policy.
 
 release:version-check:
   stage: release

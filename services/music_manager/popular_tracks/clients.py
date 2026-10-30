@@ -21,6 +21,7 @@ from typing import Any
 
 import requests
 
+from services.common.user_agent import user_agent as _user_agent
 from services.music_manager.scrobble_matching import normalize
 
 logger = logging.getLogger('music-manager.popular-tracks')
@@ -38,7 +39,13 @@ MAX_RETRIES = 3
 #: The first backoff after a throttled request; doubles per retry.
 FIRST_BACKOFF_SECONDS = 5.0
 TIMEOUT_SECONDS = 20
-USER_AGENT = 'muma-popular-tracks/0.1 (https://gitlab.com/muma/music-management)'
+
+
+def user_agent() -> str:
+    """The User-Agent for this module's requests, built on first use."""
+    return _user_agent('muma-popular-tracks', '0.1')
+
+
 #: How many top tracks are asked for per artist.
 TOP_LIMIT = 50
 
@@ -106,7 +113,7 @@ class RateLimiter:
 def default_http_get(url: str, params: dict | None = None) -> tuple[int, Any]:
     """`GET url` and return `(status, parsed JSON or None)`. Network errors raise `SourceFailed`."""
     try:
-        response = requests.get(url, params=params, timeout=TIMEOUT_SECONDS, headers={'User-Agent': USER_AGENT})
+        response = requests.get(url, params=params, timeout=TIMEOUT_SECONDS, headers={'User-Agent': user_agent()})
     except requests.RequestException as exc:
         raise SourceFailed(str(exc)) from exc
     try:

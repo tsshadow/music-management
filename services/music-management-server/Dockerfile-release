@@ -53,7 +53,7 @@ RUN	apk add --no-cache --update ${BUILD_PACKAGES}
 # does not pin a GitHub /archive/ tarball: it is generated on request and has been
 # served with a different checksum before. Renovate does not look inside this
 # directory (see renovate.json), so a bump is by hand: change the version, download
-# the new file once, put its sha256 here. See docs/deployment.md, "Pinned build inputs".
+# the new file once, put its sha256 here. See muma-ops docs/deployment-production.md, "Pinned build inputs".
 
 # FFmpeg
 ARG	FFMPEG_VERSION=6.1.4
@@ -172,7 +172,6 @@ RUN \
 
 ## Release Stage
 FROM		alpine:3.23 AS release
-LABEL		maintainer="muma"
 
 ARG	RUNTIME_PACKAGES=" \
 	boost-iostreams \

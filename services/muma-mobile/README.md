@@ -82,6 +82,30 @@ If you are modifying the code and need to rebuild and redeploy the system:
 5.  **Full pipeline (Build + Publish + Deploy)**: `./install` or `./install.sh [debug|release]` (defaults to debug)
     - Use `patch`, `minor`, or `major` as mode for version increments (e.g., `./install patch`).
 
+### Server address and Google sign-in
+
+The APK does not carry a server in its source. `app/build.gradle` compiles four values into
+`BuildConfig` from a Gradle property, or from an environment variable when the property is absent:
+
+| Gradle property | Environment | Default | Effect |
+| --- | --- | --- | --- |
+| `muma.serverUrl` | `MUMA_SERVER_URL` | `https://music.example.org` | The one server the app talks to (`StaticServers.SERVER_URL`). |
+| `muma.googleClientId` | `MUMA_GOOGLE_CLIENT_ID` | empty | The Google OAuth Web client id of "Sign in with Google". Empty hides the button. |
+| `muma.apiUrl` | `MUMA_API_URL` | empty | Own host for the MuMa API. Empty means `<server>/muma`. |
+| `muma.ownDomain` | `MUMA_OWN_DOMAIN` | empty | The owner's domain. A stored server whose host equals the server's host, the domain, or ends in `.<domain>` gets `muma.apiUrl`. Empty means exact host match only. |
+
+Locally: export the environment variables, or put the properties in `~/.gradle/gradle.properties`.
+Do not pass them with `-P` on the command line: the value then shows in the process list of a
+shared runner (bug report 125). In CI they are CI/CD variables with the same names. Values are
+checked (a URL, and letters, digits, `.`, `_`, `-` for the client id), so a quote cannot break the
+generated code.
+
+A release (`assembleRelease`, `bundleRelease`, `packageRelease`) fails in Gradle when the server is
+the example default or the client id is empty, and `scripts/ci/muma-mobile-build-upload.sh release`
+stops earlier for the same reason. `MUMA_ALLOW_DEFAULTS=true` lifts the Gradle check for a build that
+is never shipped; `mobile:smoke` sets it and expects the server from `MUMA_SERVER_URL` on the login
+page. `./scripts/test/muma-mobile-config-check.sh` runs the cases in the Android image.
+
 ### Release-build smoke test
 The shipped APK is R8-minified (`app/minify/*.pro`), and a missing keep rule only fails in that
 build -- the 6.21.0 startup crash (`docs/bug-reports/029`) was invisible to every unit test.
@@ -92,13 +116,14 @@ login page shows the static server, which only arrives through a Capacitor plugi
 `/dev/kvm`; run it locally after touching a keep rule. Details in `docs/testing-inventory.md`.
 
 ### APK Hoster
-The `apk-hoster` service is managed in its own repository: [muma/apk-hoster](https://github.com/muma/apk-hoster).
+The `apk-hoster` service is managed in its own repository: a separate `apk-hoster` repository.
 Builds from this project are automatically synced to the hoster's storage if configured in `.env`.
 
 #### Distribution and Custom Paths
 You can configure where builds are saved and how they are served:
 - `DIST_DIR`: Local path where APKs and `index.html` are saved (e.g., `/mnt/user/ultrasonic-builds`).
 - `REMOTE_DIST_PATH`: Path on the remote server where builds are located.
+- `BUILDS_MOUNT`: Mount of the builds share, default `/mnt/$USER`; `REMOTE_DIST_PATH` and the local fallback live under it.
 
 #### Remote Deployment Options
 You can configure deployment in `.env`:

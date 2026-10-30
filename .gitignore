@@ -3,11 +3,10 @@ work-context/
 # /docker-compose.tools.yml
 /.env
 *.sql
-# Schema migrations are the exception: scripts/deploy.sh applies every
-# migrate_*.sql in the repo root on each deploy, so these must be committed.
-# Without this rule "git add" silently skips them and the deploy runs new code
-# against an old schema - see docs/bug-reports/021-genre-migration-never-shipped.md.
-!migrate_*.sql
+# The seed rows a fresh database gets (services/common/db_seeds.py) are the exception.
+# Without this rule "git add" skips them silently; see
+# docs/bug-reports/021-genre-migration-never-shipped.md.
+!services/common/seeds/*.sql
 *.log
 .output.txt
 venv/
@@ -17,7 +16,25 @@ __pycache__/
 services/ml-analyzer/.env
 node_modules/
 .pytest_cache/
-.production
+/.production
+
+# Operations and agent material lives in the private ops repository.
+# Its install.sh links these paths into a checkout; ignoring them keeps a linked
+# checkout clean. No trailing slashes: they are symlinks, which "dir/" never matches.
+# .claude is ignored as a whole, so .claude/worktrees stays local state.
+# tests/ci/test_ops_material_not_tracked.py fails when any of them is tracked again.
+/.claude
+/.ai
+/.junie
+/services/muma-mobile/.junie
+/scripts/prod
+/scripts/crash-triage
+/scripts/nightly-prod-check
+/scripts/ssh
+/scripts/vw.sh
+/services/music-management-server/scripts/remote-build.sh
+/docs/superpowers
+/AGENTS.local.md
 # Coverage reports
 coverage/
 coverage-python.xml

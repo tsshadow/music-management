@@ -146,10 +146,6 @@ REASONS = {
         'The real weakness is that a password in argv is visible to a local '
         'process listing, which is acceptable on a workstation deploy script.'
     ),
-    'detected-generic-api-key': (
-        '.gitleaksignore lists commit:path:rule:line references to past '
-        'findings, not the secrets themselves.'
-    ),
     'detected-jwt-token': 'Test fixtures for the Subsonic API client.',
     'exported_activity': (
         'Android activities that are launched by the system or by another app '
@@ -219,15 +215,7 @@ REASONS = {
         'request and the rule no longer fires.'
     ),
     'dynamic-urllib-use-detected': (
-        'The ntfy notify call in the crash-triage listener builds its URL from '
-        'NTFY_URL, an operator-set value in a root-owned env file, and the code '
-        'pins the scheme to http(s) before opening it -- a mangled value cannot '
-        'become a file:// read. Audited 2026-08-31. The nightly prod-check '
-        'collector does the same with MUMA_URL from the same env file: its '
-        'ProdClient refuses anything but http(s) in its constructor. Audited '
-        '2026-09-10. This reason was once restored by hand after a regeneration '
-        'replaced it with the placeholder; that is what unwritable_rationale() '
-        'below now prevents. scripts/backfill_artwork.py has two sites: one '
+        'scripts/backfill_artwork.py has two sites: one '
         'builds a SoundCloud API URL from a literal host and a list of track '
         'ids out of our own archive table, the other fetches an artwork URL '
         'that did come from a third party\'s JSON -- and that one goes through '

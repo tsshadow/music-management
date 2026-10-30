@@ -194,7 +194,7 @@ What `services/muma-mobile` does with credentials, since bug report 054:
 Every production container runs with `no-new-privileges`, `cap_drop: [ALL]` plus a minimal
 `cap_add`, and a `pids_limit`; LMS, its nginx proxy and autoheal also have a read-only root
 filesystem. The per-service sets, the reasons, and what is still open (non-root users and
-read-only roots for the muma images, Firefox) are in `docs/deployment.md`, "Container
+read-only roots for the muma images, Firefox) are in `muma-ops docs/deployment-production.md`, "Container
 hardening"; `tests/ci/test_compose_hardening.py` pins them.
 
 ## Secrets
@@ -230,6 +230,11 @@ Removing a committed secret from the working tree does not unpublish it -- every
 clone still holds it, and `git log -S'<the value>'` finds it in seconds. Deletion
 is the second step; the first is always to rotate the credential at its source,
 after which the copy in history is worthless.
+
+The history of this repository was rewritten once, on 2026-10-29 (#189), after every
+credential committed until then had been rotated: `.env`, `.server-env.json` and the
+personal data in old commits are gone, and `.gitleaksignore` is empty. A rewrite is not
+the answer to a new leak; rotation is.
 
 The system API key described above is in this position. It was committed until
 the `api_key.py` change, so it must be replaced in `.env` (`API_KEY` and

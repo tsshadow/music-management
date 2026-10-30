@@ -29,22 +29,65 @@ android {
         return System.getenv(key) ?: signingProperties.getProperty(key, defVal)
     }
 
+    // The server address, the Google OAuth Web client id, an optional own MuMa API host and the
+    // owner's domain are build settings: a Gradle property (muma.serverUrl, muma.googleClientId,
+    // muma.apiUrl, muma.ownDomain, e.g. in ~/.gradle/gradle.properties) or the environment
+    // (MUMA_SERVER_URL, MUMA_GOOGLE_CLIENT_ID, MUMA_API_URL, MUMA_OWN_DOMAIN). Prefer those over -P on the command line, where the value shows in `ps`
+    // (bug report 125). Without them: https://music.example.org and no Google button. Values are
+    // validated, so none can break the generated Java string. A release build refuses the
+    // defaults (checkMumaReleaseConfig below).
+    def mumaConfig = { String property, String envName, String defVal, String pattern ->
+        def raw = project.findProperty(property) ?: envOrProp(envName)
+        def value = (raw == null || raw.toString().trim().isEmpty()) ? defVal : raw.toString().trim()
+        if (!(value ==~ pattern)) {
+            throw new GradleException("${property} / ${envName} has an invalid value (allowed: ${pattern})")
+        }
+        return value
+    }
+    def urlPattern = /(https?:\/\/[A-Za-z0-9.\-]+(:[0-9]+)?(\/[A-Za-z0-9._~\-\/]*)?)?/
+    def mumaDefaultServer = 'https://music.example.org'
+    def mumaServerUrl = mumaConfig('muma.serverUrl', 'MUMA_SERVER_URL', mumaDefaultServer, urlPattern)
+    def mumaApiUrl = mumaConfig('muma.apiUrl', 'MUMA_API_URL', '', urlPattern)
+    def mumaOwnDomain = mumaConfig('muma.ownDomain', 'MUMA_OWN_DOMAIN', '', /[A-Za-z0-9.\-]*/)
+    def mumaGoogleClientId = mumaConfig('muma.googleClientId', 'MUMA_GOOGLE_CLIENT_ID', '', /[A-Za-z0-9._\-]*/)
+
+    tasks.register("checkMumaReleaseConfig") {
+        description = "Fails a release build that would ship the example server or no Google client id."
+        def allowDefaults = (project.findProperty('muma.allowDefaults') ?: System.getenv('MUMA_ALLOW_DEFAULTS')) == 'true'
+        def server = mumaServerUrl
+        def clientId = mumaGoogleClientId
+        doLast {
+            if (!allowDefaults && (server == mumaDefaultServer || clientId.isEmpty())) {
+                throw new GradleException(
+                    "A release build needs MUMA_SERVER_URL (not the example default) and " +
+                        "MUMA_GOOGLE_CLIENT_ID. Set muma.allowDefaults=true only for a build that is never shipped.")
+            }
+        }
+    }
+    tasks.matching { it.name ==~ /(assemble|bundle|package)Release/ }.configureEach {
+        dependsOn "checkMumaReleaseConfig"
+    }
+
     compileSdk = libs.versions.appCompileSdk.get().toInteger()
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 367
-        versionName "7.18.2"
+        versionCode 368
+        versionName "7.18.3"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
         resourceConfigurations += ['cs', 'de', 'en', 'es', 'fr', 'gl', 'hu', 'it', 'ja', 'nb-rNO', 'nl', 'nl-rBQ', 'nl-rCW', 'pl', 'pt', 'pt-rBR', 'ru', 'zh-rCN', 'zh-rTW']
 
-        buildConfigField "String", "APK_HOST_URL", "\"${envOrProp('APK_HOSTER_URL', 'https://apk.example.com')}\""
+        buildConfigField "String", "APK_HOST_URL", "\"${envOrProp('APK_HOSTER_URL', 'https://apk.example.org')}\""
         // No apk-hoster credential goes into BuildConfig: the update check asks as the hoster's
         // public read-only 'guest' account (AppUpdate.versionUrl). APK_HOSTER_PASSWORD is the
         // upload password and is only read by scripts/deploy.sh, never compiled in (bug report 054).
-        buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${envOrProp('GOOGLE_WEB_CLIENT_ID', 'placeholder-id')}\""
+        // The server and the sign-in client are not in the source: see mumaConfig above.
+        buildConfigField "String", "MUMA_SERVER_URL", "\"${mumaServerUrl}\""
+        buildConfigField "String", "MUMA_API_URL", "\"${mumaApiUrl}\""
+        buildConfigField "String", "MUMA_OWN_DOMAIN", "\"${mumaOwnDomain}\""
+        buildConfigField "String", "GOOGLE_WEB_CLIENT_ID", "\"${mumaGoogleClientId}\""
     }
 
     def getServerJson = { boolean includePassword ->
@@ -316,6 +359,11 @@ dependencies {
     implementation libs.capacitorCore
     implementation libs.media3datasource
     implementation libs.media3okhttp
+    constraints {
+        implementation(libs.guava) {
+            because "media3 brings Guava 33.3.1, which has CVE-2026-102554"
+        }
+    }
     implementation libs.lifecycleLivedataKtx
     implementation libs.credentials
     implementation libs.credentialsPlayServicesAuth

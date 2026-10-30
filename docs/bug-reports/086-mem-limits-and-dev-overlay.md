@@ -4,7 +4,7 @@
 
 # reported problem
 
-Two leftovers from bug reports 050 and 081, both listed in `docs/open-work.md` under "Deferred
+Two leftovers from bug reports 050 and 081, both listed in the GitLab issues under "Deferred
 deliberately":
 
 1. **No memory limit on most of production.** Bug report 050 capped music-manager and the four
@@ -60,7 +60,7 @@ deliberately":
 # solution
 
 **Memory limits**, each with its reasoning in a comment on the service and overridable in the
-stack's `.env` (the table is in `docs/deployment.md`, "Ports, logs and memory limits"):
+stack's `.env` (the table is in `muma-ops docs/deployment-production.md`, "Ports, logs and memory limits"):
 
 - `db` 2g (`MUMA_MEM_LIMIT_DB`): three times what it uses and twice the ~1 GiB peak its settings
   allow at the highest connection count seen (470 MiB static + 29 x ~18 MiB). A mariadb-dump or the
@@ -86,7 +86,7 @@ Specification, where `mem_limit` is valid too.
 **Applying them:** a limit only applies to a container created after the change. The next deploy
 recreates music-manager, the workers and the `lms` stack; phpMyAdmin and Firefox only when their
 image changes; the one-shots when next run. `db` needs a `DEPLOY_DB=1` deploy -- already in
-`docs/open-work.md` for the log rotation of bug report 081, and that line now names this as well.
+the GitLab issues for the log rotation of bug report 081, and that line now names this as well.
 
 **dev.sh overlay:** `docker-compose.dev.yml` no longer names the LMS container. The overlays
 (`workers`, `tools`, `dev`) no longer repeat `image` and `security_opt` for services

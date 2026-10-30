@@ -46,7 +46,7 @@ def test_a_nearly_full_disk_stops_the_deploy_before_anything_happens(tmp_path: P
     assert "only 5.5 GB free on /, below the 8 GB this deploy needs" in result.stdout
     assert "prune-prod-images.sh" in result.stdout
     events = _events(log_dir)
-    assert "dump" not in events and "migrate" not in events
+    assert "dump" not in events and "schema" not in events
     assert not any(" pull " in e + " " or " up " in e for e in events if e.startswith("compose")), events
 
 
@@ -87,8 +87,8 @@ def test_deploy_db_recreates_db_only_after_the_dump(tmp_path: Path) -> None:
     dump = _index(events, lambda e: e == "dump")
     recreate = _index(events, lambda e: e.startswith("compose") and e.endswith(" up -d --no-deps db"))
     db_pull = _index(events, lambda e: e.startswith("compose") and e.endswith(" pull db"))
-    first_migration = _index(events, lambda e: e == "migrate")
-    assert dump < db_pull < recreate < first_migration < _index(events, _is_service_up), events
+    schema = _index(events, lambda e: e == "schema")
+    assert dump < db_pull < recreate < schema < _index(events, _is_service_up), events
     # The prepare step before the dump only ever starts a missing db.
     assert all(
         e.endswith(" up -d --no-deps --no-recreate db")
@@ -107,14 +107,14 @@ def test_without_deploy_db_nothing_recreates_db(tmp_path: Path) -> None:
     assert not [line for line in compose_argv if line.endswith(" pull db")]
 
 
-def test_a_data_directory_left_unupgraded_stops_before_the_migrations(tmp_path: Path) -> None:
+def test_a_data_directory_left_unupgraded_stops_before_the_schema_step(tmp_path: Path) -> None:
     result, log_dir = _run_deploy(tmp_path, DEPLOY_DB="1", FAKE_UPGRADE_INFO="12.3.3-MariaDB")
     assert result.returncode != 0
     assert "data directory was not upgraded" in result.stdout
     assert "MARIADB_AUTO_UPGRADE" in result.stdout
     events = _events(log_dir)
     assert "dump" in events
-    assert "migrate" not in events
+    assert "schema" not in events
     assert not any(_is_service_up(e) for e in events)
 
 
@@ -137,7 +137,7 @@ def test_deploy_db_without_a_bind_address_warns_about_the_mcp(tmp_path: Path) ->
     assert result.returncode == 0, result.stdout + result.stderr
     assert "DB_BIND_ADDRESS is not set" in result.stdout
     (tmp_path / "bound").mkdir()
-    bound, _ = _run_deploy(tmp_path / "bound", DEPLOY_DB="1", DB_BIND_ADDRESS="192.0.2.27")
+    bound, _ = _run_deploy(tmp_path / "bound", DEPLOY_DB="1", DB_BIND_ADDRESS="198.51.100.7")
     assert "DB_BIND_ADDRESS is not set" not in bound.stdout
 
 

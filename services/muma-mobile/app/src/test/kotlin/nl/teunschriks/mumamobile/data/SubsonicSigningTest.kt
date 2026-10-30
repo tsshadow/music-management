@@ -49,7 +49,7 @@ class SubsonicSigningTest {
 
     @Test
     fun `a token issued for another spelling of the name does not sign -- LMS compares byte for byte`() {
-        SubsonicSigning.isUsable("Teun", "the-token", "user").shouldBeFalse()
+        SubsonicSigning.isUsable("User", "the-token", "user").shouldBeFalse()
     }
 
     @Test
@@ -83,7 +83,7 @@ class SubsonicSigningTest {
 
     @Test
     fun `the account's own spelling is adopted with its token`() {
-        SubsonicSigning.adopt("Teun", null, null, "user", "the-token") shouldBeEqualTo
+        SubsonicSigning.adopt("User", null, null, "user", "the-token") shouldBeEqualTo
             SubsonicSigning.Adoption.Store("the-token", "user", "user")
     }
 

@@ -105,10 +105,6 @@ class PodcastAliasRequest(BaseModel):
     alias: str
 
 
-def init_db(_cursor):
-    pass
-
-
 # Changes rules the tagger applies to every file, or moves releases on disk.
 require_rules_manage = require_permission('rules.manage')
 # Operating the installation itself: container logs, downloader sources.
@@ -340,7 +336,7 @@ def get_config(_auth: dict = Depends(verify_api_key)):
         'DB_HOST': os.getenv('DB_HOST'),
         'DB_NAME': os.getenv('DB_DB'),
         'VERSION': version,
-        'PHPMYADMIN_URL': os.getenv('PHPMYADMIN_URL', 'http://muma.example.com:8002'),
+        'PHPMYADMIN_URL': os.getenv('PHPMYADMIN_URL', ''),
     }
 
 

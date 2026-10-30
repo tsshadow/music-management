@@ -56,24 +56,24 @@ function shell({ servers, stored, state, queue, log = vi.fn() } = {}) {
   };
 }
 
-/** MuMa's answers for "user": the login, LMS's token for the same name, and the key check. */
+/** MuMa's answers for "demo-user": the login, LMS's token for the same name, and the key check. */
 function mumaAnswer(url) {
   if (url.includes("/api/auth/login")) {
     return {
       ok: true,
-      json: async () => ({ api_key: "own-key", user: { id: 1, username: "user" } }),
+      json: async () => ({ api_key: "own-key", user: { id: 1, username: "demo-user" } }),
     };
   }
   if (url.includes("/api/auth/subsonic-token")) {
     return {
       ok: true,
-      json: async () => ({ status: "ok", username: "user", token: "the-subsonic-token" }),
+      json: async () => ({ status: "ok", username: "demo-user", token: "the-subsonic-token" }),
     };
   }
   if (url.includes("/api/auth/verify")) {
     return {
       ok: true,
-      json: async () => ({ type: "user", user: { id: 1, username: "user", permissions: [] } }),
+      json: async () => ({ type: "user", user: { id: 1, username: "demo-user", permissions: [] } }),
     };
   }
   return null;
@@ -168,9 +168,9 @@ describe("bootstrapShell", () => {
 });
 
 describe("restoreSession", () => {
-  /** A phone signed in as "user" with key-1; `extra` overrides or adds members. */
+  /** A phone signed in as "demo-user" with key-1; `extra` overrides or adds members. */
   const phoneSession = (extra = {}) => ({
-    username: "user",
+    username: "demo-user",
     signedIn: true,
     mumaApiKey: "key-1",
     ...extra,
@@ -210,7 +210,7 @@ describe("restoreSession", () => {
     signedOut.set(true);
     const { signIn } = await import("../../src/lib/login.js");
 
-    expect((await signIn("user", "hunter2")).ok).toBe(true);
+    expect((await signIn("demo-user", "hunter2")).ok).toBe(true);
 
     expect(get(signedOut)).toBe(false);
   });
@@ -221,10 +221,10 @@ describe("restoreSession", () => {
 
     expect(await restoreSession(shell({ stored: phoneSession() }))).toBe(true);
 
-    expect(get(credentials).username).toBe("user");
+    expect(get(credentials).username).toBe("demo-user");
     expect(get(credentials)).not.toHaveProperty("password");
     expect(get(mumaApiKey)).toBe("key-1");
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
     const urls = global.fetch.mock.calls.map(([url]) => url);
     expect(urls.some((url) => url.includes("/api/auth/login"))).toBe(false);
     expect(urls.some((url) => url.includes("/api/auth/verify"))).toBe(true);
@@ -249,9 +249,9 @@ describe("restoreSession", () => {
     credentials.set({ url: "https://lms.example", username: "web" });
     global.fetch = vi.fn();
 
-    expect(await restoreSession(shell({ stored: { username: "user", signedIn: false } }))).toBe(
-      true,
-    );
+    expect(
+      await restoreSession(shell({ stored: { username: "demo-user", signedIn: false } })),
+    ).toBe(true);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(get(credentials).username).toBe("web");
   });
@@ -268,9 +268,9 @@ describe("restoreSession", () => {
   });
 
   it("asks nothing when the stores already hold the phone's key and a token", async () => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
-    subsonicToken.set({ username: "user", token: "the-subsonic-token" });
+    subsonicToken.set({ username: "demo-user", token: "the-subsonic-token" });
     global.fetch = vi.fn();
 
     expect(await restoreSession(shell({ stored: phoneSession() }))).toBe(true);
@@ -285,31 +285,31 @@ describe("restoreSession", () => {
 
     expect(await restoreSession(shell({ stored: phoneSession() }))).toBe(true);
 
-    expect(get(credentials).username).toBe("user");
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(credentials).username).toBe("demo-user");
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
   });
 
   // Issue #72: without a token nothing Subsonic is requested, so the boot makes sure of one.
   it("takes over the phone's token instead of fetching one", async () => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
     global.fetch = vi.fn();
 
     const signedIn = await restoreSession(
       shell({
-        stored: phoneSession({ subsonicToken: "the-phone-token", subsonicTokenUser: "user" }),
+        stored: phoneSession({ subsonicToken: "the-phone-token", subsonicTokenUser: "demo-user" }),
       }),
     );
 
     expect(signedIn).toBe(true);
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-phone-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-phone-token" });
     const urls = global.fetch.mock.calls.map(([url]) => url);
     expect(urls.some((url) => url.includes("/api/auth/subsonic-token"))).toBe(false);
     expect(get(authParams)).not.toContain("p=");
   });
 
   it("ignores a phone token issued for another name", async () => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
     global.fetch = vi.fn(async (url) => mumaAnswer(url));
 
@@ -319,18 +319,18 @@ describe("restoreSession", () => {
       }),
     );
 
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
   });
 
   it("fetches a missing token before the queue is rebuilt, an upgrade from the password build", async () => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
     global.fetch = vi.fn(async (url) => mumaAnswer(url));
 
     const signedIn = await restoreSession(shell({ stored: phoneSession() }));
 
     expect(signedIn).toBe(true);
-    expect(get(subsonicToken)).toEqual({ username: "user", token: "the-subsonic-token" });
+    expect(get(subsonicToken)).toEqual({ username: "demo-user", token: "the-subsonic-token" });
     expect(get(subsonicAccess)).toBe("ok");
     // The token fetch comes first; whatever Subsonic call follows is signed with the token.
     const urls = global.fetch.mock.calls.map(([url]) => url);
@@ -339,7 +339,7 @@ describe("restoreSession", () => {
   });
 
   it("stays signed in, sends nothing and says so when the token cannot be fetched", async () => {
-    credentials.set({ url: "https://lms.example", username: "user" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
     mumaApiKey.set("key-1");
     global.fetch = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
@@ -444,7 +444,7 @@ describe("bootstrapShell - boot stages", () => {
     credentials.set({ url: "https://lms.example", username: "web" });
     const onStage = vi.fn();
     const platform = shell({
-      stored: { username: "user", signedIn: false },
+      stored: { username: "demo-user", signedIn: false },
       queue: { index: 0, trackIds: ["1", "2"] },
       state: { status: "paused", trackId: "1" },
     });
@@ -496,11 +496,11 @@ describe("bootstrapShell - start-up check", () => {
     3: { id: "3", title: "Three", duration: 300 },
   };
   const signedInPhone = {
-    username: "user",
+    username: "demo-user",
     signedIn: true,
     mumaApiKey: "key-1",
     subsonicToken: "tok",
-    subsonicTokenUser: "user",
+    subsonicTokenUser: "demo-user",
   };
 
   /**
@@ -536,8 +536,8 @@ describe("bootstrapShell - start-up check", () => {
     localStorage.clear();
     offline.set(false);
     mumaApiKey.set("key-1");
-    subsonicToken.set({ username: "user", token: "tok" });
-    credentials.set({ url: "https://lms.example", username: "user" });
+    subsonicToken.set({ username: "demo-user", token: "tok" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
   });
 
   it("asks nobody anything when the server answers", async () => {
@@ -699,8 +699,8 @@ describe("bootstrapShell - deferred queue restore (issue #113)", () => {
 
   /** A phone that is signed in through the web session, holding queue 1-2-3 on track 2. */
   function signedInShell(overrides = {}) {
-    credentials.set({ url: "https://lms.example", username: "user" });
-    subsonicToken.set({ username: "user", token: "tok" });
+    credentials.set({ url: "https://lms.example", username: "demo-user" });
+    subsonicToken.set({ username: "demo-user", token: "tok" });
     return shell({
       stored: { signedIn: false },
       queue: { index: 1, trackIds: ["1", "2", "3"] },

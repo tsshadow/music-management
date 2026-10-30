@@ -125,3 +125,35 @@ In order; each step is a merge request of its own, and the first needs a design
    labels that join to tracks nobody listens to are the failure this service already had once.
 7. **Update the docs**: AGENTS.md's ml-analyzer section, `docs/testing-inventory.md`, the README
    notice, this file (delete it), and a changelog fragment.
+
+## How it worked, and what was only a plan
+
+Kept here so the two deleted documents (`docs/ml-tutorial.md`, `docs/machine-learning.md`) are not
+needed. Both are in the git history before step 7c-1 of issue #189.
+
+The four-step flow, run from `services/ml-analyzer/`:
+
+1. `python analyzer.py /mnt/music --save --parallel` extracts features into
+   `library_track_audio_features` and the tag genres into `library_track_ml_labels`. `--tags-only`
+   skips the audio analysis and reads tags only.
+2. `python approve.py` walks the scanned tracks (y/n) and sets `approved_for_training = 1`. The SQL
+   alternative sets `approved_for_training = 1` and `ml_review_status = 'human_verified'` per genre.
+3. `python trainer.py` trains a Random Forest on the approved rows (at least 10 labelled rows overall and at least 5 samples per genre, `_filter_genres` with `min_samples=5`),
+   saves the model and scaler under `models/` and prints a report with the feature importances.
+4. `python predict.py <file>` analyses one file and stores the result in
+   `library_track_ml_predictions`.
+
+Watch for metadata leakage: a model that learns the label name instead of the sound. The feature
+importances from `trainer.py` show it.
+
+The genre and subgenre models were never built. The proposal had these ideas, in the order it
+planned them:
+
+- Three levels: main genre, then subgenre, then elements such as kick type. Kick type recognition
+  was a separate research project.
+- Label taxonomy first, with ML fields kept apart from the library tags (`ml_genre`,
+  `ml_label_quality`, `ml_review_status`), so the library tags are never the training truth.
+- Train on chunks of a track rather than whole tracks, and split train and test by artist.
+- Active learning: the model proposes labels and a person confirms them.
+- Baseline first (classic descriptors with a tree model), then spectrogram chunks, then pretrained
+  embeddings. Estimated cost in RAM and CPU is what stalled it.

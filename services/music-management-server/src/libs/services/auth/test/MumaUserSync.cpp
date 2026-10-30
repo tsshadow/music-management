@@ -122,7 +122,7 @@ namespace lms::auth::musicManagement::tests
     // whatever the case (User::find, bug report 074), and linked -- not duplicated.
     TEST_F(MumaUserSync, linksAnUnlinkedUserFoundByNameInAnyCase)
     {
-        const db::UserId userId{ createUser("Teun", std::nullopt) };
+        const db::UserId userId{ createUser("User", std::nullopt) };
 
         const MumaSyncSummary summary{ sync(R"([{"id": 3, "username": "user"}])") };
 

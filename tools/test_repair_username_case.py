@@ -1,7 +1,7 @@
 """tools/repair_username_case.py: the plan it prints and the merge it applies.
 
 The LMS half runs against a real in-memory SQLite shaped like the production fork
-(bug report 074): user 1 `user` linked to MuMa, user 13 `Teun` created by the login.
+(bug report 074): user 1 `user` linked to MuMa, user 13 `User` created by the login.
 The MuMa half runs against a fake cursor, since what matters there is which rows the
 statements select, not MariaDB itself.
 """
@@ -33,7 +33,7 @@ def lms_fixture():
         CREATE TABLE auth_token (id INTEGER PRIMARY KEY, value TEXT, user_id INTEGER);
         CREATE TABLE track (id INTEGER PRIMARY KEY, name TEXT);
 
-        INSERT INTO user VALUES (1, 'user', 1, 1), (13, 'Teun', 0, NULL), (2, 'anna', 0, 2);
+        INSERT INTO user VALUES (1, 'user', 1, 1), (13, 'User', 0, NULL), (2, 'anna', 0, 2);
         INSERT INTO listen (date_time, track_id, user_id) VALUES
             ('2026-09-24', 1, 1), ('2026-09-25', 2, 13), ('2026-09-25', 3, 13), ('2026-09-25', 4, 2);
         INSERT INTO rated_track (rating, track_id, user_id) VALUES (3, 7, 1), (5, 7, 13), (4, 8, 13);
@@ -66,8 +66,8 @@ class LmsPlanTest(unittest.TestCase):
     def test_without_a_link_the_muma_spelling_then_the_oldest_wins(self):
         conn = lms_fixture()
         conn.execute('UPDATE user SET muma_id = NULL')
-        conn.execute("UPDATE user SET login_name = 'TEUN' WHERE id = 1")
-        (merge,) = repair.plan_lms(conn, ['Teun'])
+        conn.execute("UPDATE user SET login_name = 'USER' WHERE id = 1")
+        (merge,) = repair.plan_lms(conn, ['User'])
         self.assertEqual((merge.canonical_id, merge.variant_id), (13, 1))
 
     def test_nothing_to_merge_is_an_empty_plan(self):
@@ -160,8 +160,8 @@ class MumaPlanTest(unittest.TestCase):
         cursor = FakeMumaCursor(
             ['user', 'anna'],
             {
-                'scrobble_listens': ['user', 'Teun', 'Teun', 'anna'],
-                'scrobble_unmatched_listens': ['TEUN'],
+                'scrobble_listens': ['user', 'User', 'User', 'anna'],
+                'scrobble_unmatched_listens': ['USER'],
                 'rating_tracks': ['user'],
             },
         )
@@ -169,8 +169,8 @@ class MumaPlanTest(unittest.TestCase):
         self.assertEqual(
             [(r.table, r.username, r.variants) for r in rewrites],
             [
-                ('scrobble_listens', 'user', {'Teun': 2}),
-                ('scrobble_unmatched_listens', 'user', {'TEUN': 1}),
+                ('scrobble_listens', 'user', {'User': 2}),
+                ('scrobble_unmatched_listens', 'user', {'USER': 1}),
             ],
         )
         self.assertEqual(sum(r.rows for r in rewrites), 3)
@@ -186,12 +186,12 @@ class MumaPlanTest(unittest.TestCase):
 
     def test_the_description_names_counts_and_never_more(self):
         text = repair.describe(
-            [repair.MumaRewrite('scrobble_listens', 'user', {'Teun': 31})],
+            [repair.MumaRewrite('scrobble_listens', 'user', {'User': 31})],
             repair.plan_lms(lms_fixture(), ['user']),
         )
         self.assertIn("scrobble_listens", text)
-        self.assertIn("'Teun': 31", text)
-        self.assertIn("user 13 'Teun' -> user 1 'user'", text)
+        self.assertIn("'User': 31", text)
+        self.assertIn("user 13 'User' -> user 1 'user'", text)
         self.assertIn('replaces 1 of the canonical user', text)
 
 
@@ -221,7 +221,7 @@ class MumaApplyTest(unittest.TestCase):
             def commit(self):
                 Conn.committed = True
 
-        leftovers = repair.apply_muma(Conn(), [repair.MumaRewrite('scrobble_listens', 'user', {'Teun': 5})])
+        leftovers = repair.apply_muma(Conn(), [repair.MumaRewrite('scrobble_listens', 'user', {'User': 5})])
         self.assertEqual(leftovers, {'scrobble_listens': 2})
         self.assertTrue(Conn.committed)
         self.assertTrue(executed[0].startswith('UPDATE IGNORE `scrobble_listens`'))

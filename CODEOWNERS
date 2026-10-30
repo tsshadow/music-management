@@ -9,9 +9,9 @@
 # involved, split the sections below rather than adding them everywhere -- the
 # point of this file is that the person who knows an area sees changes to it.
 
-* @muma
+* @muma/maintainers
 
-[Deployment and CI] @muma
+[Deployment and CI] @muma/maintainers
 /.gitlab-ci.yml
 /scripts/ci/
 /docker/
@@ -19,12 +19,12 @@
 /build.sh
 /publish.sh
 
-[Database schema] @muma
+[Database schema] @muma/maintainers
 /migrate_*.sql
 /services/common/db_init.py
 /tests/integration/
 
-[Security] @muma
+[Security] @muma/maintainers
 /SECURITY.md
 /security/
 /services/music_manager/rbac.py
@@ -32,7 +32,7 @@
 /services/music_manager/routers/users.py
 /services/music_manager/routers/user_requests.py
 
-[Quality gates] @muma
+[Quality gates] @muma/maintainers
 /pyproject.toml
 /.pylintrc
 /requirements*.txt

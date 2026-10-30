@@ -288,7 +288,7 @@ namespace lms::scanner
         // The folder music-manager stores artist portraits in, as LMS sees it (e.g. /music/artists).
         // Set through `artist-image-managed-directory` in lms.conf or the
         // LMS_ARTIST_IMAGE_MANAGED_DIRECTORY environment variable; empty (the default) turns the
-        // "keep music-manager's portrait" rule off. See docs/deployment.md.
+        // "keep music-manager's portrait" rule off. See muma-ops docs/deployment-production.md.
         std::filesystem::path constructManagedPortraitDirectory()
         {
             const std::filesystem::path directory{ core::Service<core::IConfig>::get()->getPath("artist-image-managed-directory", std::filesystem::path{}) };

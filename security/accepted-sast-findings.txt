@@ -39,11 +39,6 @@ e996461e5ed5e4c3 x1  # avoid-sqlalchemy-text services/ml-analyzer/approve.py
 # An example hash in installation documentation.
 ed3ee9bd87cb9371 x1  # detected-bcrypt-hash services/music-management-server/INSTALL.md
 
-# --- detected-generic-api-key --- [r:ea036f56]
-# .gitleaksignore lists commit:path:rule:line references to past findings,
-# not the secrets themselves.
-1b9dd647529494d4 x1  # detected-generic-api-key .gitleaksignore
-
 # --- detected-jwt-token --- [r:4d5d2ef3]
 # Test fixtures for the Subsonic API client.
 e1a304326c0bdd3e x1  # detected-jwt-token services/muma-mobile/core/subsonic-api/src/integrationTest/kotlin/nl/teunschriks/mumamobile/api/subsonic/SubsonicApiCreateShareTest.kt
@@ -61,24 +56,14 @@ b75c3d49465f1c12 x1  # detected-private-key services/muma-mobile/core/subsonic-a
 # container name on every connection (see the resolver comment there).
 215b7d436a195271 x5  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
-# --- dynamic-urllib-use-detected --- [r:dad7a3d4]
-# The ntfy notify call in the crash-triage listener builds its URL from
-# NTFY_URL, an operator-set value in a root-owned env file, and the code
-# pins the scheme to http(s) before opening it -- a mangled value cannot
-# become a file:// read. Audited 2026-08-31. The nightly prod-check
-# collector does the same with MUMA_URL from the same env file: its
-# ProdClient refuses anything but http(s) in its constructor. Audited
-# 2026-09-10. This reason was once restored by hand after a regeneration
-# replaced it with the placeholder; that is what unwritable_rationale()
-# below now prevents. scripts/backfill_artwork.py has two sites: one builds
-# a SoundCloud API URL from a literal host and a list of track ids out of
-# our own archive table, the other fetches an artwork URL that did come from
-# a third party's JSON -- and that one goes through artwork.is_web_url()
-# first, which refuses anything but http(s) so a crafted file:// value
-# cannot have the backfill embed a local file. Audited 2026-09-22.
+# --- dynamic-urllib-use-detected --- [r:0ebd60e6]
+# scripts/backfill_artwork.py has two sites: one builds a SoundCloud API URL
+# from a literal host and a list of track ids out of our own archive table,
+# the other fetches an artwork URL that did come from a third party's JSON
+# -- and that one goes through artwork.is_web_url() first, which refuses
+# anything but http(s) so a crafted file:// value cannot have the backfill
+# embed a local file. Audited 2026-09-22.
 e4d01bfba9291a3c x2  # dynamic-urllib-use-detected scripts/backfill_artwork.py
-1ad6abb9c22c9ef5 x1  # dynamic-urllib-use-detected scripts/crash-triage/crash_triage_listener.py
-3767fc89712eec02 x1  # dynamic-urllib-use-detected scripts/nightly-prod-check/collect.py
 
 # --- exported_activity --- [r:1f5932e6]
 # Android activities that are launched by the system or by another app on
@@ -107,21 +92,21 @@ ebf37587c4b240da x5  # exported_activity services/muma-mobile/app/src/main/Andro
 # PRIORS_SQL; every value is bound.
 d8fbcd01a9feb492 x1  # formatted-sql-query scripts/cleanup_redundant_indices.py
 f7a04601d4c2f33f x3  # formatted-sql-query scripts/migrate_stars_to_ratings.py
-ea93ae5dbf2c5be0 x1  # formatted-sql-query services/common/Helpers/BrokenSongHelper.py
 9414c963005c8297 x2  # formatted-sql-query services/common/Helpers/FilterTableHelper.py
 e41671e2d0d08a90 x2  # formatted-sql-query services/common/Helpers/GenreRulesHelper.py
 b57c39e3b894fc6b x2  # formatted-sql-query services/common/Helpers/LookupTableHelper.py
-c8a182c2965f1841 x3  # formatted-sql-query services/common/Helpers/ProcessedFilesHelper.py
+c8a182c2965f1841 x2  # formatted-sql-query services/common/Helpers/ProcessedFilesHelper.py
 c92e262fad922f2d x2  # formatted-sql-query services/common/Helpers/TableHelper.py
+14a550fa229e83f8 x8  # formatted-sql-query services/common/schema_reconcile.py
 31a28477103e34f3 x1  # formatted-sql-query services/music_manager/bpm/effective_table.py
 08b4d6c12283bbf5 x2  # formatted-sql-query services/music_manager/bpm/priors.py
 1d6395d96a5d1032 x1  # formatted-sql-query services/music_manager/orphan_purge.py
-119034db0c50c5e2 x2  # formatted-sql-query services/music_manager/routers/artist_images.py
 9cb6d4f29d12bbc2 x2  # formatted-sql-query tools/check_db_structure.py
 10e24284b8f6249c x1  # formatted-sql-query tools/db_backup.py
 0ef994afd2808dff x1  # formatted-sql-query tools/describe_tables_pymysql.py
 8225184b90648e9b x2  # formatted-sql-query tools/quick_inspect.py
 ca3641fe8527c571 x2  # formatted-sql-query tools/repair_username_case.py
+8f830c426133803b x2  # formatted-sql-query tools/schema_cleanup_2026_11.py
 be399114a500d0c0 x1  # formatted-sql-query tools/test_repair_username_case.py
 
 # --- gcm-detection --- [r:4363f9f2]
@@ -248,15 +233,13 @@ b6758acb30b1330e x9  # renovate-missing-minimum-release-age renovate.json
 e3fd2407e6c36fdc x1  # sqlalchemy-execute-raw-query scripts/backfill_artwork.py
 3e91e9d22410d255 x1  # sqlalchemy-execute-raw-query scripts/cleanup_redundant_indices.py
 c9e52706e5417943 x4  # sqlalchemy-execute-raw-query scripts/migrate_stars_to_ratings.py
-cc3bdd9d890b0ab7 x2  # sqlalchemy-execute-raw-query scripts/prod/person/stale_media_rows.py
-4228ef42ed793ded x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongArtistLookupHelper.py
-0682582578d9bfb3 x3  # sqlalchemy-execute-raw-query services/common/Helpers/BrokenSongHelper.py
 e73ce674b63c1a00 x5  # sqlalchemy-execute-raw-query services/common/Helpers/FilterTableHelper.py
 f5d7529cec29c24c x3  # sqlalchemy-execute-raw-query services/common/Helpers/GenreRulesHelper.py
 bb9bba6f8bfe8324 x3  # sqlalchemy-execute-raw-query services/common/Helpers/LookupTableHelper.py
 ce7bcc13186d3893 x1  # sqlalchemy-execute-raw-query services/common/Helpers/PodcastHelper.py
-f7e63ebebf358b09 x9  # sqlalchemy-execute-raw-query services/common/Helpers/ProcessedFilesHelper.py
+f7e63ebebf358b09 x8  # sqlalchemy-execute-raw-query services/common/Helpers/ProcessedFilesHelper.py
 0dd5cdd63f975f74 x6  # sqlalchemy-execute-raw-query services/common/Helpers/TableHelper.py
+37438330f4d09851 x8  # sqlalchemy-execute-raw-query services/common/schema_reconcile.py
 cb5422922dbdf5b2 x1  # sqlalchemy-execute-raw-query services/downloader/rate_state.py
 0f3b6309ee5a7f58 x1  # sqlalchemy-execute-raw-query services/downloader/soundcloud/SoundcloudArchive.py
 f35f52870209024a x1  # sqlalchemy-execute-raw-query services/music_manager/artist_image_fetcher/cli.py
@@ -266,7 +249,7 @@ f35f52870209024a x1  # sqlalchemy-execute-raw-query services/music_manager/artis
 93f7b2efc61d4e3f x1  # sqlalchemy-execute-raw-query services/music_manager/events_retention.py
 8fe19b12e68c7562 x8  # sqlalchemy-execute-raw-query services/music_manager/orphan_purge.py
 e518aee4780aeb3c x2  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_curation.py
-5799c7eeef5cb448 x4  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_images.py
+5799c7eeef5cb448 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/artist_images.py
 371a049704430192 x1  # sqlalchemy-execute-raw-query services/music_manager/routers/bpm.py
 f1e5984caea1ad23 x4  # sqlalchemy-execute-raw-query services/music_manager/routers/curation.py
 4faa55e16d5bb155 x3  # sqlalchemy-execute-raw-query services/music_manager/routers/events.py
@@ -281,6 +264,7 @@ c79553c62628547a x1  # sqlalchemy-execute-raw-query tools/db_backup.py
 14159bf1eeaa1ec5 x1  # sqlalchemy-execute-raw-query tools/describe_tables_pymysql.py
 55c4d816bb7bb039 x2  # sqlalchemy-execute-raw-query tools/quick_inspect.py
 d074aeb075825a8f x6  # sqlalchemy-execute-raw-query tools/repair_username_case.py
+6b8c8da24a4b8ebc x2  # sqlalchemy-execute-raw-query tools/schema_cleanup_2026_11.py
 67ece2ec4ce9c102 x1  # sqlalchemy-execute-raw-query tools/test_repair_username_case.py
 
 # --- unsafe-formatstring --- [r:54a5b3d3]
@@ -312,4 +296,4 @@ c5dbe1d89fda735e x1  # use-of-md5 services/muma-mobile/core/subsonic-api/src/mai
 5aade493e884ca34 x2  # writable-filesystem-service docker/docker-compose.core.yml
 0eae9038f27ed843 x11  # writable-filesystem-service docker/docker-compose.full.yml
 acedf220b679b6b2 x2  # writable-filesystem-service docker/docker-compose.tools.yml
-25d2c6c464a0aee4 x10  # writable-filesystem-service docker/docker-compose.yml
+25d2c6c464a0aee4 x11  # writable-filesystem-service docker/docker-compose.yml

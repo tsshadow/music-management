@@ -16,7 +16,7 @@
 #     survives; what goes is cache nothing has built from in three days. On
 #     2026-09-25 that was 62 of the 124GB that had filled the workstation to
 #     98% and failed release pipeline 3607 (docs/bug-reports/073).
-#   - muma/* and muma-ci/* per-version tags, keeping the 3 newest per
+#   - $DOCKER_USER/* and muma-ci/* per-version tags, keeping the 3 newest per
 #     repository plus :latest and :stable. All recoverable from Docker Hub.
 #   - music-management/android-ci:<hash>, keeping the 2 newest (>5GB each).
 #   - muma-test-<job-id>-* leftovers older than two hours.
@@ -57,6 +57,16 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The release images live under the registry user DOCKER_USER. There is no default, and
+# without it only that one step is skipped: the android-ci, muma-test-* and build-cache
+# sweeps still run, because a janitor that stops entirely is how the disk filled up
+# (bug report 073). The plan helper reads DOCKER_USER from the environment.
+if [ -z "${DOCKER_USER:-}" ]; then
+    echo "WARNING: DOCKER_USER is not set: old release image tags are NOT pruned this run." >&2
+    echo "  Set it to the registry user of the release images (the runner:disk-janitor job" >&2
+    echo "  takes it from DOCKERHUB_USERNAME; the timer reads /etc/muma-disk-janitor.env)." >&2
+fi
 
 THRESHOLD=75
 # Swept down to this rather than to the threshold, so a runner sitting just

@@ -5,13 +5,13 @@
 # Fully automated, idempotent deployment of BOTH production stacks:
 #   1. "music-management" (db, music-manager, importer/downloader workers, ...)
 #      -> docker/docker-compose.yml
-#   2. "lms" (the Spotify UI + reverse-proxy, serving spotify.<domain> and the
+#   2. "lms" (the web player + reverse-proxy, serving the web-player host name and the
 #      OpenSubsonic API used by MuMa Mobile/other Subsonic clients)
 #      -> services/music-management-server/docker-compose.yml
 #
 # Required GitLab CI/CD variables (Project > Settings > CI/CD > Variables):
 #   - SSH_PRIVATE_KEY:     private key (file type) authorized on the
-#                          production host (see docs/deployment.md).
+#                          production host (see docs/self-hosting.md).
 #   - PROD_ENV_FILE:       full .env content (file type) for stack 1, since
 #                          .env is gitignored and never present on a fresh
 #                          checkout.
@@ -64,19 +64,19 @@ write_env_file() {
 }
 
 if [ -z "${PROD_ENV_FILE}" ]; then
-    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 write_env_file "${PROD_ENV_FILE}" "$ENV_DIR/music-management.env"
 
 if [ -z "${PROD_ENV_FILE_LMS}" ]; then
-    echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: PROD_ENV_FILE_LMS CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 write_env_file "${PROD_ENV_FILE_LMS}" "$ENV_DIR/lms.env"
 
 # 3. Provision the reverse-proxy nginx config on the remote host (this used
-#    to be a manual copy step, see docs/deployment.md).
+#    to be a manual copy step, see docs/self-hosting.md).
 echo "--- Provisioning nginx reverse-proxy config on $REMOTE_HOST ---"
 ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p /docker/lms/nginx"
 scp "${PROD_SSH_OPTS[@]}" \
@@ -130,7 +130,7 @@ echo "--- Deploying stack: lms ---"
 #    images it replaced. A failed prune is a warning, not a failed deploy --
 #    the next deploy's disk pre-check is what stops on a full disk.
 if ! "$SCRIPT_DIR/ci/prune-prod-images.sh"; then
-    echo "WARNING: pruning old images on $REMOTE_HOST failed; the deploy itself succeeded. See docs/deployment.md#disk-space-on-the-production-host."
+    echo "WARNING: pruning old images on $REMOTE_HOST failed; the deploy itself succeeded. See docs/self-hosting.md#deploy-by-hand."
 fi
 
 echo "--- CI Deployment finished successfully ---"

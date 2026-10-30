@@ -79,4 +79,4 @@ SELECT COUNT(*) FROM (SELECT work_id FROM track WHERE work_id IS NOT NULL AND wo
 The after-counts could not be taken from this branch: the fix is not deployed yet, and reading
 `lms.db` needs a shell on the production host, which an agent session is not allowed. The first
 hourly run after the deploy writes the corrections (on the order of 10,000 rows, in batches of
-100); the second should log `wrote 0`. See docs/open-work.md.
+100); the second should log `wrote 0`. See the GitLab issues.

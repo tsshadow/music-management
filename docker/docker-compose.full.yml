@@ -18,7 +18,7 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-    image: mariadb:13.0.2@sha256:f1bba652ba57bea3099ca2fe1af692af537c27d96e0bcde39dce29e2ba1ec4f3
+    image: mariadb:13.0.2@sha256:f4054da26e3a9dd6c8b5cc97363e544408b15c0fb369d7359c25dc04826eb6e1
     container_name: music-management-db-1
     restart: unless-stopped
     # MariaDB 11.5 changed the server default to utf8mb4_uca1400_ai_ci, and the
@@ -49,7 +49,7 @@ services:
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
-    image: phpmyadmin:5.2.3@sha256:da3c72f9886fca93037b740c93fe1697a7924fe6790a58733814cee61ec49af8
+    image: phpmyadmin:5.2.3@sha256:fb0cb638f7d1c2529407921d86679b2b2faf5bb8542314821e9f16e7e3d2954f
     container_name: music-management-phpmyadmin-1
     restart: unless-stopped
     depends_on:
@@ -86,6 +86,7 @@ services:
       - PHPMYADMIN_URL=${PHPMYADMIN_URL}
       - LMS_HOSTS=${LMS_HOSTS}
       - LMS_SUBSONIC_API_KEY=${LMS_SUBSONIC_API_KEY}
+      - PUBLIC_SOURCE_URL=${PUBLIC_SOURCE_URL:-https://github.com/OWNER/music-management}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /docker/lms/var/lms:/app/data:rw
@@ -131,6 +132,9 @@ services:
   #     - music-management_db
 
   importer_worker:
+    # Opt-in source worker: runs only when this profile is enabled (COMPOSE_PROFILES,
+    # docs/self-hosting.md#source-workers-are-compose-profiles).
+    profiles: ["importer"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -184,6 +188,7 @@ services:
       - music-management_db
 
   youtube_worker:
+    profiles: ["youtube"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -240,6 +245,7 @@ services:
       - music-management_db
 
   soundcloud_worker:
+    profiles: ["soundcloud"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -296,6 +302,7 @@ services:
       - music-management_db
 
   telegram_worker:
+    profiles: ["telegram"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -407,6 +414,7 @@ services:
       - music-management_db
 
   soundcloud-fetcher:
+    profiles: ["soundcloud"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true

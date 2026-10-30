@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Daily database backup: dump, verify, prune, and alert when it did not work.
 
-Implements docs/superpowers/specs/2026-08-02-daily-db-backups-design.md. Three
-things deviate from that document, each for a reason recorded here:
+Operating manual: scripts/backup/README.md. Three things differ from the
+original plan, each for a reason recorded here:
 
 - **The alert is pushed synchronously.** The design assumed
   ``NotificationService`` still read ``notify_url`` itself. It does not: the push
@@ -272,7 +272,7 @@ def _copy_with_watchdog(process: subprocess.Popen, out, stall_limit: int) -> Non
             raise DumpStalled(
                 f'mariadb-dump produced no output for {stall_limit}s after {written} bytes{where} and was stopped. '
                 'It is almost certainly waiting on a table metadata lock held (or queued) by another session; '
-                'find it with SHOW PROCESSLIST as root and KILL QUERY it, see docs/deployment.md.'
+                'find it with SHOW PROCESSLIST as root and KILL QUERY it, see docs/self-hosting.md#schema-changes.'
             ) from None
         if chunk is None:
             return

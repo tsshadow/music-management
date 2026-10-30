@@ -4,8 +4,8 @@ import ScrobbleTab from "../../src/lib/management/tabs/ScrobbleTab.svelte";
 
 const IMPORTS = [
   {
-    username: "user",
-    lb_username: "someuser",
+    username: "demo-user",
+    lb_username: "demo-user",
     status: "completed",
     processed: 500,
     total_found: 1000,
@@ -18,7 +18,7 @@ function props(overrides = {}) {
     API_BASE: "http://muma",
     getHeaders: (extra = {}) => ({ "x-api-key": "key", ...extra }),
     users: [
-      { id: 1, username: "user" },
+      { id: 1, username: "demo-user" },
       { id: 2, username: "guest" },
     ],
     latestImports: IMPORTS,
@@ -34,7 +34,7 @@ function props(overrides = {}) {
   };
 }
 
-function mockApi({ ok = true, lbUsername = "someuser" } = {}) {
+function mockApi({ ok = true, lbUsername = "demo-user" } = {}) {
   return vi.fn(async () => ({ ok, json: async () => ({ lb_username: lbUsername }) }));
 }
 
@@ -54,7 +54,7 @@ describe("ScrobbleTab", () => {
 
     expect(screen.getByText("Kies gebruiker...")).toBeTruthy();
     const options = [...screen.getByLabelText("MuMa User").options].map((option) => option.value);
-    expect(options).toEqual(["", "user", "guest"]);
+    expect(options).toEqual(["", "demo-user", "guest"]);
   });
 
   it("cannot start an import before a user is picked", () => {
@@ -65,26 +65,26 @@ describe("ScrobbleTab", () => {
 
   it("starts the import for the selected user", async () => {
     const onMessage = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", onMessage }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", onMessage }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
     await waitFor(() =>
-      expect(onMessage).toHaveBeenCalledWith("ListenBrainz import gestart voor someuser!"),
+      expect(onMessage).toHaveBeenCalledWith("ListenBrainz import gestart voor demo-user!"),
     );
     const [url, options] = globalThis.fetch.mock.calls[0];
     expect(url).toBe("http://muma/api/scrobble/import/listenbrainz");
-    expect(JSON.parse(options.body)).toEqual({ username: "user" });
+    expect(JSON.parse(options.body)).toEqual({ username: "demo-user" });
   });
 
   it("an explicit ListenBrainz name is sent along", async () => {
-    render(ScrobbleTab, props({ importMumaUser: "user", importLbUser: "someone-else" }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", importLbUser: "someone-else" }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
     await waitFor(() =>
       expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toEqual({
-        username: "user",
+        username: "demo-user",
         lb_username: "someone-else",
       }),
     );
@@ -93,7 +93,7 @@ describe("ScrobbleTab", () => {
   it("falls back to the linked account in the message", async () => {
     globalThis.fetch = mockApi({ lbUsername: null });
     const onMessage = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", onMessage }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", onMessage }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
@@ -104,7 +104,7 @@ describe("ScrobbleTab", () => {
 
   it("reloads the import history right after starting", async () => {
     const fetchLatestImports = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", fetchLatestImports }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", fetchLatestImports }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
@@ -116,7 +116,7 @@ describe("ScrobbleTab", () => {
     const running = [{ ...IMPORTS[0], status: "running" }];
     render(
       ScrobbleTab,
-      props({ importMumaUser: "user", latestImports: running, fetchLatestImports }),
+      props({ importMumaUser: "demo-user", latestImports: running, fetchLatestImports }),
     );
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
     await waitFor(() => expect(fetchLatestImports).toHaveBeenCalledTimes(1));
@@ -132,7 +132,7 @@ describe("ScrobbleTab", () => {
     const running = [{ ...IMPORTS[0], status: "running" }];
     const { unmount } = render(
       ScrobbleTab,
-      props({ importMumaUser: "user", latestImports: running, fetchLatestImports }),
+      props({ importMumaUser: "demo-user", latestImports: running, fetchLatestImports }),
     );
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
     await waitFor(() => expect(fetchLatestImports).toHaveBeenCalledTimes(1));
@@ -146,7 +146,7 @@ describe("ScrobbleTab", () => {
 
   it("stops polling once nothing is running any more", async () => {
     const fetchLatestImports = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", fetchLatestImports }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", fetchLatestImports }));
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
     await waitFor(() => expect(fetchLatestImports).toHaveBeenCalledTimes(1));
 
@@ -160,7 +160,7 @@ describe("ScrobbleTab", () => {
   it("reports a server that refused the import", async () => {
     globalThis.fetch = mockApi({ ok: false });
     const onError = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", onError }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", onError }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
@@ -172,7 +172,7 @@ describe("ScrobbleTab", () => {
       throw new Error("network down");
     });
     const onError = vi.fn();
-    render(ScrobbleTab, props({ importMumaUser: "user", onError }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", onError }));
 
     await fireEvent.click(screen.getByText("IMPORT STARTEN"));
 
@@ -184,20 +184,20 @@ describe("ScrobbleTab", () => {
     render(ScrobbleTab, props({ onSelectUser }));
 
     const select = screen.getByLabelText("MuMa User");
-    await fireEvent.change(select, { target: { value: "user" } });
+    await fireEvent.change(select, { target: { value: "demo-user" } });
 
-    expect(onSelectUser).toHaveBeenCalledWith({ id: 1, username: "user" });
+    expect(onSelectUser).toHaveBeenCalledWith({ id: 1, username: "demo-user" });
   });
 
   it("shows that an account is already linked", () => {
-    render(ScrobbleTab, props({ lbUsername: "someuser" }));
+    render(ScrobbleTab, props({ lbUsername: "demo-user" }));
 
     expect(screen.getByText("GEKOPPELD")).toBeTruthy();
-    expect(screen.getByPlaceholderText("Gekoppeld: someuser")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Gekoppeld: demo-user")).toBeTruthy();
   });
 
   it("hides the linked marker once a name is typed", () => {
-    render(ScrobbleTab, props({ lbUsername: "someuser", importLbUser: "other" }));
+    render(ScrobbleTab, props({ lbUsername: "demo-user", importLbUser: "other" }));
 
     expect(screen.queryByText("GEKOPPELD")).toBeNull();
   });
@@ -205,7 +205,7 @@ describe("ScrobbleTab", () => {
   it("lists the recent imports with their progress", () => {
     const { container } = render(ScrobbleTab, props());
 
-    expect(screen.getByText("LB: someuser")).toBeTruthy();
+    expect(screen.getByText("LB: demo-user")).toBeTruthy();
     expect(screen.getByText("500 / 1000")).toBeTruthy();
     expect(container.querySelector(".bg-brand.h-1\\.5").getAttribute("style")).toContain(
       "width: 50%",
@@ -228,7 +228,7 @@ describe("ScrobbleTab", () => {
   });
 
   it("shows the import as busy while it runs", () => {
-    render(ScrobbleTab, props({ importMumaUser: "user", isImporting: true }));
+    render(ScrobbleTab, props({ importMumaUser: "demo-user", isImporting: true }));
 
     expect(screen.getByText("IMPORT BEZIG...").disabled).toBe(true);
   });

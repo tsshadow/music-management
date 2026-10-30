@@ -128,10 +128,9 @@ MuMa database and drive the filters. LMS holds a copy for playback.
 
 The accepted consequence: rebuilding or wiping the LMS database loses the stars in the player, on
 the phone included, while MuMa still holds every one of them. Nothing pushes them back today, and
-that is a deliberate position rather than an unfinished feature. `docs/architecture/responsibilities.md`
-claims MuMa "can re-push" ratings to LMS and
-`docs/designs/ratings-scrobbling/functional.md` leaves bidirectional sync as an open question; both
-are outdated by this line.
+that is a deliberate position rather than an unfinished feature.
+`docs/designs/ratings-scrobbling/functional.md` leaves bidirectional sync as an open question; it
+is outdated by this line.
 
 ## What the ML analyzer is for
 
@@ -140,7 +139,7 @@ that matters most, without hand-curating every unknown genre.
 
 It has not got there, and since 2026-09-25 it is deprecated and disabled, with the code kept
 ([services/ml-analyzer/DEPRECATED.md](../services/ml-analyzer/DEPRECATED.md)). What it did
-extract was BPM, loudness, spectral centroid and duration (`services/ml-analyzer/`); the genre and subgenre models sketched in `docs/machine-learning.md` were
+extract was BPM, loudness, spectral centroid and duration (`services/ml-analyzer/`); the genre and subgenre models sketched in a proposal (summarized in `services/ml-analyzer/DEPRECATED.md`) were
 never built, because the training and inference cost in RAM and CPU stalled the work. There is a
 learning-exercise element to the service as well, and that is fine.
 
@@ -228,8 +227,8 @@ goal makes them load-bearing, not because they are new.
 - **There is no performance-date path.** `release_date` is the only date column; the live-set rule
   above cannot be applied.
 - **The release-date backfill has not been run against production.**
-  `scripts/backfill_release_dates.py` exists and its design is in
-  `docs/superpowers/specs/2026-08-17-release-date-precision-design.md`; the run itself is not
+  `scripts/backfill_release_dates.py` exists and the
+  precision ladder is described in the importer and tagger sections of `AGENTS.md`; the run itself is not
   recorded as done, and file ACLs on the NAS blocked it when attempted. The year axis is only as
   good as this coverage.
 - **Festival coverage is partial.** The performance-date fallback and every festival filter depend

@@ -15,10 +15,6 @@ NON_MUSIC_COUNT_SQL = (
 )
 
 
-def init_db(_cursor):
-    pass
-
-
 @router.get('/')
 def get_stats(auth: dict = Depends(verify_api_key)):
     if auth.get('type') == 'user' and (not has_permission(auth, 'users.read')):

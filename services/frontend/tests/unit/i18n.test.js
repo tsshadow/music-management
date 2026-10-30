@@ -60,7 +60,7 @@ describe("i18n - createTranslator", () => {
 
   it("interpolates named placeholders", () => {
     const translate = createTranslator(DICTS, "nl");
-    expect(translate("greeting", { name: "Teun" })).toBe("Hoi Teun");
+    expect(translate("greeting", { name: "Demo-User" })).toBe("Hoi Demo-User");
   });
 
   it("leaves a placeholder verbatim when no matching variable is given", () => {
@@ -75,7 +75,7 @@ describe("i18n - createTranslator", () => {
 
   it("prefers the dialect's own wording when it has the key", () => {
     const translate = createTranslator(DICTS, "sallands");
-    expect(translate("greeting", { name: "Teun" })).toBe("Moi Teun");
+    expect(translate("greeting", { name: "Demo-User" })).toBe("Moi Demo-User");
   });
 
   it("falls back from a dialect to Dutch rather than to English", () => {
@@ -114,7 +114,7 @@ describe("i18n - createTranslator", () => {
 
   it("applies the same chain to every dialect", () => {
     const translate = createTranslator(DICTS, "brabants");
-    expect(translate("greeting", { name: "Teun" })).toBe("Houdoe Teun");
+    expect(translate("greeting", { name: "Demo-User" })).toBe("Houdoe Demo-User");
     expect(translate("onlyDutch")).toBe("Alleen Nederlands");
   });
 });

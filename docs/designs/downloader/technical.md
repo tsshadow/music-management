@@ -121,6 +121,6 @@ into place with `os.replace`.
 
 ## Related Docs
 
-- [docs/architecture/responsibilities.md](../../architecture/responsibilities.md) — Data boundary details between services.
+- [docs/architecture.md](../../architecture.md) — Data boundary details between services.
 - [docs/api-specification.md](../../api-specification.md) — Reference for tagger and scanner APIs.
 - [AGENTS.md](../../../AGENTS.md) — Section 1 "downloader" and Section 3 "tagger".

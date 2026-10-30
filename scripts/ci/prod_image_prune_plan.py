@@ -26,7 +26,7 @@ one. What is kept, and why, goes to stderr.
 
 Production pulls `:latest`, so a previous release is usually not a version tag
 on the host but an image whose tag moved on: it keeps its repository only in its
-RepoDigests (`muma/music-manager@sha256:...`). That is
+RepoDigests (`<user>/music-manager@sha256:...`). That is
 why the rollback set is chosen by build time, not by tag. An image is kept when
 any of these holds:
 
@@ -35,7 +35,7 @@ any of these holds:
   `docker rmi` without -f refuses anyway;
 * it is one of the ``keep`` most recently built images of its repository that
   no container uses: the previous releases, which the IMAGE_TAG rollback lever
-  (docs/deployment.md#rollback) redeploys. Pulling a tag whose digest is still
+  (docs/self-hosting.md#roll-back) redeploys. Pulling a tag whose digest is still
   on the host downloads nothing, so a rollback stays fast and works while
   Docker Hub does not;
 * it carries a moving tag (``latest``, ``stable``, ``rc``): the db-backup

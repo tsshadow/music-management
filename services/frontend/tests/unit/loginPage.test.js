@@ -15,7 +15,12 @@ import { tokenRetry } from "../../src/lib/login.js";
 
 tokenRetry.delayMs = 0;
 
-const MUMA_USER = { id: 1, username: "user", display_name: "Teun", permissions: ["music.play"] };
+const MUMA_USER = {
+  id: 1,
+  username: "demo-user",
+  display_name: "Demo-User",
+  permissions: ["music.play"],
+};
 
 /**
  * A fetch that answers each endpoint the login screen talks to.
@@ -27,7 +32,7 @@ function api({
   token = {
     ok: true,
     status: 200,
-    body: { status: "ok", username: "user", token: "the-subsonic-token" },
+    body: { status: "ok", username: "demo-user", token: "the-subsonic-token" },
   },
   setupStatus = { setup_required: false },
   setup = { ok: true, body: {} },
@@ -88,18 +93,18 @@ describe("LoginPage", () => {
   // Issue #101: the name is kept, the password is not -- not in the store, not in the form.
   it("a correct login stores the name and forgets the password", async () => {
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
-    await waitFor(() => expect(get(credentials).username).toBe("user"));
+    await waitFor(() => expect(get(credentials).username).toBe("demo-user"));
     expect(get(credentials)).not.toHaveProperty("password");
     await waitFor(() => expect(screen.getByLabelText("Wachtwoord").value).toBe(""));
   });
 
   it("a correct login also opens a management session", async () => {
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -115,7 +120,7 @@ describe("LoginPage", () => {
   it("a refused management login is a refused sign-in", async () => {
     globalThis.fetch = api({ login: { ok: false, status: 401, body: {} } });
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -131,7 +136,7 @@ describe("LoginPage", () => {
   it("a server that cannot hand out a token reports no connection, not a wrong password", async () => {
     globalThis.fetch = api({ token: { ok: false, status: 503, body: {} } });
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -144,7 +149,7 @@ describe("LoginPage", () => {
       ping: { "subsonic-response": { status: "failed", error: { message: "Wrong password" } } },
     });
     render(LoginPage);
-    await fillIn("user", "wrong");
+    await fillIn("demo-user", "wrong");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -155,7 +160,7 @@ describe("LoginPage", () => {
   it("falls back to a generic message when the server gives no reason", async () => {
     globalThis.fetch = api({ ping: { "subsonic-response": { status: "failed" } } });
     render(LoginPage);
-    await fillIn("user", "wrong");
+    await fillIn("demo-user", "wrong");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -169,7 +174,7 @@ describe("LoginPage", () => {
       throw new Error("network down");
     });
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Verbinden"));
 
@@ -180,19 +185,19 @@ describe("LoginPage", () => {
 
   it("pressing enter in the password field logs in", async () => {
     render(LoginPage);
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.keyDown(screen.getByLabelText("Wachtwoord"), { key: "Enter" });
 
-    await waitFor(() => expect(get(credentials).username).toBe("user"));
+    await waitFor(() => expect(get(credentials).username).toBe("demo-user"));
   });
 
   it("a remembered account's name is filled in on arrival, the password never", async () => {
-    credentials.set({ url: "", username: "user" });
+    credentials.set({ url: "", username: "demo-user" });
 
     render(LoginPage);
 
-    await waitFor(() => expect(screen.getByLabelText("Gebruikersnaam").value).toBe("user"));
+    await waitFor(() => expect(screen.getByLabelText("Gebruikersnaam").value).toBe("demo-user"));
     expect(screen.getByLabelText("Wachtwoord").value).toBe("");
   });
 
@@ -209,7 +214,7 @@ describe("LoginPage", () => {
     globalThis.fetch = api({ setupStatus: { setup_required: true } });
     render(LoginPage);
     await waitFor(() => expect(screen.getByText("Account Aanmaken")).toBeTruthy());
-    await fillIn("user", "pw");
+    await fillIn("demo-user", "pw");
 
     await fireEvent.click(screen.getByText("Account Aanmaken"));
 
@@ -218,9 +223,9 @@ describe("LoginPage", () => {
         ([url]) => url.includes("/api/auth/setup") && !url.includes("status"),
       );
       expect(JSON.parse(options.body)).toEqual({
-        username: "user",
+        username: "demo-user",
         password: "pw",
-        display_name: "user",
+        display_name: "demo-user",
         role_name: "admin",
       });
     });
@@ -233,7 +238,7 @@ describe("LoginPage", () => {
     });
     render(LoginPage);
     await waitFor(() => expect(screen.getByText("Account Aanmaken")).toBeTruthy());
-    await fillIn("user", "x");
+    await fillIn("demo-user", "x");
 
     await fireEvent.click(screen.getByText("Account Aanmaken"));
 

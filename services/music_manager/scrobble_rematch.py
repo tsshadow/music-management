@@ -4,8 +4,6 @@ The rules live in scrobble_matching.py; this module owns the SQL. Both scrobble
 entry points in routers/scrobbler.py call find_track() here, so the live path and
 the import path cannot drift apart again -- they used to hold two copies of the
 same query.
-
-Design: docs/superpowers/specs/2026-08-21-scrobble-rematching-design.md
 """
 
 from __future__ import annotations

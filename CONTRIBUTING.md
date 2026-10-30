@@ -28,6 +28,7 @@ two can never drift apart.
 ./scripts/test/music-management-unit.sh # unit tests + coverage gate (84%, source only)
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
+./scripts/ci/public-check.sh             # public:check: no personal names, hosts or LAN addresses in tracked files
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
@@ -81,15 +82,15 @@ database cursor, which proves the right query string was produced, not that
 MariaDB accepts it. A new endpoint that reads from the database belongs in
 `tests/integration/test_router_sql.py` as well.
 
-**A schema change needs two edits that agree.** The `CREATE TABLE` in
-`services/common/db_init.py` (or the router's `init_db`), and a `migrate_*.sql` in
-the repository root (which `scripts/deploy.sh` applies on every deploy, so it must
-be re-runnable). `tests/integration/test_schema_drift.py` builds the schema both
-ways from an empty database and fails on any column or index that differs, so give
-an index in the CREATE the name the migration gives it. The expected-table set is
-read from the `CREATE TABLE` statements, not kept by hand. `CREATE TABLE IF NOT
-EXISTS` never alters an existing table -- that is how two columns the code
-selected went missing until the integration suite caught them.
+**A schema change is one edit.** Declare the table in
+`services/common/schema_tables.py`, the only file that may hold a `CREATE TABLE`.
+Seed rows a new database needs go in `services/common/seeds/`. Each deploy runs
+`services/common/schema_reconcile.py`, which adds missing tables, columns, indexes
+and views and reports everything else, so a new column needs a default or must
+allow `NULL`. A drop, a rename or a type change needs a script in `tools/` with a
+dry run and a backup. `tests/integration/test_schema_snapshot.py` compares a fresh
+database with production's schema (`tests/integration/schema/production.tsv`) and
+fails on any difference it does not list with a reason.
 
 **A write of more than one statement goes through `transaction(conn)`.** The pool
 in `services/music_manager/database.py` runs autocommit, so a DELETE followed by
@@ -121,7 +122,7 @@ and fail on an unformatted file. The whole-tree reformat is listed in
 
 `feature/*` → `develop` → `release/x.y.z` → `master`. The release branch is where
 stabilisation and the production deploy happen; `master` is the tagged record.
-[docs/release-management.md](docs/release-management.md) has the full policy,
+`docs/release-management.md` in the private muma-ops repository has the full policy,
 including what the `release:check-secrets` job guarantees.
 
 ## Commit messages
@@ -140,11 +141,10 @@ directory is the most useful documentation in this repository; keep it fed.
 ## Open work
 
 Anything decided but not done, or done but not verified, becomes a
-[GitLab issue](https://gitlab.example.com/muma/music-management/-/issues)
+GitLab issue
 right away (`glab issue create`), with one kind label (`needs-person`,
 `decision`, `verify`, `code`, `deferred`) and one area label (`area-backend`,
 `area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a
 link to the bug report or design that holds the detail. A `verify` issue states
 the exact check. A merge request that finishes an issue says `Closes #N` in its
-description. `docs/open-work.md` is only a pointer to the issues now; do not add
-lines to it. AGENTS.md rule 14 is the rule.
+description. Do not keep a list of open work in a file. AGENTS.md rule 14 is the rule.

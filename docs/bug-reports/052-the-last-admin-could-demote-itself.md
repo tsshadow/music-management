@@ -78,7 +78,7 @@ mobile client without a housekeeping step.
   test runs two threads against a shared fake table and fails without the lock), plus
   `UserLifecycleTest` cases in `tests/integration/test_router_sql.py` that run the guarded INSERT,
   the admin count and both prune statements against MariaDB.
-- **Not changed, for a decision** (also in `docs/open-work.md`): `GET /api/scrobble/import/latest`
+- **Not changed, for a decision** (also in the GitLab issues): `GET /api/scrobble/import/latest`
   (and its `/api` twin in `management.py`) lists every account's last ten ListenBrainz imports --
   username, ListenBrainz name, status, error text -- to any account; and `DELETE /api/users/{id}`
   lets a plain account delete itself. Every other route that takes a `username` or user id was

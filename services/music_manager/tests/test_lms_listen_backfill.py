@@ -236,10 +236,10 @@ class BackfillTest(unittest.TestCase):
         self.assertEqual(self.inserted(), [])
 
     def test_an_insert_carries_the_account_s_own_spelling(self):
-        """LMS says `user`, the account is `Teun`: the row goes in under identity's spelling."""
-        self.db.users = ['Teun']
+        """LMS says `user`, the account is `User`: the row goes in under identity's spelling."""
+        self.db.users = ['User']
         self.run_backfill([(NOW - 5 * HOUR, 1)])
-        self.assertEqual([r['username'] for r in self.db.listens], ['Teun'])
+        self.assertEqual([r['username'] for r in self.db.listens], ['User'])
         # And a second round sees that row as the same user's, so it inserts nothing.
         self.assertEqual(self.run_backfill([(NOW - 5 * HOUR, 1)])['written']['lms_only_inserted'], 0)
 

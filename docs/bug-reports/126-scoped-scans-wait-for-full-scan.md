@@ -21,7 +21,7 @@ Measured read-only on production (192.0.2.27) on 2026-09-27, `docker logs lms`:
   LMS ... of 1 path(s)" throughout (16:59:30, 17:00:45, 17:04:00, ...).
 
 **Why the scoped lane never ran.** The service already had a design for exactly this
-(`docs/superpowers/specs/2026-09-05-lms-scan-lanes-design.md`): a scoped request should pause the
+(an agent plan, since removed; see `docs/designs/lms-scan-trigger/technical.md`): a scoped request should pause the
 running periodic scan at its next batch boundary, run, and resume the periodic scan at the step it
 was in. The pause was requested from `ScannerService::onScanRequestDue()`, the handler of the
 debounce timer, and `requestScopedScan()` added its paths by `_ioService.post()`. Both run on the

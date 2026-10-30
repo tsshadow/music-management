@@ -23,7 +23,7 @@ appTargetSdk = "35"
 appCompileSdk = "37"
 
 gson                   = "2.14.0"
-kotlinxSerializationJson = "1.11.0"
+kotlinxSerializationJson = "1.12.0"
 lifecycleLivedataKtx   = "2.11.0"
 media                  = "1.8.0"
 credentials            = "1.6.0"
@@ -38,22 +38,25 @@ detekt                 = "1.23.8"
 documentFile           = "1.1.0"
 preferences            = "1.2.1"
 media3                 = "1.11.1"
+# Not used directly: media3 pulls in Guava 33.3.1, which has CVE-2026-102554 (HIGH).
+# app/build.gradle raises it with a constraint. Drop both once media3 asks for 33.7.2+.
+guava                  = "33.7.2-android"
 # Capacitor 9 does not exist as a release: npm carries 9.0.0-alpha.6 under the `next`
 # tag and Maven Central has nothing above 8.5.2 for com.capacitorjs:core. 8.5.2 is the
 # current stable, and the web side must install @capacitor/core and @capacitor/cli at the
 # same version -- the bridge and the JS runtime are one artefact split in two.
-capacitor              = "8.5.2"
+capacitor              = "8.5.3"
 
 materialDesign         = "1.14.0"
 room                   = "2.8.5"
-kotlin                 = "2.4.20"
+kotlin                 = "2.4.21"
 ksp                    = "2.3.12"
 kotlinxCoroutines      = "1.11.0"
 viewModelKtx           = "2.11.0"
 
 retrofit               = "3.0.0"
-jackson                = "2.22.3"
-okhttp                 = "5.5.0"
+jackson                = "2.22.4"
+okhttp                 = "5.5.1"
 koin                   = "4.2.2"
 picasso               = "2.71828"
 
@@ -65,7 +68,7 @@ mockitoKotlin          = "6.4.0"
 mockk                  = "1.14.11"
 kluent                 = "1.73"
 archunit               = "1.5.1"
-apacheCodecs           = "1.22.1"
+apacheCodecs           = "1.23.0"
 robolectric            = "4.17"
 timber                 = "5.0.1"
 jacoco                 = "0.8.15"
@@ -98,6 +101,7 @@ media3exoplayer         = { module = "androidx.media3:media3-exoplayer", version
 media3datasource        = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 media3okhttp            = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "media3" }
 media3session           = { module = "androidx.media3:media3-session", version.ref = "media3" }
+guava                   = { module = "com.google.guava:guava", version.ref = "guava" }
 capacitorCore           = { module = "com.capacitorjs:core", version.ref = "capacitor" }
 credentials            = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 credentialsPlayServicesAuth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }

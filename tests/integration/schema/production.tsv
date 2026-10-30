@@ -1,0 +1,1011 @@
+C	artist_external_ids	artist_id	int(11)	NO	<none>		<none>
+C	artist_external_ids	confidence	tinyint(4)	YES	NULL		<none>
+C	artist_external_ids	created_at	datetime	YES	current_timestamp()		<none>
+C	artist_external_ids	external_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	artist_external_ids	external_url	text	YES	NULL		utf8mb4_general_ci
+C	artist_external_ids	id	int(11)	NO	<none>	auto_increment	<none>
+C	artist_external_ids	source	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	artist_external_ids	updated_at	datetime	YES	NULL	on update current_timestamp()	<none>
+C	artist_external_ids	verified	tinyint(4)	YES	0		<none>
+C	artist_popular_tracks	artist_key	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	artist_popular_tracks	external_track_id	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	artist_popular_tracks	fetched_at	datetime	NO	<none>		<none>
+C	artist_popular_tracks	id	int(11)	NO	<none>	auto_increment	<none>
+C	artist_popular_tracks	matched_track_uid	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	artist_popular_tracks	matched_work_id	int(11)	YES	NULL		<none>
+C	artist_popular_tracks	normalized_title	varchar(191)	YES	NULL		utf8mb4_general_ci
+C	artist_popular_tracks	popularity	int(11)	YES	NULL		<none>
+C	artist_popular_tracks	position	int(11)	NO	<none>		<none>
+C	artist_popular_tracks	source	varchar(16)	NO	<none>		utf8mb4_general_ci
+C	artist_popular_tracks	title	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	artist_popularity_fetches	artist_key	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	artist_popularity_fetches	artist_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	artist_popularity_fetches	external_artist_id	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	artist_popularity_fetches	fetched_at	datetime	NO	<none>		<none>
+C	artist_popularity_fetches	matched_count	int(11)	NO	0		<none>
+C	artist_popularity_fetches	source	varchar(16)	NO	<none>		utf8mb4_general_ci
+C	artist_popularity_fetches	status	enum('ok','not_found','error')	NO	<none>		utf8mb4_general_ci
+C	artist_popularity_fetches	track_count	int(11)	NO	0		<none>
+C	audit_events	actor_user_id	int(11)	YES	NULL		<none>
+C	audit_events	created_at	timestamp	NO	current_timestamp()		<none>
+C	audit_events	details	text	YES	NULL		utf8mb4_general_ci
+C	audit_events	event_type	varchar(100)	NO	<none>		utf8mb4_general_ci
+C	audit_events	id	int(11)	NO	<none>	auto_increment	<none>
+C	audit_events	target_user_id	int(11)	YES	NULL		<none>
+C	channel_link_proposals	channel_id	int(11)	NO	<none>		<none>
+C	channel_link_proposals	created_at	timestamp	YES	current_timestamp()		<none>
+C	channel_link_proposals	decided_at	timestamp	YES	NULL		<none>
+C	channel_link_proposals	decided_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	channel_link_proposals	id	int(11)	NO	<none>	auto_increment	<none>
+C	channel_link_proposals	kind	enum('label','artist')	NO	<none>		utf8mb4_general_ci
+C	channel_link_proposals	source	enum('name','alias','redirect','manual')	NO	<none>		utf8mb4_general_ci
+C	channel_link_proposals	status	enum('new','confirmed','rejected','stale')	NO	'new'		utf8mb4_general_ci
+C	channel_link_proposals	target_id	int(11)	NO	<none>		<none>
+C	channel_link_proposals	target_name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	channels	artist_id	int(11)	YES	NULL		<none>
+C	channels	created_at	timestamp	NO	current_timestamp()		<none>
+C	channels	id	int(11)	NO	<none>	auto_increment	<none>
+C	channels	label_id	int(11)	YES	NULL		<none>
+C	channels	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	channels	normalized_name	varchar(191)	NO	<none>		utf8mb4_bin
+C	channels	platform	enum('soundcloud','youtube','telegram')	NO	<none>		utf8mb4_general_ci
+C	crash_reports	app_version_code	int(11)	YES	NULL		<none>
+C	crash_reports	app_version_name	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	crash_reports	build_type	varchar(20)	YES	NULL		utf8mb4_general_ci
+C	crash_reports	created_at	timestamp	NO	current_timestamp()		<none>
+C	crash_reports	device_model	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	crash_reports	id	int(11)	NO	<none>	auto_increment	<none>
+C	crash_reports	os_version	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	crash_reports	ring_buffer_text	longtext	YES	NULL		utf8mb4_general_ci
+C	crash_reports	stacktrace_hash	char(64)	YES	NULL		utf8mb4_general_ci
+C	crash_reports	stacktrace_text	longtext	YES	NULL		utf8mb4_general_ci
+C	crash_reports	status	varchar(20)	NO	'new'		utf8mb4_general_ci
+C	crash_reports	user_id	int(11)	YES	NULL		<none>
+C	downloads_account_checks	account	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_account_checks	last_checked_at	datetime	NO	<none>		<none>
+C	downloads_account_checks	last_deep_sweep_at	datetime	YES	NULL		<none>
+C	downloads_account_checks	last_seen_track_id	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	downloads_account_checks	last_upload_at	datetime	YES	NULL		<none>
+C	downloads_account_checks	snapshot_at	datetime	YES	NULL		<none>
+C	downloads_account_checks	snapshot_excluded	int(11)	YES	NULL		<none>
+C	downloads_account_checks	snapshot_held	int(11)	YES	NULL		<none>
+C	downloads_account_checks	snapshot_listed	int(11)	YES	NULL		<none>
+C	downloads_account_checks	snapshot_remaining	int(11)	YES	NULL		<none>
+C	downloads_account_checks	snapshot_state	varchar(16)	YES	NULL		utf8mb4_general_ci
+C	downloads_account_checks	source	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	downloads_rate_state	block_reason	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	downloads_rate_state	clean_runs	int(11)	NO	0		<none>
+C	downloads_rate_state	consecutive_403	int(11)	NO	0		<none>
+C	downloads_rate_state	consecutive_429	int(11)	NO	0		<none>
+C	downloads_rate_state	cooldown_until	datetime	YES	NULL		<none>
+C	downloads_rate_state	last_403_at	datetime	YES	NULL		<none>
+C	downloads_rate_state	last_429_at	datetime	YES	NULL		<none>
+C	downloads_rate_state	multiplier	int(11)	NO	1		<none>
+C	downloads_rate_state	source	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	downloads_rate_state	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	downloads_settings	setting_key	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	downloads_settings	source	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	downloads_settings	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	downloads_settings	value	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_accounts	account_type	enum('artist','label','channel','collective','unknown')	YES	'unknown'		utf8mb4_general_ci
+C	downloads_soundcloud_accounts	image_enrichment_hint	tinyint(4)	YES	0		<none>
+C	downloads_soundcloud_accounts	linked_artist_id	int(11)	YES	NULL		<none>
+C	downloads_soundcloud_accounts	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_accounts	soundcloud_id	bigint(20)	YES	NULL		<none>
+C	downloads_soundcloud_archive	account	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_archive	added_at	datetime	YES	current_timestamp()		<none>
+C	downloads_soundcloud_archive	filename	text	YES	NULL		utf8mb4_general_ci
+C	downloads_soundcloud_archive	id	int(11)	NO	<none>	auto_increment	<none>
+C	downloads_soundcloud_archive	info_json	longtext	YES	NULL		utf8mb4_general_ci
+C	downloads_soundcloud_archive	title	text	YES	NULL		utf8mb4_general_ci
+C	downloads_soundcloud_archive	url	text	YES	NULL		utf8mb4_general_ci
+C	downloads_soundcloud_archive	video_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_queue	added_at	datetime	YES	current_timestamp()		<none>
+C	downloads_soundcloud_queue	downloaded_at	datetime	YES	NULL		<none>
+C	downloads_soundcloud_queue	id	int(11)	NO	<none>	auto_increment	<none>
+C	downloads_soundcloud_queue	is_downloaded	tinyint(1)	YES	0		<none>
+C	downloads_soundcloud_queue	url	varchar(767)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_unavailable	account	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_unavailable	attempts	int(11)	NO	0		<none>
+C	downloads_soundcloud_unavailable	duration_seconds	int(11)	YES	NULL		<none>
+C	downloads_soundcloud_unavailable	first_seen	datetime	NO	<none>		<none>
+C	downloads_soundcloud_unavailable	last_seen	datetime	NO	<none>		<none>
+C	downloads_soundcloud_unavailable	reason	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	downloads_soundcloud_unavailable	source	varchar(32)	NO	'soundcloud'		utf8mb4_general_ci
+C	downloads_soundcloud_unavailable	track_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_accounts	active	tinyint(1)	YES	1		<none>
+C	downloads_youtube_accounts	channel_id	text	YES	NULL		utf8mb4_general_ci
+C	downloads_youtube_accounts	download_type	enum('audio','video')	NO	'audio'		utf8mb4_general_ci
+C	downloads_youtube_accounts	min_duration	int(11)	YES	60		<none>
+C	downloads_youtube_accounts	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_accounts	output_folder_override	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	downloads_youtube_archive	account	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_archive	added_at	datetime	YES	current_timestamp()		<none>
+C	downloads_youtube_archive	download_type	enum('audio','video')	NO	'audio'		utf8mb4_general_ci
+C	downloads_youtube_archive	filename	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_archive	info_json	longtext	YES	NULL		utf8mb4_general_ci
+C	downloads_youtube_archive	path	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	downloads_youtube_archive	title	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_archive	url	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_archive	video_id	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	downloads_youtube_queue	added_at	datetime	YES	current_timestamp()		<none>
+C	downloads_youtube_queue	audio	tinyint(1)	YES	1		<none>
+C	downloads_youtube_queue	downloaded_at	datetime	YES	NULL		<none>
+C	downloads_youtube_queue	id	int(11)	NO	<none>	auto_increment	<none>
+C	downloads_youtube_queue	is_downloaded	tinyint(1)	YES	0		<none>
+C	downloads_youtube_queue	url	varchar(767)	NO	<none>		utf8mb4_general_ci
+C	dynamic_playlists	created_at	timestamp	NO	current_timestamp()		<none>
+C	dynamic_playlists	id	int(11)	NO	<none>	auto_increment	<none>
+C	dynamic_playlists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	dynamic_playlists	params	text	NO	<none>		utf8mb4_general_ci
+C	dynamic_playlists	remote_id	int(11)	YES	NULL		<none>
+C	dynamic_playlists	source	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	dynamic_playlists	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	dynamic_playlists	user_id	int(11)	NO	<none>		<none>
+C	events	context	longtext	YES	NULL		utf8mb4_bin
+C	events	created_at	timestamp(3)	NO	current_timestamp(3)		<none>
+C	events	id	bigint(20)	NO	<none>	auto_increment	<none>
+C	events	level	varchar(10)	NO	<none>		utf8mb4_general_ci
+C	events	logger	varchar(120)	YES	NULL		utf8mb4_general_ci
+C	events	message	text	YES	NULL		utf8mb4_general_ci
+C	events	source	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	events	title	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	feeds_profile_exclusions	created_at	timestamp	YES	current_timestamp()		<none>
+C	feeds_profile_exclusions	entity_name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	feeds_profile_exclusions	entity_type	enum('artist','label','genre')	NO	<none>		utf8mb4_general_ci
+C	feeds_profile_exclusions	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	feeds_snapshot	feed_date	date	NO	<none>		<none>
+C	feeds_snapshot	generated_at	datetime	NO	<none>		<none>
+C	feeds_snapshot	params_key	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	feeds_snapshot	payload	longtext	NO	<none>		utf8mb4_general_ci
+C	feeds_snapshot	slug	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	feeds_snapshot	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	importer_conflicts	fingerprint	char(64)	YES	NULL		utf8mb4_general_ci
+C	importer_conflicts	first_seen	timestamp	YES	current_timestamp()		<none>
+C	importer_conflicts	last_seen	timestamp	YES	current_timestamp()		<none>
+C	importer_conflicts	pair_key	char(64)	NO	<none>		utf8mb4_general_ci
+C	importer_conflicts	reason	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	importer_conflicts	source	varchar(1024)	NO	<none>		utf8mb4_general_ci
+C	importer_conflicts	step	enum('renamer','mover','extractor')	NO	<none>		utf8mb4_general_ci
+C	importer_conflicts	target	varchar(1024)	NO	<none>		utf8mb4_general_ci
+C	label_external_ids	created_at	datetime	YES	current_timestamp()		<none>
+C	label_external_ids	external_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	label_external_ids	external_url	text	YES	NULL		utf8mb4_general_ci
+C	label_external_ids	id	int(11)	NO	<none>	auto_increment	<none>
+C	label_external_ids	label_id	int(11)	NO	<none>		<none>
+C	label_external_ids	source	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	label_external_ids	updated_at	datetime	YES	NULL	on update current_timestamp()	<none>
+C	label_external_ids	verified	tinyint(1)	NO	0		<none>
+C	library_artist_aliases	alias	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_artist_aliases	artist_id	int(11)	NO	<none>		<none>
+C	library_artist_aliases	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_artist_images	artist_id	int(11)	NO	<none>		<none>
+C	library_artist_images	cached_path	text	NO	<none>		utf8mb4_general_ci
+C	library_artist_images	confidence	tinyint(4)	YES	NULL		<none>
+C	library_artist_images	created_at	datetime	YES	current_timestamp()		<none>
+C	library_artist_images	error_message	text	YES	NULL		utf8mb4_general_ci
+C	library_artist_images	file_size	int(11)	YES	NULL		<none>
+C	library_artist_images	height	int(11)	YES	NULL		<none>
+C	library_artist_images	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_artist_images	is_primary	tinyint(4)	YES	0		<none>
+C	library_artist_images	mime_type	varchar(100)	YES	NULL		utf8mb4_general_ci
+C	library_artist_images	original_url	text	YES	NULL		utf8mb4_general_ci
+C	library_artist_images	public_path	text	YES	NULL		utf8mb4_general_ci
+C	library_artist_images	source	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	library_artist_images	source_id	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_artist_images	status	varchar(50)	YES	'active'		utf8mb4_general_ci
+C	library_artist_images	updated_at	datetime	YES	NULL	on update current_timestamp()	<none>
+C	library_artist_images	width	int(11)	YES	NULL		<none>
+C	library_artists	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_artists	image_status	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	library_artists	image_updated_at	datetime	YES	NULL		<none>
+C	library_artists	mbid	varchar(36)	YES	NULL		utf8mb4_general_ci
+C	library_artists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_artists	normalized_name	varchar(191)	YES	NULL		utf8mb4_general_ci
+C	library_artists	primary_image_id	int(11)	YES	NULL		<none>
+C	library_artists	sort_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_bpm_priors	centre	double	NO	<none>		<none>
+C	library_bpm_priors	kind	varchar(8)	NO	<none>		utf8mb4_general_ci
+C	library_bpm_priors	prior_key	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	library_bpm_priors	samples	int(11)	NO	<none>		<none>
+C	library_bpm_priors	spread	double	NO	<none>		<none>
+C	library_bpm_priors	updated_at	datetime	NO	<none>		<none>
+C	library_broken_song_artist_lookup	id	bigint(20) unsigned	NO	<none>	auto_increment	<none>
+C	library_broken_song_artist_lookup	normalized_name	text	YES	NULL		utf8mb4_general_ci
+C	library_broken_song_artist_lookup	raw_name	text	NO	<none>		utf8mb4_general_ci
+C	library_broken_songs	created_at	timestamp	NO	current_timestamp()		<none>
+C	library_broken_songs	error_code	varchar(255)	NO	<none>		utf8mb4_unicode_ci
+C	library_broken_songs	id	int(10) unsigned	NO	<none>	auto_increment	<none>
+C	library_broken_songs	path	text	NO	<none>		utf8mb4_unicode_ci
+C	library_ingestion_records	code_version	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	library_ingestion_records	file_path	text	NO	<none>		utf8mb4_general_ci
+C	library_ingestion_records	file_path_hash	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	library_ingestion_records	file_size	bigint(20)	YES	NULL		<none>
+C	library_ingestion_records	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_ingestion_records	recorded_at	timestamp	YES	current_timestamp()		<none>
+C	library_ingestion_records	rules_fingerprint	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	library_ingestion_records	source	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	library_ingestion_records	tags_json	longtext	NO	<none>		utf8mb4_general_ci
+C	library_labels	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_labels	mbid	varchar(36)	YES	NULL		utf8mb4_general_ci
+C	library_labels	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_labels	parent_label_id	int(11)	YES	NULL		<none>
+C	library_media_files	audio_hash	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	library_media_files	duration_secs	float	YES	NULL		<none>
+C	library_media_files	file_mtime	double	YES	NULL		<none>
+C	library_media_files	file_path	text	NO	<none>		utf8mb4_general_ci
+C	library_media_files	file_path_hash	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	library_media_files	file_size	bigint(20)	YES	NULL		<none>
+C	library_media_files	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_media_files	last_seen	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	library_media_files	track_id	int(11)	YES	NULL		<none>
+C	library_track_artists	artist_id	int(11)	NO	<none>		<none>
+C	library_track_artists	position	int(11)	YES	0		<none>
+C	library_track_artists	role	enum('primary','featuring','remixer','producer','composer')	NO	'primary'		utf8mb4_general_ci
+C	library_track_artists	track_id	int(11)	NO	<none>		<none>
+C	library_track_audio_features	artist_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	bpm_tag	float	YES	NULL		<none>
+C	library_track_audio_features	duration	float	YES	NULL		<none>
+C	library_track_audio_features	file_path	text	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	genre_tag	varchar(100)	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_track_audio_features	internal_track_id	int(11)	YES	NULL		<none>
+C	library_track_audio_features	label_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	mean_chroma	float	YES	NULL		<none>
+C	library_track_audio_features	mean_rms	float	YES	NULL		<none>
+C	library_track_audio_features	mean_spectral_bandwidth	float	YES	NULL		<none>
+C	library_track_audio_features	mean_spectral_centroid	float	YES	NULL		<none>
+C	library_track_audio_features	mean_spectral_contrast	float	YES	NULL		<none>
+C	library_track_audio_features	mean_spectral_rolloff	float	YES	NULL		<none>
+C	library_track_audio_features	mean_zcr	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_1	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_10	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_11	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_12	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_13	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_2	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_3	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_4	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_5	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_6	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_7	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_8	float	YES	NULL		<none>
+C	library_track_audio_features	mfcc_9	float	YES	NULL		<none>
+C	library_track_audio_features	release_date	varchar(10)	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	release_year	int(11)	YES	NULL		<none>
+C	library_track_audio_features	source_platform	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	library_track_audio_features	std_chroma	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_1	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_10	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_11	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_12	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_13	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_2	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_3	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_4	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_5	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_6	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_7	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_8	float	YES	NULL		<none>
+C	library_track_audio_features	std_mfcc_9	float	YES	NULL		<none>
+C	library_track_audio_features	std_rms	float	YES	NULL		<none>
+C	library_track_audio_features	std_spectral_bandwidth	float	YES	NULL		<none>
+C	library_track_audio_features	std_spectral_centroid	float	YES	NULL		<none>
+C	library_track_audio_features	std_spectral_contrast	float	YES	NULL		<none>
+C	library_track_audio_features	std_spectral_rolloff	float	YES	NULL		<none>
+C	library_track_audio_features	std_zcr	float	YES	NULL		<none>
+C	library_track_audio_features	tempo	float	YES	NULL		<none>
+C	library_track_audio_features	track_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_track_audio_features	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	library_track_bpm	analyzed_at	datetime	NO	<none>		<none>
+C	library_track_bpm	attempts	int(11)	NO	1		<none>
+C	library_track_bpm	bpm	decimal(5,2)	YES	NULL		<none>
+C	library_track_bpm	confidence	decimal(4,3)	YES	NULL		<none>
+C	library_track_bpm	double_score	float	YES	NULL		<none>
+C	library_track_bpm	error	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_track_bpm	file_mtime	double	YES	NULL		<none>
+C	library_track_bpm	file_size	bigint(20)	YES	NULL		<none>
+C	library_track_bpm	fold_evidence	varchar(16)	YES	NULL		utf8mb4_general_ci
+C	library_track_bpm	fold_margin	float	YES	NULL		<none>
+C	library_track_bpm	fold_version	smallint(6)	YES	NULL		<none>
+C	library_track_bpm	half_score	float	YES	NULL		<none>
+C	library_track_bpm	method	varchar(32)	NO	<none>		utf8mb4_general_ci
+C	library_track_bpm	octave_corrected	tinyint(1)	NO	0		<none>
+C	library_track_bpm	raw_bpm	decimal(5,2)	YES	NULL		<none>
+C	library_track_bpm	raw_confidence	decimal(4,3)	YES	NULL		<none>
+C	library_track_bpm	status	enum('ok','failed')	NO	'ok'		utf8mb4_general_ci
+C	library_track_bpm	strength	float	YES	NULL		<none>
+C	library_track_bpm	tag_action	varchar(16)	YES	NULL		utf8mb4_general_ci
+C	library_track_bpm	tag_bpm	decimal(5,2)	YES	NULL		<none>
+C	library_track_bpm	tag_checked_at	datetime	YES	NULL		<none>
+C	library_track_bpm	track_uid	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_track_bpm_manual	bpm	decimal(5,2)	NO	<none>		<none>
+C	library_track_bpm_manual	set_at	datetime	NO	<none>		<none>
+C	library_track_bpm_manual	set_by	int(11)	YES	NULL		<none>
+C	library_track_bpm_manual	track_uid	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_track_channels	channel_id	int(11)	NO	<none>		<none>
+C	library_track_channels	track_id	int(11)	NO	<none>		<none>
+C	library_track_effective_bpm	approximate	tinyint(1)	NO	0		<none>
+C	library_track_effective_bpm	bpm	decimal(5,2)	NO	<none>		<none>
+C	library_track_effective_bpm	confidence	enum('low','medium','high')	NO	<none>		utf8mb4_general_ci
+C	library_track_effective_bpm	folded	tinyint(1)	NO	0		<none>
+C	library_track_effective_bpm	source	enum('measured','tag','analyzer','manual')	NO	<none>		utf8mb4_general_ci
+C	library_track_effective_bpm	track_id	int(11)	NO	<none>		<none>
+C	library_track_effective_bpm	updated_at	datetime	NO	<none>		<none>
+C	library_track_genres	genre_id	int(11)	NO	<none>		<none>
+C	library_track_genres	track_id	int(11)	NO	<none>		<none>
+C	library_track_genres	weight	float	YES	1		<none>
+C	library_track_labels	label_id	int(11)	NO	<none>		<none>
+C	library_track_labels	track_id	int(11)	NO	<none>		<none>
+C	library_track_ml_labels	approved_for_training	tinyint(1)	YES	0		<none>
+C	library_track_ml_labels	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_track_ml_labels	internal_track_id	int(11)	YES	NULL		<none>
+C	library_track_ml_labels	ml_genre	varchar(100)	YES	NULL		utf8mb4_general_ci
+C	library_track_ml_labels	ml_review_status	enum('unreviewed','human_verified','borderline','do_not_train')	YES	'unreviewed'		utf8mb4_general_ci
+C	library_track_ml_labels	track_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_track_ml_labels	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	library_track_ml_predictions	confidence_genre	float	YES	NULL		<none>
+C	library_track_ml_predictions	confidence_subgenre	float	YES	NULL		<none>
+C	library_track_ml_predictions	created_at	timestamp	NO	current_timestamp()		<none>
+C	library_track_ml_predictions	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_track_ml_predictions	model_version	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	library_track_ml_predictions	predicted_genre	varchar(100)	YES	NULL		utf8mb4_general_ci
+C	library_track_ml_predictions	predicted_subgenre	varchar(100)	YES	NULL		utf8mb4_general_ci
+C	library_track_ml_predictions	predictions_json	longtext	YES	NULL		utf8mb4_bin
+C	library_track_ml_predictions	track_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	library_tracks	created_at	timestamp	NO	current_timestamp()		<none>
+C	library_tracks	display_artist	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	duration_secs	float	YES	NULL		<none>
+C	library_tracks	form	varchar(16)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_tracks	normalized_base_title	varchar(191)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	normalized_title	varchar(191)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	performance_date	varchar(10)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	primary_artist_id	int(11)	YES	NULL		<none>
+C	library_tracks	release_date	varchar(10)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	title	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	track_uid	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	version_kind	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	library_tracks	version_score	int(11)	YES	NULL		<none>
+C	library_tracks	work_id	int(11)	YES	NULL		<none>
+C	library_tracks	work_locked	tinyint(4)	NO	0		<none>
+C	library_works	canonical_changed_at	timestamp	YES	NULL		<none>
+C	library_works	canonical_track_id	int(11)	YES	NULL		<none>
+C	library_works	created_at	timestamp	NO	current_timestamp()		<none>
+C	library_works	id	int(11)	NO	<none>	auto_increment	<none>
+C	library_works	pinned_track_id	int(11)	YES	NULL		<none>
+C	library_works	previous_canonical_track_id	int(11)	YES	NULL		<none>
+C	library_works	primary_artist_id	int(11)	YES	NULL		<none>
+C	library_works	ranking_signature	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	library_works	related_work_id	int(11)	YES	NULL		<none>
+C	library_works	title	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	library_works	work_key	varchar(191)	NO	<none>		utf8mb4_bin
+C	news_bulletins	created_at	timestamp	NO	current_timestamp()		<none>
+C	news_bulletins	duration_ms	int(11)	NO	<none>		<none>
+C	news_bulletins	filename	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	news_bulletins	id	bigint(20)	NO	<none>	auto_increment	<none>
+C	news_bulletins	size_bytes	bigint(20)	NO	<none>		<none>
+C	news_bulletins	source_id	int(11)	NO	<none>		<none>
+C	news_bulletins	started_at	double	NO	<none>		<none>
+C	news_sources	created_at	timestamp	NO	current_timestamp()		<none>
+C	news_sources	duration_seconds	int(11)	NO	600		<none>
+C	news_sources	enabled	tinyint(1)	NO	1		<none>
+C	news_sources	id	int(11)	NO	<none>	auto_increment	<none>
+C	news_sources	last_error	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	news_sources	last_success_at	double	YES	NULL		<none>
+C	news_sources	lead_seconds	int(11)	NO	5		<none>
+C	news_sources	minute_of_hour	tinyint(4)	NO	0		<none>
+C	news_sources	name	varchar(128)	NO	<none>		utf8mb4_general_ci
+C	news_sources	retention_count	int(11)	NO	12		<none>
+C	news_sources	slug	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	news_sources	stream_url	varchar(512)	NO	<none>		utf8mb4_general_ci
+C	permissions	description	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	permissions	id	int(11)	NO	<none>	auto_increment	<none>
+C	permissions	name	varchar(100)	NO	<none>		utf8mb4_general_ci
+C	radio_channels	created_at	timestamp	NO	current_timestamp()		<none>
+C	radio_channels	enabled	tinyint(1)	NO	1		<none>
+C	radio_channels	filter_json	text	YES	NULL		utf8mb4_general_ci
+C	radio_channels	genre	varchar(128)	YES	NULL		utf8mb4_general_ci
+C	radio_channels	id	int(11)	NO	<none>	auto_increment	<none>
+C	radio_channels	name	varchar(128)	NO	<none>		utf8mb4_general_ci
+C	radio_channels	slug	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	radio_timeline	album	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	radio_timeline	artist	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	radio_timeline	channel_id	int(11)	NO	<none>		<none>
+C	radio_timeline	cover_art	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	radio_timeline	duration_ms	int(11)	NO	<none>		<none>
+C	radio_timeline	ends_at	double	NO	<none>		<none>
+C	radio_timeline	id	bigint(20)	NO	<none>	auto_increment	<none>
+C	radio_timeline	started_at	double	NO	<none>		<none>
+C	radio_timeline	title	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	radio_timeline	track_id	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	rating_tracks	created_at	timestamp	NO	current_timestamp()		<none>
+C	rating_tracks	entity_id	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rating_tracks	entity_type	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	rating_tracks	id	int(11)	NO	<none>	auto_increment	<none>
+C	rating_tracks	rating	int(11)	NO	<none>		<none>
+C	rating_tracks	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	rating_tracks	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	release_store_lookups	album_id	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	release_store_lookups	fetched_at	datetime	NO	<none>		<none>
+C	release_store_lookups	label	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	release_store_lookups	release_date	varchar(10)	YES	NULL		utf8mb4_general_ci
+C	release_store_lookups	status	enum('ok','not_found')	NO	<none>		utf8mb4_general_ci
+C	release_store_lookups	store	varchar(16)	NO	<none>		utf8mb4_general_ci
+C	release_store_lookups	title	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	release_store_lookups	upc	varchar(32)	YES	NULL		utf8mb4_general_ci
+C	role_permissions	permission_id	int(11)	NO	<none>		<none>
+C	role_permissions	role_id	int(11)	NO	<none>		<none>
+C	roles	created_at	timestamp	NO	current_timestamp()		<none>
+C	roles	description	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	roles	id	int(11)	NO	<none>	auto_increment	<none>
+C	roles	name	varchar(100)	NO	<none>		utf8mb4_general_ci
+C	roles	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	rules_artist_evidence	applied_at	timestamp	YES	NULL		<none>
+C	rules_artist_evidence	checked_at	timestamp	NO	current_timestamp()		<none>
+C	rules_artist_evidence	evidence	mediumtext	YES	NULL		utf8mb4_general_ci
+C	rules_artist_evidence	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_evidence	policy	varchar(16)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_evidence	rule	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_artist_evidence	run_id	int(11)	YES	NULL		<none>
+C	rules_artist_evidence	titles_hash	char(16)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_evidence	verdict	enum('approve','unresolved','skipped','incomplete')	NO	<none>		utf8mb4_general_ci
+C	rules_artist_evidence_runs	applied	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	approved	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	backlog_names	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	dry_run	tinyint(1)	NO	1		<none>
+C	rules_artist_evidence_runs	failed_requests	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	finished_at	timestamp	YES	NULL		<none>
+C	rules_artist_evidence_runs	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_artist_evidence_runs	incomplete	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	new_names	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	requests	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	skipped	int(11)	NO	0		<none>
+C	rules_artist_evidence_runs	started_at	timestamp	YES	current_timestamp()		<none>
+C	rules_artist_evidence_runs	stopped_early	tinyint(1)	NO	0		<none>
+C	rules_artist_evidence_runs	unresolved	int(11)	NO	0		<none>
+C	rules_artist_genres	artist_name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_genres	created_at	timestamp	NO	current_timestamp()		<none>
+C	rules_artist_genres	created_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_artist_genres	genre_id	int(11)	NO	<none>		<none>
+C	rules_artist_genres	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_artist_legacy_trust	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_legacy_trust	trusted_at	timestamp	YES	current_timestamp()		<none>
+C	rules_artist_proposals	analyzed_at	timestamp	YES	current_timestamp()		<none>
+C	rules_artist_proposals	confidence	int(11)	NO	0		<none>
+C	rules_artist_proposals	evidence	text	YES	NULL		utf8mb4_general_ci
+C	rules_artist_proposals	junk_score	int(11)	NO	0		<none>
+C	rules_artist_proposals	kind	enum('keep','rewrite','split','reject','unknown')	NO	<none>		utf8mb4_general_ci
+C	rules_artist_proposals	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_artist_proposals	target	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	rules_artists	canonical_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_artists	decided_at	timestamp	YES	current_timestamp()		<none>
+C	rules_artists	decided_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_artists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_artists	state	enum('white','black')	NO	<none>		utf8mb4_general_ci
+C	rules_catid_label	catid	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_catid_label	label	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_festival_aliases	alias	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_festival_aliases	festival_id	int(11)	NO	<none>		<none>
+C	rules_festival_aliases	normalized_alias	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_festival_data	date	date	NO	<none>		<none>
+C	rules_festival_data	festival	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_festival_data	year	int(11)	NO	<none>		<none>
+C	rules_festival_editions	date	date	NO	<none>		<none>
+C	rules_festival_editions	festival_id	int(11)	NO	<none>		<none>
+C	rules_festival_editions	year	int(11)	NO	<none>		<none>
+C	rules_festivals	active	tinyint(1)	NO	1		<none>
+C	rules_festivals	created_at	timestamp	NO	current_timestamp()		<none>
+C	rules_festivals	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_festivals	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_festivals	normalized_name	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_genre_backlog	detected_at	timestamp	NO	current_timestamp()		<none>
+C	rules_genre_backlog	genre	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_genre_backlog	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_genre_expansions	genre_id	int(11)	NO	<none>		<none>
+C	rules_genre_expansions	position	int(11)	NO	0		<none>
+C	rules_genre_expansions	target_id	int(11)	NO	<none>		<none>
+C	rules_genre_proposals	analyzed_at	timestamp	YES	current_timestamp()		<none>
+C	rules_genre_proposals	confidence	int(11)	NO	0		<none>
+C	rules_genre_proposals	evidence	text	YES	NULL		utf8mb4_general_ci
+C	rules_genre_proposals	genre_id	int(11)	NO	<none>		<none>
+C	rules_genre_proposals	kind	enum('keep','rewrite','split','reject','unknown')	NO	<none>		utf8mb4_general_ci
+C	rules_genre_proposals	targets	text	YES	NULL		utf8mb4_general_ci
+C	rules_genres	canonical_id	int(11)	YES	NULL		<none>
+C	rules_genres	corrected_genre	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_genres	decided_at	timestamp	YES	NULL		<none>
+C	rules_genres	decided_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_genres	detected_at	timestamp	YES	current_timestamp()		<none>
+C	rules_genres	hardness	tinyint(3) unsigned	YES	NULL		<none>
+C	rules_genres	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_genres	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_genres	normalized_name	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_genres	occurrences	int(11)	NO	0		<none>
+C	rules_genres	state	enum('white','black','unknown')	NO	'unknown'		utf8mb4_general_ci
+C	rules_genres_new	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_genres_new	name	varchar(100)	NO	<none>		utf8mb4_general_ci
+C	rules_genres_old	corrected_genre	varchar(255)	NO	''		utf8mb4_general_ci
+C	rules_genres_old	genre	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_ignored_artists	corrected_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_ignored_artists	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_ignored_artists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_ignored_genres	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_genres	created_at	timestamp	NO	current_timestamp()		<none>
+C	rules_label_genres	created_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_label_genres	genre_id	int(11)	NO	<none>		<none>
+C	rules_label_genres	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_label_genres	label_name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_name_choices	chosen_folder	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_label_name_choices	decided_at	timestamp	YES	NULL		<none>
+C	rules_label_name_choices	examples	text	YES	NULL		utf8mb4_general_ci
+C	rules_label_name_choices	history_count	int(11)	NO	0		<none>
+C	rules_label_name_choices	history_folder	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_name_choices	learned_at	timestamp	YES	current_timestamp()		<none>
+C	rules_label_name_choices	name_count	int(11)	NO	0		<none>
+C	rules_label_name_choices	name_folder	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_name_choices	nfo_label	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_name_choices	nfo_label_key	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_label_proposals	alternative_label	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	catid	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	confidence	int(11)	NO	0		<none>
+C	rules_label_proposals	created_at	timestamp	NO	current_timestamp()		<none>
+C	rules_label_proposals	decided_at	timestamp	YES	NULL		<none>
+C	rules_label_proposals	decided_label	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	folder	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_label_proposals	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_label_proposals	label_choice_key	varchar(191)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	proposed_label	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	resolved_fingerprint	char(64)	YES	NULL		utf8mb4_general_ci
+C	rules_label_proposals	source	varchar(64)	NO	'none'		utf8mb4_general_ci
+C	rules_label_proposals	status	enum('new','confirmed','rejected','stale')	NO	'new'		utf8mb4_general_ci
+C	rules_podcast_aliases	alias	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_podcast_aliases	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_podcast_aliases	normalized_alias	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_podcast_aliases	occurrences	int(11)	NO	0		<none>
+C	rules_podcast_aliases	podcast_id	int(11)	NO	<none>		<none>
+C	rules_podcasts	decided_at	timestamp	YES	NULL		<none>
+C	rules_podcasts	decided_by	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	rules_podcasts	detected_at	timestamp	NO	current_timestamp()		<none>
+C	rules_podcasts	host	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_podcasts	id	int(11)	NO	<none>	auto_increment	<none>
+C	rules_podcasts	name	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_podcasts	normalized_name	varchar(191)	NO	<none>		utf8mb4_general_ci
+C	rules_podcasts	occurrences	int(11)	NO	0		<none>
+C	rules_podcasts	state	enum('white','black','unknown')	NO	'unknown'		utf8mb4_general_ci
+C	rules_podcasts	station	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	rules_scene_group_date_format	created_at	timestamp	NO	current_timestamp()		<none>
+C	rules_scene_group_date_format	date_format	varchar(8)	NO	<none>		utf8mb4_general_ci
+C	rules_scene_group_date_format	scene_group	varchar(64)	NO	<none>		utf8mb4_general_ci
+C	rules_subgenre_hierarchy	genre	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	rules_subgenre_hierarchy	subgenre	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	schema_migrations	applied_at	datetime	NO	current_timestamp()		<none>
+C	schema_migrations	filename	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	schema_migrations	sha256	char(64)	NO	<none>		utf8mb4_general_ci
+C	scrobble_imports	finished_at	timestamp	YES	NULL		<none>
+C	scrobble_imports	id	int(11)	NO	<none>	auto_increment	<none>
+C	scrobble_imports	last_error	text	YES	NULL		utf8mb4_general_ci
+C	scrobble_imports	lb_username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	scrobble_imports	oldest_listened_ts	bigint(20)	YES	NULL		<none>
+C	scrobble_imports	processed	int(11)	YES	0		<none>
+C	scrobble_imports	started_at	timestamp	NO	current_timestamp()		<none>
+C	scrobble_imports	status	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	scrobble_imports	total_found	int(11)	YES	0		<none>
+C	scrobble_imports	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	scrobble_listens	created_at	timestamp	NO	current_timestamp()		<none>
+C	scrobble_listens	id	int(11)	NO	<none>	auto_increment	<none>
+C	scrobble_listens	listened_at	timestamp	NO	current_timestamp()		<none>
+C	scrobble_listens	match_method	enum('exact','normalized','base_title','fuzzy')	NO	'exact'		utf8mb4_general_ci
+C	scrobble_listens	match_score	tinyint(3) unsigned	YES	NULL		<none>
+C	scrobble_listens	mbid_track	varchar(36)	YES	NULL		utf8mb4_general_ci
+C	scrobble_listens	played_secs	int(10) unsigned	YES	NULL		<none>
+C	scrobble_listens	source	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	scrobble_listens	track_id	int(11)	YES	NULL		<none>
+C	scrobble_listens	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	scrobble_unmatched_listens	album_name	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	artist_name	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	attempts	int(11)	NO	0		<none>
+C	scrobble_unmatched_listens	created_at	timestamp	NO	current_timestamp()		<none>
+C	scrobble_unmatched_listens	data	longtext	YES	NULL		utf8mb4_bin
+C	scrobble_unmatched_listens	id	int(11)	NO	<none>	auto_increment	<none>
+C	scrobble_unmatched_listens	last_attempt_at	timestamp	YES	NULL		<none>
+C	scrobble_unmatched_listens	listened_at	timestamp	NO	current_timestamp()		<none>
+C	scrobble_unmatched_listens	mbid_artist	varchar(36)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	mbid_track	varchar(36)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	played_secs	int(10) unsigned	YES	NULL		<none>
+C	scrobble_unmatched_listens	source	varchar(50)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	track_title	varchar(512)	YES	NULL		utf8mb4_general_ci
+C	scrobble_unmatched_listens	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	tagger_processed_files	attempts	int(11)	NO	0		<none>
+C	tagger_processed_files	filepath	varchar(767)	NO	<none>		utf8mb4_bin
+C	tagger_processed_files	last_attempt	timestamp	YES	NULL		<none>
+C	tagger_processed_files	last_processed	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	tagger_processed_files	mtime	double	YES	NULL		<none>
+C	tagger_processed_files	needs_rescan	tinyint(1)	YES	0		<none>
+C	tagger_processed_files	rescan_reason	varchar(64)	YES	NULL		utf8mb4_general_ci
+C	user_app_settings	app_id	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	user_app_settings	id	int(11)	NO	<none>	auto_increment	<none>
+C	user_app_settings	settings_json	longtext	NO	<none>		utf8mb4_general_ci
+C	user_app_settings	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	user_app_settings	user_id	int(11)	NO	<none>		<none>
+C	user_identities	created_at	timestamp	NO	current_timestamp()		<none>
+C	user_identities	email_at_provider	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	user_identities	id	int(11)	NO	<none>	auto_increment	<none>
+C	user_identities	last_used_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	user_identities	provider	varchar(50)	NO	<none>		utf8mb4_general_ci
+C	user_identities	provider_subject	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	user_identities	user_id	int(11)	NO	<none>		<none>
+C	user_listenbrainz_accounts	created_at	timestamp	NO	current_timestamp()		<none>
+C	user_listenbrainz_accounts	id	int(11)	NO	<none>	auto_increment	<none>
+C	user_listenbrainz_accounts	lb_token	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	user_listenbrainz_accounts	lb_username	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	user_listenbrainz_accounts	user_id	int(11)	NO	<none>		<none>
+C	user_refresh_tokens	created_at	timestamp	NO	current_timestamp()		<none>
+C	user_refresh_tokens	id	int(11)	NO	<none>	auto_increment	<none>
+C	user_refresh_tokens	last_used_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	user_refresh_tokens	revoked_at	timestamp	YES	NULL		<none>
+C	user_refresh_tokens	token	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	user_refresh_tokens	user_id	int(11)	NO	<none>		<none>
+C	user_requests	avatar_url	varchar(1024)	YES	NULL		utf8mb4_general_ci
+C	user_requests	created_user_id	int(11)	YES	NULL		<none>
+C	user_requests	display_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	user_requests	email	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	user_requests	google_subject	varchar(255)	NO	<none>		utf8mb4_general_ci
+C	user_requests	id	int(11)	NO	<none>	auto_increment	<none>
+C	user_requests	linked_existing	tinyint(1)	YES	0		<none>
+C	user_requests	requested_at	timestamp	NO	current_timestamp()		<none>
+C	user_requests	reviewed_at	timestamp	YES	NULL		<none>
+C	user_requests	reviewed_by_user_id	int(11)	YES	NULL		<none>
+C	user_requests	status	varchar(20)	NO	'pending'		utf8mb4_general_ci
+C	users	api_key	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	users	avatar_url	varchar(1024)	YES	NULL		utf8mb4_general_ci
+C	users	created_at	timestamp	NO	current_timestamp()		<none>
+C	users	display_name	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	users	email	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	users	enabled	tinyint(1)	YES	1		<none>
+C	users	id	int(11)	NO	<none>	auto_increment	<none>
+C	users	is_admin	tinyint(1)	YES	0		<none>
+C	users	last_login_at	timestamp	YES	NULL		<none>
+C	users	password_hash	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	users	role_id	int(11)	YES	NULL		<none>
+C	users	server_user_id	varchar(255)	YES	NULL		utf8mb4_general_ci
+C	users	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
+C	users	username	varchar(255)	NO	<none>		utf8mb4_general_ci
+F	channel_link_proposals	channel_id	channels	id	CASCADE	RESTRICT
+F	channels	artist_id	library_artists	id	SET NULL	RESTRICT
+F	channels	label_id	library_labels	id	SET NULL	RESTRICT
+F	crash_reports	user_id	users	id	SET NULL	RESTRICT
+F	dynamic_playlists	user_id	users	id	CASCADE	RESTRICT
+F	label_external_ids	label_id	library_labels	id	CASCADE	RESTRICT
+F	library_artist_aliases	artist_id	library_artists	id	CASCADE	RESTRICT
+F	library_labels	parent_label_id	library_labels	id	SET NULL	RESTRICT
+F	library_media_files	track_id	library_tracks	id	SET NULL	RESTRICT
+F	library_track_artists	artist_id	library_artists	id	CASCADE	RESTRICT
+F	library_track_artists	track_id	library_tracks	id	CASCADE	RESTRICT
+F	library_track_audio_features	internal_track_id	library_tracks	id	SET NULL	RESTRICT
+F	library_track_channels	channel_id	channels	id	CASCADE	RESTRICT
+F	library_track_channels	track_id	library_tracks	id	CASCADE	RESTRICT
+F	library_track_effective_bpm	track_id	library_tracks	id	CASCADE	RESTRICT
+F	library_track_genres	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	library_track_genres	track_id	library_tracks	id	CASCADE	RESTRICT
+F	library_track_labels	label_id	library_labels	id	CASCADE	RESTRICT
+F	library_track_labels	track_id	library_tracks	id	CASCADE	RESTRICT
+F	library_track_ml_labels	internal_track_id	library_tracks	id	SET NULL	RESTRICT
+F	role_permissions	permission_id	permissions	id	CASCADE	RESTRICT
+F	role_permissions	role_id	roles	id	CASCADE	RESTRICT
+F	rules_artist_genres	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_festival_aliases	festival_id	rules_festivals	id	CASCADE	RESTRICT
+F	rules_festival_editions	festival_id	rules_festivals	id	CASCADE	RESTRICT
+F	rules_genre_expansions	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_genre_expansions	target_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_genre_proposals	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_label_genres	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_podcast_aliases	podcast_id	rules_podcasts	id	CASCADE	RESTRICT
+F	scrobble_listens	track_id	library_tracks	id	CASCADE	RESTRICT
+F	user_app_settings	user_id	users	id	CASCADE	RESTRICT
+F	user_identities	user_id	users	id	CASCADE	RESTRICT
+F	user_listenbrainz_accounts	user_id	users	id	CASCADE	RESTRICT
+F	user_refresh_tokens	user_id	users	id	CASCADE	RESTRICT
+F	user_requests	created_user_id	users	id	SET NULL	RESTRICT
+F	user_requests	reviewed_by_user_id	users	id	SET NULL	RESTRICT
+I	artist_external_ids	PRIMARY	1	id	BTREE
+I	artist_external_ids	idx_artist_id	0	artist_id	BTREE
+I	artist_external_ids	idx_source_external_id	0	source,external_id	BTREE
+I	artist_external_ids	unique_artist_source_external	1	artist_id,source,external_id	BTREE
+I	artist_popular_tracks	PRIMARY	1	id	BTREE
+I	artist_popular_tracks	idx_popular_tracks_matched	0	matched_track_uid	BTREE
+I	artist_popular_tracks	uniq_popular_track	1	artist_key,source,external_track_id	BTREE
+I	artist_popularity_fetches	PRIMARY	1	artist_key,source	BTREE
+I	artist_popularity_fetches	idx_popularity_fetches_fetched_at	0	fetched_at	BTREE
+I	audit_events	PRIMARY	1	id	BTREE
+I	channel_link_proposals	PRIMARY	1	id	BTREE
+I	channel_link_proposals	idx_channel_link_status	0	status	BTREE
+I	channel_link_proposals	uq_channel_link	1	channel_id,kind,target_id	BTREE
+I	channels	PRIMARY	1	id	BTREE
+I	channels	idx_channel_artist	0	artist_id	BTREE
+I	channels	idx_channel_label	0	label_id	BTREE
+I	channels	uq_channel	1	platform,normalized_name	BTREE
+I	crash_reports	PRIMARY	1	id	BTREE
+I	crash_reports	user_id	0	user_id	BTREE
+I	downloads_account_checks	PRIMARY	1	source,account	BTREE
+I	downloads_rate_state	PRIMARY	1	source	BTREE
+I	downloads_settings	PRIMARY	1	source,setting_key	BTREE
+I	downloads_soundcloud_accounts	PRIMARY	1	name	BTREE
+I	downloads_soundcloud_archive	PRIMARY	1	id	BTREE
+I	downloads_soundcloud_archive	idx_filename	0	filename(255)	BTREE
+I	downloads_soundcloud_archive	unique_account_video	1	account,video_id	BTREE
+I	downloads_soundcloud_queue	PRIMARY	1	id	BTREE
+I	downloads_soundcloud_queue	url	1	url	BTREE
+I	downloads_soundcloud_unavailable	PRIMARY	1	account,track_id	BTREE
+I	downloads_youtube_accounts	PRIMARY	1	name,download_type	BTREE
+I	downloads_youtube_archive	PRIMARY	1	video_id,download_type	BTREE
+I	downloads_youtube_archive	idx_path	0	path	BTREE
+I	downloads_youtube_archive	uniq_video_id_download_type	1	video_id,download_type	BTREE
+I	downloads_youtube_queue	PRIMARY	1	id	BTREE
+I	downloads_youtube_queue	url	1	url	BTREE
+I	dynamic_playlists	PRIMARY	1	id	BTREE
+I	dynamic_playlists	uq_source_remote_id	1	source,remote_id	BTREE
+I	dynamic_playlists	user_id	0	user_id	BTREE
+I	events	PRIMARY	1	id	BTREE
+I	events	idx_created	0	created_at	BTREE
+I	events	idx_level_created	0	level,created_at	BTREE
+I	events	idx_source_created	0	source,created_at	BTREE
+I	feeds_profile_exclusions	PRIMARY	1	username,entity_type,entity_name	BTREE
+I	feeds_snapshot	PRIMARY	1	username,slug,feed_date	BTREE
+I	importer_conflicts	PRIMARY	1	pair_key	BTREE
+I	importer_conflicts	step	0	step	BTREE
+I	label_external_ids	PRIMARY	1	id	BTREE
+I	label_external_ids	uq_label_source	1	label_id,source	BTREE
+I	library_artist_aliases	PRIMARY	1	id	BTREE
+I	library_artist_aliases	artist_id	1	artist_id,alias	BTREE
+I	library_artist_images	PRIMARY	1	id	BTREE
+I	library_artist_images	idx_artist_id	0	artist_id	BTREE
+I	library_artist_images	idx_is_primary	0	is_primary	BTREE
+I	library_artist_images	idx_source	0	source	BTREE
+I	library_artist_images	unique_artist_source_id	1	artist_id,source,source_id	BTREE
+I	library_artists	PRIMARY	1	id	BTREE
+I	library_artists	idx_artists_normalized_name	0	normalized_name	BTREE
+I	library_artists	name	1	name	BTREE
+I	library_bpm_priors	PRIMARY	1	kind,prior_key	BTREE
+I	library_broken_song_artist_lookup	PRIMARY	1	id	BTREE
+I	library_broken_songs	PRIMARY	1	id	BTREE
+I	library_broken_songs	path	1	path	HASH
+I	library_ingestion_records	PRIMARY	1	id	BTREE
+I	library_ingestion_records	file_path_hash	1	file_path_hash	BTREE
+I	library_ingestion_records	idx_ingestion_recorded_at	0	recorded_at	BTREE
+I	library_labels	PRIMARY	1	id	BTREE
+I	library_labels	fk_labels_parent	0	parent_label_id	BTREE
+I	library_labels	name	1	name	BTREE
+I	library_media_files	PRIMARY	1	id	BTREE
+I	library_media_files	file_path_hash	1	file_path_hash	BTREE
+I	library_media_files	idx_media_file_path	0	file_path(255)	BTREE
+I	library_media_files	track_id	0	track_id	BTREE
+I	library_track_artists	PRIMARY	1	track_id,artist_id,role	BTREE
+I	library_track_artists	artist_id	0	artist_id	BTREE
+I	library_track_audio_features	PRIMARY	1	id	BTREE
+I	library_track_audio_features	idx_af_file_path	0	file_path(255)	BTREE
+I	library_track_audio_features	idx_af_internal_track_id	0	internal_track_id	BTREE
+I	library_track_audio_features	track_id	1	track_id	BTREE
+I	library_track_bpm	PRIMARY	1	track_uid	BTREE
+I	library_track_bpm	idx_track_bpm_bpm	0	bpm	BTREE
+I	library_track_bpm	idx_track_bpm_status	0	status,analyzed_at	BTREE
+I	library_track_bpm_manual	PRIMARY	1	track_uid	BTREE
+I	library_track_channels	PRIMARY	1	track_id,channel_id	BTREE
+I	library_track_channels	idx_track_channel_channel	0	channel_id	BTREE
+I	library_track_effective_bpm	PRIMARY	1	track_id	BTREE
+I	library_track_effective_bpm	idx_effective_bpm_bpm	0	bpm	BTREE
+I	library_track_genres	PRIMARY	1	track_id,genre_id	BTREE
+I	library_track_genres	idx_genre_id	0	genre_id	BTREE
+I	library_track_labels	PRIMARY	1	track_id,label_id	BTREE
+I	library_track_labels	idx_label_id	0	label_id	BTREE
+I	library_track_ml_labels	PRIMARY	1	id	BTREE
+I	library_track_ml_labels	fk_ml_labels_internal_track_id	0	internal_track_id	BTREE
+I	library_track_ml_labels	track_id	0	track_id	BTREE
+I	library_track_ml_predictions	PRIMARY	1	id	BTREE
+I	library_track_ml_predictions	track_id	0	track_id	BTREE
+I	library_tracks	PRIMARY	1	id	BTREE
+I	library_tracks	idx_created_at	0	created_at	BTREE
+I	library_tracks	idx_tracks_form	0	form	BTREE
+I	library_tracks	idx_tracks_normalized_base_title	0	normalized_base_title	BTREE
+I	library_tracks	idx_tracks_normalized_title	0	normalized_title	BTREE
+I	library_tracks	idx_tracks_primary_artist	0	primary_artist_id	BTREE
+I	library_tracks	idx_tracks_work_id	0	work_id	BTREE
+I	library_tracks	track_uid	1	track_uid	BTREE
+I	library_works	PRIMARY	1	id	BTREE
+I	library_works	idx_works_canonical_changed_at	0	canonical_changed_at	BTREE
+I	library_works	work_key	1	work_key	BTREE
+I	news_bulletins	PRIMARY	1	id	BTREE
+I	news_bulletins	idx_source_started	0	source_id,started_at	BTREE
+I	news_sources	PRIMARY	1	id	BTREE
+I	news_sources	slug	1	slug	BTREE
+I	permissions	PRIMARY	1	id	BTREE
+I	permissions	name	1	name	BTREE
+I	radio_channels	PRIMARY	1	id	BTREE
+I	radio_channels	slug	1	slug	BTREE
+I	radio_timeline	PRIMARY	1	id	BTREE
+I	radio_timeline	idx_channel_ends	0	channel_id,ends_at	BTREE
+I	radio_timeline	idx_channel_started	0	channel_id,started_at	BTREE
+I	rating_tracks	PRIMARY	1	id	BTREE
+I	rating_tracks	entity_type	1	entity_type,entity_id,username	BTREE
+I	release_store_lookups	PRIMARY	1	store,album_id	BTREE
+I	role_permissions	PRIMARY	1	role_id,permission_id	BTREE
+I	role_permissions	permission_id	0	permission_id	BTREE
+I	roles	PRIMARY	1	id	BTREE
+I	roles	name	1	name	BTREE
+I	rules_artist_evidence	PRIMARY	1	name	BTREE
+I	rules_artist_evidence	checked_at	0	checked_at	BTREE
+I	rules_artist_evidence	run_id	0	run_id	BTREE
+I	rules_artist_evidence	verdict	0	verdict	BTREE
+I	rules_artist_evidence_runs	PRIMARY	1	id	BTREE
+I	rules_artist_evidence_runs	started_at	0	started_at	BTREE
+I	rules_artist_genres	PRIMARY	1	id	BTREE
+I	rules_artist_genres	artist_name	1	artist_name,genre_id	BTREE
+I	rules_artist_genres	genre_id	0	genre_id	BTREE
+I	rules_artist_legacy_trust	PRIMARY	1	name	BTREE
+I	rules_artist_proposals	PRIMARY	1	name	BTREE
+I	rules_artist_proposals	kind	0	kind	BTREE
+I	rules_artists	PRIMARY	1	name	BTREE
+I	rules_artists	state	0	state	BTREE
+I	rules_catid_label	PRIMARY	1	catid	BTREE
+I	rules_catid_label	catid	1	catid	BTREE
+I	rules_festival_aliases	PRIMARY	1	festival_id,normalized_alias	BTREE
+I	rules_festival_aliases	idx_normalized_alias	0	normalized_alias	BTREE
+I	rules_festival_data	PRIMARY	1	festival,year	BTREE
+I	rules_festival_editions	PRIMARY	1	festival_id,year	BTREE
+I	rules_festivals	PRIMARY	1	id	BTREE
+I	rules_festivals	normalized_name	1	normalized_name	BTREE
+I	rules_genre_backlog	PRIMARY	1	id	BTREE
+I	rules_genre_backlog	genre	1	genre	BTREE
+I	rules_genre_expansions	PRIMARY	1	genre_id,target_id	BTREE
+I	rules_genre_expansions	idx_rules_genre_expansions_target	0	target_id	BTREE
+I	rules_genre_proposals	PRIMARY	1	genre_id	BTREE
+I	rules_genre_proposals	kind	0	kind	BTREE
+I	rules_genres	PRIMARY	1	id	BTREE
+I	rules_genres	idx_rules_genres_state	0	state	BTREE
+I	rules_genres	uq_rules_genres_normalized_name	1	normalized_name	BTREE
+I	rules_genres_new	PRIMARY	1	id	BTREE
+I	rules_genres_new	name	1	name	BTREE
+I	rules_genres_old	genre	1	genre	BTREE
+I	rules_ignored_artists	PRIMARY	1	id	BTREE
+I	rules_ignored_artists	idx_ignored_name	1	name	BTREE
+I	rules_ignored_genres	PRIMARY	1	name	BTREE
+I	rules_label_genres	PRIMARY	1	id	BTREE
+I	rules_label_genres	genre_id	0	genre_id	BTREE
+I	rules_label_genres	label_name	1	label_name,genre_id	BTREE
+I	rules_label_name_choices	PRIMARY	1	nfo_label_key	BTREE
+I	rules_label_proposals	PRIMARY	1	id	BTREE
+I	rules_label_proposals	catid	0	catid	BTREE
+I	rules_label_proposals	folder	1	folder	BTREE
+I	rules_label_proposals	status	0	status	BTREE
+I	rules_podcast_aliases	PRIMARY	1	id	BTREE
+I	rules_podcast_aliases	normalized_alias	1	normalized_alias	BTREE
+I	rules_podcast_aliases	podcast_id	0	podcast_id	BTREE
+I	rules_podcasts	PRIMARY	1	id	BTREE
+I	rules_podcasts	normalized_name	1	normalized_name	BTREE
+I	rules_podcasts	state	0	state	BTREE
+I	rules_scene_group_date_format	PRIMARY	1	scene_group	BTREE
+I	rules_subgenre_hierarchy	PRIMARY	1	subgenre,genre	BTREE
+I	schema_migrations	PRIMARY	1	filename	BTREE
+I	scrobble_imports	PRIMARY	1	id	BTREE
+I	scrobble_listens	PRIMARY	1	id	BTREE
+I	scrobble_listens	idx_listens_listened_at	0	listened_at	BTREE
+I	scrobble_listens	idx_listens_match_method	0	match_method	BTREE
+I	scrobble_listens	idx_listens_track_user	0	track_id,username	BTREE
+I	scrobble_listens	track_id	0	track_id	BTREE
+I	scrobble_listens	username	1	username,listened_at,track_id	BTREE
+I	scrobble_unmatched_listens	PRIMARY	1	id	BTREE
+I	scrobble_unmatched_listens	idx_unmatched_listened_at	0	listened_at	BTREE
+I	scrobble_unmatched_listens	idx_unmatched_retry	0	last_attempt_at,attempts	BTREE
+I	scrobble_unmatched_listens	username	1	username,listened_at,artist_name,track_title	HASH
+I	tagger_processed_files	PRIMARY	1	filepath	BTREE
+I	tagger_processed_files	idx_tagger_processed_files_pending	0	needs_rescan,filepath	BTREE
+I	user_app_settings	PRIMARY	1	id	BTREE
+I	user_app_settings	user_id	1	user_id,app_id	BTREE
+I	user_identities	PRIMARY	1	id	BTREE
+I	user_identities	uq_provider_subject	1	provider,provider_subject	BTREE
+I	user_identities	user_id	0	user_id	BTREE
+I	user_listenbrainz_accounts	PRIMARY	1	id	BTREE
+I	user_listenbrainz_accounts	user_id	1	user_id	BTREE
+I	user_refresh_tokens	PRIMARY	1	id	BTREE
+I	user_refresh_tokens	token	1	token	BTREE
+I	user_refresh_tokens	user_id	0	user_id	BTREE
+I	user_requests	PRIMARY	1	id	BTREE
+I	user_requests	created_user_id	0	created_user_id	BTREE
+I	user_requests	google_subject	1	google_subject	BTREE
+I	user_requests	reviewed_by_user_id	0	reviewed_by_user_id	BTREE
+I	users	PRIMARY	1	id	BTREE
+I	users	username	1	username	BTREE
+K	events	context	json_valid(`context`)
+K	library_track_ml_predictions	predictions_json	json_valid(`predictions_json`)
+K	scrobble_unmatched_listens	data	json_valid(`data`)
+T	artist_external_ids	InnoDB	utf8mb4_general_ci
+T	artist_popular_tracks	InnoDB	utf8mb4_general_ci
+T	artist_popularity_fetches	InnoDB	utf8mb4_general_ci
+T	audit_events	InnoDB	utf8mb4_general_ci
+T	channel_link_proposals	InnoDB	utf8mb4_general_ci
+T	channels	InnoDB	utf8mb4_general_ci
+T	crash_reports	InnoDB	utf8mb4_general_ci
+T	downloads_account_checks	InnoDB	utf8mb4_general_ci
+T	downloads_rate_state	InnoDB	utf8mb4_general_ci
+T	downloads_settings	InnoDB	utf8mb4_general_ci
+T	downloads_soundcloud_accounts	InnoDB	utf8mb4_general_ci
+T	downloads_soundcloud_archive	InnoDB	utf8mb4_general_ci
+T	downloads_soundcloud_queue	InnoDB	utf8mb4_general_ci
+T	downloads_soundcloud_unavailable	InnoDB	utf8mb4_general_ci
+T	downloads_youtube_accounts	InnoDB	utf8mb4_general_ci
+T	downloads_youtube_archive	InnoDB	utf8mb4_general_ci
+T	downloads_youtube_queue	InnoDB	utf8mb4_general_ci
+T	dynamic_playlists	InnoDB	utf8mb4_general_ci
+T	events	InnoDB	utf8mb4_general_ci
+T	feeds_profile_exclusions	InnoDB	utf8mb4_general_ci
+T	feeds_snapshot	InnoDB	utf8mb4_general_ci
+T	importer_conflicts	InnoDB	utf8mb4_general_ci
+T	label_external_ids	InnoDB	utf8mb4_general_ci
+T	library_artist_aliases	InnoDB	utf8mb4_general_ci
+T	library_artist_images	InnoDB	utf8mb4_general_ci
+T	library_artists	InnoDB	utf8mb4_general_ci
+T	library_bpm_priors	InnoDB	utf8mb4_general_ci
+T	library_broken_song_artist_lookup	InnoDB	utf8mb4_general_ci
+T	library_broken_songs	InnoDB	utf8mb4_unicode_ci
+T	library_ingestion_records	InnoDB	utf8mb4_general_ci
+T	library_labels	InnoDB	utf8mb4_general_ci
+T	library_media_files	InnoDB	utf8mb4_general_ci
+T	library_track_artists	InnoDB	utf8mb4_general_ci
+T	library_track_audio_features	InnoDB	utf8mb4_general_ci
+T	library_track_bpm	InnoDB	utf8mb4_general_ci
+T	library_track_bpm_manual	InnoDB	utf8mb4_general_ci
+T	library_track_channels	InnoDB	utf8mb4_general_ci
+T	library_track_effective_bpm	InnoDB	utf8mb4_general_ci
+T	library_track_genres	InnoDB	utf8mb4_general_ci
+T	library_track_labels	InnoDB	utf8mb4_general_ci
+T	library_track_ml_labels	InnoDB	utf8mb4_general_ci
+T	library_track_ml_predictions	InnoDB	utf8mb4_general_ci
+T	library_tracks	InnoDB	utf8mb4_general_ci
+T	library_works	InnoDB	utf8mb4_general_ci
+T	news_bulletins	InnoDB	utf8mb4_general_ci
+T	news_sources	InnoDB	utf8mb4_general_ci
+T	permissions	InnoDB	utf8mb4_general_ci
+T	radio_channels	InnoDB	utf8mb4_general_ci
+T	radio_timeline	InnoDB	utf8mb4_general_ci
+T	rating_tracks	InnoDB	utf8mb4_general_ci
+T	release_store_lookups	InnoDB	utf8mb4_general_ci
+T	role_permissions	InnoDB	utf8mb4_general_ci
+T	roles	InnoDB	utf8mb4_general_ci
+T	rules_artist_evidence	InnoDB	utf8mb4_general_ci
+T	rules_artist_evidence_runs	InnoDB	utf8mb4_general_ci
+T	rules_artist_genres	InnoDB	utf8mb4_general_ci
+T	rules_artist_legacy_trust	InnoDB	utf8mb4_general_ci
+T	rules_artist_proposals	InnoDB	utf8mb4_general_ci
+T	rules_artists	InnoDB	utf8mb4_general_ci
+T	rules_catid_label	InnoDB	utf8mb4_general_ci
+T	rules_festival_aliases	InnoDB	utf8mb4_general_ci
+T	rules_festival_data	InnoDB	utf8mb4_general_ci
+T	rules_festival_editions	InnoDB	utf8mb4_general_ci
+T	rules_festivals	InnoDB	utf8mb4_general_ci
+T	rules_genre_backlog	InnoDB	utf8mb4_general_ci
+T	rules_genre_expansions	InnoDB	utf8mb4_general_ci
+T	rules_genre_proposals	InnoDB	utf8mb4_general_ci
+T	rules_genres	InnoDB	utf8mb4_general_ci
+T	rules_genres_new	InnoDB	utf8mb4_general_ci
+T	rules_genres_old	InnoDB	utf8mb4_general_ci
+T	rules_ignored_artists	InnoDB	utf8mb4_general_ci
+T	rules_ignored_genres	InnoDB	utf8mb4_general_ci
+T	rules_label_genres	InnoDB	utf8mb4_general_ci
+T	rules_label_name_choices	InnoDB	utf8mb4_general_ci
+T	rules_label_proposals	InnoDB	utf8mb4_general_ci
+T	rules_podcast_aliases	InnoDB	utf8mb4_general_ci
+T	rules_podcasts	InnoDB	utf8mb4_general_ci
+T	rules_scene_group_date_format	InnoDB	utf8mb4_general_ci
+T	rules_subgenre_hierarchy	InnoDB	utf8mb4_general_ci
+T	schema_migrations	InnoDB	utf8mb4_general_ci
+T	scrobble_imports	InnoDB	utf8mb4_general_ci
+T	scrobble_listens	InnoDB	utf8mb4_general_ci
+T	scrobble_unmatched_listens	InnoDB	utf8mb4_general_ci
+T	tagger_processed_files	InnoDB	utf8mb4_general_ci
+T	user_app_settings	InnoDB	utf8mb4_general_ci
+T	user_identities	InnoDB	utf8mb4_general_ci
+T	user_listenbrainz_accounts	InnoDB	utf8mb4_general_ci
+T	user_refresh_tokens	InnoDB	utf8mb4_general_ci
+T	user_requests	InnoDB	utf8mb4_general_ci
+T	users	InnoDB	utf8mb4_general_ci
+V	rules_artist_genre
+V	rules_label_genre

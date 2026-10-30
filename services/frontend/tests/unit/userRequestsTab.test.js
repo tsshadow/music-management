@@ -5,8 +5,8 @@ import { userPermissions, mumaUser } from "../../src/lib/store.js";
 
 const PENDING = {
   id: 7,
-  display_name: "Teun",
-  email: "user@example.com",
+  display_name: "Demo-User",
+  email: "demo-user@example.org",
   avatar_url: null,
   status: "pending",
   requested_at: "2026-01-01T01:00:00Z",
@@ -29,7 +29,7 @@ function props(overrides = {}) {
     getHeaders: (extra = {}) => ({ "x-api-key": "key", ...extra }),
     onMessage: vi.fn(),
     onError: vi.fn(),
-    users: [{ id: 5, username: "user", display_name: "Teun S" }],
+    users: [{ id: 5, username: "demo-user", display_name: "Demo S" }],
     ...overrides,
   };
 }
@@ -44,7 +44,7 @@ function mockApi({ requests = [PENDING], actionOk = true, detail = "Niet toegest
 
 async function renderLoaded(overrides = {}) {
   const rendered = render(UserRequestsTab, props(overrides));
-  await waitFor(() => expect(screen.getByText("Teun")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Demo-User")).toBeTruthy());
   return rendered;
 }
 
@@ -70,7 +70,7 @@ describe("UserRequestsTab", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith("http://muma/api/user-requests?status=pending", {
       headers: { "x-api-key": "key" },
     });
-    expect(screen.getByText("user@example.com")).toBeTruthy();
+    expect(screen.getByText("demo-user@example.org")).toBeTruthy();
   });
 
   it("says so when there is nothing waiting", async () => {
@@ -121,7 +121,7 @@ describe("UserRequestsTab", () => {
   it("shows who reviewed a request once it is no longer pending", async () => {
     globalThis.fetch = mockApi({ requests: [APPROVED] });
     render(UserRequestsTab, props());
-    await waitFor(() => expect(screen.getByText("Teun")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Demo-User")).toBeTruthy());
 
     await fireEvent.click(screen.getByText("Goedgekeurd"));
 
@@ -145,7 +145,9 @@ describe("UserRequestsTab", () => {
 
     await fireEvent.click(screen.getByText("Bevestig goedkeuring"));
 
-    await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Verzoek van Teun goedgekeurd!"));
+    await waitFor(() =>
+      expect(onMessage).toHaveBeenCalledWith("Verzoek van Demo-User goedgekeurd!"),
+    );
     const [url, options] = globalThis.fetch.mock.calls.find(([, o]) => o?.method === "POST");
     expect(url).toBe("http://muma/api/user-requests/7/approve");
     expect(JSON.parse(options.body)).toEqual({ link_user_id: null, display_name: null });
@@ -160,7 +162,9 @@ describe("UserRequestsTab", () => {
     await fireEvent.click(screen.getByText("Bevestig goedkeuring"));
 
     await waitFor(() =>
-      expect(onMessage).toHaveBeenCalledWith("Verzoek van Teun gekoppeld aan bestaand account!"),
+      expect(onMessage).toHaveBeenCalledWith(
+        "Verzoek van Demo-User gekoppeld aan bestaand account!",
+      ),
     );
     const [, options] = globalThis.fetch.mock.calls.find(([, o]) => o?.method === "POST");
     expect(JSON.parse(options.body).link_user_id).toBe(5);
@@ -170,12 +174,12 @@ describe("UserRequestsTab", () => {
     await renderLoaded();
     await fireEvent.click(screen.getByText("Goedkeuren"));
 
-    await fireEvent.input(screen.getByLabelText(/Weergavenaam/i), { target: { value: "Teun S" } });
+    await fireEvent.input(screen.getByLabelText(/Weergavenaam/i), { target: { value: "Demo S" } });
     await fireEvent.click(screen.getByText("Bevestig goedkeuring"));
 
     await waitFor(() => {
       const [, options] = globalThis.fetch.mock.calls.find(([, o]) => o?.method === "POST");
-      expect(JSON.parse(options.body).display_name).toBe("Teun S");
+      expect(JSON.parse(options.body).display_name).toBe("Demo S");
     });
   });
 
@@ -197,7 +201,7 @@ describe("UserRequestsTab", () => {
     await fireEvent.click(screen.getByText("Afwijzen"));
     await fireEvent.click(screen.getByText("Bevestig afwijzing"));
 
-    await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Verzoek van Teun afgewezen."));
+    await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Verzoek van Demo-User afgewezen."));
     const [url] = globalThis.fetch.mock.calls.find(([, o]) => o?.method === "POST");
     expect(url).toBe("http://muma/api/user-requests/7/reject");
   });
@@ -206,7 +210,7 @@ describe("UserRequestsTab", () => {
     globalThis.fetch = mockApi({ requests: [APPROVED] });
     const onMessage = vi.fn();
     render(UserRequestsTab, props({ onMessage }));
-    await waitFor(() => expect(screen.getByText("Teun")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Demo-User")).toBeTruthy());
     await fireEvent.click(screen.getByText("Goedgekeurd"));
 
     await waitFor(() => expect(screen.getByText("Ongedaan maken")).toBeTruthy());
@@ -214,7 +218,7 @@ describe("UserRequestsTab", () => {
     await fireEvent.click(screen.getByText("Bevestig ongedaan maken"));
 
     await waitFor(() =>
-      expect(onMessage).toHaveBeenCalledWith("Goedkeuring van Teun ongedaan gemaakt."),
+      expect(onMessage).toHaveBeenCalledWith("Goedkeuring van Demo-User ongedaan gemaakt."),
     );
   });
 

@@ -12,7 +12,7 @@ import {
 describe("recentPlaces", () => {
   beforeEach(() => {
     localStorage.clear();
-    credentials.set({ url: "https://muma.test", username: "user", password: "pw" });
+    credentials.set({ url: "https://muma.test", username: "demo-user", password: "pw" });
   });
 
   afterEach(() => {
@@ -77,7 +77,7 @@ describe("recentPlaces", () => {
     expect(get(recentPlaces).map((p) => p.view)).toEqual(["genre:Trance"]);
 
     // Switching back to the first account restores that account's own list, not sanne's.
-    credentials.set({ url: "https://muma.test", username: "user", password: "pw" });
+    credentials.set({ url: "https://muma.test", username: "demo-user", password: "pw" });
     expect(get(recentPlaces).map((p) => p.view)).toEqual(["genre:Hardcore"]);
   });
 

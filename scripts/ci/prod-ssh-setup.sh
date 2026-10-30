@@ -20,18 +20,25 @@
 # defence. A caller that needs an EXIT trap of its own must call
 # prod_ssh_teardown from it, since a second `trap ... EXIT` replaces this one.
 #
-# Required CI/CD variable:
-#   - SSH_PRIVATE_KEY: private key (file type) authorized on the production
-#                      host (see docs/deployment.md).
+# Required CI/CD variables:
+#   - SSH_PRIVATE_KEY:  private key (file type) authorized on the production
+#                       host (see docs/self-hosting.md).
+#   - PROD_REMOTE_HOST: host name or address of the production host. There is
+#                       no default: a missing value stops the job here.
+# Optional: PROD_REMOTE_USER (default root).
 
 # Target configuration for Production.
-export REMOTE_HOST="${PROD_REMOTE_HOST:-192.0.2.27}"
+if [ -z "${PROD_REMOTE_HOST:-}" ]; then
+    echo "Error: PROD_REMOTE_HOST CI/CD variable is not set. See docs/self-hosting.md." >&2
+    exit 1
+fi
+export REMOTE_HOST="${PROD_REMOTE_HOST}"
 export REMOTE_USER="${PROD_REMOTE_USER:-root}"
 
 echo "--- Setting up SSH access to $REMOTE_HOST ---"
 
 if [ -z "${SSH_PRIVATE_KEY}" ]; then
-    echo "Error: SSH_PRIVATE_KEY CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: SSH_PRIVATE_KEY CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 
@@ -69,13 +76,14 @@ ssh-add -t "$PROD_SSH_KEY_LIFETIME" "$KEY_FILE"
 rm -f "$KEY_FILE"
 KEY_FILE=""
 
-# Host key: pinned in scripts/ssh/known_hosts, not learned from ssh-keyscan.
+# Host key: pinned in the PROD_SSH_KNOWN_HOSTS file variable, not learned from ssh-keyscan.
 # This used to append whatever answered on $REMOTE_HOST to the shared runner's
 # known_hosts and then connect with StrictHostKeyChecking=no anyway, which
 # accepts any key at all. PROD_SSH_OPTS is what every caller passes to ssh/scp.
 # shellcheck source=scripts/lib/ssh_host_keys.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"
-mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+# In a pipeline this stops when the pinned file is missing, empty or does not list the host.
+ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 
 # Ensure SSH is working.
 if ! ssh_error="$(ssh "${PROD_SSH_OPTS[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "docker version" 2>&1 >/dev/null)"; then

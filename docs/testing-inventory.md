@@ -29,7 +29,7 @@
     `scripts/test/music-management-unit.sh`
 - Lint: `.pylintrc` (root), disables e.g. `missing-docstring`, `import-error`; `scripts/lint.sh` re-enables the function and class docstring checks for the strictly type-checked modules and fails on any finding there. `tools/pylint_plugins/muma_test_layout.py` (loaded by `.pylintrc`) turns off `wrong-import-position`, `import-outside-toplevel` and `redefined-outer-name` in test files only
 - Env vars: `DB_HOST/PORT/USER/PASS/DB`, `API_KEY`, `AUTH_SERVICE_URL`, `MUMA_SERVER_HOSTS`, `MUMA_SERVER_SUBSONIC_API_KEY`, `NOTIFY_URL`, `STORAGE_PATH`, `PYTHONPATH`
-- Migrations: no ORM migration tool found (root `migrate_v2.sql`, `migrate_v3.sql` — manual SQL scripts)
+- Schema: declared in `services/common/schema_tables.py`; each deploy runs `services/common/schema_reconcile.py`, which adds what is missing
 - External dependencies: MariaDB, music-management-server (Subsonic API), ntfy.sh, Spotify/Last.fm (artist images)
 - Dockerfile: `docker/Dockerfile.music-manager`; compose: `docker/docker-compose.yml` (service `music-manager`)
 - Test output: `report-python.xml` (JUnit) and `coverage-python.xml` (Cobertura), written by `scripts/test/music-management-unit.sh`; coverage configured in `[tool.coverage.run]` in `pyproject.toml`
@@ -155,15 +155,16 @@
 - Runs every endpoint's SQL against a throwaway MariaDB: `./scripts/test/db-integration.sh`.
 - Lives outside `services/` on purpose, and asks for no `mock_base` stub, so the real `pymysql`
   is used -- which is the entire point, since the unit tests under `services/` mock the cursor.
-- Builds the schema the way a deployment does: `services/common/db_init.py`, then every
-  router's `init_db()`, then every `migrate_*.sql`. The migrations are applied twice, so one
-  that is not re-runnable fails here rather than on deploy.
-- `test_schema_drift.py` also builds the schema twice from an empty database, in databases of
-  its own -- once as a fresh stack does (`db_init.py` plus every `init_db` `main.py`'s startup
-  calls), once as a deploy does (`db_init.py` plus every migration, twice) -- and fails on any
-  column (type, nullability, default, extra, collation) or index (name, columns, uniqueness) that
-  differs. The expected-table set in `test_schema.py` is read from the `CREATE TABLE` statements
-  (`tests/integration/schema_sources.py`), not kept by hand. Bug report 047.
+- Builds the schema the way a new stack does: `db_init.ensure_tables_exist()` (the tables and
+  views in `services/common/schema_tables.py`, then the seed rows), then every `init_db` that
+  `main.py`'s startup calls.
+- `test_schema_snapshot.py` compares that database, column by column (type, nullability,
+  default, extra, collation), index by index and foreign key by foreign key, with production's
+  schema in `tests/integration/schema/production.tsv`. Each listed difference has a reason, and a
+  listed difference that is gone fails the test too. Bug report 047.
+- `test_schema_reconcile.py` takes parts away from a fresh database and checks that the deploy's
+  reconcile puts back only those, and reports the rest. `test_schema_cleanup.py` runs
+  `tools/schema_cleanup_2026_11.py` against a database with production's leftovers.
 - Runs `mariadb:13.0`, what production and `docker/compose.test.yml` run;
   `MARIADB_VERSION=10.6 ./scripts/test/db-integration.sh` for the old server, which is the only one
   that reproduces bug report 039's implicit `ON UPDATE`.

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import uvicorn
 from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from services.common.config_store import ConfigStore
 from services.common.db_init import ensure_tables_exist
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
@@ -134,19 +136,10 @@ def startup_event():
     if conn:
         try:
             with conn.cursor() as cursor:
-                users.init_db(cursor)  # also seeds RBAC roles/permissions, see rbac.init_db
-                scrobbler.init_db(cursor)
-                rating.init_db(cursor)
-                management.init_db(cursor)
-                artist_images.init_db(cursor)
-                user_requests.init_db(cursor)
+                # The tables come from ensure_tables_exist(); these seed the rows they need.
+                users.init_db(cursor)  # roles and permissions, see rbac.init_db
                 radio.init_db(cursor)
                 news.init_db(cursor)
-                downloaders.init_db(cursor)
-                diagnostics.init_db(cursor)
-                events.init_db(cursor)
-                feeds.init_db(cursor)
-                feeds_snapshot.init_db(cursor)
                 # Idempotent: only ever fills a genre whose hardness is still NULL, so a
                 # curator's own edit from the genre edit page is never overwritten. Cheap
                 # on every later restart -- almost every row already has a value after
@@ -214,6 +207,25 @@ async def database_busy_handler(_request: Request, exc: RuntimeError):
     return JSONResponse(status_code=503, content={'detail': str(exc)}, headers={'Retry-After': '5'})
 
 
+def _public_source_url() -> str:
+    """The `public_source_url` setting if it is a plain http(s) address, else an empty string.
+
+    /health is unauthenticated and the About and login screens turn this value into a link, so
+    it is checked here instead of in every client: the scheme must be http or https (any case),
+    there must be a host, and no user info (`https://a@evil.example` hides the real host).
+    """
+    try:
+        url = str(ConfigStore().get('public_source_url') or '').strip()
+        parts = urlsplit(url)
+        if parts.scheme.lower() not in ('http', 'https') or not parts.hostname:
+            return ''
+        if parts.username is not None or parts.password is not None:
+            return ''
+    except Exception:  # pylint: disable=broad-except  # /health must always answer
+        return ''
+    return url
+
+
 @app.get('/health')
 def health(response: Response):
     """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
@@ -249,6 +261,7 @@ def health(response: Response):
         'status': 'ok' if healthy else 'degraded',
         'service': 'music-manager',
         'version': get_version(),
+        'source_url': _public_source_url(),
         'database': database,
         'threads': threads,
         'heartbeats': heartbeats,

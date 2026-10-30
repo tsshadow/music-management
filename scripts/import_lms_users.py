@@ -1,9 +1,13 @@
 import os
+import sys
 import shlex
 import subprocess
 import pymysql
 import sqlite3
 from dotenv import load_dotenv
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from tools.env_required import require_env  # noqa: E402
 
 load_dotenv()
 
@@ -46,7 +50,7 @@ def fetch_lms_users_local(db_path):
         return []
 
 def fetch_lms_users_ssh():
-    remote_host = os.getenv('REMOTE_HOST', '192.0.2.27')
+    remote_host = require_env('REMOTE_HOST')['REMOTE_HOST']
     remote_user = os.getenv('REMOTE_USER', 'root')
     # No default: this used to fall back to the deployment's real root password,
     # committed in plain text. With REMOTE_PASS unset the script uses whatever

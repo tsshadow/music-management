@@ -248,80 +248,16 @@ class MergeUsersTest(unittest.TestCase):
 
 
 class InitDbTest(unittest.TestCase):
-    """init_db has to survive both a fresh database and every intermediate schema
-    the users table has had, so the branches are driven by what SHOW COLUMNS returns."""
+    """init_db only seeds: the tables come from services/common/schema_tables.py."""
 
-    def run_init(self, present_columns):
-        cursor = ScriptedCursor(
-            [
-                (f"SHOW COLUMNS FROM {table} LIKE '{column}'", None, {'Field': column})
-                for table, column in present_columns
-            ]
-        )
+    def test_it_seeds_the_roles_and_touches_no_schema(self):
+        cursor = ScriptedCursor()
         with patch.object(users_router.rbac, 'init_db') as rbac_init:
             users_router.init_db(cursor)
-        return cursor, rbac_init
 
-    def test_a_fresh_database_gets_every_column_added(self):
-        cursor, rbac_init = self.run_init([])
-
-        added = ' '.join(sql for sql, _params in cursor.statements_matching('ALTER TABLE'))
-        self.assertIn('ADD COLUMN server_user_id', added)
-        self.assertIn('ADD COLUMN is_admin', added)
-        self.assertIn('ADD COLUMN password_hash', added)
-        self.assertIn('ADD COLUMN api_key', added)
-        self.assertIn('ADD COLUMN remote_id', added)
-        self.assertIn('ADD COLUMN source', added)
         rbac_init.assert_called_once_with(cursor)
-
-    def test_a_legacy_lms_user_id_column_is_renamed_rather_than_added(self):
-        cursor, _rbac_init = self.run_init([('users', 'lms_user_id')])
-
-        renamed = cursor.statements_matching('CHANGE lms_user_id server_user_id')
-        self.assertEqual(len(renamed), 1)
-        self.assertEqual(cursor.statements_matching('ADD COLUMN server_user_id'), [])
-
-    def test_an_up_to_date_schema_is_left_alone(self):
-        columns = [
-            ('users', 'server_user_id'),
-            ('users', 'is_admin'),
-            ('users', 'password_hash'),
-            ('users', 'api_key'),
-            ('dynamic_playlists', 'remote_id'),
-            ('dynamic_playlists', 'source'),
-        ]
-
-        cursor, _rbac_init = self.run_init(columns)
-
-        self.assertEqual(cursor.statements_matching('ADD COLUMN'), [])
-
-    def test_a_duplicate_column_race_is_tolerated(self):
-        cursor = ScriptedCursor()
-        original_execute = cursor.execute
-
-        def execute(sql, params=None):
-            original_execute(sql, params)
-            if 'ADD COLUMN is_admin' in sql:
-                raise RuntimeError('Duplicate column name: is_admin')
-
-        cursor.execute = execute
-        with patch.object(users_router.rbac, 'init_db'):
-            users_router.init_db(cursor)
-
-        self.assertTrue(cursor.statements_matching('ADD COLUMN api_key'))
-
-    def test_any_other_alter_failure_is_raised(self):
-        cursor = ScriptedCursor()
-        original_execute = cursor.execute
-
-        def execute(sql, params=None):
-            original_execute(sql, params)
-            if 'ADD COLUMN password_hash' in sql:
-                raise RuntimeError('disk full')
-
-        cursor.execute = execute
-        with patch.object(users_router.rbac, 'init_db'), self.assertRaises(RuntimeError):
-            users_router.init_db(cursor)
+        self.assertEqual(cursor.statements_matching('ALTER TABLE'), [])
+        self.assertEqual(cursor.statements_matching('CREATE TABLE'), [])
 
 
 def make_lms_db(path):

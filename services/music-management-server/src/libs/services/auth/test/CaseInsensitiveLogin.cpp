@@ -19,7 +19,7 @@ namespace lms::auth::tests
 {
     namespace
     {
-        // A backend that accepts every password, the way music-manager accepts "Teun" for the
+        // A backend that accepts every password, the way music-manager accepts "User" for the
         // account "user": its users table compares login names case-insensitively. What is under
         // test is what LMS does with the name afterwards, not the password check itself.
         class AcceptingPasswordService final : public PasswordServiceBase
@@ -42,8 +42,8 @@ namespace lms::auth::tests
     {
     };
 
-    // A login typed as "Teun" for the account "user" used to make LMS create a second, empty user
-    // named "Teun": music-manager said yes, and getOrCreateUser() looked the typed name up exactly.
+    // A login typed as "User" for the account "user" used to make LMS create a second, empty user
+    // named "User": music-manager said yes, and getOrCreateUser() looked the typed name up exactly.
     // Every listen, rating and star from that session then belonged to the fork, and the listens
     // were relayed to music-manager under the fork's spelling
     // (docs/bug-reports/074-login-case-forks-user-identity.md).
@@ -54,7 +54,7 @@ namespace lms::auth::tests
         AcceptingPasswordService service{ session.getDb() };
         IPasswordService& passwordService{ service };
 
-        const auto result{ passwordService.checkUserPassword(boost::asio::ip::make_address("192.0.2.1"), "Teun", "secret") };
+        const auto result{ passwordService.checkUserPassword(boost::asio::ip::make_address("192.0.2.1"), "User", "secret") };
 
         ASSERT_EQ(result.state, IPasswordService::CheckResult::State::Granted);
         EXPECT_EQ(result.userId, existing.getId());
@@ -73,7 +73,7 @@ namespace lms::auth::tests
         // (migrateFromV123 skips it while a fork exists) is what this covers.
         db::tests::ScopedNoLoginNameUniqueIndex noUniqueIndex{ session };
         db::tests::ScopedUser canonical{ session, "user" };
-        db::tests::ScopedUser fork{ session, "Teun" };
+        db::tests::ScopedUser fork{ session, "User" };
         {
             auto transaction{ session.createWriteTransaction() };
             canonical.get().modify()->setMumaId(1);
@@ -82,7 +82,7 @@ namespace lms::auth::tests
         AcceptingPasswordService service{ session.getDb() };
         IPasswordService& passwordService{ service };
 
-        const auto result{ passwordService.checkUserPassword(boost::asio::ip::make_address("192.0.2.1"), "Teun", "secret") };
+        const auto result{ passwordService.checkUserPassword(boost::asio::ip::make_address("192.0.2.1"), "User", "secret") };
 
         ASSERT_EQ(result.state, IPasswordService::CheckResult::State::Granted);
         EXPECT_EQ(result.userId, canonical.getId());

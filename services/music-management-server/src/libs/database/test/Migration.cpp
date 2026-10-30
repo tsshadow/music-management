@@ -446,7 +446,7 @@ VALUES
             auto transaction{ session.createWriteTransaction() };
             session.execute("DROP INDEX IF EXISTS user_login_name_nocase_unique_idx");
             session.create<User>("user");
-            session.create<User>("Teun");
+            session.create<User>("User");
             session.create<User>("other");
             session.execute("UPDATE version_info SET db_version = 123");
         }
@@ -464,13 +464,13 @@ VALUES
         EXPECT_EQ(loginNameIndexCount(), 0);
         {
             auto transaction{ session.createWriteTransaction() };
-            session.execute("DELETE FROM user WHERE login_name = 'Teun'");
+            session.execute("DELETE FROM user WHERE login_name = 'User'");
         }
         db.getTLSSession().createIndexesIfNeeded();
         EXPECT_EQ(loginNameIndexCount(), 1);
         {
             auto transaction{ session.createWriteTransaction() };
-            EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'TEUN' WHERE login_name = 'other'"));
+            EXPECT_ANY_THROW(session.execute("UPDATE user SET login_name = 'USER' WHERE login_name = 'other'"));
             session.execute("DELETE FROM user");
         }
 

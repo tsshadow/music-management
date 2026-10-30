@@ -13,7 +13,7 @@
 #
 # Tags are never created manually - only here, only on master, so "what's
 # live" can always be answered by looking at master's latest tags. See
-# docs/release-management.md for the full policy.
+# muma-ops docs/release-management.md for the full policy.
 # The token goes to curl through a process substitution (`--header @<(...)`), never as
 # `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
 # shell-executor runner through `ps` (GitLab #40, bug report 038).
@@ -24,7 +24,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 if [ -z "$TAG_CREATION_TOKEN" ]; then
-    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/deployment.md."
+    echo "Error: TAG_CREATION_TOKEN CI/CD variable is not set. See docs/self-hosting.md."
     exit 1
 fi
 

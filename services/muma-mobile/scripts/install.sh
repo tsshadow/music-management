@@ -83,18 +83,18 @@ SIGNING_KEY_PASSWORD=changeit
 # PORTAINER_WEBHOOK_URL=https://portainer.example.com/api/webhooks/...
 
 # Option 2: SSH-based deployment
-# REMOTE_HOST=192.0.2.27
+# REMOTE_HOST=192.0.2.10
 # REMOTE_USER=root
 # REMOTE_PASS=changeit
 # REMOTE_DIST_PATH=/var/www/html/muma-mobile
 
 # Default Server Configurations for APK pre-configuration
 # SERVER_1_NAME=LMS
-# SERVER_1_URL=https://lms.example.com
+# SERVER_1_URL=https://lms.example.org
 # SERVER_1_USER=guest
 # SERVER_1_PASS=your_uuid_here
 # SERVER_2_NAME=Spotify
-# SERVER_2_URL=https://music.example.com
+# SERVER_2_URL=https://music.example.org
 # SERVER_2_USER=guest
 # SERVER_2_PASS=your_uuid_here
 EOF

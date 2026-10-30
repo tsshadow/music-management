@@ -91,7 +91,7 @@ The year filter then reads, per the product goal:
 
 ### On the phone: Android Auto, voice and presets
 
-Issue [#47](https://gitlab.example.com/muma/music-management/-/issues/47). The native paths
+Issue #47. The native paths
 now ask the same question the web sets view asks.
 
 - **Android Auto**: the Sets tab gets a **Soort** row next to Podcasts and Festivals. The three forms
@@ -100,7 +100,7 @@ now ask the same question the web sets view asks.
   "podcasts" for podcasts. A bare "set" names no form: people say it of a festival recording as
   often as of a released mix, so it keeps meaning every long track. "Van Defqon" after a set word
   is read as the festival when no artist of that name exists.
-- **A podcast show by name** (issue [#88](https://gitlab.example.com/muma/music-management/-/issues/88)):
+- **A podcast show by name** (issue #88):
   "speel de podcast van KTRA af", "play the Monstercat podcast", "speel de laatste aflevering van
   Monstercat af" play that show's episodes, newest first. "Aflevering" / "episode" ask for the
   podcast form just as "podcast" does. The name is matched against the shows the library has
@@ -132,9 +132,9 @@ existing list, preset or spoken request changes its answer.
 ## Open Questions / Not Yet Decided
 
 - ~~Android Auto, voice and saved presets did not know the form~~ -- wired in issue
-  [#47](https://gitlab.example.com/muma/music-management/-/issues/47), see "On the phone" above.
+  #47, see "On the phone" above.
 - ~~A spoken **podcast name** was not matched against the `PODCAST` tag~~ -- done in issue
-  [#88](https://gitlab.example.com/muma/music-management/-/issues/88), see "On the phone" above.
+  #88, see "On the phone" above.
 - A show named without any podcast word ("speel KTRA af") is not tried as a show: that would cost
   every ordinary request an extra lookup, and a bare name keeps finding the track of that name.
 - The year picker lists the years the files carry. A year that exists only as a performance date

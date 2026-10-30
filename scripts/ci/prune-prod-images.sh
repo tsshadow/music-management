@@ -15,7 +15,7 @@
 #   - every image a container uses, running or stopped;
 #   - per repository, the PRUNE_KEEP_RELEASES (default 3) most recently built
 #     images no container uses: the previous releases the IMAGE_TAG rollback
-#     lever redeploys (docs/deployment.md#rollback);
+#     lever redeploys (docs/self-hosting.md#roll-back);
 #   - anything tagged :latest, :stable or :rc (the nightly db-backup runs
 #     muma-tools:latest with `run --rm`, so no container holds it in between).
 #
@@ -28,7 +28,7 @@
 # Called by ci-deploy.sh once post-deploy-verify.sh has passed -- never before:
 # until the new release is verified, the images it replaced are the way back.
 # Also safe to run by hand from a machine with the production ssh key:
-#   REMOTE_HOST=192.0.2.27 REMOTE_USER=root ./scripts/ci/prune-prod-images.sh
+#   REMOTE_HOST=prod.example.org REMOTE_USER=root ./scripts/ci/prune-prod-images.sh
 #
 # Knobs: PRUNE_KEEP_RELEASES=3, PRUNE_IMAGES=0 (skip entirely),
 #        PRUNE_DRY_RUN=1 (list what would go, remove nothing).
@@ -57,7 +57,7 @@ fi
 if [ "${#PROD_SSH_OPTS[@]}" -eq 0 ]; then
     # shellcheck source=scripts/lib/ssh_host_keys.sh
     . "$PROJECT_ROOT/scripts/lib/ssh_host_keys.sh"
-    mapfile -t PROD_SSH_OPTS < <(ssh_host_key_opts "$REMOTE_HOST")
+    ssh_host_key_opts_into PROD_SSH_OPTS "$REMOTE_HOST" || exit 1
 fi
 
 # remote CMD: run CMD on the production host, with this shell's stdin.

@@ -37,7 +37,12 @@ const STATS = {
   recently_added: [],
 };
 
-const USER = { id: 1, username: "user", display_name: "Teun", permissions: ["users.read"] };
+const USER = {
+  id: 1,
+  username: "demo-user",
+  display_name: "Demo-User",
+  permissions: ["users.read"],
+};
 
 /** Answers every endpoint Management loads on arrival. */
 function api({
@@ -94,11 +99,11 @@ function api({
 
 describe("Management", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user" });
+    credentials.set({ url: "", username: "demo-user" });
     mumaApiKey.set("key-1");
     // The screen is gated on being an administrator; without this it renders the
     // access-denied panel instead of any tab. The verify call overwrites both.
-    mumaUser.set({ id: 1, username: "user", is_admin: true });
+    mumaUser.set({ id: 1, username: "demo-user", is_admin: true });
     userPermissions.set(["users.read"]);
     activeManagementTab.set("overview");
     globalThis.fetch = api();

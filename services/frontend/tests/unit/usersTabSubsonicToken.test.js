@@ -44,8 +44,8 @@ function props(overrides = {}) {
 
 describe("UsersTab -- Subsonic API token", () => {
   beforeEach(() => {
-    credentials.set({ url: "", username: "user", password: "pw" });
-    subsonicToken.set({ username: "user", token: "test-subsonic-token" });
+    credentials.set({ url: "", username: "demo-user", password: "pw" });
+    subsonicToken.set({ username: "demo-user", token: "test-subsonic-token" });
     mumaUser.set({ id: 1, is_admin: true });
     userPermissions.set([]);
     globalThis.fetch = mockApi();
@@ -82,7 +82,7 @@ describe("UsersTab -- Subsonic API token", () => {
       expect(put).toBeTruthy();
       expect(put[0]).toContain("/api/admin/subsonic-token");
       expect(put[0]).toContain("username=lisa");
-      expect(put[0]).toContain("u=user");
+      expect(put[0]).toContain("u=demo-user");
       expect(JSON.parse(put[1].body).token).toMatch(/^[0-9a-f]{32}$/);
     });
   });

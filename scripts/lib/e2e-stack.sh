@@ -106,7 +106,7 @@ e2e_stack_up() {
         done
     done
 
-    e2e_stack_apply_migrations
+    e2e_stack_check_schema
 
     # The fixture lands on the shared volume, which music-manager's scanner walks
     # on demand (/api/scanner/scan/all, which the suite calls).
@@ -190,45 +190,32 @@ e2e_stack_tag_fixture() {
         >/dev/null
 }
 
-# scripts/deploy.sh applies every migrate_*.sql on each deploy, so production's
-# schema is db_init plus all of them. This stack was running db_init alone, and
-# the difference is not cosmetic: the migrations are what seed `rules_genres`,
-# and nothing in services/ ever inserts into it. Without them that table stays
-# empty, the scanner can map no tag onto a genre id, `library_track_genres` stays
-# empty too, and every track comes back genre-less -- so a whole feature area was
-# switched off in the only test that walks the real stack, in a way that looked
-# like the fixture simply having no tags.
+# scripts/deploy.sh runs the release's schema reconcile on each deploy
+# (services/common/schema_reconcile.py). It adds what the live database lacks and
+# reports every other difference. Here the services have already built their
+# tables and seed rows from schema_tables.py and db_seeds.py, so the reconcile
+# must find nothing to add and nothing to report: anything else means a fresh
+# stack and a deployed one would end in different schemas. The seed rows matter
+# to the suite: `rules_genres` is seeded, and without it the scanner maps no tag
+# onto a genre and every track comes back genre-less.
 #
-# Applied here rather than in compose so the order is the same as the deploy's:
-# the services have already created their tables by the time this runs.
-#
-# Through tools/apply_migrations.py and the real `mariadb` client, as
-# scripts/deploy.sh does, and twice: the first pass applies every file and fills
-# the schema_migrations ledger, the second must find all of them recorded and
-# apply nothing (bug report 068). A second pass that re-runs anything means the
-# ledger stopped working, and the deploy would be back to re-running every ALTER.
-e2e_stack_apply_migrations() {
-    echo "--- Applying migrate_*.sql, the way a deploy does ---"
-    local db_cid
-    db_cid=$($E2E_STACK_COMPOSE ps -q test-db)
-    # Credentials are docker/compose.test.yml's, for a database that exists for
-    # the length of one job and holds nothing but the fixture.
-    local client="docker exec -i $db_cid mariadb -uroot -ptest-root-password muma_test"
-    if ! python3 "$E2E_STACK_ROOT/tools/apply_migrations.py" --exec "$client" \
-            "$E2E_STACK_ROOT"/migrate_*.sql; then
-        echo "ERROR: applying the migrations failed"
+# Run in the music-manager container, the image a deploy runs it from, as root:
+# the reconcile builds the declaration in a scratch database. Credentials are
+# docker/compose.test.yml's, for a database that exists for the length of one job
+# and holds nothing but the fixture.
+e2e_stack_check_schema() {
+    echo "--- Running the schema reconcile, the way a deploy does ---"
+    local manager_cid output
+    manager_cid=$($E2E_STACK_COMPOSE ps -q music-manager)
+    if ! output=$(DB_PASS=test-root-password docker exec -e DB_USER=root -e DB_PASS "$manager_cid" \
+            python -m services.common.schema_reconcile); then
+        echo "$output"
+        echo "ERROR: the schema reconcile failed"
         exit 1
     fi
-    local second
-    if ! second=$(python3 "$E2E_STACK_ROOT/tools/apply_migrations.py" --exec "$client" \
-            "$E2E_STACK_ROOT"/migrate_*.sql); then
-        echo "$second"
-        echo "ERROR: the second migration pass failed"
-        exit 1
-    fi
-    echo "$second"
-    if ! printf '%s\n' "$second" | grep -q -- '--- Migrations: 0 applied,'; then
-        echo "ERROR: the second pass re-applied migrations; the schema_migrations ledger is not skipping them"
+    echo "$output"
+    if [ "$output" != "schema in sync, 0 reported" ]; then
+        echo "ERROR: a fresh stack differs from its own declaration (services/common/schema_tables.py)"
         exit 1
     fi
 }

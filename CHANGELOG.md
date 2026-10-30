@@ -7,6 +7,136 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-10-30
+
+### Added
+- The About screen of the web player and the app has a Source code section that links to the address in the new setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, default the placeholder `https://github.com/OWNER/music-management`), so users of the server can get its source as AGPL-3.0 section 13 requires. `GET /health` reports it as `source_url` (#189).
+
+### Changed
+- The importer and the SoundCloud, YouTube and Telegram workers are now Compose profiles (`importer`, `soundcloud`, `youtube`, `telegram`), so a self-hosted stack starts them only when `COMPOSE_PROFILES` names them. Production keeps all four: `COMPOSE_PROFILES=soundcloud,youtube,telegram,importer` is a required key of `PROD_ENV_FILE`, checked by `release:check-secrets`, `scripts/deploy.sh` and the post-deploy verification (#189).
+
+- **A CI job, `public:check`, fails a pipeline that brings a personal value back.** It runs gitleaks over the
+  working tree and greps the tracked files for the owner's names, personal hostnames, a Google OAuth project number
+  and LAN addresses (`scripts/ci/public-patterns.txt`; the Android package, the contact address and
+  `192.168.0.0/16` pass). The last 100 hits are gone: hosts in docs and bug reports are `example.com`
+  names, LAN addresses are RFC 5737 addresses, private GitLab links and badges are removed, and the LMS
+  fork's publish docs, maintainer label and test fixtures no longer name the owner. `migrate_*.sql` stays untouched. Refs #189.
+
+- **The owner's login no longer appears in the repository.** Examples, fixtures, test data, design
+  notes and old changelog entries named the lowercase login of the owner as a user. They now say
+  `user` (`alice` and `bob` where a test needs two names, `User` where a test checks that a login
+  in another case finds the same account). `public:check` fails a tracked file that has the login
+  as a whole word, in lower case; the capitalised first name in copyright lines, the Android
+  package id and the GitHub contact address stay allowed. Only comments, examples and test data
+  changed, no behavior.
+
+- **The repository history is rewritten without personal data.** Committed credentials, crash
+  dumps, ops material and personal names, hosts and addresses are gone from every commit (#189).
+  `.gitleaksignore` is empty, `.git-blame-ignore-revs` points at the new commits, and
+  `public:check` also rejects the name of the owner's employer. Existing clones must be made anew.
+
+- **Backend and scripts no longer name one person's hosts**: the User-Agent of the importer's store lookup, the artist image fetcher, MusicBrainz, the popular tracks client and the artist evidence client is built by `services/common/user_agent.py` from the new `project_url` setting (environment `PROJECT_URL`, group About). It is empty by default, and then the User-Agent carries no address. `PHPMYADMIN_URL` defaults to empty. `tools/` and `scripts/` take hosts from the environment (`tools/env_required.py`: exit 2 and the missing names) instead of a built-in LAN address. `scripts/ci/prod-ssh-setup.sh` needs the CI/CD variable `PROD_REMOTE_HOST`, and `release:check-secrets` checks it. `DOCKER_USER` defaults to `muma` only for local development (`.env.example`, `dev.sh`, the Dockerfile); `deploy.sh` exits with an error naming it when it is unset, the disk janitor skips only its release-image sweep with a warning (the other sweeps still run), and `release:check-secrets` requires it in `PROD_ENV_FILE` and equal to `DOCKERHUB_USERNAME`. A production host without a pinned SSH key stops `release:check-secrets` and the deploy unless `PROD_SSH_ACCEPT_NEW_HOST_KEY=true`. The User-Agent is built on first request, not at import, and a WARNING says once per process when `project_url` is empty. Also, and `renovate.sh` takes its endpoint and project from the CI environment. Production deploys behave the same while `PROD_REMOTE_HOST` and `DOCKER_USER` are set. Issue #189, step 4.
+
+- **The web frontend no longer uses the owner's name, domain or hosts in its placeholders and test fixtures.** The ScrobbleTab ListenBrainz placeholder reads `demo-user`, and the test fixtures use the user `demo-user` and the domain `example.org`. No behavior changes.
+
+- **Public self-hosting guide; the production runbook moved to the private `muma-ops` repository.**
+  `docs/self-hosting.md` replaces `docs/deployment.md` and covers the compose stacks, the `.env`
+  keys, `COMPOSE_PROFILES`, migrations, backups, rollback and the generic CI deploy variables.
+  The owner's hosts, runbooks and incidents moved with `docs/release-management.md`. Scripts,
+  comments and tests that pointed at the old files point at the new ones (#189).
+
+- **One architecture document**: `docs/architecture.md` now covers what each service does, how a track travels from download to playback, how listens and ratings flow back, which component owns which data and how the apps talk. It replaces `docs/OVERVIEW.md`, `docs/system-data-flow.md` and `docs/architecture/responsibilities.md`, which are deleted, and every link to them points at the new file. The old text described analyzer and scrobbler modules that no longer exist and a rating path that does not exist. Refs #189, step 7c-3.
+
+- **Security checks and the mobile cover-art design are now in English.** The security checks page moved from `docs/security-en-controles.md` to `docs/security-checks.md`. Refs #189.
+
+- **Operations and agent material moved to the private ops repository.** The production
+  scripts (`scripts/prod/`), the crash-triage and nightly-check services, the Claude skills and agent
+  plans (`.claude/`, `.ai/`, `.junie/`, the agent plans under `docs/`), `scripts/vw.sh`, `scripts/ssh/known_hosts`
+  and the LMS `remote-build.sh` are no longer tracked here, and their tests moved with them. The
+  production host key now comes from the file-type CI/CD variable `PROD_SSH_KNOWN_HOSTS`; a pipeline
+  without it stops in `prod-ssh-setup.sh` instead of falling back to accept-new. Refs #189.
+
+- **Owner-only agent rules moved out of `AGENTS.md`.** The host-specific parts (production host and its
+  runbook pointers, the password-manager wrapper, the owner's issue board and labels, the self-hosted push
+  server) now live in the private `AGENTS.private.md`, which `muma-ops/install.sh` links as
+  `AGENTS.local.md`. The public rules 14 and 16 are generic. `services/muma-mobile/.junie/` moved to
+  muma-ops too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
+
+- **Breaking for self-hosters: upgrade through 0.93.x first.** The 61 `migrate_*.sql` files and
+  `tools/apply_migrations.py` are gone. An installation older than 0.93.0 must deploy a 0.93.x
+  release before this one, or its database misses the columns those files added.
+- **The schema is declared once, and each deploy adds what the database lacks.** Every table and
+  view is in `services/common/schema_tables.py`, in the shape production has, and the seed rows a
+  new database needs are in `services/common/seeds/`. Deploy step 4 runs the new `schema-reconcile`
+  one-shot from the image it deploys: it builds the declaration in a scratch database, adds the
+  missing tables, columns, indexes and views, and prints every other difference as a `report:`
+  line without changing it. A fresh database now equals production, which the integration suite
+  checks against a snapshot of production's schema (`tests/integration/schema/production.tsv`).
+  Refs #43.
+- **`tools/schema_cleanup_2026_11.py` removes what production has and nothing reads.** Six tables
+  (the two download queues, `rules_genres_new`/`_old`, the two broken-song tables) and six columns
+  go, a listen keeps its row when its track is deleted (`ON DELETE SET NULL` in place of
+  `CASCADE`), and `rules_genres.canonical_id` gets its foreign key. A dry run by default; `--apply`
+  dumps the database first. Run it once after this release.
+
+### Removed
+- Docs cleanup for the public edition (#189, step 7c-1): `docs/branding/candidates/` (51 rejected logo
+  drafts), `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md`,
+  `docs/machine-learning.md` and `docs/ml-tutorial.md` are deleted. The facts worth keeping from the two
+  machine-learning documents are now in `services/ml-analyzer/DEPRECATED.md`. Links to the agent plans
+  that were already moved to the private muma-ops repository point at the design under `docs/designs/`
+  or are gone. `tests/ci/test_doc_links.py` fails on any broken relative Markdown link in `docs/`, `services/`, `scripts/`,
+  `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `SECURITY.md`.
+
+### Fixed
+- **The pre-commit hook could stage the deletion of the whole repository.** Git gives the hook
+  `GIT_INDEX_FILE`, and the release-version-check tests inherited it: their throw-away repository
+  wrote its four files and its commit into the real index, which then held 3847 deleted files.
+  The hook now clears git's variables before the tests, and the tests run git without them
+  (bug report 152).
+
+- **pytest is pinned below 9.2 for the BDD suite.** pytest 9.2 removed a private attribute that pytest-bdd 8.1 uses, so `muma:e2e` failed every test in setup with `AttributeError: 'FixtureManager' object has no attribute '_arg2fixturedefs'`. The pin lives in `requirements.txt` and `tests/bdd/requirements.txt`, and Renovate is told to keep to it.
+
+### Security
+- **A guided script rotates every credential that was ever committed.**
+  `scripts/prod/person/rotate-leaked-credentials.sh` reads the leaked values from git history
+  (the database password of #188 and the `.env` and `.server-env.json` values in
+  `.gitleaksignore`), checks by hash which ones production still uses, and replaces those. Only a
+  clear refusal counts as dead: an unreachable service or a 429 stops the run. It refuses to start
+  when a holder of a value cannot be handled. It backs up every GitLab variable and the database
+  account first, then changes the database user, the GitLab variables and the containers that
+  held an old value, in that order, checks `/health`, and puts everything back if a step fails.
+  It also refuses while a pipeline runs on develop, master or release/*. `--dry-run` only reads and
+  presents no credential. `--auto-fix` asks nothing, except for the root password and for a
+  database password held outside GitLab and the containers. Refs #188, #189.
+
+- **Two helper scripts had the production database password in their code.**
+  `scripts/cleanup_redundant_indices.py` and `tools/quick_inspect.py` now read host, user and
+  password from `DB_HOST`, `DB_USER` and `DB_PASS` (optional `DB_PORT`, `DB_NAME`) and exit with a
+  message that names the missing variables. `quick_inspect.py` no longer retries on localhost when
+  the connection fails. A test in `tests/ci/` fails the build when a tracked Python file gives a
+  database `connect()` a string literal as password. Rotating the password itself is tracked in
+  #188.
+
+- **A listener's e-mail address and account name are gone from the docs.** Bug report 020 and the
+  Wrapped research note now use `user@example.org` and `listener-2`. A test in `tests/ci/` fails
+  when the old values come back; it stores only their sha256 digests.
+
+- **Pillow goes to 13.0, which fixes 39 advisories in its image parsers.** The artist image
+  fetcher opens photos from external sources with Pillow 12.3, whose JPEG, TIFF, GIF, PDF and
+  OpenJPEG code had buffer overflows and decompression-bomb bypasses (among them
+  GHSA-78g4-xqwv-q3g8). The fetcher only opens, scales and saves images, so none of the 13.0
+  breaking changes touch it.
+- **The frontend's dev tooling gets undici 8.12.3.** 8.12.1 had eight advisories, the worst a TLS
+  certificate check that an `Agent` could drop. The scheduled dependency audit failed on it; only
+  the build and tests use undici, not the shipped bundle.
+
+- **The dependency audit accepts one more finding in pip's own vendored msgpack.** CVE-2026-114613
+  (memory leak, high) is in the msgpack 1.1.2 that pip 26.2.2, the newest release, bundles in every
+  Python image. pip only runs while an image is built; the msgpack the services import is 1.2.3.
+  It sits in `security/trivyignore` next to the earlier advisory for the same copy, and goes when a
+  pip release bundles msgpack 1.2.3 or later.
+
 ## [0.93.2] - 2026-10-22
 
 ### Fixed
@@ -1260,7 +1390,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mariadb:13.0.2@sha256:...` with `MARIADB_AUTO_UPGRADE=1`, so the coming 12.3 -> 13.0 move runs
   `mariadb-upgrade`. The deploy waits for the real server over TCP, logs the upgrade and checks
   it before any migration. Renovate now keeps the MariaDB digest current. `docs/deployment.md` no
-  longer offers an ssh tunnel for the read-only MCP, because the `muma-readonly@'192.0.2.1.%'`
+  longer offers an ssh tunnel for the read-only MCP, because the `muma-readonly@'192.0.2.%'`
   account cannot log in through one. Bug report 094.
 
 - **Two quick taps on "next" in the app no longer leave the player flickering between two tracks.**
@@ -3477,7 +3607,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `claude-nightly-fix` — maximaal twee per nacht, nooit gemerged zonder approval. Elke
   nacht eindigt in één ntfy-bericht op `music-management-claude`, verstuurd door de
   shell-supervisor uit een gevalideerd resultaat, dus ook een vastgelopen run meldt
-  zichzelf. De MR-watcher merget nu alleen op approval van `muma` en een groene
+  zichzelf. De MR-watcher merget nu alleen op approval van de eigenaar en een groene
   pipeline voor exact de te mergen revisie, en de drie automaten delen één lock op de
   clone.
 
@@ -4631,8 +4761,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.40.0] - 2026-09-01
 
 ### Added
-- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp uit
-  `docs/superpowers/specs/2026-08-02-daily-db-backups-design.md` is gebouwd: `tools/db_backup.py`
+- **Databasebackups die zichzelf bewijzen, in plaats van bestanden die er staan.** Het ontwerp is gebouwd: `tools/db_backup.py`
   dumpt, verifieert, schoont op en klaagt als dat niet lukte. Drie systemd-timers in
   `scripts/backup/systemd/` doen 's nachts de dump, 's ochtends een verval-controle en zondags de
   herstelproef. Waarom het nodig was: het nieuwste bestand in `/muma/backups` was van 23 juli, er
@@ -4937,8 +5066,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   achter de system-API-key: `GET /api/diagnostics/crash-reports/{id}` en
   `PATCH /api/diagnostics/crash-reports/{id}/status`. Migratie: `migrate_v17_crash_report_status.sql`,
   met de gebruikelijke kolomguard in de router voor bestaande installaties. Dit is de serverhelft
-  van de crash-triage-automatisering; het ontwerp staat in
-  `docs/superpowers/specs/2026-08-31-crash-triage-automation-design.md`.
+  van de crash-triage-automatisering; het ontwerp staat in de private muma-ops-repository.
 
 ### Fixed
 - **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
@@ -6845,8 +6973,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source, so they cannot drift apart; the adaptive foreground scales the disc to 83% so a round or
   square mask cannot clip it, and the monochrome layer carries only the bars, since themed icons
   get one colour. `applicationId` deliberately stays `nl.teunschriks.mumamobile`, so updates keep
-  landing on the existing install. Written up in
-  `docs/superpowers/specs/2026-08-05-muma-brand-design.md`.
+  landing on the existing install. Written up in the private muma-ops repository.
 
 ### Fixed
 - **"Recently played" remembers what was played, not only what was opened.** The home grid recorded
@@ -7307,8 +7434,7 @@ own [CHANGELOG](services/muma-mobile/CHANGELOG.md) carries the full detail.
 - **The Android About page still linked to upstream Ultrasonic.** "Visit webpage" opened
   `ultrasonic.gitlab.io` and "Report a bug" opened `gitlab.com/ultrasonic/ultrasonic/issues`,
   neither of which has anything to do with this fork. They now point at `https://muma.example.com`
-  and the project's own issue tracker at
-  `https://gitlab.example.com/muma/music-management/-/issues`.
+  and the project's own issue tracker.
 
 ## [0.0.56] - 2026-08-01
 

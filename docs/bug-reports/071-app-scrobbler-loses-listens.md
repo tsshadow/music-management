@@ -8,7 +8,7 @@ On 2026-09-25 LMS recorded four listens for user "Teun" (LMS `listen` 37774, 377
 at 05:26:10, 05:36:36, 05:39:53 and 06:08:56 UTC; tracks 9596523, 9648936, 9648937, 9374019).
 MuMa has one of them: `scrobble_listens` track 9374019 at 06:09:51, source `mobile`. Nothing for
 the other three in `scrobble_listens` or `scrobble_unmatched_listens` between 05:20 and 06:15. The
-LMS reconcile dry run finds 1,453 LMS-only listens overall. `open-work.md` already listed "the
+LMS reconcile dry run finds 1,453 LMS-only listens overall. the open-work list already listed "the
 app's own scrobbler loses listens the web player used to catch" since 0.72.1 (bug report 035),
 when the web player inside the app stopped scrobbling and `service/Scrobbler.kt` became the only
 path.
@@ -108,5 +108,5 @@ MariaDB).
 **Not fixed here: LMS's relay.** The three listens of this morning would still be lost, because the
 app did its part. The existing reconcile can insert them (`POST /api/scrobble/reconcile/lms` with
 `insert_lms_only`). Making the relay durable -- an outbox in LMS, or MuMa pulling recent LMS-only
-listens on a schedule -- is a decision recorded in [open-work.md](../open-work.md).
+listens on a schedule -- is a decision recorded in the open GitLab issues.
 Decided in bug report 075: MuMa pulls, through the `lms-listen-backfill` loop.

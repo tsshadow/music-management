@@ -18,6 +18,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.C.USAGE_MEDIA
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
@@ -35,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.api.subsonic.interceptors.TokenRecoveryInterceptor
@@ -44,13 +46,16 @@ import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.data.CachedDataSource
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.imageloader.ArtworkBitmapLoader
+import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.provider.UltrasonicAppWidgetProvider
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback
 import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
+import nl.teunschriks.mumamobile.util.FileUtil.getCompleteFile
 import nl.teunschriks.mumamobile.util.SessionMarker
 import nl.teunschriks.mumamobile.util.Settings
+import nl.teunschriks.mumamobile.util.Storage
 import nl.teunschriks.mumamobile.util.UiVariant
 import nl.teunschriks.mumamobile.util.Util
 import nl.teunschriks.mumamobile.util.Util.stopForegroundRemoveNotification
@@ -82,6 +87,10 @@ class PlaybackService :
     private var scrobbler: Scrobbler? = null
 
     private var rxBusSubscription = CompositeDisposable()
+
+    // Here, on the session's player, so a failed track recovers the same way in the car, from the
+    // notification and in the app: all of them are controllers of this one session.
+    private val errorRecovery = PlaybackErrorRecovery()
 
     private var isStarted = false
 
@@ -380,6 +389,13 @@ class PlaybackService :
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // A new queue starts the error recovery from zero; any other move only forgets the
+            // retry of the entry it left.
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                errorRecovery.reset()
+            } else {
+                errorRecovery.onEntryChanged(currentEntry())
+            }
             // Since we cannot update the metadata of the media item after creation,
             // we cannot set change the rating on it
             // Therefore the track must be our source of truth
@@ -429,6 +445,7 @@ class PlaybackService :
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) errorRecovery.onPlaying()
             scrobbler?.onPlayingChanged(isPlaying)
             updateWidgetPlayerState(isPlaying)
             cacheNextSongs()
@@ -442,6 +459,91 @@ class PlaybackService :
                 librarySessionCallback.onPlaybackEnded(player)
             }
         }
+
+        override fun onPlayerError(error: PlaybackException) {
+            recoverFromError(error)
+        }
+    }
+
+    /** The queue entry the player is on, or null for an empty queue. */
+    private fun currentEntry(): PlaybackErrorRecovery.Entry? {
+        val item = player.currentMediaItem ?: return null
+        return PlaybackErrorRecovery.Entry(player.currentMediaItemIndex, item.mediaId)
+    }
+
+    /**
+     * Retries, skips or stops after a failed load, as [PlaybackErrorRecovery] decides. Only the
+     * local player: the jukebox plays on the server, and `MediaPlayerManager` switches it off on
+     * an error.
+     */
+    private fun recoverFromError(error: PlaybackException) {
+        if (actualBackend == MediaPlayerManager.PlayerBackend.JUKEBOX) return
+        val item = player.currentMediaItem ?: return
+        val entry = PlaybackErrorRecovery.Entry(player.currentMediaItemIndex, item.mediaId)
+        val step = errorRecovery.onError(entry, player.hasNextMediaItem())
+        logAction(
+            "player.error",
+            "code" to error.errorCodeName,
+            "index" to entry.index,
+            "id" to entry.mediaId,
+            "step" to stepName(step)
+        )
+        when (step) {
+            PlaybackErrorRecovery.Step.Retry -> retryEntry(entry, item, player.currentPosition)
+            PlaybackErrorRecovery.Step.Skip -> {
+                player.seekToNextMediaItem()
+                player.prepare()
+            }
+            is PlaybackErrorRecovery.Step.GiveUp -> {
+                // Paused, so the play button loads the entry again instead of a stuck "playing".
+                player.playWhenReady = false
+            }
+        }
+    }
+
+    /** The step as one word for the diagnostics log. */
+    private fun stepName(step: PlaybackErrorRecovery.Step): String = when (step) {
+        PlaybackErrorRecovery.Step.Retry -> "retry"
+        PlaybackErrorRecovery.Step.Skip -> "skip"
+        is PlaybackErrorRecovery.Step.GiveUp -> "give-up-" + step.reason.name.lowercase()
+    }
+
+    /**
+     * Drops the cached copy of a failed library track, then loads the entry again at
+     * [positionMs]. Without the cached file, the data source streams it from the server. The
+     * reload is left out when the player moved on or recovered while the file was deleted.
+     */
+    private fun retryEntry(entry: PlaybackErrorRecovery.Entry, item: MediaItem, positionMs: Long) {
+        val uri = item.localConfiguration?.uri?.toString()
+        val track = if (PlaybackServiceRules.isLibraryTrack(uri)) item.toTrack() else null
+        launch {
+            if (track != null) dropCachedCopy(track)
+            withContext(Dispatchers.Main) {
+                if (isShutDown) return@withContext
+                if (currentEntry() != entry || player.playerError == null) {
+                    logAction("player.recover.stale", "index" to entry.index, "id" to entry.mediaId)
+                    return@withContext
+                }
+                logAction("player.recover.reload", "index" to entry.index, "id" to entry.mediaId, "positionMs" to positionMs)
+                player.seekTo(entry.index, positionMs)
+                player.prepare()
+            }
+        }
+    }
+
+    /**
+     * Deletes the cache file of [track] and queues a new download of it. A saved (pinned) file is
+     * never deleted: the person chose to keep it, and the error can be one the file is innocent
+     * of. Offline there is no server to fetch a new copy from, so nothing is deleted either.
+     */
+    private fun dropCachedCopy(track: Track) {
+        if (ActiveServerProvider.isOffline()) return
+        val completeFile = track.getCompleteFile()
+        if (Storage.isPathExists(completeFile)) {
+            Storage.delete(completeFile)
+            logAction("player.recover.drop", "id" to track.id)
+        }
+        DownloadService.download(listOf(track), isHighPriority = true)
     }
 
     /** Re-publishes the car/notification buttons from the player's current state. */

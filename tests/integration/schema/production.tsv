@@ -1,5 +1,4 @@
 C	artist_external_ids	artist_id	int(11)	NO	<none>		<none>
-C	artist_external_ids	confidence	tinyint(4)	YES	NULL		<none>
 C	artist_external_ids	created_at	datetime	YES	current_timestamp()		<none>
 C	artist_external_ids	external_id	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	artist_external_ids	external_url	text	YES	NULL		utf8mb4_general_ci
@@ -87,9 +86,6 @@ C	downloads_settings	setting_key	varchar(64)	NO	<none>		utf8mb4_general_ci
 C	downloads_settings	source	varchar(32)	NO	<none>		utf8mb4_general_ci
 C	downloads_settings	updated_at	timestamp	NO	current_timestamp()	on update current_timestamp()	<none>
 C	downloads_settings	value	varchar(255)	NO	<none>		utf8mb4_general_ci
-C	downloads_soundcloud_accounts	account_type	enum('artist','label','channel','collective','unknown')	YES	'unknown'		utf8mb4_general_ci
-C	downloads_soundcloud_accounts	image_enrichment_hint	tinyint(4)	YES	0		<none>
-C	downloads_soundcloud_accounts	linked_artist_id	int(11)	YES	NULL		<none>
 C	downloads_soundcloud_accounts	name	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	downloads_soundcloud_accounts	soundcloud_id	bigint(20)	YES	NULL		<none>
 C	downloads_soundcloud_archive	account	varchar(255)	NO	<none>		utf8mb4_general_ci
@@ -100,11 +96,6 @@ C	downloads_soundcloud_archive	info_json	longtext	YES	NULL		utf8mb4_general_ci
 C	downloads_soundcloud_archive	title	text	YES	NULL		utf8mb4_general_ci
 C	downloads_soundcloud_archive	url	text	YES	NULL		utf8mb4_general_ci
 C	downloads_soundcloud_archive	video_id	varchar(255)	NO	<none>		utf8mb4_general_ci
-C	downloads_soundcloud_queue	added_at	datetime	YES	current_timestamp()		<none>
-C	downloads_soundcloud_queue	downloaded_at	datetime	YES	NULL		<none>
-C	downloads_soundcloud_queue	id	int(11)	NO	<none>	auto_increment	<none>
-C	downloads_soundcloud_queue	is_downloaded	tinyint(1)	YES	0		<none>
-C	downloads_soundcloud_queue	url	varchar(767)	NO	<none>		utf8mb4_general_ci
 C	downloads_soundcloud_unavailable	account	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	downloads_soundcloud_unavailable	attempts	int(11)	NO	0		<none>
 C	downloads_soundcloud_unavailable	duration_seconds	int(11)	YES	NULL		<none>
@@ -128,12 +119,6 @@ C	downloads_youtube_archive	path	varchar(255)	YES	NULL		utf8mb4_general_ci
 C	downloads_youtube_archive	title	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	downloads_youtube_archive	url	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	downloads_youtube_archive	video_id	varchar(32)	NO	<none>		utf8mb4_general_ci
-C	downloads_youtube_queue	added_at	datetime	YES	current_timestamp()		<none>
-C	downloads_youtube_queue	audio	tinyint(1)	YES	1		<none>
-C	downloads_youtube_queue	downloaded_at	datetime	YES	NULL		<none>
-C	downloads_youtube_queue	id	int(11)	NO	<none>	auto_increment	<none>
-C	downloads_youtube_queue	is_downloaded	tinyint(1)	YES	0		<none>
-C	downloads_youtube_queue	url	varchar(767)	NO	<none>		utf8mb4_general_ci
 C	dynamic_playlists	created_at	timestamp	NO	current_timestamp()		<none>
 C	dynamic_playlists	id	int(11)	NO	<none>	auto_increment	<none>
 C	dynamic_playlists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
@@ -183,7 +168,6 @@ C	library_artist_images	artist_id	int(11)	NO	<none>		<none>
 C	library_artist_images	cached_path	text	NO	<none>		utf8mb4_general_ci
 C	library_artist_images	confidence	tinyint(4)	YES	NULL		<none>
 C	library_artist_images	created_at	datetime	YES	current_timestamp()		<none>
-C	library_artist_images	error_message	text	YES	NULL		utf8mb4_general_ci
 C	library_artist_images	file_size	int(11)	YES	NULL		<none>
 C	library_artist_images	height	int(11)	YES	NULL		<none>
 C	library_artist_images	id	int(11)	NO	<none>	auto_increment	<none>
@@ -193,9 +177,9 @@ C	library_artist_images	original_url	text	YES	NULL		utf8mb4_general_ci
 C	library_artist_images	public_path	text	YES	NULL		utf8mb4_general_ci
 C	library_artist_images	source	varchar(50)	NO	<none>		utf8mb4_general_ci
 C	library_artist_images	source_id	varchar(255)	YES	NULL		utf8mb4_general_ci
-C	library_artist_images	status	varchar(50)	YES	'active'		utf8mb4_general_ci
 C	library_artist_images	updated_at	datetime	YES	NULL	on update current_timestamp()	<none>
 C	library_artist_images	width	int(11)	YES	NULL		<none>
+C	library_artists	created_at	timestamp	YES	current_timestamp()		<none>
 C	library_artists	id	int(11)	NO	<none>	auto_increment	<none>
 C	library_artists	image_status	varchar(50)	YES	NULL		utf8mb4_general_ci
 C	library_artists	image_updated_at	datetime	YES	NULL		<none>
@@ -210,13 +194,6 @@ C	library_bpm_priors	prior_key	varchar(191)	NO	<none>		utf8mb4_general_ci
 C	library_bpm_priors	samples	int(11)	NO	<none>		<none>
 C	library_bpm_priors	spread	double	NO	<none>		<none>
 C	library_bpm_priors	updated_at	datetime	NO	<none>		<none>
-C	library_broken_song_artist_lookup	id	bigint(20) unsigned	NO	<none>	auto_increment	<none>
-C	library_broken_song_artist_lookup	normalized_name	text	YES	NULL		utf8mb4_general_ci
-C	library_broken_song_artist_lookup	raw_name	text	NO	<none>		utf8mb4_general_ci
-C	library_broken_songs	created_at	timestamp	NO	current_timestamp()		<none>
-C	library_broken_songs	error_code	varchar(255)	NO	<none>		utf8mb4_unicode_ci
-C	library_broken_songs	id	int(10) unsigned	NO	<none>	auto_increment	<none>
-C	library_broken_songs	path	text	NO	<none>		utf8mb4_unicode_ci
 C	library_ingestion_records	code_version	varchar(32)	YES	NULL		utf8mb4_general_ci
 C	library_ingestion_records	file_path	text	NO	<none>		utf8mb4_general_ci
 C	library_ingestion_records	file_path_hash	varchar(64)	NO	<none>		utf8mb4_general_ci
@@ -226,6 +203,7 @@ C	library_ingestion_records	recorded_at	timestamp	YES	current_timestamp()		<none
 C	library_ingestion_records	rules_fingerprint	varchar(32)	YES	NULL		utf8mb4_general_ci
 C	library_ingestion_records	source	varchar(32)	NO	<none>		utf8mb4_general_ci
 C	library_ingestion_records	tags_json	longtext	NO	<none>		utf8mb4_general_ci
+C	library_labels	created_at	timestamp	YES	current_timestamp()		<none>
 C	library_labels	id	int(11)	NO	<none>	auto_increment	<none>
 C	library_labels	mbid	varchar(36)	YES	NULL		utf8mb4_general_ci
 C	library_labels	name	varchar(255)	NO	<none>		utf8mb4_general_ci
@@ -522,10 +500,6 @@ C	rules_genres	name	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	rules_genres	normalized_name	varchar(191)	NO	<none>		utf8mb4_general_ci
 C	rules_genres	occurrences	int(11)	NO	0		<none>
 C	rules_genres	state	enum('white','black','unknown')	NO	'unknown'		utf8mb4_general_ci
-C	rules_genres_new	id	int(11)	NO	<none>	auto_increment	<none>
-C	rules_genres_new	name	varchar(100)	NO	<none>		utf8mb4_general_ci
-C	rules_genres_old	corrected_genre	varchar(255)	NO	''		utf8mb4_general_ci
-C	rules_genres_old	genre	varchar(255)	NO	<none>		utf8mb4_general_ci
 C	rules_ignored_artists	corrected_name	varchar(255)	YES	NULL		utf8mb4_general_ci
 C	rules_ignored_artists	id	int(11)	NO	<none>	auto_increment	<none>
 C	rules_ignored_artists	name	varchar(255)	NO	<none>		utf8mb4_general_ci
@@ -698,9 +672,10 @@ F	rules_festival_editions	festival_id	rules_festivals	id	CASCADE	RESTRICT
 F	rules_genre_expansions	genre_id	rules_genres	id	CASCADE	RESTRICT
 F	rules_genre_expansions	target_id	rules_genres	id	CASCADE	RESTRICT
 F	rules_genre_proposals	genre_id	rules_genres	id	CASCADE	RESTRICT
+F	rules_genres	canonical_id	rules_genres	id	SET NULL	RESTRICT
 F	rules_label_genres	genre_id	rules_genres	id	CASCADE	RESTRICT
 F	rules_podcast_aliases	podcast_id	rules_podcasts	id	CASCADE	RESTRICT
-F	scrobble_listens	track_id	library_tracks	id	CASCADE	RESTRICT
+F	scrobble_listens	track_id	library_tracks	id	SET NULL	RESTRICT
 F	user_app_settings	user_id	users	id	CASCADE	RESTRICT
 F	user_identities	user_id	users	id	CASCADE	RESTRICT
 F	user_listenbrainz_accounts	user_id	users	id	CASCADE	RESTRICT
@@ -733,15 +708,11 @@ I	downloads_soundcloud_accounts	PRIMARY	1	name	BTREE
 I	downloads_soundcloud_archive	PRIMARY	1	id	BTREE
 I	downloads_soundcloud_archive	idx_filename	0	filename(255)	BTREE
 I	downloads_soundcloud_archive	unique_account_video	1	account,video_id	BTREE
-I	downloads_soundcloud_queue	PRIMARY	1	id	BTREE
-I	downloads_soundcloud_queue	url	1	url	BTREE
 I	downloads_soundcloud_unavailable	PRIMARY	1	account,track_id	BTREE
 I	downloads_youtube_accounts	PRIMARY	1	name,download_type	BTREE
 I	downloads_youtube_archive	PRIMARY	1	video_id,download_type	BTREE
 I	downloads_youtube_archive	idx_path	0	path	BTREE
 I	downloads_youtube_archive	uniq_video_id_download_type	1	video_id,download_type	BTREE
-I	downloads_youtube_queue	PRIMARY	1	id	BTREE
-I	downloads_youtube_queue	url	1	url	BTREE
 I	dynamic_playlists	PRIMARY	1	id	BTREE
 I	dynamic_playlists	uq_source_remote_id	1	source,remote_id	BTREE
 I	dynamic_playlists	user_id	0	user_id	BTREE
@@ -766,9 +737,6 @@ I	library_artists	PRIMARY	1	id	BTREE
 I	library_artists	idx_artists_normalized_name	0	normalized_name	BTREE
 I	library_artists	name	1	name	BTREE
 I	library_bpm_priors	PRIMARY	1	kind,prior_key	BTREE
-I	library_broken_song_artist_lookup	PRIMARY	1	id	BTREE
-I	library_broken_songs	PRIMARY	1	id	BTREE
-I	library_broken_songs	path	1	path	HASH
 I	library_ingestion_records	PRIMARY	1	id	BTREE
 I	library_ingestion_records	file_path_hash	1	file_path_hash	BTREE
 I	library_ingestion_records	idx_ingestion_recorded_at	0	recorded_at	BTREE
@@ -860,11 +828,9 @@ I	rules_genre_expansions	idx_rules_genre_expansions_target	0	target_id	BTREE
 I	rules_genre_proposals	PRIMARY	1	genre_id	BTREE
 I	rules_genre_proposals	kind	0	kind	BTREE
 I	rules_genres	PRIMARY	1	id	BTREE
+I	rules_genres	canonical_id	0	canonical_id	BTREE
 I	rules_genres	idx_rules_genres_state	0	state	BTREE
 I	rules_genres	uq_rules_genres_normalized_name	1	normalized_name	BTREE
-I	rules_genres_new	PRIMARY	1	id	BTREE
-I	rules_genres_new	name	1	name	BTREE
-I	rules_genres_old	genre	1	genre	BTREE
 I	rules_ignored_artists	PRIMARY	1	id	BTREE
 I	rules_ignored_artists	idx_ignored_name	1	name	BTREE
 I	rules_ignored_genres	PRIMARY	1	name	BTREE
@@ -929,11 +895,9 @@ T	downloads_rate_state	InnoDB	utf8mb4_general_ci
 T	downloads_settings	InnoDB	utf8mb4_general_ci
 T	downloads_soundcloud_accounts	InnoDB	utf8mb4_general_ci
 T	downloads_soundcloud_archive	InnoDB	utf8mb4_general_ci
-T	downloads_soundcloud_queue	InnoDB	utf8mb4_general_ci
 T	downloads_soundcloud_unavailable	InnoDB	utf8mb4_general_ci
 T	downloads_youtube_accounts	InnoDB	utf8mb4_general_ci
 T	downloads_youtube_archive	InnoDB	utf8mb4_general_ci
-T	downloads_youtube_queue	InnoDB	utf8mb4_general_ci
 T	dynamic_playlists	InnoDB	utf8mb4_general_ci
 T	events	InnoDB	utf8mb4_general_ci
 T	feeds_profile_exclusions	InnoDB	utf8mb4_general_ci
@@ -944,8 +908,6 @@ T	library_artist_aliases	InnoDB	utf8mb4_general_ci
 T	library_artist_images	InnoDB	utf8mb4_general_ci
 T	library_artists	InnoDB	utf8mb4_general_ci
 T	library_bpm_priors	InnoDB	utf8mb4_general_ci
-T	library_broken_song_artist_lookup	InnoDB	utf8mb4_general_ci
-T	library_broken_songs	InnoDB	utf8mb4_unicode_ci
 T	library_ingestion_records	InnoDB	utf8mb4_general_ci
 T	library_labels	InnoDB	utf8mb4_general_ci
 T	library_media_files	InnoDB	utf8mb4_general_ci
@@ -985,8 +947,6 @@ T	rules_genre_backlog	InnoDB	utf8mb4_general_ci
 T	rules_genre_expansions	InnoDB	utf8mb4_general_ci
 T	rules_genre_proposals	InnoDB	utf8mb4_general_ci
 T	rules_genres	InnoDB	utf8mb4_general_ci
-T	rules_genres_new	InnoDB	utf8mb4_general_ci
-T	rules_genres_old	InnoDB	utf8mb4_general_ci
 T	rules_ignored_artists	InnoDB	utf8mb4_general_ci
 T	rules_ignored_genres	InnoDB	utf8mb4_general_ci
 T	rules_label_genres	InnoDB	utf8mb4_general_ci

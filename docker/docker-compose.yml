@@ -346,9 +346,6 @@ services:
   # (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes). It connects as
   # root: it builds the declaration in a scratch database first, which the application user
   # may not create.
-  # One-shot: scripts/deploy.sh runs it in step (d), before the new containers
-  # start, and leaves it out of `up`. It adds what the database lacks and reports
-  # the rest (services/common/schema_reconcile.py, docs/self-hosting.md#schema-changes).
   schema-reconcile:
     security_opt:
       - no-new-privileges:true

@@ -358,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f'report: {report}')
     if not result.statements:
         print(f'schema in sync, {len(result.reports)} reported')
+    elif args.dry_run:
+        print(f'dry run, schema not changed: {len(result.statements)} changes, {len(result.reports)} reported')
     else:
         print(f'schema reconciled: {len(result.statements)} changes, {len(result.reports)} reported')
     return 0

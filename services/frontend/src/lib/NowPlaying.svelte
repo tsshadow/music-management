@@ -7,6 +7,7 @@
   import ArtistList from './ArtistList.svelte';
   import Artwork from './Artwork.svelte';
   import MetaChips from './MetaChips.svelte';
+  import Throbber from './loading/Throbber.svelte';
   // Opened from a row's menu or a long press, never on the first screen: its own chunk
   // (lazyViews.js, issue #114).
   import LazyView from './LazyView.svelte';
@@ -45,6 +46,8 @@
     open = false,
     track = null,
     playing = false,
+    // True while the engine waits for data: the play button shows the inline throbber.
+    buffering = false,
     progress = 0,
     duration = 0,
     rating = 0,
@@ -676,7 +679,11 @@
               disabled={transportLocked}
               aria-label={playing ? $t('nowPlaying.pause') : $t('nowPlaying.play')}
             >
-              {#if playing}
+              {#if buffering}
+                <span class="flex" data-testid="now-playing-buffering">
+                  <Throbber size={28} label={$t('player.buffering')} />
+                </span>
+              {:else if playing}
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="black">
                   <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
                 </svg>

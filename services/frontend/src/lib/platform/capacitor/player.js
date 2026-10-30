@@ -33,6 +33,11 @@ const EVENTS = [
   "ended",
   "error",
   "volumechange",
+  // The service does not send it yet: Media3's buffering state arrives as
+  // status `loading` on a `pause`. Listed so `on("buffering")` subscribes
+  // instead of throwing; the snapshot has no `buffering` field, which reads as
+  // false.
+  "buffering",
   // Native only: the service moved the transport and the UI has to follow. See
   // `on()` below for why this is not `setCommandHandlers`.
   "command",

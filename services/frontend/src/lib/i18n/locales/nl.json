@@ -1676,6 +1676,7 @@
     "shuffleOn": "Shuffle staat aan — het volgende nummer is een verrassing"
   },
   "player": {
+    "buffering": "Bezig met bufferen…",
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",
     "previous": "Vorige",

@@ -50,6 +50,7 @@ describe("browser player", () => {
         duration: 0,
         trackId: null,
         volume: 1,
+        buffering: false,
       });
     });
 
@@ -346,6 +347,81 @@ describe("browser player", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  // The play button shows a throbber while this flag is up. `status` stays
+  // `playing` meanwhile: the element is not paused, and a press must pause it.
+  describe("buffering", () => {
+    let handler;
+
+    beforeEach(async () => {
+      player.attach(element);
+      handler = vi.fn();
+      player.on("buffering", handler);
+      await player.load({ url: "/rest/stream?id=song-1", trackId: "song-1", autoplay: true });
+      element.dispatchEvent(new Event("play"));
+    });
+
+    it("is not buffering before the element waits for data", () => {
+      expect(player.state().buffering).toBe(false);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("is buffering while a play request waits for data, and still playing", () => {
+      element.dispatchEvent(new Event("waiting"));
+
+      expect(player.state()).toMatchObject({ buffering: true, status: "playing" });
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toMatchObject({ buffering: true });
+    });
+
+    it("emits once per change, not once per event", () => {
+      element.dispatchEvent(new Event("waiting"));
+      element.dispatchEvent(new Event("waiting"));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(["playing", "canplay", "canplaythrough", "pause", "ended", "error", "emptied"])(
+      "stops buffering on %s",
+      (name) => {
+        element.dispatchEvent(new Event("waiting"));
+        element.dispatchEvent(new Event(name));
+
+        expect(player.state().buffering).toBe(false);
+        expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ buffering: false }));
+      },
+    );
+
+    // `stalled` says only that the download stopped. With enough buffered the
+    // element plays on and no `playing` follows, so a throbber would stay up.
+    it("counts a stall only when the element has too little data to go on", () => {
+      pretend(element, "readyState", 4);
+      element.dispatchEvent(new Event("stalled"));
+      expect(player.state().buffering).toBe(false);
+
+      pretend(element, "readyState", 2);
+      element.dispatchEvent(new Event("stalled"));
+      expect(player.state().buffering).toBe(true);
+    });
+
+    it("ignores a stall while paused", () => {
+      player.pause();
+      pretend(element, "readyState", 1);
+      element.dispatchEvent(new Event("stalled"));
+
+      expect(player.state().buffering).toBe(false);
+    });
+
+    it("a new source and a stop both start from not buffering", async () => {
+      element.dispatchEvent(new Event("waiting"));
+      await player.load({ url: "/rest/stream?id=song-2", trackId: "song-2" });
+      expect(player.state().buffering).toBe(false);
+
+      element.dispatchEvent(new Event("waiting"));
+      player.stop();
+      expect(player.state().buffering).toBe(false);
     });
   });
 

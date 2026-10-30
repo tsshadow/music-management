@@ -236,10 +236,10 @@ RUNNING = ''.join(
 
 
 def test_verify_check_skips_loudly_outside_the_deploy_jobs():
-    """No PROD_ENV_FILE or no COMPOSE_PROFILES: SKIPPED, exit 0 locally, exit 1 in muma:deploy and muma:verify."""
+    """No PROD_ENV_FILE or no COMPOSE_PROFILES: SKIPPED, exit 0 locally, exit 1 in deploy:production."""
     local = _run_verify_check({}, RUNNING)
     assert local.returncode == 0 and 'SKIPPED' in local.stdout
-    for job in ('muma:deploy', 'muma:verify'):
+    for job in ('deploy:production',):
         failing = _run_verify_check({'CI_JOB_NAME': job}, RUNNING)
         assert failing.returncode == 1 and 'SKIPPED' in failing.stdout
         no_key = _run_verify_check({'CI_JOB_NAME': job, 'PROD_ENV_FILE': 'OTHER=1\n'}, RUNNING)

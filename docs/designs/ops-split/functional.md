@@ -14,7 +14,8 @@ published release and does the install.
 What a release gives:
 
 - Docker images tagged with the version, for example `muma-core:0.95.0`.
-- The signed APK and its R8 mapping file, attached to the GitLab release of that version.
+- The signed APK, its release notes and its R8 mapping file, in the package registry of this
+  repository under the app version.
 - The tag `release-v0.95.0`. The release pipeline sets it last, so a tag means that every image
   and the APK for that version exist.
 
@@ -47,7 +48,7 @@ repository. Nothing in this repository needs to know where that installation is.
 
 | Situation | Observable outcome |
 |---|---|
-| The release MR merges to `master` | The pipeline tags `release-vX.Y.Z` and creates the GitLab release with the APK and mapping attached. Nothing is deployed from this repository. |
+| The release MR merges to `master` | The pipeline checks that the images and the APK exist, then tags `release-vX.Y.Z`. Nothing is deployed from this repository. |
 | A tag `release-vX.Y.Z` appears | Within one Renovate run, the operations repository has an MR "Update music-management to X.Y.Z". |
 | That MR's pipeline is green | The MR merges. The pipeline on the merged commit deploys X.Y.Z, checks `/health`, and uploads the APK. |
 | The deploy fails before the containers change (dump, reconcile) | The pipeline stops red. The previous version still runs. The version file says X.Y.Z, so the operator fixes the cause and retries the job, or reverts the commit. |
@@ -60,8 +61,8 @@ repository. Nothing in this repository needs to know where that installation is.
 
 1. This repository has no CI job that connects to a production host, and no CI variable that
    names one.
-2. A merge to `master` produces the tag, the GitLab release with the APK and the mapping, and the
-   images with the version tag, in that order: the tag is the last of the four.
+2. A merge to `master` produces the tag only when the images with the version tag and the APK
+   package exist: the tag is the last of the three.
 3. In the operations repository, a new tag leads to an MR that changes only the version file,
    and that MR merges itself after a green pipeline.
 4. The deploy pipeline in the operations repository does the same steps, in the same order, as
@@ -78,6 +79,8 @@ repository. Nothing in this repository needs to know where that installation is.
    `master` for a new yt-dlp, as `:latest`, and Watchtower pulls them. With pinned versions,
    `:latest` is no longer what runs. Proposal: the refresh pushes a new tag `X.Y.Z-refresh.N` and
    the bot treats it as a patch update, so a refresh is a version commit like any other.
+   Decided for now: the refresh stays as it is, because production still runs `:latest` after
+   each deploy moves it to the release.
 2. How fast must a release reach production? Renovate runs once a day in this repository today.
    The operations repository can run it hourly, or the release pipeline can trigger a run, at the
    cost of one call from this repository to the other. Proposal: hourly in the operations

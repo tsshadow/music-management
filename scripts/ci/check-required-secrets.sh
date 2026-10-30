@@ -90,15 +90,15 @@ missing=0
 # does not fail when the variable is missing -- the job silently drops out of
 # the pipeline, and a skipped job blocks nothing. That failure mode is exactly
 # this script's reason to exist: an expired Docker Hub token would have meant
-# muma:deploy restarting production on stale :latest images (caught only
+# the deploy restarting production on stale :latest images (caught only
 # after the restart, by post-deploy-verify), and a dropped APK variable would
 # have shipped a release with no new APK and nothing red anywhere. This job
 # runs unconditionally on every release/hotfix branch, so the absence fails
 # loudly here instead.
 require_var "DOCKERHUB_USERNAME" \
-    "release:build-images vanishes and muma:deploy redeploys stale images" || missing=1
+    "release:build-images vanishes and the deploy redeploys stale images" || missing=1
 require_var "DOCKERHUB_TOKEN" \
-    "release:build-images vanishes and muma:deploy redeploys stale images" || missing=1
+    "release:build-images vanishes and the deploy redeploys stale images" || missing=1
 require_var "APK_HOSTER_URL" \
     "mobile:build-release vanishes and the release ships without an APK" || missing=1
 require_var "SIGNING_STORE_FILE" \
@@ -111,7 +111,7 @@ require_var "PROD_REMOTE_HOST" \
 # The production host needs a key in PROD_SSH_KNOWN_HOSTS (a file-type variable; or the linked
 # scripts/ssh/known_hosts, or an explicit
 # PROD_SSH_ACCEPT_NEW_HOST_KEY=true). Checked here so a host name without one fails this job,
-# not muma:deploy after the images are built.
+# not the deploy after the images are built.
 if [ -n "${PROD_REMOTE_HOST:-}" ]; then
     # shellcheck source=scripts/lib/ssh_host_keys.sh
     . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)/ssh_host_keys.sh"

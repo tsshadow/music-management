@@ -198,8 +198,11 @@ own pre-deploy dump first.
 
 ## Deploy from GitLab CI
 
-A pipeline on a `release/*` branch builds the images, deploys over SSH with `scripts/ci-deploy.sh`
-and checks `/health` afterwards. Set these in Project > Settings > CI/CD > Variables.
+A pipeline on a `release/*` branch builds the images and the APK. Merging it to `master` tags
+`release-vX.Y.Z` once `release:publish` has found both. The deploy itself, `scripts/ci-deploy.sh`
+from that tag, runs where your installation keeps its own settings
+([docs/designs/ops-split/](designs/ops-split/functional.md)). Until the build moves its own
+settings out too, set these in Project > Settings > CI/CD > Variables.
 `scripts/ci/check-required-secrets.sh` (job `release:check-secrets`) fails the pipeline when a
 required one is missing.
 
@@ -213,10 +216,11 @@ required one is missing.
 | `PROD_ENV_FILE` | File type. The full `.env` of the `music-management` stack. |
 | `PROD_ENV_FILE_LMS` | File type. The full `.env` of the player stack. |
 | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | Registry login the images are pushed with. The username must equal `DOCKER_USER` in `PROD_ENV_FILE`. |
-| `APK_HOSTER_URL`, `APK_HOSTER_PASSWORD` | Address and password of the service that hosts the APK. Only for the Android jobs. |
+| `APK_HOSTER_URL` | Address of the service that hosts the APK, built into the app. Only for the Android jobs. |
+| `APK_HOSTER_PASSWORD` | Upload password of that service. Only for `mobile:build-debug`; the release APK goes to the package registry and the installation uploads it. |
 | `SIGNING_STORE_FILE` | File type. The release keystore, base64-encoded (`base64 -w0`). Only for the Android release job. |
 | `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Keystore password, key alias and key password. Only for the Android release job. |
-| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that creates release tags and the back-merge. |
+| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that creates release tags and the back-merge, and reads the release pipeline for `release:publish`. |
 
 `release:check-secrets` requires `PROD_REMOTE_HOST`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
 `APK_HOSTER_URL` and `SIGNING_STORE_FILE`, because a job gated on a missing variable silently

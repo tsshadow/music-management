@@ -34,8 +34,15 @@ const EVENTS = [
   "ended",
   "error",
   "volumechange",
+  "buffering",
   "command",
 ];
+
+/**
+ * `HTMLMediaElement.HAVE_FUTURE_DATA`: from this ready state on, the element has
+ * enough data to move the position forward. Below it, a play request waits.
+ */
+const HAVE_FUTURE_DATA = 3;
 
 /** What a queue-less engine answers with. See `ownsQueue` in `../index.js`. */
 const NO_QUEUE = Object.freeze({ index: -1, length: 0, trackIds: [] });
@@ -47,6 +54,7 @@ const EMPTY_STATE = Object.freeze({
   duration: 0,
   trackId: null,
   volume: 1,
+  buffering: false,
 });
 
 function hasMediaSession() {
@@ -72,6 +80,8 @@ export function createBrowserPlayer() {
   let trackId = null;
   let hasSource = false;
   let errored = false;
+  /** True while a play request waits for data. See `setBuffering`. */
+  let buffering = false;
   /** @type {ReturnType<typeof setInterval>|null} */
   let ticker = null;
   /** @type {object|null} */
@@ -114,7 +124,7 @@ export function createBrowserPlayer() {
     return "paused";
   }
 
-  /** @returns {{status: string, position: number, duration: number, trackId: string|null, volume: number}} */
+  /** @returns {{status: string, position: number, duration: number, trackId: string|null, volume: number, buffering: boolean}} */
   function state() {
     if (!media) return { ...EMPTY_STATE };
     return {
@@ -123,7 +133,24 @@ export function createBrowserPlayer() {
       duration: measuredDuration(),
       trackId,
       volume: media.volume,
+      buffering,
     };
+  }
+
+  /**
+   * Records whether a play request waits for data, and emits `buffering` when
+   * that changes.
+   *
+   * The status stays `playing` while the element waits: it is not paused, and
+   * the play button still has to pause it. This flag is what tells the button
+   * to show a throbber in place of the pause icon.
+   *
+   * @param {boolean} value
+   */
+  function setBuffering(value) {
+    if (buffering === value) return;
+    buffering = value;
+    emit("buffering");
   }
 
   /**
@@ -189,6 +216,18 @@ export function createBrowserPlayer() {
       updatePositionState();
       emit("durationchange");
     });
+    // `waiting` fires when a play request runs out of data: at the start of a
+    // new source, after a seek into a part not loaded yet, or when the network
+    // falls behind. `stalled` only says the download stopped; with enough data
+    // buffered the element plays on, so it counts only below HAVE_FUTURE_DATA.
+    on("waiting", () => setBuffering(true));
+    on("stalled", () => {
+      if (!media.paused && media.readyState < HAVE_FUTURE_DATA) setBuffering(true);
+    });
+    on("playing", () => setBuffering(false));
+    on("canplay", () => setBuffering(false));
+    on("canplaythrough", () => setBuffering(false));
+    on("emptied", () => setBuffering(false));
     on("play", () => {
       // A context the browser suspended passes no sound at all, and play is the
       // moment that matters.
@@ -198,6 +237,7 @@ export function createBrowserPlayer() {
       emit("play");
     });
     on("pause", () => {
+      setBuffering(false);
       setPlaybackState("paused");
       // The element fires its own `timeupdate` on a pause -- on every browser,
       // the TV included -- so the final position lands without a tick.
@@ -205,11 +245,13 @@ export function createBrowserPlayer() {
       emit("pause");
     });
     on("ended", () => {
+      setBuffering(false);
       stopTicker();
       emit("ended");
     });
     on("error", () => {
       errored = true;
+      setBuffering(false);
       emit("error");
     });
     on("volumechange", () => emit("volumechange"));
@@ -233,6 +275,7 @@ export function createBrowserPlayer() {
     trackId = null;
     hasSource = false;
     errored = false;
+    buffering = false;
     // Other modules read the element from this store; it is the engine that
     // owns it, so it is the engine that publishes it.
     audio.set(media);
@@ -245,6 +288,7 @@ export function createBrowserPlayer() {
     trackId = null;
     hasSource = false;
     errored = false;
+    buffering = false;
     audio.set(null);
   }
 
@@ -262,6 +306,9 @@ export function createBrowserPlayer() {
   async function load({ url, trackId: id = null, position = 0, autoplay = false } = {}) {
     if (!media || !url) return;
     errored = false;
+    // A new source starts unbuffered. The element fires `waiting` by itself
+    // once a play request finds no data, so nothing is set here.
+    setBuffering(false);
     trackId = id;
     media.src = url;
     hasSource = true;
@@ -288,6 +335,7 @@ export function createBrowserPlayer() {
     hasSource = false;
     trackId = null;
     errored = false;
+    setBuffering(false);
   }
 
   /**

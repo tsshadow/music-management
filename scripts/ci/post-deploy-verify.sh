@@ -43,7 +43,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=scripts/lib/compose_profiles.sh
 . "$PROJECT_ROOT/scripts/lib/compose_profiles.sh"
 
-# Standalone invocation (the muma:verify job) has no agent yet; being called
+# Standalone invocation has no agent yet; being called
 # from ci-deploy.sh it already does, and re-running the setup would pointlessly
 # start a second one.
 if [ -z "${REMOTE_HOST}" ]; then
@@ -137,11 +137,12 @@ check_states() {
 # check (docs/self-hosting.md#source-workers-are-compose-profiles). The profile
 # to container map is pinned against docker/docker-compose.yml by
 # tests/ci/test_compose_profiles.py. Without PROD_ENV_FILE or COMPOSE_PROFILES it
-# prints SKIPPED, and fails when run as the muma:deploy or muma:verify job.
+# prints SKIPPED, and fails when run as the deploy:production job of the operations
+# repository (docs/designs/ops-split/).
 PROFILE_WORKERS="soundcloud:muma-soundcloud-worker youtube:muma-youtube-worker telegram:muma-telegram-worker importer:muma-importer-worker"
 check_profile_workers() {
     local sample="$1" content profiles entry profile container state failed=0 required=0
-    case "${CI_JOB_NAME:-}" in muma:deploy | muma:verify) required=1 ;; esac
+    case "${CI_JOB_NAME:-}" in deploy:production) required=1 ;; esac
     if [ -z "${PROD_ENV_FILE:-}" ]; then
         echo "  SKIPPED: source worker check, PROD_ENV_FILE is not set."
         return "$required"

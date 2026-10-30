@@ -761,7 +761,7 @@ def test_ci_deploy_promotes_images_through_the_pre_up_hook() -> None:
     )
 
 
-# --- image tags: :latest only moves inside muma:deploy ----------------------
+# --- image tags: :latest only moves inside the deploy ----------------------
 
 PROMOTE_SH = REPO_ROOT / "scripts" / "ci" / "promote-release-images.sh"
 MUMA_IMAGE_ENV = (

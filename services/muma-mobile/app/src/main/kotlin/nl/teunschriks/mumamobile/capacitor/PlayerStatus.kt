@@ -50,6 +50,15 @@ fun playerStatusOf(playbackState: Int, isPlaying: Boolean, failed: Boolean = fal
 }
 
 /**
+ * Whether a play request waits for data: the snapshot's `buffering` flag, which turns the play
+ * button into a throbber.
+ *
+ * Same meaning as the browser engine's flag: Media3 also sits in `STATE_BUFFERING` after a seek
+ * while paused, and nobody is waiting for that, so `playWhenReady` has to be set too.
+ */
+fun isBufferingOf(playbackState: Int, playWhenReady: Boolean): Boolean = playWhenReady && playbackState == Player.STATE_BUFFERING
+
+/**
  * The three repeat words `services/frontend/src/lib/platform/index.js` speaks, translated onto
  * Media3's `Player.RepeatMode`.
  *

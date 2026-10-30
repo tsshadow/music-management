@@ -98,6 +98,7 @@ class MumaPlayerPlugin :
     private var failed = false
     private val transportTracker = TransportTracker()
     private var lastIsPlaying = false
+    private var lastBuffering = false
     private var lastPositionMs = 0L
     private var lastTickAt = 0L
 
@@ -456,6 +457,14 @@ class MumaPlayerPlugin :
     // ----------------------------------------------------------------- events
 
     private fun onPlayerState(state: RxBus.StateWithTrack) {
+        // Ahead of the suppression below: whichever item the service is loading, the play button
+        // shows that it waits.
+        val buffering = isBufferingOf(state.state, mediaPlayerManager.playWhenReady)
+        if (buffering != lastBuffering) {
+            lastBuffering = buffering
+            notifyState(EVENT_BUFFERING)
+        }
+
         val event = transportTracker.accept(state.track?.id, state.index)
         // A self-inflicted queue replacement clears the timeline and loads the new list's first
         // item before it reaches the index that was actually asked for; none of that is a move
@@ -554,6 +563,7 @@ class MumaPlayerPlugin :
             .put("repeat", repeatModeWire(mediaPlayerManager.repeatMode))
             .put("radioChannel", mediaPlayerManager.currentRadioSlug)
             .put("newsPlaying", mediaPlayerManager.isNewsPlaying)
+            .put("buffering", isBufferingOf(mediaPlayerManager.playbackState, mediaPlayerManager.playWhenReady))
     }
 
     private fun queueSnapshot(): JSObject = JSObject()
@@ -575,6 +585,7 @@ class MumaPlayerPlugin :
         const val EVENT_ENDED = "ended"
         const val EVENT_ERROR = "error"
         const val EVENT_VOLUME_CHANGE = "volumechange"
+        const val EVENT_BUFFERING = "buffering"
         const val EVENT_COMMAND = "command"
 
         const val COMMAND_NEXT = "next"

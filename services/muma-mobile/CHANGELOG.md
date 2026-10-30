@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.18.3] - 2026-10-30
+
+### Changed
+- **The server address and the Google client id are build settings now.** `StaticServers.SERVER_URL`,
+  the client id of "Sign in with Google", an optional own host for the MuMa API and the owner's
+  domain come from the Gradle properties `muma.serverUrl`, `muma.googleClientId`, `muma.apiUrl` and
+  `muma.ownDomain`, in CI from the variables `MUMA_SERVER_URL`, `MUMA_GOOGLE_CLIENT_ID`,
+  `MUMA_API_URL` and `MUMA_OWN_DOMAIN`. A build without them uses `https://music.example.org` and
+  hides the Google button. A release build stops when the first two are missing, in Gradle and in
+  CI; the CI script also needs the other two. A stored server gets the own API host only when its
+  host equals the configured server or is `muma.ownDomain` or a subdomain of it, so a sibling on a
+  shared suffix such as `duckdns.org` is never treated as the owner's. The app behaves the same for
+  a build that sets them (#189).
+
+### Security
+- **Guava goes from 33.3.1 to 33.7.2.** media3 pulls in Guava 33.3.1, which has CVE-2026-102554, a
+  denial of service rated high. A constraint in `app/build.gradle` raises it to 33.7.2-android;
+  `dependencyInsight` shows every request in the release classpath (31.1, 32.0.0-jre, 33.3.1)
+  resolving to that version. Drop the constraint once media3 asks for 33.7.2 or later.
+
 ## [7.18.2] - 2026-10-22
 
 ### Changed

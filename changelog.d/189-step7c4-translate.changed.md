@@ -1,1 +1,0 @@
-- **Security checks and the mobile cover-art design are now in English.** The security checks page moved from `docs/security-en-controles.md` to `docs/security-checks.md`. Refs #189.

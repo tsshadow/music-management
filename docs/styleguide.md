@@ -238,6 +238,13 @@
   action that is waiting (a play button pressed before its tracks arrived) or a background refresh
   next to a section heading. It never replaces a whole page or section: that is what skeletons are
   for.
+- **Play button: buffering** (web player): while a play request waits for data, at the start of a
+  track, after a seek into a part not loaded yet or when the network falls behind, the play/pause
+  button shows the inline throbber in place of its icon. The size is 24px in the mini player's
+  32px icon box, 16px in the white circle of the desktop player bar, and 28px in the Now Playing
+  circle. The ring takes the button's own color, white or black. The button keeps its pause label
+  and still pauses. The icon comes back when the audio plays again or the listener pauses. The
+  app's native engine does not report buffering yet, so in the app the button keeps its icon.
 - **Mini player: restoring the queue** (app only, issue #113, docs/designs/deferred-queue-restore/):
   while the queue the phone's player holds is still being looked up after the app opened, the mini
   player shows, in place of "Niets aan het afspelen", its 44px cover slot as a `bg-muma-skeleton`

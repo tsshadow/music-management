@@ -72,8 +72,8 @@ android {
 
     defaultConfig {
         applicationId = 'nl.teunschriks.mumamobile'
-        versionCode 368
-        versionName "7.18.3"
+        versionCode 369
+        versionName "7.18.4"
 
         minSdk = libs.versions.appMinSdk.get().toInteger()
         targetSdk = libs.versions.appTargetSdk.get().toInteger()
@@ -310,6 +310,17 @@ or install an APK from a pipeline in which <code>frontend:bundle</code> ran.</p>
             // Robolectric can only resolve the app's own resources when they are packaged for
             // the unit test run; without this every getString/inflate throws NotFoundException.
             includeAndroidResources = true
+            all {
+                // Robolectric downloads its android-all jars into maven.repo.local, by default
+                // ~/.m2 -- which is not kept between CI containers, so every run fetched them
+                // from repo1.maven.org again until it answered 429 (60 classes in
+                // initializationError). The Gradle user home is the cache that is kept
+                // (scripts/ci/android-gradle-home.sh), and Google's mirror of Maven Central
+                // serves the jars when repo1 rate-limits this network.
+                systemProperty 'maven.repo.local', "${gradle.gradleUserHomeDir}/robolectric-m2"
+                systemProperty 'robolectric.dependency.repo.url',
+                    'https://maven-central.storage-download.googleapis.com/maven2'
+            }
         }
     }
 

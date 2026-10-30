@@ -1,14 +1,19 @@
 #!/bin/bash
 # scripts/ci/muma-mobile-build-upload.sh <debug|release>
 #
-# Builds an MuMa Mobile APK and uploads it to apk-hoster, from CI. This is the
+# Builds an MuMa Mobile APK and publishes it, from CI. A debug build goes to apk-hoster's debug
+# series. A release build goes to this project's generic package registry, as
+# muma-mobile/<versionName>/muma-mobile-v<versionName>-<versionCode>.apk (plus the release notes
+# .txt and the R8 mapping): the installation uploads it to apk-hoster after its deploy passed
+# (docs/designs/ops-split/). This is the
 # automated equivalent of what used to be a fully manual, local-only step
 # (services/muma-mobile/scripts/build.sh + publish.sh + deploy.sh, run by hand).
 #
 # Required CI/CD variables (see docs/self-hosting.md#deploy-from-gitlab-ci):
-#   - APK_HOSTER_URL, APK_HOSTER_PASSWORD: always required. The password is read only by
-#     scripts/deploy.sh for the upload; app/build.gradle no longer compiles it into the APK
-#     (bug report 054), so it must never be added back as a BuildConfig field.
+#   - APK_HOSTER_URL: always required; the app checks it for updates. APK_HOSTER_PASSWORD: debug
+#     builds only. The password is read only by services/muma-mobile/scripts/deploy.sh for the
+#     upload; app/build.gradle no longer compiles it into the APK (bug report 054), so it must
+#     never be added back as a BuildConfig field.
 #   - SIGNING_STORE_FILE (file-type variable with the keystore),
 #     SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, SIGNING_KEY_PASSWORD:
 #     only required for "release" builds (debug builds are unsigned/dev-signed).
@@ -28,7 +33,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR" || exit 1
 
-if [ -z "$APK_HOSTER_URL" ] || [ -z "$APK_HOSTER_PASSWORD" ]; then
+if [ -z "$APK_HOSTER_URL" ] || { [ "$BUILD_TYPE" == "debug" ] && [ -z "$APK_HOSTER_PASSWORD" ]; }; then
     echo "Error: APK_HOSTER_URL / APK_HOSTER_PASSWORD are not set. See docs/self-hosting.md#deploy-from-gitlab-ci."
     exit 1
 fi
@@ -120,6 +125,16 @@ export SIGNING_KEY_ALIAS="${SIGNING_KEY_ALIAS:-dummy}"
 export SIGNING_KEY_PASSWORD="${SIGNING_KEY_PASSWORD:-dummy}"
 export APK_HOSTER_PASSWORD="${APK_HOSTER_PASSWORD:-}"
 
+# A debug build goes to apk-hoster from inside the container; a release build is published to
+# the package registry below, and the installation uploads it to apk-hoster.
+GRADLE_FILE="$ROOT_DIR/services/muma-mobile/app/build.gradle"
+VERSION_NAME="$(grep -m1 'versionName' "$GRADLE_FILE" | sed 's/.*"\(.*\)".*/\1/')"
+VERSION_CODE="$(grep -m1 'versionCode' "$GRADLE_FILE" | sed 's/[^0-9]*//g')"
+DEPLOY_STEP=""
+if [ "$BUILD_TYPE" == "debug" ]; then
+    DEPLOY_STEP=" && ./scripts/deploy.sh debug"
+fi
+
 # Project-owned Android SDK image, same as scripts/test/muma-mobile-unit.sh.
 docker run --rm \
     --label "ci.job=${CI_JOB_ID:-local}" \
@@ -140,6 +155,28 @@ docker run --rm \
     -e MUMA_GOOGLE_CLIENT_ID \
     -e DIST_DIR="dist" \
     "$ANDROID_CI_IMAGE" \
-    /bin/bash -c ". /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE && ./scripts/deploy.sh $BUILD_TYPE"
+    /bin/bash -c ". /etc/android-sdk-root && export ANDROID_SDK_ROOT && ./scripts/build.sh $BUILD_TYPE && ./scripts/publish.sh $BUILD_TYPE$DEPLOY_STEP"
 
-echo "--- MuMa Mobile $BUILD_TYPE build+upload completed ---"
+if [ "$BUILD_TYPE" == "release" ]; then
+    # publish_package FILE: PUT one file of dist/ into the generic package registry. The job token
+    # goes in a header file, never on the command line (GitLab #40). A re-run overwrites the file.
+    publish_package() {
+        local file="$1"
+        echo "Publishing $(basename "$file") to package muma-mobile/${VERSION_NAME}"
+        curl -sSf --upload-file "$file" -H @<(printf 'JOB-TOKEN: %s\n' "$CI_JOB_TOKEN") \
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/muma-mobile/${VERSION_NAME}/$(basename "$file")" > /dev/null
+    }
+    DIST="$ROOT_DIR/services/muma-mobile/dist"
+    BASE="$DIST/muma-mobile-v${VERSION_NAME}-${VERSION_CODE}"
+    if [ ! -f "$BASE.apk" ]; then
+        echo "Error: $BASE.apk was not built."
+        exit 1
+    fi
+    for file in "$BASE.apk" "$BASE.txt" "$BASE-mapping.txt"; do
+        if [ -f "$file" ]; then
+            publish_package "$file" || exit 1
+        fi
+    done
+fi
+
+echo "--- MuMa Mobile $BUILD_TYPE build+publish completed ---"

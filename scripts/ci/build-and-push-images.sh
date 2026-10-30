@@ -2,15 +2,15 @@
 # scripts/ci/build-and-push-images.sh
 #
 # Builds and pushes ALL Docker images that production actually pulls, from CI,
-# on a release/* branch, *before* muma:deploy runs. This closes the gap that
-# caused muma:deploy to only ever "docker compose pull" whatever image was
+# on a release/* branch, *before* the deploy runs. This closes the gap that
+# caused the deploy to only ever "docker compose pull" whatever image was
 # last pushed manually (often stale/old) - see muma-ops docs/release-management.md and
 # CHANGELOG.md 0.0.2 for the full story.
 #
 # NOTE: this originally only covered music-manager/lms (bullets 1-2 below).
 # See docs/bug-reports/007-telegram-session-schema-mismatch.md: a fix to the
 # telegram worker's Dockerfile/dependencies went through a full green
-# release/muma:deploy pipeline but never actually reached production, because
+# release pipeline but never actually reached production, because
 # nothing in CI ever rebuilt+pushed the muma-telegram (or muma-downloader/
 # muma-importer/muma-tools/muma-base) images - "docker compose pull" just kept
 # re-pulling the same old manually-pushed ":latest" tag. Bullets 3-6 close
@@ -19,8 +19,8 @@
 # Tags: every image is pushed as ":${VERSION}" and ":rc" -- never ":latest"
 # (nor ":stable" for lms). Those are the tags production pulls, and Watchtower
 # on the host pulls ":latest" of the downloader family the moment it changes;
-# pushed from here, a release's code could start before muma:deploy had applied
-# its migrations, or ship with no deploy at all. muma:deploy moves them, after
+# pushed from here, a release's code could start before the deploy had applied
+# its migrations, or ship with no deploy at all. The deploy moves them, after
 # the pre-deploy backup and the migrations, in
 # scripts/ci/promote-release-images.sh. See
 # docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
@@ -49,15 +49,15 @@
 #
 # Required CI/CD variables (see docs/self-hosting.md):
 #   - DOCKERHUB_USERNAME, DOCKERHUB_TOKEN: Docker Hub login used to push.
-#   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables muma:deploy
+#   - PROD_ENV_FILE, PROD_ENV_FILE_LMS: same file-type variables the deploy
 #     already uses, needed here too so IMAGE_CORE/IMAGE_NAME/IMAGE_* resolve
 #     to the exact same values docker-compose.yml will pull on the
 #     production host.
 #
 # This job is gated in .gitlab-ci.yml on DOCKERHUB_USERNAME/DOCKERHUB_TOKEN
-# being present, but since it runs before muma:deploy (same "release" stage,
+# being present, but since it runs before the deploy (same "release" stage,
 # earlier than the "deploy" stage), a missing/failed build here blocks
-# muma:deploy from ever running against a stale image.
+# the deploy from ever running against a stale image.
 
 set -e
 
@@ -157,7 +157,7 @@ if [ "$PUSH_IMAGES" = "true" ] && { [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKE
 fi
 
 # Materialize the .env files from the same file-type CI/CD variables
-# muma:deploy uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
+# the deploy uses, so IMAGE_CORE/DOCKER_USER/IMAGE_NAME/LMS_TAG match exactly
 # what production will pull (jobs don't share a filesystem, so this has to be
 # redone here rather than relying on what ci-deploy.sh writes in a later job).
 # write_env_file VALUE DEST: write a file-type CI/CD variable (a path) or a

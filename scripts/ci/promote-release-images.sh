@@ -2,15 +2,15 @@
 # scripts/ci/promote-release-images.sh
 #
 # Moves this release's images from ":${VERSION}" to the tags production pulls:
-# ":latest" for every image, and ":stable" as well for lms. Run by muma:deploy,
+# ":latest" for every image, and ":stable" as well for lms. Run by the deploy,
 # through scripts/deploy.sh's DEPLOY_PRE_UP_HOOK, after the pre-deploy backup
 # and the migrations have succeeded and before any container is recreated.
 #
 # Why here and not in release:build-images: Watchtower on the production host
 # pulls ":latest" of the downloader family whenever it changes. When the build
 # job pushed ":latest", Watchtower could start a release's code minutes before
-# muma:deploy had applied that release's migrations -- and it did so even when
-# muma:deploy never ran at all (a red mobile job skips it). The build job now
+# the deploy had applied that release's migrations -- and it did so even when
+# the deploy never ran at all (a red mobile job skips it). The build job now
 # pushes ":${VERSION}" and ":rc" only; this script is the one place ":latest"
 # moves. See docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
 #

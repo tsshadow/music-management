@@ -169,6 +169,57 @@ describe("Player", () => {
     expect(get(playerState).playing).toBe(false);
   });
 
+  // The element waits for data at the start of a track, after a seek into a part not loaded
+  // yet, and when the network falls behind. The play button shows a throbber meanwhile.
+  describe("buffering", () => {
+    it.each([
+      ["the desktop player bar", false],
+      ["the mobile mini player", true],
+    ])("swaps the play icon for a throbber in %s", async (_name, mobile) => {
+      isMobile.set(mobile);
+      const { container } = renderPlayer();
+      const audioElement = container.querySelector("audio");
+      expect(screen.queryByTestId("play-buffering")).toBeNull();
+
+      await fireEvent.play(audioElement);
+      await fireEvent(audioElement, new Event("waiting"));
+
+      expect(screen.getByTestId("play-buffering")).toBeTruthy();
+      expect(screen.getAllByLabelText("Bezig met bufferen…").length).toBeGreaterThan(0);
+
+      await fireEvent(audioElement, new Event("playing"));
+
+      expect(screen.queryByTestId("play-buffering")).toBeNull();
+    });
+
+    it("drops the throbber when the listener pauses", async () => {
+      const { container } = renderPlayer();
+      const audioElement = container.querySelector("audio");
+      await fireEvent.play(audioElement);
+      await fireEvent(audioElement, new Event("waiting"));
+
+      await fireEvent.pause(audioElement);
+
+      expect(screen.queryByTestId("play-buffering")).toBeNull();
+    });
+
+    it("shows the throbber on the Now Playing play button", async () => {
+      isMobile.set(true);
+      const { container } = renderPlayer();
+      await fireEvent.click(screen.getByText("Raise Your Fist"));
+      const audioElement = container.querySelector("audio");
+
+      await fireEvent.play(audioElement);
+      await fireEvent(audioElement, new Event("waiting"));
+
+      expect(screen.getByTestId("now-playing-buffering")).toBeTruthy();
+
+      await fireEvent(audioElement, new Event("canplay"));
+
+      expect(screen.queryByTestId("now-playing-buffering")).toBeNull();
+    });
+  });
+
   it("next moves to the following track", async () => {
     renderPlayer();
 

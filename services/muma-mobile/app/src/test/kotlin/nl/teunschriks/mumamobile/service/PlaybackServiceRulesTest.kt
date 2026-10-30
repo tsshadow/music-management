@@ -56,4 +56,12 @@ class PlaybackServiceRulesTest {
         PlaybackServiceRules.shouldStopOnTaskRemoved(playWhenReady = false, mediaItemCount = 12) `should be equal to` true
         PlaybackServiceRules.shouldStopOnTaskRemoved(playWhenReady = true, mediaItemCount = 0) `should be equal to` true
     }
+
+    @Test
+    fun `only a library track has a cached file the error recovery can drop`() {
+        PlaybackServiceRules.isLibraryTrack("tr-42|320|/music/Artist/Album/01.mp3") `should be equal to` true
+        PlaybackServiceRules.isLibraryTrack("https://muma.example/rest/stream?id=tr-12") `should be equal to` false
+        PlaybackServiceRules.isLibraryTrack("MEDIA_NEWS_STREAM|bulletin-7") `should be equal to` false
+        PlaybackServiceRules.isLibraryTrack(null) `should be equal to` false
+    }
 }

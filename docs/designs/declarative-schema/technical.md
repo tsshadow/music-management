@@ -79,7 +79,7 @@ new installation never has. They are deleted, not moved.
 | Type, nullability, default, collation or primary key differs | Report as "changed". |
 
 4. Drop the probe database. Print one line per action and per reported item, then
-   `schema in sync` or `schema reconciled: N changes, M reported`.
+   `schema in sync`, `schema reconciled: N changes, M reported`, or with `--dry-run` `dry run, schema not changed: N changes, M reported`.
 
 Every statement runs with `lock_wait_timeout` and `innodb_lock_wait_timeout` set, the same as
 `apply_migrations.py` does today (bug report 068). `--dry-run` prints the statements and runs none.

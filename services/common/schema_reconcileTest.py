@@ -170,5 +170,26 @@ class ReadSchemaTest(unittest.TestCase):
         self.assertEqual((columns['a'].default, columns['b'].default), ('<none>', 'NULL'))
 
 
+class MainSummaryTest(unittest.TestCase):
+    """The last line of main() says whether the schema was changed."""
+
+    def _summary(self, argv: list[str]) -> str:
+        result = schema_reconcile.Plan(statements=['ALTER TABLE `t` ADD KEY `a` (`a`)'], reports=['extra table: x'])
+        with (
+            mock.patch.dict('os.environ', {'DB_DB': 'db'}),
+            mock.patch.object(schema_reconcile, '_connect'),
+            mock.patch.object(schema_reconcile, 'reconcile', return_value=result),
+            mock.patch('builtins.print') as printed,
+        ):
+            self.assertEqual(schema_reconcile.main(argv), 0)
+        return printed.call_args_list[-1].args[0]
+
+    def test_a_dry_run_says_nothing_was_changed(self):
+        self.assertEqual(self._summary(['--dry-run']), 'dry run, schema not changed: 1 changes, 1 reported')
+
+    def test_a_real_run_says_the_schema_was_reconciled(self):
+        self.assertEqual(self._summary([]), 'schema reconciled: 1 changes, 1 reported')
+
+
 if __name__ == '__main__':
     unittest.main()

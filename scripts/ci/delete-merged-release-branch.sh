@@ -6,7 +6,7 @@
 #
 # A forgotten, already-merged release branch is a real production risk: any
 # later delayed or manually re-run pipeline against it re-triggers
-# release:build-images and muma:deploy from that branch's now-stale checkout,
+# release:build-images and the deploy from that branch's now-stale checkout,
 # silently overwriting `latest` and redeploying old code. See
 # docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md.
 #
@@ -18,7 +18,7 @@
 #      whose commit was already on develop kept its branch forever. That is
 #      how release/0.8.3 survived its own merge.
 #   2. release:back-merge-develop needs release:tag, which now needs
-#      release:verify-deployed. So the one case the deployed-version gate
+#      the gate in front of the tag. So the one case the deployed-version gate
 #      exists to catch - production not serving what master says - was also
 #      the case that left the stale branch alive, which is precisely the
 #      precondition for bug 016.

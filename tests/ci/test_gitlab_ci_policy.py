@@ -36,8 +36,8 @@ def test_no_job_declares_an_image():
     assert offenders == [], f"shell-executor runner cannot honour image: on {offenders}"
 
 
-# Jobs that gate a production deploy. If one of these does not run on a
-# release branch, muma:deploy ships code this pipeline never tested.
+# Jobs that gate a release. If one of these does not run on a release branch,
+# release:build-images publishes code this pipeline never tested.
 GATING_JOBS = [
     "backend:format",
     "backend:lint",
@@ -55,7 +55,7 @@ GATING_JOBS = [
 def test_gating_jobs_always_run_on_a_release_branch():
     """A `changes:`-only rule skips these on the stabilize commit, which
     touches nothing but VERSION/CHANGELOG/RELEASE_NOTES -- and a skipped job
-    does not block muma:deploy."""
+    does not block release:build-images."""
     ci = load_ci()
     for name in GATING_JOBS:
         rules = ci[name]["rules"]
@@ -265,12 +265,10 @@ def test_credentialed_jobs_never_carry_the_fast_tag():
     must be pinned to the always-on LXC, which is what being untagged means."""
     ci = load_ci()
     credentialed = [
-        "muma:deploy",
-        "muma:verify",
         "mobile:build-release",
+        "release:publish",
         "release:tag",
         "release:build-images",
-        "release:verify-deployed",
         "release:cleanup-branch",
         "release:back-merge-develop",
     ]
@@ -319,20 +317,18 @@ def test_release_rule_covers_release_and_hotfix():
     assert "release" in condition and "hotfix" in condition
 
 
-def test_deploy_prod_is_serialised():
-    """Without a resource_group two pipelines deploy over each other -- see
-    docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md."""
+def test_no_job_deploys():
+    """This repository builds and publishes; an installation deploys from the
+    release tag (docs/designs/ops-split/). A job here that runs the deploy
+    would deploy beside the installation's own, and the two would race."""
     ci = load_ci()
-    assert ci["muma:deploy"]["resource_group"] == "production"
-
-
-def test_deploy_prod_declares_its_environment():
-    """Gives GitLab a deployment history, so "what is live" is answerable
-    without SSHing to the host."""
-    ci = load_ci()
-    environment = ci["muma:deploy"]["environment"]
-    assert environment["name"] == "production"
-    assert environment["url"] == "$PROD_URL"
+    offenders = [
+        name
+        for name in job_names(ci)
+        if "environment" in ci[name]
+        or any("ci-deploy.sh" in line for line in ci[name].get("script", []) if isinstance(line, str))
+    ]
+    assert offenders == [], f"these jobs deploy: {offenders}"
 
 
 def test_feature_branches_get_no_branch_pipeline():
@@ -375,7 +371,8 @@ def test_release_branches_do_not_get_a_merge_request_pipeline():
     in push pipelines -- so a release branch with an open MR got a branch
     pipeline AND an MR pipeline, ran everything twice, and the two Android jobs
     raced each other for the shared Gradle home. The branch pipeline is where
-    muma:deploy lives, so the MR pipeline is the one that must never start."""
+    the release images and the APK are built, so the MR pipeline is the one
+    that must never start."""
     ci = load_ci()
     rules = ci["workflow"]["rules"]
     guard = [
@@ -390,10 +387,10 @@ def test_release_branches_do_not_get_a_merge_request_pipeline():
 
 
 def test_workflow_never_suppresses_a_release_branch_pipeline():
-    """muma:deploy matches on $CI_COMMIT_BRANCH, which is unset in a merge
-    request pipeline. If the duplicate-pipeline guard fired for a release
+    """release:build-images matches on $CI_COMMIT_BRANCH, which is unset in a
+    merge request pipeline. If the duplicate-pipeline guard fired for a release
     branch that happens to have an MR open, the branch pipeline would vanish
-    and production would never be deployed at all. The release rule therefore
+    and the release would never be built at all. The release rule therefore
     has to be decided before the guard is reached."""
     ci = load_ci()
     rules = ci["workflow"]["rules"]
@@ -488,12 +485,6 @@ def test_the_infra_retry_template_only_covers_infrastructure_failures():
     assert set(ci[".infra_retry"]["retry"]["when"]) <= INFRA_FAILURES
 
 
-def test_deploy_prod_is_never_retried():
-    """A half-applied deploy must be looked at, not repeated."""
-    ci = load_ci()
-    assert "retry" not in ci["muma:deploy"]
-
-
 def test_secret_scanning_runs_on_release_branches():
     """A leaked key must not first become public in a tagged release."""
     ci = load_ci()
@@ -549,7 +540,6 @@ RELEASE_STAGE_JOBS = [
     "release:version-check",
     "release:build-images",
     "mobile:build-release",
-    "muma:deploy",
 ]
 
 
@@ -567,8 +557,8 @@ def test_release_apk_waits_for_the_android_unit_tests():
     only serializes jobs, it does not order them. With version-check as the
     only need, mobile:build-release built and UPLOADED a signed APK while
     mobile:unit on the same commit failed -- phones auto-update from the
-    hoster, so users got untested code even though muma:deploy correctly never
-    ran."""
+    hoster, so users got untested code even though the server release
+    correctly never shipped."""
     ci = load_ci()
     targets = [n["job"] if isinstance(n, dict) else n for n in ci["mobile:build-release"]["needs"]]
     assert "mobile:unit" in targets
@@ -586,7 +576,7 @@ def test_publishing_jobs_are_not_interruptible():
     for name in [
         "release:build-images",
         "mobile:build-release",
-        "muma:deploy",
+        "release:publish",
         "release:tag",
     ]:
         assert ci[name].get("interruptible") is False, f"{name} can be cancelled mid-publish"
@@ -701,7 +691,7 @@ def test_lint_job_runs_for_every_directory_it_lints():
 # --- Docker image coverage ---------------------------------------------------
 # A merge request that changed only a Dockerfile used to match no `changes:`
 # rule in the whole file and ran nothing but the secret scan. The first build
-# was release:build-images, on a release branch, minutes before muma:deploy.
+# was release:build-images, on a release branch, minutes before the release tag.
 
 
 def _matches_file(glob: str, path: str) -> bool:
@@ -759,20 +749,16 @@ def test_ci_deploy_ends_in_a_gate_that_can_fail():
     assert "post-deploy-verify.sh" in script
 
 
-def test_deploy_smoke_runs_on_every_release_branch():
+def test_tagging_is_gated_on_what_the_release_published():
+    """The tag is what an installation deploys. Release 0.19.0 was tagged while
+    its mobile job had failed and release:build-images was skipped, and a
+    skipped job blocks nothing. Stage ordering cannot catch that -- only asking
+    the release branch pipeline and the package registry can."""
     ci = load_ci()
-    condition = first_condition(ci, "muma:verify")
-    assert "release" in condition and "hotfix" in condition
-    assert ci["muma:verify"]["needs"] == ["muma:deploy"]
-
-
-def test_tagging_is_gated_on_what_production_actually_serves():
-    """Release 0.19.0 was tagged on master and back-merged to develop while
-    production sat on 0.18.2: muma:deploy was skipped, and a skipped job blocks
-    nothing. Stage ordering cannot catch that -- only asking production can."""
-    ci = load_ci()
-    assert ci["release:tag"]["needs"] == ["release:verify-deployed"]
-    assert first_condition(ci, "release:verify-deployed") == '$CI_COMMIT_BRANCH == "master"'
+    assert ci["release:tag"]["needs"] == ["release:publish"]
+    assert ci["release:publish"]["needs"] == []
+    assert first_condition(ci, "release:publish") == '$CI_COMMIT_BRANCH == "master"'
+    assert ci["release:publish"]["script"] == ["./scripts/ci/check-release-published.sh"]
 
 
 # --- DAG correctness ---------------------------------------------------------
@@ -840,8 +826,8 @@ def test_no_job_ships_environment_debugging():
 def test_branch_cleanup_does_not_depend_on_the_tag_or_the_deploy():
     """Deleting a branch already merged into master is safe whatever the tag
     and the deploy did. While the delete was the tail of back-merge-develop.sh
-    it inherited release:tag's needs, so a failing release:verify-deployed -
-    production not serving what master says - left the merged release branch
+    it inherited release:tag's needs, so a failing gate in front of the tag
+    left the merged release branch
     alive, which is the precondition for
     docs/bug-reports/016-stale-release-branch-clobbered-latest-deploy.md."""
     ci = load_ci()
@@ -861,10 +847,10 @@ def test_the_back_merge_no_longer_deletes_branches():
 
 
 def test_latest_is_only_moved_by_the_deploy():
-    """release:build-images used to push :latest before muma:deploy had
+    """release:build-images used to push :latest before the deploy had
     migrated anything, so Watchtower could start a release's code early -- or
-    without any deploy, when muma:deploy was skipped. :latest now moves inside
-    muma:deploy, after the backup and the migrations."""
+    without any deploy, when the deploy was skipped. :latest now moves inside
+    the deploy, after the backup and the migrations."""
     build = (REPO_ROOT / "scripts" / "ci" / "build-and-push-images.sh").read_text(encoding="utf-8")
     pushes = [line.strip() for line in build.splitlines() if line.strip().startswith("docker_push")]
     assert pushes, "the release build must still push"
@@ -873,14 +859,6 @@ def test_latest_is_only_moved_by_the_deploy():
 
     ci_deploy = (REPO_ROOT / "scripts" / "ci-deploy.sh").read_text(encoding="utf-8")
     assert "promote-release-images.sh" in ci_deploy
-    ci = load_ci()
-    assert "./scripts/ci-deploy.sh" in ci["muma:deploy"]["script"]
-
-
-def test_deploy_timeout_leaves_room_for_the_pre_deploy_dump():
-    ci = load_ci()
-    timeout = ci["muma:deploy"]["timeout"]
-    assert timeout.endswith("m") and int(timeout[:-1]) >= 45, timeout
 
 
 def test_backend_test_jobs_rerun_when_their_environment_changes():

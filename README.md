@@ -240,8 +240,8 @@ pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z
 | --- | --- | --- | --- |
 | **Feature / merge request** | a push to `feature/*` or any branch with an open MR | Only the tests for the parts you actually changed. Fast feedback while reviewing. | No |
 | **Integration (`develop`)** | a push/merge to `develop` | The changed-code tests *plus* the full stack tests (contract + browser), which always run here. This is the "does everything still fit together" gate. | No |
-| **Release (`release/x.y.z`)** | creating/pushing a release branch | Checks the release paperwork and secrets, builds and publishes all Docker images and the signed Android app, then deploys to production. | **Yes** |
-| **Production record (`master`)** | merging a release branch to `master` | No tests, no deploy. Only bookkeeping: tag the release and merge `master` back into `develop`. | No |
+| **Release (`release/x.y.z`)** | creating/pushing a release branch | Checks the release paperwork and secrets, builds and publishes all Docker images and the signed Android app. | No |
+| **Production record (`master`)** | merging a release branch to `master` | No tests. Checks that the release was published, tags it and merges `master` back into `develop`. The tag starts the deploy of an installation that watches it. | Through the tag |
 
 ### Which job runs when
 
@@ -254,7 +254,7 @@ edited, which is also what the `changes:` rules key on:
 | `server` | the C++ playback server |
 | `frontend` | the Svelte web UI (built into the server's image, not deployed separately) |
 | `mobile` | the Android app |
-| `muma` | spans components, or is the whole product: contracts, e2e, images, deploy |
+| `muma` | spans components, or is the whole product: contracts, e2e, images |
 | `security`, `deps`, `runner`, `release` | concerns that belong to no component |
 
 Every component answers the same three questions — **format**, **lint**, **unit** — plus
@@ -292,14 +292,17 @@ pipeline fails as early and as cheaply as possible:
 | `release:check-secrets` | Runs first, before anything is built: refuses to continue if a deployment secret needed by production is missing or empty. A release pipeline that skips this job is not considered green. |
 | `release:version-check` | Enforces that the release was actually prepared: `VERSION` bumped, a dated `CHANGELOG.md` entry, release notes updated, and an MuMa Mobile version bump if the app changed. |
 | `release:build-images` | Builds and pushes every Docker image production pulls, so the deploy can never pick up a stale, manually pushed image. |
-| `mobile:build-release` | Builds and uploads the signed Android release APK to the APK hoster. Waits for `release:version-check`. |
-| `muma:deploy` | Deploys both production stacks (music-management and the playback/UI stack) over SSH. |
+| `mobile:build-release` | Builds the signed Android release APK and publishes it to this project's package registry (`muma-mobile/<versionName>`). Waits for `release:version-check`. |
+
+Nothing here deploys. An installation deploys a release from its tag (see
+[docs/designs/ops-split/](docs/designs/ops-split/functional.md)).
 
 **Post-release jobs** — these run on `master` after the release branch is merged:
 
 | Job | Purpose |
 | --- | --- |
-| `release:tag` | Creates the immutable `release-vX.Y.Z` tag (and `muma-mobile-vX.Y.Z` when the app was part of the release). Tags are never made by hand, so `master` always answers "what is live?". |
+| `release:publish` | Checks that the release branch pipeline built the images and the APK package for the merged commit. A release whose build was skipped or cancelled stops here, untagged. |
+| `release:tag` | Creates the immutable `release-vX.Y.Z` tag (and `muma-mobile-vX.Y.Z` when the app was part of the release), after `release:publish`. Tags are never made by hand. The tag is what an installation deploys. |
 | `release:back-merge-develop` | Merges `master` back into `develop` automatically and deletes the merged release branch, so `develop` never drifts and stale release branches can't redeploy old code later. |
 
 ### Handy extras
@@ -308,7 +311,7 @@ pipeline fails as early and as cheaply as possible:
   changed, and is available as a *manual* button on any other branch — useful for handing a
   reviewer a test build of a UI fix before merging.
 - **Interruptible by default**: pushing again cancels the previous run of the same branch, except
-  for the release gates, the image build, the deploy and the tagging/back-merge jobs, which are
+  for the release gates, the image build, the APK publish and the tagging/back-merge jobs, which are
   never interrupted halfway.
 - **Self-healing runner**: before checkout, the pipeline reclaims any files the Android build left
   behind as root, so a crashed runner doesn't wedge every later pipeline.

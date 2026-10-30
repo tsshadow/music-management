@@ -188,6 +188,15 @@ describe("capacitor player", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  // The player subscribes to `buffering` on every shell. The service does not
+  // send it yet, so the snapshot has no such field and the throbber stays off.
+  it("accepts a buffering subscription the service does not answer yet", () => {
+    const handler = vi.fn();
+
+    expect(() => platform.player.on("buffering", handler)).not.toThrow();
+    expect(platform.player.state().buffering).toBeUndefined();
+  });
+
   it("refuses an event name that is not in the contract", () => {
     expect(() => platform.player.on("progress", () => {})).toThrow(/Unknown player event/);
   });

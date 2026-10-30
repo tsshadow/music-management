@@ -95,6 +95,12 @@
 
   let showEqualizer = $state(false);
   let equalizerPanelEl = $state(null);
+  /**
+   * True while the engine waits for data to play: the play/pause button shows the inline
+   * throbber in place of its icon. Not part of `playerState`, which is persisted, because a
+   * reload starts with nothing loading.
+   */
+  let buffering = $state(false);
   const equalizerSupported = equalizer.isSupported();
 
   // Genre tints for the artwork panel and the full player's background
@@ -989,6 +995,16 @@
   }
 
   /**
+   * Follows the engine's `buffering` flag, which drives the throbber on the play/pause button.
+   * A native engine never sends the field, and an absent field reads as false.
+   *
+   * @param {{buffering?: boolean}} state - The engine snapshot after the change.
+   */
+  function handleBuffering(state) {
+    buffering = state?.buffering === true;
+  }
+
+  /**
    * Handles the 'pause' event.
    * Updates playing state.
    */
@@ -1638,6 +1654,7 @@
       platform.player.on('volumechange', handleVolumeChange),
       platform.player.on('ended', handleEnded),
       platform.player.on('error', handleAudioError),
+      platform.player.on('buffering', handleBuffering),
       // Never fires in a browser; on a native shell it is how a press on the
       // notification, a head unit or a headset reaches the UI.
       platform.player.on('command', handleNativeCommand),
@@ -1841,7 +1858,13 @@
           disabled={transportLocked}
           aria-label={playing ? $t('player.pause') : $t('common.play')}
         >
-          {#if playing}
+          <!-- Buffering: the inline throbber in the icon's 32px box, so the row does not move.
+               The button keeps its label and still pauses. Styleguide, "Play button: buffering". -->
+          {#if buffering}
+            <span class="w-8 h-8 flex items-center justify-center" data-testid="play-buffering">
+              <Throbber size={24} label={$t('player.buffering')} />
+            </span>
+          {:else if playing}
             <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
               <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
             </svg>
@@ -1886,6 +1909,7 @@
       open={$nowPlayingOpen}
       {track}
       {playing}
+      {buffering}
       {progress}
       {duration}
       rating={currentRating}
@@ -2021,7 +2045,11 @@
           onclick={togglePlay}
           disabled={transportLocked}
         >
-          {#if playing}
+          {#if buffering}
+            <span class="flex" data-testid="play-buffering">
+              <Throbber size={16} label={$t('player.buffering')} />
+            </span>
+          {:else if playing}
             <svg viewBox="0 0 16 16" width="16" height="16" fill="black">
               <path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm7.43 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
             </svg>

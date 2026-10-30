@@ -1676,6 +1676,7 @@
     "shuffleOn": "Shuffle is on — next is a surprise"
   },
   "player": {
+    "buffering": "Buffering…",
     "next": "Next",
     "nothingPlaying": "Nothing playing",
     "previous": "Previous",

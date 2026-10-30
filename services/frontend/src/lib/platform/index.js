@@ -57,6 +57,10 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   fallback.
  * @property {string|null} trackId The id passed to `load()`, or null.
  * @property {number} volume 0..1.
+ * @property {boolean} [buffering] True while a play request waits for data: the
+ *   start of a new source, a seek into a part not loaded yet, a network that
+ *   falls behind. `status` stays `playing` meanwhile. The browser engine reports
+ *   it; the native engine does not yet, and an absent field means false.
  * @property {boolean} [shuffle] Native only. Whether the platform service is shuffling its queue.
  *   Absent on a browser -- `ownsQueue` is what a caller branches on, not this field's presence.
  * @property {'none'|'all'|'one'} [repeat] Native only, alongside `shuffle`.
@@ -70,11 +74,12 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  */
 
 /**
- * @typedef {'timeupdate'|'durationchange'|'play'|'pause'|'ended'|'error'|'volumechange'|'command'} PlayerEvent
+ * @typedef {'timeupdate'|'durationchange'|'play'|'pause'|'ended'|'error'|'volumechange'|'buffering'|'command'} PlayerEvent
  *   `timeupdate` position moved (at least four times a second while playing) ·
  *   `durationchange` a length is known for the loaded item · `play` · `pause` ·
  *   `ended` the item ran out, which is the cue to advance the queue · `error`
- *   the source failed · `volumechange`. Every handler is called with the
+ *   the source failed · `volumechange` · `buffering` the snapshot's `buffering`
+ *   flag changed. Every handler is called with the
  *   {@link PlayerState} snapshot as it is after the event.
  *
  *   `command` is the exception, and only an implementation with `ownsQueue`

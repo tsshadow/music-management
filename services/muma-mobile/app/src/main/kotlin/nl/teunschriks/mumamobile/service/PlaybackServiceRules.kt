@@ -7,6 +7,8 @@
 
 package nl.teunschriks.mumamobile.service
 
+import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
+
 /**
  * The decisions [PlaybackService] makes that need no Android object to answer, kept apart so a
  * JVM test can pin them: what the data-source resolver does with an item's URI, and whether a
@@ -39,6 +41,17 @@ object PlaybackServiceRules {
             bitrate = components.getOrNull(1)?.toIntOrNull() ?: 0
         )
     }
+
+    /**
+     * Whether an item URI is a library track, the one kind of item that can have a cached file.
+     * A radio stream URL and a news bulletin (`MEDIA_NEWS_STREAM|id`) are streamed only, so a
+     * failed load of one has no file to drop.
+     */
+    fun isLibraryTrack(uri: String?): Boolean = uri != null &&
+        !uri.startsWith(NEWS_STREAM_PREFIX) &&
+        streamTargetOf(uri) is StreamTarget.Track
+
+    private const val NEWS_STREAM_PREFIX = NewsPlaybackController.MEDIA_NEWS_STREAM + "|"
 
     private fun isHttpUrl(uri: String): Boolean = uri.startsWith("http://", ignoreCase = true) ||
         uri.startsWith("https://", ignoreCase = true)

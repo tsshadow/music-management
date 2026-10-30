@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.1] - 2026-10-30
+
+### Fixed
+- **A schema reconcile dry run no longer ends with "schema reconciled".** `--dry-run` changes nothing
+  in the database. Its last line said the schema was reconciled anyway, which reads as if the
+  statements above it had run. It now says `dry run, schema not changed`.
+
 ## [0.94.0] - 2026-10-30
 
 ### Added

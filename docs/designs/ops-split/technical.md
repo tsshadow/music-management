@@ -60,15 +60,15 @@ Docker datasource for the downloader image and treats it as a patch.
 
 Files:
 
-- `deploy/versions.env`: one line, `MUMA_VERSION=X.Y.Z`, plus `MUMA_DOWNLOADER_TAG` for the
+- `deploy/versions`: one line, `MUMA_VERSION=X.Y.Z`, plus `MUMA_DOWNLOADER_TAG` for the
   refresh tag. The only file a deploy changes.
-- `renovate.json`: a custom regex manager on `deploy/versions.env` with the `gitlab-tags`
+- `renovate.json`: a custom regex manager on `deploy/versions` with the `gitlab-tags`
   datasource for this repository, `extractVersion` `^release-v(?<version>.+)$`, `automerge: true`
   and `platformAutomerge: true`. Hourly schedule.
 - `.gitlab-ci.yml`: the jobs below, on the default branch only, plus a validation job on MRs.
 - The production CI variables, moved from this repository.
 
-Pipeline on a commit to the default branch that changes `deploy/versions.env`:
+Pipeline on a commit to the default branch that changes `deploy/versions`:
 
 1. `fetch`: downloads `docker/`, `scripts/deploy.sh`, `scripts/lib/` and the LMS compose and
    nginx files from this repository at `release-v$MUMA_VERSION` through the repository archive
@@ -91,10 +91,11 @@ added.
 
 ## Change-Over Order
 
-1. Operations repository: add `versions.env` at the running version, the pipeline, and the moved
-   variables. Run the deploy job by hand for the version that already runs. Expected: no
-   container changes, reconcile "schema in sync".
-2. Next release: deploy by the old path from this repository as usual, then set `versions.env` to
+1. Operations repository: add `deploy/versions` at the running version, the pipeline, and the moved
+   variables. Until step 3 the deploy job runs the release's own `scripts/ci-deploy.sh` from the
+   fetched tag, so it is the same code as `muma:deploy`, and it is manual. Run it by hand for the
+   version that already runs. Expected: no container changes, reconcile "schema in sync".
+2. Next release: deploy by the old path from this repository as usual, then set `deploy/versions` to
    the same version in the operations repository and run its pipeline. Compare `docker ps` and the
    image ids from both runs; they must be equal (functional criterion 7).
 3. This repository: add the package upload and `release:publish`, remove the deploy jobs and

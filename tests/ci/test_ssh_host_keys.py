@@ -23,7 +23,6 @@ SSH_SCRIPTS = [
     ROOT / "scripts" / "ci-deploy.sh",
     PROD_SSH_SETUP,
     ROOT / "scripts" / "ci" / "post-deploy-verify.sh",
-    ROOT / "scripts" / "ci" / "verify-prod-version.sh",
     ROOT / "services" / "music-management-server" / "scripts" / "deploy-stack.sh",
 ]
 

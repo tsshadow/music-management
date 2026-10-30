@@ -374,7 +374,7 @@ services:
   # services/music-management-server/docker-compose.yml ("lms" project: "lms"
   # + "reverse-proxy" services), which is why it joins this stack's
   # "music-management_db" network as an external network below. Both stacks
-  # are deployed together by the CI "muma:deploy" job (scripts/ci-deploy.sh).
+  # are deployed together by the deploy (scripts/ci-deploy.sh).
   # See muma-ops docs/deployment-production.md for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:

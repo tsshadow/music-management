@@ -49,10 +49,10 @@ default:
 workflow:
   rules:
     # Release and hotfix branches always get their own branch pipeline, even
-    # while an MR is open for them. muma:deploy, release:version-check and
-    # friends all match on $CI_COMMIT_BRANCH, which is unset in a merge request
-    # pipeline -- so if the duplicate-pipeline guard below applied here, the
-    # release would simply never be deployed.
+    # while an MR is open for them. release:build-images, release:version-check
+    # and friends all match on $CI_COMMIT_BRANCH, which is unset in a merge
+    # request pipeline -- so if the duplicate-pipeline guard below applied here,
+    # the release would simply never be built.
     - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
     # ...and because they get a branch pipeline, they must NOT also get a merge
     # request pipeline. The push-vs-MR dedupe below keys on
@@ -60,7 +60,8 @@ workflow:
     # release branch with an open MR used to run everything twice, and the two
     # Android jobs raced each other for the shared Gradle home (one of them
     # died on a vanished Gradle cache during the 0.23.x releases). The branch
-    # pipeline is the one muma:deploy lives in, so it is the one that stays.
+    # pipeline is the one the release images and the APK are built in, so it is
+    # the one that stays.
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^(release|hotfix)\//'
       when: never
     # Scheduled pipelines (security:dependency-audit) always run.
@@ -114,17 +115,17 @@ stages:
 # Two other scopes:
 #
 #   muma       spans components, or is the whole product: muma:contracts,
-#              muma:e2e, muma:smoke, muma:images, muma:deploy, muma:verify
+#              muma:e2e, muma:smoke, muma:images
 #   security, deps, runner, release
 #              concerns that belong to no component. `release` stays its own
 #              scope because those seven jobs are a sequence you read together.
 
-# Referenced by the quality and unit jobs, which gate a production deploy via
+# Referenced by the quality and unit jobs, which gate the release images via
 # stage ordering. Those jobs also have `changes:` rules, which is what keeps
 # ordinary feature pushes cheap -- but on a release/hotfix branch the last
 # commit usually touches only VERSION, CHANGELOG.md and RELEASE_NOTES.md, so
 # `changes:` alone would skip them, and a skipped job does not block
-# muma:deploy. This rule makes them unconditional exactly where it matters.
+# release:build-images. This rule makes them unconditional exactly where it matters.
 #
 # Deliberately NOT referenced by backend:integration, muma:contracts, muma:smoke and
 # frontend:e2e: those run unconditionally on every develop push, and a
@@ -1086,7 +1087,7 @@ muma:contracts:
 # Until these two jobs existed, a merge request that changed nothing but a
 # Dockerfile matched no `changes:` rule anywhere in this file and ran zero jobs
 # beyond the secret scan. The first thing that ever built those images was
-# release:build-images, on a release branch, minutes before muma:deploy.
+# release:build-images, on a release branch, minutes before the tag that deploys it.
 #
 # They are split because they cost very different amounts. muma:smoke starts
 # the stack and proves it comes up healthy, but compose.test.yml only builds
@@ -1277,7 +1278,8 @@ frontend:e2e:
 
 # --- Release stabilization ---------------------------------------------------
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
-# (stabilization + prod deploy) -> master (tagged production record).
+# (stabilization, images and APK) -> master (tagged; the tag is what an
+# installation deploys).
 # See muma-ops docs/release-management.md for the full policy.
 
 release:version-check:
@@ -1293,8 +1295,9 @@ release:version-check:
 
 # Pushes :${VERSION} and :rc, never :latest (or :stable for lms): Watchtower on
 # the host pulls :latest, so pushing it here let a release's code start before
-# muma:deploy had migrated, or ship with no deploy at all. muma:deploy moves
-# :latest after the backup and the migrations (scripts/ci/promote-release-images.sh).
+# the deploy had migrated, or ship with no deploy at all. The deploy, which an
+# installation runs from the tag (docs/designs/ops-split/), moves :latest after
+# the backup and the migrations (scripts/ci/promote-release-images.sh).
 release:build-images:
   stage: release
   timeout: 60m
@@ -1386,7 +1389,7 @@ mobile:build-release:
   # and mobile:unit because `needs` bypasses stage ordering: without it
   # this job built and UPLOADED a signed APK even when the unit tests on the
   # same commit failed -- phones auto-update from the hoster, so that shipped
-  # untested code to users while muma:deploy (correctly) never ran. The
+  # untested code to users while the server release (correctly) never shipped. The
   # resource group only serializes the two jobs, it does not order them.
   # optional: true satisfies the DAG policy (mobile:unit has `changes:`
   # rules); on a release branch .release_rule makes it always present.
@@ -1420,70 +1423,14 @@ mobile:build-release:
       - services/muma-mobile/dist/*-mapping.txt
     expire_in: never
 
-# --- Deployment --------------------------------------------------------------
+# --- Publishing ----------------------------------------------------------------
 
-# Order inside the job (scripts/deploy.sh): database up and ready, verified
-# pre-deploy dump, migrations, :latest promoted, then pull + up of what changed,
-# then scripts/ci/post-deploy-verify.sh. See
-# docs/bug-reports/050-deploy-starts-new-code-before-migrations.md.
-muma:deploy:
-  stage: deploy
-  # 60m, not 30m: the pre-deploy dump of a ~780 MB (compressed) database, the
-  # promotion of eight image tags and the verify step's settle minute all come
-  # on top of what the job used to do.
-  timeout: 60m
-  interruptible: false
-  # Deliberately no `retry:`. A deploy that failed halfway has already changed
-  # the host; repeating it automatically hides which half succeeded.
-  # Only one production deploy at a time. Two release pipelines overlapping is
-  # exactly how bug-report 016 happened: a delayed pipeline on an already-merged
-  # release branch re-pushed old images as `latest` and redeployed them. Set the
-  # process mode of this resource group to "newest first" in
-  # Settings > CI/CD > Resource groups, so a queued older pipeline is dropped
-  # rather than applied after the newer one.
-  resource_group: production
-  environment:
-    name: production
-    url: $PROD_URL
-  rules:
-    - !reference [.dedicated_schedule_guard, rules]
-    - !reference [.not_on_master, rules]
-    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
-  script:
-    - ./scripts/ci-deploy.sh
-
-# The independent read of whether the deploy worked. ci-deploy.sh runs the same
-# script at its own last step, so a broken deploy fails muma:deploy itself; this
-# job re-runs it afterwards for two reasons. It is retryable where muma:deploy
-# deliberately is not, so a probe that timed out is distinguishable from a
-# deploy that broke production. And it can be re-run on its own later to ask
-# "is prod still healthy" without redeploying anything.
-muma:verify:
-  stage: deploy
-  timeout: 15m
-  interruptible: false
-  retry: !reference [.infra_retry, retry]
-  needs:
-    - muma:deploy
-  environment:
-    name: production
-    url: $PROD_URL
-    action: verify
-  rules:
-    - !reference [.dedicated_schedule_guard, rules]
-    - !reference [.not_on_master, rules]
-    - if: '$CI_COMMIT_BRANCH =~ /^(release|hotfix)\//'
-  script:
-    - ./scripts/ci/post-deploy-verify.sh
-
-# Guards release:tag below. Release 0.19.0 was tagged on master and back-merged
-# to develop while production stayed on 0.18.2 for a day: mobile:unit
-# failed on the release branch, so muma:deploy was *skipped*, and a skipped job
-# blocks nothing. Every signal in GitLab said it had shipped.
-#
-# muma:verify cannot catch that, because it lives inside the pipeline that
-# never ran. This job runs in the master pipeline and asks production directly.
-release:verify-deployed:
+# This repository builds and publishes; an installation deploys (docs/designs/ops-split/). The
+# tag release-vX.Y.Z is what an installation watches, so release:tag waits for this job: it
+# checks that the release branch pipeline of the merged commit built and pushed the images and
+# published the APK package. A release MR merged before its branch pipeline finished, or a
+# skipped mobile:build-release, therefore ends here instead of in a deploy that cannot pull.
+release:publish:
   stage: release
   timeout: 10m
   interruptible: false
@@ -1493,7 +1440,7 @@ release:verify-deployed:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
   script:
-    - ./scripts/ci/verify-prod-version.sh
+    - ./scripts/ci/check-release-published.sh
 
 release:tag:
   stage: deploy
@@ -1502,12 +1449,12 @@ release:tag:
   retry: !reference [.infra_retry, retry]
   # `needs` rather than stage order, so tagging waits for the one check that
   # says something new and not for a re-run of the unit suite. This commit was
-  # already tested on the release branch and is already in production; on the
-  # 0.19.0 master pipeline the wait was 8.7 minutes, 6.7 of it the Android jobs
-  # re-testing an unchanged tree. Those jobs still run and still red the
-  # pipeline - they just no longer hold the tag.
+  # already tested on the release branch; on the 0.19.0 master pipeline the wait
+  # was 8.7 minutes, 6.7 of it the Android jobs re-testing an unchanged tree.
+  # Those jobs still run and still red the pipeline - they just no longer hold
+  # the tag.
   needs:
-    - release:verify-deployed
+    - release:publish
   rules:
     - !reference [.dedicated_schedule_guard, rules]
     - if: '$CI_COMMIT_BRANCH == "master"'
@@ -1517,10 +1464,9 @@ release:tag:
 # Deleting the merged release/* branch depends on nothing but the merge to
 # master having happened, so it needs nothing. It used to be the tail of
 # back-merge-develop.sh, which made it conditional on release:tag - and
-# therefore, since release:tag now needs release:verify-deployed, on production
-# serving the right version. That inverted the intent: the one case the gate
-# exists to catch was also the case that left a stale, merged release branch on
-# the remote for a later pipeline to redeploy from (bug-report 016). The same
+# therefore on the gate in front of it. That inverted the intent: the one case
+# the gate exists to catch was also the case that left a stale, merged release
+# branch on the remote for a later pipeline to rebuild from (bug-report 016). The same
 # coupling also skipped the delete whenever back-merge-develop.sh returned
 # early, which is how release/0.8.3 kept its branch.
 release:cleanup-branch:

@@ -4,11 +4,10 @@
 # Shared SSH bootstrap for every job that talks to the production host.
 #
 # This used to live inline in scripts/ci-deploy.sh, which was fine while
-# deploying was the only thing CI did over SSH. It no longer is: the
-# post-deploy gate (scripts/ci/post-deploy-verify.sh) and the deployed-version
-# check (scripts/ci/verify-prod-version.sh) both need the same agent, the same
-# known_hosts entry and the same "can we actually reach it" probe. Three copies
-# of that block is how they drift.
+# deploying was the only thing over SSH. It no longer is: the post-deploy gate
+# (scripts/ci/post-deploy-verify.sh) and the image prune need the same agent,
+# the same known_hosts entry and the same "can we actually reach it" probe.
+# Three copies of that block is how they drift.
 #
 # Meant to be *sourced*, not executed: it exports REMOTE_HOST/REMOTE_USER for
 # the caller and leaves an ssh-agent running in the caller's shell -- until that
@@ -59,7 +58,7 @@ eval "$(ssh-agent -s)" > /dev/null
 PROD_SSH_AGENT_PID="$SSH_AGENT_PID"
 trap prod_ssh_teardown EXIT
 
-# Longer than any job that sources this (muma:deploy has a 30-minute timeout),
+# Longer than any job that sources this (the deploy job has a 60-minute timeout),
 # short enough that a leaked agent stops being useful on its own.
 PROD_SSH_KEY_LIFETIME="${PROD_SSH_KEY_LIFETIME:-3600}"
 

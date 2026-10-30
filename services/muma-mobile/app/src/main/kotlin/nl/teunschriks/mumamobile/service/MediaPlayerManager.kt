@@ -130,6 +130,12 @@ class MediaPlayerManager(
             publishPlaybackState()
         }
 
+        // A play pressed while the item still loads changes neither the state nor isPlaying,
+        // and the web's throbber has to hear about it.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            publishPlaybackState()
+        }
+
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearBookmark()
             // Listens are not reported from here: PlaybackService's Scrobbler sees every transition,
@@ -761,6 +767,10 @@ class MediaPlayerManager(
 
     val isPlaying: Boolean
         get() = controller?.isPlaying ?: false
+
+    /** Whether the player plays as soon as it has data; true while it buffers towards playing. */
+    val playWhenReady: Boolean
+        get() = controller?.playWhenReady ?: false
 
     @set:Synchronized
     var isJukeboxEnabled: Boolean

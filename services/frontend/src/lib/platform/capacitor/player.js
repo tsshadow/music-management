@@ -33,10 +33,8 @@ const EVENTS = [
   "ended",
   "error",
   "volumechange",
-  // The service does not send it yet: Media3's buffering state arrives as
-  // status `loading` on a `pause`. Listed so `on("buffering")` subscribes
-  // instead of throwing; the snapshot has no `buffering` field, which reads as
-  // false.
+  // Sent when Media3 starts or stops buffering towards playing; the snapshot's
+  // `buffering` field drives the throbber on the play button.
   "buffering",
   // Native only: the service moved the transport and the UI has to follow. See
   // `on()` below for why this is not `setCommandHandlers`.
@@ -56,6 +54,7 @@ const EMPTY_STATE = Object.freeze({
   repeat: "none",
   radioChannel: null,
   newsPlaying: false,
+  buffering: false,
 });
 
 /** The three words `setMode`'s `repeat` and `state().repeat` are allowed to answer with. */
@@ -93,6 +92,7 @@ function snapshotOf(payload, previous) {
     repeat: REPEAT_MODES.has(payload.repeat) ? payload.repeat : previous.repeat,
     radioChannel: payload.radioChannel == null ? null : String(payload.radioChannel),
     newsPlaying: payload.newsPlaying === true,
+    buffering: payload.buffering === true,
   };
 }
 

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-10-30
+
+### Added
+- **The web player shows a throbber on the play button while a track buffers.** Before, the button
+  showed the pause icon as soon as play was pressed, also while the browser still waited for the
+  first data or for a seek into a part not loaded yet. The silence looked like a fault. The player
+  bar, the mini player and Now Playing now show the spinning ring until the audio plays, and the
+  button still pauses. The engine follows the element's `waiting` event, and `stalled` only below
+  the ready state that lets playback go on. In the app the button keeps its icon: the native
+  engine does not report buffering yet.
+
+### Changed
+- **A release no longer deploys from this repository; the tag is what an installation deploys.**
+  `muma:deploy`, `muma:verify` and `release:verify-deployed` are gone, and so is
+  `scripts/ci/verify-prod-version.sh`. `mobile:build-release` publishes the signed APK, its release
+  notes and its mapping to the package registry (`muma-mobile/<versionName>`) and no longer uploads
+  to the app download service. On `master`, the new `release:publish` checks that the release
+  branch pipeline built the images and the APK for the merged commit, and `release:tag` waits for
+  it. A release whose build was skipped or cancelled is no longer tagged. The operations repository
+  deploys from the tag and uploads the APK afterwards (#200,
+  [docs/designs/ops-split/](docs/designs/ops-split/functional.md)).
+
 ## [0.94.1] - 2026-10-30
 
 ### Fixed

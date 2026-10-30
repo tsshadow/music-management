@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.18.3] - 2026-10-30
+
+### Changed
+- **The server address and the Google client id are build settings now.** `StaticServers.SERVER_URL`,
+  the client id of "Sign in with Google", an optional own host for the MuMa API and the owner's
+  domain come from the Gradle properties `muma.serverUrl`, `muma.googleClientId`, `muma.apiUrl` and
+  `muma.ownDomain`, in CI from the variables `MUMA_SERVER_URL`, `MUMA_GOOGLE_CLIENT_ID`,
+  `MUMA_API_URL` and `MUMA_OWN_DOMAIN`. A build without them uses `https://music.example.org` and
+  hides the Google button. A release build stops when the first two are missing, in Gradle and in
+  CI; the CI script also needs the other two. A stored server gets the own API host only when its
+  host equals the configured server or is `muma.ownDomain` or a subdomain of it, so a sibling on a
+  shared suffix such as `duckdns.org` is never treated as the owner's. The app behaves the same for
+  a build that sets them (#189).
+
+### Security
+- **Guava goes from 33.3.1 to 33.7.2.** media3 pulls in Guava 33.3.1, which has CVE-2026-102554, a
+  denial of service rated high. A constraint in `app/build.gradle` raises it to 33.7.2-android;
+  `dependencyInsight` shows every request in the release classpath (31.1, 32.0.0-jre, 33.3.1)
+  resolving to that version. Drop the constraint once media3 asks for 33.7.2 or later.
+
+## [7.18.2] - 2026-10-22
+
+### Changed
+- The web player bundled in the app takes the frontend dependency updates of this release. No
+  visible change.
+
+## [7.18.1] - 2026-10-15
+
+### Changed
+- The web player bundled in the app takes the frontend dependency updates of this release, and the
+  build uses Gradle 9.8.1. No visible change.
+
+## [7.18.0] - 2026-10-04
+
+### Added
+- **The Now Playing screen shows the track's place in the queue.** The position ("4/100") sits
+  right-aligned on the artist line and follows shuffle and reordering.
+
+## [7.17.0] - 2026-10-04
+
+### Added
+- **The queue list shows each track's place in the queue.** A row has the title on the first line,
+  the artist and the position ("3/500") on the second line, and the album and the date on the third.
+  The position counts in the current play order, so shuffle and reordering update it.
+
+## [7.16.1] - 2026-10-04
+
+### Fixed
+- **A track queued from the web player sometimes showed no cover in the notification, on the lock
+  screen or in the car.** The web player gave the player service a signed `getCoverArt` URL as the
+  cover, and the app sent that URL as the `id` of a new `getCoverArt` request. LMS answered
+  "Required parameter 'id' is missing". The web player now sends the cover-art id. The app takes
+  the id out of a `getCoverArt` URL that an older web bundle still sends, and it does not ask the
+  server for any other URL. The URL had the user name, the token and the salt in it, and the app
+  kept it with the queued track and in a debug log line. A logged cover-art value now has those
+  values replaced by `REDACTED` (bug report 150).
+
 ## [7.16.0] - 2026-10-04
 
 ### Added

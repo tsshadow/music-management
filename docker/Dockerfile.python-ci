@@ -16,7 +16,7 @@
 #
 # Built on the runner by tooling_use_ci_image (scripts/lib/python-tooling.sh),
 # tagged with a hash of this file, never pushed.
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # The container runs as the runner's uid (scripts/lib/python-tooling.sh passes
 # --user), so nothing it writes into the checkout is root-owned. That uid needs

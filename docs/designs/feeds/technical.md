@@ -434,7 +434,7 @@ feed reports `not_enough_data`.
 whose tracks inside the 90-day window were all heard and none loved — 0 candidates — and the day
 before an artist with 2. The window, the unheard-or-loved pool and the per-artist cap of 3 together
 meant almost no artist in anyone's top ten could fill an artist mix at all: measured on production
-on 2026-09-26, none of Teun's top ten artists reached 15 songs at 90 days, three did at 365 days,
+on 2026-09-26, none of one listener's top ten artists reached 15 songs at 90 days, three did at 365 days,
 nine with no window. So `build._describe` now asks before it draws:
 
 - `queries.rotation_counts_query(username, policy, now, dimension, names, windows)` — one grouped

@@ -13,7 +13,7 @@
 #
 # Tags are never created manually - only here, only on master, so "what's
 # live" can always be answered by looking at master's latest tags. See
-# muma-ops docs/release-management.md for the full policy.
+# the operator's release runbook for the full policy.
 # The token goes to curl through a process substitution (`--header @<(...)`), never as
 # `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
 # shell-executor runner through `ps` (GitLab #40, bug report 038).

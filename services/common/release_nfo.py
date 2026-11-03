@@ -50,7 +50,7 @@ _TIDAL_ALBUM = re.compile(r'tidal\.com/(?:browse/)?album/(\d+)', re.I)
 #: Bytes block art is drawn with; a value made of them is decoration, not data.
 _ART = re.compile('[\u2500-\u259f]')
 # A catalogue line without the colon `_PAIR` needs: `CAT NR..[ BIR030`, `Catalognr....:: PR096`,
-# after any box-drawing border. The same pattern as scripts/prod/person/catalogue_tag_mismatch.py.
+# after any box-drawing border. The same pattern as catalogue_tag_mismatch.py.
 _CATALOGUE_LINE = re.compile(
     r'^[^A-Za-z]*(?:cat(?:alog(?:ue)?)?[ .]*(?:nr|no|number|num|#)?|catnumber|catalognr)\.?'
     r'[ .:\[\]]*[:.\[][ .:\[\]]*([A-Za-z0-9][A-Za-z0-9_.\-]*)',

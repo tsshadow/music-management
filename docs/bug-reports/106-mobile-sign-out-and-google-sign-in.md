@@ -88,7 +88,7 @@ Google sign-in:
   share the session -- the "known gap" the old code comment described.
 - No backend change: the token's audience is the Web client ID the backend already verifies.
 - Outside the repository: the Android OAuth client registration has to be checked in Google Cloud
-  Console -- `scripts/prod/person/register-android-google-client.sh` and a `needs-person` GitLab
+  Console -- `register-android-google-client.sh` and a `needs-person` GitLab
   issue.
 
 Tests: `SessionSignOutTest`, `MumaSystemPluginSignOutTest` (calls `signOut` from a background

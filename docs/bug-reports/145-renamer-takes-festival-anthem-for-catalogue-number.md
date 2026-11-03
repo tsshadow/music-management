@@ -44,7 +44,7 @@ fact: the Mover reads `''` and records a proposal.
   alone. It asks before the settle walk, so a folder that keeps its name costs nothing per cycle.
   `LabelPath.catalog_number` no longer returns a whole space-less scene name as the catalogue
   number of a release placed under its label without one.
-- `services/importer/prefix_strip_repair.py` plus `scripts/prod/person/repair-word-prefixed-import-folders.sh`
+- `services/importer/prefix_strip_repair.py` plus `repair-word-prefixed-import-folders.sh`
   (dry run by default, backup, rename log, rollback, LMS notified, idempotent; not run): renames the
   misnamed folders to the name the Renamer gives them today. Planned against production's folder
   list, proposals and rules: 2.759 misnamed, 2.740 renameable (2.733 to their bare name, 5 to a
@@ -69,7 +69,7 @@ fact: the Mover reads `''` and records a proposal.
   and `HealStaleCatalogueNumberRule` (run by `LabelSong`) replaces a tag that still holds the
   folder name: with the folder's prefix, else with the bracketed number `from_folder_name`
   accepts (no `.nfo` needed, decided in issue #172), else with nothing. When the `.nfo` states a
-  different number the tag stays, and `scripts/prod/person/catalogue_tag_mismatch.py` lists it.
+  different number the tag stays, and `catalogue_tag_mismatch.py` lists it.
 - Getting releases like Minus Militia to their label without a catalogue number is the
   enrichment in `docs/designs/release-info-enrichment/`.
 - Tests: `services/importer/tests/test_importer_catalogue_number.py`,

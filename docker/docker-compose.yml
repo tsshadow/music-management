@@ -77,7 +77,7 @@ x-worker-healthcheck: &worker-healthcheck
   retries: 3
   start_period: 60s
 
-# Container hardening (issue #32; muma-ops docs/deployment-production.md, "Container hardening").
+# Container hardening (issue #32; the operator's runbook, "Container hardening").
 #
 # Every service drops all Linux capabilities and adds back only what it was
 # shown to need. The muma Python images (music-manager, the workers, the tools
@@ -97,7 +97,7 @@ x-worker-healthcheck: &worker-healthcheck
 # take LMS and the database down with it.
 #
 # Not applied here yet, and why, is listed under "Container hardening" in
-# muma-ops docs/deployment-production.md: a read-only root filesystem and a non-root user for the
+# the operator's runbook: a read-only root filesystem and a non-root user for the
 # muma images, and any of it for Firefox. tests/ci/test_compose_hardening.py
 # pins what is applied.
 x-root-file-caps: &root-file-caps
@@ -273,7 +273,7 @@ services:
       API_KEY: ${API_KEY:-}
       MUMA_API_KEY: ${MUMA_API_KEY:-}
       # LMS host and keys come from the environment-lms anchor above. See
-      # muma-ops docs/deployment-production.md for why LMS is deployed as its own stack instead of
+      # the operator's runbook for why LMS is deployed as its own stack instead of
       # an inline service here.
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -303,7 +303,7 @@ services:
       TAGGER_WORKERS: ${TAGGER_WORKERS:-}
       TAGGER_BATCH_PAUSE: ${TAGGER_BATCH_PAUSE:-}
       # The zone a daily mix's day is counted in. The container itself runs on UTC; empty
-      # means the code default, Europe/Amsterdam. See muma-ops docs/deployment-production.md.
+      # means the code default, Europe/Amsterdam. See the operator's runbook.
       MUMA_TIMEZONE: ${MUMA_TIMEZONE:-}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
@@ -375,7 +375,7 @@ services:
   # + "reverse-proxy" services), which is why it joins this stack's
   # "music-management_db" network as an external network below. Both stacks
   # are deployed together by the deploy (scripts/ci-deploy.sh).
-  # See muma-ops docs/deployment-production.md for the full rationale and rollback procedure.
+  # See the operator's runbook for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:
   # - control-center (management-api)

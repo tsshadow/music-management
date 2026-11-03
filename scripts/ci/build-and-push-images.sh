@@ -4,7 +4,7 @@
 # Builds and pushes ALL Docker images that production actually pulls, from CI,
 # on a release/* branch, *before* the deploy runs. This closes the gap that
 # caused the deploy to only ever "docker compose pull" whatever image was
-# last pushed manually (often stale/old) - see muma-ops docs/release-management.md and
+# last pushed manually (often stale/old) - see the operator's release runbook and
 # CHANGELOG.md 0.0.2 for the full story.
 #
 # NOTE: this originally only covered music-manager/lms (bullets 1-2 below).

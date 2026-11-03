@@ -93,7 +93,7 @@ which matched all 371 polluted LMS labels and none of the 1,052 real muma labels
 Decision recorded for the owner: a release in `__Free&None` gets **no** label (empty), not a
 marker such as `Free`.
 
-The backlog is `scripts/prod/person/clear-folder-labels.sh` (wrapping `clear_folder_labels.py`,
+The backlog is `clear-folder-labels.sh` (wrapping `clear_folder_labels.py`,
 run in the music-manager container): it removes these values from every label key per format --
 ID3 `TPUB`/`TXXX:publisher|label|organization`, Vorbis `LABEL`/`PUBLISHER`/`ORGANIZATION`, MP4
 `PUBL`/freeform -- plus the copyright computed from them, deletes the muma links and unreferenced

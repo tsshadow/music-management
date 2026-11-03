@@ -82,7 +82,7 @@ never ran half-migrated: the job stopped before `up` both times.
   and a real MDL wait timing out, with the holder in the report, against MariaDB. The e2e stack
   applies the migrations through the helper and the real client twice, and fails if the second pass
   applies anything.
-- **Docs:** `muma-ops docs/deployment-production.md` explains the ledger, the timeout, the order, and what to do when a
+- **Docs:** the operator's runbook explains the ledger, the timeout, the order, and what to do when a
   deploy stops on a lock wait: find the holder in the printed processlist, `KILL QUERY` it, retry the
   job. The `PROCESS` grant for `muma-readonly` is in the GitLab issues, because it needs a person
   on production.

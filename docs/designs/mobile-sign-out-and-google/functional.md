@@ -68,7 +68,7 @@ This design restores both, and makes the logout robust against the phone half fa
 - Whether the Android-type OAuth client for `nl.teunschriks.mumamobile` and the release certificate
   SHA-1 is still registered in Google Cloud Console cannot be checked from the repository. The code
   works without it only in the sense that it says so: Google answers "no account". A person checks
-  it with `scripts/prod/person/register-android-google-client.sh` (GitLab issue #78,
+  it with `register-android-google-client.sh` (GitLab issue #78,
   `needs-person`).
 - The style guide asks for a confirmation before logging out; the web UI's logout has never had
   one. Not changed here; GitLab issue #80 (`decision`).

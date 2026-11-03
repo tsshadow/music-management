@@ -129,7 +129,7 @@ and counted `__` folders); over all label-tree releases, routed or not, it is 84
 | `.nfo` label whose releases the curator filed elsewhere, not yet chosen | Stays in the queue; Beheer > Labelvoorstellen shows it in its own group with two buttons, X (per .nfo) and Y (where you filed these). |
 | The curator confirms that group with one of the two (or any other label) | The release is placed; the choice is stored for the label. |
 | A later release with the same `.nfo` label | Placed in the chosen folder without asking. |
-| A label first filed elsewhere after the seed | `scripts/prod/person/learn-label-name-history.sh` re-learns the pairs from the label tree (dry run first); choices already made stay. |
+| A label first filed elsewhere after the seed | `learn-label-name-history.sh` re-learns the pairs from the label tree (dry run first); choices already made stay. |
 
 The 104 pairs measured on 2026-10-02 are seeded by the migration, so the rule holds from the first
 cycle after the deploy. The full list of the 148 is on issue #164.

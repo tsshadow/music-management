@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The web frontend no longer uses the owner's name, domain or hosts in its placeholders and test fixtures.** The ScrobbleTab ListenBrainz placeholder reads `demo-user`, and the test fixtures use the user `demo-user` and the domain `example.org`. No behavior changes.
 
-- **Public self-hosting guide; the production runbook moved to the private `muma-ops` repository.**
+- **Public self-hosting guide; the production runbook moved to the operator's own repository.**
   `docs/self-hosting.md` replaces `docs/deployment.md` and covers the compose stacks, the `.env`
   keys, `COMPOSE_PROFILES`, migrations, backups, rollback and the generic CI deploy variables.
   The owner's hosts, runbooks and incidents moved with `docs/release-management.md`. Scripts,
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security checks and the mobile cover-art design are now in English.** The security checks page moved from `docs/security-en-controles.md` to `docs/security-checks.md`. Refs #189.
 
 - **Operations and agent material moved to the private ops repository.** The production
-  scripts (`scripts/prod/`), the crash-triage and nightly-check services, the Claude skills and agent
+  scripts, the crash-triage and nightly-check services, the Claude skills and agent
   plans (`.claude/`, `.ai/`, `.junie/`, the agent plans under `docs/`), `scripts/vw.sh`, `scripts/ssh/known_hosts`
   and the LMS `remote-build.sh` are no longer tracked here, and their tests moved with them. The
   production host key now comes from the file-type CI/CD variable `PROD_SSH_KNOWN_HOSTS`; a pipeline
@@ -87,9 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Owner-only agent rules moved out of `AGENTS.md`.** The host-specific parts (production host and its
   runbook pointers, the password-manager wrapper, the owner's issue board and labels, the self-hosted push
-  server) now live in the private `AGENTS.private.md`, which `muma-ops/install.sh` links as
+  server) now live in the private `AGENTS.private.md`, which the operator's install script links as
   `AGENTS.local.md`. The public rules 14 and 16 are generic. `services/muma-mobile/.junie/` moved to
-  muma-ops too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
+  the private ops repository too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
 
 - **Breaking for self-hosters: upgrade through 0.93.x first.** The 61 `migrate_*.sql` files and
   `tools/apply_migrations.py` are gone. An installation older than 0.93.0 must deploy a 0.93.x
@@ -113,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drafts), `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md`,
   `docs/machine-learning.md` and `docs/ml-tutorial.md` are deleted. The facts worth keeping from the two
   machine-learning documents are now in `services/ml-analyzer/DEPRECATED.md`. Links to the agent plans
-  that were already moved to the private muma-ops repository point at the design under `docs/designs/`
+  that were already moved to the operator's own repository point at the design under `docs/designs/`
   or are gone. `tests/ci/test_doc_links.py` fails on any broken relative Markdown link in `docs/`, `services/`, `scripts/`,
   `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `SECURITY.md`.
 
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - **A guided script rotates every credential that was ever committed.**
-  `scripts/prod/person/rotate-leaked-credentials.sh` reads the leaked values from git history
+  `rotate-leaked-credentials.sh` reads the leaked values from git history
   (the database password of #188 and the `.env` and `.server-env.json` values in
   `.gitleaksignore`), checks by hash which ones production still uses, and replaces those. Only a
   clear refusal counts as dead: an unreachable service or a 429 stops the run. It refuses to start
@@ -333,17 +333,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says `Cloud 9 Music` sit in `Cloud 9 Dance`: such a release is not moved but proposed with both
   folders in Beheer > Labelvoorstellen, and the folder you confirm is remembered for every later
   release with that label (`rules_label_name_choices`, migrate_v56, seeded with the 104 labels found
-  in the label tree on 2026-10-02; re-learn with `scripts/prod/person/learn-label-name-history.sh`).
+  in the label tree on 2026-10-02; re-learn with `learn-label-name-history.sh`).
 - **Release dates follow a precision ladder** instead of stopping at the year: the Deezer release
   date, then an `.nfo` release/street date, the file's own full date, the `.nfo` rip date, and for a
   new release the day it arrived. The rung is written to `DATE_SOURCE`; a better rung later replaces
   a worse one, never the other way round. The UPC goes to `BARCODE`. Year-only dates sort below
   every dated track of their year in "recently released"; 22.689 EPs tracks of 2024-2026 had one.
-- `scripts/prod/person/backfill-release-dates.sh` (dry run first) lifts the year-only tracks already
+- `backfill-release-dates.sh` (dry run first) lifts the year-only tracks already
   in the label tree; about 7.550 of them link a Deezer album. New table `release_store_lookups`
   (migrate_v55). Design: `docs/designs/release-info-enrichment/`.
 
-- **`scripts/prod/person/merge-stale-media-rows.sh` removes the 1,493 stale media rows the hourly
+- **`merge-stale-media-rows.sh` removes the 1,493 stale media rows the hourly
   syncs skip** (issue #124, bug report 093). Each one's hash is not the SHA-256 of its path, so the
   scanner never sees it, and it holds a stub track with the file name as title. The script finds
   the live track for the same file (1,481 by path, 10 more by the path with a doubled release
@@ -352,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the stub. Two folder rows nothing refers to are deleted outright; anything referenced that
   cannot be matched would be kept and listed (none on 2026-10-02). JSON backup first, `--rollback`,
   one transaction per row.
-- **`scripts/prod/person/delete-stale-m3u-playlists.sh` deletes the 574 scene playlists LMS reports
+- **`delete-stale-m3u-playlists.sh` deletes the 574 scene playlists LMS reports
   after every library scan** (issue #96, bug report 121). It decides "missing" the way LMS's scan
   step does, from LMS's own database, leaves the import queue and partly-matching playlists alone,
   tars every file first, and asks LMS to rescan the folders. 572 of the 574 predate 2026; nothing
@@ -380,7 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `__TODO` were named ` - <release>`. The Renamer now only accepts something that looks like a
   catalogue number (rule derived from the label tree: it rejects none of the 21.408 prefixes the
   old Renamer produced there) and otherwise leaves the name alone.
-  `scripts/prod/person/repair-word-prefixed-import-folders.sh` gives the 2.759 misnamed folders
+  `repair-word-prefixed-import-folders.sh` gives the 2.759 misnamed folders
   their name back (dry run first). Bug report 145.
 
 ### Security
@@ -407,7 +407,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shaped like a scene release folder is never a label. A release in `__Free&None` gets no label at
   all, and a retag removes one it already carries. Real labels such as `DWX Copyright Free`,
   `Freestyle` and `I AM HARDSTYLE - Amplify` are unaffected.
-- **`scripts/prod/person/clear-folder-labels.sh` removes the backlog.** The tagger cannot: it
+- **`clear-folder-labels.sh` removes the backlog.** The tagger cannot: it
   writes one publisher key per format, while the release folder names LMS shows sit in ID3 `TPUB`
   (LMS reads that first) and the `__Free&None`s partly in a FLAC `LABEL` the tagger never writes.
   The script cleans every label key per format and the muma label rows, backs up first, supports
@@ -1331,7 +1331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows that nothing a user made points at: no listen, no rating, no work pin and no reviewed ml
   label. It works in batches of 1000 and takes the rows' link rows with them. Orphans that do have
   references are kept and listed on `GET /purge-orphans` for a person to decide. The operator
-  script `scripts/prod/person/relink-orphans-by-filename.sh` backs everything up first, then runs
+  script `relink-orphans-by-filename.sh` backs everything up first, then runs
   the relink and then the purge (bug report 104).
 
 ### Fixed
@@ -1404,7 +1404,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   songs -- is split automatically, each track locked in a work of its own; smaller suspicious works
   are listed by `scripts/repair_song_works.py --report` for review in the Versies page. The repair
   script now counts in its dry run how many tracks move and where, and leaves a work's pinned
-  version where it is. Existing tracks move only when `scripts/prod/person/regroup-song-works.sh`
+  version where it is. Existing tracks move only when `regroup-song-works.sh`
   is run. Bug report 098.
 ## [0.75.2] - 2026-09-26
 
@@ -1801,7 +1801,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   client signs in under it. LMS matches login names case-insensitively and never creates a user
   that differs only in case. Creating an account with a case variant of an existing name is a
   409. Scrobbles, ratings, feeds and the reconcile store and compare the canonical spelling. The
-  existing fork is repaired by `scripts/prod/repair-username-case.sh`, which is run by hand. See
+  existing fork is repaired by `repair-username-case.sh`, which is run by hand. See
   bug report 074 and `docs/authentication.md`.
 
 - **The LMS listen reconcile could insert one play twice.** LMS records a listen when playback
@@ -2830,7 +2830,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   veranderen viel en de genrebeslissingen die erachter stonden kwamen niet aan bod. Een
   afkeuring markeert nu alleen de bestanden die de naam vandaag als artiest hebben, en een
   term zonder één letter doet nergens meer een substring-match. Het herstelscript voor de
-  bestaande wachtrij staat in `scripts/prod/clear-spurious-artist-retag-marks.sh`.
+  bestaande wachtrij staat in `clear-spurious-artist-retag-marks.sh`.
 ## [0.66.0] - 2026-09-18
 
 ### Added
@@ -4379,8 +4379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   het sleutelwoord leest (`/*!…*/` wordt door MariaDB uitgevoerd, dus een validator die naar de
   originele tekst kijkt leest eroverheen) en gaat elke query in `START TRANSACTION READ ONLY` met
   `max_statement_time=10`. Logoutput gaat langs een maskeerfilter, want containerlogs bevatten
-  echt credentials. `scripts/prod/create-readonly-db-user.sh` maakt het account aan;
-  `scripts/prod/install-muma-mcp.sh` registreert de server en beweert niet dat hij read-only is
+  echt credentials. `create-readonly-db-user.sh` maakt het account aan;
+  `install-muma-mcp.sh` registreert de server en beweert niet dat hij read-only is
   maar probeert een `CREATE TABLE` en faalt als die slaagt.
 
 ### Changed
@@ -5095,7 +5095,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   achter de system-API-key: `GET /api/diagnostics/crash-reports/{id}` en
   `PATCH /api/diagnostics/crash-reports/{id}/status`. Migratie: `migrate_v17_crash_report_status.sql`,
   met de gebruikelijke kolomguard in de router voor bestaande installaties. Dit is de serverhelft
-  van de crash-triage-automatisering; het ontwerp staat in de private muma-ops-repository.
+  van de crash-triage-automatisering; het ontwerp staat in de eigen repository van de beheerder.
 
 ### Fixed
 - **Een release-APK kan niet langer geüpload worden terwijl de unit-tests op dezelfde commit rood
@@ -7002,7 +7002,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source, so they cannot drift apart; the adaptive foreground scales the disc to 83% so a round or
   square mask cannot clip it, and the monochrome layer carries only the bars, since themed icons
   get one colour. `applicationId` deliberately stays `nl.teunschriks.mumamobile`, so updates keep
-  landing on the existing install. Written up in the private muma-ops repository.
+  landing on the existing install. Written up in the operator's own repository.
 
 ### Fixed
 - **"Recently played" remembers what was played, not only what was opened.** The home grid recorded

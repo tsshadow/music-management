@@ -61,7 +61,7 @@ class HealStaleCatalogueNumberRule(TagRule):
     prefix, counts as stale. Any other value is a number a person or the label wrote, and stays.
     The number derived now is the folder's prefix (`LabelPath.catalog_number`), else the bracketed
     number in the folder name. When the release's .nfo states a different number, the tag stays
-    for a person to decide (`scripts/prod/person/catalogue_tag_mismatch.py` lists those). With no
+    for a person to decide (`catalogue_tag_mismatch.py` lists those). With no
     number at all the tag is emptied, which makes `BaseSong.save_file` drop it from the file.
 
     LabelSong runs it before it writes the folder's number, with the release folder name.

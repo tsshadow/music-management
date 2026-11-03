@@ -35,7 +35,7 @@ import timber.log.Timber
  * `muma.googleClientId`; empty when the build set none). Google only issues
  * one to this app when an Android-type OAuth client for its package name and signing-certificate
  * SHA-1 exists in the same Google Cloud project (bug report 011); that registration is outside the
- * code, see `scripts/prod/person/register-android-google-client.sh`.
+ * code, see `register-android-google-client.sh`.
  */
 object GoogleSignIn {
 

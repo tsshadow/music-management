@@ -28,7 +28,7 @@ This project is now modularized. Detailed release notes for each module can be f
 ## Global Version 0.94.0 (2026-10-30)
 
 - **A guided script rotates every credential that was ever committed.**
-  `scripts/prod/person/rotate-leaked-credentials.sh` reads the leaked values from git history
+  `rotate-leaked-credentials.sh` reads the leaked values from git history
   (the database password of #188 and the `.env` and `.server-env.json` values in
   `.gitleaksignore`), checks by hash which ones production still uses, and replaces those. Only a
   clear refusal counts as dead: an unreachable service or a 429 stops the run. It refuses to start
@@ -85,11 +85,11 @@ This project is now modularized. Detailed release notes for each module can be f
   drafts), `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md`,
   `docs/machine-learning.md` and `docs/ml-tutorial.md` are deleted. The facts worth keeping from the two
   machine-learning documents are now in `services/ml-analyzer/DEPRECATED.md`. Links to the agent plans
-  that were already moved to the private muma-ops repository point at the design under `docs/designs/`
+  that were already moved to the operator's own repository point at the design under `docs/designs/`
   or are gone. `tests/ci/test_doc_links.py` fails on any broken relative Markdown link in `docs/`, `services/`, `scripts/`,
   `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `SECURITY.md`.
 
-- **Public self-hosting guide; the production runbook moved to the private `muma-ops` repository.**
+- **Public self-hosting guide; the production runbook moved to the operator's own repository.**
   `docs/self-hosting.md` replaces `docs/deployment.md` and covers the compose stacks, the `.env`
   keys, `COMPOSE_PROFILES`, migrations, backups, rollback and the generic CI deploy variables.
   The owner's hosts, runbooks and incidents moved with `docs/release-management.md`. Scripts,
@@ -100,7 +100,7 @@ This project is now modularized. Detailed release notes for each module can be f
 - **Security checks and the mobile cover-art design are now in English.** The security checks page moved from `docs/security-en-controles.md` to `docs/security-checks.md`. Refs #189.
 
 - **Operations and agent material moved to the private ops repository.** The production
-  scripts (`scripts/prod/`), the crash-triage and nightly-check services, the Claude skills and agent
+  scripts, the crash-triage and nightly-check services, the Claude skills and agent
   plans (`.claude/`, `.ai/`, `.junie/`, the agent plans under `docs/`), `scripts/vw.sh`, `scripts/ssh/known_hosts`
   and the LMS `remote-build.sh` are no longer tracked here, and their tests moved with them. The
   production host key now comes from the file-type CI/CD variable `PROD_SSH_KNOWN_HOSTS`; a pipeline
@@ -108,9 +108,9 @@ This project is now modularized. Detailed release notes for each module can be f
 
 - **Owner-only agent rules moved out of `AGENTS.md`.** The host-specific parts (production host and its
   runbook pointers, the password-manager wrapper, the owner's issue board and labels, the self-hosted push
-  server) now live in the private `AGENTS.private.md`, which `muma-ops/install.sh` links as
+  server) now live in the private `AGENTS.private.md`, which the operator's install script links as
   `AGENTS.local.md`. The public rules 14 and 16 are generic. `services/muma-mobile/.junie/` moved to
-  muma-ops too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
+  the private ops repository too, and `.production` is ignored by path and covered by the not-tracked test. Refs #189.
 
 - **Upgrade through 0.93.x first.** The database schema is now declared in one place, and each
   deploy adds what is missing. An installation older than 0.93.0 must deploy 0.93.x before this
@@ -565,7 +565,7 @@ This project is now modularized. Detailed release notes for each module can be f
   rows that nothing a user made points at: no listen, no rating, no work pin and no reviewed ml
   label. It works in batches of 1000 and takes the rows' link rows with them. Orphans that do have
   references are kept and listed on `GET /purge-orphans` for a person to decide. The operator
-  script `scripts/prod/person/relink-orphans-by-filename.sh` backs everything up first, then runs
+  script `relink-orphans-by-filename.sh` backs everything up first, then runs
   the relink and then the purge (bug report 104).
 
 - The orphan relink (`POST /api/scanner/relink-orphans`) now also matches on the file name. About
@@ -616,7 +616,7 @@ This project is now modularized. Detailed release notes for each module can be f
   songs -- is split automatically, each track locked in a work of its own; smaller suspicious works
   are listed by `scripts/repair_song_works.py --report` for review in the Versies page. The repair
   script now counts in its dry run how many tracks move and where, and leaves a work's pinned
-  version where it is. Existing tracks move only when `scripts/prod/person/regroup-song-works.sh`
+  version where it is. Existing tracks move only when `regroup-song-works.sh`
   is run. Bug report 098.
 ## Global Version 0.75.2 (2026-09-26)
 
@@ -4394,7 +4394,7 @@ model, and marks the point where this project became one single, unified monorep
   every `develop` merge (for day-to-day testing on your own device), with official signed builds
   reserved for `release/*` branches going forward.
 
-See `docs/release-management.md` (private muma-ops repository) for the full branching/release model.
+See the operator's release runbook for the full branching/release model.
 
 ## Global Version 2.5.0 (2026-07-11)
 ### 🚀 Structural Modernization & Path Migration

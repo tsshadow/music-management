@@ -59,7 +59,7 @@ Nothing looked at a work as a whole, so a series that shared one misparsed key g
 - **Existing rows.** `scripts/repair_song_works.py` can be re-run. Its dry run counts the tracks
   that move, which join an existing work and which found a new one, and which pinned tracks stay.
   It never reads a locked track and leaves a work's pinned version in place. With
-  `--split-false-merges` it splits the `split` works first. `scripts/prod/person/regroup-song-works.sh`
+  `--split-false-merges` it splits the `split` works first. `regroup-song-works.sh`
   runs the dry run, backs up `library_works` and the work columns of `library_tracks`, then
   applies and verifies. It has not been run on production.
 

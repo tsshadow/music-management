@@ -20,7 +20,7 @@ listed deleted and moved files as an open question.
 After each full walk, `ScannerManager.run_full` calls `vanished_media.drop_vanished_media` with the
 set of paths the walk saw. A row under the music root that the walk did not see is a candidate. A
 listing of its folder decides if the file is gone. The guards come from
-`services/common/vanished_files.py`, which `scripts/prod/person/stale_media_rows.py --gone` now
+`services/common/vanished_files.py`, which `stale_media_rows.py --gone` now
 imports instead of a copy:
 
 - a library folder that is missing or empty (an unmounted share) stops the pass;
@@ -35,7 +35,7 @@ retagged). Any other fileless track stays for `POST /api/scanner/relink-orphans`
 path a row on the same track.
 
 Config `scanner_drop_vanished_media` is off by default, so the first deploy removes nothing. The
-backlog goes through `scripts/prod/person/merge-stale-media-rows.sh --gone` first, with its JSON
+backlog goes through `merge-stale-media-rows.sh --gone` first, with its JSON
 backup. Then a curator switches the pass on in Beheer > Config.
 
 Tests: `services/music_manager/tests/test_vanished_media.py` (a normal vanish, an unmounted share,

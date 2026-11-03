@@ -29,7 +29,7 @@ services:
     logging: *request-logging
     container_name: lms
     image: ${IMAGE_NAME}:${LMS_TAG}
-    # Hardening (issue #32; muma-ops docs/deployment-production.md, "Container hardening"). The
+    # Hardening (issue #32; the operator's runbook, "Container hardening"). The
     # image has no entrypoint script -- /usr/bin/lms is PID 1 -- and writes only
     # to its working directory /var/lms (a volume), so the root filesystem is
     # read-only with a small /tmp for anything a library spools; SQLite's own
@@ -58,7 +58,7 @@ services:
       # Port 80 is intentionally NOT bound here anymore: it is now served by the
       # "reverse-proxy" service below, which rewrites requests to /spotify so that
       # spotify.<domain> serves the actual frontend at "/" instead of LMS's bare
-      # Wt bootstrap page. See muma-ops docs/deployment-production.md.
+      # Wt bootstrap page. See the operator's runbook.
       - "${LMS_SUBSONIC_PORT:-8080}:5082"
     volumes:
       - ${MUSIC_PATH:-/music}:/music
@@ -156,7 +156,7 @@ services:
   # Serves spotify.<domain> at "/" by rewriting requests to LMS's "/spotify"
   # docroot mount, since Wt's WServer already reserves the deploy-path "/" for
   # its own WApplication routing and cannot serve the frontend there directly
-  # (see main.cpp SpotifyResource fallback). See muma-ops docs/deployment-production.md.
+  # (see main.cpp SpotifyResource fallback). See the operator's runbook.
   reverse-proxy:
     logging: *request-logging
     container_name: lms-reverse-proxy
@@ -207,7 +207,7 @@ services:
 # production-lms-consolidation plan: production now runs a single LMS
 # instance (serving both the OpenSubsonic API and the frontend from its
 # docroot) on ${LMS_SUBSONIC_PORT:-8080}, fronted by "reverse-proxy" on
-# ${LMS_PORT:-80} for the frontend. See muma-ops docs/deployment-production.md for the rollback
+# ${LMS_PORT:-80} for the frontend. See the operator's runbook for the rollback
 # procedure and .junie/plans/production-lms-consolidation.md for context.
 
 networks:

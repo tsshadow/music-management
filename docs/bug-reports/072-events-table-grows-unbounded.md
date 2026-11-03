@@ -118,7 +118,7 @@ by the AGENTS.md promise; no logger level was lowered in this change.
 Not done on purpose: an automatic `OPTIMIZE TABLE`. InnoDB keeps the freed pages inside
 `events.ibd`, so the file stays at ~7 GB after the clean-up. A rebuild copies the whole table and
 needs that much free disk. A person runs it once retention has caught up, see
-`muma-ops docs/deployment-production.md`, "Reclaiming space in the events table". It is listed under "Needs a person"
+the operator's runbook, "Reclaiming space in the events table". It is listed under "Needs a person"
 in the GitLab issues.
 
 Tests: `services/music_manager/tests/test_events_retention.py` runs the pass against an in-memory

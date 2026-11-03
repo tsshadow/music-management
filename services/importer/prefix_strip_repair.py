@@ -28,7 +28,7 @@ and the rollback are `catid_prefix_repair`'s, so a log from either tool rolls ba
     python -m services.importer.prefix_strip_repair --rollback /tmp/prefix-strip.jsonl
 
 Run it only where the importer already has the bug-report-145 Renamer; an older one would put
-the prefixes straight back. scripts/prod/person/repair-word-prefixed-import-folders.sh wraps it.
+the prefixes straight back. repair-word-prefixed-import-folders.sh wraps it.
 """
 
 from __future__ import annotations

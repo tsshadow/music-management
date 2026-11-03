@@ -42,7 +42,7 @@ downloader is still making progress on it.
 
 ### What the management page shows
 
-Under **Beheer → Downloaders** a new sub-tab **Volledigheid** with a source switch (SoundCloud /
+Under **Management > Downloaders** a new sub-tab **Coverage** with a source switch (SoundCloud /
 YouTube).
 
 | Element | Content |
@@ -65,7 +65,7 @@ YouTube).
 
 ## Acceptance Criteria
 
-1. After a deep sweep pass on an account, the Volledigheid tab shows that account's listed, held,
+1. After a deep sweep pass on an account, the Coverage tab shows that account's listed, held,
    excluded and remaining counts and the time of the pass.
 2. A pass that stops at the download cap or on a rate limit still updates the counts and is marked as
    not finished.
@@ -85,5 +85,5 @@ YouTube).
 - Whether a listing failure should be recorded as its own snapshot state. Deferred: the previous
   snapshot plus "last checked" already tells the story; a `failed` state would need a place to store
   the error.
-- Whether the Overview tab should carry one tile for this. Deferred until the Volledigheid tab has
+- Whether the Overview tab should carry one tile for this. Deferred until the Coverage tab has
   been used for a while.

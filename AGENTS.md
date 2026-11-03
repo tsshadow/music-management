@@ -129,7 +129,7 @@ The system is split into specialized services, each handling a specific part of 
 - **Role**: The high-performance playback and streaming engine.
 - **Backend**: C++/SQLite based server providing audio streaming and Subsonic API.
 - **Data Scope**: Maintains a volatile database (`lms.db`) for indexing local files and managing playback state.
-- **UI**: Unified Svelte-based "Spotify UI" that includes both playback and system management.
+- **UI**: Unified Svelte-based web player that includes both playback and system management.
 - **Fork**: a hard fork of upstream LMS v3.76.0, not kept in sync. Upstream base, MuMa-specific
   files, the database migration-number policy and how to port an upstream fix are in
   [services/music-management-server/FORK.md](services/music-management-server/FORK.md) -- read it

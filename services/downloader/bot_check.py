@@ -28,7 +28,7 @@ try:
 except ImportError:  # pragma: no cover - only under the test stub that replaces yt_dlp
     _Cancelled = Exception
 
-# The reason stored in downloads_rate_state.block_reason and shown in Beheer.
+# The reason stored in downloads_rate_state.block_reason and shown in Management.
 BOT_CHECK = 'bot_check'
 # yt-dlp could not load the cookie database at all (missing or unreadable profile).
 COOKIES_MISSING = 'cookies_missing'

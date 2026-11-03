@@ -40,7 +40,7 @@ READ = Depends(require_permission('music.read'))
 WRITE = Depends(require_permission('rules.manage'))
 
 PROPOSAL_KINDS = KINDS
-#: The config key an admin can tune the analyzer with (Beheer -> Configuratie).
+#: The config key an admin can tune the analyzer with (Management > Configuration).
 ANALYZER_CONFIG_KEY = 'genre_curation_analyzer'
 #: An artist below this many tracks is not evidence of anything: `library_artists`
 #: holds every string a tagger rule ever produced, and a genre string colliding

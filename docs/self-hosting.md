@@ -57,7 +57,7 @@ Three more paths of the main stack decide where `music-manager` finds the player
 | `NEWS_DATA_PATH` | Where the hourly news bulletins are written. Default `/docker/muma-news`. |
 
 `.env.example` lists the other keys with a comment each. Settings you can change at runtime are on
-the Beheer > Config page and win over the environment.
+the Management > Configuration page and win over the environment.
 
 Compose reads `.env` from the folder of the compose file, which is `docker/`, not the checkout
 root. Pass `--env-file .env` as in the commands below, or the stack starts with every variable blank.

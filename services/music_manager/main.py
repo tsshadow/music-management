@@ -228,10 +228,10 @@ def _public_source_url() -> str:
 
 @app.get('/health')
 def health(response: Response):
-    """Rapporteert wat het beweert, zodat de Uptime Kuma-monitor iets meet.
+    """Report what it claims, so that the Uptime Kuma monitor measures something.
 
-    De oude versie gaf altijd 'ok' terug en bleef dus groen terwijl de
-    database weg was of een achtergrondlus aan een exceptie was gestorven.
+    The old version always returned 'ok' and so stayed green while the
+    database was gone or a background loop had died of an exception.
 
     The database check runs `SELECT 1` on its own short-lived connection
     (database.check_database), not on a pooled one: the pool only pings a cached
@@ -343,12 +343,12 @@ def root():
     return {'service': 'music-manager', 'status': 'ok', 'message': 'API only, no UI is served here.'}
 
 
-# Dit blok draait bij het importeren van de module, ruim voordat startup_event
-# setup_logging aanroept. Logging is op dit moment dus nog niet ingericht: de
-# info-regel hieronder haalt de standaarddrempel (WARNING) niet en verdwijnt
-# stilletjes, en de foutregel valt terug op Pythons ongeformatteerde
-# lastResort-handler. Beide missen de events-pipeline. Bekend en geaccepteerd
-# gevolg van logging pas bij startup opzetten in plaats van bij import.
+# This block runs when the module is imported, well before startup_event
+# calls setup_logging. Logging is not set up yet at this point: the info line
+# below does not reach the default threshold (WARNING) and vanishes silently,
+# and the error line falls back to Python's unformatted lastResort handler.
+# Both miss the events pipeline. A known and accepted result of setting up
+# logging at startup instead of at import.
 artist_images_path = os.getenv('STORAGE_PATH', '/mnt/music/artists')
 try:
     os.makedirs(artist_images_path, exist_ok=True)

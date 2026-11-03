@@ -6,7 +6,7 @@ tree, reads each release folder's .nfo, and for every .nfo label that maps by na
 while releases carrying it sit in another, records the pair in `rules_label_name_choices`: the
 folder by name, the folder the curator used most, how many releases sit in each, two examples.
 The importer then proposes such a release with both folders instead of moving it, and the
-curator's answer -- given once, in Beheer > Labelvoorstellen -- places every later one.
+curator's answer -- given once, in Management > Label proposals -- places every later one.
 
 A re-learn refreshes the counts and examples and adds new pairs; it never touches a choice the
 curator already made. Seeded from production on 2026-10-02 by migrate_v56 (104 labels).

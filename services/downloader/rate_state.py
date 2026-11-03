@@ -84,7 +84,7 @@ class RateSnapshot:
     last_429_at: datetime | None = None
     cooldown_until: datetime | None = None
     # Why the running cooldown was set when it is not a plain 403/429 -- e.g.
-    # 'bot_check' (bug report 076). Beheer shows it; cleared by the next clean run.
+    # 'bot_check' (bug report 076). Management shows it; cleared by the next clean run.
     block_reason: str | None = None
 
 
@@ -300,7 +300,7 @@ class RateState:
 
         YouTube's sign-in wall does not lift by waiting a little longer each time;
         it needs a person to log in again. So the wait is fixed, the 403/429
-        counters are left alone, and the reason is stored for Beheer to show.
+        counters are left alone, and the reason is stored for Management to show.
         """
         self._refresh()
         now = self._now()

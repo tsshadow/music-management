@@ -1,8 +1,8 @@
-"""Register van de threads die horen te blijven draaien.
+"""Register of the threads that are meant to keep running.
 
-Alleen oneindige lussen horen hier thuis. Eenmalige achtergrondtaken zoals
-run_fetch_missing geven na afloop netjes terug; die zouden de liveness-controle
-permanent rood zetten.
+Only endless loops belong here. One-off background tasks such as
+run_fetch_missing return cleanly when they finish; they would turn the liveness
+check red for good.
 
 Two things are tracked per loop, because liveness alone proved to say too little:
 

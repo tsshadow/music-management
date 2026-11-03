@@ -38,7 +38,7 @@ export function initialState(
 }
 
 /**
- * Fetches the pages one tap away once the first screen is up, and Beheer's shell and first tab
+ * Fetches the pages one tap away once the first screen is up, and Management's shell and first tab
  * as soon as the account turns out to be an admin -- which is often only known a moment after
  * mounting, when MuMa's user has been read.
  *

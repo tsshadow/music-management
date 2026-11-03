@@ -753,7 +753,7 @@ class DeleteUserTest(UsersEndpointTestCase):
         with patch.object(users_router.rbac, 'get_role_by_name', return_value=None):
             response = self.client.delete('/api/users/4', headers=self.headers)
         self.assertEqual(response.status_code, 500)
-        self.assertIn('Verwijderen mislukt', response.json()['detail'])
+        self.assertIn('Delete failed', response.json()['detail'])
 
 
 class ServerSyncTest(unittest.TestCase):

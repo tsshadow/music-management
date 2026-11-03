@@ -89,7 +89,7 @@ function announceServerBack(outcome) {
  * (`bootScreen.js`). A mount that throws still removes it: an error on the real page is
  * more use than a boot screen that never leaves.
  *
- * A page off the first screen (Beheer, settings, statistics...) lives in its own chunk
+ * A page off the first screen (Management, settings, statistics...) lives in its own chunk
  * (`lazyViews.js`, issue #114). Opened by URL, that chunk is fetched first, behind the boot
  * screen, so the app appears with the page rather than with a skeleton in its place.
  * `preloadState` never rejects: a chunk that failed shows its retry pill once mounted. The

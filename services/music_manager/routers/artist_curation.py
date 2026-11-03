@@ -81,7 +81,7 @@ MAX_LIMIT = 500
 MAX_DECISION_NAMES = 500
 #: Who migrate_v26 recorded as the decider of the redirects that predate this page.
 LEGACY_DECIDER = 'legacy-redirect'
-#: The config key an admin can tune the analyzer with (Beheer -> Configuratie).
+#: The config key an admin can tune the analyzer with (Management > Configuration).
 ANALYZER_CONFIG_KEY = 'artist_curation_analyzer'
 
 

@@ -61,4 +61,4 @@ not polluted by a placeholder, and an import queue that can be moved without a c
   (it needs a quiet import queue, a stack restart and a `PROD_ENV_FILE` update).
 - **The crooked names the rules cannot place (the large majority).** Measured on 2026-09-25: of
   2.613 crooked proposal rows, at most ~27 carry a catalogue number whose prefix is a rule key. The
-  rest need a label decision in the Labelvoorstellen tab, not a rename.
+  rest need a label decision in the Label proposals tab, not a rename.

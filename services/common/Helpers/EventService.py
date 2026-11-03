@@ -216,7 +216,7 @@ class EventService:
             except Exception as exc:
                 if attempt == attempts - 1:
                     print(
-                        f'EventService: {event.level} event verloren na {attempts} pogingen ({exc}): {event.title}',
+                        f'EventService: {event.level} event lost after {attempts} attempts ({exc}): {event.title}',
                         file=sys.stderr,
                     )
                     return False

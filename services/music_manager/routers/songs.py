@@ -4,7 +4,7 @@ The pin decides which version wins. The split decides whether two tracks belong
 together at all -- without it a wrong merge can only be repaired by editing tags,
 and a wrong merge is silent.
 
-The curation list (`GET /api/songs/curation`) feeds the Versions page in Beheer: every
+The curation list (`GET /api/songs/curation`) feeds the Versions page in Management: every
 song with more than one version, the automatic choice, and a flag on the songs whose
 choice a rescore changed. Reads need an API key, every write needs `rules.manage`.
 

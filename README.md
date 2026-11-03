@@ -2,21 +2,21 @@
 
 [![license](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-A comprehensive, modular system for automated music library management, featuring a unified "Spotify-style" UI, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
+A comprehensive, modular system for automated music library management, featuring a unified web player, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
 
 ## 🧩 Modular System Architecture
 
 The project is built as a set of specialized services that work together to manage the full music lifecycle.
 
 ### Core Services
-- **`frontend`**: A unified Svelte-based "Spotify UI" that handles both playback and system management.
+- **`frontend`**: A unified Svelte-based web player that handles both playback and system management.
 - **`music-manager`**: The central hub and "Source of Truth". Manages metadata, ratings, scrobbling, and coordinates background tasks.
 - **`music-management-server`**: The high-performance C++ playback engine. Provides audio streaming and the Subsonic API.
 
 ### Specialized Workers
 - **`muma-scanner`**: High-performance library scanning and database synchronization.
 - **`muma-tagger`**: Rule-based metadata enforcement and genre inference engine.
-- **`muma-downloader`**: Automated fetches from YouTube and SoundCloud.
+- **`muma-downloader`**: Automated fetches from YouTube and SoundCloud. Follow the platforms' terms of service and download only what you are allowed to.
 - **`muma-telegram`**: Dedicated worker for Telegram-based music discovery.
 - **`muma-importer`**: Archive extraction and automated file movement.
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
@@ -104,7 +104,7 @@ You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh app` (Main Application only)
 
 The following services will be available:
-- **Music Management Server (Spotify UI)**: Port 5082
+- **Music Management Server (web player)**: Port 5082
 - **Music Manager (API)**: Port 8000
 - **phpMyAdmin**: Port 8002 (to inspect the database)
 
@@ -321,13 +321,17 @@ Nothing here deploys. An installation deploys a release from its tag (see
 
 ## Source code and license
 
-MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)). Section 13 says that anyone who uses a
+MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)), except for two parts that come from other
+projects and keep their GPL-3.0 licence. `services/music-management-server` is a fork of
+[LMS](https://github.com/epoupon/lms) by Emeric Poupon (licence text in its `COPYING`).
+`services/muma-mobile` derives from [Ultrasonic](https://gitlab.com/ultrasonic/ultrasonic) (licence text in
+its `LICENSE`). [NOTICE](NOTICE) lists the parts with their copyright lines. Section 13 says that anyone who uses a
 modified version over a network can get its source code. The About screen (Settings > About) of the
 web player and of the Android app, which shows the same screen, has a **Source code** section with a
 link for that, and the login screen has the same link, so it reaches people before they sign in.
 
 The link comes from the setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, also on
-Beheer > Config > General). The default is the placeholder `https://github.com/OWNER/music-management`.
+Management > Configuration > General). The default is the placeholder `https://github.com/OWNER/music-management`.
 If you run your own fork, set it to the address of your repository, at the revision you deploy. An
 empty value hides the section. Only `http://` and `https://` addresses are shown. The About screen
 reads the value from `source_url` in the `GET /health` answer.
@@ -340,7 +344,7 @@ this project serves to listeners, so the source link lives there.
 
 ```text
 ├── services/               # System components
-│   ├── frontend/           # Unified Svelte UI (Spotify UI + Management)
+│   ├── frontend/           # Unified Svelte UI (web player + Management)
 │   ├── music_manager/      # Management API, Ratings, Scrobbling
 │   ├── music-management-server/ # Playback Engine & Subsonic API
 │   ├── downloader/         # YouTube, SoundCloud, Telegram workers

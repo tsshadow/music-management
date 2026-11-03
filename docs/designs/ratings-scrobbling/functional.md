@@ -69,7 +69,7 @@ itself.
 | The same play also reached MuMa another way (the app's own scrobble, under the same or another track, or unmatched) | Nothing is added; a play is never counted twice. |
 | A listen was moved by bug 039 | The loop leaves it alone; restoring times stays the admin's manual reconcile. |
 | Lost listens older than the window (48 h by default) | Left for a one-off admin reconcile with "insert lost listens". |
-| An admin switches it off on Beheer > Config (Scrobbling) | No more listens are added from the next round on. |
+| An admin switches it off on Management > Configuration (Scrobbling) | No more listens are added from the next round on. |
 
 Acceptance criteria:
 

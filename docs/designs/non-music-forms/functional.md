@@ -67,9 +67,9 @@ The folder guard keeps every label release music, because a song can be called "
 | Open an artist, for example Headhunterz | The interview is not in the artist's track list. Search finds it |
 | Daily mix, release radar, old hits, radio | Never pick an interview or a DVD preview |
 | Song versions (Versies) | An interview is never a version of a song, and never hides one |
-| Beheer, statistics | "Tracks" counts music. A second number shows the non-music files |
+| Management, statistics | "Tracks" counts music. A second number shows the non-music files |
 | A new interview is downloaded | It is non-music within the hour, the same as the other forms |
-| A curator thinks a file is music after all | A rename of the file, so the title no longer matches. Beheer has no per-track correction |
+| A curator thinks a file is music after all | A rename of the file, so the title no longer matches. Management has no per-track correction |
 
 ## Acceptance Criteria
 
@@ -89,5 +89,5 @@ Teun agreed the proposal on 2026-10-03:
 1. Two forms, `interview` and `preview`, as the issue names them.
 2. A DVD or Blu-ray preview is non-music at every length, the 35-minute one included.
 3. Trailers, teasers and aftermovies stay music.
-4. No per-track correction in Beheer for now. A rename of the file is the fix.
+4. No per-track correction in Management for now. A rename of the file is the fix.
 5. Interviews are found through search only. The artist page does not list them.

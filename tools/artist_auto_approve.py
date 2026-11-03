@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Approve artist names on external evidence, so the curation queue shrinks to the doubtful.
 
-The artist curation queue (Beheer -> Curatie -> Artiestcuratie) holds every name in
+The artist curation queue (Management > Curation > Artist curation) holds every name in
 `library_artists` nobody decided on: ~55.000 on prod, of which roughly one in ten is a
 real artist. No internal signal separates the real ones from the noise -- that was
 measured and closed -- so this asks the outside world instead. A name is approved

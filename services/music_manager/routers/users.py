@@ -1119,7 +1119,7 @@ def delete_user(user_id: int, auth: dict = Depends(require_permission('users.upd
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Verwijderen mislukt: {e}') from e
+        raise HTTPException(status_code=500, detail=f'Delete failed: {e}') from e
     finally:
         conn.close()
 
@@ -1144,7 +1144,7 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
     primary_id = user_id
     secondary_id = req.secondary_user_id
     if primary_id == secondary_id:
-        raise HTTPException(status_code=400, detail='Kan een gebruiker niet met zichzelf samenvoegen')
+        raise HTTPException(status_code=400, detail='Cannot merge a user into itself')
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='DB failed')
@@ -1155,7 +1155,7 @@ def merge_users(user_id: int, req: MergeUsersRequest, auth: dict = Depends(requi
             cursor.execute('SELECT * FROM users WHERE id = %s', (secondary_id,))
             secondary = cursor.fetchone()
             if not primary or not secondary:
-                raise HTTPException(status_code=404, detail='Gebruiker niet gevonden')
+                raise HTTPException(status_code=404, detail='User not found')
 
             # 1) Login identities (e.g. Google): keep the primary's own link
             #    to a given provider if it already has one, otherwise adopt

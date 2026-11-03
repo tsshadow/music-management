@@ -445,7 +445,7 @@ def group_once(conn, context: RankingContext | None = None) -> dict:
 #
 # A stored score is never refreshed by the grouping pass above, which only looks at tracks
 # without a work. So a change to the ranking -- a new RANKING_VERSION, or the
-# prefer_lossless setting flipped in Beheer -- would otherwise reach only the tracks
+# prefer_lossless setting flipped in Management -- would otherwise reach only the tracks
 # scanned after it. The rescore walks every work whose `ranking_signature` differs from the
 # current one, in batches by work id, recomputes each member's kind and score and the
 # work's canonical, and stamps the batch with the new signature. It never regroups:

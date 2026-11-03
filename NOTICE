@@ -1,0 +1,30 @@
+Music Management (MuMa)
+
+This repository holds several parts. Each part keeps its own licence and
+copyright. The full licence text of each part is in the file named below.
+
+1. The MuMa services (everything not named in parts 2 and 3: the Python
+   backend, the Svelte web player in services/frontend, the tools, scripts
+   and documentation)
+   Licence: GNU Affero General Public License v3.0 (AGPL-3.0)
+   Text: LICENSE
+
+2. Lightweight MuMa Server (services/music-management-server)
+   A fork of LMS (Lightweight Music Server) by Emeric Poupon,
+   https://github.com/epoupon/lms, started from upstream version 3.76.0.
+   Copyright (C) 2013 and later Emeric Poupon and the LMS contributors.
+   Changes made in this repository are copyright of the MuMa contributors.
+   Licence: GNU General Public License v3.0 (GPL-3.0)
+   Text: services/music-management-server/COPYING
+   Details of the fork: services/music-management-server/FORK.md
+
+3. MuMa Mobile (services/muma-mobile)
+   An Android app derived from Ultrasonic,
+   https://gitlab.com/ultrasonic/ultrasonic.
+   Copyright (C) 2009 and later the Ultrasonic developers.
+   Changes made in this repository are copyright of the MuMa contributors.
+   Licence: GNU General Public License v3.0 (GPL-3.0)
+   Text: services/muma-mobile/LICENSE
+
+Third-party libraries that these parts use keep their own licences. They are
+installed from their package managers and are not copied into this repository.

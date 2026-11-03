@@ -72,7 +72,7 @@ class ArtistImageFetcher:
                 'no-image-provider',
                 logging.ERROR,
                 'ArtistImageFetcher has no configured image provider: set the Spotify client id and '
-                'secret (Beheer > Config, or SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET). Nothing will be '
+                'secret (Management > Configuration, or SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET). Nothing will be '
                 'fetched and no artist will be marked as failed.',
             )
 

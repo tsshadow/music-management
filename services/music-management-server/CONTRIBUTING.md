@@ -57,7 +57,7 @@ make -j$(nproc)
 ```
 
 ### Frontend (Svelte)
-The modern MuMa Spotify is built with Svelte and Vite.
+The MuMa web player is built with Svelte and Vite.
 
 #### Prerequisites
 - Node.js (v18+)

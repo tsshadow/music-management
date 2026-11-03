@@ -1,5 +1,5 @@
 <!--
-  The Koppelingen sub-tab of Beheer -> Downloaders: open proposals that link a
+  The Links sub-tab of Management > Downloaders: open proposals that link a
   channel to its label or artist, with confirm and reject per row and a button
   that runs the search again, under the panel that links a channel by hand. See
   docs/designs/channel-links/functional.md.

@@ -1,7 +1,7 @@
 """Which existing label folder a label name means: `b2s Records` -> `EPs/B2S`.
 
 The importer may only ever place a release in a folder that already exists -- a new label is a
-curator's decision, made in Beheer > Labelvoorstellen. So the question here is narrow: does a
+curator's decision, made in Management > Label proposals. So the question here is narrow: does a
 label name, as an .nfo or a store spells it, name exactly one of the label folders?
 
 Names are compared folded: case, accents, punctuation and `&`/`and` do not count, and neither do

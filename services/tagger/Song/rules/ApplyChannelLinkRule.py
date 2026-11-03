@@ -1,7 +1,7 @@
 """The label and artist a download's channel is linked to, as evidence for its tags.
 
 A curator links a channel (`Soundcloud/Traxtorm`, `Youtube/Hysta Official`) to the label or
-artist it is, in Beheer -> Downloaders -> Koppelingen (docs/designs/channel-links). This rule is
+artist it is, in Management > Downloaders > Links (docs/designs/channel-links). This rule is
 where that link reaches the files: only where a tag is empty or holds something weaker, never over
 a value the file or its title actually supplied.
 

@@ -42,7 +42,7 @@
     }
   }
 
-  /** The edit page is a view of the player, not a management tab: leave Beheer for it. */
+  /** The edit page is a view of the player, not a management tab: leave Management for it. */
   function edit(row) {
     activeView.set(`genre-edit:${row.name}`);
   }

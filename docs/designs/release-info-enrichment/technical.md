@@ -78,7 +78,7 @@ file's own value, as the tagger has always kept it. No second sync is built: the
 
 ## Configuration
 
-ConfigStore group `Importer`, rendered by Beheer > Configuratie without frontend changes:
+ConfigStore group `Importer`, rendered by Management > Configuration without frontend changes:
 
 | Key | Default | Effect |
 |---|---|---|
@@ -167,7 +167,7 @@ Additive only, no breaking change.
 | `GET /api/label-proposals` | unchanged | each row also carries `alternative_label` and `label_choice_key` (null for ordinary proposals) | unchanged |
 | `POST /api/label-proposals/{id}/confirm` | unchanged (`{"label": ...}`) | unchanged | unchanged; when the row has `label_choice_key`, the same transaction sets `rules_label_name_choices.chosen_folder` to the confirmed label |
 
-The web UI (Beheer > Labelvoorstellen) groups a two-option proposal apart from plain proposals for
+The web UI (Management > Label proposals) groups a two-option proposal apart from plain proposals for
 the same label and shows both folders as buttons; it is the only consumer.
 
 ## Cross-App Impact

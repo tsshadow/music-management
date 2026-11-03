@@ -115,7 +115,7 @@ def main():
             for user in lms_users:
                 print(f"🔄 Verwerken: {user['username']} (LMS ID: {user['lms_id']})")
                 
-                # Update of insert gebruiker
+                # Update or insert user
                 cursor.execute('''
                     INSERT INTO users (username, display_name, lms_user_id)
                     VALUES (%s, %s, %s)

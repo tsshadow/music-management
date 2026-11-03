@@ -38,7 +38,7 @@ you want FLAC radio edit, or MP3 radio edit if storage is an issue."
 
 Decided in this order; each step only matters when all earlier steps tie:
 
-1. **Format**, driven by the setting `prefer_lossless` (Beheer → Configuratie, group "Song
+1. **Format**, driven by the setting `prefer_lossless` (Management > Configuration, group "Song
    versions", default on):
    - on: lossless (FLAC/ALAC/WAV/AIFF) > MP3 320 > AAC/M4A/Opus > MP3 192 > lower;
    - off: MP3 320 > AAC/M4A/Opus > lossless > MP3 192 > lower.
@@ -62,7 +62,7 @@ A manual pin always wins.
 | A song pinned on the Versions page | The pinned version plays, whatever the ranking says |
 | The ranking changes (deploy, or the setting flipped) | Within the hour every song is re-ranked; songs whose choice changed are flagged |
 
-### The Versions page (Beheer → Curatie → Versies)
+### The Versions page (Management > Curation > Versions)
 
 | Situation | Observable outcome |
 |---|---|

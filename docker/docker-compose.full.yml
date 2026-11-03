@@ -482,6 +482,8 @@ services:
 #      - music-management_db
 
   firefox:
+    # The YouTube and SoundCloud workers read its cookie profile; no worker of those, no browser.
+    profiles: ["youtube", "soundcloud"]
     logging: *default-logging
     security_opt:
       - no-new-privileges:true
@@ -498,7 +500,7 @@ services:
       # No default: it was "admin", on a port bound on every interface.
       WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
-      - "7003:5800"
+      - "${FIREFOX_BIND_ADDRESS:-127.0.0.1}:7003:5800"
     volumes:
       - ${HOST_DATA_PATH}/firefox:/config
       - ${HOST_DATA_PATH}/shared:/shared

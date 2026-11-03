@@ -44,6 +44,7 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `GOOGLE_CLIENT_ID` | Only for "Sign in with Google". Must equal `VITE_GOOGLE_CLIENT_ID` in the player's `.env`. |
 | `PUBLIC_SOURCE_URL` | Where users get the source code (AGPL-3.0 section 13), shown as the Source code link on the About and login screens. Default `https://github.com/OWNER/music-management`, a placeholder: set your own repository or fork. |
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
+| `FIREFOX_BIND_ADDRESS` | Address the `firefox` container publishes its port 7003 on. Default `127.0.0.1`. Set `0.0.0.0` or a LAN address if you open the browser from another machine. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 
 Three more paths of the main stack decide where `music-manager` finds the player's data. Set them in
@@ -118,8 +119,8 @@ The importer and the downloaders only run when you enable their profile:
 | Profile | Services |
 |---|---|
 | `importer` | `importer_worker` |
-| `youtube` | `youtube_worker` |
-| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher` |
+| `youtube` | `youtube_worker`, `firefox` |
+| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher`, `firefox` |
 | `telegram` | `telegram_worker` |
 
 Put the profiles you want in `.env`:
@@ -139,6 +140,65 @@ A one-off command on a profiled service needs the profile too:
 docker-compose -f docker/docker-compose.yml --profile soundcloud run --rm soundcloud-fetcher
 docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
+
+## First start and logins
+
+### First admin
+
+A new database has no accounts. Open the web player: while the `users` table is empty, the login page
+shows a form for the first account. It calls `POST /api/auth/setup` (unauthenticated) and creates that
+account as admin. The call answers `409` once any account exists. See `docs/authentication.md`.
+
+### Sign in with Google (optional)
+
+Skip this and the Google button stays hidden; username and password still work.
+
+1. In the Google Cloud Console, create a project and configure the OAuth consent screen.
+2. Create an OAuth client of type "Web application". Its client id is the Web client id.
+3. Set that one value in three places: `GOOGLE_CLIENT_ID` in `.env` (the manager checks the token
+   audience against it), `VITE_GOOGLE_CLIENT_ID` in the player's `.env` (a build argument, so rebuild the
+   player image), and `MUMA_GOOGLE_CLIENT_ID` for the Android build.
+4. Add your player's address to the "Authorized JavaScript origins" of that client.
+5. For the app, create a second OAuth client of type "Android" with the app's package name and the
+   SHA-1 of your signing key. The app still requests its token with the Web client id; the Android
+   client only lets Google accept the app.
+
+`MUMA_GOOGLE_CLIENT_ID` is read from the environment or from the Gradle property `muma.googleClientId`
+(for example in `~/.gradle/gradle.properties`). A release build without it stops.
+
+### SoundCloud and YouTube cookies
+
+The SoundCloud and YouTube workers read the cookies of a logged-in Firefox. That browser is the
+`firefox` container, which starts with either profile.
+
+1. Set `FIREFOX_PASSWORD`, start the stack and open `https://<host>:7003` (the container uses a self-signed
+   certificate). Log in with `FIREFOX_USER` (default `admin`) and the password. The port listens on
+   `127.0.0.1` only unless you set `FIREFOX_BIND_ADDRESS`.
+2. In that browser, log in to soundcloud.com and youtube.com with your account.
+3. The profile is saved under `${HOST_DATA_PATH}/firefox`, which the workers mount read-only.
+
+Respect the terms of the platforms, and download only what you may.
+
+### Telegram
+
+The Telegram worker needs `telegram_api_id` and `telegram_api_hash` (from my.telegram.org) in `.env`,
+and a one-time interactive login:
+
+```
+./run_telegram_auth.sh "<channel name>"
+```
+
+Run it from the repository root. It asks for your phone number and the code Telegram sends, and saves
+the session in the data volume. The default channel name in the script, `Hard Dance Events`, is only an
+example: always pass the channel you want. Then start the worker with the `telegram` profile.
+
+### Android app and the server address
+
+The server address is compiled into the app (`MUMA_SERVER_URL`, see "Android app build"). The app
+refuses cleartext `http://` to every host except `localhost` and `127.0.0.1`
+(`network_security_config.xml`). A server on your LAN therefore needs `https://`: put a reverse proxy
+with a certificate in front of it and build the app with that address. You can hand the APK to users in
+any way you like, for example GitHub Releases or by sideloading.
 
 ## Schema changes
 

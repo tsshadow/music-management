@@ -1,0 +1,10 @@
+# sha256 digests of lower-case tokens ([a-z0-9]+) that must not appear in a tracked file, a commit
+# identity, a commit message or a tag message of the public repository. One digest per line, then a
+# description. The words themselves are never written down: a guard file that names what it guards
+# publishes it. To add a token, hash the lower-case word with `printf %s word | sha256sum`.
+# Used by scripts/ci/public_guard.py (tree and history modes).
+25becee34cc33552d364365b7f5e698b1831ab6b2c57f33a286098f916085be3  # the partner's full name written as one word
+3b9e72334ed1a154b98fb44db70a003593a298a0132ec0f8658cd776963cd404  # the partner's account name
+498c6a5adc6b5ff2697e5c8da76be74f7db99e6928d8ec2ca089056fc2aae814  # the partner's family name
+354b7f0dd51bffa4f09b194094cce530310e98daf0d94c5f863853e7e0e57d5e  # the owner's employer, as a whole word
+e146dc555631f2903b75ea79bb3f037056af198f348ac6262941686c6bc7102a  # the Google OAuth project number

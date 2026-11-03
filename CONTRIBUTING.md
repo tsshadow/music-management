@@ -29,6 +29,7 @@ two can never drift apart.
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
 ./scripts/ci/public-check.sh             # public:check: no personal names, hosts or LAN addresses in tracked files
+./scripts/ci/public-history-check.sh --range origin/develop..HEAD   # public:history: no personal data in commit and tag metadata
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```

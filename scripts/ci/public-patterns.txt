@@ -1,14 +1,12 @@
 # Patterns that must never appear in a tracked file of the public repository.
 # One PCRE per line, used as `git grep -P -i -n -I -f` (see public-check.sh).
 # The words are written with a character class so that this file does not match itself.
+# Used for tracked files (public-check.sh) and for commit and tag metadata (public-history-check.sh).
 
 # The owner's name. Allowed, exactly: the Android package id (dotted and source-path form) and the GitHub contact address.
 (?<!nl\.)(?<!nl/)(?<!github@)teun[s]chriks|(?<=nl\.)teun[s]chriks(?!\.mumamobile(?![a-z0-9]))|(?<=nl/)teun[s]chriks(?!/mumamobile(?![a-z0-9]))|(?<=github@)teun[s]chriks(?!\.nl(?![a-z0-9-]|\.[a-z0-9]))
 # The owner's GitLab and GitHub handle.
 tssha[d]ow
-lisetholsappe[l]
-# Google OAuth project number (the prefix of every client id).
-7144609033[1]
 vaultwar[d]en
 # LAN addresses. Allowed: the RFC 1918 block 192.168.0.0/16 written as a CIDR.
 192\.168\.(?!0\.0/16(?![0-9]))
@@ -17,5 +15,5 @@ vaultwar[d]en
 # The owner's login name, lower case and as a whole word. The inline (?-i) overrides the -i of git grep, so
 # the capitalised first name (the copyright holder) and the package id stay allowed.
 (?-i)(?<![A-Za-z0-9_])teu[n](?![A-Za-z0-9_])
-# The owner's employer, in any case and as a whole word.
-(?<![A-Za-z0-9_])mob[a](?![A-Za-z0-9_])
+# Third persons, the owner's employer and the OAuth project number are not listed here: they are
+# sha256 digests of tokens in scripts/ci/public-banned-tokens.txt, checked by scripts/ci/public_guard.py.

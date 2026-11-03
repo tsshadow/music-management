@@ -3,6 +3,7 @@
 The forbidden words are built by concatenation so this file passes the check it tests.
 """
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -13,21 +14,28 @@ from tests.ci.conftest import REPO_ROOT
 
 SCRIPT = REPO_ROOT / "scripts" / "ci" / "public-check.sh"
 PATTERNS = REPO_ROOT / "scripts" / "ci" / "public-patterns.txt"
+GUARD = REPO_ROOT / "scripts" / "ci" / "public_guard.py"
+TOKENS = REPO_ROOT / "scripts" / "ci" / "public-banned-tokens.txt"
+
+# sha256 of the guarded tokens (the partner's name and account, the employer, the OAuth project number).
+# The words themselves are not in the repository.
+SHIPPED_DIGESTS = {
+    "25becee34cc33552d364365b7f5e698b1831ab6b2c57f33a286098f916085be3",
+    "3b9e72334ed1a154b98fb44db70a003593a298a0132ec0f8658cd776963cd404",
+    "498c6a5adc6b5ff2697e5c8da76be74f7db99e6928d8ec2ca089056fc2aae814",
+    "354b7f0dd51bffa4f09b194094cce530310e98daf0d94c5f863853e7e0e57d5e",
+    "e146dc555631f2903b75ea79bb3f037056af198f348ac6262941686c6bc7102a",
+}
 
 OWNER = "teu" + "n" + "schriks"
 HANDLE = "tssha" + "dow"
-# Written reversed: a banned word must not sit in the source either.
-PARTNER = "leppaslohtesil"[::-1]
 LAN = "192." + "168."
 LOGIN = "teu" + "n"
-EMPLOYER = "mob" + "a"
 
 FORBIDDEN = {
     "owner domain": f"see https://{OWNER}.nl/x",
     "owner host": f"https://muma.{OWNER}.nl/api",
     "handle": f"git clone {HANDLE}/repo",
-    "partner name": "from " + PARTNER,
-    "oauth project": "7144609033" + "1-abc.apps.googleusercontent.com",
     "password manager": "the " + "vaultwar" + "den host",
     "lan host": f"ssh root@{LAN}1.40",
     "owner domain as package suffix": f"https://{OWNER}.mumamobile.com/x",
@@ -39,9 +47,6 @@ FORBIDDEN = {
     "old personal host": "curl https://spoti" + "fy.example.org/rest",
     "owner login in a query": f"/rest/ping.view?u={LOGIN}&p=x",
     "owner login as home directory": f"/home/{LOGIN}/Music",
-    "employer": f"made at {EMPLOYER}",
-    "employer upper case": f"{EMPLOYER.upper()} icons",
-    "employer home directory": f"/home/{EMPLOYER}/git",
 }
 
 ALLOWED = {
@@ -55,16 +60,25 @@ ALLOWED = {
     "spotify provider path": "providers/spoti" + "fy.py",
     "capitalised first name": "Copyright (C) 2026 " + LOGIN.capitalize() + " Schriks",
     "login inside a longer word": f"x{LOGIN}y and {LOGIN}2 and {LOGIN}_a",
-    "employer inside a longer word": f"{EMPLOYER}xterm and auto{EMPLOYER}",
 }
 
 
-def _run(tmp_path, files: dict[str, str], patterns: str | None = None, extra_env: dict[str, str] | None = None):
+def _run(
+    tmp_path,
+    files: dict[str, str],
+    patterns: str | None = None,
+    tokens: str | None = None,
+    extra_env: dict[str, str] | None = None,
+):
     """Make a git repository with `files`, run public-check.sh there and return the process."""
     repo = tmp_path / "repo"
     (repo / "scripts" / "ci").mkdir(parents=True)
     shutil.copy(SCRIPT, repo / "scripts" / "ci" / "public-check.sh")
     shutil.copy(PATTERNS, repo / "scripts" / "ci" / "public-patterns.txt")
+    shutil.copy(GUARD, repo / "scripts" / "ci" / "public_guard.py")
+    shutil.copy(TOKENS, repo / "scripts" / "ci" / "public-banned-tokens.txt")
+    if tokens is not None:
+        (repo / "scripts" / "ci" / "public-banned-tokens.txt").write_text(tokens, encoding="utf-8")
     if patterns is not None:
         (repo / "scripts" / "ci" / "public-patterns.txt").write_text(patterns, encoding="utf-8")
     for name, text in files.items():
@@ -100,7 +114,7 @@ def test_sql_files_are_scanned_too(tmp_path):
 
 def test_patterns_file_names_no_forbidden_word():
     text = PATTERNS.read_text(encoding="utf-8").lower()
-    for word in (OWNER, HANDLE, PARTNER, EMPLOYER, "7144609033" + "1", "vaultwar" + "den", LAN + "1."):
+    for word in (OWNER, HANDLE, "vaultwar" + "den", LAN + "1."):
         assert word not in text
 
 
@@ -119,7 +133,7 @@ def test_missing_docker_fails_in_ci_and_warns_locally(tmp_path):
     """Without docker gitleaks cannot run: CI must not pass silently, a workstation may."""
     empty_bin = tmp_path / "bin"
     empty_bin.mkdir()
-    for tool in ("bash", "git", "grep", "mktemp", "rm", "dirname"):
+    for tool in ("bash", "git", "grep", "mktemp", "rm", "dirname", "python3"):
         found = shutil.which(tool)
         assert found
         (empty_bin / tool).symlink_to(found)
@@ -128,3 +142,29 @@ def test_missing_docker_fails_in_ci_and_warns_locally(tmp_path):
     assert in_ci.returncode == 1, in_ci.stdout
     local = _run(tmp_path / "b", {"doc.md": "ok"}, extra_env={**base, "CI": ""})
     assert local.returncode == 0, local.stdout + local.stderr
+
+
+def _digest_file(*words: str) -> str:
+    """Return the text of a banned-token file that lists the sha256 of each word."""
+    return "".join(f"{hashlib.sha256(w.encode()).hexdigest()}  # test token\n" for w in words)
+
+
+def test_a_banned_token_in_a_tracked_file_is_caught(tmp_path):
+    """A whole word with a listed digest fails, whatever its case; a longer word that contains it passes."""
+    tokens = _digest_file("zorblax")
+    hit = _run(tmp_path / "a", {"doc.md": "made by Zorblax today"}, tokens=tokens)
+    assert hit.returncode == 1, hit.stdout
+    assert "doc.md" in hit.stdout
+    assert "zorblax" not in (hit.stdout + hit.stderr).lower()
+    longer = _run(tmp_path / "b", {"doc.md": "zorblaxterm and autozorblax"}, tokens=tokens)
+    assert longer.returncode == 0, longer.stdout
+
+
+def test_the_shipped_token_list_holds_the_guarded_digests():
+    """The partner, the employer and the OAuth project number stay guarded, without their plain text."""
+    listed = {
+        line.split()[0]
+        for line in TOKENS.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    assert listed >= SHIPPED_DIGESTS

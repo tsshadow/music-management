@@ -50,7 +50,7 @@ capacitor              = "8.6.0"
 materialDesign         = "1.14.0"
 room                   = "2.8.5"
 kotlin                 = "2.4.21"
-ksp                    = "2.3.12"
+ksp                    = "2.3.13"
 kotlinxCoroutines      = "1.11.0"
 viewModelKtx           = "2.11.0"
 

@@ -33,7 +33,7 @@ looked up or approved again -- the undo is a human's answer. A name the evidence
 clear is looked up again after `artist_auto_approve_recheck_days`; a name a source failed
 to answer for (`incomplete`) on the next round.
 
-Settings (Beheer > Config, group "Artist curation") are read at every check, so a change
+Settings (Management > Configuration, group "Artist curation") are read at every check, so a change
 applies without a restart. Dry run is on by default: see the design for why.
 """
 

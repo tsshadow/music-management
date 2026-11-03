@@ -532,10 +532,10 @@ def run_fetch_missing():
             if fetcher.blind:
                 # Without a provider this loop would walk 45.000 names and learn nothing
                 # -- which is what it did from 2026-08-22 to 2026-09-21, recording every
-                # one of them as failed. Say so instead, where the Beheer page reads it.
+                # one of them as failed. Say so instead, where the Management page reads it.
                 message = (
-                    'Geen image provider geconfigureerd: zet de Spotify client id en secret '
-                    '(Beheer > Config, of SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET) en start opnieuw.'
+                    'No image provider configured: set the Spotify client id and secret '
+                    '(Management > Configuration, or SPOTIFY_CLIENT_ID/SPOTIFY_CLIENT_SECRET) and start again.'
                 )
                 logger.error(message)
                 fetch_progress.update({'active': False, 'status': 'failed', 'message': message})

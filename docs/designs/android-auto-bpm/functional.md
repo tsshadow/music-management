@@ -36,7 +36,7 @@ any more.
 | MuMa or the streaming server unreachable when opening a tempo | An empty list; opening it again a moment later asks again. |
 | "210+ BPM" | Everything from 208 BPM up, slowest first. |
 
-A tempo row means that tempo ± the server's tolerance (Beheer → Config → BPM, default 2).
+A tempo row means that tempo ± the server's tolerance (Management > Configuration → BPM, default 2).
 
 ## Acceptance Criteria
 

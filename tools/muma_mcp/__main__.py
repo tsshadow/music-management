@@ -60,7 +60,7 @@ def prod_health() -> str:
 
 @mcp.tool(annotations=READ_ONLY)
 def prod_containers() -> str:
-    """Naam, status en image van de muma-, database- en LMS-containers op productie."""
+    """Name, status and image of the muma, database and LMS containers on production."""
     return _dump(api.containers(CONFIG))
 
 

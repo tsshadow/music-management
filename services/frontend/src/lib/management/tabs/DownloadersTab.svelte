@@ -16,7 +16,7 @@
   export let onError;
   export let refreshDownloaders;
 
-  // Another page may have asked for a sub-tab (the label page's link to Koppelingen); take it once.
+  // Another page may have asked for a sub-tab (the label page's link to Links); take it once.
   let downloaderSubTab = takeSubTabRequest() ?? 'soundcloud';
 
   function takeSubTabRequest() {
@@ -24,10 +24,10 @@
     if (requested) downloaderSubTabRequest.set(null);
     return requested;
   }
-  // The channel a Volledigheid row asked to link by hand; the Koppelingen tab starts from it.
+  // The channel a Coverage row asked to link by hand; the Links tab starts from it.
   let linkChannel = null;
 
-  /** Open the Koppelingen tab, with a channel preselected when a table row passed one. */
+  /** Open the Links tab, with a channel preselected when a table row passed one. */
   function openLinks(channel = null) {
     linkChannel = channel;
     downloaderSubTab = 'links';
@@ -485,7 +485,7 @@
                 <p class="text-xs text-muma-spotify-text mt-1">{field.description}</p>
                 <p class="text-xs text-muma-spotify-text opacity-60 mt-1">
                   {$t('management.downloaders.fieldDefault', { value: field.default })}
-                  {#if field.unit === 'seconden'} ({formatDuration(field.default)}){/if}
+                  {#if field.unit === 'seconds'} ({formatDuration(field.default)}){/if}
                   · {$t('management.downloaders.fieldAllowed', { min: field.minimum, max: field.maximum })}
                 </p>
               </div>

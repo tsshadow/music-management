@@ -123,8 +123,8 @@ days). It now runs by itself inside music-manager, once a day.
 | A curator decided a name while a round ran | The curator's decision stands; the run never overwrites a decision. |
 
 **Dry run is on by default.** This is the first thing in the system that writes curation
-decisions on its own every night. The first rounds show in the event log, and under Beheer ->
-Curatie -> Artiestcuratie, what they would approve; one switch in Beheer -> Config ("Artist
+decisions on its own every night. The first rounds show in the event log, and under Management ->
+Curatie -> Artiestcuratie, what they would approve; one switch in Management > Configuration ("Artist
 curation") turns approving on, and the first live round then applies everything the dry runs
 judged approvable as well, so nothing is lost by starting in dry run.
 
@@ -138,4 +138,4 @@ Acceptance criteria:
 2. A dry run writes no decision.
 3. A name is approved only on the tool's own rules; nothing is ever rejected automatically.
 4. Each round writes exactly one INFO line to the event log with what it did.
-5. An automatic approval can be found and undone in Beheer, and an undone name is not re-approved.
+5. An automatic approval can be found and undone in Management, and an undone name is not re-approved.

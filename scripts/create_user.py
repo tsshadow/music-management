@@ -21,7 +21,7 @@ def create_user(username, password, display_name=None, is_admin=False):
         api_key = secrets.token_hex(16)
         
         with conn.cursor() as cursor:
-            # Controleer of de tabel bestaat (init_db wordt normaal door de app gedaan)
+            # Check that the table exists (init_db is normally done by the app)
             cursor.execute("SHOW TABLES LIKE 'users'")
             if not cursor.fetchone():
                 print("Error: De 'users' tabel bestaat nog niet. Start de music-manager service eerst op om de DB te initialiseren.")

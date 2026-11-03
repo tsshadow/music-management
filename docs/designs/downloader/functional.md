@@ -15,6 +15,9 @@ content. When a new track is found, it is downloaded, archived in a database to 
 downloads, and automatically tagged with metadata before being moved to the library. For Telegram, the
 service monitors specific channels and downloads any audio or video files shared there.
 
+Users must follow the terms of service of each platform and download only what they are allowed to
+download.
+
 ## User Stories
 
 - As a music collector, I want the system to automatically download new tracks from my favorite SoundCloud
@@ -40,7 +43,7 @@ service monitors specific channels and downloads any audio or video files shared
 | SoundCloud answers "403 Forbidden" for single tracks of an account that otherwise works | Those tracks are written off for a while; the sweep carries on. |
 | SoundCloud answers "403 Forbidden" for whole accounts, several in a row | SoundCloud is parked: it enters a backoff state, waiting for an increasing amount of time before the next sweep. |
 | YouTube answers "403 Forbidden" and yt-dlp gives up on the request | YouTube is parked the same way. A 403 that yt-dlp recovers from (another player client, a retry) is not a refusal. |
-| YouTube answers "Sign in to confirm you're not a bot" for `bot_check_threshold` videos in a row (default 5) | YouTube is paused for `bot_check_pause` (default 6 hours) with one `WARNING` that says to log in again in the Firefox container; the individual refusals are not logged as errors. Beheer shows the pause and the instruction; "Reset backoff" lifts it after the login. See bug report [076](../../bug-reports/076-youtube-demands-sign-in-since-0-72-2.md). |
+| YouTube answers "Sign in to confirm you're not a bot" for `bot_check_threshold` videos in a row (default 5) | YouTube is paused for `bot_check_pause` (default 6 hours) with one `WARNING` that says to log in again in the Firefox container; the individual refusals are not logged as errors. Management shows the pause and the instruction; "Reset backoff" lifts it after the login. See bug report [076](../../bug-reports/076-youtube-demands-sign-in-since-0-72-2.md). |
 | The Firefox profile the YouTube worker reads cookies from is missing or has no `cookies.sqlite` | One `ERROR` naming the path, nothing is downloaded, and YouTube is paused for `bot_check_pause`, instead of every video failing on its own. |
 | The service encounters a "429 Too Many Requests" error | The source is parked for an extremely long time (1-2 hours) to avoid a permanent ban. |
 | A deep sweep cannot list an account (refused, removed, no such tab) | The account is not marked deep-swept and stays due. A refusal feeds the backoff above; anything else falls back to the ordinary check. |

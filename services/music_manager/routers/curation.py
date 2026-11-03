@@ -42,7 +42,7 @@ WRITE = Depends(require_permission('rules.manage'))
 #: The ceiling exists because a rule on a prolific artist can match thousands of
 #: files: the job holds the tagger lock for the whole batch, so the ordinary tagging
 #: round waits on it, and there is no way to watch it fail halfway. Past the ceiling
-#: the page asks for a full tagger run instead. It is configurable (Beheer ->
+#: the page asks for a full tagger run instead. It is configurable (Management ->
 #: Configuratie, `max_retag_files`) because the right number depends on the library
 #: and on how long you are willing to stall tagging.
 MAX_RETAG_FILES_DEFAULT = 2000
@@ -359,7 +359,7 @@ LABEL_PAGE_MAX = 500
 def list_labels(q: str | None = None, limit: int = 200, offset: int = 0, _auth: dict = READ):
     """Every label the library holds, most tracks first, with what the tagger knows about it.
 
-    The Beheer overview of labels: how many tracks carry it, how many catalogue-id
+    The Management overview of labels: how many tracks carry it, how many catalogue-id
     prefixes and genre rules point at it, and its parent. The row is the way into
     the edit page; nothing is edited here.
     """
@@ -671,7 +671,7 @@ GENRE_PAGE_MAX = 1000
 def list_genres(q: str | None = None, limit: int = 500, offset: int = 0, _auth: dict = READ):
     """Every approved genre, most tracks first, with what the tagger knows about it.
 
-    The Beheer overview of genres: how many tracks carry it, its hardness, the
+    The Management overview of genres: how many tracks carry it, its hardness, the
     genres it rolls up into, and how many artist and label rules point at it. The
     row is the way into the edit page; nothing is edited here. Only approved
     genres: whether a genre exists at all is the curation queue's question.
@@ -779,7 +779,7 @@ def get_genre_hierarchy_cycles(_auth: dict = READ):
     """Read-only integrity check: every cycle in `rules_subgenre_hierarchy`.
 
     The edit page refuses new cycles, but one stored before that check existed stays
-    until a curator removes a parent in Beheer; SQL cannot pick which edge is the
+    until a curator removes a parent in Management; SQL cannot pick which edge is the
     wrong one. The feeds cope (they log the cycle and choose deterministically), so
     this is where an operator finds out what to fix.
     """

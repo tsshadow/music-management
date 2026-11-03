@@ -2,6 +2,11 @@
 
 The Downloader Service is responsible for automatically fetching music from various online sources and keeping the library up-to-date.
 
+## Terms of service
+
+Follow the terms of service of each platform you download from, and download only what you are allowed to
+download. You are responsible for the content you fetch and for how you use it.
+
 ## 📡 Supported Sources
 
 ### 📺 YouTube
@@ -126,7 +131,7 @@ The pass also leaves a count behind. `take_snapshot` partitions the listing *aft
 pass -- held, excluded (a write-off that still stands under the current bounds and retry
 window), remaining -- and `AccountSchedule.record_snapshot` stores it in the six
 `snapshot_*` columns of `downloads_account_checks`, parked and capped passes included.
-That is what `GET /api/downloaders/coverage/{source}` and the Volledigheid tab read; the
+That is what `GET /api/downloaders/coverage/{source}` and the Coverage tab read; the
 log line is not it. The report's own `held` is the archive before the pass and its
 `written_off` counts expired decisions, so neither adds up to `listed` and neither is
 stored. See docs/designs/channel-coverage.

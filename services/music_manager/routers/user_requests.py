@@ -263,7 +263,7 @@ def approve_user_request(
                 cursor.execute('SELECT * FROM users WHERE id = %s', (body.link_user_id,))
                 target_user = cursor.fetchone()
                 if not target_user:
-                    raise HTTPException(status_code=404, detail='Te koppelen gebruiker niet gevonden')
+                    raise HTTPException(status_code=404, detail='User to link not found')
                 cursor.execute(
                     'INSERT INTO user_identities (user_id, provider, provider_subject, email_at_provider) VALUES (%s, %s, %s, %s)',
                     (target_user['id'], 'google', req['google_subject'], req.get('email')),
@@ -324,7 +324,7 @@ def approve_user_request(
         if _is_duplicate_entry(e):
             # Lost a race with another account taking the name between the check and the insert.
             raise HTTPException(status_code=409, detail=_username_taken_detail(None)) from e
-        raise HTTPException(status_code=500, detail=f'Goedkeuren mislukt: {e}') from e
+        raise HTTPException(status_code=500, detail=f'Approve failed: {e}') from e
     finally:
         conn.close()
 
@@ -440,6 +440,6 @@ def unapprove_user_request(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Ongedaan maken mislukt: {e}') from e
+        raise HTTPException(status_code=500, detail=f'Undo failed: {e}') from e
     finally:
         conn.close()

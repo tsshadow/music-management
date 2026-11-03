@@ -103,7 +103,7 @@ Response:
   starts the containers *before* it runs `migrate_*.sql`, and an insert naming a column that
   does not exist yet would lose the archive row for every video fetched in that window.
 - `services/music_manager/routers/downloaders.py`: new endpoint.
-- `services/frontend`: new sub-tab `Volledigheid` in `DownloadersTab.svelte`, rendered by
+- `services/frontend`: new sub-tab `Coverage` in `DownloadersTab.svelte`, rendered by
   `management/DownloaderCoverage.svelte`; pure helpers in `management/downloaderCoverage.js`;
   i18n keys under `management.downloaders.coverage.*` in `nl.json` and `en.json`.
 - LMS / MuMa Mobile: none.

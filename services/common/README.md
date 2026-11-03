@@ -6,7 +6,7 @@ and `music-manager` import. It runs nothing on its own: the HTTP API lives in
 
 ## 📂 Structure
 
-- `config_store.py`: the settings store behind Beheer > Config (`ConfigStore`).
+- `config_store.py`: the settings store behind Management > Configuration (`ConfigStore`).
 - `db_init.py`: the `CREATE TABLE` statements for the shared schema.
 - `step.py`: `Step`, one stage of the importer pipeline.
 - `channels.py`, `version_helper.py`: small shared helpers.

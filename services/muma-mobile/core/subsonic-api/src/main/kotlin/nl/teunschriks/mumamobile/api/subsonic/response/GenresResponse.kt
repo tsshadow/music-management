@@ -6,7 +6,7 @@ import nl.teunschriks.mumamobile.api.subsonic.SubsonicError
 import nl.teunschriks.mumamobile.api.subsonic.models.Genre
 
 /**
- * Response voor de getGenres Subsonic API-call.
+ * Response for the getGenres Subsonic API call.
  *
  * Bevat een lijst van genres, m.b.v. een wrapper object zoals gespecificeerd in het Subsonic JSON-schema.
  */

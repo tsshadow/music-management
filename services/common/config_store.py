@@ -1307,7 +1307,7 @@ class ConfigStore:
 
 
 def credential(config_key: str, env_name: str) -> str | None:
-    """A third-party credential: the Beheer > Config value first, the environment second.
+    """A third-party credential: the Management > Configuration value first, the environment second.
 
     The store seeds itself from the environment at start-up and persists what the config
     page changes, so on its own it would do -- except that it is a process-wide singleton

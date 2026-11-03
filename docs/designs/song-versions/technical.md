@@ -93,7 +93,7 @@ The pin's auth change is breaking in principle; it had no consumer outside tests
 
 ## Cross-App Impact
 
-- Frontend: new Beheer tab `song-versions` (`VersionsTab.svelte`, `songVersions.js`, router,
+- Frontend: new Management tab `song-versions` (`VersionsTab.svelte`, `songVersions.js`, router,
   sidebar, en/nl strings). The id is not `versions`: that was a deleted tab, and stale links to it
   must keep landing on the management index.
 - LMS: no schema or code change; the canonical and the chosen file arrive through the existing sync.

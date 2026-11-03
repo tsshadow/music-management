@@ -74,16 +74,16 @@ changes:
    popup, banner or dialog.
 6. The play button queues the list in its shown order, and the queue continues with the next page.
 7. Sets and podcasts never appear in the list.
-8. The default margin (±2) can be changed on Beheer → Config → BPM (`bpm_browse_tolerance`).
+8. The default margin (±2) can be changed on Management > Configuration → BPM (`bpm_browse_tolerance`).
 9. (Second change) Newly downloaded tracks get a measured tempo within minutes; the backlog is worked
-   through newest first. Beheer → Config → BPM can switch the measuring off, pause it, and set how
+   through newest first. Management > Configuration → BPM can switch the measuring off, pause it, and set how
    many tracks it measures at once and how much of each track it listens to. A measured tempo shows
    without "≈" and counts as reliable when the measurement is confident.
 10. (Second change) The measuring never rewrites a file and keeps the server responsive: it runs
     apart from the rest, on at most two cores by default, at the lowest priority.
 11. (Issue #141) A track shows one tempo everywhere: the track details sheet, the library table's BPM
     column (and its sort, where tracks without a BPM come last whichever way it sorts), the BPM
-    filter and the search box's "type a number to search a tempo", and the BPM chart under Beheer →
+    filter and the search box's "type a number to search a tempo", and the BPM chart under Management →
     Bibliotheek all use the tempo the BPM browse shows (so do the daily mixes, where a track with no
     genre, label or artist to go by is placed by its tempo), and every place that prints it marks a
     value that is not measured with "≈". A new measurement appears in the library table within

@@ -6,7 +6,7 @@ A scene release arrives in the import queue with a folder name, audio files tagg
 than artist, title and year, and an `.nfo`. The folder name is the only thing the importer used to
 place the release: the catalogue number in it routes the release to its label folder through
 `rules_catid_label`. A release whose name has no catalogue number -- 2.759 of the 6.583 folders in
-`__TODO` on 2026-10-02 -- waits for a person in Beheer > Labelvoorstellen, and only 11 proposals
+`__TODO` on 2026-10-02 -- waits for a person in Management > Label proposals, and only 11 proposals
 were ever confirmed. Its tracks keep a year-only date, which makes "recently released" wrong:
 LMS sorts on `COALESCE(original_date, date)` as text, so `'2026'` sorts below every dated 2026
 track (`'2026' < '2026-01-01'`) and a release from yesterday shows up after one from January.
@@ -57,7 +57,7 @@ everyone listening (a "recent" list that is actually recent).
 | Name has no catalogue number, `.nfo` states one (`Catalog Nr: RAW046`) | The Renamer prefixes it (`RAW046 - <name>`); the Mover routes it by rule, or records a proposal carrying that number. |
 | No rule for the release, `.nfo` label maps to an existing label folder (`Company.: B2S` -> `EPs/B2S`) | Moved there and tagged; the push names the label and says it came from the `.nfo`. |
 | No rule, no usable `.nfo` label, Deezer link in the `.nfo` | Deezer is asked once (cached); a label that maps to an existing folder places the release. |
-| No rule, label maps nowhere (a label the library has never seen) | Unchanged: a proposal for Beheer > Labelvoorstellen, now with the `.nfo` label (also from `Company`) as the proposed label. |
+| No rule, label maps nowhere (a label the library has never seen) | Unchanged: a proposal for Management > Label proposals, now with the `.nfo` label (also from `Company`) as the proposed label. |
 | Two sources name two different existing labels | Not placed; proposal as today. |
 | Deezer unreachable, rate-limited, or the album is gone | The release is handled as if there were no link; nothing waits, nothing fails. |
 | A backlog release (it already had a proposal row) gets placed | Recorded in the event log without a phone push, so placing a backlog does not send hundreds of pushes. |
@@ -104,7 +104,7 @@ A label padded with dots to a column counts the same as the short spelling: AOV_
 5. The backfill dry run prints a count per rung and changes nothing. A track with
    `DATE_SOURCE=nfo-rip` whose release now has a Deezer date is counted as `upgrade-from-nfo-rip`
    and queued by `--apply`; a full date without `DATE_SOURCE` is never counted.
-6. Switching `import_place_by_label_name` off in Beheer > Configuratie restores today's placement
+6. Switching `import_place_by_label_name` off in Management > Configuration restores today's placement
    (catalogue rules only).
 
 ## Decided: the curator's filing outranks the name (#164, 2026-10-02)
@@ -126,7 +126,7 @@ and counted `__` folders); over all label-tree releases, routed or not, it is 84
 
 | Situation | Observable outcome |
 |---|---|
-| `.nfo` label whose releases the curator filed elsewhere, not yet chosen | Stays in the queue; Beheer > Labelvoorstellen shows it in its own group with two buttons, X (per .nfo) and Y (where you filed these). |
+| `.nfo` label whose releases the curator filed elsewhere, not yet chosen | Stays in the queue; Management > Label proposals shows it in its own group with two buttons, X (per .nfo) and Y (where you filed these). |
 | The curator confirms that group with one of the two (or any other label) | The release is placed; the choice is stored for the label. |
 | A later release with the same `.nfo` label | Placed in the chosen folder without asking. |
 | A label first filed elsewhere after the seed | `learn-label-name-history.sh` re-learns the pairs from the label tree (dry run first); choices already made stay. |

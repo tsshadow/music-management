@@ -71,7 +71,7 @@ or CI/CD variables.
 | Android: Google OAuth client id | The owner's client id | `BuildConfig.GOOGLE_CLIENT_ID`, default empty, Google sign-in hidden when empty | Gradle property `muma.googleClientId` |
 | Android: APK host URL | The owner's APK host | `BuildConfig.APK_HOST_URL`, default empty, update check off | `APK_HOSTER_URL` |
 | Android: host checks in `RESTMusicService` and `SubsonicAPIClient` (`url.contains(<owner domain>)`) | Special-case the owner's hosts | Derived from the configured server URL: the MuMa API host is read from the server's capabilities, not guessed from a domain | none |
-| AGPL source offer | Not present | Setting `public_source_url`, shown as "Source code" on the web About screen and the app About screen | Beheer > Config |
+| AGPL source offer | Not present | Setting `public_source_url`, shown as "Source code" on the web About screen and the app About screen | Management > Configuration |
 | Renovate, CODEOWNERS, `.gitlab-ci.yml` comments | Owner's user name and host names | CODEOWNERS uses a team alias placeholder. Comments name roles ("the workstation runner"), not hosts | none |
 
 ### What moves to the private ops repository

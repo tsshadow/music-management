@@ -1,7 +1,7 @@
 # 🎨 Music Management System Style Guide
 
 ## Theme & Brand
-- **Theme**: Spotify Dark (immersive dark mode optimized for music streaming, long-term listening, and management).
+- **Theme**: Dark (immersive dark mode optimized for music streaming, long-term listening, and management).
 - **Brand Personality**: Sleek, modern, efficient, music-centric, professional yet accessible.
 - **Tone and Voice**: Clear, concise, modern, helpful, direct.
 - **Design Principles**:
@@ -10,7 +10,7 @@
   - Generous whitespace and clean information hierarchy.
 
 ## Colors
-- **Primary Accent**: `#1DB954` (Spotify Green) — Primary actions, active states, highlights, playback indicators.
+- **Primary Accent**: `#1DB954` (brand green) — Primary actions, active states, highlights, playback indicators.
 - **Brand token (Web)**: the accent follows the listening mode — `#1DB954` in songs mode, `#2D5AFC`
   (blue) in sets mode. In `services/frontend` write it as the Tailwind token (`bg-brand`,
   `text-brand`, `border-brand`, `accent-brand`, `focus:border-brand`), never as `#1DB954`, so
@@ -23,7 +23,7 @@
 - **Background (Sidebar / Navigation)**: `#000000` (Pure Black) — Sidebar, bottom navigation bars.
 - **Surface (Cards / Modals / Rows)**: `#282828` (Medium Gray) — Cards, hover overlays, input backgrounds, active tabs.
 - **Semantic Colors**:
-  - Success: `#1DB954` (Spotify Green)
+  - Success: `#1DB954` (brand green)
   - Warning: `#FFA726` (Amber)
   - Error: `#E53935` (Red)
   - Info: `#29B6F6` (Light Blue / Neutral Accent)
@@ -124,9 +124,9 @@
   line per row when a suggestion needs context such as platform and track count). Suggestions are
   asked from the server 200 ms after the last keystroke. Once picked, the field shows the choice as
   one chip (`bg-white/10 rounded-full`) with an × to pick again; Enter never submits free text.
-  Used by the hand-link panel on Beheer -> Downloaders -> Koppelingen
+  Used by the hand-link panel on Management > Downloaders > Links
   (`docs/designs/channel-links/`).
-- **Curation state badges** (Beheer -> Curatie tables): a small uppercase label
+- **Curation state badges** (Management > Curatie tables): a small uppercase label
   (`text-[10px] font-bold uppercase px-2 py-0.5 rounded`) under the name. Approved is brand
   (`bg-brand/20 text-brand`), rejected is red (`bg-red-500/10 text-red-500`), and *pending* --
   a name the tagger does not trust yet (artist curation, "Nieuw") -- is yellow
@@ -377,7 +377,7 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** — Feed "Meer laden" in the queue (2026-09-27, bug report 122): no new token. The same
   load-more pill under the queue list for a feed queue, and a muted "not found on the server" note
   in the feed header meta line, both documented above under Components ("Load more").
-- **Done** — Versies page in Beheer (2026-09-26, `docs/designs/song-versions/`): built only from
+- **Done** — Versies page in Management (2026-09-26, `docs/designs/song-versions/`): built only from
   existing tokens. The list is the curation table surface (`bg-muma-spotify-panel/40`, rows
   `divide-muma-spotify-panel/30`); a row expands in place to the versions table instead of opening
   a page. Badges follow "Curation state badges": *Best* and *Pinned* are brand, *Changed* and
@@ -522,7 +522,7 @@ To maintain clean design governance and prevent ad-hoc style drift:
   `Send` for Telegram; no brand logos), the name in bold white and the track count in `text-xs`
   secondary text. Its skeleton is three card-sized `Skeleton` blocks, shown only where the section is
   certain to appear (to a curator): a placeholder on every label page that then vanishes would move
-  the track list. The curator's way to Koppelingen is a text button in the heading row (`text-xs
+  the track list. The curator's way to Links is a text button in the heading row (`text-xs
   font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
   menu.
 

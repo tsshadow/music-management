@@ -17,7 +17,7 @@ It never applies `shifted`: restoring times moved by bug 039 stays a manual, adm
 repair (`POST /api/scrobble/reconcile/lms`), as does inserting the historical backlog older than
 the window.
 
-Settings (Beheer > Config, group "Scrobbling"), read again every round so a change takes effect
+Settings (Management > Configuration, group "Scrobbling"), read again every round so a change takes effect
 without a restart:
 
 - `lms_listen_backfill_enabled` -- the on/off switch, on by default.

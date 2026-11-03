@@ -6,7 +6,7 @@ The library holds label releases under `EPs/<label>/<catalogue number> <release 
 numbers its releases `DWX0001` … `DWX2212`; if the library holds 001–303 and 305–309, nothing today
 shows that 304 is not there. The owner has to sort a folder listing by hand and read the gaps off it.
 
-This feature adds a **Catalogus** section to the label edit page (Beheer → Labels → a label) that
+This feature adds a **Catalogus** section to the label edit page (Management > Labels → a label) that
 reads the catalogue numbers out of the release folders the label already has, groups them into
 series (`DWX`, `DWXCD`, `DWXCVR`, …), and per series shows the observed range, how much of it is
 present, and which numbers in that range are not. It computes nothing beyond what is on disk: the

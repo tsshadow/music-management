@@ -304,7 +304,7 @@ def _coerce(kind: str, value: Any, default: Any) -> Any:
 
 
 def read_settings(get: Callable[[str], Any] | None = None) -> dict[str, Any]:
-    """The step's settings from music-manager's ConfigStore (Beheer -> Config -> BPM), clamped."""
+    """The step's settings from music-manager's ConfigStore (Management > Configuration -> BPM), clamped."""
     if get is None:
         from services.common.config_store import ConfigStore  # pylint: disable=import-outside-toplevel
 

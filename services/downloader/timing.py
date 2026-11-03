@@ -46,58 +46,58 @@ def _scheduling(sweep_interval: int) -> tuple[TimingField, ...]:
             sweep_interval,
             60,
             7 * DAY,
-            'seconden',
-            'Hoe lang de worker wacht tussen twee rondes langs de accounts.',
+            'seconds',
+            'How long the worker waits between two rounds over the accounts.',
         ),
         TimingField(
             'account_cooldown',
             6 * 3600,
             0,
             30 * DAY,
-            'seconden',
-            'Minimale tijd tussen twee controles van hetzelfde account. 0 schakelt de cooldown uit. '
-            'Geldt voor accounts die deze week nog uploadden, en voor accounts waarvan de laatste upload nog onbekend is.',
+            'seconds',
+            'Minimum time between two checks of the same account. 0 turns the cooldown off. '
+            'Applies to accounts that uploaded this week, and to accounts whose last upload is not known yet.',
         ),
         TimingField(
             'recent_cooldown',
             DAY,
             3600,
             30 * DAY,
-            'seconden',
-            'Wachttijd voor een account waarvan de nieuwste upload 1 week tot 1 maand oud is.',
+            'seconds',
+            'Wait time for an account whose newest upload is 1 week to 1 month old.',
         ),
         TimingField(
             'monthly_cooldown',
             3 * DAY,
             3600,
             30 * DAY,
-            'seconden',
-            'Wachttijd voor een account waarvan de nieuwste upload 1 tot 3 maanden oud is.',
+            'seconds',
+            'Wait time for an account whose newest upload is 1 to 3 months old.',
         ),
         TimingField(
             'occasional_cooldown',
             7 * DAY,
             3600,
             90 * DAY,
-            'seconden',
-            'Wachttijd voor een account waarvan de nieuwste upload 3 tot 12 maanden oud is.',
+            'seconds',
+            'Wait time for an account whose newest upload is 3 to 12 months old.',
         ),
         TimingField(
             'dormant_cooldown',
             30 * DAY,
             6 * 3600,
             90 * DAY,
-            'seconden',
-            'Wachttijd voor een account dat langer dan een jaar niets uploadde. '
-            'Dit is meteen de langste tijd die een terugkeer onopgemerkt kan blijven.',
+            'seconds',
+            'Wait time for an account that has not uploaded for more than a year. '
+            'It is also the longest time a return can go unnoticed.',
         ),
         TimingField(
             'retry_attempts',
             3,
             1,
             10,
-            'pogingen',
-            'Aantal pogingen per account voordat de worker doorgaat naar het volgende.',
+            'attempts',
+            'Number of attempts per account before the worker moves on to the next one.',
         ),
     )
 
@@ -109,30 +109,30 @@ def _self_regulation(backoff_429_base: int) -> tuple[TimingField, ...]:
             backoff_429_base,
             60,
             7 * DAY,
-            'seconden',
-            'Basiswachttijd na een 429 (Too Many Requests), voordat de multiplier erop wordt losgelaten.',
+            'seconds',
+            'Base wait time after a 429 (Too Many Requests), before the multiplier is applied.',
         ),
-        TimingField('max_multiplier', 16, 1, 256, 'x', 'Hoever de zelfregeling de wachttijden maximaal mag oprekken.'),
-        TimingField('recovery_runs', 3, 1, 100, 'rondes', 'Aantal schone rondes voordat de multiplier halveert.'),
+        TimingField(
+            'max_multiplier', 16, 1, 256, 'x', 'How far the self-regulation may stretch the wait times at most.'
+        ),
+        TimingField('recovery_runs', 3, 1, 100, 'rounds', 'Number of clean rounds before the multiplier halves.'),
     )
 
 
 def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, ...]:
     return _fields(
-        TimingField('max_workers', 1, 1, 16, 'threads', 'Aantal accounts dat tegelijk wordt opgehaald.'),
-        TimingField('burst_size', 5, 1, 100, 'accounts', 'Aantal accounts per batch; tussen batches wordt gepauzeerd.'),
-        TimingField('min_pause', 30, 0, DAY, 'seconden', 'Kortste pauze tussen twee batches.'),
-        TimingField('max_pause', 120, 0, DAY, 'seconden', 'Langste pauze tussen twee batches.'),
+        TimingField('max_workers', 1, 1, 16, 'threads', 'Number of accounts fetched at the same time.'),
         TimingField(
-            'sleep_requests', 2, 0, 60, 'seconden', 'Pauze die yt-dlp aanhoudt tussen losse metadata-verzoeken.'
+            'burst_size', 5, 1, 100, 'accounts', 'Number of accounts per batch; the worker pauses between batches.'
         ),
-        TimingField('sleep_interval', 15, 0, 3600, 'seconden', 'Kortste pauze die yt-dlp aanhoudt voor elke download.'),
+        TimingField('min_pause', 30, 0, DAY, 'seconds', 'Shortest pause between two batches.'),
+        TimingField('max_pause', 120, 0, DAY, 'seconds', 'Longest pause between two batches.'),
+        TimingField('sleep_requests', 2, 0, 60, 'seconds', 'Pause yt-dlp keeps between single metadata requests.'),
+        TimingField('sleep_interval', 15, 0, 3600, 'seconds', 'Shortest pause yt-dlp keeps before each download.'),
+        TimingField('max_sleep_interval', 90, 0, 7200, 'seconds', 'Longest pause yt-dlp keeps before each download.'),
+        TimingField('ratelimit_kbps', ratelimit_kbps, 16, 100000, 'KB/s', 'Maximum download speed.'),
         TimingField(
-            'max_sleep_interval', 90, 0, 7200, 'seconden', 'Langste pauze die yt-dlp aanhoudt voor elke download.'
-        ),
-        TimingField('ratelimit_kbps', ratelimit_kbps, 16, 100000, 'KB/s', 'Maximale downloadsnelheid.'),
-        TimingField(
-            'backoff_403_base', backoff_403_base, 10, DAY, 'seconden', 'Wachttijd na de eerste 403 (Forbidden).'
+            'backoff_403_base', backoff_403_base, 10, DAY, 'seconds', 'Wait time after the first 403 (Forbidden).'
         ),
         TimingField(
             'backoff_403_factor',
@@ -140,16 +140,16 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
             2,
             10,
             'x',
-            'Waarmee de 403-wachttijd bij elke volgende fout wordt vermenigvuldigd.',
+            'Factor the 403 wait time is multiplied by at each next error.',
         ),
-        TimingField('backoff_403_cap', 3600, 60, 7 * DAY, 'seconden', 'Bovengrens voor de 403-wachttijd.'),
+        TimingField('backoff_403_cap', 3600, 60, 7 * DAY, 'seconds', 'Upper limit for the 403 wait time.'),
         TimingField(
             'backoff_403_decay',
             6 * 3600,
             0,
             7 * DAY,
-            'seconden',
-            'Stilte waarna de 403-teller een trede terugzakt. 0 schakelt het terugzakken uit.',
+            'seconds',
+            'Quiet time after which the 403 counter drops one step. 0 turns the drop off.',
         ),
         TimingField(
             'block_threshold',
@@ -157,25 +157,25 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
             1,
             50,
             'accounts',
-            'Aantal accounts op rij dat niets oplevert voordat de bron wordt geparkeerd.',
+            'Number of accounts in a row that yield nothing before the source is parked.',
         ),
         TimingField(
             'unavailable_retry_days',
             30,
             0,
             3650,
-            'dagen',
-            'Na hoeveel dagen een track die 403 gaf opnieuw wordt geprobeerd. 0 probeert altijd opnieuw.',
+            'days',
+            'After how many days a track that gave a 403 is tried again. 0 always tries again.',
         ),
         TimingField(
             'deep_sweep_days',
             30,
             0,
             365,
-            'dagen',
-            'Hoe vaak een account volledig wordt doorlopen om oude, nooit opgehaalde tracks '
-            'alsnog te vinden. Gebeurt alleen op een moment dat het account toch al aan de '
-            'beurt is. 0 schakelt de diepe ronde uit.',
+            'days',
+            'How often an account is walked through completely to find old tracks that were '
+            'never fetched. Only happens when the account is due anyway. '
+            '0 turns the deep round off.',
         ),
         TimingField(
             'deep_sweep_max_downloads',
@@ -183,8 +183,7 @@ def _batching(ratelimit_kbps: int, backoff_403_base: int) -> tuple[TimingField, 
             1,
             1000,
             'tracks',
-            'Hoeveel ontbrekende tracks een diepe ronde per account per keer ophaalt. '
-            'De rest volgt tijdens de eerstvolgende ronde.',
+            'How many missing tracks a deep round fetches per account at a time. The rest follows in the next round.',
         ),
     )
 
@@ -197,18 +196,18 @@ def _bot_check() -> tuple[TimingField, ...]:
             5,
             1,
             100,
-            'video\'s',
-            'Aantal video\'s op rij met "Sign in to confirm you\'re not a bot" voordat YouTube wordt '
-            'gepauzeerd. Eén waarschuwing in plaats van een fout per video.',
+            'videos',
+            'Number of videos in a row with "Sign in to confirm you\'re not a bot" before YouTube is '
+            'paused. One warning instead of one error per video.',
         ),
         TimingField(
             'bot_check_pause',
             6 * 3600,
             600,
             7 * DAY,
-            'seconden',
-            'Hoe lang YouTube gepauzeerd blijft na de bot-check. Alleen opnieuw inloggen in de '
-            'Firefox-container lost die op; daarna kan de pauze met "Reset backoff" worden opgeheven.',
+            'seconds',
+            'How long YouTube stays paused after the bot check. Only logging in again in the '
+            'Firefox container fixes it; after that the pause can be lifted with "Reset backoff".',
         ),
     )
 
@@ -219,14 +218,14 @@ TIMING_FIELDS: dict[str, tuple[TimingField, ...]] = {
     'telegram': _scheduling(3600)
     + _self_regulation(3600)
     + _fields(
-        TimingField('max_concurrent', 4, 1, 32, 'downloads', 'Aantal gelijktijdige downloads per kanaal.'),
+        TimingField('max_concurrent', 4, 1, 32, 'downloads', 'Number of simultaneous downloads per channel.'),
         TimingField(
             'flood_sleep_threshold',
             60,
             0,
             DAY,
-            'seconden',
-            'Tot hoe lang Telethon een flood-wait zelf uitzit voordat het een fout opgooit.',
+            'seconds',
+            'Up to how long Telethon sits out a flood wait itself before it raises an error.',
         ),
     ),
 }

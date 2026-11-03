@@ -61,7 +61,7 @@ AUDIO_FORMAT = 'bestaudio/best'
 BOT_CHECK_ADVICE = (
     'YouTube asks to sign in ("confirm you\'re not a bot"): the YouTube session in the muma-firefox '
     'container is logged out or no longer accepted. Log in to YouTube again in that Firefox '
-    '(noVNC on port 7003), then press "Reset backoff" for YouTube in Beheer > Downloaders.'
+    '(noVNC on port 7003), then press "Reset backoff" for YouTube in Management > Downloaders.'
 )
 COOKIES_MISSING_ADVICE = (
     'yt-dlp cannot read the Firefox cookie database. Check that ${HOST_DATA_PATH}/firefox is mounted '

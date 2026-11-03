@@ -10,7 +10,7 @@ package nl.teunschriks.mumamobile.api.muma
 import com.google.gson.annotations.SerializedName
 
 /**
- * The four curation queues behind the Beheer tagger pages.
+ * The four curation queues behind the Management tagger pages.
  *
  * Every one of these is a row a person has to decide on, which is why they are modelled and the
  * rest of each endpoint's answer is not: the app shows the queue and sends the decision back.

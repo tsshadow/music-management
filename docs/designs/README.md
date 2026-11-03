@@ -47,7 +47,7 @@ undecided behavior that were flagged, not silently resolved, during this documen
 | Feature | Covers |
 |---|---|
 | [`authentication/`](authentication/) | Login/user model — username+password login, all Google Sign-In flows, the access-request approve/link/unapprove/reject lifecycle, and user deletion. Derived from the existing, code-verified [`docs/authentication.md`](../authentication.md), which remains the deepest-detail reference. |
-| [`account-scope/`](account-scope/) | Who sees the ListenBrainz import list (admins every account, others their own) and who may delete an account (`users.update` only, no self-delete) -- issue #38, follow-up of bug report 052. Backend, plus the Beheer users tab. |
+| [`account-scope/`](account-scope/) | Who sees the ListenBrainz import list (admins every account, others their own) and who may delete an account (`users.update` only, no self-delete) -- issue #38, follow-up of bug report 052. Backend, plus the Management users tab. |
 | [`downloader/`](downloader/) | Ingesting tracks from SoundCloud, YouTube, and Telegram (`services/downloader`). |
 | [`importer/`](importer/) | Processing incoming music from external sources / label promo pools: archive extraction, folder-structure metadata inference, tagging, and moving into the library (`services/importer`). |
 | [`tagger/`](tagger/) | Metadata enforcement engine — song-type auto-detection and rule-based tagging, plus its `/api/tagger` REST API (`services/tagger`, `services/music_manager/routers/tagger.py`). |

@@ -1,7 +1,7 @@
 """How complete an account is, as of the end of one deep pass.
 
 Its own module and not part of `deep_sweep` for one reason: `deep_sweep` imports yt-dlp at
-the top, and the manager container -- which reads these snapshots for the Volledigheid page
+the top, and the manager container -- which reads these snapshots for the Coverage page
 -- does not ship yt-dlp. The page answered "No module named 'yt_dlp'" the first evening it
 was live. Nothing here needs the downloader; it is a record and its three states.
 """

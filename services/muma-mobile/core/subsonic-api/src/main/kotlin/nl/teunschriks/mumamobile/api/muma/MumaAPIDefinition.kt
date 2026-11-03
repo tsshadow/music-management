@@ -86,7 +86,7 @@ interface MumaAPIDefinition {
         @Body patch: MumaSettingsPatchRequest
     ): Call<MumaSettingsResponse>
 
-    // --- Management (Beheer tab). Every one of these is guarded server-side by require_admin();
+    // --- Management (Management tab). Every one of these is guarded server-side by require_admin();
     // hiding the tab for non-admins is convenience, not the security boundary. ---
 
     @GET("api/auth/verify")
@@ -158,7 +158,7 @@ interface MumaAPIDefinition {
         @Path("name") name: String
     ): Call<ResponseBody>
 
-    // --- System (Beheer: overzicht, health, gebeurtenissen). Read-only from the app. ---
+    // --- System (Management: overzicht, health, gebeurtenissen). Read-only from the app. ---
 
     @GET("api/system/containers")
     fun getContainers(): Call<List<MumaContainer>>
@@ -196,7 +196,7 @@ interface MumaAPIDefinition {
     @GET("api/library/genres")
     fun getLibraryGenres(): Call<List<MumaLibraryGenre>>
 
-    // --- Curation queues (Beheer: tagger, genres, labelvoorstellen, podcasts). ---
+    // --- Curation queues (Management: tagger, genres, labelvoorstellen, podcasts). ---
 
     /**
      * The queue is `state=unknown`; the server rejects any state it does not know with a 400 for

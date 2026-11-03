@@ -3,7 +3,7 @@
 See [docs/designs/README.md](../README.md) for the process. This is the user-observable half; the
 implementation contract is in [technical.md](technical.md). It builds on
 [channel-coverage](../channel-coverage/functional.md), which introduced the channel as its own thing,
-and borrows its review flow from the label proposals of the importer (Beheer → Labelvoorstellen).
+and borrows its review flow from the label proposals of the importer (Management > Label proposals).
 
 ## Overview
 
@@ -15,7 +15,7 @@ channel starts out pointing at neither.
 
 This feature proposes those links where the names leave no doubt, and gives the curator one place
 to confirm or reject each proposal. A confirmed link is shown wherever channels are shown (the
-Volledigheid table under Beheer → Downloaders). Nothing is linked without a human saying yes.
+Coverage table under Management > Downloaders). Nothing is linked without a human saying yes.
 
 Measured read-only on production on 2026-09-25 (1.377 channels: 1.112 SoundCloud, 264 YouTube,
 1 Telegram; none linked):
@@ -65,14 +65,14 @@ Python and may differ by a handful.
 
 | Situation | Observable outcome |
 |---|---|
-| The curator presses **Voorstellen zoeken** on the Koppelingen tab | Every SoundCloud and YouTube channel is compared again. New proposals appear; the tab reports how many were added, how many open ones no longer hold and were withdrawn, and how many channels were skipped as ambiguous. |
+| The curator presses **Voorstellen zoeken** on the Links tab | Every SoundCloud and YouTube channel is compared again. New proposals appear; the tab reports how many were added, how many open ones no longer hold and were withdrawn, and how many channels were skipped as ambiguous. |
 | The same button is pressed twice in a row | The second run adds nothing and withdraws nothing. |
 | An open proposal no longer holds (the artist was rejected, the label renamed, or the channel was linked another way) | It is withdrawn ("verouderd") and leaves the list. |
 | A proposal was rejected earlier | It never comes back, however often the search runs. |
 
 ### Deciding
 
-Under **Beheer → Downloaders** a new sub-tab **Koppelingen**, next to Volledigheid.
+Under **Management > Downloaders** a new sub-tab **Links**, next to Coverage.
 
 | Element | Content |
 |---|---|
@@ -86,8 +86,8 @@ Under **Beheer → Downloaders** a new sub-tab **Koppelingen**, next to Volledig
 
 | Situation | Observable outcome |
 |---|---|
-| Volledigheid table, a channel linked to a label and/or artist | A "Gekoppeld aan" column shows the label and/or artist name. |
-| A channel with an open proposal | The column shows "voorstel", which opens the Koppelingen tab. |
+| Coverage table, a channel linked to a label and/or artist | A "Gekoppeld aan" column shows the label and/or artist name. |
+| A channel with an open proposal | The column shows "voorstel", which opens the Links tab. |
 | A channel that was never downloaded into a folder yet | The column stays empty: the table cannot tell which channel folder the account writes to until it has written one. |
 | A wrong link was confirmed | "Ontkoppelen" in the column removes it; the proposal that led to it counts as rejected from then on. |
 
@@ -95,7 +95,7 @@ Under **Beheer → Downloaders** a new sub-tab **Koppelingen**, next to Volledig
 
 1. With production's data, pressing Voorstellen zoeken produces proposals for roughly 860
    channels, and none for a channel whose name only resembles a label or artist.
-2. Confirming a proposal makes the label or artist appear in the Volledigheid table for that
+2. Confirming a proposal makes the label or artist appear in the Coverage table for that
    channel, after a refresh of the table.
 3. A rejected proposal does not come back after pressing Voorstellen zoeken again.
 4. Pressing Voorstellen zoeken twice in a row adds nothing the second time.
@@ -104,7 +104,7 @@ Under **Beheer → Downloaders** a new sub-tab **Koppelingen**, next to Volledig
 6. A plain listener sees the proposals but cannot confirm, reject, search or unlink; that takes the
    rule-management permission, as label proposals do.
 7. A channel that got no proposal (`Hysta Official`) can be linked to the approved artist `Hysta`
-   from the Koppelingen tab by typing part of either name; the link shows in the Volledigheid table.
+   from the Links tab by typing part of either name; the link shows in the Coverage table.
 8. After the tagger's next pass over the channel, a track from a channel linked to a label carries that label, and
    a track from a channel linked to an artist whose artist was only the channel's own name carries
    the linked artist instead. A track whose title named its own artist keeps that artist.
@@ -117,7 +117,7 @@ SoundCloud/YouTube channels got no proposal at all; they hold 77.171 tracks, 8.6
 the channel's own name as their artist and 877 no artist at all. Those are the channels only a
 hand link can reach.
 
-On the Koppelingen tab, above the proposal list, a **Handmatig koppelen** panel:
+On the Links tab, above the proposal list, a **Link by hand** panel:
 
 | Element | Content |
 |---|---|
@@ -128,13 +128,13 @@ On the Koppelingen tab, above the proposal list, a **Handmatig koppelen** panel:
 
 | Situation | Observable outcome |
 |---|---|
-| The channel is not linked for that kind yet | It is linked; the Volledigheid table shows it after a refresh. |
+| The channel is not linked for that kind yet | It is linked; the Coverage table shows it after a refresh. |
 | The channel is already linked to the same label or artist | Nothing changes, no error. |
-| The channel is already linked to a *different* one of that kind | Refused with a message; unlink first (Volledigheid table). Relinking in one step would make a slip of the mouse undo a confirmed decision. |
+| The channel is already linked to a *different* one of that kind | Refused with a message; unlink first (Coverage table). Relinking in one step would make a slip of the mouse undo a confirmed decision. |
 | There was an open proposal for exactly this link | It counts as confirmed. Other open proposals of that kind for the channel are withdrawn. |
 | There was a rejected proposal for exactly this link | The hand link wins: the curator has now said yes. |
 | The artist was rejected or is still in the queue, or the label is a placeholder | Refused. |
-| In the Volledigheid table, a channel without a link and without an open proposal | A **Koppelen** button opens the Koppelingen tab with that channel already picked, so the entry point sits on the row, not in a menu. |
+| In the Coverage table, a channel without a link and without an open proposal | A **Koppelen** button opens the Links tab with that channel already picked, so the entry point sits on the row, not in a menu. |
 | A plain listener | Sees the channels, cannot link (same permission as confirming). |
 
 A hand link and a confirmed proposal are the same thing afterwards: both show in the table, both
@@ -193,14 +193,14 @@ proposals are confirmed.
 | A label with linked channels | Under the heading, a **Kanalen** section: one card per channel, busiest first, with the platform's icon (SoundCloud, YouTube, Telegram), the channel's name and its number of tracks. The cards scroll sideways on a narrow screen; the page itself never gets wider than the screen. |
 | Tapping a card | Opens the channel's tracks: the album the downloads are filed under (`Soundcloud (<channel>)`, `Youtube (<channel>)`). When the library has no album of exactly that name (the platform reported the uploader in another spelling), the account's page on the platform opens instead, if a followed account carries the channel's name. Failing both, a library search for the channel's name. |
 | A label nothing is linked to (almost every label today) | No section, for a listener. |
-| The same, for a curator (rule-management permission) | The section with "Nog geen kanaal aan dit label gekoppeld." and a **Koppelingen beheren** link. |
-| A curator, any label | **Koppelingen beheren** next to the heading opens Beheer -> Downloaders on the Koppelingen tab, where channels are linked and (from the Volledigheid table) unlinked. |
+| The same, for a curator (rule-management permission) | The section with "Nog geen kanaal aan dit label gekoppeld." and a **Manage links** link. |
+| A curator, any label | **Manage links** next to the heading opens Management > Downloaders on the Links tab, where channels are linked and (from the Coverage table) unlinked. |
 | The first visit to a label page | A curator sees three card-shaped placeholders until the answer arrives. A listener sees nothing until then: a placeholder on every label page that then disappears would move the track list for nothing. |
 | A revisit in the same session | The last answer shows at once and is refreshed behind it. |
 | The channels cannot be loaded | The section says so with **Opnieuw**, for everyone; the track list is unaffected. |
 
 **A channel view showing its label or artist.** There is no channel page in the web interface; the
-only place a channel is shown is the Volledigheid table under Beheer -> Downloaders, which already
+only place a channel is shown is the Coverage table under Management > Downloaders, which already
 has the "Gekoppeld aan" column. An artist page listing *its* channels would be the mirror of this
 section and is issue #126 (with the label edit page and a per-channel filter).
 

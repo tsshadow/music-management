@@ -112,7 +112,7 @@ changes; `effective.resolve` already prefers the measurement, so no tempo shown 
 
 ## Throttle and duration
 
-Settings (Beheer → Config → BPM, read through ConfigStore every round):
+Settings (Management > Configuration → BPM, read through ConfigStore every round):
 
 | Key | Default | |
 |---|---|---|
@@ -122,7 +122,7 @@ Settings (Beheer → Config → BPM, read through ConfigStore every round):
 | `bpm_tag_writeback_min_confidence` | 75 | 0-100. |
 
 One thread, one file at a time, a pause of `TAGGER_BATCH_PAUSE` (0.5 s) after every 24 writes, and
-a stop request (Beheer's stop/restart) honoured between files. The tagger round runs every five
+a stop request (Management's stop/restart) honoured between files. The tagger round runs every five
 minutes after the previous one ends, so a round with 300 files -- a tag read over CIFS plus, for
 most, a small in-place write, estimated 0.1-0.4 s each -- takes 30-120 s and the cadence is about
 6-7 minutes: roughly 200-240 rounds, **60,000-70,000 files a day**, so the ~142k files in scope

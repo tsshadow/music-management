@@ -16,7 +16,7 @@
 
   export let API_BASE;
   export let getHeaders;
-  // Opens the Koppelingen sub-tab, where a channel's open proposal is decided; with a channel,
+  // Opens the Links sub-tab, where a channel's open proposal is decided; with a channel,
   // that channel is preselected in the hand-link panel.
   export let onOpenLinks = () => {};
   export let onMessage = () => {};

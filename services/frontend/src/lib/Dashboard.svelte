@@ -639,7 +639,7 @@
     return hasPermission('rules.manage');
   });
 
-  /** Opens Beheer -> Downloaders on its Koppelingen tab, where a curator (un)links channels (issue #122). */
+  /** Opens Management > Downloaders on its Links tab, where a curator (un)links channels (issue #122). */
   function openChannelLinks() {
     downloaderSubTabRequest.set('links');
     activeManagementTab.set('downloaders');

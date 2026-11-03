@@ -27,10 +27,10 @@ A set of custom REST endpoints provides advanced functionality beyond the standa
 
 ### 4. Deep Ultrasonic Integration
 The **custom Ultrasonic client** is specifically modified to leverage these backend extensions. It utilizes the new `spotify/` endpoints to provide:
-*   A "Spotify-style" browsing experience.
+*   A browsing experience built around shelves and playlists.
 *   Better handling of high-resolution audio (FLAC).
 *   Integrated curated genre and festival sections.
 *   Synchronized ratings and play counts across the MuMa ecosystem.
 
-### 5. Modern Spotify-like UI (Svelte)
-A complete replacement of the default web interface, built with Svelte, focusing on speed, responsiveness, and a modern aesthetic inspired by Spotify.
+### 5. Modern web player (Svelte)
+A complete replacement of the default web interface, built with Svelte, focusing on speed, responsiveness, and a modern, dark look.

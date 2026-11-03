@@ -46,7 +46,7 @@ forever, with an `ERROR` — and so an alert push — each time
 - **Parking.** The `TAGGER_PARK_AFTER`-th failure in a row (default 5, env override) sets
   `needs_rescan = FALSE`, `rescan_reason = 'failed'` and stores the file's current mtime, so neither
   the pending pass nor the daily walk touches it again until the file changes on disk.
-  `pending_summary` reports parked files as `failed`, outside `total`; the tagger page in Beheer shows
+  `pending_summary` reports parked files as `failed`, outside `total`; the tagger page in Management shows
   the count.
 - **Resetting.** `mark_processed` and every request that queues a file on purpose — `mark_for_rescan`
   (rerun-parse, "rescan all", a redownload), `mark_paths_for_rescan` (curation decisions),

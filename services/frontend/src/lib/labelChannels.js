@@ -2,7 +2,7 @@
  * The channels linked to a label, for the label page's "Kanalen" section (issue #122).
  *
  * A channel is the SoundCloud, YouTube or Telegram account a file came in through; a curator
- * links it to its label under Beheer -> Downloaders -> Koppelingen (docs/designs/channel-links).
+ * links it to its label under Management > Downloaders > Links (docs/designs/channel-links).
  * The answer is cached per label for the session, so going back to a label page shows its
  * channels at once and refreshes them behind the scenes (styleguide, Loading States: Refresh).
  */

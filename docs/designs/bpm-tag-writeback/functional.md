@@ -34,7 +34,7 @@ else in the file.
 | A set, a podcast, a file in Livesets/Podcasts/Warm Up Mixes, a file under Lidarr, Hitzone or Spotify, or anything in a quarantine, recycle, or `__TODO`/underscore folder | Never written. |
 | The file was replaced or changed since it was measured | Not written until it has been measured again. |
 | A track is measured again (a new estimator version) and the value changes | Its file is looked at again and, by the same rule, updated. |
-| Beheer → Config → BPM: "Write measured tempos into the files" off, or paused | Nothing more is written; switching it on or unpausing continues where it stopped. |
+| Management > Configuration → BPM: "Write measured tempos into the files" off, or paused | Nothing more is written; switching it on or unpausing continues where it stopped. |
 | The tagger has decisions, new downloads or a retag waiting | Those go first; the BPM tags wait for the next round. |
 | LMS / the app after a file got its tag | LMS re-reads the folder, as after any tagger change. |
 
@@ -49,7 +49,7 @@ else in the file.
    the excluded folders) are not rewritten; their modification time does not change.
 4. The first pass over the library finishes in a few days at the default of 300 files per tagger
    round, and the app stays responsive while it runs.
-5. Beheer → Config → BPM can switch it off, pause it, change the number per round and the
+5. Management > Configuration → BPM can switch it off, pause it, change the number per round and the
    confidence threshold.
 6. Writing a tag does not make the BPM analysis measure the file again, and does not put it on the
    tagger's retag queue.

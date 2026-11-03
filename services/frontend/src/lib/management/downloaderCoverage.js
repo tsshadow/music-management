@@ -1,5 +1,5 @@
 /**
- * Helpers for the downloader Volledigheid tab.
+ * Helpers for the downloader Coverage tab.
  *
  * The API hands over one snapshot per channel (held / excluded / remaining over
  * listed) plus the source totals. Filtering and sorting happen here, on the

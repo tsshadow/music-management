@@ -456,7 +456,7 @@ class ApproveUserRequestTest(UserRequestsTestCase):
             response = self.client.post('/api/user-requests/7/approve', json={}, headers={'x-api-key': API_KEY})
 
         self.assertEqual(response.status_code, 500)
-        self.assertIn('Goedkeuren mislukt', response.json()['detail'])
+        self.assertIn('Approve failed', response.json()['detail'])
         connection.close.assert_called_once()
 
     def test_a_database_that_is_down_is_a_500(self):
@@ -569,7 +569,7 @@ class UnapproveUserRequestTest(UserRequestsTestCase):
             response = self.client.post('/api/user-requests/7/unapprove', json={}, headers={'x-api-key': API_KEY})
 
         self.assertEqual(response.status_code, 500)
-        self.assertIn('Ongedaan maken mislukt', response.json()['detail'])
+        self.assertIn('Undo failed', response.json()['detail'])
         connection.close.assert_called_once()
 
     def test_a_database_that_is_down_is_a_500(self):

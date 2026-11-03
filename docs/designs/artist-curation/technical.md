@@ -8,7 +8,7 @@ The first cut (0.0.54) was the analysis engine and a dry-run report, and nothing
 change, no tagger rule, no API, no UI. Thresholds cannot be chosen in the abstract, so the first
 deliverable was the thing that lets them be chosen by looking at the real library.
 
-The second cut (2026-09-16, `routers/artist_curation.py` + Beheer → Artiestcuratie) is the queue
+The second cut (2026-09-16, `routers/artist_curation.py` + Management > Artiestcuratie) is the queue
 itself, in the genre-curation shape:
 
 | Component | Responsibility |
@@ -154,7 +154,7 @@ with the other loops in `main.py` and run through `thread_registry.run_forever` 
 |---|---|
 | cron / systemd timer running the tool | The tool writes through `POST /decide` with the system key and keeps its state in a sqlite file on one host; prod has no host-side scheduler for this stack, a timer on the runner would reach prod over the network with a production key, and a lost sqlite file means re-asking every catalogue. |
 | A new worker container | One more image, compose entry and deploy path for a job that is ~95% waiting on the network. |
-| **A loop in music-manager** | Chosen. It has `ConfigStore` (Beheer settings, read every check), the database pool, the event log with the right `source`, `/health` heartbeats, and it can write the decision with the same helpers `decide` uses -- no HTTP, no key. |
+| **A loop in music-manager** | Chosen. It has `ConfigStore` (Management settings, read every check), the database pool, the event log with the right `source`, `/health` heartbeats, and it can write the decision with the same helpers `decide` uses -- no HTTP, no key. |
 
 The worry with an in-process loop is the API: the tagger backlog once starved it. This loop holds
 no connection across a round (each read and write takes a pooled connection and returns it), its
@@ -205,7 +205,7 @@ needed; none is read. Sources are asked cheapest first and a name stops at its f
    `music-manager`). Network errors are DEBUG and counted in the line, so a flaky catalogue never
    reaches the alerts topic. A database failure raises; `run_forever` logs it and backs off.
 
-### Settings (Beheer -> Config, group "Artist curation")
+### Settings (Management > Configuration, group "Artist curation")
 
 | Key | Default | |
 |---|---|---|

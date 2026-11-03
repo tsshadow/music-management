@@ -157,10 +157,10 @@ reads `soundcloud_id`, and the archive lookups key on it.
 - `music-manager`: new router and module, coverage row extended.
 - `frontend`: `management/ChannelLinkProposals.svelte` as sub-tab `links` in `DownloadersTab.svelte`
   (no new management route, so `router.js`'s `MANAGEMENT_TABS`/`MANAGEMENT_GROUPS` and their mirror
-  test are untouched); helpers in `management/channelLinks.js`; the Volledigheid table gains a
+  test are untouched); helpers in `management/channelLinks.js`; the Coverage table gains a
   "Gekoppeld aan" column; i18n keys under `management.downloaders.links.*` and
   `management.downloaders.coverage.colLinked`/`linkProposal`/`unlink`. Existing styleguide
-  patterns only (the pill used for the video badge, the table and buttons of Labelvoorstellen).
+  patterns only (the pill used for the video badge, the table and buttons of Label proposals).
 - LMS, MuMa Mobile: none. The app's native management screens are gone (universal UI), and no
   Subsonic endpoint exposes channels.
 
@@ -187,7 +187,7 @@ reads `soundcloud_id`, and the archive lookups key on it.
     `last_download_at` is found by `soundcloud_id`.
 11. Every new GET and the coverage change run against MariaDB in `tests/integration/test_router_sql.py`;
     `migrate_v41` is re-runnable.
-12. Frontend (vitest): the Koppelingen tab lists proposals from a mocked response, filters by kind,
+12. Frontend (vitest): the Links tab lists proposals from a mocked response, filters by kind,
     confirms and rejects through the right endpoints, and runs the search showing its counts; the
     coverage table shows a linked label/artist and a "voorstel" marker.
 
@@ -277,8 +277,8 @@ confirm can queue 5.154 files and would otherwise sit in front of a genre decisi
 ### Cross-app impact
 
 - `music-manager`: three endpoints, two responses extended, helper, rule, stack order.
-- `frontend`: `management/ChannelLinkByHand.svelte` at the top of the Koppelingen tab; the
-  Volledigheid table's "Gekoppeld aan" column gains a **Koppelen** button for a channel with no link
+- `frontend`: `management/ChannelLinkByHand.svelte` at the top of the Links tab; the
+  Coverage table's "Gekoppeld aan" column gains a **Koppelen** button for a channel with no link
   and no open proposal, which opens the tab with that channel preselected (`DownloadersTab` passes
   it through). The pickers reuse the suggestion list of `MultiPicker.svelte`, as a single-value
   variant (recorded in `docs/styleguide.md`).
@@ -343,9 +343,9 @@ change, no migration.
   one `search3` per channel through the LMS proxy queue on every label page.
 - `src/lib/LabelChannels.svelte`, rendered by `Dashboard.svelte` between the label header and its
   track list. `SectionState` for skeleton/error/retry; skeletons only for `rules.manage` (see the
-  functional table). **Koppelingen beheren** sets `downloaderSubTabRequest` (new, unpersisted store)
+  functional table). **Manage links** sets `downloaderSubTabRequest` (new, unpersisted store)
   to `links`, `activeManagementTab` to `downloaders` and opens `management`; `DownloadersTab` takes the
-  request once on mount. No new route: the Koppelingen sub-tab has no URL of its own.
+  request once on mount. No new route: the Links sub-tab has no URL of its own.
 - i18n: `labelChannels.title|manage|none` (nl, en; the dialects fall back).
 
 ### Cross-app impact
@@ -363,9 +363,9 @@ change, no migration.
     publisher names.
 21. Frontend (vitest): the section lists cards from a mocked answer, opens the album or the source
     page, hides for a listener with no channels, shows a curator the skeleton, empty line and the
-    Koppelingen link, retries after an error, and shows the cached answer on a revisit;
+    Links link, retries after an error, and shows the cached answer on a revisit;
     `DownloadersTab` starts on a requested sub-tab once. Playwright: the section at phone, tablet and
-    desktop widths without widening the page, and the curator's link landing on Koppelingen.
+    desktop widths without widening the page, and the curator's link landing on Links.
 
 ## Related Docs
 

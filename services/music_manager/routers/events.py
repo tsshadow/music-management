@@ -1,5 +1,5 @@
-"""Leeskant van de events-stroom: het logboek in de web-UI en de REST-sensor in
-Home Assistant komen hier binnen."""
+"""Read side of the events stream: the log in the web UI and the REST sensor in
+Home Assistant read from here."""
 
 from __future__ import annotations
 

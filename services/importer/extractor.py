@@ -108,7 +108,7 @@ def classify(path: str, name: str) -> tuple[str, str]:
     """What an import-folder file is: (ARCHIVE, ''), (IGNORE, ''), or (reason code, detail).
 
     Only a file with an archive extension whose first bytes carry that archive's signature
-    is extracted. Everything else is named by kind, so the one warning and the Beheer row
+    is extracted. Everything else is named by kind, so the one warning and the Management row
     say what the file is instead of repeating patool's complaint about it.
     """
     lower = name.lower()

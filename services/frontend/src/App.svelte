@@ -14,7 +14,7 @@
   import MobileSearchView from './lib/MobileSearchView.svelte';
   import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
-  // The sidebars of settings and Beheer, the car screen, the setup tour and the search "more"
+  // The sidebars of settings and Management, the car screen, the setup tour and the search "more"
   // modal each load as their own chunk (lazyViews.js, issue #114).
   import LazyView from './lib/LazyView.svelte';
   import { notify } from './lib/notifications.js';

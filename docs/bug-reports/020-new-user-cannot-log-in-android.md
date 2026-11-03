@@ -1,7 +1,7 @@
 # title: New user cannot log in on the Android app: "Google sign-in failed", then "Could not connect to LMS"
 
-# status: root cause found (Cloudflare Access gates the Muma API from outside the LAN); app-side
-# messaging + CI debug signing fixed in this repo; the Access policy and the user's account are
+# status: root cause found (an authenticating reverse proxy gates the Muma API from outside the LAN); app-side
+# messaging + CI debug signing fixed in this repo; the proxy policy and the user's account are
 # still open — see "still required outside this repository"
 
 # reported problem
@@ -14,7 +14,7 @@ get in at all:
 
 # investigation
 The production backend was verified healthy during the reported outage window — from inside the
-LAN, which turned out to matter a great deal (see the Cloudflare Access section below):
+LAN, which turned out to matter a great deal (see the reverse proxy section below):
 
 | probe | result |
 |---|---|
@@ -46,7 +46,7 @@ Note that an *unknown* Google identity is not an error case at all: `/api/auth/g
 instead means the flow never reached that point.
 
 (This reasoning held only because `/api/auth/google` had been probed from inside the LAN. From the
-phone's actual vantage point it does *not* answer — see the Cloudflare Access section, which is the
+phone's actual vantage point it does *not* answer — see the reverse proxy section, which is the
 real answer for symptom 1.)
 
 One concrete, in-repo cause for that was found: **CI debug APKs could never do Google Sign-In.**
@@ -81,44 +81,42 @@ CI (`scripts/ci/ultrasonic-build-upload.sh`):
   now logs a warning saying its Google Sign-In will fail. `SIGNING_STORE_PASSWORD` is now also
   checked up front for release builds, instead of failing later inside Gradle.
 
-# actual root cause of the Google Sign-In failure from outside the LAN: Cloudflare Access
+# actual root cause of the Google Sign-In failure from outside the LAN: an authenticating reverse proxy
 Every probe in the table above was run from inside the LAN, where `muma.example.com` resolves to
-`192.0.2.30` (Nginx Proxy Manager) and Cloudflare is never involved. From outside, the same
-hostnames resolve to Cloudflare (`188.114.96.0` / `188.114.97.0`), and there the picture is
+`192.0.2.30` (a plain reverse proxy) and the authenticating layer is never involved. From outside,
+the same hostnames resolve to a public edge in front of that layer, and there the picture is
 different:
 
 ```
-$ curl -D - --resolve muma.example.com:443:188.114.97.0 \
-       https://muma.example.com/api/auth/setup-status
+$ curl -D - https://muma.example.com/api/auth/setup-status
 HTTP/2 302
-location: https://example.cloudflareaccess.com/cdn-cgi/access/login/muma.example.com?...
-set-cookie: CF_AppSession=...
-server: cloudflare
+location: https://auth.example.com/login/muma.example.com?...
+set-cookie: <proxy session cookie>
 ```
 
-`muma.example.com` sits behind **Cloudflare Access** (Zero Trust): every external request, `POST
+`muma.example.com` sits behind an **authenticating reverse proxy** (SSO in front of the host): every external request, `POST
 /api/auth/login` and `POST /api/auth/google` included, is 302'd to an interactive SSO login page.
-`music.example.com` is *not* behind Access and answers `200` externally.
+`music.example.com` is *not* behind the proxy and answers `200` externally.
 
 That combination produces the reported symptom exactly:
 - The welcome dialog's reachability probe hits `music.example.com`, which answers, so the app
   correctly reports the server as reachable and never shows "server unreachable".
 - The Google sign-in POST goes to `muma.example.com/api/auth/google`, gets the 302, follows it
-  to the Access login page and receives HTML instead of JSON — so `authResult` is null and the app
+  to the proxy's login page and receives HTML instead of JSON — so `authResult` is null and the app
   falls back to the generic "Google sign-in failed".
 - The username/password attempt goes through Subsonic on `music.example.com` instead, which
   is reachable, and failed separately on the missing account.
 
-**Access was the only thing shielding several unauthenticated endpoints.** `POST
+**The proxy was the only thing shielding several unauthenticated endpoints.** `POST
 /api/tagger/tag/all`, `/tag/file`, `/tag/stop` (these write tags to the actual music files), `POST
 /api/scanner/scan/all`, `/scan/file`, `POST /api/scrobbler/import/listenbrainz` and `GET
-/api/scrobbler/import/latest` had no auth dependency at all, so a `Bypass` policy covering the
+/api/scrobbler/import/latest` had no auth dependency at all, so a bypass policy covering the
 whole hostname exposes them to the internet — confirmed after the bypass was added, with
 `GET /api/tagger/health` answering publicly.
 
 They are guarded with `Depends(verify_api_key)` as of this change (see "solution" above); the two
 `/health` endpoints are deliberately left open for monitoring. **The guards only take effect once
-this is deployed to production** — until then, keep the Access bypass scoped to `/api/auth/*`
+this is deployed to production** — until then, keep the proxy bypass scoped to `/api/auth/*`
 rather than the whole hostname.
 
 `POST /api/jobs/register/{job_id}` is deliberately left unguarded: it only writes to an in-memory
@@ -168,11 +166,10 @@ lockout did. So if the first non-owner sign-in still fails now that the app is i
 is the next thing to clear, not a new mystery.
 
 # still required outside this repository
-1. **Let the Muma API through Cloudflare Access.** Zero Trust → Access → Applications → the
-   `muma.example.com` application needs a `Bypass` policy; the API enforces its own
-   authentication (`X-API-Key`, bcrypt passwords, Google ID token verification), so Access in front
-   of it only breaks non-browser clients. *Done* — `muma.example.com` was added to the existing
-   Bypass policy's destinations, and all three auth endpoints were verified answering real JSON
+1. **Let the Muma API through the authenticating proxy.** The
+   `muma.example.com` application needs a bypass policy; the API enforces its own
+   authentication (`X-API-Key`, bcrypt passwords, Google ID token verification), so the proxy in front
+   of it only breaks non-browser clients. *Done* — the host was added to the bypass policy, and all three auth endpoints were verified answering real JSON
    from outside afterwards. Keep the bypass scoped to `/api/auth/*` until the endpoint guards in
    this branch are deployed, then widen it to the whole hostname — which is needed anyway, since
    the mobile app also uses the Muma API for ratings, settings sync and the management tab.

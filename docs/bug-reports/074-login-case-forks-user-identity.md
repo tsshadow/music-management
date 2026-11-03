@@ -9,16 +9,16 @@ person (all measured read-only):
 
 - MuMa `users` has one account: id 1, `user`.
 - LMS `stable/lms.db` `user` has two: id 1 `user` (type 1, admin) and id 13 `Teun` (type 0).
-  LMS listens: `Teun` 31, all today, the last at 06:18 UTC; `user` 4172, the last on
-  2026-09-24 17:47.
-- MuMa `scrobble_listens` rows since 2026-09-25 05:05 UTC are all stored as `Teun` (sources
+  LMS listens: `Teun` 31, all from the current day, the last about an hour before the check; `user` 4172,
+  the last the evening before.
+- MuMa `scrobble_listens` rows since the morning after the release below are all stored as `Teun` (sources
   `mobile` and `auto`); every row before that says `user`.
 
 MuMa's MariaDB collation (`utf8mb4_general_ci`) is case-insensitive, so SQL `=` still finds
 both spellings. LMS does not, and neither does anything that groups by username in Python
 (the reconcile's per-user split, the relink of ratings, the daily-mix seed).
 
-0.73.1 (~04:55 UTC) contained MR !941, and every web and app session had to sign in again
+0.73.1 contained MR !941, and every web and app session had to sign in again
 after the per-account key rotation. The phone was signed in as `Teun`.
 
 # Possible reason

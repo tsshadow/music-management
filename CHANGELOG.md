@@ -1284,7 +1284,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **The daily artist mix picked artists it could not fill: 0 tracks for "unproven", 2 for
   "valhalla".** The draw never asked whether the artist had anything to play, and the 90-day window
-  plus the unheard-or-loved pool left none of Teun's top ten artists with even 15 songs. On top of
+  plus the unheard-or-loved pool left none of the listener's top ten artists with even 15 songs. On top of
   that the artist mix was capped at 3 tracks per artist, when every track in it has the same artist.
   Now one grouped query counts the playable songs of the whole top ten, and only an artist (or label)
   with at least 15 is drawn. The window widens to a year, then to all time, before the next name in
@@ -1795,7 +1795,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0.73.1 key rotation the phone was signed in as "Teun" for the account "user". MuMa accepted
   it, because MariaDB compares names case-insensitively. LMS then looked the typed name up byte
   for byte, found nobody, and created a second user, id 13 `Teun`. Every play from the phone
-  since 05:05 UTC went to that user (31 listens) and was relayed to MuMa as `Teun`, so the
+  since the key rotation went to that user (31 listens) and was relayed to MuMa as `Teun`, so the
   history was split for LMS and for everything that groups by name in Python. Account names are
   now case-insensitive everywhere. The login answers with the account's own spelling and every
   client signs in under it. LMS matches login names case-insensitively and never creates a user
@@ -3136,7 +3136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **De drie spectrum-dagelijkse-mixen namen de luisteraar zijn eigen smaak als meetlat voor "hard".**
   MR !798 leidde de zacht/midden/hard-grens af uit iemands eigen gewogen 33e/67e percentiel. Gemeten
-  op productie voor Teun, direct na 0.63.0: die grens kwam uit op 62,5/92,5, met hardheidsbronnen
+  op productie voor één luisteraar, direct na 0.63.0: die grens kwam uit op 62,5/92,5, met hardheidsbronnen
   genre 1601 / artiest 613 / label 160 / tempo 3 / geen 186. Resultaat: "Zachter" werd ruwe
   hardstyle + techno + mainstream hardstyle (800 kandidaten), "Middenin" werd uptempo hardcore /
   bouncy uptempo / zaagtempo (579), en "Harder" bleef over met alleen terror/speedcore — 71
@@ -4306,7 +4306,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   viel bij ontbrekende configuratie terug op een hardgecodeerde `http://lms:5082`. Op de deployment
   klopt dat — `lms` is de container_name van de apart uitgerolde LMS-stack op hetzelfde netwerk — en
   juist dát maakte het gevaarlijk: een kale hostnaam wordt opgelost door de DNS die de host toevallig
-  heeft, en op het kantoor-LAN wijst `lms` naar 192.0.2.27. De verouderde lokale stack op een
+  heeft, en op sommige netwerken wijst `lms` naar een andere host. Een verouderde lokale stack op een
   werkstation belde daardoor **productie** elke vijf seconden met een sleutel die productie niet kent.
   Aan geen van beide kanten was dat te zien: LMS logt de weigering (`code = 44, msg = 'Invalid API
   key.'`) zónder client-adres, dus het leest als een storing in prods eigen radio-thread. Alleen het
@@ -5078,7 +5078,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   de development-VM. De triagerun zelf volgt de nieuwe `muma-crash-triage`-skill in
   `.claude/skills/`: rapport ophalen, release-stacktraces eerst deobfusceren met de gearchiveerde
   R8-mapping, en alleen bij een eenduidige oorzaak een MR openen — mergen mag hij nooit zelf, dat
-  blijft aan de approval-watcher na akkoord van Teun. Elke uitkomst wordt gemeld op ntfy-topic
+  blijft aan de approval-watcher na akkoord van de eigenaar. Elke uitkomst wordt gemeld op ntfy-topic
   `music-management-claude`.
 - **De R8-mapping van elke release-APK wordt voortaan bewaard.** Release-builds zijn geminificeerd,
   waardoor een stacktrace uit het veld zonder de bijbehorende `mapping.txt` onleesbaar is — en die
@@ -5190,7 +5190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hele pad van `release/x.y.z` tot een geverifieerde tag, `muma-mr-flow` wat er lokaal gedraaid moet
   worden voordat een tak de pijplijn in gaat en hoe een rode taak te lezen is, `muma-worktree-bootstrap`
   wat een verse worktree nodig heeft voordat er iets draait, en `muma-prod-check` hoe je productie en
-  de homelab bereikt en uitleest.
+  de omgeving waar het draait bereikt en uitleest.
   Ze zijn geschreven uit wat er in de praktijk misging, niet uit hoe het bedoeld was. Daarom staat er
   in elk stuk vooral wat er *niet* aan de hand is: een groene tak die toch niets uitrolt, een
   samenvoeging zonder conflict die de wijzigingenlijst stilzwijgend onder de verkeerde versie zet,

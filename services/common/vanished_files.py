@@ -3,7 +3,7 @@
 A `library_media_files` row outlives its file when a release folder moves or is deleted (GitLab
 issue #170). Two callers decide which rows that is: the scanner after every full walk
 (services/music_manager/vanished_media.py) and the operator script
-scripts/prod/person/stale_media_rows.py (`--gone`). Both use the guards here, so a share that is
+stale_media_rows.py (`--gone`). Both use the guards here, so a share that is
 not mounted stops both the same way instead of making every row look gone:
 
 * a library root (`/mnt/music/EPs`, the first three path components) that is missing or empty

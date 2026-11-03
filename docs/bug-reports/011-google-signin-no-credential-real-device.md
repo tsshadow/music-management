@@ -16,7 +16,7 @@ cause: this is not "no account on the device", it's Google's backend refusing to
 credential to this app at all.
 
 # Possible reason
-`muma-ops docs/deployment-production.md` and `docs/designs/authentication/technical.md` documented (incorrectly) that
+the operator's runbook and `docs/designs/authentication/technical.md` documented (incorrectly) that
 Ultrasonic needs no separate Android OAuth client / SHA-1 registration, on the assumption that
 reusing the Web OAuth Client ID as `GetGoogleIdOption`'s `serverClientId` is sufficient by itself.
 In practice, two independent gaps combine to produce exactly this symptom:
@@ -42,7 +42,7 @@ In practice, two independent gaps combine to produce exactly this symptom:
 # solution
 - Switched both call sites from `GetGoogleIdOption` to `GetSignInWithGoogleOption(GOOGLE_WEB_CLIENT_ID)`
   (`EditServerFragment.startGoogleSignIn()`, `NavigationActivity.performWelcomeGoogleSignIn()`).
-- Corrected `muma-ops docs/deployment-production.md`'s "Google Sign-In on Ultrasonic (Android)" section and
+- Corrected the operator's runbook's "Google Sign-In on Ultrasonic (Android)" section and
   `docs/designs/authentication/technical.md`'s "Cross-App Impact" section, which both previously
   stated no separate Android OAuth client/SHA-1 was needed — this is now documented as a required
   step.

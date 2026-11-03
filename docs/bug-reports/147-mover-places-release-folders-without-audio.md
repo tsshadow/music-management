@@ -37,7 +37,7 @@ The owner chose to delete such a folder (issue #167, option 2): it holds nothing
   audio-less. The Mover then writes an `INFO` event without a push ("Release folder without audio
   deleted", with the files it held), asks LMS to rescan the path, and marks an open label proposal
   for the folder `stale`. A folder that cannot be deleted is still not placed. A dry run only logs.
-- `scripts/prod/person/delete-audio-less-release-folders.sh` clears the folders already there:
+- `delete-audio-less-release-folders.sh` clears the folders already there:
   the queue by default, the label tree as a separate choice after a person reads the list. Each
   folder is tarred to the prod host before it goes, and its stale `library_media_files` rows are
   backed up and deleted with it.

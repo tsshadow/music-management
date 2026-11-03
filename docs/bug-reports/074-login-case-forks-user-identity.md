@@ -99,7 +99,7 @@ MuMa's `users.username` (`docs/authentication.md`, "Account names are case-insen
   are seeded on it). The listen reconcile maps both sides to the account spelling before it
   classifies and inserts.
 - **Data repair** is a separate, re-runnable, guided script that was not run by the change:
-  `scripts/prod/repair-username-case.sh`, which drives `tools/repair_username_case.py`
+  `repair-username-case.sh`, which drives `tools/repair_username_case.py`
   (tested against a fixture lms.db and a fake cursor). It rewrites MuMa rows under a case
   variant and merges LMS user 13 into user 1, taking listens, ratings, stars, play queue,
   playlists, bookmarks and tokens with it, then deletes user 13. Backups come first and

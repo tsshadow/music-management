@@ -76,7 +76,7 @@ namespace lms::db::Migration
         // docs/bug-reports/102-lms-login-unique-index.md.
         //
         // A database that still holds two case variants of one name (the fork of bug 074,
-        // before scripts/prod/repair-username-case.sh has merged it) cannot take the index.
+        // before repair-username-case.sh has merged it) cannot take the index.
         // Refusing to start over it would take the whole server down for a condition LMS
         // already tolerates -- User::find() picks the MuMa-linked variant -- so the index is
         // skipped with an error naming the duplicates instead. Session::createIndexesIfNeeded()
@@ -88,7 +88,7 @@ namespace lms::db::Migration
         const std::string duplicates{ dboSession.query<std::string>("SELECT COALESCE(GROUP_CONCAT(names, '; '), '') FROM (SELECT GROUP_CONCAT(login_name, ', ') AS names FROM user WHERE login_name IS NOT NULL GROUP BY login_name COLLATE NOCASE HAVING COUNT(*) > 1)").resultValue() };
         if (!duplicates.empty())
         {
-            LMS_LOG(DB, ERROR, "Not creating the unique index on user.login_name: these login names differ only in case: " << duplicates << ". Merge them (scripts/prod/repair-username-case.sh) and restart; the index is created on the next start.");
+            LMS_LOG(DB, ERROR, "Not creating the unique index on user.login_name: these login names differ only in case: " << duplicates << ". Merge them (repair-username-case.sh) and restart; the index is created on the next start.");
             return false;
         }
 

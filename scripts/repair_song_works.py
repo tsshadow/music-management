@@ -54,7 +54,7 @@ Bug report 098 made it the regroup step for every change to the key rules:
     --split-false-merges splits the ones the unambiguous rule marks 'split' -- more than
     AUTO_SPLIT_LENGTHS different lengths -- before anything is re-keyed. The split locks
     each track in a work of its own, exactly like the split endpoint.
-  * The last line is a JSON summary, for scripts/prod/person/regroup-song-works.sh.
+  * The last line is a JSON summary, for regroup-song-works.sh.
 
 Usage:
     python3 scripts/repair_song_works.py --dry-run [--split-false-merges]

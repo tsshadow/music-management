@@ -59,7 +59,7 @@ if [ "$REMOTE" == "true" ]; then
     if [ "$CURRENT_CONTEXT" != "remote-lxc" ]; then
         echo "=== OFFLOADING PUSH TO REMOTE LXC ==="
         if [ ! -x ./scripts/remote-build.sh ]; then
-            echo "--remote needs scripts/remote-build.sh, which lives in the private muma-ops repository" >&2
+            echo "--remote needs scripts/remote-build.sh, which lives in the operator's own repository" >&2
             echo "(run its install.sh to link it), or build without --remote." >&2
             exit 1
         fi

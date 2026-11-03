@@ -2,7 +2,7 @@
 
 Beyond `no-new-privileges`, every production service drops all capabilities and adds back a
 named, minimal set, has a PID ceiling, and -- where the image allows it and the test stack proves
-it -- a read-only root filesystem. muma-ops docs/deployment-production.md ("Container hardening") says why each
+it -- a read-only root filesystem. The operator's runbook ("Container hardening") says why each
 service has the set it has and what was deliberately left for later; this pins it, so a new
 service cannot arrive unhardened and an existing one cannot quietly regain a capability.
 
@@ -42,7 +42,7 @@ EXPECTED_CAPS = {
     (LMS, 'autoheal'): None,
     (LMS, 'reverse-proxy'): {'CHOWN', 'KILL', 'NET_BIND_SERVICE', 'SETGID', 'SETUID'},
 }
-# Firefox's s6-overlay init is a follow-up (muma-ops docs/deployment-production.md); it only gets a PID ceiling.
+# Firefox's s6-overlay init is a follow-up (the operator's runbook); it only gets a PID ceiling.
 NO_CAP_DROP = {(PROD, 'firefox')}
 
 READ_ONLY = {(LMS, 'lms'), (LMS, 'autoheal'), (LMS, 'reverse-proxy'), (PROD, 'bpm-analyzer')}
@@ -84,7 +84,7 @@ def test_every_service_is_classified():
         if (path, name) not in EXPECTED_CAPS and (path, name) not in NO_CAP_DROP
     ]
     assert unclassified == [], (
-        f'new services need a cap_drop/cap_add decision here and in muma-ops docs/deployment-production.md: {unclassified}'
+        f'new services need a cap_drop/cap_add decision here and in the operator runbook: {unclassified}'
     )
 
 

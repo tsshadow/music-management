@@ -17,3 +17,6 @@ vaultwar[d]en
 (?-i)(?<![A-Za-z0-9_])teu[n](?![A-Za-z0-9_])
 # Third persons, the owner's employer and the OAuth project number are not listed here: they are
 # sha256 digests of tokens in scripts/ci/public-banned-tokens.txt, checked by scripts/ci/public_guard.py.
+# The owner's private operations repository and its production scripts folder. Public text says "the operator's own runbook".
+muma-o[p]s
+scripts/pro[d]/

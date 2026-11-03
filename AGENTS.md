@@ -12,11 +12,10 @@ player and the Android client) is made and committed as a single, atomic change 
 its own independent build/deploy pipeline (see `build.sh`, `docker/`, and each service's own `scripts/`), only
 the source code and history are shared.
 
-The owner's operations material (production scripts, agent skills and plans, runbooks) is kept outside
-this repository. Without it, ignore references to `scripts/prod/` and the production runbooks; the build,
-the tests and merge requests do not need it. When the owner's setup links an `AGENTS.local.md` into the
-checkout, it holds the host-specific rules of that installation: read it when it exists, and ignore it
-otherwise. A rule in `AGENTS.local.md` takes precedence over the generic rule it names.
+An operator's own material (production scripts, runbooks, agent skills) is kept outside this repository.
+Ignore references to operator scripts and runbooks; the build, the tests and merge requests do not need
+them. An operator may link an `AGENTS.local.md` into the checkout. It holds the host-specific rules of
+that installation: read it when it exists, and ignore it otherwise. A rule in `AGENTS.local.md` takes precedence over the generic rule it names.
 
 ## 🏗 Core Modules & Responsibilities
 
@@ -89,7 +88,7 @@ The system is split into specialized services, each handling a specific part of 
     - Release date of a label release by a precision ladder -- Deezer date (cached), `.nfo`
       release/street date, the file's own full date, `.nfo` rip date, arrival date -- written to
       ORIGINALDATE with its rung in `DATE_SOURCE`; a worse rung never replaces a better one
-      (`InferReleaseDateFromNfoRule`). Backlog: `scripts/prod/person/backfill-release-dates.sh`.
+      (`InferReleaseDateFromNfoRule`). Backlog: the operator script `backfill-release-dates.sh`.
     - Cleanup of invalid characters (e.g., zero-width spaces).
     - Channel links: a SoundCloud/YouTube download whose channel a curator linked to a label or artist
       (Beheer → Downloaders → Koppelingen, by proposal or by hand) gets that label as its publisher and
@@ -114,7 +113,7 @@ The system is split into specialized services, each handling a specific part of 
       relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
       be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
       with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
-      `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
+      the operator script `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
       switches it on in Beheer > Config (issue #170, bug report 149).
     - **Track form**: every track gets a `form` (`track` / `set` / `liveset` / `podcast`, or the
       non-music `interview` / `preview` that LMS leaves out of music lists) and, for a
@@ -238,7 +237,7 @@ day, so a backlog is worked off in hourly passes. If the table still holds more 
 `ERROR` rows go; `CRITICAL` is never removed by size, and a pass that needed the cap logs a
 `WARNING`. Each pass logs one summary line at `INFO` on `music-manager.events-retention`. Every
 `WARNING`+ still reaches the table; retention only decides how long it stays. Deleted rows do not
-shrink the InnoDB file — reclaiming the space is an operator step, see `docs/deployment-production.md` in muma-ops
+shrink the InnoDB file — reclaiming the space is an operator step, see the operator's runbook
 ("Reclaiming space in the events table") and bug report 072.
 
 ### Deployment prerequisite: `upstream-base-url`
@@ -496,21 +495,13 @@ Use `scripts/run_local.sh` to launch any service with the correct `PYTHONPATH` a
 ./scripts/run_local.sh youtube
 ```
 
-### 2. PyCharm Run Configurations
-Pre-configured "Run Configurations" are available in the `.run/` directory. These will appear automatically in your IDE:
-- **Importer Worker**: Runs `importer_service.py` with repeat enabled.
-- **SoundCloud Worker**: Runs `downloader_service.py` for SoundCloud.
-- **YouTube Worker**: Runs `downloader_service.py` for YouTube.
-
-These configurations automatically load environment variables from your `.env` file and set the correct `PYTHONPATH`.
-
-### 3. Password Management
+### 2. Password Management
 Use `scripts/set_user_password.sh` to change a user's password directly from the terminal:
 ```bash
 ./scripts/set_user_password.sh <username>
 ```
 
-### 4. Log Files
+### 3. Log Files
 Log files should be located in the log directory.
 If for some reason a log file is not saved at that location, and you are done with it, move it to the log directory.
 ---

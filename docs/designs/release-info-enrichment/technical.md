@@ -15,7 +15,7 @@ queue, and the release-date sync that copies LMS's dates into muma.
 | `services/importer/label_match.py` | `fold(name)` and `LabelIndex`: existing label folders (via `ImportQueue.is_label_folder`, so neither the queue nor `__Free&None`) by folded name, plus confirmed proposals (`proposed_label -> decided_label`) as aliases. A key with two folders matches nothing. |
 | `services/importer/release_info.py` | `ReleaseInfo`: .nfo facts per folder cached against the .nfo's (path, size, mtime); `catalogue_number`, `album(budget)`, `placement(index, budget) -> Placement(label, source, stated)`. |
 | `services/tagger/Song/rules/InferReleaseDateFromNfoRule.py` | The date ladder (below). |
-| `services/tagger/release_date_backfill.py` | Dry-run backfill CLI; `scripts/prod/person/backfill-release-dates.sh` wraps it. |
+| `services/tagger/release_date_backfill.py` | Dry-run backfill CLI; `backfill-release-dates.sh` wraps it. |
 
 ## Data Model
 

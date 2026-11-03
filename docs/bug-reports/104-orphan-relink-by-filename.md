@@ -1,6 +1,6 @@
 # The Orphan Relink Could Not Match The First Scan's File-Name Titles, And Nothing Cleaned Up The Rest
 
-# status: fixed — code and operator script done; the production run (`scripts/prod/person/relink-orphans-by-filename.sh`) waits for the deploy. GitLab issue #71 stays open for the orphans a person has to decide.
+# status: fixed — code and operator script done; the production run (`relink-orphans-by-filename.sh`) waits for the deploy. GitLab issue #71 stays open for the orphans a person has to decide.
 
 # reported problem
 Measured on production on 2026-09-26 (GitLab issue #71): 81,888 `library_tracks` rows have no
@@ -66,7 +66,7 @@ no rating, no pin). They still count as tracks in any query that forgets to join
   following its own convention, which is to never touch it.
   `library_track_ml_predictions` is empty on production (the ml-analyzer is deprecated) and is not
   touched either.
-- **Operator script** `scripts/prod/person/relink-orphans-by-filename.sh`. It runs a preflight on
+- **Operator script** `relink-orphans-by-filename.sh`. It runs a preflight on
   the new keys, then the relink dry run, then a backup of every row either step touches, taken
   before anything is written. Then it relinks and verifies, runs the purge dry run with the kept
   list, purges and verifies, and optionally posts the kept list on #71.

@@ -28,7 +28,7 @@ For every rename, in this order and inside one database transaction:
 
   1. the stored paths of the release's files move with it: `library_media_files.file_path` and
      its `file_path_hash`, and `tagger_processed_files.filepath`, the way
-     `scripts/prod/person/move-import-queue.sh` moves them. The track rows keep their ids, and
+     `move-import-queue.sh` moves them. The track rows keep their ids, and
      ratings key on `track_uid`, so nothing a listener made is lost;
   2. the folder is renamed;
   3. the commit. A failed commit renames the folder back.
@@ -43,7 +43,7 @@ LMS is told about both paths. Each rename is logged as one JSON line before the 
     python -m services.importer.label_tree_prefix_repair --apply --log /tmp/label-tree.jsonl
     python -m services.importer.label_tree_prefix_repair --rollback /tmp/label-tree.jsonl
 
-`scripts/prod/person/repair-word-prefixed-import-folders.sh --label-tree` wraps it.
+`repair-word-prefixed-import-folders.sh --label-tree` wraps it.
 """
 
 from __future__ import annotations

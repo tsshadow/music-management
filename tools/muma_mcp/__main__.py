@@ -4,7 +4,7 @@ Run from the repository root, or with the root on ``PYTHONPATH``:
 
     python -m tools.muma_mcp
 
-``scripts/prod/install-muma-mcp.sh`` registers it that way. Configuration is
+``install-muma-mcp.sh`` registers it that way. Configuration is
 resolved once, at startup: a server that starts without credentials and only
 fails on the first tool call turns a setup mistake into a mysterious runtime one.
 """

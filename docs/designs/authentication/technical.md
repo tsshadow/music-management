@@ -73,13 +73,13 @@ cannot run in an Android WebView, so the shell obtains the ID token itself: `Mum
 `GetSignInWithGoogleOption`) returns it to the page, which posts it to `/api/auth/google` through the same
 `handleGoogleResponse()` the browser uses. The button is shown only when `MumaSystem.googleSignInAvailable`
 says a real client ID was compiled in. It reuses `GOOGLE_CLIENT_ID`/`VITE_GOOGLE_CLIENT_ID`'s value as the
-Credential Manager `serverClientId` (`GOOGLE_WEB_CLIENT_ID` build config field -- see `muma-ops docs/deployment-production.md`),
+Credential Manager `serverClientId` (`GOOGLE_WEB_CLIENT_ID` build config field -- see the operator's runbook),
 so the resulting Google ID token has the same audience the backend already verifies against. Unlike the web
 frontend, though, MuMa Mobile **does** need a separate Android-type OAuth client (package name + signing
 certificate SHA-1) registered in the same Google Cloud project -- Google's Credential Manager backend
 refuses to issue a credential to a native Android app otherwise, even though that Android client ID is
 never referenced in code (see bug report
-[011](../../bug-reports/011-google-signin-no-credential-real-device.md) and `muma-ops docs/deployment-production.md`'s "Google
+[011](../../bug-reports/011-google-signin-no-credential-real-device.md) and the operator's runbook's "Google
 Sign-In on MuMa Mobile (Android)" section for the two required client registrations, one per signing key).
 On a `status: "ok"` response the page stores the MuMa session, uses `user.username`/`api_key` as the
 Subsonic pair, and hands that pair to the phone with `saveCredentials()`, so downloads and Android Auto
@@ -182,7 +182,7 @@ are unaffected.
 
 **Not done, on purpose**: a unique index on `lower(login_name)` in LMS. The versioned migration
 would fail on production while the fork exists, and LMS would not start. It follows the repair
-(`scripts/prod/repair-username-case.sh`).
+(`repair-username-case.sh`).
 
 **Tests**: `services/music_manager/tests/test_username_case.py`,
 `tools/test_repair_username_case.py`, `tests/integration/test_schema.py` and

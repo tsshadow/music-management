@@ -26,7 +26,7 @@ same as 7.13.0, so no phone was offered it. `release:version-check` did not obje
 `master` (the last release) and fails when either changed while `versionCode` in build.gradle still
 equals master's. `tests/ci/test_release_version_check.py` covers a frontend change and an app change
 merged into develop before the cut (both fail without a bump; they failed to fail before the fix) and
-the passing case with a bump. muma-ops docs/release-management.md and the muma-release skill say that a
+the passing case with a bump. The release runbook says that a
 frontend change is an app change.
 
 0.84.1 ships the missing app build (7.13.1) with the 0.84.0 web UI.

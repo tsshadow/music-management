@@ -33,7 +33,7 @@ Every path that derives, keeps or stores a label asks it:
 
 ## Backlog script
 
-`scripts/prod/person/clear_folder_labels.py`, wrapped by `clear-folder-labels.sh`, runs in the
+`clear_folder_labels.py`, wrapped by `clear-folder-labels.sh`, runs in the
 music-manager container (stdin). Candidates: LMS tracks under a polluted label, muma tracks linked
 to one, every file under an underscore folder of the label tree (`--include-queue` adds the queue).
 Keys per format: ID3 `TPUB`, `TXXX:publisher|label|organization`, `TCOP`; Vorbis `LABEL`,

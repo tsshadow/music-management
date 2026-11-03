@@ -78,7 +78,7 @@ Left open: the 574 scene playlists outside the queue are still reported by the l
 now labelled. Whether to stop reporting single-release scene playlists altogether, or have the
 importer drop the `.m3u` once the tagger has renamed the tracks, is a decision: issue #96.
 
-Decided on #96: delete them. `scripts/prod/person/delete-stale-m3u-playlists.sh` reads LMS's own
+Decided on #96: delete them. `delete-stale-m3u-playlists.sh` reads LMS's own
 `playlist_file` and `track` tables and applies the scan step's test, so it deletes exactly what
 LMS reports: 574 all-entries-missing playlists outside the queue on 2026-10-02 (437 beside audio
 under other names, 137 in a folder without audio), after a tar backup, then asks LMS to rescan.

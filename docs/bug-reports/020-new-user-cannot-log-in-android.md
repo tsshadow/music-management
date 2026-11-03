@@ -180,6 +180,6 @@ is the next thing to clear, not a new mystery.
    as far as the access-request screen; an admin still has to approve the request
    (`/api/user-requests`) or create the account directly. Until then, no login method can succeed.
 4. **Optionally** register the release keystore's SHA-1 for `nl.teunschriks.mumamobile.debug` too,
-   so debug builds from apk-hoster can do Google Sign-In at all (see muma-ops docs/deployment-production.md). No such
+   so debug builds from apk-hoster can do Google Sign-In at all (see the operator's runbook). No such
    Android client currently exists, so Google Sign-In cannot work on a debug APK regardless of the
    above.

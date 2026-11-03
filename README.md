@@ -80,8 +80,8 @@ If you are modifying the code and need to rebuild and redeploy the system:
   - Uses `scripts/affected.sh` to detect which modules have changed if no modules are specified.
   - Skips builds and pushes for unedited modules to save time.
   - Automatically deploys the updated stack to production.
-  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.0.2.40).
-  - **New**: Use `--remote` to perform the entire build on the remote LXC container.
+  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to a remote build host.
+  - **New**: Use `--remote` to perform the entire build on a remote build host.
   - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install.sh --app=user rating`).
   - **New**: Use `./install.sh manager` to view music library statistics from the terminal.
 - **Individual steps**:
@@ -232,8 +232,7 @@ meaningful; no change is needed on the Kuma side.
 
 Everything is driven by one GitLab pipeline definition (`.gitlab-ci.yml`), but *which* jobs
 actually run depends entirely on the branch you push to. There are effectively four kinds of
-pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`
-(see Release Management, in the private muma-ops repository, for the full policy).
+pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`.
 
 ### The four pipelines at a glance
 

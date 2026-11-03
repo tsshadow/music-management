@@ -44,7 +44,7 @@ Each row names the code to change. Line numbers are from the step 0 inventory on
 | `RESTMusicService.kt:86`, `SubsonicAPIClient.kt:205` | Replace `contains(<owner domain>)` by a lookup of the MuMa API base from the server's `getOpenSubsonicExtensions` answer, with the current heuristic kept only for URLs that carry `/muma` already. `CapacitorContractTest` and `LogRedactionTest` move to `example.org` |
 | `.gitlab-ci.yml` | Two comments (lines 204 and 205) lose the runner host names. Deploy jobs already read `$PROD_URL`. The rest is checked by `public:check` |
 | `CODEOWNERS` | Owner user name replaced by a placeholder |
-| `services/music-management-server` | `FUNDING.yml`, `Dockerfile-release` maintainer label and `scripts/remote-build.sh` (a LAN address) are upstream files with local edits. Reset `FUNDING.yml` to the repository's own placeholder (step 10), set the label to the project name, delete `remote-build.sh` (moved to `muma-ops`) |
+| `services/music-management-server` | `FUNDING.yml`, `Dockerfile-release` maintainer label and `scripts/remote-build.sh` (a LAN address) are upstream files with local edits. Reset `FUNDING.yml` to the repository's own placeholder (step 10), set the label to the project name, delete `remote-build.sh` (moved to the private ops repository) |
 
 Android pipeline: CI variables `MUMA_SERVER_URL` and `MUMA_GOOGLE_CLIENT_ID` are passed as
 `-Pmuma.serverUrl=...` and `-Pmuma.googleClientId=...` in the release and smoke jobs. A build without
@@ -87,30 +87,30 @@ host address and skips only that CIDR.
 The repository is private, created in step 8. Layout:
 
 ```
-muma-ops/
+ops-repo/
   claude/            -> becomes .claude/ in a checkout (skills, settings)
   ai/, junie/        -> .ai/, .junie/
-  prod/              -> scripts/prod/ (including person/)
+  prod/              -> the operator's production scripts folder (including person/)
   ops/               -> nightly-prod-check, crash-triage, ssh/known_hosts, vw.sh
   docs/              -> release-management.md, deployment-production.md, homelab sections of AGENTS.md
   install.sh         -> links the above into a checkout
 ```
 
-`.claude/`, `.ai/`, `.junie/`, `scripts/prod/`, `scripts/ops` and `.production` are added to `.gitignore`
+`.claude/`, `.ai/`, `.junie/`, the operator's production scripts folder, `scripts/ops` and `.production` are added to `.gitignore`
 of the public repository, so a linked checkout never shows them as changes.
 
 How a session loads the material:
 
-- `muma-ops/install.sh <checkout>` creates symlinks from the checkout into `muma-ops`. The
-  worktree bootstrap skill (which moves to `muma-ops`) runs it for every new worktree.
+- The ops repository's install script creates symlinks from the checkout into the private ops repository. The
+  worktree bootstrap skill (which moves to the private ops repository) runs it for every new worktree.
 - The user's global `~/.claude/` rule `open-work.md` stays global and does not move.
 - The public `AGENTS.md` says: "Operations material is in a private repository. Without it, ignore
-  references to `scripts/prod/` and the production runbooks." The private `AGENTS.private.md` in
-  `muma-ops` carries the homelab sections, and `install.sh` links it as `AGENTS.local.md`, which the
+  references to the operator's production scripts folder and the production runbooks." The private `AGENTS.private.md` in
+  the private ops repository carries the homelab sections, and `install.sh` links it as `AGENTS.local.md`, which the
   public `AGENTS.md` names as an optional include.
-- A session on a machine without `muma-ops` still builds, tests and opens merge requests.
+- A session on a machine without the private ops repository still builds, tests and opens merge requests.
 
-Scripts and CI jobs that call `scripts/prod/` today:
+Scripts and CI jobs that call the operator's production scripts folder today:
 
 - CI jobs must not call it. The step lists every call site first (`git grep -n 'scripts/prod'`), and
   each is either deleted, moved with the script, or replaced by a CI-side script that stays public.
@@ -137,7 +137,7 @@ left in `.gitlab-ci.yml`:
 
 Check after the step: a release pipeline on a throwaway `release/*` branch deploys to production with
 the variables only, and `/health` shows the version. The ordering traps in `muma-release` apply and the
-skill moves to `muma-ops` together with the rest.
+skill moves to the private ops repository together with the rest.
 
 ## The history rewrite (steps 11 and 12)
 
@@ -156,7 +156,7 @@ is full.
 
 - `.env`, `.server-env.json`, in all of history.
 - Emulator core dumps (#182).
-- Everything that moves to `muma-ops`, at every historic path: `scripts/prod/`, `.claude/`, `.ai/`,
+- Everything that moves to the private ops repository, at every historic path: the operator's production scripts folder, `.claude/`, `.ai/`,
   `.junie/`, `scripts/ssh/known_hosts`, `scripts/nightly-prod-check/`, `scripts/crash-triage/`,
   `scripts/vw.sh`, `docs/release-management.md`, `services/music-management-server/scripts/remote-build.sh`.
 - Everything deleted by the docs cleanup: `docs/superpowers`, `docs/branding/candidates/`,
@@ -171,7 +171,7 @@ cleanup, so the two cannot drift.
 
 ### Text replacement (`--replace-text` and `--replace-message`)
 
-One file per mode, `filter-repo/replace-text.txt` and `replace-message.txt`, kept in `muma-ops`
+One file per mode, `filter-repo/replace-text.txt` and `replace-message.txt`, kept in the private ops repository
 (they contain the real values). Mapping, per class:
 
 | Class | Replaced by |
@@ -231,7 +231,7 @@ cross-check: the two sets must agree on all but a reported handful of commits.
 - the committer `root@lms.<LAN address>`.
 
 Upstream authors and committers, `GitHub <noreply@github.com>`, `Hosted Weblate` and the other
-contributors are not in the mailmap and keep their addresses. The mailmap file lives in `muma-ops`,
+contributors are not in the mailmap and keep their addresses. The mailmap file lives in the private ops repository,
 because it holds the old addresses.
 
 `ci-release-tagging` has a GitLab no-reply address that contains the owner's host. It is mapped to
@@ -248,7 +248,7 @@ because it holds the old addresses.
    before and after (the tree changes only through the path removals).
 6. A checkout of `develop` passes `scripts/test/music-management-unit.sh` and `scripts/lint.sh`, and
    `docker build` of the three images works.
-7. `ref-map` and `commit-map` are saved to `muma-ops` and attached to #189.
+7. `ref-map` and `commit-map` are saved to the private ops repository and attached to #189.
 
 The dry-run numbers are posted on #189. Step 12 starts only after Teun's explicit go.
 
@@ -268,7 +268,7 @@ In this order:
    the map is dropped and reported.
 5. Empty `.gitleaksignore` of the entries for rotated secrets. Update its header and `AGENTS.md`: the
    history is clean.
-6. Re-clone the workstation checkout, recreate worktrees, run `muma-ops/install.sh`.
+6. Re-clone the workstation checkout, recreate worktrees, run the ops repository's install script.
 
 Check: a fresh clone passes `gitleaks git` and the pattern grep, the next MR pipeline is green, and a
 deploy of the next release reaches production.

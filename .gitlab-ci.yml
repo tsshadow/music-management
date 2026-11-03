@@ -581,6 +581,31 @@ public:check:
   script:
     - ./scripts/ci/public-check.sh
 
+# Personal data in commit and tag metadata (issue #208): author, committer and message of every
+# commit, tagger and message of every tag. public:check reads tracked files only.
+#
+# Merge requests and feature branches: only the commits the branch adds (origin/develop..tip). That is
+# a hard gate. The branch pipeline of develop: the whole history of develop and master and every tag. That part is
+# allow_failure: true because the history still holds the owner's private address, the bot identity
+# of the private host and merge messages with the handle, until the rewrite of #209 has run. Remove
+# the allow_failure rule when #209 is done.
+public:history:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    # A push to master only merges a release that passed (tests/ci/test_gitlab_ci_policy.py). The develop
+    # pipeline already checks master and every tag, so master needs no run of its own.
+    - !reference [.not_on_master, rules]
+    # develop: the full-history check, tolerated until #209.
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      allow_failure: true
+    - when: on_success
+  script:
+    - ./scripts/ci/public-history-check.sh
+
 # Runs Renovate against this repository. renovate.json has been in the tree
 # since 0.24.0 and describes exactly which updates are grouped and which merge
 # themselves -- but nothing ever executed it, so it produced no merge requests

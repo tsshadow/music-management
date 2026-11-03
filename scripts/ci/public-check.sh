@@ -2,9 +2,13 @@
 # scripts/ci/public-check.sh
 # Fails when a tracked file holds personal data that must not reach the public mirror.
 #
-# Two checks:
+# Three checks:
 #   1. gitleaks over the working tree (skipped when PUBLIC_CHECK_SKIP_GITLEAKS=1 or no docker).
 #   2. git grep with scripts/ci/public-patterns.txt: names, hosts, LAN addresses.
+#   3. scripts/ci/public_guard.py tree: words whose sha256 is in scripts/ci/public-banned-tokens.txt
+#      (third persons, the employer, the OAuth project number), which are not written down in clear.
+#
+# Commit and tag metadata is checked by scripts/ci/public-history-check.sh (job public:history).
 #
 # Excluded: scripts/ci/public-patterns.txt, which holds the patterns.
 #
@@ -60,4 +64,8 @@ case "$rc" in
         status=1
         ;;
 esac
+echo "--- banned tokens (digests) ---"
+if ! python3 "$ROOT_DIR/scripts/ci/public_guard.py" tree; then
+    status=1
+fi
 exit "$status"

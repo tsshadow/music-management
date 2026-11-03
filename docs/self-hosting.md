@@ -46,8 +46,43 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 
+Three more paths of the main stack decide where `music-manager` finds the player's data. Set them in
+`.env` when your player data is not under `/docker`:
+
+| Key | What it is |
+|---|---|
+| `LMS_DATA_PATH` | The player's data folder, mounted into `music-manager` to read `var/lms/lms.db`. Default `/docker/lms`. Match `${DOCKER_DATA_PATH}/lms` of the player stack. |
+| `ALPHA_LMS_DATA_PATH` | Same for a second (alpha) player. Default `/docker/alpha-lms`. Leave it when you run one player. |
+| `NEWS_DATA_PATH` | Where the hourly news bulletins are written. Default `/docker/muma-news`. |
+
 `.env.example` lists the other keys with a comment each. Settings you can change at runtime are on
 the Beheer > Config page and win over the environment.
+
+Compose reads `.env` from the folder of the compose file, which is `docker/`, not the checkout
+root. Pass `--env-file .env` as in the commands below, or the stack starts with every variable blank.
+
+The image names (`IMAGE_CORE`, `IMAGE_IMPORTER`, `IMAGE_DOWNLOADER`, `IMAGE_TELEGRAM`, `IMAGE_TOOLS`,
+`IMAGE_BASE`) have working defaults in `.env.example`. A production `.env` sets its own values, and
+they win.
+
+### Build the images
+
+On a single host with no registry, build the images there. `./build.sh` reads `.env`, builds the
+base image and then `music-manager`, the importer, the downloader, the Telegram worker, the tools
+and the player. It does not push anything. `--skip-lint --skip-test` skips the pylint and pytest
+runs, which need Python tooling on the host:
+
+```
+./build.sh --skip-lint --skip-test
+```
+
+The images are tagged `${DOCKER_USER}/${IMAGE_...}:latest` and `:<VERSION>`, so `muma/music-manager`
+with the defaults. To build one part, name it: `./build.sh manager importer`. The player image is
+`${DOCKER_USER}/music-management-server`, which is what `IMAGE_NAME` in the player's env file
+(below) must point at. Do not run `./install.sh` for this: it also publishes to Docker Hub and
+deploys over SSH.
+
+### Start the stack
 
 Start the main stack first:
 
@@ -61,9 +96,10 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d
 
 | Key | What it is |
 |---|---|
-| `IMAGE_NAME`, `LMS_TAG` | The player image and its tag, for example `example-user/lms` and `0.72.0`. |
+| `IMAGE_NAME`, `LMS_TAG` | The player image and its tag. After `./build.sh`, `muma/music-management-server` and `latest` (use your `DOCKER_USER`). |
 | `MUSIC_PATH` | Your music folder on the host. Default `/music`. |
 | `DOCKER_DATA_PATH` | Parent of the player's data (`lms/var/lms`, `lms/usr/local/etc`, `lms/nginx`). Default `/docker`. |
+| `reverse-proxy.conf` | Not a variable. Copy `services/music-management-server/nginx/reverse-proxy.conf` to `${DOCKER_DATA_PATH}/lms/nginx/reverse-proxy.conf` before the first start. The `reverse-proxy` container mounts that file, and Docker creates a directory in its place when it is missing. |
 | `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` | Keys of the player's own API and of the Subsonic API. |
 | `MUSIC_MANAGEMENT_URL`, `MUSIC_MANAGEMENT_API_KEY` | Where `music-manager` answers (`http://music-manager:8000/api`) and the shared key, the same value as `MUMA_API_KEY` above. |
 | `LMS_PORT`, `LMS_SUBSONIC_PORT` | Published ports of the web UI (default 80) and the Subsonic API (default 8080). |

@@ -65,12 +65,13 @@ The easiest way to run the entire stack is using Docker Compose.
 
 ### Quick Start
 1. Clone the repository.
-2. Run `./install.sh` to setup your environment (installs Docker and creates `.env`).
-3. Configure your `.env` file with your paths, database credentials, and optional remote host settings.
-4. Build and deploy the system:
-   ```bash
-   ./install.sh
-   ```
+2. Copy `.env.example` to `.env` and fill in your paths, database credentials and keys.
+3. Build the images on the host with `./build.sh --skip-lint --skip-test`.
+4. Start the stack with `docker-compose -f docker/docker-compose.yml --env-file .env up -d`.
+
+`install.sh` does not install Docker and does not create `.env`. It builds, publishes to Docker Hub
+and deploys over SSH, so it is for maintainers. [docs/self-hosting.md](docs/self-hosting.md) has the
+full steps: the keys, the source worker profiles, the player stack and the nginx file.
 
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:

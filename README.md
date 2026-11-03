@@ -48,7 +48,7 @@ The ecosystem includes a dedicated mobile experience via the **MuMa Mobile** And
 - **Subsonic API**: Connects to the Music Management Server for streaming.
 - **Settings Sync**: Automatically synchronizes application settings (themes, bookmarks, player preferences) to the Music Manager API.
 - **Rating Integration**: Ratings changed in the app are propagated back to the central database.
-- **Update Management**: Distributed via a built-in APK Hoster for easy updates.
+- **Distribution**: The app is a normal APK. Hand it out any way you like, for example GitHub Releases or sideloading.
 
 ---
 

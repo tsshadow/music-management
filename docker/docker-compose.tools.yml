@@ -150,7 +150,7 @@ services:
       # No default: it was "admin", on a port bound on every interface.
       WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
-      - "7003:5800"
+      - "${FIREFOX_BIND_ADDRESS:-127.0.0.1}:7003:5800"
     volumes:
       - ${HOST_DATA_PATH}/firefox:/config
       - ${HOST_DATA_PATH}/shared:/shared

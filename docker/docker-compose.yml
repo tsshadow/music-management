@@ -880,6 +880,8 @@ services:
   #     - music-management_db
 
   firefox:
+    # The YouTube and SoundCloud workers read its cookie profile; no worker of those, no browser.
+    profiles: ["youtube", "soundcloud"]
     security_opt:
       - no-new-privileges:true
     # Only a PID ceiling here: the image's s6-overlay init needs root, writes
@@ -913,7 +915,7 @@ services:
       # PROD_ENV_FILE does not set it.
       WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
-      - "7003:5800"
+      - "${FIREFOX_BIND_ADDRESS:-127.0.0.1}:7003:5800"
     volumes:
       - ${HOST_DATA_PATH}/firefox:/config
       - ${HOST_DATA_PATH}/shared:/shared

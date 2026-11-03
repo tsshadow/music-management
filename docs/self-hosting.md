@@ -316,7 +316,7 @@ required one is missing.
 | `APK_HOSTER_PASSWORD` | Upload password of that service. Only for `mobile:build-debug`; the release APK goes to the package registry and the installation uploads it. |
 | `SIGNING_STORE_FILE` | File type. The release keystore, base64-encoded (`base64 -w0`). Only for the Android release job. |
 | `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Keystore password, key alias and key password. Only for the Android release job. |
-| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that creates release tags and the back-merge, and reads the release pipeline for `release:publish`. |
+| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that pushes the release tags (made with `git tag -a` as `ci-release-tagging`, so the tagger is not the token's bot user) and creates the back-merge, and reads the release pipeline for `release:publish`. |
 
 `release:check-secrets` requires `PROD_REMOTE_HOST`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
 `APK_HOSTER_URL` and `SIGNING_STORE_FILE`, because a job gated on a missing variable silently

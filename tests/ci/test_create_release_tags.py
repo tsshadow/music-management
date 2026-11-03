@@ -26,6 +26,7 @@ def test_script_has_no_api_tag_create_and_sets_identity() -> None:
     assert "--request POST" not in text
     assert "tag -a" in text
     assert "user.email=${TAGGER_EMAIL}" in text
+    assert "GIT_COMMITTER_EMAIL=" in text
 
 
 def test_tags_are_annotated_with_neutral_tagger(tmp_path: Path) -> None:
@@ -54,6 +55,11 @@ def test_tags_are_annotated_with_neutral_tagger(tmp_path: Path) -> None:
         "CI_PROJECT_ID": "7",
         "CI_COMMIT_SHA": sha,
         "TAG_PUSH_URL": str(remote),
+        # CI images set these; they must not win over the neutral identity.
+        "GIT_COMMITTER_NAME": "ci",
+        "GIT_COMMITTER_EMAIL": "ci@localhost",
+        "GIT_AUTHOR_NAME": "ci",
+        "GIT_AUTHOR_EMAIL": "ci@localhost",
     }
     subprocess.run(["bash", "scripts/ci/create-release-tags.sh"], cwd=repo, env=env, check=True, capture_output=True)
 

@@ -61,7 +61,9 @@ create_tag() {
     fi
 
     echo "Creating tag $tag_name at ${CI_COMMIT_SHA}..."
-    git -c "user.name=${TAGGER_NAME}" -c "user.email=${TAGGER_EMAIL}" \
+    # GIT_COMMITTER_* beat `-c user.*`, and the CI image sets them, so set them explicitly.
+    GIT_COMMITTER_NAME="${TAGGER_NAME}" GIT_COMMITTER_EMAIL="${TAGGER_EMAIL}" \
+        git -c "user.name=${TAGGER_NAME}" -c "user.email=${TAGGER_EMAIL}" \
         tag -a "${tag_name}" "${CI_COMMIT_SHA}" -m "${message}"
     push_tag "$tag_name"
     echo "Created tag $tag_name."

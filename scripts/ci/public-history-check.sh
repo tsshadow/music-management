@@ -10,10 +10,8 @@
 # Scope:
 #   merge request pipeline, or a branch other than develop/master:
 #       only the commits the branch adds: origin/develop..<tip>. GitLab makes the merge commit after
-#       the pipeline, so its identity cannot be checked here. A branch named renovate/* is skipped
-#       because Renovate commits under the owner's account until #209 changes it.
+#       the pipeline, so its identity cannot be checked here.
 #   branch pipeline of develop or master: every commit of both branches and every tag
-#       (the job is allow_failure until the history rewrite of #209 has run).
 #
 # Usage: ./scripts/ci/public-history-check.sh [--full | --range A..B]   (no argument: pick by CI variables)
 
@@ -26,12 +24,8 @@ GUARD="$ROOT_DIR/scripts/ci/public_guard.py"
 mode="${1:-}"
 if [ -z "$mode" ]; then
     branch="${CI_COMMIT_BRANCH:-}"
-    source_branch="${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-$branch}"
     if [ "$branch" = "develop" ] || [ "$branch" = "master" ]; then
         mode="--full"
-    elif [[ "$source_branch" =~ ^renovate/ ]]; then
-        echo "--- renovate branch, skipping (see #209) ---"
-        exit 0
     else
         tip="${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-HEAD}"
         mode="--range origin/develop..$tip"

@@ -202,14 +202,16 @@ finding (identity, pattern, banned word), never the value.
 
 The scope depends on the pipeline:
 
-- A merge request or feature branch: only the commits it adds, `origin/develop..tip`. This is a hard
-  gate. GitLab makes the merge commit after the pipeline, so the check cannot see it. A `renovate/*`
-  branch is skipped, because Renovate commits under the owner's private account until #209 changes it.
-- The branch pipeline of `develop`: every commit of `develop` and `master` and every tag. This job is
-  `allow_failure: true`, because the history still holds the findings that #209 removes (the owner's
-  private address, the bot identity of the private host, merge messages with the handle). Remove
-  `allow_failure` when #209 is done. `master` has no run of its own: a push there only merges a
-  release that already passed, and the `develop` run reads `master` too.
+- A merge request or feature branch: only the commits it adds, `origin/develop..tip`. GitLab makes
+  the merge commit after the pipeline, so the check cannot see it.
+- The branch pipeline of `develop`: every commit of `develop` and `master` and every tag. `master`
+  has no run of its own: a push there only merges a release that already passed, and the `develop`
+  run reads `master` too.
+
+Both are a hard gate. The history rewrite of 2026-11-04 (#209) left the history clean, so a finding
+on `develop` is new: a merge commit with a private identity, or a tag. Renovate branches are checked
+like any other branch; Renovate commits under the owner's account, whose commit address is the
+public contact address.
 
 Run it by hand with `./scripts/ci/public-history-check.sh --full` or `--range origin/develop..HEAD`.
 
@@ -305,7 +307,7 @@ the middle can be requested. That is what a player does when you skip into a tra
 | `security:sast` | yes | The finding is about this change, not the outside world |
 | `security:secret-scan` | yes | Does not depend on an external service |
 | `public:check` | yes | Needs no network |
-| `public:history` | yes in merge requests, no on `develop` until #209 | The history still holds findings that only a rewrite removes |
+| `public:history` | yes | The history is clean since the rewrite of #209, so a finding is new |
 | `security:dependency-audit` | no | Queries an external database; an outage is not a finding |
 | `mobile:unit` (incl. detekt) | yes | Same reasoning as above |
 | `muma:e2e` | yes | The only check that proves the whole chain, and it takes 45 to 90 s |

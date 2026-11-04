@@ -149,14 +149,18 @@ def test_an_empty_pattern_file_fails_the_check(tmp_path):
     assert "proves nothing" in result.stderr + result.stdout
 
 
-def test_the_history_job_is_a_hard_gate_in_merge_requests_only():
-    """public:history may fail in the develop branch pipeline, never anywhere else."""
+def test_the_history_job_is_a_hard_gate_everywhere():
+    """public:history may not fail anywhere: the history is clean since the rewrite of #209."""
     text = (REPO_ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
     job = text[text.index("\npublic:history:") :]
     job = job[: job.index("\n\n#")]
-    assert "allow_failure: true" in job
-    rules = job[job.index("rules:") :]
-    assert rules.count("allow_failure") == 1
-    assert "$CI_DEFAULT_BRANCH" in rules
-    assert "when: on_success" in rules
+    assert "allow_failure" not in job
+    assert "when: on_success" in job
     assert "public-history-check.sh" in job
+
+
+def test_no_branch_is_exempt_from_the_history_check():
+    """Renovate branches were skipped until #209; every branch is checked now."""
+    script = (CI_DIR / "public-history-check.sh").read_text(encoding="utf-8")
+    assert "renovate" not in script.lower()
+    assert "exit 0" not in script

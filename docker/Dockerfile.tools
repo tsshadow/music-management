@@ -1,5 +1,5 @@
 # Gebruik een lichte Python base image
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # Installeer yt-dlp afhankelijkheden. mariadb-client hoort hier ook thuis: het
 # levert mariadb-dump en mariadb voor tools/db_backup.py en

@@ -36,7 +36,7 @@
 # The reason it was 3.11 originally -- numpy~=2.0.2 shipping no wheel for 3.13 --
 # went away with the same bump: requirements.txt is on numpy~=2.5.2, which
 # itself needs >=3.12. Move this with docker/Dockerfile.*, not on its own.
-TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.14-slim}"
+TOOLING_IMAGE="${PYTHON_TOOLING_IMAGE:-python:3.15-slim}"
 
 # Where the installed tooling survives between runs on this host. Every job
 # used to `pip install -r requirements-dev.txt` into a throwaway /tmp, so three

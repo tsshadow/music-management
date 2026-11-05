@@ -273,5 +273,18 @@
       ],
       "enabled": true
     }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The default Python image of the local lint/typecheck container must move with the images (tests/ci/test_gitlab_ci_policy.py::test_ci_python_is_the_python_the_images_run); the Dockerfile managers do not read shell scripts.",
+      "managerFilePatterns": [
+        "/^scripts/lib/python-tooling\\.sh$/"
+      ],
+      "matchStrings": [
+        "PYTHON_TOOLING_IMAGE:-(?<depName>python):(?<currentValue>[0-9][^}\\s]*)}"
+      ],
+      "datasourceTemplate": "docker"
+    }
   ]
 }

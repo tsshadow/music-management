@@ -32,10 +32,13 @@ if [ -z "$mode" ]; then
     fi
 fi
 
-# The CI clone is shallow and holds no tags: fetch what the chosen scope needs.
+# The CI clone is shallow and holds no tags: fetch what the chosen scope needs. The runner reuses its
+# clone between jobs, so it can still hold tags from before a history rewrite: a plain --tags fetch
+# never replaces a tag that exists, and the check then reads the old history. --force replaces them,
+# --prune-tags drops the ones the remote no longer has.
 if [ -n "${CI:-}" ]; then
     git fetch --quiet --unshallow origin >/dev/null 2>&1 || true
-    git fetch --quiet --tags origin >/dev/null 2>&1 || true
+    git fetch --quiet --force --prune --prune-tags --tags origin >/dev/null 2>&1 || true
     git fetch --quiet origin develop master >/dev/null 2>&1 || git fetch --quiet origin develop >/dev/null 2>&1 || true
 fi
 

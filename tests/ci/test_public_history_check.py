@@ -164,3 +164,12 @@ def test_no_branch_is_exempt_from_the_history_check():
     script = (CI_DIR / "public-history-check.sh").read_text(encoding="utf-8")
     assert "renovate" not in script.lower()
     assert "exit 0" not in script
+
+
+def test_ci_fetch_replaces_tags_from_before_a_rewrite():
+    """The runner reuses its clone: without --force the old tags of #209 stayed and failed develop."""
+    script = (CI_DIR / "public-history-check.sh").read_text(encoding="utf-8")
+    tag_fetch = [ln for ln in script.splitlines() if "git fetch" in ln and "--tags" in ln]
+    assert tag_fetch, "the script no longer fetches tags"
+    for line in tag_fetch:
+        assert "--force" in line and "--prune-tags" in line, line

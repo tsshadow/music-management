@@ -60,6 +60,23 @@ class CapacitorContractTest {
     }
 
     @Test
+    fun `buffering towards playing is buffering`() {
+        isBufferingOf(Player.STATE_BUFFERING, playWhenReady = true) shouldBeEqualTo true
+    }
+
+    /** A seek while paused also buffers; nobody waits for it, so the play button stays a play button. */
+    @Test
+    fun `buffering while paused is not`() {
+        isBufferingOf(Player.STATE_BUFFERING, playWhenReady = false) shouldBeEqualTo false
+    }
+
+    @Test
+    fun `a ready player is not buffering`() {
+        isBufferingOf(Player.STATE_READY, playWhenReady = true) shouldBeEqualTo false
+        isBufferingOf(Player.STATE_IDLE, playWhenReady = true) shouldBeEqualTo false
+    }
+
+    @Test
     fun `the wire words are the ones the contract lists`() {
         PlayerStatus.entries.map { it.wire } shouldBeEqualTo
             listOf("idle", "loading", "playing", "paused", "ended", "error")
@@ -205,6 +222,11 @@ class CapacitorContractTest {
     @Test
     fun `a radio channel becomes the media id the session recognises`() {
         radioItemMediaId("hardstyle") shouldBeEqualTo "MEDIA_RADIO_ITEM|hardstyle"
+    }
+
+    @Test
+    fun `a live station becomes the media id the session recognises`() {
+        stationItemMediaId("slam") shouldBeEqualTo "MEDIA_STATION_ITEM|slam"
     }
 
     @Test

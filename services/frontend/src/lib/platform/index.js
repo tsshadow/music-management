@@ -68,6 +68,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   or null when it is not doing radio. Set by `startRadio`/`stopRadio`, but also by anything else
  *   that can start or stop it on the far side -- Android Auto's browse tree, Assistant -- which is
  *   why a caller reads this rather than only trusting its own last call.
+ * @property {string|null} [stationSlug] Native only. The live station the service plays, or null.
+ * @property {string|null} [stationTitle] Native only. The title the stream sent, or the station
+ *   name when it sent none.
  * @property {boolean} [newsPlaying] Native only, alongside `radioChannel`. Whether a bulletin is
  *   playing right now; `toggleNews` is the only way to change it from here, but the service can
  *   also end one on its own when the bulletin runs out.
@@ -155,8 +158,11 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   Android Auto's own radio support rather than a second implementation of it. A browser answers
  *   and does nothing -- `Player.svelte` drives radio there directly through `radioController.js`
  *   and the `<audio>` element, and never calls this.
- * @property {function(): Promise<void>} stopRadio Leaves radio mode without starting anything
- *   else. Native only in effect, the mirror of `startRadio`.
+ * @property {function(string): Promise<void>} startStation Tunes into a live station by slug.
+ *   Native only in effect: the service plays the stream. In a browser, `Player.svelte` gives the
+ *   address to `load` and never calls this.
+ * @property {function(): Promise<void>} stopRadio Leaves radio mode or a live station without
+ *   starting anything else. Native only in effect, the mirror of `startRadio`.
  * @property {function(): Promise<void>} toggleNews Plays the latest bulletin, or hands the music
  *   back if one is already running -- one call either way. Native only in effect; see `startRadio`.
  * @property {function(PlayerEvent, function(PlayerState): void): function(): void} on

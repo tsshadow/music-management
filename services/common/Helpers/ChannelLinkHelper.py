@@ -1,7 +1,7 @@
 """Which label and artist the channel a file came through is linked to.
 
-A curator links a SoundCloud or YouTube channel to its label or artist in Beheer -> Downloaders ->
-Koppelingen (docs/designs/channel-links). The tagger reads that link here, per file, to fill the
+A curator links a SoundCloud or YouTube channel to its label or artist in Management > Downloaders ->
+Links (docs/designs/channel-links). The tagger reads that link here, per file, to fill the
 publisher and replace an artist that is only the channel's own name standing in for one.
 
 The file is placed under its channel by the same two functions the scanner uses to fill

@@ -11,7 +11,7 @@ const SOUNDCLOUD_FIELDS = [
     default: 900,
     minimum: 60,
     maximum: 604800,
-    unit: "seconden",
+    unit: "seconds",
     description: "Hoe lang de worker wacht tussen twee rondes.",
   },
   {
@@ -20,8 +20,8 @@ const SOUNDCLOUD_FIELDS = [
     default: 3,
     minimum: 1,
     maximum: 10,
-    unit: "pogingen",
-    description: "Aantal pogingen per account.",
+    unit: "attempts",
+    description: "Number of attempts per account.",
   },
 ];
 

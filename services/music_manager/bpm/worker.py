@@ -38,7 +38,7 @@ other measurement without comb scores. Only the first tier is ever urgent.
 
 Resumable by construction: the queue is whatever has no current row, so a restart, a pause or a
 crash simply continues. Settings are re-read from music-manager's config file every round
-(`read_settings`), so Beheer → Config → BPM takes effect without a restart. Progress goes to a
+(`read_settings`), so Management > Configuration → BPM takes effect without a restart. Progress goes to a
 small JSON status file that music-manager's /health reports (`status.py`), and an INFO summary
 every `SUMMARY_SECONDS`.
 """

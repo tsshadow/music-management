@@ -68,7 +68,10 @@ const PLAYING = {
   shuffle: false,
   repeat: "none",
   radioChannel: null,
+  stationSlug: null,
+  stationTitle: null,
   newsPlaying: false,
+  buffering: false,
 };
 
 describe("capacitor platform", () => {
@@ -188,13 +191,31 @@ describe("capacitor player", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  // The player subscribes to `buffering` on every shell. The service does not
-  // send it yet, so the snapshot has no such field and the throbber stays off.
-  it("accepts a buffering subscription the service does not answer yet", () => {
-    const handler = vi.fn();
+  // The throbber on the play button reads `buffering`. Before the service says
+  // anything it is off, so a fresh app never shows a spinner.
+  it("starts with buffering off", () => {
+    expect(platform.player.state().buffering).toBe(false);
+  });
 
-    expect(() => platform.player.on("buffering", handler)).not.toThrow();
-    expect(platform.player.state().buffering).toBeUndefined();
+  it("passes the service's buffering event on with the flag in the snapshot", () => {
+    const handler = vi.fn();
+    platform.player.on("buffering", handler);
+
+    plugins.MumaPlayer.emit("buffering", { ...PLAYING, status: "loading", buffering: true });
+    expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ buffering: true }));
+    expect(platform.player.state().buffering).toBe(true);
+
+    plugins.MumaPlayer.emit("buffering", { ...PLAYING, buffering: false });
+    expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ buffering: false }));
+    expect(platform.player.state().buffering).toBe(false);
+  });
+
+  // An older APK sends no `buffering` field: that reads as not buffering.
+  it("reads a message without the flag as not buffering", () => {
+    plugins.MumaPlayer.emit("buffering", { ...PLAYING, buffering: true });
+    plugins.MumaPlayer.emit("timeupdate", PLAYING);
+
+    expect(platform.player.state().buffering).toBe(false);
   });
 
   it("refuses an event name that is not in the contract", () => {

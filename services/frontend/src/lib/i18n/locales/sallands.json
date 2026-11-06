@@ -186,7 +186,9 @@
   },
   "radio": {
     "couldNotStart": "Kon de radio nait anzetn",
-    "noChannels": "Gin kanaaln beschikbaar"
+    "noChannels": "Gin kanaaln beschikbaar",
+    "stationsHeading": "Radio",
+    "channelsHeading": "MuMa Radio"
   },
   "releaseNotes": {
     "intro": "Der is een ni'je versie. Dit is der aanders:",

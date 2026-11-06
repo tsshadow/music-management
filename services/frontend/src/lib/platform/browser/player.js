@@ -507,6 +507,9 @@ export function createBrowserPlayer() {
   async function startRadio() {}
 
   /** @see startRadio */
+  async function startStation() {}
+
+  /** @see startRadio */
   async function stopRadio() {}
 
   /** @see startRadio */
@@ -518,6 +521,7 @@ export function createBrowserPlayer() {
     queueState,
     setMode,
     startRadio,
+    startStation,
     stopRadio,
     toggleNews,
     attach,

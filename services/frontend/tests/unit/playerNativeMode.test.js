@@ -48,6 +48,7 @@ const playerPlugin = fakePlugin({
   // store follows the *answer* rather than the ask.
   setMode: vi.fn(async (request) => ({ shuffle: request.shuffle, repeat: request.repeat })),
   startRadio: vi.fn(async () => ({})),
+  startStation: vi.fn(async () => ({})),
   stopRadio: vi.fn(async () => ({})),
   toggleNews: vi.fn(async () => ({})),
   pause: vi.fn(async () => ({})),
@@ -81,6 +82,7 @@ const {
   credentials,
   currentTrack,
   isMobile,
+  liveStation,
   nowPlayingOpen,
   playerState,
   playlist,
@@ -307,6 +309,45 @@ describe("Player on the native shell", () => {
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
 
       expect(playerPlugin.startRadio).toHaveBeenCalledWith({ slug: "main" });
+    });
+
+    it("tunes into a station through the service, not the web view", async () => {
+      globalThis.fetch = vi.fn(async (url) => {
+        if (String(url).includes("/api/radio/stations")) {
+          return {
+            ok: true,
+            json: async () => ({
+              stations: [{ slug: "slam", name: "SLAM", stream_url: "https://example.com/s.mp3" }],
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ channels: [{ slug: "main", name: "MuMa Radio" }] }),
+        };
+      });
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
+      await fireEvent.click(screen.getByText("SLAM"));
+
+      await waitFor(() => expect(playerPlugin.startStation).toHaveBeenCalledWith({ slug: "slam" }));
+      liveStation.set(null);
+    });
+
+    it("follows a station started in the car, and shows what the stream sends", async () => {
+      renderPlayer();
+
+      playerPlugin.fire("timeupdate", {
+        stationSlug: "slam",
+        stationTitle: "Angerfist - Pissed Off",
+      });
+      await waitFor(() => expect(get(liveStation)?.slug).toBe("slam"));
+      expect(get(liveStation).title).toBe("Angerfist - Pissed Off");
+
+      playerPlugin.fire("timeupdate", { stationSlug: null, stationTitle: null });
+      await waitFor(() => expect(get(liveStation)).toBeNull());
     });
 
     // Two starts in flight at once used to both run to completion: the one that finished last

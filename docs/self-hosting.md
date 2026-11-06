@@ -44,10 +44,46 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `GOOGLE_CLIENT_ID` | Only for "Sign in with Google". Must equal `VITE_GOOGLE_CLIENT_ID` in the player's `.env`. |
 | `PUBLIC_SOURCE_URL` | Where users get the source code (AGPL-3.0 section 13), shown as the Source code link on the About and login screens. Default `https://github.com/OWNER/music-management`, a placeholder: set your own repository or fork. |
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
+| `FIREFOX_BIND_ADDRESS` | Address the `firefox` container publishes its port 7003 on. Default `127.0.0.1`. Set `0.0.0.0` or a LAN address if you open the browser from another machine. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 
+Three more paths of the main stack decide where `music-manager` finds the player's data. Set them in
+`.env` when your player data is not under `/docker`:
+
+| Key | What it is |
+|---|---|
+| `LMS_DATA_PATH` | The player's data folder, mounted into `music-manager` to read `var/lms/lms.db`. Default `/docker/lms`. Match `${DOCKER_DATA_PATH}/lms` of the player stack. |
+| `ALPHA_LMS_DATA_PATH` | Same for a second (alpha) player. Default `/docker/alpha-lms`. Leave it when you run one player. |
+| `NEWS_DATA_PATH` | Where the hourly news bulletins are written. Default `/docker/muma-news`. |
+
 `.env.example` lists the other keys with a comment each. Settings you can change at runtime are on
-the Beheer > Config page and win over the environment.
+the Management > Configuration page and win over the environment.
+
+Compose reads `.env` from the folder of the compose file, which is `docker/`, not the checkout
+root. Pass `--env-file .env` as in the commands below, or the stack starts with every variable blank.
+
+The image names (`IMAGE_CORE`, `IMAGE_IMPORTER`, `IMAGE_DOWNLOADER`, `IMAGE_TELEGRAM`, `IMAGE_TOOLS`,
+`IMAGE_BASE`) have working defaults in `.env.example`. A production `.env` sets its own values, and
+they win.
+
+### Build the images
+
+On a single host with no registry, build the images there. `./build.sh` reads `.env`, builds the
+base image and then `music-manager`, the importer, the downloader, the Telegram worker, the tools
+and the player. It does not push anything. `--skip-lint --skip-test` skips the pylint and pytest
+runs, which need Python tooling on the host:
+
+```
+./build.sh --skip-lint --skip-test
+```
+
+The images are tagged `${DOCKER_USER}/${IMAGE_...}:latest` and `:<VERSION>`, so `muma/music-manager`
+with the defaults. To build one part, name it: `./build.sh manager importer`. The player image is
+`${DOCKER_USER}/music-management-server`, which is what `IMAGE_NAME` in the player's env file
+(below) must point at. Do not run `./install.sh` for this: it also publishes to Docker Hub and
+deploys over SSH.
+
+### Start the stack
 
 Start the main stack first:
 
@@ -61,9 +97,10 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d
 
 | Key | What it is |
 |---|---|
-| `IMAGE_NAME`, `LMS_TAG` | The player image and its tag, for example `example-user/lms` and `0.72.0`. |
+| `IMAGE_NAME`, `LMS_TAG` | The player image and its tag. After `./build.sh`, `muma/music-management-server` and `latest` (use your `DOCKER_USER`). |
 | `MUSIC_PATH` | Your music folder on the host. Default `/music`. |
 | `DOCKER_DATA_PATH` | Parent of the player's data (`lms/var/lms`, `lms/usr/local/etc`, `lms/nginx`). Default `/docker`. |
+| `reverse-proxy.conf` | Not a variable. Copy `services/music-management-server/nginx/reverse-proxy.conf` to `${DOCKER_DATA_PATH}/lms/nginx/reverse-proxy.conf` before the first start. The `reverse-proxy` container mounts that file, and Docker creates a directory in its place when it is missing. |
 | `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` | Keys of the player's own API and of the Subsonic API. |
 | `MUSIC_MANAGEMENT_URL`, `MUSIC_MANAGEMENT_API_KEY` | Where `music-manager` answers (`http://music-manager:8000/api`) and the shared key, the same value as `MUMA_API_KEY` above. |
 | `LMS_PORT`, `LMS_SUBSONIC_PORT` | Published ports of the web UI (default 80) and the Subsonic API (default 8080). |
@@ -82,8 +119,8 @@ The importer and the downloaders only run when you enable their profile:
 | Profile | Services |
 |---|---|
 | `importer` | `importer_worker` |
-| `youtube` | `youtube_worker` |
-| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher` |
+| `youtube` | `youtube_worker`, `firefox` |
+| `soundcloud` | `soundcloud_worker`, `soundcloud-fetcher`, `firefox` |
 | `telegram` | `telegram_worker` |
 
 Put the profiles you want in `.env`:
@@ -103,6 +140,65 @@ A one-off command on a profiled service needs the profile too:
 docker-compose -f docker/docker-compose.yml --profile soundcloud run --rm soundcloud-fetcher
 docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
+
+## First start and logins
+
+### First admin
+
+A new database has no accounts. Open the web player: while the `users` table is empty, the login page
+shows a form for the first account. It calls `POST /api/auth/setup` (unauthenticated) and creates that
+account as admin. The call answers `409` once any account exists. See `docs/authentication.md`.
+
+### Sign in with Google (optional)
+
+Skip this and the Google button stays hidden; username and password still work.
+
+1. In the Google Cloud Console, create a project and configure the OAuth consent screen.
+2. Create an OAuth client of type "Web application". Its client id is the Web client id.
+3. Set that one value in three places: `GOOGLE_CLIENT_ID` in `.env` (the manager checks the token
+   audience against it), `VITE_GOOGLE_CLIENT_ID` in the player's `.env` (a build argument, so rebuild the
+   player image), and `MUMA_GOOGLE_CLIENT_ID` for the Android build.
+4. Add your player's address to the "Authorized JavaScript origins" of that client.
+5. For the app, create a second OAuth client of type "Android" with the app's package name and the
+   SHA-1 of your signing key. The app still requests its token with the Web client id; the Android
+   client only lets Google accept the app.
+
+`MUMA_GOOGLE_CLIENT_ID` is read from the environment or from the Gradle property `muma.googleClientId`
+(for example in `~/.gradle/gradle.properties`). A release build without it stops.
+
+### SoundCloud and YouTube cookies
+
+The SoundCloud and YouTube workers read the cookies of a logged-in Firefox. That browser is the
+`firefox` container, which starts with either profile.
+
+1. Set `FIREFOX_PASSWORD`, start the stack and open `https://<host>:7003` (the container uses a self-signed
+   certificate). Log in with `FIREFOX_USER` (default `admin`) and the password. The port listens on
+   `127.0.0.1` only unless you set `FIREFOX_BIND_ADDRESS`.
+2. In that browser, log in to soundcloud.com and youtube.com with your account.
+3. The profile is saved under `${HOST_DATA_PATH}/firefox`, which the workers mount read-only.
+
+Respect the terms of the platforms, and download only what you may.
+
+### Telegram
+
+The Telegram worker needs `telegram_api_id` and `telegram_api_hash` (from my.telegram.org) in `.env`,
+and a one-time interactive login:
+
+```
+./run_telegram_auth.sh "<channel name>"
+```
+
+Run it from the repository root. It asks for your phone number and the code Telegram sends, and saves
+the session in the data volume. The default channel name in the script, `Hard Dance Events`, is only an
+example: always pass the channel you want. Then start the worker with the `telegram` profile.
+
+### Android app and the server address
+
+The server address is compiled into the app (`MUMA_SERVER_URL`, see "Android app build"). The app
+refuses cleartext `http://` to every host except `localhost` and `127.0.0.1`
+(`network_security_config.xml`). A server on your LAN therefore needs `https://`: put a reverse proxy
+with a certificate in front of it and build the app with that address. You can hand the APK to users in
+any way you like, for example GitHub Releases or by sideloading.
 
 ## Schema changes
 
@@ -220,7 +316,7 @@ required one is missing.
 | `APK_HOSTER_PASSWORD` | Upload password of that service. Only for `mobile:build-debug`; the release APK goes to the package registry and the installation uploads it. |
 | `SIGNING_STORE_FILE` | File type. The release keystore, base64-encoded (`base64 -w0`). Only for the Android release job. |
 | `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Keystore password, key alias and key password. Only for the Android release job. |
-| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that creates release tags and the back-merge, and reads the release pipeline for `release:publish`. |
+| `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that pushes the release tags (made with `git tag -a` as `ci-release-tagging`, so the tagger is not the token's bot user) and creates the back-merge, and reads the release pipeline for `release:publish`. |
 
 `release:check-secrets` requires `PROD_REMOTE_HOST`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
 `APK_HOSTER_URL` and `SIGNING_STORE_FILE`, because a job gated on a missing variable silently

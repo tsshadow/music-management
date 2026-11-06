@@ -432,7 +432,7 @@ def _config_fields() -> list[ConfigField]:
             description='After every full scan, remove the library entry of a file that is gone from disk '
             '(its track, ratings and listens stay; a moved and retagged file is relinked). Nothing is removed '
             'when a library folder is missing or empty or more than 10% of the files look gone. Off by default: '
-            'switch it on after scripts/prod/person/merge-stale-media-rows.sh --gone has cleared the backlog '
+            'switch it on after the operator script merge-stale-media-rows.sh --gone has cleared the backlog '
             'with its backup.',
         ),
         ConfigField(
@@ -1307,7 +1307,7 @@ class ConfigStore:
 
 
 def credential(config_key: str, env_name: str) -> str | None:
-    """A third-party credential: the Beheer > Config value first, the environment second.
+    """A third-party credential: the Management > Configuration value first, the environment second.
 
     The store seeds itself from the environment at start-up and persists what the config
     page changes, so on its own it would do -- except that it is a process-wide singleton

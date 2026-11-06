@@ -29,6 +29,7 @@ two can never drift apart.
 ./scripts/typecheck.sh                  # mypy over the strict module list
 ./scripts/typecheck.sh --all            # mypy over the whole tree (CI: must pass too)
 ./scripts/ci/public-check.sh             # public:check: no personal names, hosts or LAN addresses in tracked files
+./scripts/ci/public-history-check.sh --range origin/develop..HEAD   # public:history: no personal data in commit and tag metadata
 ./scripts/test/db-integration.sh        # endpoints + schema drift against MariaDB 13.0 (needs Docker)
 ./scripts/test/frontend-unit.sh         # lint + svelte-check + vitest
 ```
@@ -122,7 +123,7 @@ and fail on an unformatted file. The whole-tree reformat is listed in
 
 `feature/*` → `develop` → `release/x.y.z` → `master`. The release branch is where
 stabilisation and the production deploy happen; `master` is the tagged record.
-`docs/release-management.md` in the private muma-ops repository has the full policy,
+The operator's own release runbook has the full policy,
 including what the `release:check-secrets` job guarantees.
 
 ## Commit messages

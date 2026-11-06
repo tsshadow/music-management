@@ -53,7 +53,7 @@ on form.
 ## The performance date
 
 A live set that names a festival and a year, where the festival has an edition date for that year
-(Beheer > Festivals), gets that date as its performance date. Every other track has none.
+(Management > Festivals), gets that date as its performance date. Every other track has none.
 
 The year filter then reads, per the product goal:
 

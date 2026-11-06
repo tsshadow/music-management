@@ -1,6 +1,6 @@
 """Operations and agent material lives in the private ops repository.
 
-Issue #189 step 8a. A checkout may hold these paths as symlinks made by muma-ops/install.sh;
+Issue #189 step 8a. A checkout may hold these paths as symlinks made by the operator's install script;
 git must never track them, or the public history carries hosts, runbooks and agent plans again.
 """
 
@@ -59,8 +59,10 @@ OWNER_ONLY_PATTERNS = [
 
 
 def test_agents_md_names_no_owner_host():
-    """AGENTS.md is public: host-specific rules live in muma-ops AGENTS.private.md (issue #189 step 8b)."""
+    """AGENTS.md is public: host-specific rules live in the operator's private AGENTS.private.md (issue #189 step 8b)."""
     text = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
     found = [p for p in OWNER_ONLY_PATTERNS if re.search(p, text, re.IGNORECASE)]
-    assert not found, f"AGENTS.md names owner-only values {found}; move them to muma-ops AGENTS.private.md"
+    assert not found, (
+        f"AGENTS.md names owner-only values {found}; move them to the operator's private AGENTS.private.md"
+    )
     assert "teu" + "n" + "schriks" not in text.replace("nl.teu" + "n" + "schriks.mumamobile", "").lower()

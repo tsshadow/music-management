@@ -18,7 +18,7 @@ router does), not on a permission: `users.update` alone does not widen it.
 
 ## Cross-App Impact
 
-- Frontend: Beheer is admin-only and already disabled the delete button without `users.update`;
+- Frontend: Management is admin-only and already disabled the delete button without `users.update`;
   `UsersTab.svelte` now shows the server's `detail` when a delete is refused (403/409) instead of a
   generic error. `ScrobbleTab.svelte` needs no change: an admin sees what it saw before.
 - MuMa Mobile and LMS call neither endpoint (checked: `MumaAPIDefinition.kt` has no such route).

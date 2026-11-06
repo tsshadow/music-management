@@ -27,24 +27,16 @@ paths = [
   # carries a dummy JWT.
   '''(^|/)subsonic-api/src/integrationTest/resources/self-signed\.pem$''',
   '''(^|/)subsonic-api/src/integrationTest/resources/get_shares_ok\.json$''',
-  # Upstream Ultrasonic's built-in demo servers. `stableServer.apiKey` and
-  # `alphaServer.apiKey` are the public credentials of the project's public
-  # demo instances, shipped in the app so a new user can try it without an
-  # account of their own.
+  # Three files of the old Ultrasonic client. The value gitleaks flags in them (fingerprint
+  # c9f68dd7263f) is not an upstream demo credential: it is the old MuMa system key, which !259
+  # removed from the code. The exemption only keeps the historical blobs from failing a scan of the
+  # history. It is not a "demo keys are fine" exemption: a new key in these paths would be exempt
+  # too, so the paths stay narrow.
   '''(^|/)ultrasonic/src/main/kotlin/org/moire/ultrasonic/(activity/NavigationActivity|fragment/ServerSettingsModel|fragment/EditServerFragment)\.kt$''',
-  # Three emulator core dumps, committed in 8d86289f4 while debugging the
-  # emulator smoke test and deleted from the tree again in 622768b2f. They
-  # stay reachable in history, and gitleaks decompresses every blob it walks,
-  # so it re-reads 3.9 GB of them on every run: security:secret-scan grew from
-  # about four minutes to fourteen, against a fifteen-minute limit, and began
-  # failing release pipelines on timeout.
-  #
-  # The reason here is not the one the other entries use. A core dump is a
-  # memory image and absolutely *can* hold a credential -- which is why these
-  # were scanned before being exempted rather than after. Gitleaks has walked
-  # them on every run for weeks and reported nothing. They are also three
-  # fixed blobs that no longer exist in the tree, so unlike a live path this
-  # entry can never quietly start covering new content.
+  # The three emulator core dumps (core.91, core.92, core.387) that once made the history scan slow
+  # are gone: the history rewrite of 2026-10-29 removed them, and the biggest blob in the published
+  # refs is 16 MB. This path exemption no longer covers anything and can be deleted once nobody
+  # scans a pre-rewrite clone.
   '''(^|/)core\.(91|92|387)$''',
   # Installation docs. The flagged line is the documented SQL that resets a
   # fresh LMS instance's admin password to the literal `adminadmin`, so the

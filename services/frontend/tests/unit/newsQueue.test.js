@@ -16,6 +16,17 @@ describe("newsQueue", () => {
     expect(restoreTarget(snapshot)).toEqual({ action: "retune", channel: "main" });
   });
 
+  it("tunes back into a live station, which has no position to restore", () => {
+    const station = { slug: "slam", name: "SLAM", stream_url: "https://example.com/slam.mp3" };
+    const snapshot = snapshotOf({
+      trackId: null,
+      positionSeconds: 12,
+      radioChannel: null,
+      station,
+    });
+    expect(restoreTarget(snapshot)).toEqual({ action: "station", station });
+  });
+
   it("lets radio win when a track is still loaded behind it", () => {
     const snapshot = snapshotOf({ trackId: "42", positionSeconds: 12, radioChannel: "main" });
     expect(restoreTarget(snapshot)).toEqual({ action: "retune", channel: "main" });

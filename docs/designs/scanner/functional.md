@@ -25,7 +25,7 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 | A redownload is requested for a track that was imported manually (no source URL found) | The request is refused with a clear message stating that the source URL could not be found in the system's history. |
 | A file's metadata is updated on disk | During the next scan (full or single-file), the database record is updated to reflect the new title, artist, or label. |
 | A retag changes a file's title or primary artist | The file lands on a new track row; its ratings and listening history move with it and the old, fileless row disappears. A label or channel the file no longer names is unlinked. |
-| A file is deleted from disk (removal switched on) | After the next full scan, the library no longer lists that file. The track stays, with its ratings and listens. When the track has no other file, it waits for the orphan relink or purge (Beheer, or `POST /api/scanner/relink-orphans`). |
+| A file is deleted from disk (removal switched on) | After the next full scan, the library no longer lists that file. The track stays, with its ratings and listens. When the track has no other file, it waits for the orphan relink or purge (Management, or `POST /api/scanner/relink-orphans`). |
 | A release folder moves within the library (removal switched on) | After the next full scan, each track shows the new file and not the old one. The ratings and listens stay on the track. When the move came with a retag, they move to the track the file became. |
 | The music share is not mounted, or a library folder is empty | Nothing is removed. The scan logs a warning that says why. |
 | More than 10% of the library looks gone after a scan | Nothing is removed. The scan logs a warning with the count. |
@@ -42,7 +42,7 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 8. An unmounted share, an empty library folder, or more than 10% of the files gone removes nothing.
 9. The removal is off by default (`scanner_drop_vanished_media`). It stays off until
    `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup. Then a curator
-   switches it on in Beheer > Config.
+   switches it on in Management > Configuration.
 
 ## Open Questions / Not Yet Decided
 

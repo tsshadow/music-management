@@ -7,7 +7,7 @@ GitLab issue #83.
 Every generated feed (Release Radar, the classic daily mix, the three spectrum mixes Zachter /
 Middenin / Harder, the artist mix and the label mix) held 30 tracks. That is two hours at best and
 often under one: Teun asked (2026-09-26) for "standaard 100 tracks of een search more knop". This
-change does both. A feed is 100 tracks by default, the length is a Beheer setting, and a listener
+change does both. A feed is 100 tracks by default, the length is a Management setting, and a listener
 who reaches the end of a feed can ask for more of the same day's feed — on the feed page with a
 "Meer laden" button, and in the player without doing anything: a queue started from a feed tops
 itself up before it runs out.
@@ -49,14 +49,14 @@ length. (The artist and label numbers above were measured on production before #
 | The feed has nothing more to give | The button is gone. |
 | The listener presses play on a feed (page or Home card) and listens to the end | Shortly before the last track the queue grows by the next page of the same feed, without a tap. When the feed is exhausted the queue simply ends, as before. |
 | The listener starts something else (an album, a search) | That queue never grows with feed tracks. |
-| The admin changes "Feed length" in Beheer → Config → Feeds | The next time a feed is opened it is rebuilt at the new length; today's stored feeds are not served any more. |
+| The admin changes "Feed length" in Management > Configuration → Feeds | The next time a feed is opened it is rebuilt at the new length; today's stored feeds are not served any more. |
 | Android Auto | The feed folders list the configured length (100) instead of 30, never more than 100. |
 | The driver plays a feed in the car ("Alles afspelen" or a tapped track) and listens on | Shortly before the last track the car's queue grows by the next page of the same feed, as on the web (issue #84). |
 
 ## Acceptance Criteria
 
 1. With no setting changed, every feed that has enough candidates holds 100 tracks.
-2. The "Feed length" setting exists in Beheer under Feeds, accepts 10–200, and anything else falls
+2. The "Feed length" setting exists in Management under Feeds, accepts 10–200, and anything else falls
    back to 100.
 3. "Meer laden" appends tracks that are not already in the list; repeated taps never show a song
    twice on the same day.

@@ -77,7 +77,7 @@ x-worker-healthcheck: &worker-healthcheck
   retries: 3
   start_period: 60s
 
-# Container hardening (issue #32; muma-ops docs/deployment-production.md, "Container hardening").
+# Container hardening (issue #32; the operator's runbook, "Container hardening").
 #
 # Every service drops all Linux capabilities and adds back only what it was
 # shown to need. The muma Python images (music-manager, the workers, the tools
@@ -97,7 +97,7 @@ x-worker-healthcheck: &worker-healthcheck
 # take LMS and the database down with it.
 #
 # Not applied here yet, and why, is listed under "Container hardening" in
-# muma-ops docs/deployment-production.md: a read-only root filesystem and a non-root user for the
+# the operator's runbook: a read-only root filesystem and a non-root user for the
 # muma images, and any of it for Firefox. tests/ci/test_compose_hardening.py
 # pins what is applied.
 x-root-file-caps: &root-file-caps
@@ -206,7 +206,7 @@ services:
       - SETGID
       - SETUID
     pids_limit: 256
-    image: phpmyadmin:5.2.3@sha256:fb0cb638f7d1c2529407921d86679b2b2faf5bb8542314821e9f16e7e3d2954f
+    image: phpmyadmin:5.2.3@sha256:9feb3b1734e2538ba633c1301ca5d08fc06cc8902428fe578034edef7897792a
     container_name: music-management-phpmyadmin-1
     labels:
       # Never updated by Watchtower: music-manager, the database and the tools change only through a deploy (issue #68).
@@ -273,7 +273,7 @@ services:
       API_KEY: ${API_KEY:-}
       MUMA_API_KEY: ${MUMA_API_KEY:-}
       # LMS host and keys come from the environment-lms anchor above. See
-      # muma-ops docs/deployment-production.md for why LMS is deployed as its own stack instead of
+      # the operator's runbook for why LMS is deployed as its own stack instead of
       # an inline service here.
       NOTIFY_URL: ${NOTIFY_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -283,7 +283,7 @@ services:
       # nothing carried these into the container: they came along inside the .env the
       # image used to COPY, and when that COPY went (2026-07-24) the fetcher ran blind
       # and recorded 45.000 artists as unfindable. The same keys can be set on
-      # Beheer > Config instead; that value wins over these.
+      # Management > Configuration instead; that value wins over these.
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
       LASTFM_API_KEY: ${LASTFM_API_KEY:-}
@@ -303,7 +303,7 @@ services:
       TAGGER_WORKERS: ${TAGGER_WORKERS:-}
       TAGGER_BATCH_PAUSE: ${TAGGER_BATCH_PAUSE:-}
       # The zone a daily mix's day is counted in. The container itself runs on UTC; empty
-      # means the code default, Europe/Amsterdam. See muma-ops docs/deployment-production.md.
+      # means the code default, Europe/Amsterdam. See the operator's runbook.
       MUMA_TIMEZONE: ${MUMA_TIMEZONE:-}
     volumes:
       # NOTE: these must point at the *actual* host directories used by the separate
@@ -315,7 +315,7 @@ services:
       # DB) in production - see docs/bug-reports/004-artist-images-not-working.md.
       # /app/data is what MUMA_SERVER_DB_ROOT calls the container's persistent directory,
       # and until 2026-09-21 it was not: only the three sub-paths below were mounted, so
-      # Beheer > Config (`data/config.json`, ConfigStore) and the tagger's last-walk stamp
+      # Management > Configuration (`data/config.json`, ConfigStore) and the tagger's last-walk stamp
       # lived in the container's own layer and vanished on every redeploy. Docker mounts
       # parents before their nested paths, so the three below still land inside it.
       - ${HOST_DATA_PATH}/music-manager:/app/data
@@ -375,7 +375,7 @@ services:
   # + "reverse-proxy" services), which is why it joins this stack's
   # "music-management_db" network as an external network below. Both stacks
   # are deployed together by the deploy (scripts/ci-deploy.sh).
-  # See muma-ops docs/deployment-production.md for the full rationale and rollback procedure.
+  # See the operator's runbook for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:
   # - control-center (management-api)
@@ -880,6 +880,8 @@ services:
   #     - music-management_db
 
   firefox:
+    # The YouTube and SoundCloud workers read its cookie profile; no worker of those, no browser.
+    profiles: ["youtube", "soundcloud"]
     security_opt:
       - no-new-privileges:true
     # Only a PID ceiling here: the image's s6-overlay init needs root, writes
@@ -913,7 +915,7 @@ services:
       # PROD_ENV_FILE does not set it.
       WEB_AUTHENTICATION_PASSWORD: ${FIREFOX_PASSWORD}
     ports:
-      - "7003:5800"
+      - "${FIREFOX_BIND_ADDRESS:-127.0.0.1}:7003:5800"
     volumes:
       - ${HOST_DATA_PATH}/firefox:/config
       - ${HOST_DATA_PATH}/shared:/shared

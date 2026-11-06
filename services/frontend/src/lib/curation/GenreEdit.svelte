@@ -4,7 +4,7 @@
    * into 'Hardcore', so a search for Hardcore finds it.
    *
    * Only an accepted genre has anything to edit here. Whether a genre exists at all is
-   * curation's question, answered in Beheer; this page answers what else is true about
+   * curation's question, answered in Management; this page answers what else is true about
    * one curation has already accepted. A rejected genre is not part of the library, so
    * it gets an explanation instead of a form.
    */

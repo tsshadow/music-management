@@ -6,7 +6,7 @@
 # not mounted, so all it can compare is paths. The failure this repository
 # actually had is a destination on a *different path on the same disk*:
 # /muma/backups and /docker/music-management/mariadb were both on
-# /dev/mapper/pve-vm--107--disk--0. Only the host can see that, so the check
+# the same block device. Only the host can see that, so the check
 # lives here and refuses to install a schedule that would produce comforting,
 # worthless dumps.
 #

@@ -201,9 +201,9 @@ stages:
 
 # Jobs that may run on either CI host, so two of them can run at once.
 #
-# There are two runners and both carry the `fast` tag: the always-on LXC
-# (the CI LXC runner, which also picks up untagged jobs) and the owner's
-# workstation runner, which is tagged-only and often powered off.
+# There can be two runners and both carry the `fast` tag: an always-on runner
+# (which also picks up untagged jobs) and a second, tagged-only runner that is
+# often powered off.
 # GitLab hands a `fast` job to whichever runner polls first, so tagging a job
 # here buys parallelism when the workstation is up and changes nothing when it
 # is not -- the LXC still carries the same tag, so nothing ever queues waiting
@@ -234,11 +234,10 @@ stages:
 # The workstation also has an unrelated Qt binary at /usr/bin/vite, which has
 # already eaten a quarter of an hour of a frontend build once.
 #
-# Tagging the Docker-based jobs is mostly about memory, not speed. The LXC
-# shares node `server` with gitlab (15G cap) and lms (11.9G cap, sitting at
-# it), and the CT memory caps there add up to 58G on 30G of RAM. Every mobile:*
-# and muma:* job handed to the workstation is a Gradle or compose stack that
-# does not run next to GitLab itself.
+# Tagging the Docker-based jobs is mostly about memory, not speed. The
+# always-on runner shares its host with other services, and every mobile:* and
+# muma:* job handed to the second runner is a Gradle or compose stack that
+# does not run next to them.
 #
 # Deploy and release jobs must never carry this tag: they hold the production
 # SSH key and push tags, and neither belongs on a desktop. mobile:build-release
@@ -580,6 +579,26 @@ public:check:
         - "**/*"
   script:
     - ./scripts/ci/public-check.sh
+
+# Personal data in commit and tag metadata (issue #208): author, committer and message of every
+# commit, tagger and message of every tag. public:check reads tracked files only.
+#
+# Merge requests and feature branches: only the commits the branch adds (origin/develop..tip). The
+# branch pipeline of develop: the whole history of develop and master and every tag. Both are a hard
+# gate: the rewrite of #209 left the history clean, so a finding is new.
+public:history:
+  stage: quality
+  timeout: 10m
+  retry: !reference [.infra_retry, retry]
+  tags: !reference [.fast_runner, tags]
+  rules:
+    - !reference [.dedicated_schedule_guard, rules]
+    # A push to master only merges a release that passed (tests/ci/test_gitlab_ci_policy.py). The develop
+    # pipeline already checks master and every tag, so master needs no run of its own.
+    - !reference [.not_on_master, rules]
+    - when: on_success
+  script:
+    - ./scripts/ci/public-history-check.sh
 
 # Runs Renovate against this repository. renovate.json has been in the tree
 # since 0.24.0 and describes exactly which updates are grouped and which merge
@@ -1280,7 +1299,7 @@ frontend:e2e:
 # Branch model: feature/* -> develop (integration) -> release/x.y.z
 # (stabilization, images and APK) -> master (tagged; the tag is what an
 # installation deploys).
-# See muma-ops docs/release-management.md for the full policy.
+# See the operator's release runbook for the full policy.
 
 release:version-check:
   stage: release

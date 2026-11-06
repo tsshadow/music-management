@@ -27,7 +27,7 @@ a release folder's name. The owner wants them gone and not coming back (bug repo
 | A release in the import queue carries a folder name in its label tag | The label proposal ignores it and uses the next source. |
 | The scanner reads a file whose publisher is such a name | No label is linked in MuMa. |
 | A real label with "Free" in its name (`DWX Copyright Free`, `Freestyle`, `Free For All`, `Musical Freedom`) | Unchanged. |
-| The owner runs `scripts/prod/person/clear-folder-labels.sh` | Dry run first; on `yes` the values are removed from the files and MuMa, LMS rescans; `--rollback` undoes it. |
+| The owner runs `clear-folder-labels.sh` | Dry run first; on `yes` the values are removed from the files and MuMa, LMS rescans; `--rollback` undoes it. |
 
 ## Acceptance Criteria
 

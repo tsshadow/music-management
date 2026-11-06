@@ -94,7 +94,7 @@ address. `scripts/lib/ssh_host_keys.sh` provides `ssh_host_key_opts HOST`:
 runs `ssh-keyscan`, and when its connection probe fails it now prints ssh's own error, because a
 changed host key and a refused login otherwise look the same. `SSH_PINNED_KNOWN_HOSTS` overrides the
 file, for the window between a host reinstall and the repository catching up. The procedure is in
-`muma-ops docs/deployment-production.md`, "Production host key". `tests/ci/test_ssh_host_keys.py` guards all of this.
+the operator's runbook, "Production host key". `tests/ci/test_ssh_host_keys.py` guards all of this.
 
 **The smaller B12 items, state after this change:**
 

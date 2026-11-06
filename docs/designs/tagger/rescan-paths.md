@@ -12,7 +12,7 @@ of payoff per line of code.
 One table, `tagger_processed_files` (`filepath` PK, `mtime`, `last_processed`, `needs_rescan`,
 `rescan_reason`). A file needs the tagger when it is not in the table, its mtime on disk is
 newer than the stored one, or `needs_rescan` is set. `mark_processed` clears the flag and
-stores the mtime. The "pending" count on Beheer › Tagger is `COUNT(*) WHERE needs_rescan`.
+stores the mtime. The "pending" count on Management > Tagger is `COUNT(*) WHERE needs_rescan`.
 
 One lock, `TaggerManager._lock`. Everything below that tags a file inside `music-manager` takes
 it; the downloader and importer workers run in other containers and do not.

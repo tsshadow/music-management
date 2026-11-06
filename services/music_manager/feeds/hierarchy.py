@@ -145,7 +145,7 @@ def warn_cycles(parents: dict[str, set[str]], where: str) -> list[list[str]]:
     cycles = find_cycles(parents)
     if cycles:
         logger.warning(
-            'Genre hierarchy has %d cycle(s) (seen by %s): %s -- fix the parents in Beheer',
+            'Genre hierarchy has %d cycle(s) (seen by %s): %s -- fix the parents in Management',
             len(cycles),
             where,
             '; '.join(' <-> '.join(cycle) for cycle in cycles),

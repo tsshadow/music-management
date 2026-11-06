@@ -30,7 +30,7 @@ and the Android app.
 
 1. About shows the section and link when `public_source_url` is an http(s) address.
 2. The default is `https://github.com/OWNER/music-management`, a placeholder to replace.
-3. Changing the setting on Beheer > Config changes the link without a deploy.
+3. Changing the setting on Management > Configuration changes the link without a deploy.
 4. An empty or non-http(s) value hides the section.
 
 ## Open Questions / Not Yet Decided

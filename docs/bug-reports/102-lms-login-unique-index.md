@@ -14,7 +14,7 @@ would say so.
 
 The index was left out of 074 on purpose. A versioned migration that adds it fails on a database
 that still holds the fork, a failed migration throws, and LMS then does not start. The fork on
-production was merged by `scripts/prod/repair-username-case.sh` on 2026-09-25 (GitLab issue #17).
+production was merged by `repair-username-case.sh` on 2026-09-25 (GitLab issue #17).
 
 Measured read-only on production on 2026-09-26, `/docker/lms/var/lms/lms.db` (the `lms`
 container's `/var/lms`): `db_version` 123, 12 users, no index on `user`, and

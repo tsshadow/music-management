@@ -3,7 +3,7 @@
 A lineup is `<root>/festival-lineups/<Festival>/<year>/<stage>.txt`, one artist per
 line, and every directory on that path is itself a lineup holding the union of
 everything below it (see docs/festival-lineups.md). `scripts/import_festival_lineup.py`
-writes one from the shell; this is the same thing from the Beheer page, with the same
+writes one from the shell; this is the same thing from the Management page, with the same
 guard: the page says which lines the library can match *before* anything is written,
 because `getSpotifyTracks` compares the whole display name and a spelling the library
 stores differently matches nothing at all.

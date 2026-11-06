@@ -20,7 +20,7 @@ reach production in the wrong order, with nothing to fall back on:
    `:latest` in the `release` stage. Watchtower on the production host pulls `:latest` of the
    downloader images whenever it changes, so it could start a release's worker code minutes before
    `muma:deploy` had migrated — and did so even when `muma:deploy` was skipped altogether (a red
-   mobile job skips it; see release 0.19.0 in `muma-ops docs/release-management.md`).
+   mobile job skips it; see release 0.19.0 in the operator's release runbook).
 4. **Post-deploy verification could pass while services were broken.**
    `scripts/ci/post-deploy-verify.sh` sampled container state once, right after the migrations. A
    container that crashes twenty seconds after start and is brought back by

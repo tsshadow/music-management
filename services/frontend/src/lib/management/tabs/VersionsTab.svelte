@@ -1,5 +1,5 @@
 <!--
-  VersionsTab — the Versions page in Beheer (docs/designs/song-versions/).
+  VersionsTab — the Versions page in Management (docs/designs/song-versions/).
 
   Every song with more than one version, the version MuMa plays, and a way to pick a
   different one (a pin), hand the choice back to the ranking, or accept a choice the

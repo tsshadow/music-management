@@ -305,7 +305,7 @@ dictionary) and a few small shared modules -- bring what loads before `main.js` 
 (31.02 kB gzip) or `en` 83.84 kB (28.71 kB gzip), so the first screen waits for about 580 kB
 (184 kB gzip): 45 % of the old bundle, and the entry chunk alone is 29 %. The largest lazy chunks:
 `Settings` 79 kB, `DownloadersTab` 49 kB, `AdvancedLibraryTab` 38 kB, `GenreCurationTab` 37 kB,
-`UsersTab` 29 kB. Opening Beheer on its overview tab fetches `Management` 15 kB,
+`UsersTab` 29 kB. Opening Management on its overview tab fetches `Management` 15 kB,
 `ManagementSidebar` 7 kB and `OverviewTab` 12 kB instead of every tab.
 
 **Measuring.** `vite.config.js` has a `bundleReport` plugin: `BUNDLE_REPORT=<file> vite build`
@@ -328,10 +328,10 @@ measurement needs no network install.
   props a props object cannot carry and stays in the `Management` chunk. A unit test keeps the
   two lists in step.
 - `chunksForState(state)` maps a `pathToState` result to the chunks it needs: the page, the
-  sidebar for settings and Beheer, and Beheer's open tab. `preloadState` fetches them and never
+  sidebar for settings and Management, and Management's open tab. `preloadState` fetches them and never
   rejects.
 - `likelyNextChunks()` (settings and its sidebar, song versions, the search "more" modal, the
-  details sheet) and `adminNextChunks()` (Beheer's shell, sidebar and overview tab);
+  details sheet) and `adminNextChunks()` (Management's shell, sidebar and overview tab);
   `preloadOnIdle(chunks)` fetches them one per `requestIdleCallback` slot (a 1.5 s timeout where
   there is none), so a tap in between never waits behind a parse.
 
@@ -346,7 +346,7 @@ itself through `lazyComponent` (issue #119). `Management.svelte` also starts its
 
 **Boot: `src/lib/bootChunks.js` and `main.js`.**
 
-- `initialState(pathname)`: the login view when signed out, else `pathToState`, with Beheer's
+- `initialState(pathname)`: the login view when signed out, else `pathToState`, with Management's
   remembered tab filled in when the path names none.
 - `mountApp` awaits `localeReady()` and `preloadState(initialState(...))` together, then mounts;
   in the shell this runs after `bootstrapShell` under the "starting" stage. The app therefore

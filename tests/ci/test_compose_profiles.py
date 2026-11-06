@@ -35,6 +35,7 @@ EXPECTED = {
     'youtube_worker': ['youtube'],
     'soundcloud_worker': ['soundcloud'],
     'telegram_worker': ['telegram'],
+    'firefox': ['youtube', 'soundcloud'],
     'soundcloud-fetcher': ['soundcloud'],
 }
 ALL_PROFILES = {'importer', 'youtube', 'soundcloud', 'telegram'}
@@ -270,3 +271,12 @@ def test_one_off_commands_on_profiled_services_pass_the_profile():
     assert '--profile soundcloud run --rm soundcloud-fetcher' in (ROOT / 'docs' / 'self-hosting.md').read_text(
         encoding='utf-8'
     )
+
+
+@pytest.mark.parametrize(
+    'path', [PROD, FULL, ROOT / 'docker' / 'docker-compose.tools.yml'], ids=['prod', 'full', 'tools']
+)
+def test_firefox_port_is_loopback_by_default(path):
+    """The browser's noVNC port listens on 127.0.0.1 unless FIREFOX_BIND_ADDRESS says otherwise."""
+    ports = _services(path)['firefox']['ports']
+    assert ports == ['${FIREFOX_BIND_ADDRESS:-127.0.0.1}:7003:5800']

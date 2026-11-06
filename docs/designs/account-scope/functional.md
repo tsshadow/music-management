@@ -18,9 +18,9 @@ with a single API call.
 
 | Situation | Observable outcome |
 |---|---|
-| Admin opens Beheer > Scrobbles | The ten newest imports of every account, as before. |
+| Admin opens Management > Scrobbles | The ten newest imports of every account, as before. |
 | A plain account asks for the import list (API) | Only its own ten newest imports. |
-| Admin deletes another account in Beheer > Gebruikers | Deleted, as before. |
+| Admin deletes another account in Management > Gebruikers | Deleted, as before. |
 | Admin deletes the last enabled admin | Refused; the reason the server gives ("laatste beheerder") is shown instead of a generic error. |
 | A plain account tries to delete itself (API) | Refused (403); nothing changes. |
 

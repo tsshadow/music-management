@@ -177,6 +177,46 @@ as references in the form `commit:file:rule:line`. That file is empty since the 
 
 ---
 
+## Public check: no personal data in the public repository
+
+`public:check` reads the tracked files. It has three parts:
+
+- gitleaks over the working tree, as above.
+- The regular expressions in `scripts/ci/public-patterns.txt`: the owner's name and handle, the old
+  personal host, LAN addresses, the password manager.
+- The digests in `scripts/ci/public-banned-tokens.txt`: the partner's name and account name, the
+  employer and the Google OAuth project number. The file holds the sha256 of each lower-case word,
+  never the word, because a guard file that names what it guards publishes it. A word in a tracked
+  file counts when its digest is on the list. To guard a new word, add `printf %s word | sha256sum`
+  and a description. Do not put the word in a test or a comment either.
+
+`public:history` reads the history, which `public:check` cannot see. For the author, committer and
+message of each commit, and the tagger and message of each annotated tag, it applies the same
+patterns and digests, plus an identity allowlist. An e-mail address is allowed when it is the
+public contact address, `ci@example.com`, any `*@users.noreply.example.com`, or when its digest is in
+`scripts/ci/public-upstream-identities.txt`. That file lists the upstream authors and old bots that
+were in the history before the rewrite of 2026-10-29. We chose an explicit list over "everyone who is
+not the owner", because a rule that skips non-owners also skips a stranger's private mailbox. Add an
+address only when you import upstream commits on purpose. The output names commit ids and the kind of
+finding (identity, pattern, banned word), never the value.
+
+The scope depends on the pipeline:
+
+- A merge request or feature branch: only the commits it adds, `origin/develop..tip`. GitLab makes
+  the merge commit after the pipeline, so the check cannot see it.
+- The branch pipeline of `develop`: every commit of `develop` and `master` and every tag. `master`
+  has no run of its own: a push there only merges a release that already passed, and the `develop`
+  run reads `master` too.
+
+Both are a hard gate. The history rewrite of 2026-11-04 (#209) left the history clean, so a finding
+on `develop` is new: a merge commit with a private identity, or a tag. Renovate branches are checked
+like any other branch; Renovate commits under the owner's account, whose commit address is the
+public contact address.
+
+Run it by hand with `./scripts/ci/public-history-check.sh --full` or `--range origin/develop..HEAD`.
+
+---
+
 ## Dependency audit: checks the packages we rely on
 
 ### What it is
@@ -266,6 +306,8 @@ the middle can be requested. That is what a player does when you skip into a tra
 | `muma:shellcheck` | yes, at warning level | No exception list; deliberate cases are switched off per line |
 | `security:sast` | yes | The finding is about this change, not the outside world |
 | `security:secret-scan` | yes | Does not depend on an external service |
+| `public:check` | yes | Needs no network |
+| `public:history` | yes | The history is clean since the rewrite of #209, so a finding is new |
 | `security:dependency-audit` | no | Queries an external database; an outage is not a finding |
 | `mobile:unit` (incl. detekt) | yes | Same reasoning as above |
 | `muma:e2e` | yes | The only check that proves the whole chain, and it takes 45 to 90 s |

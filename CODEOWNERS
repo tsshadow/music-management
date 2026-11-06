@@ -1,42 +1,7 @@
 # Code owners.
 #
-# GitLab reads this from the repository root. It is a routing table, not a
-# gate: it decides who gets asked for review, and (with "Require approval from
-# code owners" enabled on the protected branch) whose approval a merge request
-# needs.
-#
-# Everything currently routes to the maintainer. As soon as a second person is
-# involved, split the sections below rather than adding them everywhere -- the
-# point of this file is that the person who knows an area sees changes to it.
+# A routing table: it decides who is asked for review. Everything routes to
+# one placeholder team; replace it with the team or user of your own fork. The
+# syntax is valid on GitHub and on GitLab (no sections).
 
 * @muma/maintainers
-
-[Deployment and CI] @muma/maintainers
-/.gitlab-ci.yml
-/scripts/ci/
-/docker/
-/deploy.sh
-/build.sh
-/publish.sh
-
-[Database schema] @muma/maintainers
-/migrate_*.sql
-/services/common/db_init.py
-/tests/integration/
-
-[Security] @muma/maintainers
-/SECURITY.md
-/security/
-/services/music_manager/rbac.py
-/services/music_manager/rate_limit.py
-/services/music_manager/routers/users.py
-/services/music_manager/routers/user_requests.py
-
-[Quality gates] @muma/maintainers
-/pyproject.toml
-/.pylintrc
-/requirements*.txt
-/scripts/lint.sh
-/scripts/typecheck.sh
-/scripts/hooks/
-/renovate.json

@@ -26,7 +26,7 @@
 # Deleting a branch that is already merged into master is safe no matter what
 # the tag or the deploy did, so this job depends on neither. Recovering a
 # release that did not deploy means cutting the next one from develop, not
-# re-running the old branch's pipeline - see muma-ops docs/release-management.md.
+# re-running the old branch's pipeline - see the operator's release runbook.
 #
 # Uses the same TAG_CREATION_TOKEN (Maintainer, api scope) as release:tag.
 # The token goes to curl through a process substitution (`--header @<(...)`), never as

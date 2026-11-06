@@ -7,11 +7,11 @@
    * Loads on its own (styleguide, Loading States: Granularity): card-shaped skeletons first
    * (curators; see `visible`), a section error with a retry when it fails, the last answer at
    * once on a revisit. A label nothing is linked to shows no section at all -- that is almost
-   * every label -- except to a curator, who gets the way to Koppelingen to link one.
+   * every label -- except to a curator, who gets the way to Links to link one.
    *
    * @property {string} label - The label's name, as the route carries it.
    * @property {(view: string) => void} onnavigate - Opens a view (an album, a search).
-   * @property {() => void} [onmanage] - Opens Beheer -> Downloaders -> Koppelingen.
+   * @property {() => void} [onmanage] - Opens Management > Downloaders > Links.
    * @property {boolean} [canManage] - Whether the user may (un)link channels.
    * @property {Object} [platform] - The platform shim; a source URL goes through `system.openUrl`.
    */

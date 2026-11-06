@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, text
 
 
 def get_prediction(model, encoders, scaler, track_data):
-    """Berekent een voorspelling voor de track data."""
+    """Compute a prediction for the track data."""
     if not model or not encoders or (not scaler):
         return (None, 0)
     try:

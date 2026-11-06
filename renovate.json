@@ -220,7 +220,7 @@
       "pinDigests": true
     },
     {
-      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- muma-ops docs/deployment-production.md, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump, and held for a week rather than three days: a data-directory upgrade is the one update here that is hard to take back. Like every docker update here it never merges on its own.",
+      "description": "MariaDB is the production database. A minor or major moves the data directory (mariadb-upgrade, run by the entrypoint through MARIADB_AUTO_UPGRADE) and only reaches production on a DEPLOY_DB=1 deploy, after the pre-deploy dump -- the operator's runbook, \"Moving MariaDB to a new version\". Labelled so it is never waved through as an ordinary base-image bump, and held for a week rather than three days: a data-directory upgrade is the one update here that is hard to take back. Like every docker update here it never merges on its own.",
       "matchManagers": [
         "docker-compose"
       ],
@@ -239,7 +239,7 @@
       ]
     },
     {
-      "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see muma-ops docs/deployment-production.md, \"Pinned build inputs\". It never merges on its own.",
+      "description": "deno is pinned together with the sha256 of its release zip (docker/Dockerfile.downloader). Renovate can bump the version but not the checksum, so its merge request goes red on `sha256sum -c` until DENO_SHA256 is filled in by hand -- see the operator's runbook, \"Pinned build inputs\". It never merges on its own.",
       "matchPackageNames": [
         "denoland/deno"
       ],
@@ -272,6 +272,19 @@
         "docker-compose"
       ],
       "enabled": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The default Python image of the local lint/typecheck container must move with the images (tests/ci/test_gitlab_ci_policy.py::test_ci_python_is_the_python_the_images_run); the Dockerfile managers do not read shell scripts.",
+      "managerFilePatterns": [
+        "/^scripts/lib/python-tooling\\.sh$/"
+      ],
+      "matchStrings": [
+        "PYTHON_TOOLING_IMAGE:-(?<depName>python):(?<currentValue>[0-9][^}\\s]*)}"
+      ],
+      "datasourceTemplate": "docker"
     }
   ]
 }

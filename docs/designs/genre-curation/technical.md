@@ -219,7 +219,7 @@ refreshes the tagger's rules, and a burst of those is what the LMS proxy refuses
 Curatie › Genres carries four sections (`SECTIONS` in `management/genreRules.js`): the queue with
 its advice, the approved-genre overview, and one rule panel each for artist → genre and
 label → genre. The tagger page (`TaggerTab.svelte`) is the tagger itself — rescan and the retag
-pile — and points here; its "Genre Overzicht" and "Genre Koppelingen" sub-tabs are gone. The old
+pile — and points here; its "Genre Overzicht" and "Genre Links" sub-tabs are gone. The old
 overview listed every row of `rules_genres`, rejected and queued included, and the artist/label
 picker offered those as link targets.
 
@@ -240,5 +240,5 @@ picker offered those as link targets.
 Acceptance: 26. `GET /api/curation/genres` lists white genres only with the counts above and turns
 `parents` into a list. 27. Both rule list endpoints carry the library id, track count and
 provenance. 28. `buildRule` refuses a duplicate ignoring case; `sortRules` never mutates.
-29. The tagger page renders neither "Genre Overzicht" nor "Genre Koppelingen" and its link opens
+29. The tagger page renders neither "Genre Overzicht" nor "Genre Links" and its link opens
 `genre-curation`. 30. The queue's state filter is hidden outside the queue section.

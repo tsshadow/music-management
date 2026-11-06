@@ -434,7 +434,7 @@ persist("lms_active_settings_tab", activeSettingsTab);
 export const activeManagementTab = writable("overview");
 persist("lms_active_management_tab", activeManagementTab);
 
-// A sub-tab another page asked Beheer -> Downloaders to open on (the label page's "Koppelingen
+// A sub-tab another page asked Management > Downloaders to open on (the label page's "Links
 // beheren" asks for 'links', issue #122). DownloadersTab takes it once and clears it; not
 // persisted, since it is a one-off request, not a place.
 export const downloaderSubTabRequest = writable(/** @type {string|null} */ (null));
@@ -482,6 +482,10 @@ export const radioChannel = writable(null);
 
 // The timeline entry currently on air, as returned by /api/radio/{slug}/state.
 export const radioNowPlaying = writable(null);
+
+// The live station from outside MuMa that plays now: `{slug, name, stream_url, title}`, or null.
+// Not persisted, for the same reason as `radioChannel`.
+export const liveStation = writable(null);
 
 export const highlightedTrackId = writable(null);
 
@@ -873,7 +877,7 @@ derived([credentials, subsonicToken], (pair) => pair).subscribe(([$c, $token]) =
 // credentials, see above) would have a `null` `mumaUser` until they happen
 // to open the management view (which re-fetches it, see Management.svelte's
 // onMount). Re-hydrate it here too, from the persisted `mumaApiKey`, so
-// `isAdmin` (and the "Beheer" nav entry) resolves correctly right after
+// `isAdmin` (and the "Management" nav entry) resolves correctly right after
 // startup, not only once already inside the management view.
 export const mumaUserHydrated = writable(!get(mumaApiKey));
 
@@ -1396,6 +1400,7 @@ export function resetSessionState() {
     isPlaying.set(false);
     radioChannel.set(null);
     radioNowPlaying.set(null);
+    liveStation.set(null);
     // The language is not reset here: `mumaUser.set(null)` already puts an account's language
     // back to the browser's, and a Subsonic-only session never had one of its own.
   } finally {

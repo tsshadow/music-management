@@ -67,4 +67,4 @@ None. LMS receives the new canonicals through the existing hourly song-version s
 
 - [Bug report 098](../../bug-reports/098-song-grouping-key.md)
 - [Song versions and canonical](../song-versions/technical.md)
-- `scripts/prod/person/regroup-song-works.sh`
+- `regroup-song-works.sh`

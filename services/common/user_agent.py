@@ -2,7 +2,7 @@
 
 MusicBrainz, Deezer and the other public APIs ask a client to say who it is and where to
 reach the people behind it. That address is the `project_url` setting (environment
-`PROJECT_URL`, Beheer > Config > About). It is empty until someone sets it, and then the
+`PROJECT_URL`, Management > Configuration > About). It is empty until someone sets it, and then the
 string carries no address at all, so a fresh install never names a project it does not belong to.
 """
 
@@ -49,7 +49,7 @@ def _warn_once_without_url() -> None:
         _warned = True
     _logger.warning(
         'project_url is empty: requests to MusicBrainz and other public APIs carry no contact address. '
-        'Set PROJECT_URL (Beheer > Config > About); MusicBrainz asks clients to identify themselves.'
+        'Set PROJECT_URL (Management > Configuration > About); MusicBrainz asks clients to identify themselves.'
     )
 
 

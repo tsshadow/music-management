@@ -1,8 +1,8 @@
-"""Dunne laag over de events-stroom, voor de vier plekken die een mijlpaal melden.
+"""Thin layer over the events stream, for the four places that report a milestone.
 
-De signatuur blijft precies wat hij was, zodat de bestaande aanroepers niet
-hoeven te veranderen. Wat wél verandert: de melding gaat nu eerst de database
-in en pas daarna naar ntfy, in plaats van uitsluitend naar ntfy.
+The signature stays exactly what it was, so the existing callers do not have
+to change. What does change: the notification now goes into the database first
+and then to ntfy, instead of only to ntfy.
 """
 
 from __future__ import annotations

@@ -23,6 +23,15 @@ class RadioModelsTest {
     }
 
     @Test
+    fun `should parse stations response with the stream address`() {
+        val json = """{"stations":[{"slug":"slam","name":"SLAM",
+            "stream_url":"https://example.com/slam.mp3","sort_order":10,"enabled":true}]}"""
+        val parsed = gson.fromJson(json, RadioStationsResponse::class.java)
+        parsed.stations[0].slug shouldBeEqualTo "slam"
+        parsed.stations[0].streamUrl shouldBeEqualTo "https://example.com/slam.mp3"
+    }
+
+    @Test
     fun `should parse state response with snake case fields`() {
         val json = """{"server_time":1000.5,
             "channel":{"slug":"main","name":"Radio","genre":null},

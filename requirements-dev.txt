@@ -16,7 +16,7 @@ mypy~=2.3
 # Dependency vulnerability scanning (scripts/ci/dependency-audit.sh)
 pip-audit~=2.10
 
-# Read-only production MCP server (tools/muma_mcp, scripts/prod/install-muma-mcp.sh).
+# Read-only production MCP server (tools/muma_mcp, install-muma-mcp.sh).
 # Nothing in CI imports it: only tools/muma_mcp/__main__.py does, and the tests
 # deliberately cover the modules that do not. In 2.x FastMCP was renamed to
 # MCPServer, so mcp.server.fastmcp no longer resolves -- the major matters.

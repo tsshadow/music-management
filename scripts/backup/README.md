@@ -83,10 +83,10 @@ It refuses to install when `HOST_BACKUP_PATH` sits on the same device as
 in: `/muma/backups` and the data directory were different paths on one disk, so
 every dump ever taken would have died with the thing it was protecting.
 
-On the Proxmox containers the backup share needs a mount point first:
+If the backup runs in a container, the backup share needs a mount point in it first. Example for Proxmox:
 
 ```bash
-pct set 107 -mp3 /mnt/pve/smb-backups,mp=/mnt/backups && pct reboot 107
+pct set <CTID> -mp3 /mnt/pve/smb-backups,mp=/mnt/backups && pct reboot <CTID>
 ```
 
 ## The database account

@@ -1,5 +1,5 @@
 /**
- * Helpers for the Versions page in Beheer (docs/designs/song-versions/).
+ * Helpers for the Versions page in Management (docs/designs/song-versions/).
  *
  * Every song with more than one version is listed with the version MuMa plays. The
  * curator can pick another one (a pin), hand the choice back to the ranking, or accept

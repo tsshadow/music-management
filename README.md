@@ -2,21 +2,21 @@
 
 [![license](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 
-A comprehensive, modular system for automated music library management, featuring a unified "Spotify-style" UI, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
+A comprehensive, modular system for automated music library management, featuring a unified web player, automated downloading, rule-based tagging, ML analysis, and Subsonic-compatible playback.
 
 ## 🧩 Modular System Architecture
 
 The project is built as a set of specialized services that work together to manage the full music lifecycle.
 
 ### Core Services
-- **`frontend`**: A unified Svelte-based "Spotify UI" that handles both playback and system management.
+- **`frontend`**: A unified Svelte-based web player that handles both playback and system management.
 - **`music-manager`**: The central hub and "Source of Truth". Manages metadata, ratings, scrobbling, and coordinates background tasks.
 - **`music-management-server`**: The high-performance C++ playback engine. Provides audio streaming and the Subsonic API.
 
 ### Specialized Workers
 - **`muma-scanner`**: High-performance library scanning and database synchronization.
 - **`muma-tagger`**: Rule-based metadata enforcement and genre inference engine.
-- **`muma-downloader`**: Automated fetches from YouTube and SoundCloud.
+- **`muma-downloader`**: Automated fetches from YouTube and SoundCloud. Follow the platforms' terms of service and download only what you are allowed to.
 - **`muma-telegram`**: Dedicated worker for Telegram-based music discovery.
 - **`muma-importer`**: Archive extraction and automated file movement.
 - **`muma-ml-analyzer`**: Machine learning pipeline for BPM, key, and mood detection.
@@ -48,7 +48,7 @@ The ecosystem includes a dedicated mobile experience via the **MuMa Mobile** And
 - **Subsonic API**: Connects to the Music Management Server for streaming.
 - **Settings Sync**: Automatically synchronizes application settings (themes, bookmarks, player preferences) to the Music Manager API.
 - **Rating Integration**: Ratings changed in the app are propagated back to the central database.
-- **Update Management**: Distributed via a built-in APK Hoster for easy updates.
+- **Distribution**: The app is a normal APK. Hand it out any way you like, for example GitHub Releases or sideloading.
 
 ---
 
@@ -65,12 +65,13 @@ The easiest way to run the entire stack is using Docker Compose.
 
 ### Quick Start
 1. Clone the repository.
-2. Run `./install.sh` to setup your environment (installs Docker and creates `.env`).
-3. Configure your `.env` file with your paths, database credentials, and optional remote host settings.
-4. Build and deploy the system:
-   ```bash
-   ./install.sh
-   ```
+2. Copy `.env.example` to `.env` and fill in your paths, database credentials and keys.
+3. Build the images on the host with `./build.sh --skip-lint --skip-test`.
+4. Start the stack with `docker-compose -f docker/docker-compose.yml --env-file .env up -d`.
+
+`install.sh` does not install Docker and does not create `.env`. It builds, publishes to Docker Hub
+and deploys over SSH, so it is for maintainers. [docs/self-hosting.md](docs/self-hosting.md) has the
+full steps: the keys, the source worker profiles, the player stack and the nginx file.
 
 ### Building and Deployment
 If you are modifying the code and need to rebuild and redeploy the system:
@@ -79,8 +80,8 @@ If you are modifying the code and need to rebuild and redeploy the system:
   - Uses `scripts/affected.sh` to detect which modules have changed if no modules are specified.
   - Skips builds and pushes for unedited modules to save time.
   - Automatically deploys the updated stack to production.
-  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to the remote LXC container (192.0.2.40).
-  - **New**: Use `--remote` to perform the entire build on the remote LXC container.
+  - **New**: Use `--semi-remote` to offload heavy builds (`app`, `ml`, `tools`) to a remote build host.
+  - **New**: Use `--remote` to perform the entire build on a remote build host.
   - **New**: Use `--app=<app>` or positional arguments to target specific modules (e.g., `./install.sh --app=user rating`).
   - **New**: Use `./install.sh manager` to view music library statistics from the terminal.
 - **Individual steps**:
@@ -103,7 +104,7 @@ You can also target specific components with `build.sh` and `publish.sh`:
 - `./build.sh app` (Main Application only)
 
 The following services will be available:
-- **Music Management Server (Spotify UI)**: Port 5082
+- **Music Management Server (web player)**: Port 5082
 - **Music Manager (API)**: Port 8000
 - **phpMyAdmin**: Port 8002 (to inspect the database)
 
@@ -231,8 +232,7 @@ meaningful; no change is needed on the Kuma side.
 
 Everything is driven by one GitLab pipeline definition (`.gitlab-ci.yml`), but *which* jobs
 actually run depends entirely on the branch you push to. There are effectively four kinds of
-pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`
-(see Release Management, in the private muma-ops repository, for the full policy).
+pipeline, matching the branch model `feature/*` → `develop` → `release/x.y.z` → `master`.
 
 ### The four pipelines at a glance
 
@@ -320,13 +320,17 @@ Nothing here deploys. An installation deploys a release from its tag (see
 
 ## Source code and license
 
-MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)). Section 13 says that anyone who uses a
+MuMa is licensed under the GNU AGPL-3.0 ([LICENSE](LICENSE)), except for two parts that come from other
+projects and keep their GPL-3.0 licence. `services/music-management-server` is a fork of
+[LMS](https://github.com/epoupon/lms) by Emeric Poupon (licence text in its `COPYING`).
+`services/muma-mobile` derives from [Ultrasonic](https://gitlab.com/ultrasonic/ultrasonic) (licence text in
+its `LICENSE`). [NOTICE](NOTICE) lists the parts with their copyright lines. Section 13 says that anyone who uses a
 modified version over a network can get its source code. The About screen (Settings > About) of the
 web player and of the Android app, which shows the same screen, has a **Source code** section with a
 link for that, and the login screen has the same link, so it reaches people before they sign in.
 
 The link comes from the setting `public_source_url` (environment variable `PUBLIC_SOURCE_URL`, also on
-Beheer > Config > General). The default is the placeholder `https://github.com/OWNER/music-management`.
+Management > Configuration > General). The default is the placeholder `https://github.com/OWNER/music-management`.
 If you run your own fork, set it to the address of your repository, at the revision you deploy. An
 empty value hides the section. Only `http://` and `https://` addresses are shown. The About screen
 reads the value from `source_url` in the `GET /health` answer.
@@ -339,7 +343,7 @@ this project serves to listeners, so the source link lives there.
 
 ```text
 ├── services/               # System components
-│   ├── frontend/           # Unified Svelte UI (Spotify UI + Management)
+│   ├── frontend/           # Unified Svelte UI (web player + Management)
 │   ├── music_manager/      # Management API, Ratings, Scrobbling
 │   ├── music-management-server/ # Playback Engine & Subsonic API
 │   ├── downloader/         # YouTube, SoundCloud, Telegram workers

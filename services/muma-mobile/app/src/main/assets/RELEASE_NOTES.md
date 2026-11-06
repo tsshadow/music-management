@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## Global Version 7.19.0 (2026-11-06)
+
+- **The play button now shows a throbber while a track is still loading.**
+
+- Radio in the app and in Android Auto (Start > Live > Radio): SLAM, Q-dance and 538 play live, and the car shows the title when the stream sends one. Next and previous are not available during a station. After a connection loss the app tries again for 5 minutes. The channels MuMa makes from your library are now called MuMa Radio.
+
 ## Global Version 7.18.4 (2026-10-30)
 
 - **A track that would not play stopped the music, also in Android Auto.** The app now tries the

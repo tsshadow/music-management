@@ -1,8 +1,8 @@
 <!--
-  The "Handmatig koppelen" panel at the top of Beheer -> Downloaders -> Koppelingen: link a channel
+  The "Link by hand" panel at the top of Management > Downloaders > Links: link a channel
   the search proposed nothing for to a label or an approved artist, picked by typing part of either
   name. `initialChannel` preselects the channel when the panel is opened from a row of the
-  Volledigheid table. See docs/designs/channel-links/functional.md, "Linking by hand".
+  Coverage table. See docs/designs/channel-links/functional.md, "Linking by hand".
 -->
 <script>
   import { t } from '../i18n/index.js';
@@ -20,7 +20,7 @@
   let target = $state(null);
   let busy = $state(false);
 
-  // A row of the Volledigheid table handed a channel over: start from it, on the kind it lacks.
+  // A row of the Coverage table handed a channel over: start from it, on the kind it lacks.
   $effect(() => {
     if (initialChannel) {
       channel = initialChannel;

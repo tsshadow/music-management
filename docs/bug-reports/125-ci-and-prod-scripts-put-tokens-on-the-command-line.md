@@ -4,7 +4,7 @@
 
 # reported problem
 Bug report 038 took secrets off the deploy's command lines. GitLab #40 noted that
-`scripts/prod/create-readonly-db-user.sh` still had the same shape, and that about ten scripts
+`create-readonly-db-user.sh` still had the same shape, and that about ten scripts
 still read `.env` with a loop that cuts values at `#`. A sweep of every shell script, compose file,
 Gradle file and the CI definition for the rest found considerably more than that one script. Each
 of these put a live secret on an argv, which `ps` and `/proc/<pid>/cmdline` show to every account
@@ -26,17 +26,17 @@ account; the runner LXC also hosts other accounts such as `briefing`):
    `curl -H "X-API-Key: $MUMA_SYSTEM_API_KEY"` -- the production system API key.
 
 On the production host (as root, visible to every local account and every container user):
-5. `scripts/prod/create-readonly-db-user.sh`: the new account's password in the ssh remote command,
+5. `create-readonly-db-user.sh`: the new account's password in the ssh remote command,
    the MariaDB root password in `docker exec -e MYSQL_PWD=<value>` (the variable name does not
    help when the value is on docker's argv).
-6. `scripts/prod/clear-spurious-artist-retag-marks.sh`, `scripts/prod/repair-username-case.sh`:
+6. `clear-spurious-artist-retag-marks.sh`, `repair-username-case.sh`:
    `sh -c 'exec mariadb -uroot -p"$MYSQL_ROOT_PASSWORD"'` inside the db container, so the
    expanded root password is the client's argv.
 7. `scripts/prod-restructure-music.sh`: `docker exec -e MYSQL_PWD="$DB_PASS"`.
 
 On the workstation:
-8. `scripts/prod/person/get-muma-admin-key.sh`: the admin's login password on `python3`'s argv and
-   in curl's `--data-binary`; `scripts/prod/install-muma-mcp.sh`: the prod API key in a curl header.
+8. `get-muma-admin-key.sh`: the admin's login password on `python3`'s argv and
+   in curl's `--data-binary`; `install-muma-mcp.sh`: the prod API key in a curl header.
 9. `publish.sh` and `services/muma-mobile/scripts/deploy.sh`: `sshpass -p <password>`;
    `services/muma-mobile/build.gradle` `generateKeystore`: `keytool -storepass <pw> -keypass <pw>`.
 10. `scripts/migrate_lms_history.py` *required* `--api-key <key>`, so every run put the system

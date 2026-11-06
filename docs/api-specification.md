@@ -201,7 +201,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
 - **GET `/api/curation/genre-hierarchy/cycles`**: read-only integrity check, any authenticated account.
   `{"count": <int>, "cycles": [[<genre>, ...], ...]}`, one sorted member list per cycle (a genre that is
   its own parent is a one-member cycle). New cycles are refused by the `PUT` above; a stored one is
-  fixed by removing a parent on the genre edit page in Beheer.
+  fixed by removing a parent on the genre edit page in Management.
 - **GET `/api/rules/artists`** (any authenticated account): `state` is one of `unknown` (the queue),
   `pending` (added, additive: the part of the queue the tagger does not trust -- undecided names that were
   not in the library when the queue was wired up), `white`, `black`, `all`. Every row carries (added,
@@ -274,7 +274,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
 - **GET `/api/scanner/purge-orphans`** (admin only): `{"running": bool, "progress": ..., "last": ...}`.
 
 ### 🎚 Song versions (`/api/songs`)
-Which of a song's versions plays, and the Versions page in Beheer that corrects it
+Which of a song's versions plays, and the Versions page in Management that corrects it
 ([docs/designs/song-versions/](designs/song-versions/technical.md)). Reads need an API key, writes
 need `rules.manage`.
 - **GET `/api/songs/curation?q=&sort=versions|changed|title&changed_only=&page=&page_size=`**: every
@@ -399,7 +399,7 @@ Release Radar and the daily mixes; the full contract is `docs/designs/feeds/tech
 and continuation `docs/designs/feed-length/technical.md`. A user key always reads its own feeds; the
 system key must pass `?username=`.
 - **GET `/api/feeds`**: every feed slug with `{slug, size, window_days, title, subtitle}`. `size` is
-  the configured length (`feeds_size`, Beheer -> Config -> Feeds, 10-200, default 100).
+  the configured length (`feeds_size`, Management > Configuration -> Feeds, 10-200, default 100).
   `window_days` is `null` for the daily mixes that split recent/older (all but the artist mix,
   docs/designs/daily-mix-older-tracks/); their balance is `feeds_daily_recent_percent` (50),
   `feeds_daily_recent_window_days` (365) and `feeds_daily_older_min_rating` (3), and the feed body
@@ -493,6 +493,21 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
   that stops at that cap ends as `truncated` (it used to report `completed`). `oldest_listened_ts` is
   the Unix timestamp of the oldest listen a run reached; the next import for the same
   `username`/`lb_username` after a `truncated` or `failed` run continues strictly below it.
+
+### 📻 Live stations (`/api/radio/stations`)
+Broadcasters a device plays directly. The server never opens a `stream_url`. See
+[designs/live-radio-stations/technical.md](designs/live-radio-stations/technical.md).
+- **GET `/api/radio/stations`**: any authenticated account. Response: `{"stations": [{"slug", "name",
+  "stream_url", "sort_order", "enabled"}]}`, by `sort_order`, then `name`. `?include_disabled=true`
+  also lists the disabled stations and needs `radio.manage` (403 without it).
+- **POST `/api/radio/stations`** (`radio.manage`): `slug`, `name`, `stream_url`, optional `sort_order`
+  and `enabled`. Answers 201 with the station, 409 for a slug that exists, 400 for an invalid value.
+- **PUT `/api/radio/stations/{slug}`** (`radio.manage`): any of `name`, `stream_url`, `sort_order`,
+  `enabled`. Answers the station, 404 for an unknown slug, 400 for an invalid value or no field.
+- **DELETE `/api/radio/stations/{slug}`** (`radio.manage`): answers `{"deleted": slug}`, 404 for an
+  unknown slug.
+- `stream_url` must be `https://` with a host: Android refuses cleartext and a browser blocks it as
+  mixed content.
 
 ### 📻 News bulletins
 See [news-mode.md](news-mode.md).

@@ -117,7 +117,7 @@ export const lazyViews = createLazyRegistry({
 });
 
 /**
- * The management tabs, one chunk each: an admin opening Beheer fetches the tab on screen, not
+ * The management tabs, one chunk each: an admin opening Management fetches the tab on screen, not
  * all twenty-odd of them. `scrobble` is not here -- it takes two `bind:` props, which a props
  * object cannot carry, and stays in the management chunk itself.
  */
@@ -243,7 +243,7 @@ export function listPartsForView(view) {
 
 /**
  * The lazy views a view state needs on screen, in the order they should be fetched: the page,
- * the sidebar that goes with it, and for settings and Beheer the open tab.
+ * the sidebar that goes with it, and for settings and Management the open tab.
  *
  * @param {{view: string, managementTab?: string, settingsTab?: string}} state - What
  *   `pathToState` returns, with the management and settings tab filled in from the store when
@@ -320,7 +320,7 @@ export function likelyNextChunks() {
 }
 
 /**
- * What an admin is likely to open next on top of `likelyNextChunks`: Beheer's shell, its
+ * What an admin is likely to open next on top of `likelyNextChunks`: Management's shell, its
  * sidebar and its first tab.
  *
  * @returns {Array<[ReturnType<typeof createLazyRegistry>, string]>}

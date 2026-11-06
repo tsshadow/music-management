@@ -118,7 +118,7 @@ the open items on 2026-10-29 (issue #43).
 
 ### The cleanup script
 
-`scripts/prod/` is outside this repository, so the one-off goes to `tools/schema_cleanup_2026_11.py`
+Operator scripts live outside this repository, so the one-off goes to `tools/schema_cleanup_2026_11.py`
 with `--dry-run` as default. It dumps every table it changes with `tools/db_backup.py` first, then
 drops the tables and columns marked "drop" above, replaces the `scrobble_listens` foreign key with
 one that has `ON DELETE SET NULL`, and adds the `rules_genres` foreign key. Teun runs it once after the release. Until it runs, the reconcile

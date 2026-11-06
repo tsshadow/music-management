@@ -18,11 +18,11 @@ from services.common.Helpers.EventService import Event
 ALERT_LEVELS = ('WARNING', 'ERROR', 'CRITICAL')
 PRIORITY_BY_LEVEL = {'WARNING': 'high', 'ERROR': 'high', 'CRITICAL': 'urgent'}
 TAG_BY_LEVEL = {'WARNING': 'warning', 'ERROR': 'rotating_light', 'CRITICAL': 'sos'}
-# De rem sleutelt op (level, source, logger) en bewust niet op de titel. Veel
-# routinewaarschuwingen dragen een afteller in hun tekst ('nog 240s afkoelen'),
-# waardoor elke herhaling een andere titel oplevert en een titel-sleutel nooit
-# tweemaal raakt. Op de logger-naam vallen die herhalingen wel samen. Events die
-# rechtstreeks worden ge-emit hebben geen logger; die vallen terug op de titel.
+# The brake keys on (level, source, logger) and deliberately not on the title. Many
+# routine warnings carry a countdown in their text ('still cooling down for 240s'),
+# so every repeat gets a different title and a title key never hits twice. On the
+# logger name those repeats do coincide. Events emitted directly have no logger;
+# they fall back to the title.
 DEDUP_WINDOW_SECONDS = 300
 REQUEST_TIMEOUT_SECONDS = 10
 

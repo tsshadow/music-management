@@ -88,7 +88,7 @@ source "$ROOT_DIR/scripts/ci/android-image.sh"
 # whose package name + certificate SHA-1 match a registered Android-type OAuth
 # client (bug report 011), so with a per-build random certificate "Sign in with
 # Google" can never work on a CI debug APK. Signing debug builds with the same,
-# stable keystore makes that SHA-1 registerable once (see muma-ops docs/deployment-production.md).
+# stable keystore makes that SHA-1 registerable once (see the operator's runbook).
 # It is still only *required* for release builds.
 STORE_FILE_NAME=""
 if [ "$BUILD_TYPE" == "release" ]; then

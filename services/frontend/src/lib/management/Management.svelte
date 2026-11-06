@@ -7,7 +7,7 @@
   import { MANAGEMENT_TABS } from '../router.js';
 
   // Every tab but Scrobble is its own chunk (lazyViews.js, issue #114): an admin opening
-  // Beheer fetches the tab on screen, not all of them. Scrobble takes two `bind:` props, which
+  // Management fetches the tab on screen, not all of them. Scrobble takes two `bind:` props, which
   // a props object cannot carry, so it stays in this chunk.
   import ScrobbleTab from './tabs/ScrobbleTab.svelte';
   import LazyView from '../LazyView.svelte';

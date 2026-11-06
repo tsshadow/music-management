@@ -33,7 +33,7 @@ first pass after the deploy rewrites the 251 rows and pushes them to LMS. No fil
 | Daily mix, release radar (`feeds/queries.py`) | `(t.form IS NULL OR t.form NOT IN ('interview', 'preview'))` next to the duration bounds, in the three candidate queries |
 | Old hits (`feeds/old_hits_queries.py`) | No change: `_TRACK_FORM` already keeps only `track` and NULL |
 | BPM analysis (`bpm/worker.py`, `bpm/tag_writeback.py`) | `bpm_analysis_skip_forms` default gains `interview,preview`: talk has no tempo |
-| Beheer statistics (`routers/stats.py`) | One query counts every row and `SUM(form IN ('interview', 'preview'))`. `total_tracks` is the difference, `total_non_music` the sum. The overview tab shows the second number under the first when it is not 0 |
+| Management statistics (`routers/stats.py`) | One query counts every row and `SUM(form IN ('interview', 'preview'))`. `total_tracks` is the difference, `total_non_music` the sum. The overview tab shows the second number under the first when it is not 0 |
 | Listening statistics | No query change: the top lists group listens, and no listen points at these rows today. A future listen counts, as an unmatched listen does. Open for the owner if that is wrong |
 | Advanced library filter (`analytics_filters.py`) | Takes `form=interview` / `form=preview` through `FORMS`, so the curator can list them |
 | LMS, both query builders | `FindParameters::excludeNonMusic`, default `false`: when set, `AND t.form NOT IN ('interview', 'preview')`, in `whereFormAndYear` and `appendFormAndYear`. An explicit `forms` that names a non-music form switches the exclusion off. The default is off because 23 files build a `FindParameters`, among them the scanner, the syncs and playlists, and those must see every track |

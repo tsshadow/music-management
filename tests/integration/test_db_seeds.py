@@ -20,6 +20,7 @@ EXPECTED_COUNTS = {
     'rules_artists': 11,
     'rules_ignored_artists': 11,
     'rules_scene_group_date_format': 5,
+    'radio_stations': 3,
 }
 
 
@@ -116,3 +117,13 @@ def test_seed_does_not_copy_later_ignored_artists_into_rules_artists(db):
 
 
 # --- Equivalence with the migrations -----------------------------------------------------------
+
+
+def test_a_removed_radio_station_does_not_come_back(db):
+    """The seed only fills an empty table, so a curator's choice survives the next start."""
+    _seed(db)
+    with db.cursor() as cursor:
+        cursor.execute("DELETE FROM radio_stations WHERE slug = '538'")
+    _seed(db)
+    slugs = {row['slug'] for row in run_sql(db, 'SELECT slug FROM radio_stations')}
+    assert slugs == {'slam', 'q-dance'}

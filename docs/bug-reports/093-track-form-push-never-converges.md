@@ -66,7 +66,7 @@ UPDATE statement on the second run via SQLite's trace callback, the guarded UPDA
 Left open (the GitLab issues): deleting the 1,493 stale media rows and their stub tracks, and
 checking on production that the push writes 0 on its second hourly run.
 
-The stale rows (GitLab issue #124): `scripts/prod/person/merge-stale-media-rows.sh` folds each
+The stale rows (GitLab issue #124): `merge-stale-media-rows.sh` folds each
 one into the live track for the same file and deletes it with its stub. Measured on production on
 2026-10-02: 1,493 rows, 1,481 matched by path, 10 by the path with a doubled release folder
 collapsed, 2 folder rows (`/mnt/music/music/EPs/Dirty Workz`) that nothing refers to; 1 rating

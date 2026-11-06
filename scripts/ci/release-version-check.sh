@@ -3,7 +3,7 @@
 #
 # Gates the release build on a release/* or hotfix/* branch: fails the pipeline
 # (before any production deploy or official MuMa Mobile upload happens) if the
-# stabilization work required by muma-ops docs/release-management.md wasn't actually
+# stabilization work required by the operator's release runbook wasn't actually
 # done. Every check is measured against the branch this one was cut from -
 # develop for a release, master for a hotfix - see BASE_BRANCH below:
 #   - root VERSION must have been bumped compared to that base.

@@ -8,7 +8,7 @@
 line-length = 120
 # The lowest Python this tree has to *parse* on, which is not the images' 3.14:
 # the developer workstation runs the suite natively through the pre-commit hook
-# on 3.13, and scripts/prod/install-muma-mcp.sh builds tools/muma_mcp's venv
+# on 3.13, and install-muma-mcp.sh builds tools/muma_mcp's venv
 # from that same python3. "py314" would have ruff format rewrite
 # `except (A, B):` into PEP 758's `except A, B:`, a SyntaxError on 3.13. It was
 # "py311" -- the CI LXC's system Python -- which stopped mattering once the

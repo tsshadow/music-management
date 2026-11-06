@@ -71,14 +71,14 @@ or CI/CD variables.
 | Android: Google OAuth client id | The owner's client id | `BuildConfig.GOOGLE_CLIENT_ID`, default empty, Google sign-in hidden when empty | Gradle property `muma.googleClientId` |
 | Android: APK host URL | The owner's APK host | `BuildConfig.APK_HOST_URL`, default empty, update check off | `APK_HOSTER_URL` |
 | Android: host checks in `RESTMusicService` and `SubsonicAPIClient` (`url.contains(<owner domain>)`) | Special-case the owner's hosts | Derived from the configured server URL: the MuMa API host is read from the server's capabilities, not guessed from a domain | none |
-| AGPL source offer | Not present | Setting `public_source_url`, shown as "Source code" on the web About screen and the app About screen | Beheer > Config |
+| AGPL source offer | Not present | Setting `public_source_url`, shown as "Source code" on the web About screen and the app About screen | Management > Configuration |
 | Renovate, CODEOWNERS, `.gitlab-ci.yml` comments | Owner's user name and host names | CODEOWNERS uses a team alias placeholder. Comments name roles ("the workstation runner"), not hosts | none |
 
 ### What moves to the private ops repository
 
 | Moves | Why |
 |---|---|
-| `scripts/prod/` (58 tracked files in `scripts/prod/`, `.claude/`, `.ai/` and `.junie/` together) | Operates the owner's production host |
+| the operator's production scripts folder (58 tracked files in it, `.claude/`, `.ai/` and `.junie/` together) | Operates the owner's production host |
 | `.claude/` (skills for prod check, release, nightly check, crash triage, MR flow, worktree bootstrap) | Agent material that names hosts, tokens and the owner's workflow |
 | `.ai/`, `.junie/` | Agent plans and requirements |
 | `.production` handling (the file is already gitignored; the docs and scripts that read it) | Describes the production host |
@@ -88,10 +88,10 @@ or CI/CD variables.
 | `scripts/nightly-prod-check/`, `scripts/crash-triage/`, `scripts/vw.sh` | Run against production or the owner's password manager |
 | `security/` entries that name the owner's paths stay; entries that print owner values are rewritten | Accepted-findings lists are public-safe once the paths are neutral |
 
-A session still loads this material: the owner's workstation checks out `muma-ops` next to the
+A session still loads this material: the owner's workstation checks out the private ops repository next to the
 repository and links its `.claude/` into the checkout. See the technical design for the mechanism.
 
-The public repository keeps working without `muma-ops`: every test script, the build, and CI.
+The public repository keeps working without the private ops repository: every test script, the build, and CI.
 
 ### Deploys
 
@@ -114,7 +114,7 @@ artist or label published on their own channel.
 |---|---|
 | Delete | `docs/superpowers` (89 agent plans), `docs/branding/candidates/`, `docs/open-work.md`, `docs/branch-hygiene.md`, `docs/festival-lineup-open-names.md` |
 | Fold into `services/ml-analyzer/DEPRECATED.md`, then delete | `docs/machine-learning.md`, `docs/ml-tutorial.md` |
-| Move to `muma-ops` | `docs/release-management.md`, production part of `docs/deployment.md` |
+| Move to the private ops repository | `docs/release-management.md`, production part of `docs/deployment.md` |
 | Write | `docs/self-hosting.md` (compose, `.env`, profiles, migrations, backups) |
 | Merge into one `docs/architecture.md`, written for people, every claim checked against the code | `docs/OVERVIEW.md`, `docs/architecture.md`, `docs/system-data-flow.md`, `docs/architecture/responsibilities.md` |
 | Translate to English | `docs/security-checks.md`, `docs/designs/mobile-cover-art/` |
@@ -152,7 +152,7 @@ After step 2 everyone re-clones. Open merge requests are retargeted or closed.
    with every profile starts all four.
 6. The About screens of the web UI and the app show a "Source code" link to `public_source_url`.
 7. `public:check` fails on a test branch that adds a LAN address, and passes on `develop`.
-8. A session on the owner's workstation can load the agent skills from `muma-ops`.
+8. A session on the owner's workstation can load the agent skills from the private ops repository.
 9. After the rewrite, `gitleaks git` over the whole history finds nothing, a grep over all patches and
    all commit messages finds none of the patterns, the repository is below 500 MB, and the tag count is
    the same as before the rewrite.

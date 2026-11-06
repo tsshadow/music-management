@@ -47,7 +47,7 @@ A file that raises in the tagger is not retried every round. Its queue row count
 a row (`TAGGER_PARK_AFTER`) parks the file with reason `failed` until it changes on disk or a retag
 is requested. The first failure logs a `WARNING` with the traceback, parking one more `WARNING`, retries only
 `INFO`; none of them is an `ERROR`. The
-tagger page in Beheer shows how many files are parked. See
+tagger page in Management shows how many files are parked. See
 [docs/designs/tagger/technical.md](../../docs/designs/tagger/technical.md#retag-queue-backoff-and-parking).
 
 ## 📜 Rules

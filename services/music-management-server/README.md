@@ -1,10 +1,12 @@
 # Lightweight MuMa Server (LMS)
 
-[![Last Release](https://img.shields.io/github/v/release/muma/lms?logo=github&label=latest)](https://github.com/muma/lms/releases)
+[![Upstream release](https://img.shields.io/github/v/release/epoupon/lms?logo=github&label=upstream)](https://github.com/epoupon/lms/releases)
 
 Lightweight MuMa Server (LMS) is a self-hosted music streaming software: access your music collection from anywhere using a web interface!
 
 `MuMa` stands for **Music Management**.
+
+This is a fork of [LMS](https://github.com/epoupon/lms) by Emeric Poupon, licensed under the GPL-3.0 (see [COPYING](COPYING)). The fork started from upstream version 3.76.0. Copyright (C) 2013 and later Emeric Poupon and the LMS contributors; changes in this repository belong to the MuMa contributors.
 
 ## Key Differences from Upstream (`epoupon/lms`)
 
@@ -12,7 +14,7 @@ This fork, developed as part of the **MuMa (Music Management)** ecosystem, intro
 
 Key changes include:
 
-*   **MuMa Spotify UI**: A complete, modern, and responsive web interface built with Svelte, providing a Spotify-like user experience. This is the primary and recommended interface for this fork.
+*   **MuMa web player**: A complete, modern, and responsive web interface built with Svelte. This is the primary and recommended interface for this fork.
 *   **Smart Deduplication Engine**: Sophisticated backend logic that identifies and hides duplicate tracks across different releases, automatically prioritizing the highest quality version (e.g., favoring FLAC over MP3 or selecting the higher bitrate).
 *   **MuMa Ecosystem Integration**: Native integration with external microservices for centralized rating, scrobbling, and user management via dedicated API hooks.
 *   **Extended Subsonic API**: Additional `spotify/` endpoints specifically designed to power the advanced features and performance requirements of the modern Svelte UI and the custom Ultrasonic mobile client.
@@ -146,7 +148,7 @@ _LMS_ supports lyrics in `lrc` files, `txt` files, and embedded track metadata. 
 
 
 ## User Interfaces
-*   **MuMa Spotify (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
+*   **MuMa web player (Recommended)**: A modern, responsive web interface built with Svelte. This is the primary UI for LMS.
 *   **Legacy Web UI**: The original C++ Web Toolkit (Wt) interface. This interface is now considered **legacy** and is maintained for compatibility purposes only. New features may not be implemented here.
 
 ## Installation
@@ -177,6 +179,6 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to set up yo
 Refer to [CODE_QUALITY.md](CODE_QUALITY.md) for our code quality and testing standards.
 
 Any feedback is welcome:
-* feel free to participate in [discussions](https://github.com/muma/lms/discussions) if you have questions,
-* report any bug or request for new features in the [issue tracker](https://github.com/muma/lms/issues),
-* submit your pull requests based on the [develop](../../tree/develop) branch.
+* report any bug or request for new features of this fork in the issue tracker of the repository this folder belongs to,
+* for problems that also exist in upstream LMS, use the [upstream issue tracker](https://github.com/epoupon/lms/issues) and [discussions](https://github.com/epoupon/lms/discussions),
+* submit your merge requests based on the `develop` branch.

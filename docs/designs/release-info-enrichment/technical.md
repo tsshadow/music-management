@@ -15,7 +15,7 @@ queue, and the release-date sync that copies LMS's dates into muma.
 | `services/importer/label_match.py` | `fold(name)` and `LabelIndex`: existing label folders (via `ImportQueue.is_label_folder`, so neither the queue nor `__Free&None`) by folded name, plus confirmed proposals (`proposed_label -> decided_label`) as aliases. A key with two folders matches nothing. |
 | `services/importer/release_info.py` | `ReleaseInfo`: .nfo facts per folder cached against the .nfo's (path, size, mtime); `catalogue_number`, `album(budget)`, `placement(index, budget) -> Placement(label, source, stated)`. |
 | `services/tagger/Song/rules/InferReleaseDateFromNfoRule.py` | The date ladder (below). |
-| `services/tagger/release_date_backfill.py` | Dry-run backfill CLI; `scripts/prod/person/backfill-release-dates.sh` wraps it. |
+| `services/tagger/release_date_backfill.py` | Dry-run backfill CLI; `backfill-release-dates.sh` wraps it. |
 
 ## Data Model
 
@@ -78,7 +78,7 @@ file's own value, as the tagger has always kept it. No second sync is built: the
 
 ## Configuration
 
-ConfigStore group `Importer`, rendered by Beheer > Configuratie without frontend changes:
+ConfigStore group `Importer`, rendered by Management > Configuration without frontend changes:
 
 | Key | Default | Effect |
 |---|---|---|
@@ -167,7 +167,7 @@ Additive only, no breaking change.
 | `GET /api/label-proposals` | unchanged | each row also carries `alternative_label` and `label_choice_key` (null for ordinary proposals) | unchanged |
 | `POST /api/label-proposals/{id}/confirm` | unchanged (`{"label": ...}`) | unchanged | unchanged; when the row has `label_choice_key`, the same transaction sets `rules_label_name_choices.chosen_folder` to the confirmed label |
 
-The web UI (Beheer > Labelvoorstellen) groups a two-option proposal apart from plain proposals for
+The web UI (Management > Label proposals) groups a two-option proposal apart from plain proposals for
 the same label and shows both folders as buttons; it is the only consumer.
 
 ## Cross-App Impact

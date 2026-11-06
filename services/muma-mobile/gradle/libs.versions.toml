@@ -22,13 +22,13 @@ appTargetSdk = "35"
 # can move on its own.
 appCompileSdk = "37"
 
-gson                   = "2.14.0"
+gson                   = "2.15.0"
 kotlinxSerializationJson = "1.12.0"
 lifecycleLivedataKtx   = "2.11.0"
 media                  = "1.8.0"
 credentials            = "1.6.0"
 googleid               = "1.2.1"
-gradlePlugin           = "9.4.1"
+gradlePlugin           = "9.5.0"
 androidxcar            = "1.7.0"
 appcompat              = "1.8.0"
 activity               = "1.13.0"
@@ -40,17 +40,17 @@ preferences            = "1.2.1"
 media3                 = "1.11.1"
 # Not used directly: media3 pulls in Guava 33.3.1, which has CVE-2026-102554 (HIGH).
 # app/build.gradle raises it with a constraint. Drop both once media3 asks for 33.7.2+.
-guava                  = "33.7.2-android"
+guava                  = "33.7.2-jre"
 # Capacitor 9 does not exist as a release: npm carries 9.0.0-alpha.6 under the `next`
 # tag and Maven Central has nothing above 8.5.2 for com.capacitorjs:core. 8.5.2 is the
 # current stable, and the web side must install @capacitor/core and @capacitor/cli at the
 # same version -- the bridge and the JS runtime are one artefact split in two.
-capacitor              = "8.5.3"
+capacitor              = "8.6.0"
 
 materialDesign         = "1.14.0"
 room                   = "2.8.5"
 kotlin                 = "2.4.21"
-ksp                    = "2.3.12"
+ksp                    = "2.3.13"
 kotlinxCoroutines      = "1.11.0"
 viewModelKtx           = "2.11.0"
 

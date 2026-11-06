@@ -4,7 +4,7 @@ A scene release is its audio plus a handful of companions: `00-<release>.m3u`, `
 a cover `.jpg`. When the audio is gone, the companions stay behind as a folder that is no use to
 anyone, and LMS reports its playlist as `playlist-all-entries-missing` after every library scan
 (GitLab issue #167, bug report 121). The importer's mover deletes such a folder from the import
-queue instead of placing it in the library; `scripts/prod/person/delete-audio-less-release-folders.sh`
+queue instead of placing it in the library; `delete-audio-less-release-folders.sh`
 clears the ones that are already there.
 
 The rule leans towards keeping. A folder is audio-less only when every file anywhere below it is a

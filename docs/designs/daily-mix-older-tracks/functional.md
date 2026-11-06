@@ -42,7 +42,7 @@ listener's own taste. Release Radar stays the feed for what is new.
 3. When either half runs short, the mix is filled from the other one.
 4. Release Radar and the artist mix are unchanged.
 5. The share (0–100 %), the recent window (days) and the older minimum rating (1–5) are settings in
-   Beheer → Config, group Feeds; a change takes effect on the next read.
+   Management > Configuration, group Feeds; a change takes effect on the next read.
 
 ## Open Questions / Not Yet Decided
 

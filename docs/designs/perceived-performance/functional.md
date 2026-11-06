@@ -96,7 +96,7 @@ tapped.
 | The list fails to load | "Kon dit deel niet laden" with "Opnieuw", instead of "Geen nummers gevonden". |
 | Opening the search results page (#112) | "Zoeken…" next to the heading, skeleton rows for tracks and skeleton tiles for artists and albums. Each section fills in, or fails with its own retry, on its own. "Geen resultaten gevonden" only once all three have answered empty. |
 | Typing in the search box (#112) | "Zoeken…" from the first keystroke. With nothing shown yet, skeleton rows; with results for the previous text, those stay dimmed. "Geen resultaten gevonden" only for an answer; a failed search offers "Opnieuw". |
-| Opening the app on a page off the first screen by URL, e.g. Beheer or settings (#114) | The boot screen stays up until that page's code has loaded, then the app appears with the page. |
+| Opening the app on a page off the first screen by URL, e.g. Management or settings (#114) | The boot screen stays up until that page's code has loaded, then the app appears with the page. |
 | Opening a settings tab for the first time (#119) | The tab's own shape in skeleton blocks for the moment its code takes to load, then the tab; the next tab in the list is fetched in the background, so switching to it rarely waits. |
 | Tapping the mini player before Now Playing's code is in (#119) | Now Playing slides up at once with the cover, title, artist and a working play/pause; the rating, progress bar and other buttons fill in a moment later without anything moving. |
 | Navigating to a page off the first screen for the first time (#114) | Skeleton rows for the moment its code takes to load, then the page. A second visit is instant. A page whose code could not load says so, with "Opnieuw". |
@@ -123,7 +123,7 @@ tapped.
     arrived, and the first page of versions before the last (issue #111).
 13. A daily-mix card's play button is visible without hover on a touchscreen (issue #99).
 14. The code the first screen waits for is well under half of the single 1.29 MB bundle it used to
-    be; Beheer, settings, statistics and the other pages off the first screen load when opened,
+    be; Management, settings, statistics and the other pages off the first screen load when opened,
     and still render when opened by URL, by navigation, in a browser served by LMS and inside the
     app (issue #114).
 15. A track list (songs, sets, a genre, label, podcast, festival, year, lineup, search) shows its
@@ -145,7 +145,7 @@ tapped.
   wrong (e.g. a track credited "A, B" whose link names A), the page corrects itself when the data
   arrives. It never keeps the guess.
 
-- **Code splitting by page, not by component (#114).** The pages behind a tap -- Beheer and each
+- **Code splitting by page, not by component (#114).** The pages behind a tap -- Management and each
   of its tabs, settings, statistics, the edit pages, the setup tour, the car screen -- load when
   opened. Home, the track lists and the player stay in the first file: they are what a start
   shows. The pages one tap away (artist, album, feeds, the filter bar) followed in #118, each with

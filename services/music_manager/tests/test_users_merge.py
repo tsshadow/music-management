@@ -97,7 +97,7 @@ class MergeUsersTest(unittest.TestCase):
         response, _cursor, _connection = self.merge(self.base_rules(), secondary_id=1)
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn('zichzelf', response.json()['detail'])
+        self.assertIn('into itself', response.json()['detail'])
 
     def test_an_unknown_account_is_a_404(self):
         rules = [('SELECT * FROM users WHERE id = %s', (1,), PRIMARY)]

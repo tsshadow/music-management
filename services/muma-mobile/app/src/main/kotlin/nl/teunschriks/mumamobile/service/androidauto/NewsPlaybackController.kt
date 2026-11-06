@@ -41,6 +41,7 @@ class NewsPlaybackController(
     private val serviceScope: CoroutineScope,
     private val mumaApiProvider: () -> MumaAPIDefinition,
     private val onRetune: (Player, String) -> Unit,
+    private val onRetuneStation: (Player, String) -> Unit,
     private val contextProvider: () -> Context = { UApp.applicationContext() }
 ) {
     private var snapshot: NewsQueueSnapshot? = null
@@ -61,14 +62,15 @@ class NewsPlaybackController(
         null
     }
 
-    private fun remember(player: Player, radioSlug: String?) {
+    private fun remember(player: Player, radioSlug: String?, stationSlug: String?) {
         if (snapshot != null) return
         savedItems = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
         snapshot = NewsQueueRules.snapshotOf(
             mediaIds = savedItems.map { it.mediaId },
             index = player.currentMediaItemIndex,
             positionMs = player.currentPosition,
-            radioSlug = radioSlug
+            radioSlug = radioSlug,
+            stationSlug = stationSlug
         )
         persist(player)
     }
@@ -95,9 +97,9 @@ class NewsPlaybackController(
     }
 
     /** Tune into a bulletin. `bulletinId` null means the most recent one. */
-    fun play(player: Player, bulletinId: Long?, radioSlug: String?) {
+    fun play(player: Player, bulletinId: Long?, radioSlug: String?, stationSlug: String? = null) {
         serviceScope.launch {
-            withContext(Dispatchers.Main) { remember(player, radioSlug) }
+            withContext(Dispatchers.Main) { remember(player, radioSlug, stationSlug) }
             val bulletin = withContext(Dispatchers.IO) { fetchBulletin(bulletinId) }
             if (bulletin == null) {
                 // Nothing to play: give the music straight back rather than
@@ -134,6 +136,7 @@ class NewsPlaybackController(
         when (action) {
             is NewsQueueRules.RestoreAction.Nothing -> player.stop()
             is NewsQueueRules.RestoreAction.Retune -> onRetune(player, action.slug)
+            is NewsQueueRules.RestoreAction.RetuneStation -> onRetuneStation(player, action.slug)
             is NewsQueueRules.RestoreAction.Queue -> {
                 if (items.isEmpty()) {
                     player.stop()

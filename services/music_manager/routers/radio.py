@@ -3,6 +3,7 @@ import logging
 import re
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -21,7 +22,9 @@ logger = logging.getLogger('music-manager.radio')
 def init_db(cursor):
     """Seed the one radio channel. The tables are declared in services/common/schema_tables.py."""
     # The single beta channel: genre NULL means "draw from the whole library".
-    cursor.execute("INSERT IGNORE INTO radio_channels (slug, name, genre) VALUES ('main', 'Radio', NULL)")
+    cursor.execute("INSERT IGNORE INTO radio_channels (slug, name, genre) VALUES ('main', 'MuMa Radio', NULL)")
+    # "Radio" now means the live stations (issue #213). A name a curator chose stays.
+    cursor.execute("UPDATE radio_channels SET name = 'MuMa Radio' WHERE slug = 'main' AND name = 'Radio'")
 
 
 SCHEDULE_HORIZON_SECONDS = 600.0
@@ -391,6 +394,157 @@ def preview_filter(body: FilterPreview, _auth: dict = Depends(require_permission
         'truncated': len(matches) >= PREVIEW_PROBE_SIZE,
         'sample': matches[:PREVIEW_SAMPLE_SIZE],
     }
+
+
+STATION_COLUMNS = 'slug, name, stream_url, sort_order, enabled'
+
+
+class StationCreate(BaseModel):
+    """A live station, as Beheer adds it (docs/designs/live-radio-stations/technical.md)."""
+
+    slug: str
+    name: str
+    stream_url: str
+    sort_order: int = 0
+    enabled: bool = True
+
+
+class StationUpdate(BaseModel):
+    """The fields of a station to change. A field left out stays as it is."""
+
+    name: str | None = None
+    stream_url: str | None = None
+    sort_order: int | None = None
+    enabled: bool | None = None
+
+
+def valid_stream_url(url: str) -> bool:
+    """Whether a device can play this address: `https` with a host.
+
+    Android refuses cleartext and a browser blocks it as mixed content. The server itself never
+    opens the address, so this check is about what a listener gets and not about what the server
+    may reach.
+    """
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme == 'https' and bool(parts.hostname) and len(url) <= 1024
+
+
+def _station_row(row: dict) -> dict:
+    """A `radio_stations` row as the API sends it."""
+    return {
+        'slug': row['slug'],
+        'name': row['name'],
+        'stream_url': row['stream_url'],
+        'sort_order': row['sort_order'],
+        'enabled': bool(row['enabled']),
+    }
+
+
+@router.get('/stations')
+def list_stations(include_disabled: bool = False, auth: dict = Depends(verify_api_key)):
+    """The live stations a listener can choose. A disabled one only shows for who may edit it."""
+    if include_disabled and not has_permission(auth, 'radio.manage'):
+        raise HTTPException(status_code=403, detail='Missing permission: radio.manage')
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f'SELECT {STATION_COLUMNS} FROM radio_stations'
+                + ('' if include_disabled else ' WHERE enabled = 1')
+                + ' ORDER BY sort_order, name'
+            )
+            return {'stations': [_station_row(row) for row in cursor.fetchall() or []]}
+    finally:
+        conn.close()
+
+
+@router.post('/stations', status_code=201)
+def create_station(body: StationCreate, _auth: dict = Depends(require_permission('radio.manage'))):
+    """Add a live station."""
+    if not SLUG_PATTERN.match(body.slug):
+        raise HTTPException(status_code=400, detail='Slug must be lowercase letters, digits and dashes')
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail='Name is required')
+    if not valid_stream_url(body.stream_url):
+        raise HTTPException(status_code=400, detail='The stream address must start with https://')
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM radio_stations WHERE slug = %s', (body.slug,))
+            if cursor.fetchone():
+                raise HTTPException(status_code=409, detail='A station with that slug already exists')
+            cursor.execute(
+                'INSERT INTO radio_stations (slug, name, stream_url, sort_order, enabled) VALUES (%s, %s, %s, %s, %s)',
+                (body.slug, body.name.strip(), body.stream_url, body.sort_order, 1 if body.enabled else 0),
+            )
+        conn.commit()
+        return {
+            'slug': body.slug,
+            'name': body.name.strip(),
+            'stream_url': body.stream_url,
+            'sort_order': body.sort_order,
+            'enabled': body.enabled,
+        }
+    finally:
+        conn.close()
+
+
+@router.put('/stations/{slug}')
+def update_station(slug: str, body: StationUpdate, _auth: dict = Depends(require_permission('radio.manage'))):
+    """Change a live station: its name, its address, its place in the list, or whether it is on."""
+    assignments: list[str] = []
+    params: list[Any] = []
+    if body.name is not None:
+        if not body.name.strip():
+            raise HTTPException(status_code=400, detail='Name is required')
+        assignments.append('name = %s')
+        params.append(body.name.strip())
+    if body.stream_url is not None:
+        if not valid_stream_url(body.stream_url):
+            raise HTTPException(status_code=400, detail='The stream address must start with https://')
+        assignments.append('stream_url = %s')
+        params.append(body.stream_url)
+    if body.sort_order is not None:
+        assignments.append('sort_order = %s')
+        params.append(body.sort_order)
+    if body.enabled is not None:
+        assignments.append('enabled = %s')
+        params.append(1 if body.enabled else 0)
+    if not assignments:
+        raise HTTPException(status_code=400, detail='Nothing to update')
+
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT id FROM radio_stations WHERE slug = %s', (slug,))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail='Unknown station')
+            params.append(slug)
+            cursor.execute(f"UPDATE radio_stations SET {', '.join(assignments)} WHERE slug = %s", tuple(params))
+        conn.commit()
+        with conn.cursor() as cursor:
+            cursor.execute(f'SELECT {STATION_COLUMNS} FROM radio_stations WHERE slug = %s', (slug,))
+            return _station_row(cursor.fetchone())
+    finally:
+        conn.close()
+
+
+@router.delete('/stations/{slug}')
+def delete_station(slug: str, _auth: dict = Depends(require_permission('radio.manage'))):
+    """Remove a live station. The seed does not bring it back: it only fills an empty table."""
+    conn = _require_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('DELETE FROM radio_stations WHERE slug = %s', (slug,))
+            if not cursor.rowcount:
+                raise HTTPException(status_code=404, detail='Unknown station')
+        conn.commit()
+        return {'deleted': slug}
+    finally:
+        conn.close()
 
 
 ENTRY_COLUMNS = 'track_id, title, artist, album, cover_art, duration_ms, started_at, ends_at'

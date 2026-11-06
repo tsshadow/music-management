@@ -13,7 +13,7 @@ longer met -- someone removed or renamed one of the folders -- is forgotten, and
 again if it ever came back. Nothing here moves, merges or deletes a folder.
 
 The pairs live in `importer_conflicts`, so a restart or a deploy does not warn about the
-whole list again, and so Beheer can show them next to the label proposals. When that table
+whole list again, and so Management can show them next to the label proposals. When that table
 cannot be read the tracker falls back to what this process remembers.
 
 The extractor files its standing problems in the same table (bug report 119): a file in the
@@ -257,7 +257,7 @@ class ConflictTracker:
 
 
 #: Why the extractor left a file in the import folder, as stored in `importer_conflicts.reason`
-#: and translated by Beheer. The text here is what the one WARNING says.
+#: and translated by Management. The text here is what the one WARNING says.
 NOT_AN_ARCHIVE = 'not-an-archive'
 LOOSE_AUDIO = 'loose-audio'
 NOT_MUSIC_VIDEO = 'not-music-video'
@@ -343,7 +343,7 @@ class FileProblemTracker(ConflictTracker):
         else:
             self._new += 1
             logging.warning(
-                'Left in the import folder, %s: %s%s. Not retried until the file changes; listed in Beheer '
+                'Left in the import folder, %s: %s%s. Not retried until the file changes; listed in Management '
                 'for manual intervention',
                 description,
                 path,

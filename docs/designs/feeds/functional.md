@@ -265,8 +265,8 @@ Feature: The daily mix is the same ranker with a wider window
 
 ## Daily mixes v2 — the spectrum
 
-Teun's request, roughly: five daily mixes that are not all the same — one soft on the spectrum (for
-him, euphoric hardstyle), one in the middle (mainstream or raw hardstyle), one hard, and two free.
+The request, roughly: five daily mixes that are not all the same — one soft on the spectrum (for
+the first listener, euphoric hardstyle), one in the middle (mainstream or raw hardstyle), one hard, and two free.
 "If soft/hard is hard to determine, give genres a statistic, a kind of hardness."
 
 ### The statistic
@@ -305,7 +305,7 @@ narrowed to one third of the hardness spectrum. The two edges (soft/mid and mid/
 on the genre anchors**, the same 50/75 for every listener, not measured from any one listener's own
 history. An earlier version derived them from that listener's own weighted 33rd/67th percentile
 instead (with a 40/70 cold-start fallback and a median ± 15 widening below a 15-point gap); measured
-on production for Teun right after that version shipped (0.63.0), his own listening put those edges
+on production for one listener right after that version shipped (0.63.0), his own listening put those edges
 at 62.5/92.5 — "Zachter" ended up meaning raw hardstyle, techno and mainstream hardstyle (800
 candidates), "Middenin" meant uptempo hardcore, bouncy uptempo and zaagtempo (579), and "Harder"
 shrank to only terror and speedcore (71 candidates, the release window relaxed to 365 days, 13

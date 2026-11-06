@@ -217,7 +217,7 @@ def load_indexes(cursor) -> tuple[list[links.Channel], list[links.CandidateIndex
 
 
 def refresh_proposals(cursor) -> dict[str, int]:
-    """Run the search and store its outcome. Returns the counts the Koppelingen tab reports.
+    """Run the search and store its outcome. Returns the counts the Links tab reports.
 
     New triples are inserted; open rows the search no longer produces are withdrawn
     (`stale`). Decided rows are left alone either way, which is what keeps a rejection a

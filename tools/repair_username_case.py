@@ -14,7 +14,7 @@ stops new forks; this repairs the ones already made:
   wins, because it is the newer one -- the variant only exists since the bad login. Then
   the variant user is deleted, in the same transaction, with foreign keys enforced.
 
-Driven by scripts/prod/repair-username-case.sh, which runs it inside the music-manager
+Driven by repair-username-case.sh, which runs it inside the music-manager
 container (it has pymysql, the DB_* environment and lms.db mounted at /app/data/stable).
 Every subcommand is safe to repeat: a second `apply` finds nothing to do. Never prints
 a secret: the database password is read from the environment and not echoed.

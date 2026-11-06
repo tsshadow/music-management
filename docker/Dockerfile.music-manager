@@ -14,7 +14,7 @@ ARG VERSION=latest
 # apt-get upgrade: see the note in Dockerfile.base -- the base image's
 # preinstalled openssl does not move when this image is rebuilt, so without
 # this the security pocket is never reached.
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 WORKDIR /app
 
 # SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which
@@ -45,7 +45,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Only the MariaDB *runtime* shared library, not the -dev package: the headers
 # and the static archive are a build-time concern. This image has no compiler
 # and no kernel headers.
-FROM python:3.14-slim
+FROM python:3.15-slim
 WORKDIR /app
 
 # SECURITY_REFRESH changes every day (scripts/ci/build-and-push-images.sh), which

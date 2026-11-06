@@ -13,7 +13,7 @@
 #
 # Tags are never created manually - only here, only on master, so "what's
 # live" can always be answered by looking at master's latest tags. See
-# muma-ops docs/release-management.md for the full policy.
+# the operator's release runbook for the full policy.
 # The token goes to curl through a process substitution (`--header @<(...)`), never as
 # `--header "PRIVATE-TOKEN: $TOKEN"`: a command line is readable by every account on the
 # shell-executor runner through `ps` (GitLab #40, bug report 038).
@@ -28,6 +28,28 @@ if [ -z "$TAG_CREATION_TOKEN" ]; then
     exit 1
 fi
 
+# The tag is made with git, not with POST /repository/tags: through the API the tagger of an
+# annotated tag is always the token's bot user, whose address names the private GitLab host
+# (issue #207). This identity is on the public-history allowlist (scripts/ci/public_guard.py).
+TAGGER_NAME="${TAGGER_NAME:-ci-release-tagging}"
+TAGGER_EMAIL="${TAGGER_EMAIL:-ci-release-tagging@users.noreply.example.com}"
+PUSH_URL="${TAG_PUSH_URL:-${CI_SERVER_URL}/${CI_PROJECT_PATH}.git}"
+
+# Pushes one tag over HTTPS with the project token. The credential goes in through git's
+# environment config (GIT_CONFIG_*), never `-c http.extraHeader=...`, so it is not on a command line.
+push_tag() {
+    local tag_name="$1"
+    if [ -n "${TAG_PUSH_URL:-}" ]; then
+        git push "$PUSH_URL" "refs/tags/${tag_name}"
+        return
+    fi
+    local auth
+    auth=$(printf 'oauth2:%s' "$TAG_CREATION_TOKEN" | base64 -w0)
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader \
+        GIT_CONFIG_VALUE_0="Authorization: Basic ${auth}" \
+        git push "$PUSH_URL" "refs/tags/${tag_name}"
+}
+
 create_tag() {
     local tag_name="$1"
     local message="$2"
@@ -39,12 +61,11 @@ create_tag() {
     fi
 
     echo "Creating tag $tag_name at ${CI_COMMIT_SHA}..."
-    curl -sf --request POST --header @<(printf 'PRIVATE-TOKEN: %s\n' "$TAG_CREATION_TOKEN") \
-        --data-urlencode "tag_name=${tag_name}" \
-        --data-urlencode "ref=${CI_COMMIT_SHA}" \
-        --data-urlencode "message=${message}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/tags"
-    echo ""
+    # GIT_COMMITTER_* beat `-c user.*`, and the CI image sets them, so set them explicitly.
+    GIT_COMMITTER_NAME="${TAGGER_NAME}" GIT_COMMITTER_EMAIL="${TAGGER_EMAIL}" \
+        git -c "user.name=${TAGGER_NAME}" -c "user.email=${TAGGER_EMAIL}" \
+        tag -a "${tag_name}" "${CI_COMMIT_SHA}" -m "${message}"
+    push_tag "$tag_name"
     echo "Created tag $tag_name."
 }
 

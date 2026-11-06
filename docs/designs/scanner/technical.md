@@ -76,7 +76,7 @@ met, scanned or not.
 
 1. Candidates: every row whose hash is `SHA2(file_path, 256)` and whose path is under the music
    root, and that the walk did not see. A row with a wrong hash is bug report 093's, and
-   `scripts/prod/person/stale_media_rows.py` folds it into its live track instead.
+   `stale_media_rows.py` folds it into its live track instead.
 2. A listing of each candidate's folder decides if the file is gone
    (`services/common/vanished_files.gone_paths`, shared with that script's `--gone` pass). A
    hidden folder the walk skips is settled here too.
@@ -96,9 +96,9 @@ A move with unchanged tags needs no relink: the walk gives the new path a row on
 logged when a row was deleted or a track failed.
 
 The pass is off by default (`scanner_drop_vanished_media`, config). The first deploy removes
-nothing. The 8,372-row backlog goes through `scripts/prod/person/merge-stale-media-rows.sh --gone`
+nothing. The 8,372-row backlog goes through `merge-stale-media-rows.sh --gone`
 first, because that script writes a JSON backup and the scanner does not. After that, a curator
-switches the pass on in Beheer > Config.
+switches the pass on in Management > Configuration.
 
 ### Downloader Domain (for Redownload)
 - **`downloads_soundcloud_archive`**: Checked by filename to find original SoundCloud URLs.

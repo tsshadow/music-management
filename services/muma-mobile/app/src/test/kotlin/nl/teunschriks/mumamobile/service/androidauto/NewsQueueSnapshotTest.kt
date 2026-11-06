@@ -41,6 +41,15 @@ class NewsQueueSnapshotTest {
     }
 
     @Test
+    fun `a live station is tuned in again, with no position to restore`() {
+        val snapshot = NewsQueueRules.snapshotOf(emptyList(), 0, 90_000L, null, "slam")
+        assertEquals(
+            NewsQueueRules.RestoreAction.RetuneStation("slam"),
+            NewsQueueRules.restoreTarget(snapshot)
+        )
+    }
+
+    @Test
     fun `an empty player leaves nothing to restore`() {
         assertNull(NewsQueueRules.snapshotOf(emptyList(), 0, 0L, null))
         assertEquals(

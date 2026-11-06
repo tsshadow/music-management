@@ -173,7 +173,7 @@ change, and MuMa Mobile's native code reads none of them.
 | `GET /api/library/bpm/tracks` | `bpm` + optional `tol` (0-10, default `bpm_browse_tolerance` = 2), **or** `bpm_from` and/or `bpm_to` (40-500, inclusive); optional `min_confidence` (`low`/`medium`/`high`), `genre` (a name, case-insensitive), `limit` (1-500, default 100), `offset` | `{bpm_from, bpm_to, center, tolerance, min_confidence, genre, total, offset, next_offset, tracks: [{id, title, artist, duration_secs, work_id, genres, library_path, bpm, bpm_source, bpm_confidence, bpm_folded, bpm_approximate}]}`. With `bpm`: nearest first, then more trusted, then id. With a range: by tempo, then id. | 400: neither `bpm` nor a range bound; `bpm_from` > `bpm_to`. 422: a value outside its bounds, an unknown `min_confidence`. 401/403/503: the shared key check and database outage. |
 | `GET /api/library/bpm/histogram` | optional `min_confidence`, `genre`, `bpm_from` (default 60), `bpm_to` (default 300) | `{bins: [{bpm, count, high, medium, low}], genres: [{name, count}] (top 40), default_tolerance, summary: {tracks, by_source, by_confidence}}` | as above |
 
-Config (Beheer → Config → BPM): `bpm_browse_tolerance` (integer, default 2, clamped 0-10) and
+Config (Management > Configuration → BPM): `bpm_browse_tolerance` (integer, default 2, clamped 0-10) and
 `bpm_reliable_confidence` (integer percent, default 75).
 
 ## Frontend
@@ -244,7 +244,7 @@ incidents). The container has `cpus: 2` (`MUMA_CPUS_BPM`) and `mem_limit: 768m`
 share is mounted read-only; the analyzer writes no tags (the tagger does, since issue #139:
 [bpm-tag-writeback](../bpm-tag-writeback/technical.md)).
 
-**Settings** (Beheer → Config → BPM, all re-read every round from music-manager's `config.json`,
+**Settings** (Management > Configuration → BPM, all re-read every round from music-manager's `config.json`,
 which the container mounts read-only -- ConfigStore reads its file once per process, which is
 wrong for a process that lives for weeks): `bpm_analysis_enabled` (default on),
 `bpm_analysis_paused`, `bpm_analysis_workers` (2, 1-8), `bpm_analysis_excerpt_seconds` (60, 20-180),
@@ -290,7 +290,7 @@ cost of a second core that the overcommitted host may not have to spare.
   pill in `TrackList`.
 - LMS: none (`getSongsByPath` already exists).
 - Deployment: a new `bpm-analyzer` service in docker/docker-compose.yml (tools image), started by the
-  normal deploy; `MUMA_CPUS_BPM` / `MUMA_MEM_LIMIT_BPM` override its ceilings (muma-ops docs/deployment-production.md).
+  normal deploy; `MUMA_CPUS_BPM` / `MUMA_MEM_LIMIT_BPM` override its ceilings (the operator's runbook).
 - MuMa Mobile native (Android Auto browse tree): none in this change; the BPM folder followed in
   issue #140 ([android-auto-bpm](../android-auto-bpm/technical.md)), on these two endpoints unchanged.
 - Issue #141: a new table (migrate_v51) that the bpm-analyzer fills; the web UI's library table,

@@ -1,5 +1,5 @@
 /**
- * Helpers for the downloader Koppelingen tab and the "Gekoppeld aan" column.
+ * Helpers for the downloader Links tab and the "Gekoppeld aan" column.
  *
  * The API proposes a label or artist per channel where the names leave no doubt
  * (docs/designs/channel-links). Filtering happens here, on the client: a
@@ -72,7 +72,7 @@ export function refreshMessage(result) {
 }
 
 /**
- * Whether the Volledigheid table offers "koppelen" for a channel: it has a
+ * Whether the Coverage table offers "koppelen" for a channel: it has a
  * channel, no open proposal to decide instead, and at least one kind unlinked.
  */
 export function offersHandLink(channel) {

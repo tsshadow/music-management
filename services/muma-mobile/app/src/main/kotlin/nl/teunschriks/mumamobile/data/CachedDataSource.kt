@@ -171,6 +171,17 @@ class CachedDataSource(private var upstreamDataSource: DataSource) : BaseDataSou
      */
     override fun getUri(): Uri? = cachePath?.toUri() ?: upstreamDataSource.uri
 
+    /**
+     * The upstream's headers, or none for a cached file. Media3 asks every stream for ICY metadata
+     * and reads `icy-metaint` here to take that metadata back out. Without it the text stays in the
+     * audio of a live station, and the MP3 decoder fails on the damaged frame.
+     */
+    override fun getResponseHeaders(): Map<String, List<String>> = if (cachePath != null) {
+        emptyMap()
+    } else {
+        upstreamDataSource.responseHeaders
+    }
+
     override fun close() {
         Timber.i("CachedDatasource: close %s", openedFile)
         if (openedFile) {

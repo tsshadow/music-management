@@ -1,0 +1,1 @@
+- Live stations gave errors and no music on the phone. The app asked the broadcaster for song titles, but then left that text in the audio, which can stop the MP3 decoder. The app now takes the text out, so the car and the app can also show the song title.

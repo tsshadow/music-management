@@ -1654,7 +1654,8 @@
     "browse": "Bladeren",
     "favorites": "Favorieten",
     "help": "Handleiding",
-    "bpm": "BPM"
+    "bpm": "BPM",
+    "radio": "Radio"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -1694,7 +1695,6 @@
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",
     "previous": "Vorige",
-    "radio": "Radio",
     "repeat": "Herhalen",
     "restoringQueue": "Wachtrij wordt hersteld…",
     "seek": "Door nummer spoelen",
@@ -1708,7 +1708,8 @@
     "unknownTrack": "Onbekend nummer",
     "unknownArtist": "Onbekende artiest",
     "unknownAlbum": "Onbekend album",
-    "pause": "Pauze"
+    "pause": "Pauze",
+    "stopRadio": "Radio stoppen"
   },
   "queue": {
     "clear": "Lijst leegmaken",
@@ -1719,11 +1720,11 @@
     "playlistNamePrompt": "Geef een naam voor de nieuwe afspeellijst:"
   },
   "radio": {
-    "chooseChannel": "Kies een kanaal",
     "couldNotStart": "Kon de radio niet starten",
     "noChannels": "Geen radiokanalen beschikbaar",
     "stationsHeading": "Radio",
-    "channelsHeading": "MuMa Radio"
+    "channelsHeading": "MuMa Radio",
+    "couldNotLoad": "Kon de radiolijst niet laden"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

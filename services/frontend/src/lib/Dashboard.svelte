@@ -1695,6 +1695,8 @@
     <LazyView name="history" props={{ onnavigate: (v) => activeView = v }} />
   {:else if activeView === 'bpm'}
     <LazyView name="bpm" props={{ onnavigate: (v) => onnavigate(v) }} />
+  {:else if activeView === 'radio'}
+    <LazyView name="radio" />
   {:else if activeView === 'listening'}
     <LazyView name="listening" props={{ onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'starred'}

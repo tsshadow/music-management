@@ -552,17 +552,17 @@ describe("NowPlaying track info", () => {
     }
   });
 
-  it("shows a radio button only when the player wires one, tinted while a channel plays", async () => {
-    renderNowPlaying();
+  it("shows a stop button for radio only while radio plays", async () => {
+    const onstopRadio = vi.fn();
+    renderNowPlaying({ onstopRadio, radioActive: false });
     expect(screen.queryByTestId("now-playing-radio")).toBeNull();
 
-    const ontoggleRadio = vi.fn();
-    renderNowPlaying({ ontoggleRadio, radioActive: true });
+    renderNowPlaying({ onstopRadio, radioActive: true });
     const button = screen.getByTestId("now-playing-radio");
-    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.getAttribute("aria-label")).toBe("Radio stoppen");
     expect(button.className).toContain("b266ff");
     await fireEvent.click(button);
-    expect(ontoggleRadio).toHaveBeenCalled();
+    expect(onstopRadio).toHaveBeenCalled();
   });
 
   it("shows a news button only when the player wires one, tinted while a bulletin plays", async () => {
@@ -586,25 +586,6 @@ describe("NowPlaying track info", () => {
     expect(button.getAttribute("aria-pressed")).toBe("false");
     expect(button.className).toContain("text-muma-spotify-text");
     expect(button.className).not.toContain("b266ff");
-  });
-
-  it("offers the channel choice as a bottom sheet and starts the tapped channel", async () => {
-    const onstartRadio = vi.fn();
-    const channels = [
-      { slug: "hard", name: "Hard", filter: {} },
-      { slug: "soft", name: "Soft", filter: {} },
-    ];
-    renderNowPlaying({
-      ontoggleRadio: vi.fn(),
-      onstartRadio,
-      radioChannels: channels,
-      showRadioPicker: true,
-    });
-
-    const picker = screen.getByTestId("now-playing-radio-picker");
-    expect(picker.textContent).toContain("Hard");
-    await fireEvent.click(screen.getByText("Soft"));
-    expect(onstartRadio).toHaveBeenCalledWith(channels[1]);
   });
 
   it("offers the song page only when the track has a workId", () => {

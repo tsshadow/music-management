@@ -1,0 +1,1 @@
+- Radio moved from a button in the player to a page under Browse, with the stations and MuMa Radio in one list that scrolls. The player shows a stop button only while radio plays.

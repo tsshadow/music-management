@@ -480,6 +480,9 @@ persist("lms_sync_mode", syncMode);
 // not silently start playing audio the user did not ask for.
 export const radioChannel = writable(null);
 
+// The live stations the Radio page loaded, so a station the car started shows its own name.
+export const knownStations = writable([]);
+
 // The timeline entry currently on air, as returned by /api/radio/{slug}/state.
 export const radioNowPlaying = writable(null);
 

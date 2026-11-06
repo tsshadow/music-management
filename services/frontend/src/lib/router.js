@@ -43,6 +43,7 @@ const PLAIN_VIEWS = [
   "lineups",
   // Browse by BPM; the picked tempo and filters stay on the page, the path stays `/bpm`.
   "bpm",
+  "radio",
   "artists",
   "playlists",
   "memories",

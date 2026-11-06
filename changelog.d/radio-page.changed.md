@@ -1,0 +1,1 @@
+- Radio is now a page in the sidebar and under Browse, with the live stations and MuMa Radio in one list that scrolls. The radio button in the player is gone; a stop button shows only while radio plays.

@@ -15,10 +15,15 @@
 # The tag carries a hash of the Dockerfile, so editing the Dockerfile produces
 # a new tag and therefore a rebuild - a fixed tag would silently keep serving
 # the stale image forever.
+#
+# It also carries the uid. The image is built for the user that runs this, and
+# a job and a local test share one Docker daemon on the runner host. A local
+# build under the one tag made /home/ci read-only for the runner, and every
+# Android job failed at plugin apply (bug report 154).
 
 _android_image_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 _android_dockerfile="$_android_image_root/docker/Dockerfile-android-ci"
-_android_tag="37-$(sha256sum "$_android_dockerfile" | cut -c1-12)"
+_android_tag="37-$(sha256sum "$_android_dockerfile" | cut -c1-12)-uid$(id -u)"
 
 ANDROID_CI_IMAGE="music-management/android-ci:${_android_tag}"
 export ANDROID_CI_IMAGE

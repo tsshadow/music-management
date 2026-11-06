@@ -158,6 +158,14 @@ The system is split into specialized services, each handling a specific part of 
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
   (docs/designs/bpm-tag-writeback/).
 
+### 8. Live stations (`radio_stations`, `services/music_manager/routers/radio.py`)
+- **Purpose**: "Radio" in the interface is the list of broadcasters a curator keeps in Beheer. The
+  device plays their `https` stream directly, in the app, in the car and in the web player. The
+  channels MuMa makes from the library are "MuMa Radio" ([docs/radio-mode.md](docs/radio-mode.md)).
+- **Limits**: no timeline, no scrobble, no skip. The app tries again for 5 minutes after a connection
+  loss (`StationRetry`). The seed fills only an empty table, so a removed station stays removed
+  ([docs/designs/live-radio-stations/](docs/designs/live-radio-stations/technical.md)).
+
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
   Disabled since 2026-09-25 with the code kept: it was never deployed, has no owner time, and

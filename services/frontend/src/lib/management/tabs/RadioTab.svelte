@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { t } from '../../i18n/index.js';
   import { Radio, RefreshCw, Plus, Trash2, Play, Pause, Search } from '@lucide/svelte';
+  import RadioStationsSection from './RadioStationsSection.svelte';
   import {
     emptyFilterForm,
     filterToForm,
@@ -408,4 +409,6 @@
       {/if}
     </div>
   {/if}
+
+  <RadioStationsSection {API_BASE} {getHeaders} {onMessage} {onError} />
 </section>

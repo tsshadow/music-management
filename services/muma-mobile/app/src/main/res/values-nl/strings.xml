@@ -66,7 +66,9 @@
     <string name="server_switched_offline">Server onbereikbaar. Overgeschakeld naar offline modus.</string>
     <string name="server_switched_online">Server bereikbaar. Online modus hersteld.</string>
     <string name="main.songs_recent_added">Recent toegevoegd</string>
-    <string name="main.radio_title">Radio</string>
+    <string name="main.radio_title">MuMa Radio</string>
+    <string name="main.stations_title">Radio</string>
+    <string name="main.station_unavailable">Niet beschikbaar</string>
     <string name="main.news_title">Nieuws</string>
     <string name="main.daily_mixes_title">Dagelijkse mixen</string>
     <string name="main.release_radar_title">Release radar</string>

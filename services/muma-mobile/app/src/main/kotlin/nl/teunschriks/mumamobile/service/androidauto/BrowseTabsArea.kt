@@ -94,6 +94,7 @@ internal class BrowseTabsArea(context: BrowseContext) : BrowseArea(context) {
         }
         mediaItems.add(R.string.auto_presets, MEDIA_FAVORITE_PLAYLISTS_ID, R.string.favorites_title)
 
+        mediaItems.add(R.string.main_stations_title, MEDIA_STATION_ID, R.string.auto_group_live)
         mediaItems.add(R.string.main_radio_title, MEDIA_RADIO_ID, R.string.auto_group_live)
         mediaItems.add(R.string.main_news_title, MEDIA_NEWS_ID, R.string.auto_group_live)
 

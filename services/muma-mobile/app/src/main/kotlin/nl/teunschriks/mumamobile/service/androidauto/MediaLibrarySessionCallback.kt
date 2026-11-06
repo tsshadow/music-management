@@ -35,7 +35,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
+import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
@@ -138,12 +140,19 @@ class MediaLibrarySessionCallback :
         }
     )
 
+    val stationPlaybackController = StationPlaybackController(
+        serviceScope = serviceScope,
+        mumaApiProvider = { subsonicAPIClient.mumaApi.api },
+        unavailableText = { UApp.applicationContext().getString(R.string.main_station_unavailable) }
+    )
+
     // News interrupts the music and hands it back afterwards, so it needs the
     // radio controller to re-tune rather than restore a stale position.
     private val newsPlaybackController = NewsPlaybackController(
         serviceScope = serviceScope,
         mumaApiProvider = { subsonicAPIClient.mumaApi.api },
-        onRetune = { player, slug -> radioPlaybackController.start(player, slug) }
+        onRetune = { player, slug -> radioPlaybackController.start(player, slug) },
+        onRetuneStation = { player, slug -> stationPlaybackController.start(player, slug) }
     )
 
     /** Read by [PlaybackService] for the Capacitor bridge. */
@@ -167,6 +176,7 @@ class MediaLibrarySessionCallback :
      */
     fun release() {
         radioPlaybackController.release()
+        stationPlaybackController.stop()
         serviceJob.cancel()
         mainScope.cancel()
     }
@@ -467,7 +477,9 @@ class MediaLibrarySessionCallback :
      * from the server, there is nothing to insert after and the request is better served as a
      * plain play.
      */
-    private fun canQueueNext(player: Player): Boolean = !radioPlaybackController.isActive && player.mediaItemCount > 0
+    private fun canQueueNext(player: Player): Boolean = !radioPlaybackController.isActive &&
+        !stationPlaybackController.isActive &&
+        player.mediaItemCount > 0
 
     @OptIn(UnstableApi::class)
     private fun queueNextFromSearch(
@@ -539,14 +551,20 @@ class MediaLibrarySessionCallback :
         }
 
         // Radio owns the player while it is on: it drives a single item from the
-        // server's timeline instead of handing Media3 a queue. Returning an empty
-        // list keeps Media3 from also queueing the channel placeholder item.
-        val radioSlug = mediaItems[0].mediaId
-            .takeIf { it.startsWith("$MEDIA_RADIO_ITEM|") }
-            ?.substringAfter('|')
-        if (radioSlug != null) {
+        // server's timeline instead of handing Media3 a queue. A live station owns it the same
+        // way. Returning an empty list keeps Media3 from also queueing the placeholder item.
+        val firstId = mediaItems[0].mediaId
+        val isStation = StationPlaybackController.isStationItem(firstId)
+        if (isStation || firstId.startsWith("$MEDIA_RADIO_ITEM|")) {
+            val slug = firstId.substringAfter('|')
             listContinuation.stop()
-            radioPlaybackController.start(mediaSession.player, radioSlug)
+            if (isStation) {
+                stopRadioIfRunning(mediaSession)
+                stationPlaybackController.start(mediaSession.player, slug)
+            } else {
+                stationPlaybackController.stop()
+                radioPlaybackController.start(mediaSession.player, slug)
+            }
             updateAvailableCommands(mediaSession)
             return Futures.immediateFuture(emptyList())
         }
@@ -603,7 +621,8 @@ class MediaLibrarySessionCallback :
      */
     fun onQueueMoved(player: Player) {
         if (!listContinuation.isActive || listContinuation.isLoading) return
-        if (radioPlaybackController.isActive || newsPlaybackController.isActive) return
+        if (radioPlaybackController.isActive || stationPlaybackController.isActive) return
+        if (newsPlaybackController.isActive) return
         listContinuation.onQueueMoved(PlayerListQueue(player))
     }
 
@@ -835,7 +854,9 @@ class MediaLibrarySessionCallback :
      * takes back. Media3 intersects this with the underlying player's own available commands, so
      * the player still has the last word. See [playerCommandsFor].
      */
-    private fun radioAwarePlayerCommands(): Player.Commands = playerCommandsFor(radioPlaybackController.isActive)
+    private fun radioAwarePlayerCommands(): Player.Commands = playerCommandsFor(
+        radioPlaybackController.isActive || stationPlaybackController.isActive
+    )
 
     /**
      * onConnect only runs once per controller, so switching radio on or off has
@@ -864,8 +885,9 @@ class MediaLibrarySessionCallback :
      */
     private fun startNews(session: MediaSession, bulletinId: Long?) {
         val radioSlug = radioPlaybackController.currentSlug
+        val stationSlug = stationPlaybackController.currentSlug
         stopRadioIfRunning(session)
-        newsPlaybackController.play(session.player, bulletinId, radioSlug)
+        newsPlaybackController.play(session.player, bulletinId, radioSlug, stationSlug)
     }
 
     /** Called by the service when playback ends, so the music can come back. */
@@ -875,9 +897,11 @@ class MediaLibrarySessionCallback :
         }
     }
 
+    /** Stops MuMa Radio and a live station: whichever is on must give the player back. */
     private fun stopRadioIfRunning(session: MediaSession) {
-        if (!radioPlaybackController.isActive) return
-        radioPlaybackController.stop(session.player)
+        if (!radioPlaybackController.isActive && !stationPlaybackController.isActive) return
+        if (radioPlaybackController.isActive) radioPlaybackController.stop(session.player)
+        stationPlaybackController.stop()
         updateAvailableCommands(session)
     }
 

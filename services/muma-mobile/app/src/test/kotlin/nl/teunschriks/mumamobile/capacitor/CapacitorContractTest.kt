@@ -225,6 +225,11 @@ class CapacitorContractTest {
     }
 
     @Test
+    fun `a live station becomes the media id the session recognises`() {
+        stationItemMediaId("slam") shouldBeEqualTo "MEDIA_STATION_ITEM|slam"
+    }
+
+    @Test
     fun `a slug with its own pipe still round-trips through substringAfter`() {
         val mediaId = radioItemMediaId("late-night|beta")
         mediaId.substringAfter('|') shouldBeEqualTo "late-night|beta"

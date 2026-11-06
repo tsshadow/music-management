@@ -51,6 +51,7 @@ import nl.teunschriks.mumamobile.provider.UltrasonicAppWidgetProvider
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback
 import nl.teunschriks.mumamobile.service.androidauto.NewsPlaybackController
+import nl.teunschriks.mumamobile.service.androidauto.StationPlaybackController
 import nl.teunschriks.mumamobile.util.Constants
 import nl.teunschriks.mumamobile.util.FileUtil.getCompleteFile
 import nl.teunschriks.mumamobile.util.SessionMarker
@@ -126,6 +127,9 @@ class PlaybackService :
      * actually playing are not the same thing.
      */
     val currentRadioSlug: String? get() = librarySessionCallback.currentRadioSlug
+
+    /** Same, for a live station. */
+    val currentStationSlug: String? get() = librarySessionCallback.stationPlaybackController.currentSlug
 
     /** Same, for a running news bulletin. */
     val isNewsPlaying: Boolean get() = librarySessionCallback.isNewsPlaying
@@ -445,10 +449,21 @@ class PlaybackService :
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (isPlaying) errorRecovery.onPlaying()
+            if (isPlaying) {
+                errorRecovery.onPlaying()
+                librarySessionCallback.stationPlaybackController.onPlaying()
+            }
             scrobbler?.onPlayingChanged(isPlaying)
             updateWidgetPlayerState(isPlaying)
             cacheNextSongs()
+        }
+
+        // A pause holds old audio in the buffer. A station goes back to the live point instead.
+        // The controller's own play() does not come here: the flag is already true after a retry.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                librarySessionCallback.stationPlaybackController.onPlayPressed(player)
+            }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -456,7 +471,10 @@ class PlaybackService :
             if (playbackState == Player.STATE_ENDED) {
                 // Nothing transitions away when the queue simply runs out.
                 scrobbler?.onEnded()
-                librarySessionCallback.onPlaybackEnded(player)
+                // A live stream has no end: the broadcaster closed the connection.
+                if (!librarySessionCallback.stationPlaybackController.onStreamFailed(player)) {
+                    librarySessionCallback.onPlaybackEnded(player)
+                }
             }
         }
 
@@ -478,6 +496,7 @@ class PlaybackService :
      */
     private fun recoverFromError(error: PlaybackException) {
         if (actualBackend == MediaPlayerManager.PlayerBackend.JUKEBOX) return
+        if (librarySessionCallback.stationPlaybackController.onStreamFailed(player)) return
         val item = player.currentMediaItem ?: return
         val entry = PlaybackErrorRecovery.Entry(player.currentMediaItemIndex, item.mediaId)
         val step = errorRecovery.onError(entry, player.hasNextMediaItem())
@@ -561,6 +580,8 @@ class PlaybackService :
 
     private fun cacheNextSongs() {
         if (actualBackend == MediaPlayerManager.PlayerBackend.JUKEBOX) return
+        // A live stream has no file to download.
+        if (StationPlaybackController.isStationItem(player.currentMediaItem?.mediaId)) return
         Timber.d("PlaybackService caching the next songs")
         val nextSongs = Util.getPlayListFromTimeline(
             player.currentTimeline,

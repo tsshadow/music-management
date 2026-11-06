@@ -1,0 +1,1 @@
+- Radio: live stations from outside MuMa, to start with SLAM, Q-dance and 538, in the web player and in the app. A curator changes the list in Beheer > Radio. Your device connects to the broadcaster, and a station adds no listens to your history. The channels MuMa makes from your library are now called MuMa Radio; a channel name you chose yourself stays.

@@ -28,6 +28,8 @@ pytestmark = pytest.mark.integration
 # request body. Against an empty-but-valid schema each must answer 2xx or a
 # deliberate 4xx -- never a 500, which is what invalid SQL produces.
 READ_ENDPOINTS = [
+    ('/api/radio/stations', 200),
+    ('/api/radio/stations?include_disabled=true', 200),
     ('/api/users', 200),
     ('/api/import-conflicts', 200),
     # The LMS listen reconcile's status is process state; its dry run needs an lms.db and is
@@ -3216,3 +3218,30 @@ class BpmBrowseSqlTest:
         assert (
             api.put('/api/library/bpm/tracks/999999999/manual', json={'bpm': 120}, headers=headers).status_code == 404
         )
+
+
+class RadioStationsSqlTest:
+    """The live-station queries against the real server (issue #213)."""
+
+    STATION = {'slug': 'slam', 'name': 'SLAM', 'stream_url': 'https://example.com/slam.mp3', 'sort_order': 20}
+
+    def test_create_list_update_and_delete(self, api, headers):
+        assert api.post('/api/radio/stations', headers=headers, json=self.STATION).status_code == 201
+        second = {**self.STATION, 'slug': 'first', 'name': 'First', 'sort_order': 10}
+        assert api.post('/api/radio/stations', headers=headers, json=second).status_code == 201
+        assert api.post('/api/radio/stations', headers=headers, json=self.STATION).status_code == 409
+
+        listed = api.get('/api/radio/stations', headers=headers).json()['stations']
+        assert [station['slug'] for station in listed] == ['first', 'slam']
+
+        response = api.put('/api/radio/stations/slam', headers=headers, json={'enabled': False, 'name': 'Slam!'})
+        assert response.status_code == 200, response.text
+        assert response.json()['name'] == 'Slam!'
+
+        listed = api.get('/api/radio/stations', headers=headers).json()['stations']
+        assert [station['slug'] for station in listed] == ['first']
+        listed = api.get('/api/radio/stations?include_disabled=true', headers=headers).json()['stations']
+        assert [(station['slug'], station['enabled']) for station in listed] == [('first', True), ('slam', False)]
+
+        assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 200
+        assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 404

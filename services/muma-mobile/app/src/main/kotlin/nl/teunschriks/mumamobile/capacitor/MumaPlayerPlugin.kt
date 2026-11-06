@@ -64,7 +64,8 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `setEqualizer({enabled, gains, preamp})` | `EqualizerController`, resampled by [nativeBandGains] |
  * | `setMode({shuffle, repeat})` | `mediaPlayerManager.isShufflePlayEnabled`/`repeatMode`, resolved with a fresh [snapshot] |
  * | `startRadio({slug})` | `mediaPlayerManager.startRadioChannel(slug)` -- a media id [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems] already resolves onto the server's timeline |
- * | `stopRadio()` | `mediaPlayerManager.stopRadio()` -- the `CUSTOM_COMMAND_STOP_RADIO` session command |
+ * | `startStation({slug})` | `mediaPlayerManager.startStation(slug)` -- a media id `onAddMediaItems` resolves to a live station |
+ * | `stopRadio()` | `mediaPlayerManager.stopRadio()` -- the `CUSTOM_COMMAND_STOP_RADIO` session command, for MuMa Radio and a live station |
  * | `toggleNews()` | `mediaPlayerManager.toggleNews()` -- the `CUSTOM_COMMAND_PLAY_NEWS` session command, which already toggles both ways |
  * | `state()` | `{status, position, duration, trackId, volume, queueIndex, queueLength, shuffle, repeat, radioChannel, newsPlaying}` |
  *
@@ -401,6 +402,20 @@ class MumaPlayerPlugin :
         }
     }
 
+    /** Tunes into a live station. [stopRadio] leaves it again. */
+    @PluginMethod
+    fun startStation(call: PluginCall) {
+        val slug = call.getString("slug")
+        if (slug.isNullOrBlank()) {
+            call.reject("startStation needs a slug")
+            return
+        }
+        onMain {
+            mediaPlayerManager.startStation(slug)
+            call.resolve()
+        }
+    }
+
     /** Leaves radio mode without starting anything else. */
     @PluginMethod
     fun stopRadio(call: PluginCall) = onMain {
@@ -562,6 +577,8 @@ class MumaPlayerPlugin :
             .put("shuffle", mediaPlayerManager.isShufflePlayEnabled)
             .put("repeat", repeatModeWire(mediaPlayerManager.repeatMode))
             .put("radioChannel", mediaPlayerManager.currentRadioSlug)
+            .put("stationSlug", mediaPlayerManager.currentStationSlug)
+            .put("stationTitle", mediaPlayerManager.currentStationTitle)
             .put("newsPlaying", mediaPlayerManager.isNewsPlaying)
             .put("buffering", isBufferingOf(mediaPlayerManager.playbackState, mediaPlayerManager.playWhenReady))
     }

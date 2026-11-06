@@ -8,12 +8,13 @@
  */
 
 /** Snapshot the player, or null when there was nothing playing to come back to. */
-export function snapshotOf({ trackId, positionSeconds, radioChannel }) {
-  if (!trackId && !radioChannel) return null;
+export function snapshotOf({ trackId, positionSeconds, radioChannel, station }) {
+  if (!trackId && !radioChannel && !station) return null;
   return {
     trackId: trackId ?? null,
     positionSeconds: positionSeconds ?? 0,
     radioChannel: radioChannel ?? null,
+    station: station ?? null,
   };
 }
 
@@ -21,6 +22,7 @@ export function snapshotOf({ trackId, positionSeconds, radioChannel }) {
 export function restoreTarget(snapshot) {
   if (!snapshot) return { action: "none" };
   if (snapshot.radioChannel) return { action: "retune", channel: snapshot.radioChannel };
+  if (snapshot.station) return { action: "station", station: snapshot.station };
   if (!snapshot.trackId) return { action: "none" };
   return {
     action: "track",

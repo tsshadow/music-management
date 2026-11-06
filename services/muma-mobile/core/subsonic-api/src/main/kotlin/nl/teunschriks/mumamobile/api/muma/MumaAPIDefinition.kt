@@ -266,6 +266,9 @@ interface MumaAPIDefinition {
     @GET("api/radio/channels")
     fun getRadioChannels(): Call<RadioChannelsResponse>
 
+    @GET("api/radio/stations")
+    fun getRadioStations(): Call<RadioStationsResponse>
+
     @GET("api/radio/{slug}/state")
     fun getRadioState(
         @Path("slug") slug: String

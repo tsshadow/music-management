@@ -572,6 +572,127 @@ class ChannelAdminTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 403, f'{method} {path}')
 
 
+class RadioStationsTest(unittest.TestCase):
+    """The live stations a device plays directly from the broadcaster (issue #213)."""
+
+    SLAM = {
+        'slug': 'slam',
+        'name': 'SLAM',
+        'stream_url': 'https://example.com/slam.mp3',
+        'sort_order': 10,
+        'enabled': 1,
+    }
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.headers = {'x-api-key': resolve_system_api_key()}
+
+    @staticmethod
+    def _conn(fetchone=None, fetchall=None, rowcount=1):
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = fetchone
+        cursor.fetchall.return_value = fetchall or []
+        cursor.rowcount = rowcount
+        conn.cursor.return_value.__enter__.return_value = cursor
+        return conn, cursor
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_a_listener_gets_only_enabled_stations_in_order(self, mock_get_db):
+        conn, cursor = self._conn(fetchall=[self.SLAM])
+        mock_get_db.return_value = conn
+        response = self.client.get('/api/radio/stations', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['stations'][0]['stream_url'], self.SLAM['stream_url'])
+        self.assertIs(response.json()['stations'][0]['enabled'], True)
+        sql = cursor.execute.call_args[0][0]
+        self.assertIn('WHERE enabled = 1', sql)
+        self.assertIn('ORDER BY sort_order, name', sql)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_an_editor_can_also_see_the_disabled_ones(self, mock_get_db):
+        conn, cursor = self._conn()
+        mock_get_db.return_value = conn
+        response = self.client.get('/api/radio/stations?include_disabled=true', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('WHERE enabled', cursor.execute.call_args[0][0])
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_creates_a_station(self, mock_get_db):
+        conn, cursor = self._conn(fetchone=None)
+        mock_get_db.return_value = conn
+        response = self.client.post(
+            '/api/radio/stations',
+            headers=self.headers,
+            json={'slug': 'slam', 'name': ' SLAM ', 'stream_url': 'https://example.com/slam.mp3'},
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['name'], 'SLAM')
+        self.assertIn('INSERT INTO radio_stations', cursor.execute.call_args[0][0])
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_rejects_a_duplicate_slug(self, mock_get_db):
+        conn, _ = self._conn(fetchone={'id': 1})
+        mock_get_db.return_value = conn
+        response = self.client.post(
+            '/api/radio/stations',
+            headers=self.headers,
+            json={'slug': 'slam', 'name': 'SLAM', 'stream_url': 'https://example.com/slam.mp3'},
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_an_address_a_device_cannot_play_is_turned_down(self):
+        for url in ('http://example.com/s.mp3', 'ftp://example.com/s.mp3', 'https://', 'slam', ''):
+            with self.subTest(url=url):
+                response = self.client.post(
+                    '/api/radio/stations',
+                    headers=self.headers,
+                    json={'slug': 'slam', 'name': 'SLAM', 'stream_url': url},
+                )
+                self.assertEqual(response.status_code, 400)
+                response = self.client.put('/api/radio/stations/slam', headers=self.headers, json={'stream_url': url})
+                self.assertEqual(response.status_code, 400)
+
+    def test_an_update_without_a_field_is_turned_down(self):
+        response = self.client.put('/api/radio/stations/slam', headers=self.headers, json={})
+        self.assertEqual(response.status_code, 400)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_update_of_an_unknown_station_is_404(self, mock_get_db):
+        conn, _ = self._conn(fetchone=None)
+        mock_get_db.return_value = conn
+        response = self.client.put('/api/radio/stations/nope', headers=self.headers, json={'enabled': False})
+        self.assertEqual(response.status_code, 404)
+
+    @patch('services.music_manager.routers.radio.get_db_connection')
+    def test_delete_of_an_unknown_station_is_404(self, mock_get_db):
+        conn, _ = self._conn(rowcount=0)
+        mock_get_db.return_value = conn
+        response = self.client.delete('/api/radio/stations/nope', headers=self.headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_managing_stations_needs_more_than_being_logged_in(self):
+        with patch('services.music_manager.routers.users.verify_api_key') as mock_verify:
+            mock_verify.side_effect = lambda _x_api_key=None: {
+                'type': 'user',
+                'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'},
+            }
+            key = {'x-api-key': 'listener-key'}
+            body = {'slug': 'x', 'name': 'X', 'stream_url': 'https://example.com/x.mp3'}
+            self.assertEqual(self.client.post('/api/radio/stations', headers=key, json=body).status_code, 403)
+            self.assertEqual(self.client.put('/api/radio/stations/x', headers=key, json=body).status_code, 403)
+            self.assertEqual(self.client.delete('/api/radio/stations/x', headers=key).status_code, 403)
+
+    def test_a_listener_cannot_see_the_disabled_stations(self):
+        app.dependency_overrides[radio_router.verify_api_key] = lambda: {
+            'type': 'user',
+            'user': {'id': 5, 'permissions': ['music.play'], 'role_name': 'user'},
+        }
+        self.addCleanup(app.dependency_overrides.pop, radio_router.verify_api_key, None)
+        response = self.client.get('/api/radio/stations?include_disabled=true', headers=self.headers)
+        self.assertEqual(response.status_code, 403)
+
+
 class RadioInitDbTest(unittest.TestCase):
     def test_init_db_seeds_the_default_channel_and_touches_no_schema(self):
         cursor = MagicMock()
@@ -579,3 +700,11 @@ class RadioInitDbTest(unittest.TestCase):
         statements = [call[0][0] for call in cursor.execute.call_args_list]
         self.assertTrue(any('INSERT IGNORE INTO radio_channels' in s for s in statements))
         self.assertFalse(any('CREATE TABLE' in s or 'ALTER TABLE' in s for s in statements))
+
+    def test_init_db_gives_the_default_channel_its_new_name_but_keeps_a_chosen_one(self):
+        cursor = MagicMock()
+        radio_router.init_db(cursor)
+        statements = [call[0][0] for call in cursor.execute.call_args_list]
+        self.assertTrue(
+            any("SET name = 'MuMa Radio'" in s and "slug = 'main'" in s and "name = 'Radio'" in s for s in statements)
+        )

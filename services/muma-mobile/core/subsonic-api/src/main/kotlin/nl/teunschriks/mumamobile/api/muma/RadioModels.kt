@@ -17,6 +17,17 @@ data class RadioChannelsResponse(
     val channels: List<RadioChannel> = emptyList()
 )
 
+/** A live station from outside MuMa. The device connects to [streamUrl] itself. */
+data class RadioStation(
+    val slug: String = "",
+    val name: String = "",
+    @SerializedName("stream_url") val streamUrl: String = ""
+)
+
+data class RadioStationsResponse(
+    val stations: List<RadioStation> = emptyList()
+)
+
 data class RadioEntry(
     @SerializedName("track_id") val trackId: String = "",
     val title: String = "",

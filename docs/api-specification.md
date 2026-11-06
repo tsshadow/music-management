@@ -494,6 +494,21 @@ join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical
   the Unix timestamp of the oldest listen a run reached; the next import for the same
   `username`/`lb_username` after a `truncated` or `failed` run continues strictly below it.
 
+### 📻 Live stations (`/api/radio/stations`)
+Broadcasters a device plays directly. The server never opens a `stream_url`. See
+[designs/live-radio-stations/technical.md](designs/live-radio-stations/technical.md).
+- **GET `/api/radio/stations`**: any authenticated account. Response: `{"stations": [{"slug", "name",
+  "stream_url", "sort_order", "enabled"}]}`, by `sort_order`, then `name`. `?include_disabled=true`
+  also lists the disabled stations and needs `radio.manage` (403 without it).
+- **POST `/api/radio/stations`** (`radio.manage`): `slug`, `name`, `stream_url`, optional `sort_order`
+  and `enabled`. Answers 201 with the station, 409 for a slug that exists, 400 for an invalid value.
+- **PUT `/api/radio/stations/{slug}`** (`radio.manage`): any of `name`, `stream_url`, `sort_order`,
+  `enabled`. Answers the station, 404 for an unknown slug, 400 for an invalid value or no field.
+- **DELETE `/api/radio/stations/{slug}`** (`radio.manage`): answers `{"deleted": slug}`, 404 for an
+  unknown slug.
+- `stream_url` must be `https://` with a host: Android refuses cleartext and a browser blocks it as
+  mixed content.
+
 ### 📻 News bulletins
 See [news-mode.md](news-mode.md).
 - **GET `/api/news/sources`**, **GET `/api/news/bulletins?source=&limit=`** (limit 1–100),

@@ -1043,7 +1043,21 @@
       "slugRequired": "Deze naam levert geen bruikbare slug op.",
       "subtitle": "Een kanaal is een opgeslagen filter: label, genre, artiest, duur of waardering. Leeg betekent de hele bibliotheek.",
       "takeOffAir": "Uit de lucht halen",
-      "wholeLibrary": "De hele bibliotheek"
+      "wholeLibrary": "De hele bibliotheek",
+      "stations": {
+        "title": "Radiozenders",
+        "new": "Nieuwe zender",
+        "empty": "Nog geen zenders.",
+        "streamUrl": "Streamadres (https)",
+        "sortOrder": "Volgorde",
+        "loadFailed": "Kon de zenders niet laden.",
+        "saveFailed": "Kon de zender niet opslaan.",
+        "deleteFailed": "Kon de zender niet verwijderen.",
+        "deleted": "Zender {name} verwijderd.",
+        "confirmDelete": "Zender {name} verwijderen?",
+        "saved": "Zender {name} opgeslagen.",
+        "nameRequired": "Een zender heeft een naam nodig."
+      }
     },
     "requests": {
       "approveFailed": "Goedkeuren mislukt.",
@@ -1707,7 +1721,9 @@
   "radio": {
     "chooseChannel": "Kies een kanaal",
     "couldNotStart": "Kon de radio niet starten",
-    "noChannels": "Geen radiokanalen beschikbaar"
+    "noChannels": "Geen radiokanalen beschikbaar",
+    "stationsHeading": "Radio",
+    "channelsHeading": "MuMa Radio"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

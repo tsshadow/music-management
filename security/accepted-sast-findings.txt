@@ -256,7 +256,7 @@ f1e5984caea1ad23 x4  # sqlalchemy-execute-raw-query services/music_manager/route
 52d582652d6f5d81 x5  # sqlalchemy-execute-raw-query services/music_manager/routers/library.py
 434ba6b05f27e354 x2  # sqlalchemy-execute-raw-query services/music_manager/routers/management.py
 2c6894667e5ec678 x1  # sqlalchemy-execute-raw-query services/music_manager/routers/news.py
-afcd6c1c878ee6df x2  # sqlalchemy-execute-raw-query services/music_manager/routers/radio.py
+afcd6c1c878ee6df x5  # sqlalchemy-execute-raw-query services/music_manager/routers/radio.py
 c1ede732ba67a9b6 x1  # sqlalchemy-execute-raw-query services/music_manager/routers/rating.py
 6f7c0f6ba57529f6 x5  # sqlalchemy-execute-raw-query services/music_manager/routers/users.py
 525d9c224087b6f9 x2  # sqlalchemy-execute-raw-query tools/check_db_structure.py

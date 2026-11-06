@@ -1,2 +1,0 @@
-- The `firefox` container is now behind the `youtube` and `soundcloud` compose profiles (the workers that read its cookies) and publishes port 7003 on `127.0.0.1` by default. Set `FIREFOX_BIND_ADDRESS` (for example `0.0.0.0` or a LAN address) to reach it from another machine (#210).
-- `docs/self-hosting.md` covers the Google OAuth clients, the Telegram login, the SoundCloud and YouTube cookies, the first admin and the Android server address; the README no longer calls the APK host built in (#210).

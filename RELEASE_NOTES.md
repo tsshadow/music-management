@@ -11,6 +11,32 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.96.0 (2026-11-06)
+
+- Release tags (`release-vX.Y.Z`, `muma-mobile-vX.Y.Z`) are made with `git tag -a` as `ci-release-tagging <ci-release-tagging@users.noreply.example.com>` and pushed with the project token. Through the GitLab API the tagger was always the project bot, whose address names the private GitLab host (issue #207).
+
+- CI checks commit and tag metadata for personal data. `public:history` runs the public patterns, a banned-word digest list and an identity allowlist over the author, committer and message of every commit and the tagger of every tag: the commits of a merge request as a hard gate, the full history of develop, master and the tags as a tolerated check until #209.
+- The partner's name and account name, the employer and the OAuth project number are guarded by sha256 digests (`scripts/ci/public-banned-tokens.txt`), no longer by patterns that spell them out.
+
+- The history of the repository was rewritten (#209): the private addresses, the bot identity of the private host, the partner's account name and two old secret values are gone from every commit and tag. `public:history` is now a hard gate on develop too, and Renovate branches are no longer skipped.
+
+- The `firefox` container is now behind the `youtube` and `soundcloud` compose profiles (the workers that read its cookies) and publishes port 7003 on `127.0.0.1` by default. Set `FIREFOX_BIND_ADDRESS` (for example `0.0.0.0` or a LAN address) to reach it from another machine (#210).
+- `docs/self-hosting.md` covers the Google OAuth clients, the Telegram login, the SoundCloud and YouTube cookies, the first admin and the Android server address; the README no longer calls the APK host built in (#210).
+
+- The web player is no longer called "Spotify UI" or "Spotify-style" in the docs. A root `NOTICE` lists the three parts and their licences (AGPL-3.0, the LMS fork and MuMa Mobile under GPL-3.0), and the LMS fork README credits upstream LMS. The downloader docs say users follow the platforms' terms of service. The Dutch API error messages and downloader timing labels are English now, so the Delete, Approve and Undo failures of the user endpoints show English text, and docs name the UI pages "Management" and "Links" (refs #211).
+
+- **Docs no longer describe the owner's daily routine or network.** Bug reports 036, 071, 074 and 020, the feeds design, the backup scripts and a few old `CHANGELOG.md` entries (edited in place for privacy, outside the usual release-time assembly) say "a listen", "a car session", relative times and "an authenticating reverse proxy" instead of clock times, an office network, a container number or a provider account. The bugs and their causes are unchanged. Refs #211.
+
+- **Public files no longer name the owner's private operations repository or its production scripts folder.** Runbook pointers in docs, comments, compose files and scripts now say "the operator's own runbook" or name the operator script without a path. `CODEOWNERS` is one placeholder rule that is valid on GitHub and GitLab, the unused `.run/` PyCharm configurations and `.pylint_scrobbler.txt` are gone, and the CI comments about the `fast` runners describe roles instead of hosts. `public:check` rejects both names from now on. Refs #211.
+
+- Radio: live stations from outside MuMa, to start with SLAM, Q-dance and 538, in the web player and in the app. A curator changes the list in Beheer > Radio. Your device connects to the broadcaster, and a station adds no listens to your history. The channels MuMa makes from your library are now called MuMa Radio; a channel name you chose yourself stays.
+
+- `public:history` failed on develop after the history rewrite because the CI runner kept the old tags in its reused clone. The check now fetches tags with `--force --prune-tags`.
+
+- The images and the CI run on Python 3.15 instead of 3.14. The local lint and type-check container follows, and Renovate now updates its default image with the Dockerfiles.
+
+- `.env.example` now has every image variable the compose file uses, with working defaults, plus `COMPOSE_PROFILES` and `FIREFOX_PASSWORD`; the `PHPMYADMIN_URL` typo is gone and `debug` defaults to false. `docs/self-hosting.md` gains a Build the images step and documents `reverse-proxy.conf`, `LMS_DATA_PATH` and `NEWS_DATA_PATH`, and the README Quick Start matches what `install.sh` does (issue #210).
+
 ## Global Version 0.95.0 (2026-10-30)
 
 - A release is deployed from its tag by the operations repository. The release pipeline here

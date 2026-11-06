@@ -53,6 +53,8 @@ const EMPTY_STATE = Object.freeze({
   shuffle: false,
   repeat: "none",
   radioChannel: null,
+  stationSlug: null,
+  stationTitle: null,
   newsPlaying: false,
   buffering: false,
 });
@@ -91,6 +93,8 @@ function snapshotOf(payload, previous) {
     shuffle: typeof payload.shuffle === "boolean" ? payload.shuffle : previous.shuffle,
     repeat: REPEAT_MODES.has(payload.repeat) ? payload.repeat : previous.repeat,
     radioChannel: payload.radioChannel == null ? null : String(payload.radioChannel),
+    stationSlug: payload.stationSlug == null ? null : String(payload.stationSlug),
+    stationTitle: payload.stationTitle == null ? null : String(payload.stationTitle),
     newsPlaying: payload.newsPlaying === true,
     buffering: payload.buffering === true,
   };
@@ -330,6 +334,17 @@ export function createCapacitorPlayer(plugin) {
      */
     async startRadio(slug) {
       await plugin.startRadio({ slug });
+    },
+
+    /**
+     * Tunes into a live station. The service plays the broadcaster's stream itself, and
+     * `stopRadio` leaves it again.
+     *
+     * @param {string} slug
+     * @returns {Promise<void>}
+     */
+    async startStation(slug) {
+      await plugin.startStation({ slug });
     },
 
     /** Leaves radio mode without starting anything else. */

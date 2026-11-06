@@ -18,7 +18,8 @@ data class NewsQueueSnapshot(
     val mediaIds: List<String>,
     val index: Int,
     val positionMs: Long,
-    val wasRadioSlug: String?
+    val wasRadioSlug: String?,
+    val wasStationSlug: String? = null
 )
 
 /**
@@ -33,6 +34,7 @@ object NewsQueueRules {
     sealed interface RestoreAction {
         object Nothing : RestoreAction
         data class Retune(val slug: String) : RestoreAction
+        data class RetuneStation(val slug: String) : RestoreAction
         data class Queue(val mediaIds: List<String>, val index: Int, val positionMs: Long) : RestoreAction
     }
 
@@ -40,15 +42,17 @@ object NewsQueueRules {
         mediaIds: List<String>,
         index: Int,
         positionMs: Long,
-        radioSlug: String?
+        radioSlug: String?,
+        stationSlug: String? = null
     ): NewsQueueSnapshot? {
-        if (radioSlug == null && mediaIds.isEmpty()) return null
-        return NewsQueueSnapshot(mediaIds, index, positionMs, radioSlug)
+        if (radioSlug == null && stationSlug == null && mediaIds.isEmpty()) return null
+        return NewsQueueSnapshot(mediaIds, index, positionMs, radioSlug, stationSlug)
     }
 
     fun restoreTarget(snapshot: NewsQueueSnapshot?): RestoreAction = when {
         snapshot == null -> RestoreAction.Nothing
         snapshot.wasRadioSlug != null -> RestoreAction.Retune(snapshot.wasRadioSlug)
+        snapshot.wasStationSlug != null -> RestoreAction.RetuneStation(snapshot.wasStationSlug)
         snapshot.mediaIds.isEmpty() -> RestoreAction.Nothing
         else -> RestoreAction.Queue(snapshot.mediaIds, snapshot.index, snapshot.positionMs)
     }

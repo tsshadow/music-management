@@ -1043,7 +1043,21 @@
       "slugRequired": "That name does not produce a usable slug.",
       "subtitle": "A channel is a stored filter: label, genre, artist, length or rating. Empty means the whole library.",
       "takeOffAir": "Take off air",
-      "wholeLibrary": "The whole library"
+      "wholeLibrary": "The whole library",
+      "stations": {
+        "title": "Radio stations",
+        "new": "New station",
+        "empty": "No stations yet.",
+        "streamUrl": "Stream address (https)",
+        "sortOrder": "Order",
+        "loadFailed": "Could not load the stations.",
+        "saveFailed": "Could not save the station.",
+        "deleteFailed": "Could not remove the station.",
+        "deleted": "Station {name} removed.",
+        "confirmDelete": "Remove station {name}?",
+        "saved": "Station {name} saved.",
+        "nameRequired": "A station needs a name."
+      }
     },
     "requests": {
       "approveFailed": "Could not approve.",
@@ -1707,7 +1721,9 @@
   "radio": {
     "chooseChannel": "Choose a channel",
     "couldNotStart": "Could not start radio",
-    "noChannels": "No radio channels available"
+    "noChannels": "No radio channels available",
+    "stationsHeading": "Radio",
+    "channelsHeading": "MuMa Radio"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

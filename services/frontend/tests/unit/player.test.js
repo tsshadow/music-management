@@ -10,6 +10,7 @@ import {
   nowPlayingOpen,
   playerState,
   playlist,
+  liveStation,
   radioChannel,
   syncMode,
   subsonicToken,
@@ -876,6 +877,78 @@ describe("Player", () => {
       await fireEvent.click(screen.getByLabelText("Radio"));
 
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
+    });
+  });
+
+  describe("live stations", () => {
+    const SLAM = { slug: "slam", name: "SLAM", stream_url: "https://example.com/slam.mp3" };
+
+    function stationApi() {
+      return vi.fn(async (url) => {
+        if (url.includes("/api/radio/channels")) {
+          return {
+            ok: true,
+            json: async () => ({ channels: [{ slug: "main", name: "MuMa Radio", filter: {} }] }),
+          };
+        }
+        if (url.includes("/api/radio/stations")) {
+          return { ok: true, json: async () => ({ stations: [SLAM] }) };
+        }
+        return { ok: true, json: async () => ({ "subsonic-response": { status: "ok" } }) };
+      });
+    }
+
+    async function tuneIn(container) {
+      await fireEvent.click(screen.getByLabelText("Radio"));
+      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
+      await fireEvent.click(screen.getByText("SLAM"));
+      await waitFor(() => expect(get(liveStation)?.slug).toBe("slam"));
+      return container.querySelector("audio");
+    }
+
+    afterEach(() => liveStation.set(null));
+
+    it("offers stations and channels together, even with one channel", async () => {
+      globalThis.fetch = stationApi();
+      renderPlayer();
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+
+      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
+      expect(get(radioChannel)).toBeNull();
+      expect(get(liveStation)).toBeNull();
+    });
+
+    it("gives the broadcaster's address to the element", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+
+      const audioElement = await tuneIn(container);
+
+      expect(audioElement.getAttribute("src")).toBe(SLAM.stream_url);
+    });
+
+    it("sends no scrobble for a station, which has no track behind it", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+      await tuneIn(container);
+      globalThis.fetch.mockClear();
+
+      await fireEvent.play(container.querySelector("audio"));
+
+      const calls = globalThis.fetch.mock.calls.map(([url]) => String(url));
+      expect(calls.filter((url) => url.includes("/rest/scrobble"))).toEqual([]);
+    });
+
+    it("the radio button leaves the station and closes the connection", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+      const audioElement = await tuneIn(container);
+
+      await fireEvent.click(screen.getByLabelText("Radio"));
+
+      await waitFor(() => expect(get(liveStation)).toBeNull());
+      expect(audioElement.getAttribute("src")).not.toBe(SLAM.stream_url);
     });
   });
 

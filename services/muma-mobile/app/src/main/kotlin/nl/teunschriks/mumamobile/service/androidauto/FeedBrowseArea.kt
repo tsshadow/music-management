@@ -37,6 +37,7 @@ internal class FeedBrowseArea(context: BrowseContext) : BrowseArea(context) {
         pageSize: Int
     ): BrowseResult? = when (action) {
         MEDIA_RADIO_ID -> getRadioChannelItems()
+        MEDIA_STATION_ID -> getStationItems()
         MEDIA_NEWS_ID -> getNewsBulletinItems()
         MEDIA_FEED_ID -> {
             val slug = parts.getOrNull(INDEX_ID)
@@ -65,6 +66,24 @@ internal class FeedBrowseArea(context: BrowseContext) : BrowseArea(context) {
             mediaItems.add(
                 title = channel.name,
                 mediaId = listOf(MEDIA_RADIO_ITEM, channel.slug).joinToString("|"),
+                isBrowsable = false,
+                mediaType = MEDIA_TYPE_PLAYLIST
+            )
+        }
+        itemListResult(mediaItems)
+    }
+
+    /** Lists the live stations. Each one is playable: a station has no list to look through. */
+    private fun getStationItems(): BrowseResult = serviceScope.future {
+        val mediaItems: MutableList<MediaItem> = ArrayList()
+        val stations = callWithErrorHandling {
+            subsonicAPIClient.mumaApi.api.getRadioStations().execute().body()?.stations
+        } ?: emptyList()
+
+        for (station in stations) {
+            mediaItems.add(
+                title = station.name,
+                mediaId = listOf(MEDIA_STATION_ITEM, station.slug).joinToString("|"),
                 isBrowsable = false,
                 mediaType = MEDIA_TYPE_PLAYLIST
             )

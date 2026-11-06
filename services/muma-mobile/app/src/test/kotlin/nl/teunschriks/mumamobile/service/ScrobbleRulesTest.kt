@@ -47,6 +47,11 @@ class ScrobbleRulesTest {
     }
 
     @Test
+    fun `a live station is not reported, however long it plays`() {
+        Scrobbler.scrobbleIdFor("MEDIA_STATION_ITEM|slam") `should be equal to` null
+    }
+
+    @Test
     fun `a news bulletin or any other made-up id is not reported`() {
         Scrobbler.scrobbleIdFor("MEDIA_NEWS_ITEM|42") `should be equal to` null
         Scrobbler.scrobbleIdFor("MEDIA_SOMETHING_ELSE") `should be equal to` null

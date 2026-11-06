@@ -483,6 +483,10 @@ export const radioChannel = writable(null);
 // The timeline entry currently on air, as returned by /api/radio/{slug}/state.
 export const radioNowPlaying = writable(null);
 
+// The live station from outside MuMa that plays now: `{slug, name, stream_url, title}`, or null.
+// Not persisted, for the same reason as `radioChannel`.
+export const liveStation = writable(null);
+
 export const highlightedTrackId = writable(null);
 
 export const favoriteGenres = writable([]);
@@ -1396,6 +1400,7 @@ export function resetSessionState() {
     isPlaying.set(false);
     radioChannel.set(null);
     radioNowPlaying.set(null);
+    liveStation.set(null);
     // The language is not reset here: `mumaUser.set(null)` already puts an account's language
     // back to the browser's, and a Subsonic-only session never had one of its own.
   } finally {

@@ -35,7 +35,19 @@ ONLY_ON_PRODUCTION: dict[str, str] = {}
 
 # Lines a fresh database has and production does not, each with its reason: a declaration the
 # next deploy's reconcile adds, or one a script in tools/ adds.
-ONLY_ON_FRESH: dict[str, str] = {}
+_NEW_STATIONS_TABLE = 'radio_stations is new (issue #213): the reconcile adds it at the next release'
+ONLY_ON_FRESH: dict[str, str] = {
+    'C\tradio_stations\tcreated_at\ttimestamp\tNO\tcurrent_timestamp()\t\t<none>': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tenabled\ttinyint(1)\tNO\t1\t\t<none>': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tid\tint(11)\tNO\t<none>\tauto_increment\t<none>': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tname\tvarchar(128)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tslug\tvarchar(64)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tsort_order\tint(11)\tNO\t0\t\t<none>': _NEW_STATIONS_TABLE,
+    'C\tradio_stations\tstream_url\tvarchar(1024)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_STATIONS_TABLE,
+    'I\tradio_stations\tPRIMARY\t1\tid\tBTREE': _NEW_STATIONS_TABLE,
+    'I\tradio_stations\tslug\t1\tslug\tBTREE': _NEW_STATIONS_TABLE,
+    'T\tradio_stations\tInnoDB\tutf8mb4_general_ci': _NEW_STATIONS_TABLE,
+}
 
 
 def _production_lines() -> set[str]:

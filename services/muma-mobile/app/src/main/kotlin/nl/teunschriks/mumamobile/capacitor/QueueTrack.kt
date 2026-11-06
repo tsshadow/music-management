@@ -115,3 +115,11 @@ private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !
  * has its own, in `radioSync.js`, for the browser tab.
  */
 fun radioItemMediaId(slug: String): String = "${MediaLibraryBase.MEDIA_RADIO_ITEM}|$slug"
+
+/**
+ * The `mediaId` a live station becomes when [nl.teunschriks.mumamobile.service.MediaPlayerManager
+ * .startStation] gives it to the session. It has the format that
+ * [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems] and
+ * Android Auto's list use.
+ */
+fun stationItemMediaId(slug: String): String = "${MediaLibraryBase.MEDIA_STATION_ITEM}|$slug"

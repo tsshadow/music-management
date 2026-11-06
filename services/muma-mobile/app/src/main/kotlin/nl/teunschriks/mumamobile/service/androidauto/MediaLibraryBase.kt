@@ -150,6 +150,11 @@ abstract class MediaLibraryBase protected constructor() {
         internal const val MEDIA_RADIO_ID = "MEDIA_RADIO_ID"
         internal const val MEDIA_RADIO_ITEM = "MEDIA_RADIO_ITEM"
 
+        // Live stations from outside MuMa, each of which is playable.
+        // A playable id is "MEDIA_STATION_ITEM|<station slug>".
+        internal const val MEDIA_STATION_ID = "MEDIA_STATION_ID"
+        internal const val MEDIA_STATION_ITEM = "MEDIA_STATION_ITEM"
+
         // A playable id is "MEDIA_NEWS_ITEM|<bulletin id>".
         internal const val MEDIA_NEWS_ID = "MEDIA_NEWS_ID"
         internal const val MEDIA_NEWS_ITEM = "MEDIA_NEWS_ITEM"

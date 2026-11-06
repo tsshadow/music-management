@@ -34,7 +34,9 @@
     <string name="server_switched_offline">Server nie te bereike. Overgegaon naor offline-modus.</string>
     <string name="server_switched_online">Server is d\'r weer. Online-modus terug.</string>
     <string name="main.songs_recent_added">Net d\'r bij</string>
-    <string name="main.radio_title">Radio</string>
+    <string name="main.radio_title">MuMa Radio</string>
+    <string name="main.stations_title">Radio</string>
+    <string name="main.station_unavailable">Nie beschikbaar</string>
     <string name="main.songs_title">Nummerkes</string>
     <string name="playlist.label">Afspeellijste</string>
     <string name="search.more">Meer laote zien</string>

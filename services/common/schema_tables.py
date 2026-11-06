@@ -567,6 +567,22 @@ CREATE TABLE IF NOT EXISTS `radio_channels` (
 """,
     ),
     (
+        'radio_stations',
+        """
+CREATE TABLE IF NOT EXISTS `radio_stations` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `slug` varchar(64) NOT NULL,
+  `name` varchar(128) NOT NULL,
+  `stream_url` varchar(1024) NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `enabled` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+""",
+    ),
+    (
         'radio_timeline',
         """
 CREATE TABLE IF NOT EXISTS `radio_timeline` (

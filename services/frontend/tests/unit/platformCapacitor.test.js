@@ -68,6 +68,8 @@ const PLAYING = {
   shuffle: false,
   repeat: "none",
   radioChannel: null,
+  stationSlug: null,
+  stationTitle: null,
   newsPlaying: false,
   buffering: false,
 };

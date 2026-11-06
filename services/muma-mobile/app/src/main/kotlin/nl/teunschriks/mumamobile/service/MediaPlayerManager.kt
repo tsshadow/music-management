@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.app.UApp
 import nl.teunschriks.mumamobile.capacitor.radioItemMediaId
+import nl.teunschriks.mumamobile.capacitor.stationItemMediaId
 import nl.teunschriks.mumamobile.data.ActiveServerProvider.Companion.OFFLINE_DB_ID
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
@@ -37,6 +38,7 @@ import nl.teunschriks.mumamobile.home.PlayHistoryRecorder
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
 import nl.teunschriks.mumamobile.log.logAction
 import nl.teunschriks.mumamobile.service.MusicServiceFactory.getMusicService
+import nl.teunschriks.mumamobile.service.androidauto.StationPlaybackController
 import nl.teunschriks.mumamobile.util.MAX_STARS
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.Util
@@ -629,6 +631,16 @@ class MediaPlayerManager(
     }
 
     /**
+     * Tunes the service into a live station, through the media id Android Auto's list uses too.
+     * [stopRadio] also leaves a station.
+     */
+    @Synchronized
+    fun startStation(slug: String) {
+        logAction("station.start", "slug" to slug)
+        controller?.setMediaItems(listOf(MediaItem.Builder().setMediaId(stationItemMediaId(slug)).build()), true)
+    }
+
+    /**
      * Leaves radio mode without starting anything else. There is no `Player` call for that --
      * radio is driven entirely by
      * [nl.teunschriks.mumamobile.service.androidauto.RadioPlaybackController], not by the queue --
@@ -653,6 +665,13 @@ class MediaPlayerManager(
 
     /** The channel the service is following right now, or null when it is not doing radio. */
     val currentRadioSlug: String? get() = PlaybackService.instance?.currentRadioSlug
+
+    /** The live station the service plays right now, or null. */
+    val currentStationSlug: String? get() = PlaybackService.instance?.currentStationSlug
+
+    /** The title the stream sent, or the station name when it sent none. Null without a station. */
+    val currentStationTitle: String?
+        get() = if (currentStationSlug == null) null else controller?.mediaMetadata?.title?.toString()
 
     /** Whether a news bulletin is playing right now. */
     val isNewsPlaying: Boolean get() = PlaybackService.instance?.isNewsPlaying == true
@@ -707,6 +726,8 @@ class MediaPlayerManager(
     @Synchronized
     private fun serializeCurrentSession() {
         // Don't serialize invalid sessions
+        // A station is not a queue. The queue from before it stays the one that a restart restores.
+        if (StationPlaybackController.isStationItem(currentMediaItem?.mediaId)) return
         if (currentMediaItemIndex == -1) {
             // Worth a line: this is the branch that leaves the stored queue as whatever it was,
             // which is how a queue that plays fine comes back empty after a restart.

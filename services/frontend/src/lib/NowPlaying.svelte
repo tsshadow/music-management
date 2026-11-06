@@ -75,6 +75,8 @@
     // bottom sheet because the desktop bar's dropdown has nowhere to anchor on this screen.
     radioActive = false,
     radioChannels = [],
+    radioStations = [],
+    onstartStation = null,
     showRadioPicker = false,
     ontoggleRadio = null,
     // The news bulletin: `newsActive` tints the button while one plays (`Player.svelte`'s
@@ -886,6 +888,21 @@
   {#if showRadioPicker}
     <BottomSheet title={$t('radio.chooseChannel')} onclose={() => oncloseRadioPicker?.()}>
       <div class="flex flex-col" role="menu" data-testid="now-playing-radio-picker">
+        {#if radioStations.length}
+          <div class="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muma-spotify-text">{$t('radio.stationsHeading')}</div>
+          {#each radioStations as station (station.slug)}
+            <button
+              class="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer text-sm font-bold text-white hover:bg-white/10 transition-colors"
+              role="menuitem"
+              onclick={() => onstartStation?.(station)}
+            >
+              {station.name}
+            </button>
+          {/each}
+        {/if}
+        {#if radioChannels.length}
+          <div class="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muma-spotify-text">{$t('radio.channelsHeading')}</div>
+        {/if}
         {#each radioChannels as channel (channel.slug)}
           <button
             class="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer text-white hover:bg-white/10 transition-colors"

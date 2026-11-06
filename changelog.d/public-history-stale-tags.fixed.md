@@ -1,1 +1,0 @@
-- `public:history` failed on develop after the history rewrite because the CI runner kept the old tags in its reused clone. The check now fetches tags with `--force --prune-tags`.

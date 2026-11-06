@@ -1,1 +1,0 @@
-- The images and the CI run on Python 3.15 instead of 3.14. The local lint and type-check container follows, and Renovate now updates its default image with the Dockerfiles.

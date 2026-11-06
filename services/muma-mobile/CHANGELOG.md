@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.19.0] - 2026-11-06
+
+### Added
+- Radio in the app and in Android Auto (Start > Live > Radio): SLAM, Q-dance and 538 play live, and the car shows the title when the stream sends one. Next and previous are not available during a station. After a connection loss the app tries again for 5 minutes. The channels MuMa makes from your library are now called MuMa Radio.
+
+### Fixed
+- **The play button in the app showed no throbber while a track was still loading.** The web player
+  got one in 7.18.4, but in the app the playback service never told the web screen it was
+  buffering: it only sent an event when playback started or stopped. The service now sends
+  `buffering` when Media3 buffers towards playing (`STATE_BUFFERING` with `playWhenReady`), and
+  every state snapshot carries the flag. A seek while paused shows no throbber, the same as in the
+  browser.
+
 ## [7.18.4] - 2026-10-30
 
 ### Fixed

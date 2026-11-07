@@ -59,7 +59,8 @@ function persist(key, store, options = {}) {
     }
   }
 
-  const write = (value) => localStorage.setItem(key, JSON.stringify(value));
+  // A throttled write can fire after the page, or a test environment, has torn localStorage down.
+  const write = (value) => globalThis.localStorage?.setItem(key, JSON.stringify(value));
   if (!options.throttleMs) {
     store.subscribe(write);
     return;

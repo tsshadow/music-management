@@ -158,7 +158,7 @@ so swapping it later touches one function per client.
 ## Live stations
 
 "MuMa Radio" is the name in the interface for everything above. "Radio" is the list of live stations
-from outside MuMa: SLAM, Q-dance and 538 to start, kept in `radio_stations` and edited in Beheer. A
+from outside MuMa, kept in `radio_stations` and edited in Beheer. A
 station has no timeline, no scheduler and no scrobble. The device connects to the broadcaster's
 `https` address, and the server never opens it. See
 [the design](designs/live-radio-stations/technical.md).

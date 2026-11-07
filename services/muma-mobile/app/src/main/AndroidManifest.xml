@@ -256,6 +256,14 @@
             android:exported="true"
             tools:ignore="ExportedContentProvider" />
 
+        <!-- The station logos of the web bundle, for the car. Exported for the same reason as the
+             art above. It serves nothing but those PNG files, and refuses any other path. -->
+        <provider
+            android:name=".provider.StationLogoProvider"
+            android:authorities="${applicationId}.provider.StationLogoProvider"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

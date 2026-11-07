@@ -68,12 +68,10 @@
     outputRoute = null,
     isSetMode = false,
     lyricsLines = [],
-    // The radio: `radioActive` tints the button while a channel plays, `radioChannels` and
-    // `showRadioPicker` are `Player.svelte`'s own state for the channel choice (it fetches the
-    // list on the first tap and clears the flag when a channel starts), rendered here as a
-    // bottom sheet because the desktop bar's dropdown has nowhere to anchor on this screen.
-    radioActive = false,
-    onstopRadio = null,
+    // `playLocked` is apart from `transportLocked`: on radio the play button still works.
+    playLocked = false,
+    // A live station has no track behind it: no rating, no position, no queue and no skip.
+    isLiveStation = false,
     // The news bulletin: `newsActive` tints the button while one plays (`Player.svelte`'s
     // `newsSnapshot !== null`), `ontoggleNews` is its `toggleNews`. The desktop bar always had
     // this button; the phone lost it when the full-screen view moved into this component.
@@ -119,13 +117,13 @@
   // `docs/designs/phone-ui-polish/technical.md`, section E. Falls back to the
   // track's own album, and from there to the generic "Queue" caption, exactly
   // as before this existed.
-  const playingFrom = $derived(playingFromLabel($queueSource, track, $t('queue.title')));
+  const playingFrom = $derived(isLiveStation ? $t('nav.radio') : playingFromLabel($queueSource, track, $t('queue.title')));
 
   // The header's own tap target: the source's view when it is one of the
   // navigable kinds `recentPlaces.js` tracks (so tapping "Playing from Hardstyle"
   // opens that genre), else the track's album, same as before `queueSource` existed.
   const headerTarget = $derived(
-    $queueSource?.view && PLACE_PREFIXES.some((prefix) => $queueSource.view.startsWith(prefix))
+    isLiveStation ? null : $queueSource?.view && PLACE_PREFIXES.some((prefix) => $queueSource.view.startsWith(prefix))
       ? $queueSource.view
       : track?.albumId
         ? `album:${track.albumId}`
@@ -430,6 +428,10 @@
           <span class="block text-sm font-bold text-white truncate" data-testid="now-playing-context">{playingFrom}</span>
         </div>
       {/if}
+      {#if isLiveStation}
+        <!-- Keeps the header centred. A station has nothing for the sheet to offer. -->
+        <span class="w-8 h-8 shrink-0" aria-hidden="true"></span>
+      {:else}
       <!-- The one entry point to everything else the sheet offers -- artist,
            album, play next, add to queue, lyrics (when there are any) and
            details -- replacing the lyrics-only button this header used to
@@ -446,6 +448,7 @@
           <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path>
         </svg>
       </button>
+      {/if}
     </header>
 
     <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain" bind:this={scrollContainerEl}>
@@ -502,6 +505,7 @@
                 {tint}
                 title={track.title}
                 alt={track.title}
+                fit={isLiveStation ? 'contain' : 'cover'}
               />
             {:else}
               <div class="h-full w-full rounded-lg bg-white/5"></div>
@@ -527,7 +531,7 @@
                 <div class="min-w-0 flex-1">
                   <ArtistList artist={track.artist} artistId={track.artistId} artists={track.artists} onnavigate={navigate} size="lg" />
                 </div>
-                {#if queueIndex >= 0 && $playlist.length > 0}
+                {#if !isLiveStation && queueIndex >= 0 && $playlist.length > 0}
                   <span class="shrink-0 text-sm text-muma-spotify-text tabular-nums" data-testid="now-playing-position">{queuePosition(queueIndex, $playlist.length)}</span>
                 {/if}
               </div>
@@ -569,6 +573,7 @@
                  fixed width, so the gaps do not balloon on a tablet. An unset star is an
                  outline in the secondary grey, not a near-invisible filled glyph: it has to
                  read as "no rating yet", not as "disabled". -->
+            {#if !isLiveStation}
             <div class="mx-auto mt-1 flex w-full max-w-xs items-center justify-between" data-testid="now-playing-rating">
               {#each [1, 2, 3, 4, 5] as star (star)}
                 <button
@@ -592,8 +597,10 @@
                 </button>
               {/each}
             </div>
+            {/if}
           {/if}
 
+          {#if !isLiveStation}
           <div class="mt-2">
             {#if isSetMode}
               <!-- A native `range`, not the songs-mode click div below: dragging is
@@ -631,10 +638,12 @@
               <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
             </div>
           </div>
+          {/if}
 
           <!-- `-mx-2`: the outer buttons carry `p-2`, so without it the shuffle and repeat
                glyphs would sit 8px inside the edges every other line on the screen shares. -->
-          <div class="-mx-2 mt-1 flex items-center justify-between" data-testid="now-playing-transport">
+          <div class="-mx-2 mt-1 flex items-center {isLiveStation ? 'justify-center' : 'justify-between'}" data-testid="now-playing-transport">
+            {#if !isLiveStation}
             <button
               class="bg-transparent border-none p-2 cursor-pointer transition-colors {shuffleMode ? 'text-brand' : 'text-muma-spotify-text'}"
               onclick={ontoggleShuffle}
@@ -668,10 +677,11 @@
                 <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%]">30</span>
               </button>
             {/if}
+            {/if}
             <button
-              class="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+              class="w-16 h-16 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {playLocked ? 'opacity-50 cursor-not-allowed' : ''}"
               onclick={ontogglePlay}
-              disabled={transportLocked}
+              disabled={playLocked}
               aria-label={playing ? $t('nowPlaying.pause') : $t('nowPlaying.play')}
             >
               {#if buffering}
@@ -688,6 +698,7 @@
                 </svg>
               {/if}
             </button>
+            {#if !isLiveStation}
             {#if isSetMode}
               <button
                 class="relative bg-transparent border-none p-2 cursor-pointer text-white {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
@@ -723,6 +734,7 @@
                 <span class="absolute text-[8px] font-bold top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-brand">1</span>
               {/if}
             </button>
+            {/if}
           </div>
 
           <!-- The output the phone plays through (increment H, native only: `outputRoute` is
@@ -762,18 +774,6 @@
                 </svg>
               </button>
             {/if}
-            {#if onstopRadio && radioActive}
-              <button
-                class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-muma-spotify-text'}"
-                data-testid="now-playing-radio"
-                onclick={onstopRadio}
-                aria-label={$t('player.stopRadio')}
-              >
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
-                </svg>
-              </button>
-            {/if}
             {#if ontoggleNews}
               <!-- Same newspaper glyph and purple as the desktop bar's news button. -->
               <button
@@ -801,6 +801,7 @@
                 </svg>
               </button>
             {/if}
+            {#if !isLiveStation}
             <button
               class="shrink-0 bg-transparent border-none p-2 cursor-pointer text-muma-spotify-text hover:text-white transition-colors"
               onclick={ontoggleQueue}
@@ -810,6 +811,7 @@
                 <path d="M15 15H3v-1.5h12V15zm0-4.5H3V9h12v1.5zm0-4.5H3V4.5h12V6zm7 12l-4.5-4.5L13 18h9z"></path>
               </svg>
             </button>
+            {/if}
           </div>
         </div>
       </div>
@@ -821,7 +823,7 @@
            renders none of this at all rather than three empty headings. Their rows navigate
            through `navigate`, like everything else here, so the player closes first. -->
       <div class="mx-auto flex w-full max-w-xl flex-col gap-6 px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] landscape:max-w-5xl">
-        {#if shuffleMode || nextUp.length > 0}
+        {#if !isLiveStation && (shuffleMode || nextUp.length > 0)}
           <section>
             <h3 class="text-base font-bold mb-3">{$t('nowPlaying.nextUp')}</h3>
             {#if shuffleMode}

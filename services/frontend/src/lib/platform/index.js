@@ -158,6 +158,8 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   Android Auto's own radio support rather than a second implementation of it. A browser answers
  *   and does nothing -- `Player.svelte` drives radio there directly through `radioController.js`
  *   and the `<audio>` element, and never calls this.
+ * @property {function(Array<string>): Promise<void>} setFavoriteStations Tells a native shell which
+ *   stations are favorites, so the car lists them first. Does nothing in a browser.
  * @property {function(string): Promise<void>} startStation Tunes into a live station by slug.
  *   Native only in effect: the service plays the stream. In a browser, `Player.svelte` gives the
  *   address to `load` and never calls this.

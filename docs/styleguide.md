@@ -132,6 +132,12 @@
   a name the tagger does not trust yet (artist curation, "Nieuw") -- is yellow
   (`bg-yellow-500/10 text-yellow-500`), the colour the queue's own "to review" icon already uses.
   A badge states a fact about the row; it is never the only way to act on it.
+- **Station tile**: one live station in a grid of 3 columns on a phone, 5 from `md`, 7 from `xl`. The logo
+  has an 8:5 ratio and `rounded-md`, with the name under it (`text-[12px] font-bold`). The station that
+  plays has `ring-2 ring-[#b266ff]` and a name in the same color, the radio color. The star is a 32 px
+  round button at the top right of the logo (`bg-black/60`, `text-brand` when marked), so the action is on
+  the tile and not in a menu. In the full player a logo uses `object-contain` on black, because a logo must
+  not be cut to the square of a cover. A station without a logo file shows its name on the tile.
 - **Memory card**: represents one release *year*, never a single track. Its title is the relative
   age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
   the cover art of the first track in that year's group. It uses the standard card surface and

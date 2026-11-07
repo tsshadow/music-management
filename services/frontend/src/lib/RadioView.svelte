@@ -1,12 +1,13 @@
 <script>
   /**
-   * The Radio page: the live stations and the MuMa Radio channels, in one list that scrolls like
-   * the genres. A tap on a row starts it, and a tap on the row that plays stops it.
+   * The Radio page: the favorite and recent stations at the top, then every station as a logo, then
+   * the MuMa Radio channels. A tap starts a station, and a tap on the one that plays stops it.
    * See docs/designs/live-radio-stations/functional.md.
    */
   import { onMount } from 'svelte';
   import { t } from './i18n/index.js';
-  import { knownStations, liveStation, mumaApiKey, mumaApiUrl, radioChannel } from './store.js';
+  import { favoriteStations, knownStations, liveStation, mumaApiKey, mumaApiUrl, radioChannel, recentStations } from './store.js';
+  import { stationLogoUrl, stationSections, withFavoriteToggled } from './liveStation.js';
   import { describeFilter } from './management/radioChannels.js';
   import { leaveRadio, tuneChannel, tuneStation } from './radioCommands.js';
 
@@ -14,6 +15,14 @@
   let stations = $state([]);
   let loading = $state(true);
   let failed = $state(false);
+  let query = $state('');
+  // The slugs without a logo file: a station a curator added. These show their name.
+  let withoutLogo = $state({});
+
+  /** A search box is noise for a short list. */
+  const SEARCH_FROM_STATIONS = 12;
+
+  const sections = $derived(stationSections(stations, $favoriteStations, $recentStations, query));
 
   /**
    * Reads one list. A list that does not load stays empty, so the other list still works.
@@ -78,22 +87,72 @@
     <p class="text-sm text-muma-spotify-text">{$t('radio.noChannels')}</p>
   {/if}
 
-  {#if stations.length}
-    <h2 class="text-xl font-bold mb-2">{$t('radio.stationsHeading')}</h2>
-    <div class="flex flex-col mb-8">
-      {#each stations as station (station.slug)}
-        {@const active = $liveStation?.slug === station.slug}
-        <button
-          type="button"
-          class="{rowClass} text-sm font-bold"
-          style="color: {active ? '#b266ff' : 'white'}"
-          aria-pressed={active}
-          onclick={() => pickStation(station)}
-        >
-          {station.name}
-        </button>
-      {/each}
+  {#snippet tile(station)}
+    {@const active = $liveStation?.slug === station.slug}
+    {@const favorite = $favoriteStations.includes(station.slug)}
+    <div class="relative min-w-0" data-testid="station-tile">
+      <button
+        type="button"
+        class="block w-full bg-transparent border-none p-0 text-left cursor-pointer"
+        aria-pressed={active}
+        onclick={() => pickStation(station)}
+      >
+        <span class="block aspect-[8/5] overflow-hidden rounded-md bg-white/10 {active ? 'ring-2 ring-[#b266ff]' : ''}">
+          {#if withoutLogo[station.slug]}
+            <span class="flex h-full w-full items-center justify-center px-2 text-center text-sm font-bold text-white">{station.name}</span>
+          {:else}
+            <img
+              src={stationLogoUrl(station.slug)}
+              alt=""
+              loading="lazy"
+              class="block h-full w-full object-cover"
+              onerror={() => (withoutLogo[station.slug] = true)}
+            />
+          {/if}
+        </span>
+        <span class="mt-1 block truncate text-[12px] font-bold" style="color: {active ? '#b266ff' : 'white'}">{station.name}</span>
+      </button>
+      <button
+        type="button"
+        class="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full border-none bg-black/60 cursor-pointer {favorite ? 'text-brand' : 'text-white'}"
+        aria-label={$t(favorite ? 'radio.removeFavorite' : 'radio.addFavorite', { name: station.name })}
+        aria-pressed={favorite}
+        onclick={() => favoriteStations.update((slugs) => withFavoriteToggled(slugs, station.slug))}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill={favorite ? 'currentColor' : 'none'} stroke="currentColor" stroke-width={favorite ? 0 : 2} aria-hidden="true">
+          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+        </svg>
+      </button>
     </div>
+  {/snippet}
+
+  {#snippet grid(heading, list, testid)}
+    {#if list.length}
+      <h2 class="text-xl font-bold mb-3">{heading}</h2>
+      <div class="grid grid-cols-3 gap-3 mb-8 md:grid-cols-5 xl:grid-cols-7" data-testid={testid}>
+        {#each list as station (station.slug)}
+          {@render tile(station)}
+        {/each}
+      </div>
+    {/if}
+  {/snippet}
+
+  {#if stations.length >= SEARCH_FROM_STATIONS}
+    <input
+      type="search"
+      class="w-full mb-6 rounded-md border-none bg-white/10 px-4 py-3 text-sm text-white placeholder:text-muma-spotify-text"
+      placeholder={$t('radio.searchStations')}
+      aria-label={$t('radio.searchStations')}
+      bind:value={query}
+      data-testid="station-search"
+    />
+  {/if}
+
+  {@render grid($t('radio.favoritesHeading'), sections.favorites, 'stations-favorites')}
+  {@render grid($t('radio.recentHeading'), sections.recent, 'stations-recent')}
+  {@render grid($t('radio.stationsHeading'), sections.all, 'stations-all')}
+  {#if query.trim() && !sections.all.length}
+    <p class="text-sm text-muma-spotify-text mb-8">{$t('radio.noStationMatch')}</p>
   {/if}
 
   {#if channels.length}

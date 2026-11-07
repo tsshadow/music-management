@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import NowPlaying from "../../src/lib/NowPlaying.svelte";
 import { queueSource, playlist, currentTrack } from "../../src/lib/store.js";
@@ -552,17 +552,18 @@ describe("NowPlaying track info", () => {
     }
   });
 
-  it("shows a stop button for radio only while radio plays", async () => {
-    const onstopRadio = vi.fn();
-    renderNowPlaying({ onstopRadio, radioActive: false });
+  it("has no separate radio button: play and pause are the controls", () => {
+    renderNowPlaying({ radioActive: true });
     expect(screen.queryByTestId("now-playing-radio")).toBeNull();
+  });
 
-    renderNowPlaying({ onstopRadio, radioActive: true });
-    const button = screen.getByTestId("now-playing-radio");
-    expect(button.getAttribute("aria-label")).toBe("Radio stoppen");
-    expect(button.className).toContain("b266ff");
-    await fireEvent.click(button);
-    expect(onstopRadio).toHaveBeenCalled();
+  it("shows no track controls for a live station, and leaves play enabled", () => {
+    renderNowPlaying({ isLiveStation: true, transportLocked: true, playLocked: false });
+    expect(screen.queryByTestId("now-playing-shuffle")).toBeNull();
+    expect(screen.queryByTestId("now-playing-next-up")).toBeNull();
+    const play = within(screen.getByTestId("now-playing-transport")).getAllByRole("button");
+    expect(play).toHaveLength(1);
+    expect(play[0].disabled).toBe(false);
   });
 
   it("shows a news button only when the player wires one, tinted while a bulletin plays", async () => {

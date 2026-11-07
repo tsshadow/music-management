@@ -1708,8 +1708,7 @@
     "unknownTrack": "Onbekend nummer",
     "unknownArtist": "Onbekende artiest",
     "unknownAlbum": "Onbekend album",
-    "pause": "Pauze",
-    "stopRadio": "Radio stoppen"
+    "pause": "Pauze"
   },
   "queue": {
     "clear": "Lijst leegmaken",
@@ -1722,9 +1721,15 @@
   "radio": {
     "couldNotStart": "Kon de radio niet starten",
     "noChannels": "Geen radiokanalen beschikbaar",
-    "stationsHeading": "Radio",
+    "stationsHeading": "Alle zenders",
     "channelsHeading": "MuMa Radio",
-    "couldNotLoad": "Kon de radiolijst niet laden"
+    "couldNotLoad": "Kon de radiolijst niet laden",
+    "favoritesHeading": "Favorieten",
+    "recentHeading": "Recent",
+    "searchStations": "Zoek een zender",
+    "noStationMatch": "Geen zender gevonden",
+    "addFavorite": "{name} toevoegen aan favorieten",
+    "removeFavorite": "{name} verwijderen uit favorieten"
   },
   "releaseNotes": {
     "intro": "Er is een nieuwe versie van LMS. Dit is er veranderd:",

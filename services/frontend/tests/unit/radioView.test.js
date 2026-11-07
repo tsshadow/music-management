@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/svelte";
 import { get } from "svelte/store";
 import RadioView from "../../src/lib/RadioView.svelte";
 import { registerRadioCommands } from "../../src/lib/radioCommands.js";
-import { knownStations, liveStation, radioChannel } from "../../src/lib/store.js";
+import {
+  favoriteStations,
+  knownStations,
+  liveStation,
+  radioChannel,
+  recentStations,
+} from "../../src/lib/store.js";
 import { browseSections } from "../../src/lib/navigation.js";
 import { TILE_COLORS } from "../../src/lib/browseColors.js";
 
@@ -38,10 +44,14 @@ describe("RadioView", () => {
     liveStation.set(null);
     radioChannel.set(null);
     knownStations.set([]);
+    favoriteStations.set([]);
+    recentStations.set([]);
   });
 
   afterEach(() => {
     unregister();
+    favoriteStations.set([]);
+    recentStations.set([]);
     liveStation.set(null);
     radioChannel.set(null);
   });
@@ -67,17 +77,89 @@ describe("RadioView", () => {
     expect(commands.startRadio).toHaveBeenCalledWith(MAIN);
   });
 
-  it("stops the row that plays", async () => {
+  it("stops the station that plays", async () => {
     globalThis.fetch = radioApi();
     liveStation.set({ ...SLAM, title: null });
     render(RadioView);
 
-    const row = await screen.findByRole("button", { name: "SLAM" });
-    expect(row.getAttribute("aria-pressed")).toBe("true");
-    await fireEvent.click(row);
+    const tile = await screen.findByRole("button", { name: "SLAM" });
+    expect(tile.getAttribute("aria-pressed")).toBe("true");
+    await fireEvent.click(tile);
 
     expect(commands.stop).toHaveBeenCalled();
     expect(commands.startStation).not.toHaveBeenCalled();
+  });
+
+  it("shows the logo, and the name when the station has no logo file", async () => {
+    globalThis.fetch = radioApi();
+    const { container } = render(RadioView);
+    await screen.findByText("SLAM");
+
+    const logo = container.querySelector("img");
+    expect(logo.getAttribute("src")).toBe("/images/stations/slam.png");
+
+    await fireEvent.error(logo);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getAllByText("SLAM")).toHaveLength(2);
+  });
+
+  it("marks a favorite with the star, without starting the station", async () => {
+    globalThis.fetch = radioApi();
+    render(RadioView);
+
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "SLAM toevoegen aan favorieten" }),
+    );
+
+    expect(get(favoriteStations)).toEqual(["slam"]);
+    expect(within(screen.getByTestId("stations-favorites")).getByText("SLAM")).toBeTruthy();
+    expect(commands.startStation).not.toHaveBeenCalled();
+  });
+
+  it("shows the stations played last in their own section", async () => {
+    globalThis.fetch = radioApi();
+    recentStations.set(["slam"]);
+    render(RadioView);
+
+    expect(within(await screen.findByTestId("stations-recent")).getByText("SLAM")).toBeTruthy();
+  });
+
+  it("has no favorite or recent section when both are empty", async () => {
+    globalThis.fetch = radioApi();
+    render(RadioView);
+
+    await screen.findByTestId("stations-all");
+    expect(screen.queryByTestId("stations-favorites")).toBeNull();
+    expect(screen.queryByTestId("stations-recent")).toBeNull();
+  });
+
+  it("has a search box from twelve stations, which narrows the list", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ slug: `s${i}`, name: `Zender ${i}` }));
+    many[3] = SLAM;
+    globalThis.fetch = vi.fn(async (url) => ({
+      ok: true,
+      json: async () => (url.includes("/stations") ? { stations: many } : { channels: [] }),
+    }));
+    render(RadioView);
+
+    const search = await screen.findByTestId("station-search");
+    await fireEvent.input(search, { target: { value: "sla" } });
+
+    expect(within(screen.getByTestId("stations-all")).getAllByTestId("station-tile")).toHaveLength(
+      1,
+    );
+
+    await fireEvent.input(search, { target: { value: "bestaat niet" } });
+    expect(screen.queryByTestId("stations-all")).toBeNull();
+    expect(screen.getByText("Geen zender gevonden")).toBeTruthy();
+  });
+
+  it("has no search box for a short list", async () => {
+    globalThis.fetch = radioApi();
+    render(RadioView);
+
+    await screen.findByTestId("stations-all");
+    expect(screen.queryByTestId("station-search")).toBeNull();
   });
 
   it("still shows the channels when the stations do not load", async () => {

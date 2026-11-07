@@ -26,6 +26,8 @@
     rounded = 'rounded',
     large = false,
     panelTextClass = large ? 'text-2xl' : 'text-xs',
+    // 'contain' for a station logo, which is wider than the slot and must stay whole.
+    fit = 'cover',
   } = $props();
 
   /**
@@ -60,7 +62,7 @@
   <img
     src={coverUrl}
     {alt}
-    class="{boxClass} {rounded} object-cover"
+    class="{boxClass} {rounded} {fit === 'contain' ? 'object-contain bg-black' : 'object-cover'}"
     onerror={handleCoverError}
   />
 {:else if stage === 'artist'}

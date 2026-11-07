@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.20.1] - 2026-11-07
+
+### Fixed
+- A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).
+
 ## [7.20.0] - 2026-11-07
 
 ### Added

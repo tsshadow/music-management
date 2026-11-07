@@ -37,6 +37,7 @@ Radio". MuMa does not record, change or forward the audio. Your device connects 
 | A station plays in the player | The player shows the logo, the name and pause. It does not show a track position, stars, next, previous, shuffle, repeat, the queue or a seek bar. |
 | You push pause during a station | The station pauses. |
 | You push the play button during a MuMa Radio channel | The channel stops, because a channel follows a shared clock and has no pause. |
+| You tap a track during a station or a MuMa Radio channel | The radio stops and the track plays. |
 | A station plays in the car | The next, previous and seek buttons are not available. |
 | The stream sends the title of the song (app and car) | The screen shows that title, with the station name under it. |
 | The stream sends no title, or you listen in the browser | The screen shows the station name. |

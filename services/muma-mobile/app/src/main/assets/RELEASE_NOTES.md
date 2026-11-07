@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## Global Version 7.20.1 (2026-11-07)
+
+- A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).
+
 ## Global Version 7.20.0 (2026-11-07)
 
 - **Radio has 67 stations with logos. Your favorites come first, also in the car.**

@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.97.1 (2026-11-07)
+
+- A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).
+
 ## Global Version 0.97.0 (2026-11-07)
 
 - **Radio has 67 stations, with logos, favorites and recent stations.** Mark a station with the star to

@@ -125,3 +125,18 @@ describe("playerState persistence", () => {
     expect(localStorage.getItem("lms_player_state")).toBeNull();
   });
 });
+
+describe("a throttled write after localStorage is gone", () => {
+  it("does not throw, because the timer can outlive the page or the test environment", () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    progress(1);
+    progress(2);
+    Object.defineProperty(globalThis, "localStorage", { value: undefined, configurable: true });
+    try {
+      expect(() => flushPersistedStores()).not.toThrow();
+    } finally {
+      if (original) Object.defineProperty(globalThis, "localStorage", original);
+      else delete globalThis.localStorage;
+    }
+  });
+});

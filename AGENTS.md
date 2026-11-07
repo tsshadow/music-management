@@ -163,7 +163,8 @@ The system is split into specialized services, each handling a specific part of 
   device plays their `https` stream directly, in the app, in the car and in the web player. The
   channels MuMa makes from the library are "MuMa Radio" ([docs/radio-mode.md](docs/radio-mode.md)).
 - **Limits**: no timeline, no scrobble, no skip. The app tries again for 5 minutes after a connection
-  loss (`StationRetry`). Each seed batch runs once, so a removed station stays removed
+  loss (`StationRetry`). The repository holds no stream address: a new installation starts with no
+  stations, and a curator adds them in Beheer
   ([docs/designs/live-radio-stations/](docs/designs/live-radio-stations/technical.md)).
 - **Logos and favorites**: the logo of a station is `public/images/stations/<slug>.png` in the web
   bundle, also for the car (`StationLogoProvider`), and a station without a file shows its name.
@@ -400,6 +401,9 @@ To maintain high code quality, the system employs an automated test suite:
     - **Pre-commit Hook**: The versioned `scripts/hooks/pre-commit` (installed by `./scripts/install-hooks.sh`)
       runs `./scripts/lint.sh` and `./scripts/test/music-management-unit.sh` before a commit is
       finalized; `SKIP_HOOK_TESTS=1` skips the tests, not the lint.
+    - **Commit-msg Hook**: the versioned `scripts/hooks/commit-msg` refuses a commit whose author,
+      committer or message has personal data, with the checks `public:history` runs on develop
+      (`scripts/ci/public_guard.py message`). It prints the kind of finding, never the value.
     - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
       verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
       `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the

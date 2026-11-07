@@ -1,0 +1,12 @@
+#!/bin/bash
+# scripts/hooks/commit-msg
+# Refuses a commit whose author, committer or message holds personal data: the same identity
+# allowlist, patterns and banned words that public:history applies to develop and master
+# (scripts/ci/public_guard.py). The output names the kind of finding, never the value.
+# Installed by ./scripts/install-hooks.sh (core.hooksPath).
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+if ! python3 "$ROOT_DIR/scripts/ci/public_guard.py" message "$1"; then
+    echo "commit-msg: fix the identity (git config user.email) or the message, then commit again." >&2
+    exit 1
+fi

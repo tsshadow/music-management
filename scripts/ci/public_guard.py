@@ -6,6 +6,8 @@ file path and the kind of finding), because the matched text is the personal val
 
     public_guard.py tree      Tracked files: no word whose sha256 is in public-banned-tokens.txt.
     public_guard.py history   Commits and tags: identity allowlist, regex patterns and banned words.
+    public_guard.py message F The commit about to be made (author, committer, message file F), for
+                              the commit-msg hook.
 
 History scope:
     --range A..B   the commits of that range only (merge request pipelines: origin/develop..HEAD).
@@ -152,12 +154,29 @@ def collect(range_spec: str | None) -> list[dict]:
     return records
 
 
+def message_record(message_file: Path) -> dict:
+    """Return the record of the commit about to be made: its author, committer and message."""
+    author = git("var", "GIT_AUTHOR_IDENT").strip()
+    committer = git("var", "GIT_COMMITTER_IDENT").strip()
+    emails = [ident.split("<", 1)[1].split(">", 1)[0] for ident in (author, committer) if "<" in ident]
+    # The timestamps after the address are no personal data, and a pattern must not see them.
+    names = [ident.rsplit(">", 1)[0] + ">" for ident in (author, committer)]
+    body = "\n".join(
+        ln for ln in message_file.read_text(encoding="utf-8", errors="replace").splitlines() if not ln.startswith("#")
+    )
+    return {"id": "this commit", "kind": "commit", "emails": emails, "text": "\n".join(names) + "\n" + body}
+
+
 def history_check(range_spec: str | None) -> int:
     """Check commits and tags against identity allowlist, patterns and banned words. Return the exit code."""
+    return check_records(collect(range_spec), range_spec or "develop, master and all tags")
+
+
+def check_records(records: list[dict], scope: str) -> int:
+    """Check records against identity allowlist, patterns and banned words. Return the exit code."""
     patterns = _env_path("PUBLIC_CHECK_PATTERNS", "public-patterns.txt")
     banned = load_digests(_env_path("PUBLIC_CHECK_TOKENS", "public-banned-tokens.txt"))
     upstream = load_digests(_env_path("PUBLIC_CHECK_UPSTREAM", "public-upstream-identities.txt"))
-    records = collect(range_spec)
 
     starts, blob, line = [], [], 1
     for rec in records:
@@ -183,7 +202,6 @@ def history_check(range_spec: str | None) -> int:
         if kinds:
             flagged.add(idx)
             print(f"{rec['id']}: {', '.join(kinds)}")
-    scope = range_spec or "develop, master and all tags"
     print(
         f"--- history ({scope}): {len(records)} checked, {len(flagged)} flagged "
         f"(identity {counts['identity']}, pattern {counts['pattern']}, banned word {counts['banned word']}) ---"
@@ -203,9 +221,13 @@ def main() -> int:
     group = hist.add_mutually_exclusive_group(required=True)
     group.add_argument("--range")
     group.add_argument("--full", action="store_true")
+    msg = sub.add_parser("message")
+    msg.add_argument("file", type=Path)
     args = parser.parse_args()
     if args.mode == "tree":
         return tree_check()
+    if args.mode == "message":
+        return check_records([message_record(args.file)], "the commit about to be made")
     return history_check(None if args.full else args.range)
 
 

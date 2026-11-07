@@ -19,6 +19,14 @@ STRANGER = "someone@" + "example.net"
 UPSTREAM = "author@" + "upstream.example"
 
 
+def _clean_env() -> dict:
+    """The environment without GIT_*: under a git hook GIT_DIR and GIT_INDEX_FILE point at the real
+    repository, and a commit made here would land there."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull)
+    return env
+
+
 def _digest(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -41,7 +49,7 @@ class Repo:
         self.n = 0
 
     def git(self, *args, email=CONTACT, name="Test Author"):
-        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        env = _clean_env()
         env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email)
         return subprocess.run(["git", "-C", str(self.path), *args], check=True, capture_output=True, text=True, env=env)
 
@@ -49,7 +57,7 @@ class Repo:
         self.n += 1
         (self.path / f"f{self.n}.txt").write_text(str(self.n), encoding="utf-8")
         self.git("add", "-A")
-        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        env = _clean_env()
         env.update(
             GIT_AUTHOR_NAME="A",
             GIT_AUTHOR_EMAIL=author,
@@ -65,6 +73,7 @@ class Repo:
             text=True,
             check=False,
             cwd=self.path,
+            env=_clean_env(),
         )
 
 
@@ -173,3 +182,43 @@ def test_ci_fetch_replaces_tags_from_before_a_rewrite():
     assert tag_fetch, "the script no longer fetches tags"
     for line in tag_fetch:
         assert "--force" in line and "--prune-tags" in line, line
+
+
+# --- The commit-msg hook: the same check before a commit exists ----------------------------------
+
+
+def _hooked_commit(repo, message, email):
+    """Commit through scripts/hooks/commit-msg as `email`. Return the finished process."""
+    (repo.path / "scripts" / "hooks").mkdir(exist_ok=True)
+    shutil.copy(REPO_ROOT / "scripts" / "hooks" / "commit-msg", repo.path / "scripts" / "hooks" / "commit-msg")
+    repo.git("config", "core.hooksPath", "scripts/hooks")
+    repo.n += 1
+    (repo.path / f"f{repo.n}.txt").write_text(str(repo.n), encoding="utf-8")
+    repo.git("add", "-A")
+    env = _clean_env()
+    env.update(GIT_AUTHOR_NAME="A", GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME="C", GIT_COMMITTER_EMAIL=email)
+    return subprocess.run(
+        ["git", "-C", str(repo.path), "commit", "-q", "-m", message], capture_output=True, text=True, env=env
+    )
+
+
+def test_the_hook_lets_a_clean_commit_through(tmp_path):
+    repo = Repo(tmp_path)
+    result = _hooked_commit(repo, "fix: a clean message", CONTACT)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_the_hook_refuses_an_unknown_identity_without_printing_it(tmp_path):
+    repo = Repo(tmp_path)
+    result = _hooked_commit(repo, "fix: fine", STRANGER)
+    assert result.returncode != 0
+    assert "this commit: identity" in result.stdout + result.stderr
+    assert STRANGER not in result.stdout + result.stderr
+    assert repo.git("rev-list", "--all", "--count").stdout.strip() == "0"
+
+
+def test_the_hook_refuses_a_pattern_in_the_message(tmp_path):
+    repo = Repo(tmp_path)
+    result = _hooked_commit(repo, f"See merge request {HANDLE}/project!5", CONTACT)
+    assert result.returncode != 0
+    assert "this commit: pattern" in result.stdout + result.stderr

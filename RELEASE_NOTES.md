@@ -11,6 +11,14 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.98.0 (2026-11-07)
+
+- The back-merge of master into develop after a release is now a merge commit made with git under the neutral release identity. Before, GitLab wrote it as the bot of the token, whose address names the private GitLab host, and `public:history` failed on develop (bug report 157).
+
+- A versioned commit-msg hook refuses a commit whose author, committer or message has personal data. It runs the checks of `public:history` before the commit exists.
+
+- The repository no longer holds the addresses of the radio stations. A new installation starts with no stations, and a curator adds them in Beheer > Radio. An installation that already has stations keeps them.
+
 ## Global Version 0.97.1 (2026-11-07)
 
 - A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).

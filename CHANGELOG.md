@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.98.0] - 2026-11-07
+
+### Added
+- A versioned commit-msg hook refuses a commit whose author, committer or message has personal data. It runs the checks of `public:history` before the commit exists.
+
+### Changed
+- The repository no longer holds the addresses of the radio stations. A new installation starts with no stations, and a curator adds them in Beheer > Radio. An installation that already has stations keeps them.
+
+### Fixed
+- The back-merge of master into develop after a release is now a merge commit made with git under the neutral release identity. Before, GitLab wrote it as the bot of the token, whose address names the private GitLab host, and `public:history` failed on develop (bug report 157).
+
 ## [0.97.1] - 2026-11-07
 
 ### Fixed

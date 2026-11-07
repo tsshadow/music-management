@@ -1,1 +1,0 @@
-- A versioned commit-msg hook refuses a commit whose author, committer or message has personal data. It runs the checks of `public:history` before the commit exists.

@@ -1,1 +1,0 @@
-- The back-merge of master into develop after a release is now a merge commit made with git under the neutral release identity. Before, GitLab wrote it as the bot of the token, whose address names the private GitLab host, and `public:history` failed on develop (bug report 157).

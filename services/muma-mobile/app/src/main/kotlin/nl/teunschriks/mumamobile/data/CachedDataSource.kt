@@ -20,6 +20,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
 import nl.teunschriks.mumamobile.log.LogRedaction
+import nl.teunschriks.mumamobile.service.PlaybackServiceRules
 import nl.teunschriks.mumamobile.util.AbstractFile
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.Storage
@@ -61,7 +62,11 @@ class CachedDataSource(private var upstreamDataSource: DataSource) : BaseDataSou
         val components = dataSpec.uri.toString().split('|')
         // Support additional metadata in the uri by always using the last component as the path
         val path = components.last()
-        val cacheLength = checkCache(path)
+        // A stream URL has no cached file. Do not ask the storage: with a custom cache folder it
+        // throws for every path outside that folder, and the stream never starts (bug report 153).
+        val isStreamUrl = PlaybackServiceRules.streamTargetOf(dataSpec.uri.toString()) ==
+            PlaybackServiceRules.StreamTarget.Direct
+        val cacheLength = if (isStreamUrl) -1 else checkCache(path)
 
         // We have found an item in the cache, return early
         if (cacheLength > 0) {
@@ -174,7 +179,7 @@ class CachedDataSource(private var upstreamDataSource: DataSource) : BaseDataSou
     /**
      * The upstream's headers, or none for a cached file. Media3 asks every stream for ICY metadata
      * and reads `icy-metaint` here to take that metadata back out. Without it the text stays in the
-     * audio of a live station, and the MP3 decoder fails on the damaged frame.
+     * audio of a live station, and the song title does not reach the screen.
      */
     override fun getResponseHeaders(): Map<String, List<String>> = if (cachePath != null) {
         emptyMap()

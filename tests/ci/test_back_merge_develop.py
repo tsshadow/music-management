@@ -5,6 +5,7 @@ private GitLab host, and public:history failed on each one. The script runs here
 repository with a bare repository as the remote.
 """
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,9 +15,14 @@ SCRIPT = ROOT / "scripts" / "ci" / "back-merge-develop.sh"
 NEUTRAL = "ci-release-tagging <ci-release-tagging@users.noreply.example.com>"
 
 
+def _env() -> dict:
+    """The environment without GIT_*: under a git hook GIT_DIR points at the real repository."""
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
 def _git(cwd: Path, *args: str) -> str:
     """Run git in `cwd` and return its trimmed stdout."""
-    out = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True)
+    out = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True, env=_env())
     return out.stdout.strip()
 
 
@@ -31,9 +37,9 @@ def _commit(repo: Path, name: str, text: str) -> str:
 def _setup(tmp_path: Path, conflict: bool = False) -> tuple[Path, Path, str]:
     """A remote with develop and master that went apart. Return the clone, the remote and master."""
     remote = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True, env=_env())
     repo = tmp_path / "work"
-    subprocess.run(["git", "init", "-q", "-b", "develop", str(repo)], check=True)
+    subprocess.run(["git", "init", "-q", "-b", "develop", str(repo)], check=True, env=_env())
     (repo / "scripts" / "ci").mkdir(parents=True)
     shutil.copy(SCRIPT, repo / "scripts" / "ci" / "back-merge-develop.sh")
     _commit(repo, "VERSION", "1.0.0\n")

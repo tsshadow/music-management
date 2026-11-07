@@ -19,6 +19,14 @@ STRANGER = "someone@" + "example.net"
 UPSTREAM = "author@" + "upstream.example"
 
 
+def _clean_env() -> dict:
+    """The environment without GIT_*: under a git hook GIT_DIR and GIT_INDEX_FILE point at the real
+    repository, and a commit made here would land there."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull)
+    return env
+
+
 def _digest(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -41,7 +49,7 @@ class Repo:
         self.n = 0
 
     def git(self, *args, email=CONTACT, name="Test Author"):
-        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        env = _clean_env()
         env.update(GIT_AUTHOR_NAME=name, GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME=name, GIT_COMMITTER_EMAIL=email)
         return subprocess.run(["git", "-C", str(self.path), *args], check=True, capture_output=True, text=True, env=env)
 
@@ -49,7 +57,7 @@ class Repo:
         self.n += 1
         (self.path / f"f{self.n}.txt").write_text(str(self.n), encoding="utf-8")
         self.git("add", "-A")
-        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        env = _clean_env()
         env.update(
             GIT_AUTHOR_NAME="A",
             GIT_AUTHOR_EMAIL=author,
@@ -65,6 +73,7 @@ class Repo:
             text=True,
             check=False,
             cwd=self.path,
+            env=_clean_env(),
         )
 
 
@@ -186,7 +195,7 @@ def _hooked_commit(repo, message, email):
     repo.n += 1
     (repo.path / f"f{repo.n}.txt").write_text(str(repo.n), encoding="utf-8")
     repo.git("add", "-A")
-    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+    env = _clean_env()
     env.update(GIT_AUTHOR_NAME="A", GIT_AUTHOR_EMAIL=email, GIT_COMMITTER_NAME="C", GIT_COMMITTER_EMAIL=email)
     return subprocess.run(
         ["git", "-C", str(repo.path), "commit", "-q", "-m", message], capture_output=True, text=True, env=env

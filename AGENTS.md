@@ -401,6 +401,9 @@ To maintain high code quality, the system employs an automated test suite:
     - **Pre-commit Hook**: The versioned `scripts/hooks/pre-commit` (installed by `./scripts/install-hooks.sh`)
       runs `./scripts/lint.sh` and `./scripts/test/music-management-unit.sh` before a commit is
       finalized; `SKIP_HOOK_TESTS=1` skips the tests, not the lint.
+    - **Commit-msg Hook**: the versioned `scripts/hooks/commit-msg` refuses a commit whose author,
+      committer or message has personal data, with the checks `public:history` runs on develop
+      (`scripts/ci/public_guard.py message`). It prints the kind of finding, never the value.
     - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
       verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
       `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the

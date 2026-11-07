@@ -1,1 +1,0 @@
-- The song title of a live station can now reach the screen. The app asked the broadcaster for titles, but did not pass on the header that takes that text out of the audio.

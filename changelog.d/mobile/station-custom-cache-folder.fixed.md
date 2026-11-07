@@ -1,1 +1,0 @@
-- Live stations played nothing on a phone with a custom cache folder. The app looked for the stream URL in that folder, the folder gave an error, and the app never sent a request. The app now goes straight to the stream. MuMa Radio uses the same kind of URL, so it gets the same fix.

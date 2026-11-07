@@ -1654,7 +1654,8 @@
     "browse": "Browse",
     "favorites": "Favorites",
     "help": "Manual",
-    "bpm": "BPM"
+    "bpm": "BPM",
+    "radio": "Radio"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -1694,7 +1695,6 @@
     "next": "Next",
     "nothingPlaying": "Nothing playing",
     "previous": "Previous",
-    "radio": "Radio",
     "repeat": "Repeat",
     "restoringQueue": "Restoring the queue…",
     "seek": "Seek track",
@@ -1708,7 +1708,8 @@
     "unknownTrack": "Unknown track",
     "unknownArtist": "Unknown artist",
     "unknownAlbum": "Unknown album",
-    "pause": "Pause"
+    "pause": "Pause",
+    "stopRadio": "Stop radio"
   },
   "queue": {
     "clear": "Clear list",
@@ -1719,11 +1720,11 @@
     "playlistNamePrompt": "Name for the new playlist:"
   },
   "radio": {
-    "chooseChannel": "Choose a channel",
     "couldNotStart": "Could not start radio",
     "noChannels": "No radio channels available",
     "stationsHeading": "Radio",
-    "channelsHeading": "MuMa Radio"
+    "channelsHeading": "MuMa Radio",
+    "couldNotLoad": "Could not load the radio list"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

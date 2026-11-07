@@ -18,6 +18,7 @@ import {
 import { notify, dismissAll } from "../../src/lib/notifications.js";
 import { platform } from "../../src/lib/platform/index.js";
 import { lazyViews } from "../../src/lib/lazyViews.js";
+import { tuneChannel, tuneStation } from "../../src/lib/radioCommands.js";
 import { LAZY_HOOK_TIMEOUT_MS, loadLazy } from "./lazyTestUtils.js";
 
 const FIRST = {
@@ -841,42 +842,32 @@ describe("Player", () => {
       });
     }
 
-    it("offers a choice when more than one channel is on air", async () => {
-      globalThis.fetch = radioApi([
-        { slug: "main", name: "Radio", filter: {} },
-        { slug: "qdance", name: "Q-dance", filter: { label: "Q-dance Records" } },
-      ]);
+    it("tunes into the channel the Radio page asks for", async () => {
+      globalThis.fetch = radioApi([]);
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
-
-      await waitFor(() => expect(screen.getByText("Q-dance")).toBeTruthy());
-      expect(screen.getByText("Q-dance Records")).toBeTruthy();
-      // Nothing is tuned in until a channel is picked.
-      expect(get(radioChannel)).toBeNull();
-    });
-
-    it("tunes into the channel that was picked", async () => {
-      globalThis.fetch = radioApi([
-        { slug: "main", name: "Radio", filter: {} },
-        { slug: "qdance", name: "Q-dance", filter: { label: "Q-dance Records" } },
-      ]);
-      renderPlayer();
-
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await waitFor(() => expect(screen.getByText("Q-dance")).toBeTruthy());
-      await fireEvent.click(screen.getByText("Q-dance"));
+      await tuneChannel({ slug: "qdance", name: "Q-dance", filter: {} });
 
       await waitFor(() => expect(get(radioChannel)).toBe("qdance"));
     });
 
-    it("starts straight away when there is only one channel", async () => {
-      globalThis.fetch = radioApi([{ slug: "main", name: "Radio", filter: {} }]);
+    it("has no radio button while no radio plays", () => {
+      globalThis.fetch = radioApi([]);
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
+      expect(screen.queryByLabelText("Radio stoppen")).toBeNull();
+      expect(screen.queryByLabelText("Radio")).toBeNull();
+    });
 
+    it("the stop button leaves the channel", async () => {
+      globalThis.fetch = radioApi([]);
+      renderPlayer();
+      await tuneChannel({ slug: "main", name: "MuMa Radio", filter: {} });
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
+
+      await waitFor(() => expect(get(radioChannel)).toBeNull());
     });
   });
 
@@ -899,25 +890,12 @@ describe("Player", () => {
     }
 
     async function tuneIn(container) {
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
-      await fireEvent.click(screen.getByText("SLAM"));
+      await tuneStation(SLAM);
       await waitFor(() => expect(get(liveStation)?.slug).toBe("slam"));
       return container.querySelector("audio");
     }
 
     afterEach(() => liveStation.set(null));
-
-    it("offers stations and channels together, even with one channel", async () => {
-      globalThis.fetch = stationApi();
-      renderPlayer();
-
-      await fireEvent.click(screen.getByLabelText("Radio"));
-
-      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
-      expect(get(radioChannel)).toBeNull();
-      expect(get(liveStation)).toBeNull();
-    });
 
     it("gives the broadcaster's address to the element", async () => {
       globalThis.fetch = stationApi();
@@ -940,12 +918,12 @@ describe("Player", () => {
       expect(calls.filter((url) => url.includes("/rest/scrobble"))).toEqual([]);
     });
 
-    it("the radio button leaves the station and closes the connection", async () => {
+    it("the stop button leaves the station and closes the connection", async () => {
       globalThis.fetch = stationApi();
       const { container } = renderPlayer();
       const audioElement = await tuneIn(container);
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
+      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
 
       await waitFor(() => expect(get(liveStation)).toBeNull());
       expect(audioElement.getAttribute("src")).not.toBe(SLAM.stream_url);

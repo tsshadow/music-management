@@ -160,7 +160,8 @@ class MediaPlayerManager(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Timber.w(error.toString())
+            // The cause goes in the message too: "Source error" alone does not say what failed.
+            Timber.w(error, "%s, cause: %s", error, error.cause)
             // Published before the jukebox branch below returns: every listener wants to know an
             // item failed, and only the jukebox wants the toast and the fallback.
             RxBus.playerErrorPublisher.onNext(RxBus.PlayerError(error.errorCode, error.message))

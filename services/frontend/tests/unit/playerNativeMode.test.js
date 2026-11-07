@@ -285,6 +285,9 @@ describe("Player on the native shell", () => {
   });
 
   describe("radio and the news", () => {
+    /** The module the Radio page calls, loaded after the mocks like every import here. */
+    const radioCommands = () => import("../../src/lib/radioCommands.js");
+
     // `createCapacitorPlayer`'s snapshot is a module-level singleton shared by every test in this
     // file, and none of the tests above reset `radioChannel`/`newsPlaying` on it -- only the
     // stores get reset in the outer `beforeEach`. Without this, whichever of these tests ran last
@@ -305,7 +308,7 @@ describe("Player on the native shell", () => {
       });
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
+      (await radioCommands()).tuneChannel({ slug: "main" });
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
 
       expect(playerPlugin.startRadio).toHaveBeenCalledWith({ slug: "main" });
@@ -328,9 +331,11 @@ describe("Player on the native shell", () => {
       });
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await waitFor(() => expect(screen.getByText("SLAM")).toBeTruthy());
-      await fireEvent.click(screen.getByText("SLAM"));
+      (await radioCommands()).tuneStation({
+        slug: "slam",
+        name: "SLAM",
+        stream_url: "https://example.com/s.mp3",
+      });
 
       await waitFor(() => expect(playerPlugin.startStation).toHaveBeenCalledWith({ slug: "slam" }));
       liveStation.set(null);
@@ -372,10 +377,9 @@ describe("Player on the native shell", () => {
       );
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await fireEvent.click(await screen.findByText("Hoofdzender"));
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await fireEvent.click(await screen.findByText("Tweede zender"));
+      const { tuneChannel } = await radioCommands();
+      tuneChannel(channels[0]);
+      tuneChannel(channels[1]);
       await waitFor(() => expect(pending).toHaveLength(2));
 
       pending[1]({});
@@ -406,8 +410,9 @@ describe("Player on the native shell", () => {
       );
       renderPlayer();
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
-      await fireEvent.click(screen.getByLabelText("Radio"));
+      const { tuneChannel } = await radioCommands();
+      tuneChannel({ slug: "main" });
+      tuneChannel({ slug: "main" });
       await waitFor(() => expect(pending).toHaveLength(1));
       await new Promise((resolve) => setTimeout(resolve, 0));
       pending[0]({});
@@ -430,7 +435,7 @@ describe("Player on the native shell", () => {
       playerPlugin.fire("timeupdate", { position: 1, radioChannel: "main" });
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
 
-      await fireEvent.click(screen.getByLabelText("Radio"));
+      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
 
       expect(playerPlugin.stopRadio).toHaveBeenCalled();
       expect(playerPlugin.pause).toHaveBeenCalled();

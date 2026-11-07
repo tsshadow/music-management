@@ -19,7 +19,6 @@
   import { queuePosition } from './queuePosition.js';
   import { nowPlayingBackground, playingFromLabel } from './nowPlayingContext.js';
   import { releaseDateLabel } from './trackDate.js';
-  import { describeFilter } from './management/radioChannels.js';
   import { playTrack } from './playTrack.js';
   import { listOf, subsonicJson } from './subsonic.js';
   import { primaryArtistOf } from './utils.js';
@@ -74,18 +73,12 @@
     // list on the first tap and clears the flag when a channel starts), rendered here as a
     // bottom sheet because the desktop bar's dropdown has nowhere to anchor on this screen.
     radioActive = false,
-    radioChannels = [],
-    radioStations = [],
-    onstartStation = null,
-    showRadioPicker = false,
-    ontoggleRadio = null,
+    onstopRadio = null,
     // The news bulletin: `newsActive` tints the button while one plays (`Player.svelte`'s
     // `newsSnapshot !== null`), `ontoggleNews` is its `toggleNews`. The desktop bar always had
     // this button; the phone lost it when the full-screen view moved into this component.
     newsActive = false,
     ontoggleNews = null,
-    onstartRadio = null,
-    oncloseRadioPicker = null,
     onclose,
     ontogglePlay,
     onnext,
@@ -769,13 +762,12 @@
                 </svg>
               </button>
             {/if}
-            {#if ontoggleRadio}
+            {#if onstopRadio && radioActive}
               <button
                 class="shrink-0 bg-transparent border-none p-2 cursor-pointer transition-colors hover:text-white {radioActive ? 'text-[#b266ff]' : 'text-muma-spotify-text'}"
                 data-testid="now-playing-radio"
-                onclick={ontoggleRadio}
-                aria-label={$t('player.radio')}
-                aria-pressed={radioActive}
+                onclick={onstopRadio}
+                aria-label={$t('player.stopRadio')}
               >
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
@@ -885,38 +877,6 @@
       </div>
     </BottomSheet>
   {/if}
-  {#if showRadioPicker}
-    <BottomSheet title={$t('radio.chooseChannel')} onclose={() => oncloseRadioPicker?.()}>
-      <div class="flex flex-col" role="menu" data-testid="now-playing-radio-picker">
-        {#if radioStations.length}
-          <div class="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muma-spotify-text">{$t('radio.stationsHeading')}</div>
-          {#each radioStations as station (station.slug)}
-            <button
-              class="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer text-sm font-bold text-white hover:bg-white/10 transition-colors"
-              role="menuitem"
-              onclick={() => onstartStation?.(station)}
-            >
-              {station.name}
-            </button>
-          {/each}
-        {/if}
-        {#if radioChannels.length}
-          <div class="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muma-spotify-text">{$t('radio.channelsHeading')}</div>
-        {/if}
-        {#each radioChannels as channel (channel.slug)}
-          <button
-            class="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer text-white hover:bg-white/10 transition-colors"
-            role="menuitem"
-            onclick={() => onstartRadio?.(channel)}
-          >
-            <span class="block text-sm font-bold">{channel.name}</span>
-            <span class="block text-[12px] text-muma-spotify-text">{describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}</span>
-          </button>
-        {/each}
-      </div>
-    </BottomSheet>
-  {/if}
-
   {#if showDetailsSheet && track}
     <LazyView name="trackDetails" fallback="none" props={{
       track,

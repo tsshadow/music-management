@@ -26,7 +26,8 @@ Radio". MuMa does not record, change or forward the audio. Your device connects 
 | You open Start in Android Auto | The Live group shows Radio, MuMa Radio and Nieuws. There are still four tabs. |
 | You open Radio in the car | You see SLAM, Q-dance and 538. |
 | You tap a station | The station starts at the live point. The queue stops, the same as when you start a MuMa Radio channel. |
-| You open the radio button in the app or the web player | The menu shows the stations under Radio and the channels under MuMa Radio. |
+| You open Radio under Browse in the app, or in the sidebar of the web player | The page shows the stations under Radio and the channels under MuMa Radio, in a list that scrolls. |
+| You tap the row that plays, or the stop button in the player | The station or channel stops. The player shows the stop button only while radio plays. |
 | A station plays in the car | The next, previous and seek buttons are not available. |
 | The stream sends the title of the song (app and car) | The screen shows that title, with the station name under it. |
 | The stream sends no title, or you listen in the browser | The screen shows the station name. |
@@ -40,7 +41,7 @@ Radio". MuMa does not record, change or forward the audio. Your device connects 
 ## Acceptance Criteria
 
 1. In Android Auto, you can start SLAM, Q-dance and 538 from Start > Live > Radio.
-2. In the app and in the web player, you can start the same three stations from the radio menu.
+2. In the app and in the web player, you can start the same three stations from the Radio page.
 3. The next, previous and seek buttons do nothing during a station, and the car shows them as not
    available.
 4. An hour of listening to a station adds no listens to your history.

@@ -16,6 +16,7 @@ export const TILE_COLORS = {
   lineups: "#BC5900",
   // Browse by BPM (docs/designs/bpm-browse/).
   bpm: "#006450",
+  radio: "#B266FF",
   artists: "#148A08",
   albums: "#7358FF",
   memories: "#503750",

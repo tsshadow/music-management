@@ -91,12 +91,12 @@ refusal. `PlaybackServiceRulesTest` pins that an `https` address stays unchanged
 **frontend.**
 
 - `platform/index.js`, `platform/capacitor/player.js`: `startStation`. `stopRadio` also leaves a station.
-- `Player.svelte`: a store `liveStation`, and two sections in the radio menu: Radio and MuMa Radio. The existing default channel is renamed from Radio to MuMa Radio at start-up, unless a curator chose another name. In the browser, the engine
+- `RadioView.svelte`, the `radio` entry of `navigation.js`: the page with two sections, Radio and MuMa Radio. It calls `Player.svelte` through `radioCommands.js`, in the same task as the tap, because a browser starts playback only there. `Player.svelte`: a store `liveStation`, and a stop button while radio plays. The existing default channel is renamed from Radio to MuMa Radio at start-up, unless a curator chose another name. In the browser, the engine
   gets `load({url, autoplay: true})`. No `radioController` runs. While a station plays, the code does
   not write a listen, does not send jam state and hides the seek bar. `reconcileNativeRadioNews` also
   reads `stationSlug`, so a station started in the car shows in the app.
 - `RadioStationsSection.svelte` in `RadioTab.svelte`: add, change, disable and remove. Text in all four locales.
-- `docs/styleguide.md` first, if the menu section needs a new style (AGENTS.md rule 15).
+- `docs/styleguide.md` first, if the page needs a new style (AGENTS.md rule 15).
 
 **LMS.** None. `getInternetRadioStations` stays not implemented.
 

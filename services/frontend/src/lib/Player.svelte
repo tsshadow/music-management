@@ -2,7 +2,7 @@
   import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { onMount } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, radioNowPlaying, liveStation, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, knownStations, radioNowPlaying, liveStation, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
   import { extendQueue } from './listContinuation.js';
   // Opened from its button only: its own chunk (lazyViews.js, issue #114).
   import LazyView from './LazyView.svelte';
@@ -25,7 +25,7 @@
   import { stationAsTrack, stationFromNativeState } from './liveStation.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
-  import { describeFilter } from './management/radioChannels.js';
+  import { registerRadioCommands } from './radioCommands.js';
   import { snapshotOf, restoreTarget, bulletinStreamUrl } from './newsQueue.js';
   import { startQueue } from './queue.js';
   import { queueRestore } from './queueRestore.js';
@@ -87,13 +87,10 @@
   let radioTickInterval = null;
   let radioRefreshInterval = null;
   let radioClockInterval = null;
-  let radioChannels = $state([]);
-  let radioStations = $state([]);
   // Set while a news bulletin is interrupting the music, and holding what to
   // put back when it ends.
   let newsSnapshot = $state(null);
   let newsObjectUrl = null;
-  let showRadioPicker = $state(false);
 
   let showEqualizer = $state(false);
   let equalizerPanelEl = $state(null);
@@ -309,10 +306,9 @@
       beginRadioDisplay(slug);
     } else if (!slug && $radioChannel) {
       endRadioDisplay();
-      showRadioPicker = false;
     }
 
-    const station = stationFromNativeState(state, radioStations, $liveStation);
+    const station = stationFromNativeState(state, $knownStations, $liveStation);
     const stationChanged = station?.slug !== $liveStation?.slug || station?.title !== $liveStation?.title;
     if (stationChanged) liveStation.set(station);
 
@@ -322,64 +318,30 @@
     }
   }
 
-  /**
-   * Switches radio off, or offers the channels on air. With one channel there is
-   * nothing to choose, so it starts straight away.
-   */
-  async function toggleRadio() {
+  /** Leaves the live station or MuMa Radio and goes silent. The Radio page starts them. */
+  async function stopAnyRadio() {
     if ($liveStation) {
       await stopStation();
-      showRadioPicker = false;
       return;
     }
-    if ($radioChannel) {
-      radioStartGuard.invalidate();
-      if (nativePlayback) {
-        // Radio is driven entirely by the service; leaving it is a session
-        // command rather than anything this controller does. `pause()`
-        // afterwards is what makes it go silent instead of carrying straight on
-        // into whatever queue item comes back -- the same thing
-        // `radioController.stop()`'s own `audio.pause()` does for the browser.
-        try {
-          await platform.player.stopRadio();
-          platform.player.pause();
-        } catch (e) {
-          console.error($t('radio.couldNotStart'), e);
-        }
-      } else {
-        radioController?.stop();
+    if (!$radioChannel) return;
+    radioStartGuard.invalidate();
+    if (nativePlayback) {
+      // Radio is driven entirely by the service; leaving it is a session
+      // command rather than anything this controller does. `pause()`
+      // afterwards is what makes it go silent instead of carrying straight on
+      // into whatever queue item comes back -- the same thing
+      // `radioController.stop()`'s own `audio.pause()` does for the browser.
+      try {
+        await platform.player.stopRadio();
+        platform.player.pause();
+      } catch (e) {
+        console.error($t('radio.couldNotStart'), e);
       }
-      endRadioDisplay();
-      showRadioPicker = false;
-      return;
+    } else {
+      radioController?.stop();
     }
-
-    if (showRadioPicker) {
-      showRadioPicker = false;
-      return;
-    }
-
-    try {
-      const headers = { 'X-API-Key': $mumaApiKey };
-      const [channelResponse, stationResponse] = await Promise.all([
-        fetch(`${$mumaApiUrl}/api/radio/channels`, { headers }),
-        fetch(`${$mumaApiUrl}/api/radio/stations`, { headers }),
-      ]);
-      radioChannels = (await channelResponse.json()).channels || [];
-      // Stations are extra: without an answer, MuMa Radio still works.
-      radioStations = stationResponse.ok ? (await stationResponse.json()).stations || [] : [];
-      if (!radioChannels.length && !radioStations.length) {
-        console.warn($t('radio.noChannels'));
-        return;
-      }
-      if (radioChannels.length === 1 && !radioStations.length) {
-        await startRadio(radioChannels[0]);
-        return;
-      }
-      showRadioPicker = true;
-    } catch (e) {
-      console.error($t('radio.couldNotStart'), e);
-    }
+    endRadioDisplay();
   }
 
   /**
@@ -390,7 +352,6 @@
    * @param {{slug: string}} channel
    */
   async function startRadio(channel) {
-    showRadioPicker = false;
     liveStation.set(null);
     // A second tap on the channel that is still starting is the same request, not a new one.
     const ticket = radioStartGuard.begin(channel.slug);
@@ -423,7 +384,6 @@
    * @param {{slug: string, name: string, stream_url: string}} station
    */
   async function startStation(station) {
-    showRadioPicker = false;
     radioStartGuard.invalidate();
     if (!nativePlayback) radioController?.stop();
     endRadioDisplay();
@@ -512,7 +472,7 @@
       liveStation.set(null);
       // Radio has to be switched off rather than paused: it drives the same
       // element, and it would keep correcting the bulletin's position.
-      if ($radioChannel) await toggleRadio();
+      if ($radioChannel) await stopAnyRadio();
 
       newsObjectUrl = URL.createObjectURL(blob);
       await platform.player.load({ url: newsObjectUrl, trackId: null, autoplay: true });
@@ -1415,8 +1375,11 @@
     ($syncMode === 'follower-jam' ? $t('player.syncRemote') :
     ($syncMode === 'follower-radio' ? $t('player.syncListener') : $t('player.syncOff')))
   );
+  // The Radio page is not inside the player; it reaches these from its click handlers.
+  onMount(() => registerRadioCommands({ startRadio, startStation, stop: stopAnyRadio }));
+
   const isRadioActive = $derived($radioChannel !== null || $liveStation !== null);
-  const radioColor = $derived(isRadioActive ? '#b266ff' : '#b3b3b3');
+  const radioColor = '#b266ff';
   const newsColor = $derived(newsSnapshot ? '#b266ff' : '#b3b3b3');
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   /** True while the app-start queue restore runs behind the mounted app (`queueRestore.js`). */
@@ -1586,7 +1549,7 @@
     const wanted = $currentTrack ?? null;
     // Radio and a bulletin own the service's single-item queue while either is
     // on; pushing the ordinary one over it would replace whatever is actually
-    // playing. `toggleRadio`/`toggleNews`'s own service calls handle turning
+    // playing. `stopAnyRadio`/`toggleNews`'s own service calls handle turning
     // either off -- this effect only has to stay out of the way while they are
     // running and resync once they are not.
     const radioOrNewsActive = Boolean($radioChannel) || Boolean($liveStation) || Boolean(newsSnapshot);
@@ -1605,7 +1568,7 @@
     }
     // Coming back from radio or a bulletin must not resume playback on its
     // own: turning radio off already leaves the service silent
-    // (`toggleRadio`'s `pause()`), and a bulletin already resumed itself, on
+    // (`stopAnyRadio`'s `pause()`), and a bulletin already resumed itself, on
     // the far side, at the position it interrupted
     // (`NewsPlaybackController.stopAndRestore`). Pushing the queue again here
     // with `autoplay: true` would fight either.
@@ -2012,13 +1975,7 @@
       {ontoggleQueue}
       onopenOutputPicker={openOutputPicker}
       radioActive={isRadioActive}
-      {radioChannels}
-      {radioStations}
-      onstartStation={startStation}
-      {showRadioPicker}
-      ontoggleRadio={toggleRadio}
-      onstartRadio={startRadio}
-      oncloseRadioPicker={() => (showRadioPicker = false)}
+      onstopRadio={stopAnyRadio}
       newsActive={newsSnapshot !== null}
       ontoggleNews={toggleNews}
       {onnavigate}
@@ -2226,57 +2183,19 @@
           {/each}
         </div>
       {/if}
-      <div class="relative flex items-center">
+      {#if isRadioActive}
         <button
           class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
           style="color: {radioColor}"
-          onclick={toggleRadio}
-          title={$t('player.radio')}
-          aria-label={$t('player.radio')}
-          aria-pressed={isRadioActive}
-          aria-expanded={showRadioPicker}
+          onclick={stopAnyRadio}
+          title={$t('player.stopRadio')}
+          aria-label={$t('player.stopRadio')}
         >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
-            </svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
+          </svg>
         </button>
-        {#if showRadioPicker}
-          <div
-            class="absolute bottom-full right-0 mb-3 w-56 bg-muma-spotify-light rounded-md shadow-xl border border-white/5 py-1 z-50"
-            role="menu"
-          >
-            {#if radioStations.length}
-              <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-muma-spotify-text">
-                {$t('radio.stationsHeading')}
-              </div>
-              {#each radioStations as station (station.slug)}
-                <button
-                  class="w-full text-left px-3 py-2 bg-transparent border-none cursor-pointer text-sm font-bold text-white hover:bg-white/10 transition-colors"
-                  role="menuitem"
-                  onclick={() => startStation(station)}
-                >
-                  {station.name}
-                </button>
-              {/each}
-            {/if}
-            <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-muma-spotify-text">
-              {$t('radio.channelsHeading')}
-            </div>
-            {#each radioChannels as channel (channel.slug)}
-              <button
-                class="w-full text-left px-3 py-2 bg-transparent border-none cursor-pointer text-sm text-white hover:bg-white/10 transition-colors"
-                role="menuitem"
-                onclick={() => startRadio(channel)}
-              >
-                <span class="font-bold">{channel.name}</span>
-                <span class="block text-[11px] text-muma-spotify-text">
-                  {describeFilter(channel.filter, $t('management.radio.wholeLibrary'))}
-                </span>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+      {/if}
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
         style="color: {newsColor}"

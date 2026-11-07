@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.19.1] - 2026-11-07
+
+### Changed
+- Radio moved from a button in the player to a page under Browse, with the stations and MuMa Radio in one list that scrolls. The player shows a stop button only while radio plays.
+
+### Fixed
+- Live stations played nothing on a phone with a custom cache folder. The app looked for the stream URL in that folder, the folder gave an error, and the app never sent a request. The app now goes straight to the stream. MuMa Radio uses the same kind of URL, so it gets the same fix.
+
+- The song title of a live station can now reach the screen. The app asked the broadcaster for titles, but did not pass on the header that takes that text out of the audio.
+
 ## [7.19.0] - 2026-11-06
 
 ### Added

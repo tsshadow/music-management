@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 import { get } from "svelte/store";
+import { notify } from "../../src/lib/notifications.js";
 
 /**
  * Shuffle and repeat, once the queue lives on the service instead of in this
@@ -49,6 +50,7 @@ const playerPlugin = fakePlugin({
   setMode: vi.fn(async (request) => ({ shuffle: request.shuffle, repeat: request.repeat })),
   startRadio: vi.fn(async () => ({})),
   startStation: vi.fn(async () => ({})),
+  setFavoriteStations: vi.fn(async () => ({})),
   stopRadio: vi.fn(async () => ({})),
   toggleNews: vi.fn(async () => ({})),
   pause: vi.fn(async () => ({})),
@@ -82,6 +84,7 @@ const {
   credentials,
   currentTrack,
   isMobile,
+  favoriteStations,
   liveStation,
   nowPlayingOpen,
   playerState,
@@ -341,6 +344,36 @@ describe("Player on the native shell", () => {
       liveStation.set(null);
     });
 
+    it("gives the favorite stations to the service, for the car", async () => {
+      renderPlayer();
+      favoriteStations.set(["slam"]);
+
+      await waitFor(() =>
+        expect(playerPlugin.setFavoriteStations).toHaveBeenCalledWith({ slugs: ["slam"] }),
+      );
+      favoriteStations.set([]);
+    });
+
+    it("shows no error while the service loads the station", async () => {
+      globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ stations: [] }) }));
+      renderPlayer();
+      liveStation.set({
+        slug: "slam",
+        name: "SLAM",
+        stream_url: "https://example.com/s.mp3",
+        title: null,
+      });
+      const toast = vi.spyOn(notify, "error");
+
+      playerPlugin.fire("ended", {});
+      playerPlugin.fire("error", { message: "source error" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(toast).not.toHaveBeenCalled();
+      toast.mockRestore();
+      liveStation.set(null);
+    });
+
     it("follows a station started in the car, and shows what the stream sends", async () => {
       renderPlayer();
 
@@ -435,7 +468,8 @@ describe("Player on the native shell", () => {
       playerPlugin.fire("timeupdate", { position: 1, radioChannel: "main" });
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
 
-      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
+      isMobile.set(true);
+      await fireEvent.click(await screen.findByLabelText(/Afspelen|Pauze/));
 
       expect(playerPlugin.stopRadio).toHaveBeenCalled();
       expect(playerPlugin.pause).toHaveBeenCalled();

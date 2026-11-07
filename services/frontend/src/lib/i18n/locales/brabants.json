@@ -186,8 +186,14 @@
   "radio": {
     "couldNotStart": "Kos de radio nie aanzette",
     "noChannels": "Gin kanale beschikbaar",
-    "stationsHeading": "Radio",
-    "channelsHeading": "MuMa Radio"
+    "stationsHeading": "Alle zenders",
+    "channelsHeading": "MuMa Radio",
+    "favoritesHeading": "Favorieten",
+    "recentHeading": "Recent",
+    "searchStations": "Zoek een zender",
+    "noStationMatch": "Geen zender gevonden",
+    "addFavorite": "{name} toevoegen aan favorieten",
+    "removeFavorite": "{name} verwijderen uit favorieten"
   },
   "releaseNotes": {
     "intro": "D'r is un nieuwe versie. Dit is d'r aanders:",

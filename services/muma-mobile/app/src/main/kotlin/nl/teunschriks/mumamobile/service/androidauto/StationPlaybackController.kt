@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.api.muma.MumaAPIDefinition
 import nl.teunschriks.mumamobile.api.muma.RadioStation
+import nl.teunschriks.mumamobile.provider.StationLogoProvider
 import timber.log.Timber
 
 /**
@@ -93,6 +94,7 @@ class StationPlaybackController(
                 // The stream's own title replaces this title as soon as the stream sends one.
                 .setTitle(target.name)
                 .setArtist(subtitle)
+                .setArtworkUri(StationLogoProvider.artUri(target.slug))
                 .build()
         )
         .build()

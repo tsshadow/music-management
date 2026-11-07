@@ -20,7 +20,7 @@ EXPECTED_COUNTS = {
     'rules_artists': 11,
     'rules_ignored_artists': 11,
     'rules_scene_group_date_format': 5,
-    'radio_stations': 3,
+    'radio_stations': 67,
 }
 
 
@@ -119,6 +119,25 @@ def test_seed_does_not_copy_later_ignored_artists_into_rules_artists(db):
 # --- Equivalence with the migrations -----------------------------------------------------------
 
 
+def test_the_second_station_batch_keeps_the_first_three_at_the_top(db):
+    """The batch starts its order after the first seed, and changes no row."""
+    _seed(db)
+    rows = run_sql(db, 'SELECT slug FROM radio_stations ORDER BY sort_order, slug')
+    slugs = [row['slug'] for row in rows]
+    assert slugs[:5] == ['slam', 'q-dance', '538', '100-nl', '100-nl-non-stop']
+
+
+def test_a_removed_station_of_the_second_batch_does_not_come_back(db):
+    """The batch adds its stations once, so a curator's removal stays."""
+    _seed(db)
+    with db.cursor() as cursor:
+        cursor.execute("DELETE FROM radio_stations WHERE slug = 'sky-radio'")
+    _seed(db)
+    slugs = {row['slug'] for row in run_sql(db, 'SELECT slug FROM radio_stations')}
+    assert 'sky-radio' not in slugs
+    assert 'qmusic' in slugs
+
+
 def test_a_removed_radio_station_does_not_come_back(db):
     """The seed only fills an empty table, so a curator's choice survives the next start."""
     _seed(db)
@@ -126,4 +145,5 @@ def test_a_removed_radio_station_does_not_come_back(db):
         cursor.execute("DELETE FROM radio_stations WHERE slug = '538'")
     _seed(db)
     slugs = {row['slug'] for row in run_sql(db, 'SELECT slug FROM radio_stations')}
-    assert slugs == {'slam', 'q-dance'}
+    assert '538' not in slugs
+    assert {'slam', 'q-dance'} <= slugs

@@ -11,6 +11,7 @@ import {
   playerState,
   playlist,
   liveStation,
+  recentStations,
   radioChannel,
   syncMode,
   subsonicToken,
@@ -859,13 +860,14 @@ describe("Player", () => {
       expect(screen.queryByLabelText("Radio")).toBeNull();
     });
 
-    it("the stop button leaves the channel", async () => {
+    it("the play button leaves the channel, because a shared clock cannot pause", async () => {
       globalThis.fetch = radioApi([]);
+      isMobile.set(true);
       renderPlayer();
       await tuneChannel({ slug: "main", name: "MuMa Radio", filter: {} });
       await waitFor(() => expect(get(radioChannel)).toBe("main"));
 
-      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
+      await fireEvent.click(await screen.findByLabelText(/Afspelen|Pauze/));
 
       await waitFor(() => expect(get(radioChannel)).toBeNull());
     });
@@ -918,15 +920,47 @@ describe("Player", () => {
       expect(calls.filter((url) => url.includes("/rest/scrobble"))).toEqual([]);
     });
 
-    it("the stop button leaves the station and closes the connection", async () => {
+    it("leaves pause enabled, with no stop button of its own", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+      await tuneIn(container);
+
+      expect(screen.queryByLabelText("Radio stoppen")).toBeNull();
+      isMobile.set(true);
+      const button = await screen.findByLabelText(/Afspelen|Pauze/);
+      expect(button.disabled).toBe(false);
+    });
+
+    it("shows the logo of the station as the cover", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+      await tuneIn(container);
+
+      await waitFor(() =>
+        expect(container.querySelector('img[src="/images/stations/slam.png"]')).not.toBeNull(),
+      );
+    });
+
+    it("remembers the station as played last", async () => {
+      globalThis.fetch = stationApi();
+      recentStations.set([]);
+      const { container } = renderPlayer();
+      await tuneIn(container);
+
+      await waitFor(() => expect(get(recentStations)).toEqual(["slam"]));
+      recentStations.set([]);
+    });
+
+    it("tells the listener when the stream fails in the browser", async () => {
       globalThis.fetch = stationApi();
       const { container } = renderPlayer();
       const audioElement = await tuneIn(container);
+      const spy = vi.spyOn(notify, "error");
 
-      await fireEvent.click(await screen.findByLabelText("Radio stoppen"));
+      await fireEvent.ended(audioElement);
 
-      await waitFor(() => expect(get(liveStation)).toBeNull());
-      expect(audioElement.getAttribute("src")).not.toBe(SLAM.stream_url);
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+      spy.mockRestore();
     });
   });
 

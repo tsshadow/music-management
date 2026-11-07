@@ -23,7 +23,9 @@ import nl.teunschriks.mumamobile.audiofx.EqualizerController
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
 import nl.teunschriks.mumamobile.service.RxBus
+import nl.teunschriks.mumamobile.service.androidauto.StationOrder
 import nl.teunschriks.mumamobile.service.plusAssign
+import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.toTrack
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -64,6 +66,7 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `setEqualizer({enabled, gains, preamp})` | `EqualizerController`, resampled by [nativeBandGains] |
  * | `setMode({shuffle, repeat})` | `mediaPlayerManager.isShufflePlayEnabled`/`repeatMode`, resolved with a fresh [snapshot] |
  * | `startRadio({slug})` | `mediaPlayerManager.startRadioChannel(slug)` -- a media id [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems] already resolves onto the server's timeline |
+ * | `setFavoriteStations({slugs})` | stores the slugs that the car lists first |
  * | `startStation({slug})` | `mediaPlayerManager.startStation(slug)` -- a media id `onAddMediaItems` resolves to a live station |
  * | `stopRadio()` | `mediaPlayerManager.stopRadio()` -- the `CUSTOM_COMMAND_STOP_RADIO` session command, for MuMa Radio and a live station |
  * | `toggleNews()` | `mediaPlayerManager.toggleNews()` -- the `CUSTOM_COMMAND_PLAY_NEWS` session command, which already toggles both ways |
@@ -400,6 +403,14 @@ class MumaPlayerPlugin :
             mediaPlayerManager.startRadioChannel(slug)
             call.resolve()
         }
+    }
+
+    /** Stores the favorite stations, for the list in the car. */
+    @PluginMethod
+    fun setFavoriteStations(call: PluginCall) {
+        val slugs = call.getArray("slugs")?.toList<String>().orEmpty()
+        Settings.favoriteStations = StationOrder.encode(slugs)
+        call.resolve()
     }
 
     /** Tunes into a live station. [stopRadio] leaves it again. */

@@ -83,6 +83,9 @@ object Settings {
             HomeLimits.DEFAULT_LIST_ROWS
         )
 
+    /** The live stations the listener marked in the web layer. The car lists them first. */
+    var favoriteStations by StringSetting("favorite_stations", "")
+
     // One mode per home section. Stored as the HomeSectionMode name; everything that reads them
     // goes through HomeLayoutSettings, which is what turns an unwritten or hand-edited value into
     // something renderable. Memories' old on/off checkbox is still read as a fallback there.

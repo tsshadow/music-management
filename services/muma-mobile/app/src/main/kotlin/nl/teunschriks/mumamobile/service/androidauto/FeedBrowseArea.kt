@@ -15,6 +15,8 @@ import java.util.Date
 import kotlinx.coroutines.guava.future
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.provider.StationLogoProvider
+import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.toMediaItem
 import org.koin.java.KoinJavaComponent.inject
 
@@ -80,12 +82,14 @@ internal class FeedBrowseArea(context: BrowseContext) : BrowseArea(context) {
             subsonicAPIClient.mumaApi.api.getRadioStations().execute().body()?.stations
         } ?: emptyList()
 
-        for (station in stations) {
+        val favorites = StationOrder.decode(Settings.favoriteStations)
+        for (station in StationOrder.favoritesFirst(stations, favorites)) {
             mediaItems.add(
                 title = station.name,
                 mediaId = listOf(MEDIA_STATION_ITEM, station.slug).joinToString("|"),
                 isBrowsable = false,
-                mediaType = MEDIA_TYPE_PLAYLIST
+                mediaType = MEDIA_TYPE_PLAYLIST,
+                imageUri = StationLogoProvider.artUri(station.slug)
             )
         }
         itemListResult(mediaItems)

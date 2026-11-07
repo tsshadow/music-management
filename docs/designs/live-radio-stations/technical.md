@@ -17,6 +17,50 @@ Do not use `https://stream.slam.nl/slam_mp3`. Its redirect has no `Access-Contro
 web player fails with `NotSupportedError`, because `Player.svelte` sets `crossorigin` on its one audio
 element. A station without CORS still plays in the app, and the browser shows that it is not available.
 
+The second batch has 64 more stations, listed in `services/common/seeds/radio_stations_nl_2026_11.sql`.
+The addresses come from the player of nederland.fm (`/common/radio/zenders/nederland.js`) and from the
+`icy-name` of StreamTheWorld mounts. All 64 were measured on 2026-11-07: `https`, audio, and
+a CORS header. The `dist=nederlandfm` parameter is not in the stored address.
+
+## Logos
+
+There is no schema or API change. The file `services/frontend/public/images/stations/<slug>.png` is the logo
+of the station with that slug. The file is in the web bundle, so a new logo needs an app release. A station
+without a file shows its name (`RadioView.svelte`), and in the car it has no image.
+
+`stationLogoUrl(slug)` in `liveStation.js` gives the address. `Artwork.svelte` has a `fit` prop, because a
+wide logo must not be cut to the square of a cover.
+
+The car reads artwork from its own process and cannot read an asset of the app. `StationLogoProvider` serves
+`content://<package>.provider.StationLogoProvider/<slug>`: it copies the asset to the cache once per app
+version. The provider is exported, the same as `GeneratedArtContentProvider`. It accepts only a single path
+segment that matches `[a-z0-9-]+`, and it reads only below `assets/public/images/stations/`.
+
+The logos are the broadcasters' own marks. The 64 logos of the second batch and the logos of the first three
+stations are taken from nederland.fm and q-dance.com.
+
+## Favorites And Recent Stations
+
+Both are lists of slugs in the web layer: `favoriteStations` and `recentStations` in `store.js`.
+`favoriteStations` is in `syncedFavoriteLists`, so it follows the account. `recentStations` also follows the
+account and keeps `RECENT_STATIONS_KEPT` (6) slugs. A slug that the server no longer lists is skipped
+(`stationSections`).
+
+The car has no web layer. `Player.svelte` gives the favorites to the service with
+`platform.player.setFavoriteStations(slugs)`, and `MumaPlayerPlugin` stores them in
+`Settings.favoriteStations`. `StationOrder.favoritesFirst` sorts the list in `FeedBrowseArea`. A phone that
+did not open the web layer since the last change shows the previous order.
+
+## Controls During A Station
+
+`Player.svelte` has two locks. `transportLocked` disables the track controls during any radio. `playLocked`
+disables play and pause only for a `follower-radio` jam. A station can pause. A MuMa Radio channel cannot
+pause, so `togglePlay` leaves the channel. That button replaced the separate stop button, which is removed.
+
+On the native shell, `handleEnded` and `handleAudioError` do not notify for a station. The service owns the
+retry and it reports a final failure itself, and `onAddMediaItems` returns an empty list, which gives a short
+`STATE_ENDED` before the station loads (bug report 155).
+
 ## Data Model
 
 A new table in `services/common/schema_tables.py`:
@@ -37,6 +81,11 @@ CREATE TABLE IF NOT EXISTS `radio_stations` (
 
 The seed `services/common/seeds/radio_stations.sql` inserts the three stations only when the table has no
 rows (an anti-join). `INSERT IGNORE` would bring back a removed station on each start.
+
+The seed `radio_stations_nl_2026_11.sql` runs after it, also on an existing database. It inserts the second
+batch only when no slug of that batch is in the table, so a station that a curator removed stays removed.
+If a curator removes all 64, the batch comes back on the next start. Its `sort_order` starts at 110, so
+SLAM, Q-dance and 538 stay at the top. A seed file never changes a row (`db_seedsTest.py`).
 
 The server never opens a `stream_url`, so a curator cannot use it to make the server call an internal
 address.
@@ -91,7 +140,7 @@ refusal. `PlaybackServiceRulesTest` pins that an `https` address stays unchanged
 **frontend.**
 
 - `platform/index.js`, `platform/capacitor/player.js`: `startStation`. `stopRadio` also leaves a station.
-- `RadioView.svelte`, the `radio` entry of `navigation.js`: the page with two sections, Radio and MuMa Radio. It calls `Player.svelte` through `radioCommands.js`, in the same task as the tap, because a browser starts playback only there. `Player.svelte`: a store `liveStation`, and a stop button while radio plays. The existing default channel is renamed from Radio to MuMa Radio at start-up, unless a curator chose another name. In the browser, the engine
+- `RadioView.svelte`, the `radio` entry of `navigation.js`: the page with the station grids and the MuMa Radio list. It calls `Player.svelte` through `radioCommands.js`, in the same task as the tap, because a browser starts playback only there. `Player.svelte`: a store `liveStation`. The existing default channel is renamed from Radio to MuMa Radio at start-up, unless a curator chose another name. In the browser, the engine
   gets `load({url, autoplay: true})`. No `radioController` runs. While a station plays, the code does
   not write a listen, does not send jam state and hides the seek bar. `reconcileNativeRadioNews` also
   reads `stationSlug`, so a station started in the car shows in the app.

@@ -1,1 +1,1 @@
-- Live stations played nothing on a phone with a custom cache folder. The app looked for the stream URL in that folder, the folder gave an error, and the app never sent a request. The app now goes straight to the stream. It also takes the song titles out of the audio and can show them on the screen.
+- The song title of a live station can now reach the screen. The app asked the broadcaster for titles, but did not pass on the header that takes that text out of the audio.

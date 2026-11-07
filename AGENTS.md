@@ -163,7 +163,8 @@ The system is split into specialized services, each handling a specific part of 
   device plays their `https` stream directly, in the app, in the car and in the web player. The
   channels MuMa makes from the library are "MuMa Radio" ([docs/radio-mode.md](docs/radio-mode.md)).
 - **Limits**: no timeline, no scrobble, no skip. The app tries again for 5 minutes after a connection
-  loss (`StationRetry`). Each seed batch runs once, so a removed station stays removed
+  loss (`StationRetry`). The repository holds no stream address: a new installation starts with no
+  stations, and a curator adds them in Beheer
   ([docs/designs/live-radio-stations/](docs/designs/live-radio-stations/technical.md)).
 - **Logos and favorites**: the logo of a station is `public/images/stations/<slug>.png` in the web
   bundle, also for the car (`StationLogoProvider`), and a station without a file shows its name.

@@ -4,23 +4,13 @@ Implements [`functional.md`](functional.md). Issue #213.
 
 ## Stream Addresses
 
-Measured on 2026-11-06. All three gave `audio/mpeg`, and `currentTime` went up in headless Chromium with
-`crossorigin="anonymous"` and an `AudioContext` on the element. Nothing was played on a phone or in a car.
+The repository holds no stream address. A new installation starts with no stations, and a curator adds
+them in Beheer > Radio. The addresses of an installation are rows in its own database.
 
-| Slug | Name | URL | Bitrate |
-|---|---|---|---|
-| `slam` | SLAM | `https://playerservices.streamtheworld.com/api/livestream-redirect/SLAM_MP3.mp3` | 128 kbit/s |
-| `q-dance` | Q-dance | `https://playerservices.streamtheworld.com/api/livestream-redirect/Q_DANCE.mp3` | 192 kbit/s |
-| `538` | 538 | `https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO538.mp3` | 128 kbit/s |
-
-Do not use `https://stream.slam.nl/slam_mp3`. Its redirect has no `Access-Control-Allow-Origin`, so the
-web player fails with `NotSupportedError`, because `Player.svelte` sets `crossorigin` on its one audio
-element. A station without CORS still plays in the app, and the browser shows that it is not available.
-
-The second batch has 64 more stations, listed in `services/common/seeds/radio_stations_nl_2026_11.sql`.
-The addresses come from the player of nederland.fm (`/common/radio/zenders/nederland.js`) and from the
-`icy-name` of StreamTheWorld mounts. All 64 were measured on 2026-11-07: `https`, audio, and
-a CORS header. The `dist=nederlandfm` parameter is not in the stored address.
+A station must send its stream over `https` with an `Access-Control-Allow-Origin` header.
+`Player.svelte` sets `crossorigin` on its one audio element, so the web player cannot play a stream
+without that header (`NotSupportedError`). The app can, and the browser shows that the station is not
+available.
 
 ## Logos
 
@@ -84,13 +74,8 @@ CREATE TABLE IF NOT EXISTS `radio_stations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 ```
 
-The seed `services/common/seeds/radio_stations.sql` inserts the three stations only when the table has no
-rows (an anti-join). `INSERT IGNORE` would bring back a removed station on each start.
-
-The seed `radio_stations_nl_2026_11.sql` runs after it, also on an existing database. It inserts the second
-batch only when no slug of that batch is in the table, so a station that a curator removed stays removed.
-If a curator removes all 64, the batch comes back on the next start. Its `sort_order` starts at 110, so
-SLAM, Q-dance and 538 stay at the top. A seed file never changes a row (`db_seedsTest.py`).
+No seed adds a station. A database that already has station rows keeps them, because a seed never
+changes or removes a row.
 
 The server never opens a `stream_url`, so a curator cannot use it to make the server call an internal
 address.
@@ -163,7 +148,7 @@ refusal. `PlaybackServiceRulesTest` pins that an `https` address stays unchanged
 1. `GET /api/radio/stations` returns only enabled stations in order, and `include_disabled=true` without
    `radio.manage` gives 403. The query is in `tests/integration/test_router_sql.py`.
 2. POST, PUT and DELETE give 403 without `radio.manage`, and `http://host` or `ftp://host` gives 400.
-3. A second seed run adds nothing, and after a DELETE of one station the seed does not add it again.
+3. A new database has no stations after the seed.
 4. `scrobbleIdFor("MEDIA_STATION_ITEM|slam")` is null.
 5. A unit test on the retry timing: the delays are 2, 4, 8, 16 and 30 seconds, and it stops after 5 minutes.
 6. While a station plays, `playerCommandsFor` does not include `COMMAND_SEEK_TO_NEXT`,

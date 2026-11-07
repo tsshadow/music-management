@@ -5,7 +5,7 @@
 ## Overview
 
 You can listen to live stations from outside MuMa, in the app, in Android Auto and in the web player.
-The list has 67 stations, each with a logo, and a curator changes it in Beheer. You can mark a station
+A curator keeps the list in Beheer. A new installation has no stations until a curator adds them. You can mark a station
 as a favorite, and the page shows the stations that you played last.
 
 The name in the interface is "Radio". The channel that MuMa makes from your own library is now "MuMa
@@ -17,7 +17,7 @@ Radio". MuMa does not record, change or forward the audio. Your device connects 
   without a second app.
 - As a listener, I want the same stations on my phone and in the browser, so that I do not have to look
   for them again.
-- As a listener, I want my favorite stations at the top, so that I do not search a list of 67 stations.
+- As a listener, I want my favorite stations at the top, so that I do not search a long list.
 - As a driver, I want my favorites first in the car, so that I do not scroll while I drive.
 - As a curator, I want to add a station or change its address in Beheer, so that a moved stream does not
   need an app release.

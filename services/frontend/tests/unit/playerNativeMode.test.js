@@ -476,6 +476,36 @@ describe("Player on the native shell", () => {
       expect(get(radioChannel)).toBeNull();
     });
 
+    // Bug report 156: a track picked during a station stayed in the store while the station played on.
+    it("a track picked during a station leaves it through the service and plays the track", async () => {
+      globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ stations: [] }) }));
+      playerPlugin.setQueue = vi.fn(async ({ tracks, index }) => ({
+        trackIds: tracks.map((t) => t.id),
+        index,
+      }));
+      renderPlayer();
+      playerPlugin.fire("timeupdate", { stationSlug: "slam", stationTitle: null });
+      await waitFor(() => expect(get(liveStation)?.slug).toBe("slam"));
+      playerPlugin.stopRadio.mockClear();
+      playerPlugin.pause.mockClear();
+
+      const picked = { id: "picked-3", title: "Picked", artist: "Someone", duration: 200 };
+      playlist.set([picked]);
+      currentTrack.set(picked);
+
+      await waitFor(() => expect(playerPlugin.stopRadio).toHaveBeenCalled());
+      await waitFor(() => expect(get(liveStation)).toBeNull());
+      // The service no longer reports the station once it left it.
+      playerPlugin.fire("timeupdate", { stationSlug: null, stationTitle: null });
+      expect(playerPlugin.pause).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(playerPlugin.setQueue).toHaveBeenCalledWith(
+          expect.objectContaining({ autoplay: true }),
+        ),
+      );
+      delete playerPlugin.setQueue;
+    });
+
     it("toggles the news through one call to the service", async () => {
       renderPlayer();
 

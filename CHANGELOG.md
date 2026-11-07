@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.97.0] - 2026-11-07
+
+### Added
+- **Radio has 67 stations, with logos, favorites and recent stations.** The Radio page is now a grid of
+  logos with a star on each tile, sections for favorites and for the stations played last, and a search
+  box. The 64 new stations are added once on an existing database, so a station a curator removed stays
+  removed. The car lists favorites first, with the logos.
+
+### Fixed
+- **A station no longer flashes an error when it starts on the phone, and pause works.** The player went
+  to `ended` for a moment while the service loaded the station, and the web layer showed that as a failure.
+  The pause button was grey during a station, because it used the lock for the track controls.
+- **The player has no disc button during radio.** Tap the play button to leave a MuMa Radio channel, or
+  pause a station. A station shows its logo, and no stars, skip buttons, queue or seek bar.
+
 ## [0.96.1] - 2026-11-07
 
 ### Changed

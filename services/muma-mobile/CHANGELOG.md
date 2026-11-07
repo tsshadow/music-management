@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.20.0] - 2026-11-07
+
+### Added
+- **Android Auto shows the station logos and lists your favorite stations first.** `StationLogoProvider`
+  serves the logos of the web bundle to the car, and the web layer stores the favorites through
+  `setFavoriteStations`. The Radio page has 67 stations, with logos, favorites and recent stations.
+
+### Fixed
+- **A station no longer flashes an error when it starts, pause works, and the disc button is gone.** The
+  web layer read the short `ended` state during the start of a station as a failure.
+
 ## [7.19.1] - 2026-11-07
 
 ### Changed

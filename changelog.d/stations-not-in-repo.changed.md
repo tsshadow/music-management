@@ -1,1 +1,0 @@
-- The repository no longer holds the addresses of the radio stations. A new installation starts with no stations, and a curator adds them in Beheer > Radio. An installation that already has stations keeps them.

@@ -399,6 +399,51 @@
     }
   }
 
+  /**
+   * Ends a live station or MuMa Radio because the listener picked a track, and lets that track
+   * play (bug report 156). Unlike `stopAnyRadio` it does not pause. Browser: with the radio stores
+   * cleared, `track` becomes the picked track and the load effect plays it. Native: the queue sync
+   * effect sends it with `autoplay`, because `playAfterRadio` is set.
+   */
+  async function leaveRadioForTrack() {
+    const station = Boolean($liveStation);
+    radioStartGuard.invalidate();
+    if (nativePlayback) {
+      playAfterRadio = true;
+      try {
+        await platform.player.stopRadio();
+      } catch (e) {
+        console.error($t('radio.couldNotStart'), e);
+      }
+    } else if (!station) {
+      radioController?.stop();
+    }
+    endRadioDisplay();
+    liveStation.set(null);
+    playerState.update((s) => ({ ...s, playing: true }));
+  }
+
+  /** The `currentTrack` value the effect below saw last. `undefined` until its first run. */
+  let lastSeenPick = undefined;
+  /** The track `followNativeTrack` wrote last: the service moved there, nobody picked it. */
+  let followedTrack = null;
+
+  // A track picked while a station or MuMa Radio plays ends the radio, and that track plays.
+  // Writes that are no pick are skipped: the app-start restore, a jam this device follows, and
+  // the service reporting where it is.
+  $effect(() => {
+    const picked = $currentTrack;
+    const radioOn = Boolean($liveStation) || Boolean($radioChannel);
+    const firstRun = lastSeenPick === undefined;
+    const newPick = picked !== lastSeenPick;
+    lastSeenPick = picked;
+    if (firstRun || !newPick || !picked || !radioOn) return;
+    if (picked === followedTrack) return;
+    if ($queueRestore.status === 'restoring') return;
+    if (String($syncMode).startsWith('follower')) return;
+    untrack(() => leaveRadioForTrack());
+  });
+
   /** Leaves the live station and goes silent. Native: the same session command as MuMa Radio. */
   async function stopStation() {
     try {
@@ -948,6 +993,7 @@
       hasScrobbledStarted = false;
       hasScrobbledFinished = false;
       nativeQueue?.follow(moved.id);
+      followedTrack = moved;
       currentTrack.set(moved);
   }
 
@@ -1560,6 +1606,8 @@
 
   /** Whether the last run of the queue-sync effect below found radio or a bulletin on. */
   let wasRadioOrNews = false;
+  /** Set by `leaveRadioForTrack`: the sync after radio plays the picked track, once. */
+  let playAfterRadio = false;
 
   // The queue as the platform service should hold it. Native only: in a browser
   // `sync` is never called and the queue stays exactly where it always was, in
@@ -1596,15 +1644,18 @@
     // the far side, at the position it interrupted
     // (`NewsPlaybackController.stopAndRestore`). Pushing the queue again here
     // with `autoplay: true` would fight either.
-    const justLeftRadioOrNews = wasRadioOrNews;
+    // A track the listener picked to end the radio is the exception: it plays.
+    const pickedOverRadio = wasRadioOrNews && playAfterRadio;
+    const justLeftRadioOrNews = wasRadioOrNews && !playAfterRadio;
     wasRadioOrNews = false;
+    playAfterRadio = false;
     // The first sync after a boot must not start the music: what is in the
     // stores then is either what the service was already playing (in which case
     // nothing is sent at all) or a queue restored from localStorage, and an app
     // that starts playing the moment it is opened is a bug people notice at
     // night. The one exception is a restore the listener cut short by starting a
     // track: that first sync is their choice, and it plays.
-    const autoplay = justLeftRadioOrNews ? false : nativeQueueSynced || restore === 'cancelled';
+    const autoplay = justLeftRadioOrNews ? false : pickedOverRadio || nativeQueueSynced || restore === 'cancelled';
     nativeQueueSynced = true;
     // An empty queue at boot is not an instruction to clear the service's: it
     // means the rehydrate found nothing to restore, which is no reason to stop

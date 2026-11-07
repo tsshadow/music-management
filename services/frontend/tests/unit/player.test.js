@@ -871,6 +871,17 @@ describe("Player", () => {
 
       await waitFor(() => expect(get(radioChannel)).toBeNull());
     });
+
+    it("a track picked during a channel ends the channel", async () => {
+      globalThis.fetch = radioApi([]);
+      renderPlayer();
+      await tuneChannel({ slug: "main", name: "MuMa Radio", filter: {} });
+      await waitFor(() => expect(get(radioChannel)).toBe("main"));
+
+      currentTrack.set({ id: "picked-2", title: "Picked", artist: "Someone", duration: 200 });
+
+      await waitFor(() => expect(get(radioChannel)).toBeNull());
+    });
   });
 
   describe("live stations", () => {
@@ -949,6 +960,18 @@ describe("Player", () => {
 
       await waitFor(() => expect(get(recentStations)).toEqual(["slam"]));
       recentStations.set([]);
+    });
+
+    // Bug report 156: the track went into the store and the station kept playing.
+    it("a track picked during a station ends it and plays the track", async () => {
+      globalThis.fetch = stationApi();
+      const { container } = renderPlayer();
+      const audioElement = await tuneIn(container);
+
+      currentTrack.set({ id: "picked-1", title: "Picked", artist: "Someone", duration: 200 });
+
+      await waitFor(() => expect(get(liveStation)).toBeNull());
+      await waitFor(() => expect(audioElement.getAttribute("src")).toContain("picked-1"));
     });
 
     it("tells the listener when the stream fails in the browser", async () => {

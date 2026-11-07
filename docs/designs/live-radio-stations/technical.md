@@ -57,6 +57,11 @@ did not open the web layer since the last change shows the previous order.
 disables play and pause only for a `follower-radio` jam. A station can pause. A MuMa Radio channel cannot
 pause, so `togglePlay` leaves the channel. That button replaced the separate stop button, which is removed.
 
+A new `currentTrack` during a station or a channel is a pick: `leaveRadioForTrack` ends the radio without a
+pause, and the track plays (bug report 156). The browser loads it with `autoplay`, and the native queue sync
+sends it with `autoplay`. The app-start restore, a jam that this device follows and a track that the service
+reports are no pick.
+
 On the native shell, `handleEnded` and `handleAudioError` do not notify for a station. The service owns the
 retry and it reports a final failure itself, and `onAddMediaItems` returns an empty list, which gives a short
 `STATE_ENDED` before the station loads (bug report 155).

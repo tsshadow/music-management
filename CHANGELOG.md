@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.96.1] - 2026-11-07
+
+### Changed
+- Radio is now a page in the sidebar and under Browse, with the live stations and MuMa Radio in one list that scrolls. The radio button in the player is gone; a stop button shows only while radio plays.
+
 ## [0.96.0] - 2026-11-06
 
 ### Added

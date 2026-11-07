@@ -11,6 +11,10 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.96.1 (2026-11-07)
+
+- Radio is now a page in the sidebar and under Browse, with the live stations and MuMa Radio in one list that scrolls. The radio button in the player is gone; a stop button shows only while radio plays.
+
 ## Global Version 0.96.0 (2026-11-06)
 
 - Release tags (`release-vX.Y.Z`, `muma-mobile-vX.Y.Z`) are made with `git tag -a` as `ci-release-tagging <ci-release-tagging@users.noreply.example.com>` and pushed with the project token. Through the GitLab API the tagger was always the project bot, whose address names the private GitLab host (issue #207).

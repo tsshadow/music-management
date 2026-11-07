@@ -11,6 +11,13 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.97.0 (2026-11-07)
+
+- **Radio has 67 stations, with logos, favorites and recent stations.** Mark a station with the star to
+  keep it at the top, also in the car.
+
+- **A station no longer flashes an error when it starts, pause works, and the disc button is gone.**
+
 ## Global Version 0.96.1 (2026-11-07)
 
 - Radio is now a page in the sidebar and under Browse, with the live stations and MuMa Radio in one list that scrolls. The radio button in the player is gone; a stop button shows only while radio plays.

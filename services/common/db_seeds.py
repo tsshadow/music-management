@@ -32,6 +32,7 @@ SEED_FILES: Final = (
     'rules_artists.sql',
     'rules_scene_group_date_format.sql',
     'radio_stations.sql',
+    'radio_stations_nl_2026_11.sql',
 )
 
 

@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## Global Version 7.20.0 (2026-11-07)
+
+- **Radio has 67 stations with logos. Your favorites come first, also in the car.**
+
+- **A station no longer flashes an error when it starts, pause works, and the disc button is gone.**
+
 ## Global Version 7.19.1 (2026-11-07)
 
 - Radio moved from a button in the player to a page under Browse, with the stations and MuMa Radio in one list that scrolls. The player shows a stop button only while radio plays.

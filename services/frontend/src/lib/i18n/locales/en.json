@@ -1708,8 +1708,7 @@
     "unknownTrack": "Unknown track",
     "unknownArtist": "Unknown artist",
     "unknownAlbum": "Unknown album",
-    "pause": "Pause",
-    "stopRadio": "Stop radio"
+    "pause": "Pause"
   },
   "queue": {
     "clear": "Clear list",
@@ -1722,9 +1721,15 @@
   "radio": {
     "couldNotStart": "Could not start radio",
     "noChannels": "No radio channels available",
-    "stationsHeading": "Radio",
+    "stationsHeading": "All stations",
     "channelsHeading": "MuMa Radio",
-    "couldNotLoad": "Could not load the radio list"
+    "couldNotLoad": "Could not load the radio list",
+    "favoritesHeading": "Favorites",
+    "recentHeading": "Recent",
+    "searchStations": "Search for a station",
+    "noStationMatch": "No station found",
+    "addFavorite": "Add {name} to favorites",
+    "removeFavorite": "Remove {name} from favorites"
   },
   "releaseNotes": {
     "intro": "A new version of LMS has been detected! Here are the key changes:",

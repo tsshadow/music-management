@@ -495,6 +495,12 @@ export const highlightedTrackId = writable(null);
 export const favoriteGenres = writable([]);
 persist("lms_favorite_genres", favoriteGenres);
 
+// The live stations a listener marked, and the ones they played last: lists of slugs.
+export const favoriteStations = writable([]);
+persist("lms_favorite_stations", favoriteStations);
+export const recentStations = writable([]);
+persist("lms_recent_stations", recentStations);
+
 // Favorites for the other two collection browse views. Genres came first (see
 // the sync block further down); labels and playlists reuse the exact same
 // mechanism so all three behave identically.
@@ -1168,6 +1174,8 @@ const syncedFavoriteLists = {
   favoriteGenres,
   favoriteLabels,
   favoritePlaylists,
+  favoriteStations,
+  recentStations,
 };
 
 /**

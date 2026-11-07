@@ -347,6 +347,16 @@ export function createCapacitorPlayer(plugin) {
       await plugin.startStation({ slug });
     },
 
+    /**
+     * Tells the service which stations are favorites. The car lists them first.
+     *
+     * @param {Array<string>} slugs
+     * @returns {Promise<void>}
+     */
+    async setFavoriteStations(slugs) {
+      await plugin.setFavoriteStations({ slugs });
+    },
+
     /** Leaves radio mode without starting anything else. */
     async stopRadio() {
       await plugin.stopRadio();

@@ -1,8 +1,8 @@
 <script>
   import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
-  import { onMount } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, knownStations, radioNowPlaying, liveStation, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
+  import { onMount, untrack } from 'svelte';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, knownStations, radioNowPlaying, liveStation, favoriteStations, recentStations, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
   import { extendQueue } from './listContinuation.js';
   // Opened from its button only: its own chunk (lazyViews.js, issue #114).
   import LazyView from './LazyView.svelte';
@@ -22,7 +22,7 @@
   import { createNativeQueue, trackAfterCommand } from './nativeQueue.js';
   import { createRadioController } from './radioController.js';
   import { createRadioStartGuard } from './radioStartGuard.js';
-  import { stationAsTrack, stationFromNativeState } from './liveStation.js';
+  import { stationAsTrack, stationFromNativeState, stationLogoUrl, withRecentStation } from './liveStation.js';
   import { shouldPushJamState } from './radioSync.js';
   import { resolveDuration, progressPercent, formatTime, formatClock } from './playerProgress.js';
   import { registerRadioCommands } from './radioCommands.js';
@@ -655,6 +655,12 @@
       trackId: track?.id ?? null,
     });
 
+    // MuMa Radio plays along with a shared clock, so a pause has no meaning: this leaves it.
+    if ($radioChannel) {
+        stopAnyRadio();
+        return;
+    }
+
     if ($syncMode === 'follower-jam') {
         // Remote control: toggle the state reported by the server
         pushJamState(!$playerState.playing);
@@ -842,14 +848,28 @@
       }
   }
 
+  // A station goes to the top of the recent list, also when the car started it.
+  $effect(() => {
+    const slug = $liveStation?.slug;
+    if (slug) untrack(() => recentStations.update((recent) => withRecentStation(recent, slug)));
+  });
+
+  // The car has its own station list, with the favorites first.
+  $effect(() => {
+    const slugs = $favoriteStations;
+    if (nativePlayback) platform.player.setFavoriteStations(slugs).catch((e) => console.error('Could not hand over the favorite stations', e));
+  });
+
   /**
    * Handles the 'ended' event of the audio element.
    * Triggers scrobbling and plays the next track or repeats.
    */
   function handleEnded() {
       // A live stream has no end: the broadcaster closed it. Play starts it again.
+      // On a phone the service loads it again itself, and a start also passes through this state,
+      // because the queue is empty until the station list has answered. So only a browser says it.
       if ($liveStation) {
-          notify.error($t('notify.streamFailed', { title: $liveStation.name }));
+          if (!nativePlayback) notify.error($t('notify.streamFailed', { title: $liveStation.name }));
           return;
       }
       // A bulletin that runs out is the cue to resume, not to skip a track.
@@ -1023,6 +1043,8 @@
    */
   function handleAudioError() {
     if (!track) return;
+    // The service tries a station again for five minutes, and then shows it in the title line.
+    if ($liveStation && nativePlayback) return;
     notify.error($t('notify.streamFailed', { title: track.title }));
   }
 
@@ -1378,13 +1400,13 @@
   // The Radio page is not inside the player; it reaches these from its click handlers.
   onMount(() => registerRadioCommands({ startRadio, startStation, stop: stopAnyRadio }));
 
-  const isRadioActive = $derived($radioChannel !== null || $liveStation !== null);
-  const radioColor = '#b266ff';
   const newsColor = $derived(newsSnapshot ? '#b266ff' : '#b3b3b3');
   // Radio listeners cannot steer the stream, exactly like a follower-radio client.
   /** True while the app-start queue restore runs behind the mounted app (`queueRestore.js`). */
   const restoringQueue = $derived($queueRestore.status === 'restoring');
-  const transportLocked = $derived($syncMode === 'follower-radio' || isRadioActive);
+  const transportLocked = $derived($syncMode === 'follower-radio' || $radioChannel !== null || $liveStation !== null);
+  // The play button still works on radio: it pauses a station, and it leaves MuMa Radio.
+  const playLocked = $derived($syncMode === 'follower-radio');
   const releaseDate = $derived(track ? releaseDateLabel(track) : '');
   // `coverArtSrc` is the one place that knows whether this device has a local,
   // offline copy of the art; going through it here means the mini player and
@@ -1394,10 +1416,12 @@
   // but `Artwork` needs `null` for "no cover" so it can fall through to the
   // artist image instead of rendering that mark as if it were the cover.
   const coverUrl = $derived.by(() => {
+    if ($liveStation) return stationLogoUrl($liveStation.slug);
     const src = coverArtSrc(track?.coverArt, 100, $authParams, $localCoverArt, $offline);
     return src === FALLBACK ? null : src;
   });
   const fullCoverUrl = $derived.by(() => {
+    if ($liveStation) return stationLogoUrl($liveStation.slug);
     const src = coverArtSrc(track?.coverArt, 512, $authParams, $localCoverArt, $offline);
     return src === FALLBACK ? null : src;
   });
@@ -1837,11 +1861,13 @@
           {tint}
           title={track.title}
           alt={track.title}
+          fit={$liveStation ? 'contain' : 'cover'}
         />
         <div class="flex-1 min-w-0">
           <div class="text-[13px] font-bold text-white truncate">{track.title}</div>
           <div class="text-[11px] text-muma-spotify-text truncate">{track.artist}</div>
         </div>
+        {#if !$liveStation}
         <div class="flex items-center gap-0.5 flex-shrink-0">
           {#each [1, 2, 3, 4, 5] as star (star)}
             <button
@@ -1855,6 +1881,7 @@
             </button>
           {/each}
         </div>
+        {/if}
       {:else if restoringQueue}
         <!-- The app-start restore (issue #113): the square slot holds the inline throbber and
              the line says what is coming, in place of "nothing playing" -- which would be
@@ -1890,9 +1917,9 @@
           </button>
         {/if}
         <button
-          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          class="bg-transparent border-none p-0 text-white hover:scale-105 transition-transform {playLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay} 
-          disabled={transportLocked}
+          disabled={playLocked}
           aria-label={playing ? $t('player.pause') : $t('common.play')}
         >
           <!-- Buffering: the inline throbber in the icon's 32px box, so the row does not move.
@@ -1911,7 +1938,7 @@
             </svg>
           {/if}
         </button>
-        {#if track}
+        {#if track && !$liveStation}
           <button 
             class="bg-transparent border-none p-0 text-muma-spotify-text hover:text-white transition-colors {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}" 
             onclick={playNext} 
@@ -1926,7 +1953,7 @@
       </div>
     </div>
     <!-- Progress bar for mobile -->
-    {#if track}
+    {#if track && !$liveStation}
       <div class="absolute top-0 left-0 w-full h-[2px] bg-white/10">
         <div class="h-full bg-white transition-[width] duration-100" style="width: {progressPercent(progress, duration)}%"></div>
       </div>
@@ -1974,8 +2001,8 @@
       ontoggleEqualizer={() => (showEqualizer = !showEqualizer)}
       {ontoggleQueue}
       onopenOutputPicker={openOutputPicker}
-      radioActive={isRadioActive}
-      onstopRadio={stopAnyRadio}
+      {playLocked}
+      isLiveStation={$liveStation !== null}
       newsActive={newsSnapshot !== null}
       ontoggleNews={toggleNews}
       {onnavigate}
@@ -2002,7 +2029,7 @@
              `Artwork.svelte` (the mobile mini player and the full-screen view) owns the
              cover -> artist -> panel fallback, so this one substitutes the MuMa mark itself
              rather than rendering a broken image. -->
-        <img src={coverUrl ?? FALLBACK} alt={track.title} class="w-14 h-14 rounded" onerror={(e) => e.target.src = FALLBACK} />
+        <img src={coverUrl ?? FALLBACK} alt={track.title} class="w-14 h-14 rounded {$liveStation ? 'object-contain bg-black' : ''}" onerror={(e) => e.target.src = FALLBACK} />
         <div class="track-info min-w-0">
           <div
             role="button"
@@ -2041,6 +2068,7 @@
 
     <div class="flex-1 md:w-[40%] max-w-[600px] flex flex-col items-center gap-2">
       <div class="flex items-center gap-4 md:gap-6">
+        {#if !$liveStation}
         <button class="hidden md:flex flex-col items-center bg-transparent border-none p-0 cursor-pointer transition-colors hover:text-white {shuffleMode ? 'text-brand' : 'text-muma-spotify-text'}" onclick={toggleShuffleMode} aria-label={$t('queue.shuffle')}>
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H10.3a5 5 0 0 0-4.054 2.115L2.615 10H1.25a.75.75 0 0 0 0 1.5h2.185a5 5 0 0 0 4.054-2.115L11.121 5H13.11l-1.019 1.017a.75.75 0 1 0 1.06 1.06L15.424 4.8a.75.75 0 0 0 0-1.06L13.15 1.472a.75.75 0 0 0-.001-.55zM13.151 9.922a.75.75 0 1 0-1.06 1.06L13.109 12H11.12l-1.144-1.636a.75.75 0 1 0-1.232.862l1.378 1.968A5 5 0 0 0 14.176 13.5h.194l-1.269 1.271a.75.75 0 1 0 1.06 1.06L16.43 13.56a.75.75 0 0 0 0-1.06l-2.274-2.273a.75.75 0 0 0-1.005-.305zM5.185 3.5h1.077L7.406 5.137a.75.75 0 0 0 1.232-.863l-1.378-1.967A5 5 0 0 0 3.235 1.5H1.25a.75.75 0 0 0 0 1.5h2.185a3.5 3.5 0 0 1 2.838 1.48L5.185 3.5z"></path>
@@ -2073,10 +2101,11 @@
             <span class="text-[8px] font-bold -ml-1">30</span>
           </button>
         {/if}
+        {/if}
         <button
-          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
+          class="w-9 h-9 bg-white rounded-full text-black flex items-center justify-center cursor-pointer transition-transform hover:scale-105 {playLocked ? 'opacity-50 cursor-not-allowed' : ''}"
           onclick={togglePlay}
-          disabled={transportLocked}
+          disabled={playLocked}
         >
           {#if buffering}
             <span class="flex" data-testid="play-buffering">
@@ -2092,6 +2121,7 @@
             </svg>
           {/if}
         </button>
+        {#if !$liveStation}
         {#if isSetMode}
           <button
             class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text {transportLocked ? 'opacity-50 cursor-not-allowed' : ''}"
@@ -2127,7 +2157,9 @@
             <div class="w-1 h-1 bg-brand rounded-full mt-0.5"></div>
           {/if}
         </button>
+        {/if}
       </div>
+      {#if !$liveStation}
       <div class="hidden md:flex w-full items-center gap-2 text-[11px] text-muma-spotify-text">
         <span>{isSetMode ? formatClock(progress) : formatTime(progress)}</span>
       {#if isSetMode}
@@ -2165,10 +2197,11 @@
       {/if}
         <span>{isSetMode ? formatClock(duration) : formatTime(duration)}</span>
       </div>
+      {/if}
     </div>
 
     <div class="w-[30%] hidden md:flex justify-end items-center gap-3">
-      {#if track}
+      {#if track && !$liveStation}
         <div class="flex gap-0.5 mr-2">
           {#each [1, 2, 3, 4, 5] as star (star)}
             <button
@@ -2182,19 +2215,6 @@
             </button>
           {/each}
         </div>
-      {/if}
-      {#if isRadioActive}
-        <button
-          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"
-          style="color: {radioColor}"
-          onclick={stopAnyRadio}
-          title={$t('player.stopRadio')}
-          aria-label={$t('player.stopRadio')}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
-          </svg>
-        </button>
       {/if}
       <button
         class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white"

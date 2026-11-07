@@ -45,3 +45,70 @@ export function stationFromNativeState(state, known, current) {
     title: state.stationTitle ?? null,
   };
 }
+
+/** How many stations the Radio page remembers as played last. */
+export const RECENT_STATIONS_KEPT = 6;
+
+/**
+ * The logo of a station. The file ships with the web bundle, so a phone without a connection to the
+ * broadcaster still shows it. A station a curator added has no file: the image fails to load, and
+ * the caller shows the name instead.
+ *
+ * @param {string} slug
+ * @returns {string}
+ */
+export function stationLogoUrl(slug) {
+  return `/images/stations/${encodeURIComponent(slug)}.png`;
+}
+
+/**
+ * The list of last played stations after a station started: newest first, each station once.
+ *
+ * @param {Array<string>} recent
+ * @param {string} slug
+ * @returns {Array<string>}
+ */
+export function withRecentStation(recent, slug) {
+  return [slug, ...recent.filter((other) => other !== slug)].slice(0, RECENT_STATIONS_KEPT);
+}
+
+/**
+ * The favorites after a tap on the star of a station. A new favorite goes to the end.
+ *
+ * @param {Array<string>} favorites
+ * @param {string} slug
+ * @returns {Array<string>}
+ */
+export function withFavoriteToggled(favorites, slug) {
+  return favorites.includes(slug)
+    ? favorites.filter((other) => other !== slug)
+    : [...favorites, slug];
+}
+
+/**
+ * What the Radio page shows. A search shows only the matches, because a listener who types wants
+ * one station. A slug of a station that is gone is skipped, and a favorite is not also recent.
+ *
+ * @param {Array<{slug: string, name: string}>} stations - In the order of the server.
+ * @param {Array<string>} favorites
+ * @param {Array<string>} recent
+ * @param {string} query
+ * @returns {{favorites: Array<object>, recent: Array<object>, all: Array<object>}}
+ */
+export function stationSections(stations, favorites, recent, query = "") {
+  const needle = query.trim().toLowerCase();
+  if (needle) {
+    return {
+      favorites: [],
+      recent: [],
+      all: stations.filter((station) => station.name.toLowerCase().includes(needle)),
+    };
+  }
+  const bySlug = new Map(stations.map((station) => [station.slug, station]));
+  const pick = (slugs) => slugs.map((slug) => bySlug.get(slug)).filter(Boolean);
+  return {
+    favorites: pick(favorites),
+    recent: pick(recent.filter((slug) => !favorites.includes(slug))),
+    all: stations,
+  };
+}

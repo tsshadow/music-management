@@ -11,7 +11,8 @@ from services.music_manager.bpm.effective import EffectiveBpm, resolve_row
 from services.music_manager.bpm.index import INPUTS_SQL
 from services.music_manager.database import get_db_connection
 from services.music_manager.genre_tint import genre_tint
-from services.music_manager.library_paths import candidate_paths
+from services.music_manager.library_paths import candidate_paths, require_library_file
+from services.music_manager.rbac import require_permission
 from services.music_manager.routers.analytics_filters import (
     EFFECTIVE_BPM_APPROXIMATE_SQL,
     EFFECTIVE_BPM_SQL,
@@ -22,6 +23,10 @@ from services.music_manager.routers.analytics_filters import (
 )
 from services.music_manager.routers.bpm import reliable_confidence
 from services.music_manager.routers.users import verify_api_key
+
+#: Retagging, rescanning or redownloading one track rewrites its file: a curator's call, made from
+#: Beheer. LMS's track refresh calls rerun-parse-path with the system key, which always passes.
+require_rules_manage = require_permission('rules.manage')
 
 router = APIRouter(tags=['library'])
 settings = Settings()
@@ -251,7 +256,7 @@ def get_library_genres(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/tracks/{track_id}/rerun-parse')
-def rerun_parse(track_id: int, _auth: dict = Depends(verify_api_key)):
+def rerun_parse(track_id: int, _auth: dict = Depends(require_rules_manage)):
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500)
@@ -280,12 +285,12 @@ def rerun_parse(track_id: int, _auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/tracks/rerun-parse-path')
-def rerun_parse_path(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
+def rerun_parse_path(path: str = Query(...), _auth: dict = Depends(require_rules_manage)):
     """
     Triggers a re-tagging and re-scanning of a file based on its absolute path.
-    Useful for external integrations like LMS.
+    Useful for external integrations like LMS, which names the file through its own mount.
     """
-    filepath = path
+    filepath = require_library_file(path)
     helper = ProcessedFilesHelper()
     helper.mark_for_rescan(filepath, reason='rerun_parse')
     try:
@@ -543,7 +548,7 @@ def _redownload_source(cursor, filepath: str) -> tuple[str | None, str | None]:
 
 
 @router.post('/tracks/{track_id}/redownload')
-def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+def redownload_track(track_id: int, background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)):
     """Fetch a track again from where it was downloaded and put it in place of the file.
 
     400 when no archive knows the file, 409 when the file name is all there is to go on

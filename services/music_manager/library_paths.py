@@ -77,3 +77,65 @@ def server_path(path: str) -> str:
     if path.startswith(MUMA_MUSIC_ROOT + '/'):
         return f'{LMS_MUSIC_ROOT}/{path[len(MUMA_MUSIC_ROOT) + 1 :]}'
     return path
+
+
+def local_path(path: str) -> str:
+    """`path` as muma spells it, for a path a server sent: the reverse of `server_path`.
+
+    LMS names a file through its own mount (/music/...). The tagger and the scanner open it
+    through muma's (/mnt/music/...), and under LMS's spelling they find nothing.
+
+    A path under neither root is returned unchanged; one already under muma's root is too.
+    """
+    if path.startswith(LMS_MUSIC_ROOT + '/'):
+        return f'{MUMA_MUSIC_ROOT}/{path[len(LMS_MUSIC_ROOT) + 1 :]}'
+    return path
+
+
+class OutsideLibrary(ValueError):
+    """A caller named a file that lies outside every library root muma manages."""
+
+
+def library_roots(settings=None) -> list[str]:
+    """The folders a caller may name a file in: the music root, the EPs root and the import queue.
+
+    Resolved with realpath, so a symlink cannot make a root look like somewhere else. An
+    empty setting is no root: with none configured at all, no path is inside.
+    """
+    from services.common.config_store import ConfigStore
+    from services.common.import_queue import ImportQueue
+
+    settings = settings or ConfigStore()
+    candidates = [
+        settings.music_folder_path,
+        settings.eps_folder_path,
+        ImportQueue.from_settings(settings).path,
+    ]
+    return list(dict.fromkeys(os.path.realpath(root) for root in candidates if root))
+
+
+def resolve_in_library(path: str, settings=None) -> str:
+    """`path` resolved (symlinks, `..`) and checked against `library_roots`.
+
+    Raises OutsideLibrary when the resolved path is not a root or below one. The routes that
+    tag or scan a named file call this first: the tagger writes tags into any audio file it
+    can open, so a path from a request is only accepted inside the library.
+    """
+    resolved = os.path.realpath(path)
+    for root in library_roots(settings):
+        if resolved == root or resolved.startswith(root.rstrip(os.sep) + os.sep):
+            return resolved
+    raise OutsideLibrary(f'{path} is not inside the music library')
+
+
+def require_library_file(path: str) -> str:
+    """`resolve_in_library` for a route: muma's spelling of `path`, or HTTP 400 when it is outside.
+
+    A path in LMS's spelling is translated first, so LMS can name a file the way it sees it.
+    """
+    from fastapi import HTTPException
+
+    try:
+        return resolve_in_library(local_path(path))
+    except OutsideLibrary as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

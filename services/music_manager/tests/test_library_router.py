@@ -372,17 +372,21 @@ class RerunParseTest(RouterTestCase):
             patch.object(library_router, 'ProcessedFilesHelper') as helper,
             patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
             patch('services.music_manager.routers.scanner.scanner_manager') as scanner,
+            patch.object(library_router, 'require_library_file', return_value='/mnt/music/b.mp3') as check,
         ):
             response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/b.mp3', reason='rerun_parse')
-        tagger.tag_single.assert_called_once_with('/music/b.mp3')
-        scanner.scan_single.assert_called_once_with('/music/b.mp3')
+        # LMS's spelling goes through the library check, which answers with muma's own.
+        check.assert_called_once_with('/music/b.mp3')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/mnt/music/b.mp3', reason='rerun_parse')
+        tagger.tag_single.assert_called_once_with('/mnt/music/b.mp3')
+        scanner.scan_single.assert_called_once_with('/mnt/music/b.mp3')
 
     def test_a_failing_retag_by_path_is_still_reported_as_accepted(self):
         with (
             patch.object(library_router, 'ProcessedFilesHelper'),
             patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+            patch.object(library_router, 'require_library_file', return_value='/mnt/music/b.mp3'),
         ):
             tagger.tag_single.side_effect = RuntimeError('tagger busy')
             response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)

@@ -603,3 +603,115 @@ class LatestImportsScopeTest(RouteAuthTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+#: Tag, scan and track-level rewrite routes: `rules.manage` (issue #216). Each would start a
+#: round over the library or rewrite a file for any account that could log in.
+TAG_AND_SCAN_ROUTES = [
+    ('post', '/api/tagger/tag/all', None),
+    ('post', '/api/tagger/tag/stop', None),
+    ('post', '/api/tagger/tag/file?path=/mnt/music/a.mp3', None),
+    ('post', '/api/tagger/retag/run', None),
+    ('post', '/api/tagger/retag/restart', None),
+    ('post', '/api/scanner/scan/all', None),
+    ('post', '/api/scanner/scan/file?path=/mnt/music/a.mp3', None),
+    ('post', '/api/library/tracks/rerun-parse-path?path=/music/a.mp3', None),
+    ('post', '/api/library/tracks/1/rerun-parse', None),
+    ('post', '/api/library/tracks/1/redownload', None),
+    ('post', '/api/songs/tracks/1/split', None),
+]
+
+#: Downloader pacing and backoff: `config.manage` (issue #216). A reset backoff risks a ban.
+DOWNLOADER_ROUTES = [
+    ('post', '/api/downloaders/settings', {'source': 'soundcloud', 'updates': {'burst_size': 3}}),
+    ('post', '/api/downloaders/rate-state/soundcloud/reset', None),
+]
+
+CONFIG_ADMIN = auth_for(8, 'ops', 'ops', rbac.USER_ROLE_PERMISSIONS | {'config.manage'})
+
+
+class TagAndScanRoutesTest(RouteAuthTestCase):
+    def setUp(self):
+        super().setUp()
+        from services.music_manager.routers import downloaders as downloaders_router
+        from services.music_manager.routers import library as library_router
+        from services.music_manager.routers import scanner as scanner_router
+        from services.music_manager.routers import songs as songs_router
+        from services.music_manager.routers import tagger as tagger_router
+
+        # TestClient runs background tasks inline: a real round would walk the library.
+        for module, name in ((tagger_router, 'tagger_manager'), (scanner_router, 'scanner_manager')):
+            manager = MagicMock()
+            # Assigned, not configured: Mock keeps a class-level `_lock` of its own.
+            manager._lock = MagicMock()
+            manager._lock.locked.return_value = False
+            patcher = patch.object(module, name, manager)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for module in (tagger_router, scanner_router, library_router):
+            patcher = patch.object(module, 'require_library_file', side_effect=lambda path: path)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for module in (library_router, songs_router):
+            patcher = patch.object(module, 'get_db_connection', return_value=self.conn)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = patch.object(library_router, 'ProcessedFilesHelper')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for target in ('settings_store', 'RateState', 'load_timing'):
+            patcher = patch.object(downloaders_router, target)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = patch('services.downloader.settings_store.save_settings', return_value={})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.cursor.fetchone.return_value = None
+
+    def test_a_plain_user_cannot_start_tag_or_scan_work(self):
+        for method, path, body in TAG_AND_SCAN_ROUTES:
+            self.assertRefused(self.call(method, path, body, LISTENER), path)
+
+    def test_rules_manage_and_the_system_key_pass(self):
+        for method, path, body in TAG_AND_SCAN_ROUTES:
+            self.assertAdmitted(self.call(method, path, body, CURATOR), path)
+            self.assertAdmitted(self.call(method, path, body, 'system'), path)
+
+    def test_downloader_pacing_needs_config_manage(self):
+        for method, path, body in DOWNLOADER_ROUTES:
+            self.assertRefused(self.call(method, path, body, LISTENER), path)
+            self.assertRefused(self.call(method, path, body, CURATOR), path)
+            self.assertAdmitted(self.call(method, path, body, CONFIG_ADMIN), path)
+            self.assertAdmitted(self.call(method, path, body, 'system'), path)
+
+    def test_reading_the_downloader_state_stays_open(self):
+        for path in ('/api/downloaders/settings', '/api/downloaders/rate-state'):
+            self.assertAdmitted(self.call('get', path, None, LISTENER), path)
+
+
+class ManagementConfigTest(RouteAuthTestCase):
+    """GET /api/config is Beheer's sign-in check: every account gets the version, not the database."""
+
+    def test_a_plain_user_gets_only_the_version(self):
+        body = self.call('get', '/api/config', None, LISTENER).json()
+        self.assertEqual(set(body), {'VERSION'})
+
+    def test_config_manage_and_the_system_key_see_the_database(self):
+        for auth in (CONFIG_ADMIN, 'system'):
+            body = self.call('get', '/api/config', None, auth).json()
+            self.assertIn('DB_HOST', body)
+
+
+class LabelDecisionTest(RouteAuthTestCase):
+    """A confirmed label is one folder name under the EPs root, never a path (issue #217)."""
+
+    def test_a_label_that_is_a_path_is_refused(self):
+        for label in ('../../tmp', '/etc', 'A/B', '..', '.', '  ', 'A\\B'):
+            with self.subTest(label=label):
+                response = self.call('post', '/api/label-proposals/1/confirm', {'label': label}, CURATOR)
+                self.assertEqual(response.status_code, 422)
+        self.cursor.execute.assert_not_called()
+
+    def test_a_plain_label_name_is_accepted(self):
+        response = self.call('post', '/api/label-proposals/1/confirm', {'label': 'Scantraxx'}, CURATOR)
+        self.assertNotEqual(response.status_code, 422)

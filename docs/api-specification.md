@@ -129,7 +129,19 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `DELETE /api/rules/artist-genres/{id}`, `POST /api/rules/label-genres`, `DELETE /api/rules/label-genres/{id}`,
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
-  (deprecated).
+  (deprecated), `POST /api/tagger/tag/all|stop|file`, `POST /api/tagger/retag/run|restart`,
+  `POST /api/scanner/scan/all|file`, `POST /api/library/tracks/{id}/rerun-parse|redownload`,
+  `POST /api/library/rerun-parse-path`, `POST /api/songs/tracks/{track_id}/split` (deprecated).
+  Until issue #216 any account could start these.
+- **`GET /api/config`** returns the database settings only to a caller with `config.manage`. Any
+  other account gets `{"VERSION": <version>}`, which is all Beheer reads from it to check a sign-in.
+- **A file path** sent to `POST /api/tagger/tag/file`, `POST /api/scanner/scan/file` or
+  `POST /api/library/rerun-parse-path` must be inside `music_folder_path`, `eps_folder_path` or the
+  import queue after links and `..` are resolved. A path outside them is a `400`. The LMS spelling
+  (`/music/...`) is turned into music-manager's (`/mnt/music/...`) first.
+- **`POST /api/label-proposals/{id}/confirm`**: `label` must be one folder name. An empty name, `.`,
+  `..`, a `/`, a `\` or a NUL byte is a `422`, and a target that resolves outside `eps_folder_path`
+  is a `400`.
 - **GET `/api/import-conflicts`** (any authenticated account): the folder pairs the importer's renamer or
   mover left in place because the name it wanted is taken by a folder holding a different release
   (bug report 091), and the single files its extractor left in place (bug report 119).
@@ -137,7 +149,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `mover`, `source`/`target` are the two folders and `reason` is null. For `step` `extractor`, `source`
   is the file, `target` a detail or empty, and `reason` one of `not-an-archive`, `loose-audio`,
   `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`, `unreadable`,
-  `extraction-failed`, `extraction-empty`, `extraction-name-taken`. Read-only: a row disappears on the
+  `extraction-failed`, `extraction-empty`, `extraction-name-taken`, `extraction-unsafe`. Read-only: a row disappears on the
   importer's next cycle once the folder or file was removed or renamed by hand.
 - **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
   SoundCloud/YouTube channel to its label or artist on strong name equality.
@@ -309,6 +321,8 @@ need `rules.manage`.
   10 MB (413).
 
 ### ⚙️ Configuration (`config.manage`)
+- **POST `/api/downloaders/settings`** and **POST `/api/downloaders/rate-state/{source}/reset`** need
+  `config.manage` too. The downloader `GET` routes stay open to any account.
 - **GET `/api/config/fields`**: The schema: per field `key`, `type`, `group`, `description`, `nullable`, `default`, `secret`, `read_only` and the current `value`. A secret that is set reads as the sentinel (eight `•`), an unset one as its empty value.
 - **GET `/api/config/`**: `{"config": {<key>: <value>}, "groups": [...]}`, secrets masked the same way.
 - **POST `/api/config/`**: Body `{"updates": {<key>: <value>}}`. The whole payload is validated before anything changes: an unknown key, an unparsable value or a changed `read_only` field (the `db_*` database settings, which come from the environment) is a 400. A secret posted as the sentinel is left untouched. Response: `{"status": "success", "config": {<key>: <public value>}}` for every posted key -- **masked like the GET**. Until 0.72 this echoed each secret back in the clear. Only keys that differ from their environment value or default are persisted; see "Runtime Configuration" in `AGENTS.md` for the precedence.

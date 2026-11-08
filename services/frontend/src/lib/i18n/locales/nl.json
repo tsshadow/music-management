@@ -720,6 +720,7 @@
         "extraction-failed": "Archief kon niet uitgepakt worden",
         "extraction-empty": "Archief bleek leeg",
         "extraction-name-taken": "Archief bevat een map waarvan de naam al bezet is",
+        "extraction-unsafe": "Archief bevat een link naar een plek buiten de eigen map",
         "unknown": "Door de importer laten staan"
       },
       "conflictSince": "Sinds",

@@ -45,7 +45,7 @@ adds `reason VARCHAR(32) NULL`. An extractor row is one file: `pair_key` = sha25
 `(extractor, path, '')`, `source` = the file, `target` = a detail (the backend errors, the name that
 is taken) or empty, `reason` = one of the codes in `conflict_store.REASONS` (`not-an-archive`,
 `loose-audio`, `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`,
-`unreadable`, `extraction-failed`, `extraction-empty`, `extraction-name-taken`). `reason` is NULL for
+`unreadable`, `extraction-failed`, `extraction-empty`, `extraction-name-taken`, `extraction-unsafe`). `reason` is NULL for
 a folder pair. `fingerprint` is sha256 of the file's size and `st_mtime_ns`; for
 `extraction-name-taken` it also folds in the import folder's own mtime, so the archive is tried again
 once the folder that took the name is gone.

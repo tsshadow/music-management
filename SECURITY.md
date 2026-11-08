@@ -3,8 +3,9 @@
 ## Reporting a vulnerability
 
 This is a personally hosted music library, not a public service. Report anything
-security-relevant privately to the maintainer rather than in a public issue:
-open a **confidential** issue in GitLab, or mail the address on the commits.
+security-relevant privately, not in public: on GitHub, open the repository's
+**Security** tab and choose **Report a vulnerability**. Only the maintainer sees
+the report.
 
 ## What is scanned, and when
 

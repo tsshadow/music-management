@@ -5,6 +5,12 @@ the Svelte `frontend` and the Android `muma-mobile` app all live under `services
 with one shared history. A change spanning several of them is one commit, not
 several. See [AGENTS.md](AGENTS.md) for how the pieces fit together.
 
+Development happens on the maintainer's own GitLab. The GitHub repository is a
+read-only mirror of `develop`, `master` and the release tags, so it has no
+issues and does not take pull requests. Issue numbers such as `#72` in the docs
+and commit messages are GitLab issues. A fork is welcome under the licence terms
+in the [README](README.md#source-code-and-license).
+
 ## Setup
 
 ```bash
@@ -122,9 +128,10 @@ and fail on an unformatted file. The whole-tree reformat is listed in
 ## Branches and releases
 
 `feature/*` → `develop` → `release/x.y.z` → `master`. The release branch is where
-stabilisation and the production deploy happen; `master` is the tagged record.
-The operator's own release runbook has the full policy,
-including what the `release:check-secrets` job guarantees.
+stabilisation happens and where CI builds the images and the signed app. The
+merge to `master` tags the release as `release-vX.Y.Z`, and an installation
+deploys from that tag. `release:check-secrets` stops a release pipeline whose
+deployment secrets are missing ([AGENTS.md](AGENTS.md#-testing--stability)).
 
 ## Commit messages
 
@@ -141,9 +148,8 @@ directory is the most useful documentation in this repository; keep it fed.
 
 ## Open work
 
-Anything decided but not done, or done but not verified, becomes a
-GitLab issue
-right away (`glab issue create`), with one kind label (`needs-person`,
+For the maintainer: anything decided but not done, or done but not verified,
+becomes a GitLab issue right away (`glab issue create`), with one kind label (`needs-person`,
 `decision`, `verify`, `code`, `deferred`) and one area label (`area-backend`,
 `area-frontend`, `area-mobile`, `area-lms`, `area-infra`, `area-data`), and a
 link to the bug report or design that holds the detail. A `verify` issue states

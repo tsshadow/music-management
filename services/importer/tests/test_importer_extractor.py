@@ -327,6 +327,31 @@ class StagedExtractionTest(ExtractorHarness):
         put.assert_not_called()
         self.assertEqual(self.entries(), ['pack.rar'])
 
+    def test_an_archive_with_a_link_out_of_its_folder_stays(self):
+        # A release is files and folders. A link to a place outside would come into the import
+        # folder with the release, and the tagger would later write through it (issue #217).
+        outside = self.enterContext(TemporaryDirectory())  # pylint: disable=consider-using-with
+
+        def link_out(archive, outdir, **kwargs):
+            unpack(archive, outdir, **kwargs)
+            os.symlink(outside, os.path.join(outdir, 'pack', 'cover'))
+
+        _, put = self.run_with_backends(link_out)
+
+        put.assert_not_called()
+        self.assertEqual(self.entries(), ['pack.rar'])
+        self.assertEqual([row['reason'] for row in self.store.rows.values()], ['extraction-unsafe'])
+
+    def test_a_link_inside_the_release_is_fine(self):
+        def link_in(archive, outdir, **kwargs):
+            unpack(archive, outdir, **kwargs)
+            os.symlink('01-track.mp3', os.path.join(outdir, 'pack', 'same-track.mp3'))
+
+        _, put = self.run_with_backends(link_in)
+
+        put.assert_called_once()
+        self.assertEqual(self.entries(), ['pack', 'pack.rar'])
+
     def test_a_staging_folder_a_killed_run_left_behind_is_removed(self):
         leftover = os.path.join(self.root, STAGING_PREFIX + 'killed')
         os.makedirs(os.path.join(leftover, 'Half-A-Release'))

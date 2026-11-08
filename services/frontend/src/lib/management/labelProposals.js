@@ -52,6 +52,7 @@ export const IMPORT_FILE_REASONS = [
   "extraction-failed",
   "extraction-empty",
   "extraction-name-taken",
+  "extraction-unsafe",
 ];
 
 /**

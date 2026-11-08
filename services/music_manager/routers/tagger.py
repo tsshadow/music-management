@@ -9,7 +9,8 @@ from services.common.config_store import ConfigStore
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
 from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.music_manager.bpm.tag_writeback import BpmTagWriteback
-from services.music_manager.rbac import require_admin
+from services.music_manager.library_paths import require_library_file
+from services.music_manager.rbac import require_admin, require_permission
 from services.music_manager.routers.users import verify_api_key
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.tagger.deep_run import deep_run_tick
@@ -18,6 +19,10 @@ from services.tagger.walk_schedule import WalkSchedule
 
 router = APIRouter(tags=['tagger'])
 logger = logging.getLogger('music-manager.tagger')
+
+#: Starting, stopping or aiming a tag run rewrites files across the library: a curator's call,
+#: not every account's. The workers and LMS use the system key, which always passes.
+require_rules_manage = require_permission('rules.manage')
 
 
 class TaggerManager:
@@ -114,7 +119,7 @@ async def health():
 
 
 @router.post('/tag/all')
-async def api_tag_all(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+async def api_tag_all(background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)):
     if tagger_manager._lock.locked():
         raise HTTPException(status_code=409, detail='A tagging operation is already in progress')
     background_tasks.add_task(tagger_manager.run_full, True)
@@ -122,7 +127,7 @@ async def api_tag_all(background_tasks: BackgroundTasks, _auth: dict = Depends(v
 
 
 @router.post('/tag/stop')
-async def api_tag_stop(_auth: dict = Depends(verify_api_key)):
+async def api_tag_stop(_auth: dict = Depends(require_rules_manage)):
     if not tagger_manager._lock.locked():
         return {'message': 'No tagging operation in progress'}
     tagger_manager.stop()
@@ -130,9 +135,10 @@ async def api_tag_stop(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/tag/file')
-def api_tag_file(path: str = Query(...), _auth: dict = Depends(verify_api_key)):
+def api_tag_file(path: str = Query(...), _auth: dict = Depends(require_rules_manage)):
     # Plain `def`: tag_single waits for the tagger lock, which a running round can hold for
     # a long time, and an `async def` waiting on a threading.Lock stalls every other request.
+    path = require_library_file(path)
     tagger_manager.tag_single(path)
     return {'message': f'Tagging for {path} completed'}
 
@@ -165,7 +171,7 @@ def run_retag():
 
 
 @router.post('/retag/run')
-async def api_retag_run(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+async def api_retag_run(background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)):
     if tagger_manager._lock.locked():
         raise HTTPException(status_code=409, detail='Tagging already in progress')
     background_tasks.add_task(run_retag)
@@ -181,7 +187,7 @@ def restart_retag():
 
 
 @router.post('/retag/restart')
-async def api_retag_restart(background_tasks: BackgroundTasks, _auth: dict = Depends(verify_api_key)):
+async def api_retag_restart(background_tasks: BackgroundTasks, _auth: dict = Depends(require_rules_manage)):
     """Stop the running round and start over from the front, queue first.
 
     Unlike /retag/run this is never refused: being busy is the reason to call it.

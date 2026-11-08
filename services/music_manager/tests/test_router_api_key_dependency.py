@@ -38,7 +38,6 @@ from services.music_manager.routers import (
     news,
     radio,
     rating,
-    scanner,
     scrobbler,
     songs,
     stats,
@@ -134,8 +133,8 @@ class NoPrivateCopyTest(unittest.TestCase):
         self.assertEqual(offenders, [], 'import verify_api_key from routers/users.py instead')
 
     def test_every_router_name_is_the_canonical_dependency(self):
-        # config.py is absent on purpose: every route there goes through
-        # rbac.require_permission, which calls the canonical check itself.
+        # config.py and scanner.py are absent on purpose: every route there goes through
+        # rbac.require_permission (or require_admin), which calls the canonical check itself.
         for module in (
             analytics,
             artist_images,
@@ -148,7 +147,6 @@ class NoPrivateCopyTest(unittest.TestCase):
             news,
             radio,
             rating,
-            scanner,
             scrobbler,
             songs,
             stats,

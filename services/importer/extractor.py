@@ -168,6 +168,25 @@ def sibling_volumes(name: str, entries: list[str]) -> list[str]:
     return []
 
 
+def link_out_of(folder: str) -> str:
+    """The first link under `folder` that points outside it, relative to `folder`; '' when none does.
+
+    A release is files and folders. A symlink in an archive that leads elsewhere -- `../`, an
+    absolute path -- would be moved into the import folder with the release, and every later
+    step that writes into the release (the tagger above all) would write through it.
+    """
+    root = os.path.realpath(folder)
+    for parent, dirs, files in os.walk(folder):
+        for name in dirs + files:
+            path = join(parent, name)
+            if not os.path.islink(path):
+                continue
+            target = os.path.realpath(path)
+            if target != root and not target.startswith(root + os.sep):
+                return os.path.relpath(path, folder)
+    return ''
+
+
 class Extractor:
     """Unpacks every archive in the import folder, and parks each archive once it has been.
 
@@ -240,6 +259,9 @@ class Extractor:
         entries = sorted(listdir(staging))
         if not entries:
             return conflict_store.EXTRACTION_EMPTY, ''
+        escape = link_out_of(staging)
+        if escape:
+            return conflict_store.EXTRACTION_UNSAFE, escape
         to_move = []
         for entry in entries:
             target = join(import_folder, entry)

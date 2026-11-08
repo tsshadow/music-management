@@ -720,6 +720,7 @@
         "extraction-failed": "Archive could not be extracted",
         "extraction-empty": "Archive extracted to nothing",
         "extraction-name-taken": "Archive holds a folder whose name is taken",
+        "extraction-unsafe": "Archive holds a link to a place outside its own folder",
         "unknown": "Left in place by the importer"
       },
       "conflictSince": "Since",

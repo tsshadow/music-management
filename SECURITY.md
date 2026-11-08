@@ -88,7 +88,13 @@ Summarised here because it affects what counts as a vulnerability;
   downloader sources, event deletion, the lms.db sync) needs the admin role; a
   webhook that names the acting user in its body (the LMS rating webhook)
   accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
-  pins each of those.
+  pins each of those, and `test_route_permission_matrix.py` fails on any new
+  write route that has no permission and no written reason (issue #216).
+* A file path from a caller (tag a file, scan a file, rerun a parse, the label
+  of a label decision) must stay inside the library roots after links and `..`
+  are resolved; otherwise the route answers 400 or 422. The importer leaves an
+  archive in the queue when it extracts a link that points outside its own
+  folder (`extraction-unsafe`, issue #217).
 * No response lists another account's `api_key`, and no login hands out a key
   that is not the caller's own. The web login (`/muma/api/auth/login`) is
   MuMa's login; LMS used to answer it with its own `api-key` for every user.

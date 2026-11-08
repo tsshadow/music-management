@@ -22,9 +22,9 @@ from services.common.Helpers.ProcessedFilesHelper import ProcessedFilesHelper
 from services.common.track_form import classify
 from services.common.vanished_files import LibraryUnreadable
 from services.music_manager.database import get_db_connection, transaction
+from services.music_manager.library_paths import require_library_file
 from services.music_manager.orphan_purge import purge_orphaned_tracks
-from services.music_manager.rbac import require_admin
-from services.music_manager.routers.users import verify_api_key
+from services.music_manager.rbac import require_admin, require_permission
 from services.music_manager.scrobble_matching import normalized_title_keys
 from services.music_manager.thread_registry import default_stale_after, run_forever
 from services.music_manager.track_relink import (
@@ -609,8 +609,15 @@ async def health():
     return {'status': 'OK', 'busy': scanner_manager._lock.locked()}
 
 
+#: A full scan loads the database for hours and a single scan reads any file it is pointed at:
+#: a curator's call. The tagging workers call /scan/file with the system key, which always passes.
+require_rules_manage = require_permission('rules.manage')
+
+
 @router.post('/scan/all')
-async def api_scan_all(background_tasks: BackgroundTasks, force: bool = False, _auth: dict = Depends(verify_api_key)):
+async def api_scan_all(
+    background_tasks: BackgroundTasks, force: bool = False, _auth: dict = Depends(require_rules_manage)
+):
     if scanner_manager._lock.locked():
         raise HTTPException(status_code=409, detail='A scan operation is already in progress')
     background_tasks.add_task(scanner_manager.run_full, force=force)
@@ -618,10 +625,11 @@ async def api_scan_all(background_tasks: BackgroundTasks, force: bool = False, _
 
 
 @router.post('/scan/file')
-def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Depends(verify_api_key)):
+def api_scan_file(path: str = Query(...), force: bool = False, _auth: dict = Depends(require_rules_manage)):
     # Plain `def`, so FastAPI runs it in the thread pool: the scan reads the file and writes
     # rows, and the workers call this for every file they tag -- an `async def` here parked
     # the whole event loop for the duration of each one.
+    path = require_library_file(path)
     scanned = scanner_manager.scan_single(path, force=force)
     return {'message': f'Scan for {path} completed', 'scanned': bool(scanned)}
 

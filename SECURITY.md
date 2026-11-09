@@ -126,7 +126,10 @@ Summarised here because it affects what counts as a vulnerability;
   LMS's own `api-key` or a key MuMa confirms through `/api/auth/verify`, and
   the caller's identity comes only from that verified credential or from a
   checked Subsonic `u`/`p` pair -- never from the bare `u` parameter. Its
-  proxy forwards the caller's own key and never substitutes the system key.
+  generic `/api/` proxy forwards the caller's own key, never the system key.
+  The system key goes to MuMa only on three routes, each after this server
+  checked the caller: per-user settings (that user or an admin), an artist
+  image (any verified caller), and a track refresh (an admin or a service).
   See [docs/authentication.md](docs/authentication.md#the-lms-muma-bridge-mumaresource)
   and [bug report 056](docs/bug-reports/056-lms-any-key-is-admin.md).
 

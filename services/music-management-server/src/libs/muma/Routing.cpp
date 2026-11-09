@@ -86,4 +86,19 @@ namespace lms::api::muma
             headers.emplace_back("Content-Type", std::string{ inputs.contentType });
         return headers;
     }
+
+    std::optional<ProxyMethod> proxyMethodFor(std::string_view method)
+    {
+        if (method == "GET")
+            return ProxyMethod::Get;
+        if (method == "POST")
+            return ProxyMethod::Post;
+        if (method == "PUT")
+            return ProxyMethod::Put;
+        if (method == "DELETE")
+            return ProxyMethod::Delete;
+        if (method == "PATCH")
+            return ProxyMethod::Patch;
+        return std::nullopt;
+    }
 } // namespace lms::api::muma

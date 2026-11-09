@@ -1017,7 +1017,8 @@ namespace lms::api::muma
             // Only filled for a streamed response; every other call still reads msg.body().
             auto streamedBody = std::make_shared<std::string>();
 
-            if (request.method() == "GET")
+            const std::optional<ProxyMethod> proxyMethod{ proxyMethodFor(request.method()) };
+            if (proxyMethod == ProxyMethod::Get)
             {
                 core::http::ClientGETRequestParameters getParams;
                 // pathInfo comes back from Wt already decoded, so a name like "Silky Noize"
@@ -1048,7 +1049,7 @@ namespace lms::api::muma
                 };
                 _httpClient->sendGETRequest(std::move(getParams));
             }
-            else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE" || request.method() == "PATCH")
+            else if (proxyMethod)
             {
                 core::http::ClientRequestWithBodyParameters bodyParams;
                 // See the matching comment in the GET branch above: pathInfo is decoded.
@@ -1082,11 +1083,11 @@ namespace lms::api::muma
                 // PATCH too: MuMa's per-key account-settings write (bug report 116). It used to
                 // fall through every branch here, send nothing, and then park this thread -- and
                 // a MuMa call slot -- on a promise nobody would ever fulfil until the 30 s timeout.
-                if (request.method() == "PUT")
+                if (proxyMethod == ProxyMethod::Put)
                     _httpClient->sendPUTRequest(core::http::ClientPUTRequestParameters{ std::move(bodyParams) });
-                else if (request.method() == "DELETE")
+                else if (proxyMethod == ProxyMethod::Delete)
                     _httpClient->sendDELETERequest(core::http::ClientDELETERequestParameters{ std::move(bodyParams) });
-                else if (request.method() == "PATCH")
+                else if (proxyMethod == ProxyMethod::Patch)
                     _httpClient->sendPATCHRequest(core::http::ClientPATCHRequestParameters{ std::move(bodyParams) });
                 else
                     _httpClient->sendPOSTRequest(core::http::ClientPOSTRequestParameters{ std::move(bodyParams) });

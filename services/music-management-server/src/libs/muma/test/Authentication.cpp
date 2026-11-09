@@ -495,4 +495,17 @@ namespace lms::api::muma::tests
         const CallerRights admin{ .method = AuthMethod::MumaUserKey, .isAdmin = true, .mumaUserId = aliceMumaUserId };
         EXPECT_EQ(trackRefreshKey(admin, { .callerKey = "alices-key", .systemKey = systemKey }), std::optional<std::string>{ "alices-key" });
     }
+
+    // `/users/sync` clears the key cache and resyncs every account; only MuMa or an admin may.
+    TEST(MumaAuthentication, onlyMumaOrAnAdminMayTriggerAUserSync)
+    {
+        EXPECT_TRUE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::MumaSystemKey }));
+        EXPECT_TRUE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::Password, .isAdmin = true }));
+        EXPECT_TRUE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::MumaUserKey, .isAdmin = true, .mumaUserId = aliceMumaUserId }));
+
+        EXPECT_FALSE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::MumaUserKey, .mumaUserId = bobMumaUserId }));
+        EXPECT_FALSE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::Password }));
+        EXPECT_FALSE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::SubsonicToken }));
+        EXPECT_FALSE(mayTriggerUserSync(CallerRights{ .method = AuthMethod::None }));
+    }
 } // namespace lms::api::muma::tests

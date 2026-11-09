@@ -13,12 +13,13 @@ import bcrypt
 import pymysql
 import requests
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.deprecation import DEPRECATED_CALL
+from services.music_manager.dynamic_playlist_params import read_params, validate_params
 from services.music_manager.identity import username_taken
 from services.music_manager.lms_schema import usable_lms_targets
 from services.music_manager.rate_limit import auth_attempt
@@ -126,11 +127,21 @@ class LBAccountUpdate(BaseModel):
 
 
 class DynamicPlaylistCreate(BaseModel):
+    """A new dynamic playlist; `params` is its definition as a JSON object (dynamic_playlist_params)."""
+
     name: str
     params: str
 
+    @field_validator('params')
+    @classmethod
+    def _params_are_runnable(cls, value: str) -> str:
+        """A definition the track query cannot run is refused with a 422 instead of stored."""
+        return validate_params(value)
+
 
 class DynamicPlaylistUpdate(BaseModel):
+    """A change to a dynamic playlist: a new name, a new definition, or both."""
+
     name: str | None = None
     params: str | None = None
     rating_range: list[int] | None = None
@@ -138,6 +149,12 @@ class DynamicPlaylistUpdate(BaseModel):
     size: int | None = None
     sort_method: str | None = None
     song_type: str | None = None
+
+    @field_validator('params')
+    @classmethod
+    def _params_are_runnable(cls, value: str | None) -> str | None:
+        """The same check as on create; leaving `params` out leaves the stored one alone."""
+        return validate_params(value) if value is not None else None
 
 
 class PasswordUpdate(BaseModel):
@@ -636,22 +653,13 @@ def get_playlist_tracks(user_id: int, playlist_id: int, auth: dict = Depends(ver
             row = cursor.fetchone()
             if not row:
                 raise HTTPException(status_code=404)
-            params_str = row['params']
-            try:
-                params = json.loads(params_str)
-            except json.JSONDecodeError:
-                params = {}
-                if '&' in params_str or '=' in params_str:
-                    for part in params_str.split('&'):
-                        if '=' in part:
-                            k, v = part.split('=', 1)
-                            params[k] = v
-            genres = params.get('genres', [])
-            rating_range = params.get('rating_range', [0, 100])
-            size = int(params.get('size', 500))
-            sort_method = params.get('sort_method', 'newest')
-            song_type = params.get('song_type', 'both')
-            rules = params.get('rules', [])
+            params = read_params(row['params'])
+            genres = params['genres']
+            rating_range = params['rating_range']
+            size = params['size']
+            sort_method = params['sort_method']
+            song_type = params['song_type']
+            rules = params['rules']
             query = "\n                SELECT DISTINCT t.id, t.title, COALESCE(a.name, 'Unknown Artist') as artist, \n                       CAST(t.created_at AS CHAR) as created_at, t.duration_secs,\n                       rt.rating\n                FROM library_tracks t\n                LEFT JOIN library_artists a ON t.primary_artist_id = a.id\n                LEFT JOIN rating_tracks rt ON rt.entity_id = t.track_uid AND rt.username = %s\n                WHERE 1=1\n            "
             q_params = [username]
             if genres:
@@ -752,10 +760,15 @@ def seed_defaults(user_id: int, auth: dict = Depends(verify_api_key)):
                     ),
                 ),
             ]
+            # remote_id stays NULL here, and NULLs never collide in UNIQUE (source, remote_id), so
+            # an upsert on that key added all four again on every call. A default the user already
+            # has -- by name -- is left as it is, edits included.
             for name, params in defaults:
                 cursor.execute(
-                    '\n                    INSERT INTO dynamic_playlists (user_id, name, params, source)\n                    VALUES (%s, %s, %s, %s)\n                    ON DUPLICATE KEY UPDATE params = VALUES(params)\n                ',
-                    (user_id, name, params, 'default'),
+                    "INSERT INTO dynamic_playlists (user_id, name, params, source) SELECT %s, %s, %s, 'default' "
+                    'FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM dynamic_playlists '
+                    "WHERE user_id = %s AND source = 'default' AND name = %s)",
+                    (user_id, name, params, user_id, name),
                 )
             conn.commit()
             return {'status': 'ok'}

@@ -738,6 +738,25 @@ def test_the_release_image_build_still_pushes():
     assert "false" not in str(ci["release:build-images"].get("variables", {}))
 
 
+def test_two_release_image_builds_never_run_at_once():
+    """Both push the same :rc tags; interleaved, production could pull a mix of two releases (#226)."""
+    ci = load_ci()
+    assert ci["release:build-images"]["resource_group"] == "release-images"
+
+
+def _change_globs(ci, job):
+    """Every `changes:` path a job's rules list."""
+    return [path for rule in ci[job]["rules"] if isinstance(rule, dict) for path in rule.get("changes", [])]
+
+
+def test_a_requirements_change_runs_the_jobs_it_feeds():
+    """requirements-dev.txt holds ruff, pylint and mypy; requirements.txt goes into the images (#226)."""
+    ci = load_ci()
+    for job in ("backend:format", "backend:lint", "backend:typecheck", "backend:typecheck-all"):
+        assert "requirements-dev.txt" in _change_globs(ci, job), job
+    assert "requirements.txt" in _change_globs(ci, "muma:images")
+
+
 # --- The deploy actually has to be verified ----------------------------------
 
 

@@ -328,7 +328,7 @@ leave both variables unset.
 
 Keys the check requires inside `PROD_ENV_FILE`: `GOOGLE_CLIENT_ID`, `API_KEY` or `MUMA_API_KEY`,
 `DOCKER_USER`, `COMPOSE_PROFILES` and `FIREFOX_PASSWORD`. Inside `PROD_ENV_FILE_LMS`:
-`VITE_GOOGLE_CLIENT_ID`. Add a key to `scripts/ci/check-required-secrets.sh` and to this list when a
+`VITE_GOOGLE_CLIENT_ID`, `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` and `MUSIC_MANAGEMENT_API_KEY`. Add a key to `scripts/ci/check-required-secrets.sh` and to this list when a
 new secret becomes required.
 
 `scripts/deploy.sh` sends the env file over SSH on stdin, never on a command line, and the host keeps

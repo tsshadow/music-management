@@ -102,7 +102,10 @@ def run_secrets_check(env_content: str, lms_env_content: str, **overrides: str) 
     )
 
 
-LMS_ENV = "VITE_GOOGLE_CLIENT_ID=some-client-id\n"
+LMS_ENV = (
+    "VITE_GOOGLE_CLIENT_ID=some-client-id\nLMS_API_KEY=lms-key\nLMS_SUBSONIC_API_KEY=subsonic-key\n"
+    "MUSIC_MANAGEMENT_API_KEY=a-real-key\n"
+)
 BASE_ENV = (
     "GOOGLE_CLIENT_ID=some-client-id\nFIREFOX_PASSWORD=not-admin\nDOCKER_USER=someone\n"
     "COMPOSE_PROFILES=soundcloud,youtube,telegram,importer\n"
@@ -151,6 +154,15 @@ def test_secrets_check_rejects_a_release_without_a_firefox_password():
     result = run_secrets_check(BASE_ENV.replace("FIREFOX_PASSWORD=not-admin\n", "") + "API_KEY=a-real-key\n", LMS_ENV)
     assert result.returncode != 0
     assert "FIREFOX_PASSWORD" in result.stdout
+
+
+def test_secrets_check_requires_each_lms_key():
+    """LMS starts with an empty key and then refuses every call it should serve or make (#226)."""
+    for key in ("LMS_API_KEY", "LMS_SUBSONIC_API_KEY", "MUSIC_MANAGEMENT_API_KEY"):
+        lms_env = "".join(line + "\n" for line in LMS_ENV.splitlines() if not line.startswith(f"{key}="))
+        result = run_secrets_check(BASE_ENV + "API_KEY=a-real-key\n", lms_env)
+        assert result.returncode != 0, f"missing {key} passed the check"
+        assert f"'{key}'" in result.stdout
 
 
 def test_secrets_check_requires_docker_user_in_the_prod_env():

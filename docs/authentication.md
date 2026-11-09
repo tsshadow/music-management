@@ -266,6 +266,12 @@ most of those to MuMa directly). Its authentication, in
 - The proxy forwards the caller's own verified key and nothing else; a `u`/`p` caller reaches MuMa
   without a key. The configured MuMa system key is used only for LMS's own calls on behalf of an
   already-verified caller (artist image, track refresh, settings).
+- Track refresh (`/muma/api/tracks/{id}/refresh`) retags the file through MuMa's `rerun-parse-path`,
+  which needs `rules.manage` (`trackRefreshKey`). A MuMa user key goes through as itself, so MuMa
+  judges that user. A system key gets the system key. A `u`/`p` or `u`/`t`/`s` caller gets the system
+  key only as an LMS admin, because LMS knows the admin role and no other MuMa permission; anyone
+  else gets `403` and no call reaches MuMa (issue #230). The web player shows the reload button to
+  admins only.
 
 Bug report [056](bug-reports/056-lms-any-key-is-admin.md) describes what this replaced: any
 non-empty key was accepted and the caller was taken from `u`.

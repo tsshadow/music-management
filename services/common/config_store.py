@@ -467,6 +467,28 @@ def _config_fields() -> list[ConfigField]:
             ),
         ),
         ConfigField(
+            key='import_extract_max_gb',
+            type='integer',
+            default=50,
+            env='import_extract_max_gb',
+            group='Paths',
+            description=(
+                'The most one archive may expand to, in GB. The importer stops the extraction past it and '
+                'leaves the archive in the import folder with reason extraction-too-large. 0 switches the cap off.'
+            ),
+        ),
+        ConfigField(
+            key='import_extract_min_free_gb',
+            type='integer',
+            default=10,
+            env='import_extract_min_free_gb',
+            group='Paths',
+            description=(
+                'The free space, in GB, an extraction must leave on the import filesystem. The importer stops '
+                'the extraction when free space drops below it. 0 switches the check off.'
+            ),
+        ),
+        ConfigField(
             key='delimiter',
             type='string',
             default=os.sep,

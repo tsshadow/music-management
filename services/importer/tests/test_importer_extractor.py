@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
@@ -67,7 +68,10 @@ class ExtractorHarness(unittest.TestCase):
     def setUp(self):
         # pylint does not know enterContext closes the directory at the end of the test.
         self.root = self.enterContext(TemporaryDirectory())  # pylint: disable=consider-using-with
-        settings = MagicMock(import_folder_path=self.root, delimiter='/')
+        settings = MagicMock(
+            import_folder_path=self.root, delimiter='/', import_extract_max_gb=50, import_extract_min_free_gb=0
+        )
+        self.settings = settings
         patcher = patch.object(extractor, 'Settings', return_value=settings)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -94,7 +98,8 @@ class ExtractorHarness(unittest.TestCase):
         retention window instead of deleted on the spot.
 
         `extract_side_effect` follows mock semantics, except that a None in a list means
-        "this attempt worked" and unpacks a release like a real backend would.
+        "this attempt worked" and unpacks a release like a real backend would, and a
+        function stands in for the backend itself.
         """
         self.touch(*entries)
         outcomes = list(extract_side_effect) if isinstance(extract_side_effect, list) else None
@@ -103,6 +108,9 @@ class ExtractorHarness(unittest.TestCase):
             outcome = outcomes.pop(0) if outcomes is not None else extract_side_effect
             if isinstance(outcome, BaseException):
                 raise outcome
+            if callable(outcome):
+                outcome(archive, outdir, **kwargs)
+                return
             unpack(archive, outdir, **kwargs)
 
         with (
@@ -620,6 +628,49 @@ class NonArchiveTest(ExtractorHarness):
             self.extractor.run(dry_run=True)
 
         self.assertEqual(self.store.rows, {})
+
+
+class ExtractionBudgetTest(ExtractorHarness):
+    """An archive that expands past the budget is stopped while it extracts (issue #231)."""
+
+    def setUp(self):
+        super().setUp()
+        # 64 "GB" of 1 KiB each: a budget a test can pass in a fraction of a second.
+        patcher = patch.object(extractor, 'GIB', 1024)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.settings.import_extract_max_gb = 64
+
+    def test_a_backend_that_writes_past_the_budget_is_killed_and_the_archive_stays(self):
+        self.touch('Unrelated Release - 01.mp3')
+        # Started before the extraction: the importer's own child, which the stop must spare.
+        bystander = subprocess.Popen(['sleep', '30'])  # pylint: disable=consider-using-with
+        self.addCleanup(bystander.wait)
+        self.addCleanup(bystander.kill)
+
+        def bomb(_archive, outdir, **_kwargs):
+            # A real backend: a child process that writes until something stops it.
+            result = subprocess.run(
+                ['sh', '-c', 'while :; do head -c 65536 /dev/zero >> "$0/bomb.bin"; done', outdir], check=False
+            )
+            raise PATOOL_ERROR(f'Command exited with status {result.returncode}')
+
+        patool, remove = self.run_with(['bomb.zip'], extract_side_effect=bomb)
+
+        self.assertEqual(patool.extract_archive.call_count, 1, 'another backend would write the same bytes')
+        remove.assert_not_called()
+        self.assertEqual(self.entries(), ['Unrelated Release - 01.mp3', 'bomb.zip'])
+        self.assertIsNone(bystander.poll(), 'a child started before the extraction was killed')
+        (row,) = [row for row in self.store.rows.values() if row['source'].endswith('bomb.zip')]
+        self.assertEqual(row['reason'], 'extraction-too-large')
+        self.assertIn('passed 65536 bytes', row['target'])
+
+    def test_an_archive_within_the_budget_extracts(self):
+        patool, remove = self.run_with(['small.zip'])
+
+        patool.extract_archive.assert_called_once()
+        remove.assert_called_once()
+        self.assertEqual(self.entries(), ['small', 'small.zip'])
 
 
 class ClassifyTest(unittest.TestCase):

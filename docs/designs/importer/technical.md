@@ -36,6 +36,8 @@ The importer is a standalone Python service (`services/importer/importer_service
 | `eps_folder_path` | `eps_folder_path` | Destination base directory for processed music. |
 | `delimiter` | `delimiter` | System path separator (default: `os.sep`). |
 | `dryrun` | `dryrun` | If true, logs actions without modifying the filesystem. |
+| `import_extract_max_gb` | `import_extract_max_gb` | The most one archive may expand to, in GB (default 50; 0 switches the cap off). `extract_budget.ExtractionWatch` measures the staging folder every 0.5 s and kills the backend's processes past it (issue #231). |
+| `import_extract_min_free_gb` | `import_extract_min_free_gb` | The free space, in GB, an extraction must leave on the import filesystem (default 10; 0 switches the check off). It absorbs what a backend writes between two measurements. |
 | `import_settle_minutes` | `import_settle_minutes` | How long a release folder must sit unchanged before the flattener, renamer or mover acts on it (default 5; 0 switches the wait off). |
 | `quarantine_folder_path`, `quarantine_retention_days` | same | Where discarded archives and duplicate releases are parked, and for how long. |
 

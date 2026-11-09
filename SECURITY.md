@@ -94,7 +94,12 @@ Summarised here because it affects what counts as a vulnerability;
   of a label decision) must stay inside the library roots after links and `..`
   are resolved; otherwise the route answers 400 or 422. The importer leaves an
   archive in the queue when it extracts a link that points outside its own
-  folder (`extraction-unsafe`, issue #217).
+  folder (`extraction-unsafe`, issue #217), and stops an extraction whose
+  output passes `import_extract_max_gb` or leaves less than
+  `import_extract_min_free_gb` free (`extraction-too-large`, issue #231).
+* LMS's track refresh sends MuMa the system key only for an admin or a
+  service; a MuMa user key goes through as itself, and any other caller gets
+  403 (issue #230).
 * No response lists another account's `api_key`, and no login hands out a key
   that is not the caller's own. The web login (`/muma/api/auth/login`) is
   MuMa's login; LMS used to answer it with its own `api-key` for every user.

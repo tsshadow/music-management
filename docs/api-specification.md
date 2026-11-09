@@ -149,7 +149,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `mover`, `source`/`target` are the two folders and `reason` is null. For `step` `extractor`, `source`
   is the file, `target` a detail or empty, and `reason` one of `not-an-archive`, `loose-audio`,
   `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`, `unreadable`,
-  `extraction-failed`, `extraction-empty`, `extraction-name-taken`, `extraction-unsafe`. Read-only: a row disappears on the
+  `extraction-failed`, `extraction-empty`, `extraction-name-taken`, `extraction-unsafe`, `extraction-too-large`. Read-only: a row disappears on the
   importer's next cycle once the folder or file was removed or renamed by hand.
 - **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
   SoundCloud/YouTube channel to its label or artist on strong name equality.

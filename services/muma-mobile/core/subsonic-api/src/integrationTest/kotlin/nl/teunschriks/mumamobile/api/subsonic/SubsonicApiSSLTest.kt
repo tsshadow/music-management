@@ -74,8 +74,8 @@ class SubsonicApiSSLTest {
     }
 
     @Test
-    fun `Should fail request if self-signed certificate support is disabled`() {
-        val client = createSubsonicClient(false)
+    fun `Should fail request to a server with a self-signed certificate`() {
+        val client = createSubsonicClient()
         mockWebServer.enqueueResponse("ping_ok.json")
 
         // OkHttp tries every address "localhost" resolves to. After the TLS refusal on
@@ -90,24 +90,13 @@ class SubsonicApiSSLTest {
         )
     }
 
-    @Test
-    fun `Should pass request if self-signed certificate support is enabled`() {
-        val client = createSubsonicClient(true)
-        mockWebServer.enqueueResponse("ping_ok.json")
-
-        val response = client.api.ping().execute()
-
-        assertResponseSuccessful(response)
-    }
-
-    private fun createSubsonicClient(allowSelfSignedCertificate: Boolean): SubsonicAPIClient {
+    private fun createSubsonicClient(): SubsonicAPIClient {
         val config = SubsonicClientConfiguration(
             baseUrl = "https://$HOST:$PORT/",
             username = USERNAME,
             token = TOKEN,
             minimalProtocolVersion = CLIENT_VERSION,
-            clientID = CLIENT_ID,
-            allowSelfSignedCertificate = allowSelfSignedCertificate
+            clientID = CLIENT_ID
         )
         return SubsonicAPIClient(config)
     }

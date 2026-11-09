@@ -2,8 +2,6 @@ package nl.teunschriks.mumamobile.app
 
 import android.app.Application
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteException
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
@@ -91,7 +89,7 @@ class UApp : Application() {
             // of the signed-in state run the same migration first, so the order with the media
             // session does not matter.
             ActiveServerProvider.migrateLegacyCredentials()
-            wipeLegacyServerPasswords()
+            LegacyServerWipe.wipe(getDatabasePath(DB_FILENAME))
             if (Settings.debugLogToFile) {
                 FileLoggerTree.plantToTimberForest()
                 Util.dumpSettingsToLog()
@@ -104,25 +102,6 @@ class UApp : Application() {
 
         if (GlobalContext.getOrNull() == null) {
             startKoin()
-        }
-    }
-
-    /**
-     * Blanks the `password` column of the legacy Room `ServerSetting` table, a leftover of the
-     * Ultrasonic server list that nothing reads any more (the one server is static, see
-     * `StaticServers`). Opened as a plain SQLite file, not through Room, so no Room migration runs
-     * for a database the app otherwise never opens; skipped when the file does not exist, and a
-     * no-op once the column is blank (issue #101). Never fails the start.
-     */
-    private fun wipeLegacyServerPasswords() {
-        val file = getDatabasePath(DB_FILENAME)
-        if (!file.exists()) return
-        try {
-            SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
-                db.execSQL("UPDATE ServerSetting SET password = '' WHERE password != ''")
-            }
-        } catch (all: SQLiteException) {
-            Timber.w("Could not blank the legacy server passwords: %s", all.javaClass.simpleName)
         }
     }
 

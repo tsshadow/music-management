@@ -20,7 +20,6 @@ data class SubsonicClientConfiguration(
     val apiKey: String? = null,
     val minimalProtocolVersion: SubsonicAPIVersions,
     val clientID: String,
-    val allowSelfSignedCertificate: Boolean = false,
     val debug: Boolean = false,
     val isRealProtocolVersion: Boolean = false,
     val mumaUserId: Int? = null,

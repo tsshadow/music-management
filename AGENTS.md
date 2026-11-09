@@ -281,8 +281,10 @@ sound, distinct from the milestones topic.
 Home Assistant needs no dedicated integration — a REST sensor on
 `/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
 drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
-`version`, `database` (`ok`/`unreachable`), `threads` and `heartbeats`, and returns HTTP 503 when
-any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
+`version`, `database` (`ok`/`unreachable`), `schema`, `threads` and `heartbeats`, and returns HTTP 503 when
+any of those is unhealthy — instead of the old hard-coded `ok`. `schema` is `failed` when the
+start-up create pass (`db_init.ensure_tables_exist`) failed, which also logs an `ERROR`: tables may be
+missing until a restart creates them (`ok` after a good pass, `unknown` before it ran). This is what makes the existing
 Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
 It also carries `bpm_analysis`, the bpm-analyzer container's own status file (state, analysed,
 failed, remaining, rate, ETA), mirrored as a `bpm-analyzer` entry in `heartbeats`; that one never

@@ -141,6 +141,21 @@ docker-compose -f docker/docker-compose.yml --profile soundcloud run --rm soundc
 docker-compose -f docker/docker-compose.yml --profile importer logs -f importer_worker
 ```
 
+## The music folder
+
+The tagger finds files by folder name under `music_folder_path`, not by the `*_folder` settings:
+
+| Folder | What the tagger takes it for |
+|---|---|
+| `Soundcloud/<channel>` | SoundCloud downloads, one folder per channel |
+| `Youtube/<channel>` | YouTube downloads, one folder per channel |
+| `Telegram/<channel>` | Telegram downloads, one folder per channel |
+| `Livesets`, `Podcasts`, `Top 100`, `Warm Up Mixes` | Sets and mixes, tagged from their file names |
+| `EPs` (`eps_folder_path`) | Label releases, `<label>/<release>`; the import queue is `__TODO` inside it |
+
+`youtube_folder`, `soundcloud_folder` and `telegram_folder` tell the downloaders where to write.
+Point them at the folders above: a download written anywhere else is never tagged.
+
 ## First start and logins
 
 ### First admin

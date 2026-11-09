@@ -97,6 +97,8 @@ CREATE TABLE library_track_audio_features (id INTEGER PRIMARY KEY, internal_trac
 CREATE TABLE library_track_ml_labels (id INTEGER PRIMARY KEY, track_id TEXT, internal_track_id INTEGER,
     updated_at TEXT);
 CREATE TABLE library_track_artists (track_id INTEGER, artist_id INTEGER);
+CREATE TABLE library_track_bpm (track_uid TEXT PRIMARY KEY, bpm REAL);
+CREATE TABLE library_track_bpm_manual (track_uid TEXT PRIMARY KEY, bpm REAL);
 """
 
 

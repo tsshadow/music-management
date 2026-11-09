@@ -135,6 +135,50 @@ def test_a_rating_already_on_the_new_track_is_kept_when_newer(library):
     assert run_sql(db, 'SELECT track_id FROM scrobble_listens') == [{'track_id': successor['id']}]
 
 
+def test_a_retag_keeps_the_measured_and_the_hand_set_bpm(library):
+    db = library['db']
+    path = library['add_file']('Songs/raise.mp3')
+    old = library['scan'](path, FakeSong(['Angerfist']))
+    run_sql(
+        db,
+        "INSERT INTO library_track_bpm (track_uid, bpm, method, analyzed_at) VALUES (%s, 175.00, 'test', %s)",
+        (old['track_uid'], RATED_AT),
+    )
+    run_sql(
+        db,
+        'INSERT INTO library_track_bpm_manual (track_uid, bpm, set_at) VALUES (%s, 87.50, %s)',
+        (old['track_uid'], RATED_AT),
+    )
+
+    new = library['scan'](path, FakeSong(['Outsiders', 'Angerfist']))
+
+    assert new['track_uid'] != old['track_uid']
+    assert run_sql(db, 'SELECT track_uid, bpm FROM library_track_bpm') == [{'track_uid': new['track_uid'], 'bpm': 175}]
+    assert run_sql(db, 'SELECT track_uid, bpm FROM library_track_bpm_manual') == [
+        {'track_uid': new['track_uid'], 'bpm': 87.5}
+    ]
+
+
+def test_a_bpm_the_new_uid_already_has_is_kept(library):
+    db = library['db']
+    path = library['add_file']('Songs/raise.mp3')
+    old = library['scan'](path, FakeSong(['Angerfist']))
+    other = library['add_file']('Songs/raise-copy.mp3')
+    successor = library['scan'](other, FakeSong(['Outsiders', 'Angerfist']))
+    for uid, bpm in ((old['track_uid'], 87.5), (successor['track_uid'], 175)):
+        run_sql(
+            db,
+            'INSERT INTO library_track_bpm_manual (track_uid, bpm, set_at) VALUES (%s, %s, %s)',
+            (uid, bpm, RATED_AT),
+        )
+
+    library['scan'](path, FakeSong(['Outsiders', 'Angerfist']))
+
+    assert run_sql(db, 'SELECT track_uid, bpm FROM library_track_bpm_manual') == [
+        {'track_uid': successor['track_uid'], 'bpm': 175}
+    ]
+
+
 def test_a_track_that_keeps_another_file_is_not_deleted(library):
     db = library['db']
     first = library['add_file']('Songs/raise.mp3')

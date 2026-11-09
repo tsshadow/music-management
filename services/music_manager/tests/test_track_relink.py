@@ -116,6 +116,28 @@ class RelinkListensAndRestTest(unittest.TestCase):
             ('uid-new', 'uid-old'),
         )
 
+    def test_measured_and_hand_set_bpm_follow_the_new_uid(self):
+        cursor = cursor_with()
+        track_relink.relink_track(cursor, OLD, NEW)
+
+        for table in ('library_track_bpm', 'library_track_bpm_manual'):
+            self.assertEqual(
+                cursor.statements_matching(f'UPDATE IGNORE {table} SET track_uid')[0][1], ('uid-new', 'uid-old')
+            )
+            self.assertEqual(cursor.statements_matching(f'DELETE FROM {table} WHERE')[0][1], ('uid-old',))
+
+    def test_without_an_old_uid_no_bpm_row_is_touched(self):
+        tracks = [{**TRACKS[0], 'track_uid': None}, TRACKS[1]]
+        cursor = ScriptedCursor(
+            [
+                ('FROM library_media_files WHERE track_id = %s LIMIT 1', (OLD,), None),
+                ('FROM library_tracks WHERE id IN', None, tracks),
+            ]
+        )
+        track_relink.relink_track(cursor, OLD, NEW)
+
+        self.assertEqual(cursor.statements_matching('library_track_bpm'), [])
+
     def test_the_old_row_is_deleted_after_everything_moved(self):
         cursor = cursor_with()
         counts = track_relink.relink_track(cursor, OLD, NEW)

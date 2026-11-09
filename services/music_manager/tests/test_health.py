@@ -161,6 +161,29 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json()['threads']['events'])
 
+    @patch('services.music_manager.main.schema_status', return_value='failed')
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_degraded_when_the_startup_create_pass_failed(self, _db, mock_events, _schema):
+        mock_events.is_alive.return_value = True
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'degraded')
+        self.assertEqual(response.json()['schema'], 'failed')
+
+    @patch('services.music_manager.main.schema_status', return_value='ok')
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_reports_a_good_create_pass(self, _db, mock_events, _schema):
+        mock_events.is_alive.return_value = True
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['schema'], 'ok')
+
 
 class HealthHeartbeatTest(unittest.TestCase):
     """A loop that is alive but no longer completes a tick is as broken as a dead one."""

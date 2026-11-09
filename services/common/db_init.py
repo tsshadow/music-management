@@ -10,6 +10,15 @@ import logging
 from services.common import db_seeds, schema_tables
 from services.common.Helpers.DatabaseConnector import DatabaseConnector
 
+#: Outcome of the last ensure_tables_exist() in this process: 'unknown' before it ran, then
+#: 'ok' or 'failed'. /health reports it, so a stack that started with missing tables says so.
+_status = 'unknown'
+
+
+def schema_status() -> str:
+    """'ok', 'failed' or 'unknown': how the last create pass in this process ended."""
+    return _status
+
 
 def create_tables(cursor) -> None:
     """Run every declared CREATE TABLE and CREATE VIEW; an existing one is left as it is."""
@@ -17,8 +26,13 @@ def create_tables(cursor) -> None:
         cursor.execute(statement)
 
 
-def ensure_tables_exist() -> None:
-    """Create every missing table and view, then the seed rows (services/common/db_seeds.py)."""
+def ensure_tables_exist() -> bool:
+    """Create every missing table and view, then the seed rows (services/common/db_seeds.py).
+
+    A failure stops the pass at that statement and is logged at ERROR; start-up goes on, and
+    schema_status() answers 'failed' until a later pass succeeds. Returns whether it succeeded.
+    """
+    global _status  # pylint: disable=global-statement  # one process-wide outcome, read by /health
     try:
         conn = DatabaseConnector().connect()
         try:
@@ -28,5 +42,9 @@ def ensure_tables_exist() -> None:
             conn.commit()
         finally:
             conn.close()
-    except Exception as exc:
-        logging.warning('Failed to ensure DB tables exist: %s', exc)
+    except Exception as exc:  # pylint: disable=broad-except  # start-up goes on; /health reports it
+        logging.error('Failed to ensure DB tables exist: %s', exc)
+        _status = 'failed'
+        return False
+    _status = 'ok'
+    return True

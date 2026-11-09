@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from services.common.config_store import ConfigStore
-from services.common.db_init import ensure_tables_exist
+from services.common.db_init import ensure_tables_exist, schema_status
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
@@ -243,8 +243,11 @@ def health(response: Response):
     last completed tick -- is younger than that loop's staleness window;
     `heartbeats` carries the detail behind each verdict. `lms_listen_outbox` says, per
     LMS, how many listens it still holds for us and since when; it never affects `status`.
+    `schema` is 'failed' when the start-up create pass (db_init.ensure_tables_exist) failed, so
+    tables may be missing; that turns `status` red until a restart creates them.
     """
     database = _database_status()
+    schema = schema_status()
 
     threads = thread_status()
     threads['events'] = event_service.is_alive()
@@ -254,7 +257,7 @@ def health(response: Response):
     if bpm_analysis is not None:
         heartbeats['bpm-analyzer'] = bpm_status.heartbeat_entry(bpm_analysis)
 
-    healthy = database == 'ok' and all(threads.values())
+    healthy = database == 'ok' and schema != 'failed' and all(threads.values())
     if not healthy:
         response.status_code = 503
     return {
@@ -263,6 +266,7 @@ def health(response: Response):
         'version': get_version(),
         'source_url': _public_source_url(),
         'database': database,
+        'schema': schema,
         'threads': threads,
         'heartbeats': heartbeats,
         'lms_listen_outbox': _lms_listen_outbox_status(),

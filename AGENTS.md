@@ -38,6 +38,9 @@ The system is split into specialized services, each handling a specific part of 
   (`00-*.m3u`, `.nfo`, `.sfv`, cover) instead of placing it, with an `INFO` event; audio at any
   depth, an unextracted archive or any other file keeps it (`services/common/audio_less_folder.py`,
   bug report 147).
+- **Extraction budget**: a backend whose output passes `import_extract_max_gb` (default 50) or leaves
+  less than `import_extract_min_free_gb` (default 10) free is killed mid-run, and the archive stays
+  with reason `extraction-too-large` (`services/importer/extract_budget.py`, issue #231).
 - **Catalogue numbers**: `services/common/catalogue_number.py` is the one test of what a catalogue
   number looks like (letters and digits, at least one digit, no title words like `Anthem`/`Edit`,
   not a bare year). A folder name without one keeps its name -- no ` - ` prefix (bug report 145).

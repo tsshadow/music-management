@@ -202,6 +202,13 @@ namespace lms::api::muma
     /// `/users/{id}/settings/{app}`, where `id` is a MuMa user id: that user, or an admin.
     bool mayAccessUserSettings(const CallerRights& rights, long long targetMumaUserId);
 
+    /// The X-API-Key a track refresh (`/api/tracks/{id}/refresh`) sends to MuMa's
+    /// `rerun-parse-path`, which needs `rules.manage`; nullopt when this caller may not start one.
+    /// A MuMa user key goes through as itself, so MuMa judges that user's permissions. A system
+    /// caller gets `systemKey`. A u/p or token caller gets `systemKey` only when that LMS user is
+    /// an admin: LMS knows the admin role and no other MuMa permission. Issue #230.
+    std::optional<std::string> trackRefreshKey(const CallerRights& rights, std::string_view callerKey, std::string_view systemKey);
+
     /// Why `token` may not be stored as a Subsonic token through `/api/admin/subsonic-token`, or
     /// nullopt when it may. An empty token is acceptable: the route reads it as "revoke". The
     /// length floor is `/updateUser`'s (`userSettings::minSubsonicTokenLength`), so the two ways of

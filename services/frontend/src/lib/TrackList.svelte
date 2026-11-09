@@ -1,7 +1,7 @@
 <script>
   import { openSong, pressEntity, seedFromTrack } from './entitySeeds.js';
   import { t, locale } from './i18n/index.js';
-  import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog } from './store.js';
+  import { currentTrack, playerState, authParams, playlist, isMobile, trackListLines, highlightedTrackId, mumaApiUrl, restUrl, showConfirmationDialog, isAdmin } from './store.js';
   import { startQueue } from './queue.js';
   import ArtistList from './ArtistList.svelte';
   // Opened from a row's menu or a long press, never on the first screen: its own chunk
@@ -660,7 +660,9 @@
                   </button>
               {/if}
 
-              {#if !isQueue}
+              <!-- The reload retags the file, which MuMa allows only with rules.manage; LMS lets an admin
+                   through and refuses a listener (issue #230), so a listener does not see it. -->
+              {#if !isQueue && $isAdmin}
                   <button
                     aria-label={$t('track.reload')}
                     title={$t('track.reload')}

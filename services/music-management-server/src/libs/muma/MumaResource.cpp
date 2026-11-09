@@ -764,6 +764,17 @@ namespace lms::api::muma
                 return;
             }
 
+            // MuMa's rerun-parse-path needs rules.manage. Sending the system key for every caller
+            // let any listener start a retag through here (issue #230).
+            const std::optional<std::string> refreshKey{ trackRefreshKey(rights, auth.forwardKey, _mumaApiKey) };
+            if (!refreshKey)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, the caller is not an admin and has no MuMa key");
+                response.setStatus(403);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Missing permission: rules.manage\"}";
+                return;
+            }
+
             if (!_httpClient)
             {
                 response.setStatus(500);
@@ -787,8 +798,8 @@ namespace lms::api::muma
 
             core::http::ClientPOSTRequestParameters postParams;
             postParams.relativeUrl = relativeUrl;
-            if (!_mumaApiKey.empty())
-                postParams.message.addHeader("X-API-Key", _mumaApiKey);
+            if (!refreshKey->empty())
+                postParams.message.addHeader("X-API-Key", *refreshKey);
 
             // Raw pass-through proxy: forward MuMa's real status verbatim.
             postParams.treatAnyStatusAsSuccess = true;

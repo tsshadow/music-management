@@ -15,6 +15,7 @@ from services.common.Helpers import Quarantine
 from services.common.Helpers.ReleaseFolder import AUDIO_EXTENSIONS, is_same_release
 from services.importer import conflict_store
 from services.importer.conflict_store import FileProblemTracker
+from services.importer.extract_budget import GIB, ExtractionTooLarge, ExtractionWatch
 from services.importer.settle import STAGING_PREFIX, is_staging
 
 # Backends to try when patool's own choice cannot read an archive. patool picks
@@ -205,15 +206,28 @@ class Extractor:
 
         Returns the staging folder on success. On a PatoolError the staging folder --
         and whatever part of the archive landed in it -- is removed and the error is
-        raised again, so the next backend starts from nothing.
+        raised again, so the next backend starts from nothing. A backend whose output
+        passes the extraction budget is killed, and ExtractionTooLarge is raised
+        (issue #231).
         """
         staging = tempfile.mkdtemp(prefix=STAGING_PREFIX, dir=self.settings.import_folder_path)
         options = {} if program is None else {'program': program}
+        watch = ExtractionWatch(
+            staging,
+            max_bytes=self.settings.import_extract_max_gb * GIB,
+            min_free_bytes=self.settings.import_extract_min_free_gb * GIB,
+        )
         try:
-            patoolib.extract_archive(file_with_path, outdir=staging, interactive=False, **options)
+            with watch:
+                patoolib.extract_archive(file_with_path, outdir=staging, interactive=False, **options)
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
+            if watch.exceeded:
+                raise ExtractionTooLarge(watch.exceeded) from None
             raise
+        if watch.exceeded:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise ExtractionTooLarge(watch.exceeded)
         return staging
 
     def _extract(self, file_with_path, file) -> tuple[str | None, str, str]:
@@ -232,6 +246,9 @@ class Extractor:
                 logging.info('Extraction of %s failed (%s); retrying with %s', file, failures[-1], program)
             try:
                 staging = self._attempt(file_with_path, program)
+            except ExtractionTooLarge as e:
+                # Another backend would write the same bytes, so the archive waits for a person.
+                return None, conflict_store.EXTRACTION_TOO_LARGE, str(e)
             except patoolib.util.PatoolError as e:
                 failures.append(f'{program or "default"}: {e}')
                 continue

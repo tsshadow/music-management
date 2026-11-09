@@ -721,6 +721,7 @@
         "extraction-empty": "Archief bleek leeg",
         "extraction-name-taken": "Archief bevat een map waarvan de naam al bezet is",
         "extraction-unsafe": "Archief bevat een link naar een plek buiten de eigen map",
+        "extraction-too-large": "Archief wordt uitgepakt groter dan het budget of de vrije schijfruimte",
         "unknown": "Door de importer laten staan"
       },
       "conflictSince": "Sinds",

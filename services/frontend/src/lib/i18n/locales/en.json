@@ -721,6 +721,7 @@
         "extraction-empty": "Archive extracted to nothing",
         "extraction-name-taken": "Archive holds a folder whose name is taken",
         "extraction-unsafe": "Archive holds a link to a place outside its own folder",
+        "extraction-too-large": "Archive expands past the extraction budget or the free disk space",
         "unknown": "Left in place by the importer"
       },
       "conflictSince": "Since",

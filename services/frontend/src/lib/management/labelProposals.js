@@ -53,6 +53,7 @@ export const IMPORT_FILE_REASONS = [
   "extraction-empty",
   "extraction-name-taken",
   "extraction-unsafe",
+  "extraction-too-large",
 ];
 
 /**

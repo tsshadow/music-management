@@ -700,6 +700,11 @@ class DynamicPlaylistsTest:
         names = {row['name'] for row in api.get('/api/users/1/dynamic-playlists', headers=headers).json()}
         assert names == {'Hardstyle', 'Hardcore', 'Techno', 'Recently Added'}
 
+    def test_seeding_twice_leaves_four_defaults(self, api, headers):
+        for _ in range(2):
+            assert api.post('/api/users/1/dynamic-playlists/seed-defaults', headers=headers).status_code == 200
+        assert len(api.get('/api/users/1/dynamic-playlists', headers=headers).json()) == 4
+
     def test_the_track_query_of_a_playlist_runs(self, api, headers, db):
         """The largest generated query in the codebase; only a real database
         can say whether it parses."""

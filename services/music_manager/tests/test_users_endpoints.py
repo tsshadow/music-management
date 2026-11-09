@@ -193,6 +193,24 @@ class DynamicPlaylistTest(UsersEndpointTestCase):
         self.client.put('/api/users/4/dynamic-playlists/1', headers=self.headers, json={'params': '{}'})
         self.assertIn('SET params = %s WHERE', self.statements()[0])
 
+    def test_a_definition_that_is_not_a_json_object_is_a_422(self):
+        for params in ('not json', '[]'):
+            with self.subTest(params=params):
+                response = self.client.post(
+                    '/api/users/4/dynamic-playlists', headers=self.headers, json={'name': 'New', 'params': params}
+                )
+                self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.statements(), [])
+
+    def test_a_size_above_the_cap_is_a_422_on_create_and_update(self):
+        params = json.dumps({'size': 1_000_000})
+        created = self.client.post(
+            '/api/users/4/dynamic-playlists', headers=self.headers, json={'name': 'New', 'params': params}
+        )
+        updated = self.client.put('/api/users/4/dynamic-playlists/1', headers=self.headers, json={'params': params})
+        self.assertEqual((created.status_code, updated.status_code), (422, 422))
+        self.assertEqual(self.statements(), [])
+
     def test_an_empty_update_writes_nothing(self):
         response = self.client.put('/api/users/4/dynamic-playlists/1', headers=self.headers, json={})
         self.assertEqual(response.json(), {'status': 'ok'})
@@ -251,6 +269,26 @@ class DynamicPlaylistTracksTest(UsersEndpointTestCase):
         response = self.client.post('/api/users/4/dynamic-playlists/seed-defaults', headers=self.headers)
         self.assertEqual(response.json(), {'status': 'ok'})
         self.assertEqual(len(self.statements()), 4)
+
+    def test_seeding_skips_a_default_the_user_already_has(self):
+        self.client.post('/api/users/4/dynamic-playlists/seed-defaults', headers=self.headers)
+        for statement in self.statements():
+            self.assertIn(
+                "WHERE NOT EXISTS (SELECT 1 FROM dynamic_playlists WHERE user_id = %s AND source = 'default'", statement
+            )
+
+    def test_a_stored_size_above_the_cap_is_clamped_in_the_query(self):
+        self.cursor.fetchone.side_effect = [{'username': 'user'}, {'params': '{"size": 1000000}'}]
+        self.cursor.fetchall.return_value = []
+        response = self.client.get('/api/users/4/dynamic-playlists/1/tracks', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.cursor.execute.call_args.args[1][-1], 2000)
+
+    def test_a_stored_definition_that_is_not_an_object_still_answers(self):
+        self.cursor.fetchone.side_effect = [{'username': 'user'}, {'params': '[1, 2]'}]
+        self.cursor.fetchall.return_value = []
+        response = self.client.get('/api/users/4/dynamic-playlists/1/tracks', headers=self.headers)
+        self.assertEqual(response.status_code, 200)
 
 
 class PlaylistTracksTest(UsersEndpointTestCase):

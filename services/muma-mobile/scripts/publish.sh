@@ -63,13 +63,15 @@ if [ "$BUILD_TYPE" == "debug" ]; then
 fi
 
 echo "--- Extracting release notes for v$VER_QUERY ---"
-# awk extracts the block, sed trims empty lines at start/end
-NOTES=$(awk -v ver="$VER_QUERY" '$0 ~ "^## \\[" ver "\\]" {flag=1; next} /^## \[/ {flag=0} flag' RELEASE_NOTES.md | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+NOTES=$(scripts/release-notes.sh "$VER_QUERY" RELEASE_NOTES.md)
 
 # If debug and empty, fallback to just VERSION_NAME
 if [ "$BUILD_TYPE" == "debug" ] && [ -z "$NOTES" ]; then
     echo "Note: No specific notes found for $VER_QUERY, falling back to $VERSION_NAME"
-    NOTES=$(awk -v ver="$VERSION_NAME" '$0 ~ "^## \\[" ver "\\]" {flag=1; next} /^## \[/ {flag=0} flag' RELEASE_NOTES.md | sed '/./,$!d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+    NOTES=$(scripts/release-notes.sh "$VERSION_NAME" RELEASE_NOTES.md)
+fi
+if [ -z "$NOTES" ]; then
+    echo "WARNING: no section for $VERSION_NAME in RELEASE_NOTES.md; the APK goes out without notes."
 fi
 
 APK_PATH="$MODULE/build/outputs/apk/$BUILD_TYPE/$MODULE-$BUILD_TYPE.apk"

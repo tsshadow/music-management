@@ -63,4 +63,18 @@ namespace lms::api::muma
     /// headers, its `Authorization` -- stays here. The configured system key is never among them;
     /// see AuthDecision::forwardKey.
     ProxyHeaders buildProxyHeaders(const ProxyHeaderInputs& inputs);
+
+    /// The HTTP verbs the generic `/api/` proxy forwards to MuMa.
+    enum class ProxyMethod : std::uint8_t
+    {
+        Get,
+        Post,
+        Put,
+        Delete,
+        Patch,
+    };
+
+    /// The verb a request leaves for MuMa with: the one it arrived with, or nullopt for a verb the
+    /// proxy does not forward (answered 405 at once). Every PUT and DELETE used to leave as a POST.
+    std::optional<ProxyMethod> proxyMethodFor(std::string_view method);
 } // namespace lms::api::muma

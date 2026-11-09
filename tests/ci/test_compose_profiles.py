@@ -95,7 +95,9 @@ def _run_secrets_check(tmp_path, env_lines):
     env = tmp_path / 'prod.env'
     env.write_text('\n'.join(env_lines) + '\n', encoding='utf-8')
     lms = tmp_path / 'lms.env'
-    lms.write_text('VITE_GOOGLE_CLIENT_ID=x\n', encoding='utf-8')
+    lms.write_text(
+        'VITE_GOOGLE_CLIENT_ID=x\nLMS_API_KEY=a\nLMS_SUBSONIC_API_KEY=b\nMUSIC_MANAGEMENT_API_KEY=c\n', encoding='utf-8'
+    )
     base = {
         'PATH': '/usr/bin:/bin',
         'DOCKERHUB_USERNAME': 'u',

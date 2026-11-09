@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprehensive Docker Stack Deployment Script
-# Handles: Webhooks, Remote SSH updates, and the database schema.
+# Handles: remote SSH updates and the database schema.
 #
 # Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
 # dump -> db recreate (DEPLOY_DB=1 only) -> schema reconcile -> DEPLOY_PRE_UP_HOOK ->
@@ -156,25 +156,13 @@ if ! printf '%s' "$DEPLOY_DISK_CHECK_PATH" | grep -Eq '^/[A-Za-z0-9_./-]*$'; the
     exit 1
 fi
 
-# 1. Trigger Portainer Webhook if configured
+# 1. A Portainer webhook would recreate the stack on its own, before the backup and the
+# schema step below -- the order bug report 050 is about. CI never set it; refuse it
+# rather than start new code on an old schema.
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
-    echo "--- Triggering Portainer Webhook for: $STACK_NAME ---"
-    if command -v curl >/dev/null 2>&1; then
-        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${PORTAINER_WEBHOOK_URL}")
-        if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 300 ]; then
-            echo "--- Webhook triggered successfully (Status: $STATUS_CODE) ---"
-        elif [ "$STATUS_CODE" -eq 404 ]; then
-            echo "Error: Portainer Webhook returned 404 Not Found."
-            echo "Note: Stack Webhooks are a Business Edition feature."
-            exit 1
-        else
-            echo "Error: Portainer Webhook failed with status code $STATUS_CODE"
-            exit 1
-        fi
-    else
-        echo "Error: curl not found. Cannot trigger Portainer Webhook."
-        exit 1
-    fi
+    echo "Error: PORTAINER_WEBHOOK_URL is set. This deploy only runs over SSH (REMOTE_HOST), so that"
+    echo "the backup and the schema step come before the new containers. Unset it and run again."
+    exit 1
 fi
 
 # 2. Remote Deployment via SSH if configured
@@ -773,7 +761,7 @@ $1" < /dev/null
 
     echo "--- Remote deployment completed successfully ---"
 else
-    echo "Error: Remote deployment skipped. No PORTAINER_WEBHOOK_URL, REMOTE_HOST, or SSH targets configured in .env."
+    echo "Error: Remote deployment skipped. No REMOTE_HOST or SSH targets configured in .env."
     echo "To deploy locally, use 'docker compose up -d' or configure your remote target."
     exit 1
 fi

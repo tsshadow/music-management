@@ -176,6 +176,12 @@ else
     # release:build-images -- if empty, Vite dead-code-eliminates the entire
     # "Sign in with Google" button out of the production bundle.
     require_key "$env_content_lms" "VITE_GOOGLE_CLIENT_ID" "PROD_ENV_FILE_LMS" || missing=1
+    # The player's own API key, its Subsonic key and the key it calls music-manager with
+    # (services/music-management-server/docker-compose.yml). Empty, LMS starts and every
+    # rating, listen and proxied call to music-manager is refused.
+    require_key "$env_content_lms" "LMS_API_KEY" "PROD_ENV_FILE_LMS" || missing=1
+    require_key "$env_content_lms" "LMS_SUBSONIC_API_KEY" "PROD_ENV_FILE_LMS" || missing=1
+    require_key "$env_content_lms" "MUSIC_MANAGEMENT_API_KEY" "PROD_ENV_FILE_LMS" || missing=1
 fi
 
 if [ "$missing" -ne 0 ]; then

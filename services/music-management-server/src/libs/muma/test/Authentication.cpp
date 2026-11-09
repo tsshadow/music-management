@@ -472,27 +472,27 @@ namespace lms::api::muma::tests
     {
         constexpr std::string_view systemKey{ "muma-system-key" };
 
-        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::Password }, "", systemKey).has_value());
-        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::SubsonicToken }, "", systemKey).has_value());
-        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::None }, "", systemKey).has_value());
+        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::Password }, { .callerKey = "", .systemKey = systemKey }).has_value());
+        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::SubsonicToken }, { .callerKey = "", .systemKey = systemKey }).has_value());
+        EXPECT_FALSE(trackRefreshKey(CallerRights{ .method = AuthMethod::None }, { .callerKey = "", .systemKey = systemKey }).has_value());
 
         // A MuMa user key goes through as itself: MuMa answers 403 when the user lacks rules.manage.
         const CallerRights bob{ .method = AuthMethod::MumaUserKey, .mumaUserId = bobMumaUserId };
-        EXPECT_EQ(trackRefreshKey(bob, "bobs-key", systemKey), std::optional<std::string>{ "bobs-key" });
-        EXPECT_FALSE(trackRefreshKey(bob, "", systemKey).has_value());
+        EXPECT_EQ(trackRefreshKey(bob, { .callerKey = "bobs-key", .systemKey = systemKey }), std::optional<std::string>{ "bobs-key" });
+        EXPECT_FALSE(trackRefreshKey(bob, { .callerKey = "", .systemKey = systemKey }).has_value());
     }
 
     TEST(MumaAuthentication, anAdminOrAServiceMayStartATrackRefresh)
     {
         constexpr std::string_view systemKey{ "muma-system-key" };
 
-        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::Password, .isAdmin = true }, "", systemKey), std::optional<std::string>{ systemKey });
-        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::SubsonicToken, .isAdmin = true }, "", systemKey), std::optional<std::string>{ systemKey });
-        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::LmsApiKey }, "", systemKey), std::optional<std::string>{ systemKey });
-        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::MumaSystemKey }, "muma-system-key", systemKey), std::optional<std::string>{ systemKey });
+        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::Password, .isAdmin = true }, { .callerKey = "", .systemKey = systemKey }), std::optional<std::string>{ systemKey });
+        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::SubsonicToken, .isAdmin = true }, { .callerKey = "", .systemKey = systemKey }), std::optional<std::string>{ systemKey });
+        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::LmsApiKey }, { .callerKey = "", .systemKey = systemKey }), std::optional<std::string>{ systemKey });
+        EXPECT_EQ(trackRefreshKey(CallerRights{ .method = AuthMethod::MumaSystemKey }, { .callerKey = "muma-system-key", .systemKey = systemKey }), std::optional<std::string>{ systemKey });
 
         // An admin's own MuMa key is still their own key, not the system key.
         const CallerRights admin{ .method = AuthMethod::MumaUserKey, .isAdmin = true, .mumaUserId = aliceMumaUserId };
-        EXPECT_EQ(trackRefreshKey(admin, "alices-key", systemKey), std::optional<std::string>{ "alices-key" });
+        EXPECT_EQ(trackRefreshKey(admin, { .callerKey = "alices-key", .systemKey = systemKey }), std::optional<std::string>{ "alices-key" });
     }
 } // namespace lms::api::muma::tests

@@ -766,7 +766,7 @@ namespace lms::api::muma
 
             // MuMa's rerun-parse-path needs rules.manage. Sending the system key for every caller
             // let any listener start a retag through here (issue #230).
-            const std::optional<std::string> refreshKey{ trackRefreshKey(rights, auth.forwardKey, _mumaApiKey) };
+            const std::optional<std::string> refreshKey{ trackRefreshKey(rights, { .callerKey = auth.forwardKey, .systemKey = _mumaApiKey }) };
             if (!refreshKey)
             {
                 LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, the caller is not an admin and has no MuMa key");

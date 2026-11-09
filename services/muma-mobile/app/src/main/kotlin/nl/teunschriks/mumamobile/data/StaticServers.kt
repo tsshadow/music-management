@@ -50,16 +50,6 @@ object StaticServers {
         ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
     ): Boolean = ServerHosts.isOwn(serverUrl, ownServerUrl, ownDomain)
 
-    /**
-     * Whether the Subsonic client may skip certificate and hostname checks for [SERVER_URL].
-     *
-     * It must not: `true` installs a trust-all `X509TrustManager` and a hostname verifier that
-     * accepts anything, so anyone on the network path could impersonate the server and collect the
-     * password from the next request. The server has a publicly trusted certificate, so the normal
-     * system trust store is all it needs (bug report 054).
-     */
-    const val ALLOW_SELF_SIGNED_CERTIFICATE = false
-
     val STATIC_SERVERS = listOf(
         ServerSetting(
             id = 0,
@@ -68,7 +58,9 @@ object StaticServers {
             url = SERVER_URL,
             userName = "",
             password = "",
-            allowSelfSignedCertificate = ALLOW_SELF_SIGNED_CERTIFICATE,
+            // A Room column from the Ultrasonic era; the Subsonic client has no trust-all path any
+            // more (bug report 054, issue #227) and checks every certificate against the system store.
+            allowSelfSignedCertificate = false,
             // A Room column from the Ultrasonic era; nothing reads it since issue #72 removed
             // password signing -- every request is signed with the Subsonic token.
             forcePlainTextPassword = false,

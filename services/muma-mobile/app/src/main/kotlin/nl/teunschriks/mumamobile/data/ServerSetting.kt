@@ -13,9 +13,11 @@ import androidx.room.PrimaryKey
  * @param userName: The UserName that can be used to connect to the server
  * @param password: Always blank: no password is kept after a sign-in (issue #101); the column stays
  *   only because the Room schema has it
- * @param apiKey: The API Key of the Server
+ * @param apiKey: Always null: the key lives in `SecureSettings` (issue #227); the column stays only
+ *   because the Room schema has it
  * @param jukeboxByDefault: True if the JukeBox mode should be turned on for the server
- * @param allowSelfSignedCertificate: True if the server uses self-signed certificate
+ * @param allowSelfSignedCertificate: Unused: the client always checks the server certificate
+ *   (issue #227); the column stays only because the Room schema has it
  * @param forcePlainTextPassword: True if the server authenticates the user using old Ldap-like way
  * @param musicFolderId: The Id of the MusicFolder to be used with the server
  *

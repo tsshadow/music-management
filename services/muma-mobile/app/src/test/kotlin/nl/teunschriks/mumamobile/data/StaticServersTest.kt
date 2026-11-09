@@ -15,8 +15,9 @@ import org.junit.Test
 
 /**
  * The one server the app signs in to shipped with `allowSelfSignedCertificate = true`, which
- * installs a trust-all certificate manager and hostname verifier for a server that has a valid
- * certificate (bug report 054). These pin the transport settings of that server.
+ * installed a trust-all certificate manager and hostname verifier for a server that has a valid
+ * certificate (bug report 054). The trust-all path is gone (issue #227); these pin the transport
+ * settings of that server.
  */
 class StaticServersTest {
 
@@ -26,7 +27,6 @@ class StaticServersTest {
     fun `the server is reached over https with certificate checks on`() {
         server.url shouldStartWith "https://"
         server.allowSelfSignedCertificate.shouldBeFalse()
-        StaticServers.ALLOW_SELF_SIGNED_CERTIFICATE.shouldBeFalse()
     }
 
     /**

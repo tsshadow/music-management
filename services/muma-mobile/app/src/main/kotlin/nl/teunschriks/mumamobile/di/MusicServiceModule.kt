@@ -68,7 +68,6 @@ val musicServiceModule = module {
                     ?: Constants.REST_PROTOCOL_VERSION
             ),
             clientID = Constants.REST_CLIENT_ID,
-            allowSelfSignedCertificate = server.allowSelfSignedCertificate,
             debug = BuildConfig.DEBUG,
             isRealProtocolVersion = server.minimumApiVersion != null,
             tokenStorage = nl.teunschriks.mumamobile.util.SecureSettings,

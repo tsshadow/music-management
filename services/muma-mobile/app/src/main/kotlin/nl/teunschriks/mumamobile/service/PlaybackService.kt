@@ -289,6 +289,9 @@ class PlaybackService :
         }
 
         scrobbler = Scrobbler()
+        // Created with the player, as the scrobbler is: a rating queued by an earlier process
+        // goes out now, also when only the car started the app (#149).
+        RatingManager.instance.flushNow()
         player.addListener(listener)
         isStarted = true
     }

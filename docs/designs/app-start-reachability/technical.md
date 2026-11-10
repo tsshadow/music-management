@@ -113,9 +113,8 @@ release.
 
 ## Not covered (follow-ups)
 
-- Android Auto while *not* in offline mode (cold start in the car, or during "Wachten op server") still uses
-  the online service with its network timeouts.
-- Ratings are not queued offline.
+Both are built in [`offline-followups/`](../offline-followups/technical.md) (#149): Android Auto outside
+offline mode, and a durable rating queue.
 
 ## Related Docs
 

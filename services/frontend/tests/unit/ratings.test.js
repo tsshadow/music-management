@@ -19,6 +19,7 @@ import {
   resetRatings,
 } from "../../src/lib/ratings.js";
 import { notify, dismissAll } from "../../src/lib/notifications.js";
+import { offline } from "../../src/lib/subsonic.js";
 
 /**
  * The shared rating store: one write path, one place every view reads from. The component tests
@@ -52,11 +53,13 @@ describe("ratings store", () => {
     dismissAll();
     credentials.set({ url: "https://lms.example", username: "demo-user", password: "pw" });
     currentTrack.set(null);
+    offline.set(false);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     dismissAll();
+    offline.set(false);
   });
 
   it("falls back to the rating the server sent until something is written", () => {
@@ -99,6 +102,100 @@ describe("ratings store", () => {
 
     expect(stored).toBe(false);
     expect(get(ratings)["1"]).toBe(1);
+  });
+
+  describe("the phone's rating queue (docs/designs/offline-followups/)", () => {
+    /** A platform whose phone queue accepts everything, as the app's does. */
+    const phone = () => ({ storage: { queueRating: vi.fn(async () => true) } });
+    const unreachable = () =>
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+
+    it("queues on the phone in offline mode, without a request, and keeps the stars", async () => {
+      offline.set(true);
+      const platform = phone();
+      const fetchImpl = vi.fn(async () => ok());
+      const info = vi.spyOn(notify, "info");
+
+      const stored = await setRating("7", 4, { fetchImpl, platform, previous: 1 });
+
+      expect(stored).toBe(true);
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(platform.storage.queueRating).toHaveBeenCalledWith("7", 4);
+      expect(get(ratings)["7"]).toBe(4);
+      expect(info).toHaveBeenCalledWith(
+        "Beoordeling bewaard, gaat naar de server zodra die weer bereikbaar is",
+      );
+    });
+
+    it("queues a clear in offline mode as rating 0", async () => {
+      offline.set(true);
+      const platform = phone();
+
+      await clearRating("7", { fetchImpl: vi.fn(), platform, previous: 3 });
+
+      expect(platform.storage.queueRating).toHaveBeenCalledWith("7", 0);
+      expect(get(ratings)["7"]).toBe(0);
+    });
+
+    it("queues when the request never reached the server", async () => {
+      const platform = phone();
+
+      const stored = await setRating("8", 5, { fetchImpl: unreachable(), platform, previous: 2 });
+
+      expect(stored).toBe(true);
+      expect(platform.storage.queueRating).toHaveBeenCalledWith("8", 5);
+      expect(get(ratings)["8"]).toBe(5);
+    });
+
+    it("queues when only the proxy answered (502)", async () => {
+      const platform = phone();
+      const fetchImpl = vi.fn(async () => ({ ok: false, status: 502, statusText: "Bad Gateway" }));
+
+      expect(await setRating("9", 3, { fetchImpl, platform, previous: 0 })).toBe(true);
+      expect(platform.storage.queueRating).toHaveBeenCalledWith("9", 3);
+    });
+
+    it("rolls back, without queueing, when the server refuses", async () => {
+      const platform = phone();
+
+      const stored = await setRating("1", 5, {
+        fetchImpl: vi.fn(async () => refused()),
+        platform,
+        previous: 2,
+      });
+
+      expect(stored).toBe(false);
+      expect(platform.storage.queueRating).not.toHaveBeenCalled();
+      expect(get(ratings)["1"]).toBe(2);
+    });
+
+    it("rolls back when the phone has no queue (an older APK)", async () => {
+      const platform = {
+        storage: {
+          queueRating: vi.fn(async () => {
+            throw new Error("not implemented");
+          }),
+        },
+      };
+
+      expect(await setRating("1", 4, { fetchImpl: unreachable(), platform, previous: 1 })).toBe(
+        false,
+      );
+      expect(get(ratings)["1"]).toBe(1);
+    });
+
+    it("sends a later rating of a queued track through the queue too, so the last one wins", async () => {
+      const platform = phone();
+      await setRating("5", 2, { fetchImpl: unreachable(), platform, previous: 0 });
+
+      const fetchImpl = vi.fn(async () => ok());
+      await setRating("5", 5, { fetchImpl, platform });
+
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(platform.storage.queueRating).toHaveBeenLastCalledWith("5", 5);
+    });
   });
 
   it("does not let a late failure undo a newer rating", async () => {

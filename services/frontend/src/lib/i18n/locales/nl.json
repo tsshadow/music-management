@@ -1677,6 +1677,7 @@
     "queueSaveFailed": "Afspeellijst kon niet worden opgeslagen",
     "queueSaved": "Afspeellijst opgeslagen",
     "ratingFailed": "Beoordeling kon niet worden opgeslagen",
+    "ratingQueued": "Beoordeling bewaard, gaat naar de server zodra die weer bereikbaar is",
     "region": "Meldingen",
     "resumeAt": "Hervat op {time}",
     "resumeRestart": "Opnieuw",

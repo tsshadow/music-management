@@ -206,6 +206,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(boolean): Promise<void>} setOfflineMode "Offline verder" on or off: while on,
  *   `isOffline()` answers true and the native services use the downloaded library. No-op in a
  *   browser.
+ * @property {function(string, number): Promise<boolean>} queueRating Hands a rating (0 clears) to
+ *   the phone's durable rating queue, sent when the server answers again
+ *   (docs/designs/offline-followups/). False when there is no queue: a browser, an older APK.
  * @property {function(function({id: string, state: string, progress: number}): void):
  *   function(): void} onProgress `progress` is a percentage, 0 to 100, and 0
  *   whenever the server sent no content length to measure against.

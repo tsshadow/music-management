@@ -481,7 +481,7 @@ describe("capacitor system", () => {
       },
     });
 
-    expect(platform.system.serverUrl()).toEqual({ subsonic: "", mumaApi: "" });
+    expect(platform.system.serverUrl()).toEqual({ subsonic: "", mumaApi: "", configured: true });
 
     await platform.system.loadServerUrl();
 
@@ -489,7 +489,88 @@ describe("capacitor system", () => {
     expect(platform.system.serverUrl()).toEqual({
       subsonic: "https://lms.example",
       mumaApi: "https://lms.example/muma",
+      configured: true,
     });
+  });
+
+  // Issue #192: a fresh install has no address yet.
+  it("reads a phone without a server address as not configured", async () => {
+    const { platform } = nativePlatform({
+      MumaSystem: { serverUrl: { subsonic: "", mumaApi: "", configured: false } },
+    });
+
+    await expect(platform.system.loadServerUrl()).resolves.toEqual({
+      subsonic: "",
+      mumaApi: "",
+      configured: false,
+    });
+  });
+
+  it("asks the phone to check an address and passes its answer on", async () => {
+    const { platform, plugins } = nativePlatform({
+      MumaSystem: {
+        checkServerAddress: {
+          state: "mumaUnreachable",
+          url: "https://music.example.net",
+          subsonic: "https://music.example.net/",
+          mumaApi: "https://music.example.net/muma",
+          buildServer: false,
+        },
+      },
+    });
+
+    const check = await platform.system.checkServerAddress("music.example.net");
+
+    expect(plugins.MumaSystem.calls).toContainEqual([
+      "checkServerAddress",
+      { url: "music.example.net" },
+    ]);
+    expect(check).toEqual({
+      state: "mumaUnreachable",
+      url: "https://music.example.net",
+      subsonic: "https://music.example.net",
+      mumaApi: "https://music.example.net/muma",
+      buildServer: false,
+    });
+  });
+
+  it("reads an empty check answer as unreachable", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { checkServerAddress: undefined } });
+
+    await expect(platform.system.checkServerAddress("x")).resolves.toMatchObject({
+      state: "unreachable",
+      buildServer: false,
+    });
+  });
+
+  it("stores an address with an explicit signOut flag", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.setServerAddress({ url: "https://music.example.net" });
+
+    expect(plugins.MumaSystem.calls).toContainEqual([
+      "setServerAddress",
+      { url: "https://music.example.net", signOut: false },
+    ]);
+  });
+
+  it("suggests the build's server, and nothing when the bridge fails", async () => {
+    const ok = nativePlatform({
+      MumaSystem: { suggestedServerAddress: { url: "https://music.example.net" } },
+    });
+    await expect(ok.platform.system.suggestedServerAddress()).resolves.toBe(
+      "https://music.example.net",
+    );
+
+    const failing = nativePlatform({
+      MumaSystem: {
+        suggestedServerAddress: () => {
+          throw new Error("bridge gone");
+        },
+      },
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(failing.platform.system.suggestedServerAddress()).resolves.toBe("");
   });
 
   // Issue #101: the phone says whether it is signed in; it hands over no password.

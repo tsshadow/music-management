@@ -21,7 +21,21 @@ import org.junit.Test
  */
 class StaticServersTest {
 
-    private val server = StaticServers.STATIC_SERVERS.single()
+    private val server = StaticServers.servers("https://music.example.org").single()
+
+    /** A fresh install has no stored address and therefore no server (issue #192). */
+    @Test
+    fun `without an address there is no server`() {
+        StaticServers.servers(null).isEmpty().shouldBeTrue()
+        StaticServers.servers("").isEmpty().shouldBeTrue()
+    }
+
+    /** The one entry is the stored address, with the id the Room cache and downloads key on. */
+    @Test
+    fun `the server is the stored address under id 0`() {
+        server.url shouldBeEqualTo "https://music.example.org"
+        server.id shouldBeEqualTo 0
+    }
 
     @Test
     fun `the server is reached over https with certificate checks on`() {

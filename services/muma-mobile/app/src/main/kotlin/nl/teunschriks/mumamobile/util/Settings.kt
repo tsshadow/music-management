@@ -517,6 +517,14 @@ object Settings {
     var staticUserName by StringSetting(getKey(R.string.setting_key_static_username), "")
 
     /**
+     * The server address the listener chose on the first-run screen, normalized; `""` while none
+     * is set (issue #192). Read and written through [nl.teunschriks.mumamobile.data.ServerAddress]
+     * only. Not a secret: it stays in the cloud backup with the other plain preferences.
+     */
+    @JvmStatic
+    var serverUrl by StringSetting(getKey(R.string.setting_key_server_url), "")
+
+    /**
      * Whether someone is signed in: set by a sign-in ([nl.teunschriks.mumamobile.data.ActiveServerProvider.saveSession]),
      * cleared by a sign-out. Replaces the blank password that used to mean "signed out" (issue
      * #101); read it through [nl.teunschriks.mumamobile.data.ActiveServerProvider.isSignedIn],

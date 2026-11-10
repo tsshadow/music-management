@@ -353,9 +353,10 @@ The app takes its server address from build settings. A release build stops with
 
 | Variable | Purpose |
 |---|---|
-| `MUMA_SERVER_URL` | The server the app talks to, for example `https://music.example.org`. |
+| `MUMA_SERVER_URL` | The address a fresh install suggests on its first-run screen, for example `https://music.example.org`. |
 | `MUMA_GOOGLE_CLIENT_ID` | The Web client id of "Sign in with Google". |
 | `MUMA_API_URL` | Optional. A separate host for the MuMa API. The CI release script also needs it. |
 | `MUMA_OWN_DOMAIN` | Optional. Your domain, for example `example.org`. Servers on it, and its subdomains, use `MUMA_API_URL`. The CI release script also needs it. |
 
-A build without these uses `https://music.example.org` and hides the Google button.
+A build without these suggests no address: the app asks for the server on its first start, and it hides
+the Google button. Google sign-in only shows for the build's own server.

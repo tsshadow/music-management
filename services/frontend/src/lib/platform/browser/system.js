@@ -64,12 +64,43 @@ const system = {
   },
 
   /**
-   * @returns {{subsonic: string, mumaApi: string}} Bases to build URLs on.
+   * @returns {{subsonic: string, mumaApi: string, configured: boolean}} Bases to build URLs on.
    *   Either may be an empty string, which means "same origin" -- that is what
-   *   the dev server and the reverse proxy in front of production both want.
+   *   the dev server and the reverse proxy in front of production both want. A browser tab
+   *   always has a server: the one that served the page.
    */
   serverUrl() {
-    return { subsonic: get(credentials).url, mumaApi: get(mumaApiUrl) };
+    return { subsonic: get(credentials).url, mumaApi: get(mumaApiUrl), configured: true };
+  },
+
+  /**
+   * Never called in a browser: the first-run screen is the shell's. Answers `ok` so a caller
+   * that does is not stopped.
+   *
+   * @returns {Promise<import('../index.js').ServerAddressCheck>}
+   */
+  async checkServerAddress() {
+    return { state: "ok", url: "", subsonic: "", mumaApi: "", buildServer: false };
+  },
+
+  /**
+   * A browser tab has no address to store: its server is the page's origin.
+   *
+   * @returns {Promise<never>}
+   */
+  async setServerAddress() {
+    throw Object.assign(new Error("a browser tab has no server address to store"), {
+      code: "invalid",
+    });
+  },
+
+  /**
+   * A browser tab suggests nothing; it never shows the first-run screen.
+   *
+   * @returns {Promise<string>}
+   */
+  async suggestedServerAddress() {
+    return "";
   },
 
   /**

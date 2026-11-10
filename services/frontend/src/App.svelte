@@ -6,6 +6,8 @@
   import Dashboard from './lib/Dashboard.svelte';
   import QueueLoadMore from './lib/QueueLoadMore.svelte';
   import LoginPage from './lib/LoginPage.svelte';
+  import FirstRunServer from './lib/FirstRunServer.svelte';
+  import { serverScreen, useServerAddress, sameServer } from './lib/serverAddress.js';
   import OfflineNotice from './lib/OfflineNotice.svelte';
   import OfflineModeBanner from './lib/OfflineModeBanner.svelte';
   import TopBar from './lib/TopBar.svelte';
@@ -442,6 +444,19 @@
       }
   }
 
+  /**
+   * Stores the address the first-run screen checked and goes on to the login page. Another
+   * server than the stored one also ends what is left of the phone's session there and drops
+   * its cache; another spelling of the same server keeps it (issue #192).
+   *
+   * @param {{url: string}} check
+   */
+  async function storeServerAddress(check) {
+      const before = platform.system.serverUrl().subsonic;
+      await useServerAddress(check.url, { signOut: Boolean(before) && !sameServer(before, check.url) });
+      serverScreen.set(null);
+  }
+
   function clearQueue() {
       // Clearing the queue also clears where it came from: an emptied queue
       // has no "playing from" to speak of.
@@ -462,7 +477,14 @@
 
 <svelte:window onkeydown={handleDrawerKeydown} />
 
-{#if !$signedIn}
+{#if !$signedIn && $serverScreen}
+  <FirstRunServer
+    mode={$serverScreen}
+    current={$serverScreen === 'change' ? platform.system.serverUrl().subsonic : ''}
+    onconfirm={storeServerAddress}
+    oncancel={$serverScreen === 'change' ? () => serverScreen.set(null) : undefined}
+  />
+{:else if !$signedIn}
   <LoginPage />
 {:else}
 <!-- From `md` up (a tablet, a desktop) nothing else pads the system bars: the phone's TopBar

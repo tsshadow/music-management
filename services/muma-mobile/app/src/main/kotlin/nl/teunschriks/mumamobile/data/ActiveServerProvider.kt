@@ -44,7 +44,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
 
             // Get from the static list
             // No password: none is stored after a sign-in any more (issue #101).
-            cachedServer = StaticServers.STATIC_SERVERS.find { it.id == serverId }?.copy(
+            cachedServer = StaticServers.servers().find { it.id == serverId }?.copy(
                 userName = Settings.staticUserName
             )
 
@@ -53,7 +53,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
                 return cachedServer!!
             }
 
-            // Fallback to Offline
+            // Fallback to Offline; also what an install without a stored address gets.
             setActiveServerById(OFFLINE_DB_ID)
         }
 
@@ -71,7 +71,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
             return OFFLINE_DB_ID
         }
 
-        return StaticServers.STATIC_SERVERS.find { it.index == index }?.id ?: 0
+        return StaticServers.servers().find { it.index == index }?.id ?: 0
     }
 
     /**
@@ -86,7 +86,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
             return
         }
 
-        val serverId = StaticServers.STATIC_SERVERS.find { it.index == index }?.id ?: 0
+        val serverId = StaticServers.servers().find { it.index == index }?.id ?: 0
         setActiveServerById(serverId)
     }
 
@@ -219,10 +219,21 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
      * also the origin the Capacitor WebView serves the bundle from. A shell that built its
      * requests on it would ask its own page for `/rest/ping` and get index.html back, so the
      * shell reads the real server from here instead of from [getActiveServer].
+     *
+     * Null while no address is stored: a fresh install asks for one first (issue #192).
      */
-    fun signInServer(): ServerSetting = StaticServers.STATIC_SERVERS.first().copy(
+    fun signInServer(): ServerSetting? = StaticServers.servers().firstOrNull()?.copy(
         userName = Settings.staticUserName
     )
+
+    /**
+     * The stored server address changed ([ServerAddress.store]): drops the cached server and
+     * rebuilds the music service on the main thread, so the next request goes to the new address.
+     */
+    fun serverChanged() {
+        invalidateCache()
+        launch(Dispatchers.Main) { resetMusicService() }
+    }
 
     /**
      * Records a session the Capacitor shell's web login just started -- with a password or with
@@ -239,7 +250,8 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
      *
      * Written against [signInServer], not [getActiveServer]: on a fresh install the active server
      * is Offline, and the server is then made active as well, which is what the next boot's
-     * `credentials()` relies on.
+     * `credentials()` relies on. Without a stored address there is no server to activate; the
+     * shell never signs in before one is set.
      */
     fun saveSession(username: String, apiKey: String, userId: Int?) {
         val server = signInServer()
@@ -253,7 +265,7 @@ class ActiveServerProvider : CoroutineScope by CoroutineScope(Dispatchers.IO) {
             invalidateCache()
         }
         launch(Dispatchers.Main) { resetMusicService() }
-        if (getActiveServerId() == OFFLINE_DB_ID) setActiveServerById(server.id)
+        if (server != null && getActiveServerId() == OFFLINE_DB_ID) setActiveServerById(server.id)
     }
 
     /**

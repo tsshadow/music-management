@@ -97,7 +97,8 @@ export const MAX_REHYDRATED_TRACKS = 200;
  *   count once the restore has ended (finished or cancelled). Off by default, so a caller that
  *   does not ask still gets the queue before it renders.
  * @returns {Promise<{native: boolean, signedIn: boolean, restored: number, offline: boolean,
- *   queueRestored: Promise<number>}>}
+ *   queueRestored: Promise<number>, needsServer?: boolean}>} `needsServer` is true in a shell
+ *   with no server address stored yet; the app then shows the first-run screen.
  */
 export async function bootstrapShell(
   platform = defaultPlatform,
@@ -126,10 +127,16 @@ export async function bootstrapShell(
 
   try {
     report("connecting");
-    // Leaves now and is waited for after the server URLs: the native side pings with its own
-    // client and settings, so it needs nothing from the stores below.
+    const urls = await applyServerUrls(platform);
+    if (urls?.configured === false) {
+      // A fresh install has no server yet: nothing to ping, nothing to sign in to. The app
+      // shows the first-run screen (issue #192), never "Server niet bereikbaar".
+      platform.diagnostics.log("shell:boot", { signedIn: false, needsServer: true });
+      return { ...shellResult(false, 0, false, Promise.resolve(0)), needsServer: true };
+    }
+    // Leaves now and is waited for in `decideStart`: the native side pings with its own client
+    // and settings, so it needs nothing from the stores below.
     const reachability = checkServer(platform);
-    await applyServerUrls(platform);
     const offlineStart = await decideStart(platform, reachability, decide);
     if (offlineStart) report("offlineStart");
     report("signingIn");

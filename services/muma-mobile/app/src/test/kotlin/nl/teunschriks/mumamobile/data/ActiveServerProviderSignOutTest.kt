@@ -49,6 +49,7 @@ class ActiveServerProviderSignOutTest {
         SecureSettings.useCipherForTests(cipher)
         SecureSettings.clear()
 
+        Settings.serverUrl = SERVER
         Settings.activeServer = 0
         Settings.staticUserName = "user"
         Settings.clearLegacyStaticPassword()
@@ -107,7 +108,7 @@ class ActiveServerProviderSignOutTest {
         ActiveServerProvider.isSignedIn() shouldBeEqualTo true
         Settings.hasKey(passwordKey) shouldBeEqualTo false
         provider.getActiveServer().password shouldBeEqualTo ""
-        provider.signInServer().password shouldBeEqualTo ""
+        provider.signInServer()?.password shouldBeEqualTo ""
     }
 
     @Test
@@ -140,11 +141,36 @@ class ActiveServerProviderSignOutTest {
     }
 
     @Test
-    fun `signInServer is the static server even while Offline is active`() {
+    fun `signInServer is the stored server even while Offline is active`() {
         Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
 
-        provider.signInServer().url shouldBeEqualTo StaticServers.SERVER_URL
+        provider.signInServer()?.url shouldBeEqualTo SERVER
         provider.getActiveServer().url shouldBeEqualTo SubsonicAPIClient.OFFLINE_DB_URL
+    }
+
+    /** A fresh install before the first-run screen: no address, so no server to sign in to (issue #192). */
+    @Test
+    fun `without a stored address there is no server to sign in to`() {
+        Settings.serverUrl = ""
+        Settings.activeServer = ActiveServerProvider.OFFLINE_DB_ID
+        Settings.signedIn = false
+        Settings.staticUserName = ""
+        SecureSettings.mumaApiKey = ""
+
+        provider.signInServer().shouldBeNull()
+        provider.getActiveServer().url shouldBeEqualTo SubsonicAPIClient.OFFLINE_DB_URL
+    }
+
+    /** The address the listener entered is the server every reader gets, from the next read on. */
+    @Test
+    fun `serverChanged makes the next read use the new address`() {
+        provider.getActiveServer().url shouldBeEqualTo SERVER
+
+        Settings.serverUrl = "https://music.example.net"
+        provider.invalidateCache()
+
+        provider.getActiveServer().url shouldBeEqualTo "https://music.example.net"
+        provider.signInServer()?.url shouldBeEqualTo "https://music.example.net"
     }
 
     // Issue #101: the first start of the new build turns the old marker into the flag.
@@ -297,5 +323,9 @@ class ActiveServerProviderSignOutTest {
         SecureSettings.clear()
 
         ActiveServerProvider.isSignedIn() shouldBeEqualTo false
+    }
+
+    private companion object {
+        const val SERVER = "https://music.example.com"
     }
 }

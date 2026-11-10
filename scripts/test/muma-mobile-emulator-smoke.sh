@@ -54,10 +54,15 @@ fi
 
 echo "--- Running MuMa Mobile emulator smoke test (release build) ---"
 
-# The server the login page must show on a fresh install: the one the build was given
-# (MUMA_SERVER_URL, read by services/muma-mobile/app/build.gradle), else the neutral default
-# compiled in when it is unset. The same variable goes to the build below, so they cannot differ.
-SMOKE_EXPECTED_SERVER="${MUMA_SERVER_URL:-https://music.example.org}"
+# The server the first-run screen must suggest on a fresh install (issue #192): the one the
+# build was given (MUMA_SERVER_URL, read by services/muma-mobile/app/build.gradle). A build
+# without it, or with the example default, suggests nothing: empty here, and the inner script
+# then looks for the screen's example address. The same variable goes to the build below, so
+# they cannot differ.
+SMOKE_EXPECTED_SERVER="${MUMA_SERVER_URL:-}"
+case "$SMOKE_EXPECTED_SERVER" in
+    https://music.example.org | https://music.example.org/) SMOKE_EXPECTED_SERVER="" ;;
+esac
 
 source "$ROOT_DIR/scripts/ci/android-gradle-home.sh"
 source "$ROOT_DIR/scripts/ci/android-image.sh"

@@ -134,9 +134,12 @@
     package;
   - `CapacitorActivity` is the resumed activity (the launcher trampoline handed over and the Koin
     graph resolved in `onResume`);
-  - the login page's server field shows `StaticServers.SERVER_URL`, read from the
-    accessibility tree. That value only reaches the page through `MumaSystem.serverUrl`, a
-    Capacitor `@PluginMethod` the bridge finds by name -- R8 stripping it
+  - the first-run server screen is shown (a wiped install has no address, issue #192) with the
+    build's server (`MUMA_SERVER_URL`) prefilled, or the example address `https://music.example.net`
+    for a build with the example default; read from the accessibility tree. The screen only shows
+    when `MumaSystem.serverUrl` answers `configured: false`, and the prefill only arrives through
+    `MumaSystem.suggestedServerAddress`: Capacitor `@PluginMethod`s the bridge finds by name -- R8
+    stripping one
     (`minify/proguard-capacitor.pro`) crashes nothing, because `bootstrapShell` swallows the
     rejection, so this is the check that sees it. An APK without the Svelte bundle (no
     `frontend:bundle` in the pipeline) only gets the placeholder page checked, and the log

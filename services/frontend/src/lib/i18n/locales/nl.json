@@ -401,8 +401,8 @@
     "requestPending": "Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.",
     "requestRejected": "Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.",
     "requestedOn": "Aangevraagd op: {date}",
-    "server": "Server",
-    "serverHint": "Het adres van je muziekserver. Alleen nodig in de app; de webversie weet dit zelf.",
+    "serverLine": "Server: {host}",
+    "changeServer": "Wijzigen",
     "settingUp": "Bezig met instellen...",
     "setupIntro": "Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.",
     "setupTitle": "Systeem Setup",
@@ -416,6 +416,28 @@
     "googleSignIn": "Inloggen met Google",
     "googleNoCredential": "Google gaf geen account terug. Is er een Google-account op deze telefoon, en is deze app bij Google geregistreerd?",
     "googleFailed": "Inloggen met Google is mislukt ({reason})."
+  },
+  "firstRun": {
+    "title": "Met welke server wil je verbinden?",
+    "changeTitle": "Andere server",
+    "intro": "Vul het adres van je MuMa-server in. Wie de server beheert, weet het.",
+    "label": "Serveradres",
+    "example": "Bijvoorbeeld",
+    "connect": "Verbinden",
+    "checking": "Server controleren…",
+    "continueAnyway": "Toch doorgaan",
+    "retry": "Opnieuw proberen",
+    "cancel": "Annuleren",
+    "saveFailed": "Het adres kon niet worden opgeslagen: {reason}",
+    "state": {
+      "invalid": "Dit is geen serveradres.",
+      "insecure": "Alleen https-adressen werken, ook op je thuisnetwerk.",
+      "noNetwork": "Je telefoon heeft geen netwerkverbinding.",
+      "unreachable": "De server op {url} antwoordt niet.",
+      "certificate": "De verbinding is niet veilig: het certificaat van deze server wordt niet vertrouwd.",
+      "notMuma": "Op dit adres is geen MuMa-server gevonden.",
+      "mumaUnreachable": "De server is gevonden, maar MuMa antwoordt niet. Afspelen werkt wel; de MuMa-pagina's tonen een fout tot MuMa antwoordt."
+    }
   },
   "logout": {
     "confirmTitle": "Uitloggen?",
@@ -1904,7 +1926,13 @@
       "mumaUserId": "Muma-gebruikers-ID",
       "mumaApiKeySet": "Muma-API-sleutel",
       "mumaSyncLinked": "Gekoppeld",
-      "mumaSyncNotLinked": "Niet gekoppeld"
+      "mumaSyncNotLinked": "Niet gekoppeld",
+      "server": "Server",
+      "serverNone": "Geen server ingesteld",
+      "serverChange": "Wijzigen",
+      "serverSwitchTitle": "Andere server gebruiken?",
+      "serverSwitchBody": "Je wordt uitgelogd en de wachtrij wordt gewist. Downloads blijven op je telefoon.",
+      "serverSwitchConfirm": "Wisselen"
     },
     "general": {
       "albumSort": "Standaard Sortering Albums",

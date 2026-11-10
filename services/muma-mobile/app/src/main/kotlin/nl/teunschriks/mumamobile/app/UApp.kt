@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.api.subsonic.AuthenticationFailureNotifier
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.ServerAddress
 import nl.teunschriks.mumamobile.di.DB_FILENAME
 import nl.teunschriks.mumamobile.di.appPermanentStorage
 import nl.teunschriks.mumamobile.di.applicationModule
@@ -89,6 +90,7 @@ class UApp : Application() {
             // of the signed-in state run the same migration first, so the order with the media
             // session does not matter.
             ActiveServerProvider.migrateLegacyCredentials()
+            ServerAddress.migrate()
             LegacyServerWipe.wipe(getDatabasePath(DB_FILENAME))
             if (Settings.debugLogToFile) {
                 FileLoggerTree.plantToTimberForest()

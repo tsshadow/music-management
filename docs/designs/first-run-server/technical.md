@@ -94,7 +94,9 @@ Two requests, in parallel, against the normalized address:
    server answers with a `subsonic-response` envelope: status `failed`, code 10 (parameter missing)
    or 40. Any envelope proves a Subsonic server.
 2. `GET <mumaApi>/health`, where `mumaApi` is the derived base. music-manager answers JSON with
-   `"service": "music-manager"`, with 200 or with 503 (unhealthy, still there).
+   `"service": "music-manager"`, with 200 or with 503 (unhealthy, still there). Since issue #218 a
+   request without an API key gets only `status` and `source_url`; the probe also takes `status`
+   `ok` or `degraded` with a `source_url` key as music-manager.
 
 | Result | `state` |
 |---|---|
@@ -150,7 +152,8 @@ bumped for a frontend change to reach phones), so a bundle never meets a shell o
   `suggestedServerAddress()` on a first run (or the current address when opened to change it), the
   "Verbinden" button, and one message line per `state`. `mumaUnreachable` adds "Toch doorgaan", which
   stores the address as `ok` does; the MuMa pages then show their own error until MuMa answers. While a check runs the button shows the existing button spinner and
-  the field is disabled.
+  the field is disabled. The form has `novalidate`: a `type="url"` field refuses `music.example.net`
+  without a scheme, which the phone reads as `https://music.example.net`.
 - `LoginPage.svelte`: in the shell, the editable server field and `applyServer()` go. In their place
   one line with the server's host and a "Wijzigen" link to `FirstRunServer`. `saveCredentials` stops
   sending `url`.
@@ -231,7 +234,7 @@ Confirmation dialog) and need no new entry.
    active server is Offline and `signInServer()` is null; after `store`, `getActiveServer()` and
    `serverUrlsOf` return the new address and the MuMa base `<server>/muma`; the build's own host still
    gets `muma.apiUrl`.
-5. `CapacitorContractTest`: `serverUrl` with and without an address; `checkServerAddress`,
+5. `MumaSystemPluginServerAddressTest` (Robolectric, beside `CapacitorContractTest`): `serverUrl` with and without an address; `checkServerAddress`,
    `setServerAddress` (with and without `signOut`; with it the meta database is deleted and the
    session cleared), `suggestedServerAddress`, and `googleSignInAvailable` false for a foreign server.
 6. `services/frontend/tests/unit/nativeSession.test.js`: an unconfigured shell returns `needsServer`, never calls `checkServer`

@@ -27,7 +27,7 @@ data class ServerUrls(val subsonic: String, val mumaApi: String)
  */
 fun serverUrlsOf(
     serverBaseUrl: String,
-    ownServerUrl: String = StaticServers.SERVER_URL,
+    ownServerUrl: String = StaticServers.BUILD_SERVER_URL,
     mumaApiUrl: String = BuildConfig.MUMA_API_URL,
     ownDomain: String = BuildConfig.MUMA_OWN_DOMAIN
 ): ServerUrls {

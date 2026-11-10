@@ -20,7 +20,7 @@ Two layers:
   a message; on the workstation and on a developer machine it runs.
 
 The combinations are the ones the repository documents: production
-(scripts/ci-deploy.sh), the separate LMS stack, the backup timers
+(scripts/deploy.sh), the separate LMS stack, the backup timers
 (scripts/backup/systemd/), README's "entire stack", scripts/dev.sh, and the
 standalone files the docs mention.
 """
@@ -35,7 +35,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 COMBINATIONS = {
-    # scripts/ci-deploy.sh / scripts/deploy.sh, and dev.sh's first `up -d db`.
+    # scripts/deploy.sh, and dev.sh's first `up -d db`.
     'production': ['docker/docker-compose.yml'],
     'lms-stack': ['services/music-management-server/docker-compose.yml'],
     # The systemd timers run this file with a single -f.

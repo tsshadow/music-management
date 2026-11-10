@@ -2,8 +2,8 @@
 # scripts/lib/compose_profiles.sh
 #
 # One reader for COMPOSE_PROFILES and for the profiles a compose file declares,
-# shared by scripts/deploy.sh, scripts/ci/check-required-secrets.sh and
-# scripts/ci/post-deploy-verify.sh (docs/self-hosting.md#source-workers-are-compose-profiles).
+# shared by scripts/deploy.sh and the production deploy's env and post-deploy
+# checks (docs/self-hosting.md#source-workers-are-compose-profiles).
 # Meant to be sourced. It uses the .env rules of scripts/lib/dotenv.sh, which
 # follow docker-compose: an `export ` prefix, leading whitespace, quotes, CRLF
 # and a trailing ` # comment` are all handled.

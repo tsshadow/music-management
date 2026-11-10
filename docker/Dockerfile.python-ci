@@ -11,8 +11,8 @@
 # keeps a Renovate bump from needing an image rebuild. What is here is what the
 # test suite shells out to and the slim image lacks:
 #   git              tests/ci/test_release_version_check.py builds throwaway repos
-#   openssh-client   tests/ci/test_deploy_script_hygiene.py exercises the ssh-agent
-#                    lifetime of scripts/ci/prod-ssh-setup.sh (skipped without it)
+#   openssh-client   tests/ci/test_ssh_host_keys.py generates host keys with
+#                    ssh-keygen (skipped without it)
 #
 # Built on the runner by tooling_use_ci_image (scripts/lib/python-tooling.sh),
 # tagged with a hash of this file, never pushed.

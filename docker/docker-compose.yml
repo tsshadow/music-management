@@ -260,9 +260,14 @@ services:
     # conservative guess -- check `docker stats` after the first deploy and
     # override with MUMA_MEM_LIMIT_MANAGER in the stack's .env.
     mem_limit: ${MUMA_MEM_LIMIT_MANAGER:-4g}
+    # Loopback by default (issue #218). Users reach the API through the LMS
+    # stack's nginx (/muma/api/), and nginx, LMS and the workers call
+    # music-manager:8000 over the music-management_db network, which a host
+    # binding does not touch. On every interface the app answered the LAN and
+    # the tailnet without nginx in front. MUSIC_MANAGER_BIND_ADDRESS opts back in.
     ports:
-      - "8000:8000"
-      - "8003:8000" # Backward compatibility for control center
+      - "${MUSIC_MANAGER_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+      - "${MUSIC_MANAGER_BIND_ADDRESS:-127.0.0.1}:8003:8000" # Backward compatibility for control center
     depends_on:
       - db
     environment:

@@ -72,9 +72,10 @@ services:
       dockerfile: Dockerfile.music-manager
     container_name: music-manager
     restart: unless-stopped
+    # Loopback by default, as in docker-compose.yml (issue #218).
     ports:
-      - "8000:8000"
-      - "8003:8000" # Compatibility for old control-center port if needed
+      - "${MUSIC_MANAGER_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+      - "${MUSIC_MANAGER_BIND_ADDRESS:-127.0.0.1}:8003:8000" # Compatibility for old control-center port if needed
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}

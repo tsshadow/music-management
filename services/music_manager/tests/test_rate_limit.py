@@ -1,5 +1,8 @@
 """The authentication endpoints stop answering once a caller hammers them."""
 
+import ipaddress
+import os
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -87,6 +90,56 @@ class SlidingWindowTest(unittest.TestCase):
         self.assertFalse(self.limiter.blocked('first', now=3)[0])
 
 
+# The Docker bridge the tests pretend music-manager sits on. The real routing table depends on
+# where the suite runs (a CI container, a workstation on a home LAN), so it is pinned.
+DOCKER_BRIDGE = ipaddress.ip_network('172.18.0.0/16')
+# A host on a home LAN, computed so no concrete LAN address sits in the source (public:check).
+LAN_HOST = str(ipaddress.ip_network('192.168.0.0/16')[256 + 50])
+
+
+def _pin_connected_networks(test, networks=(DOCKER_BRIDGE,)):
+    """Make `connected` in AUTH_TRUSTED_PROXIES mean `networks` for the duration of `test`."""
+    patcher = patch.object(rate_limit, '_connected_networks', return_value=tuple(networks))
+    patcher.start()
+    rate_limit._parse_networks.cache_clear()
+    test.addCleanup(rate_limit._parse_networks.cache_clear)
+    test.addCleanup(patcher.stop)
+
+
+# A routing table as a container on one Docker bridge sees it: the default route through the
+# bridge's gateway, and the bridge itself.
+CONTAINER_ROUTES = """Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT
+eth0\t00000000\t010012AC\t0003\t0\t0\t0\t00000000\t0\t0\t0
+eth0\t000012AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0
+"""
+
+
+class ConnectedNetworksTest(unittest.TestCase):
+    """`connected` reads the container's own routing table (issue #218)."""
+
+    def write_table(self, text):
+        """Write `text` to a temporary file and return its path; removed after the test."""
+        with tempfile.NamedTemporaryFile('w', suffix='.route', delete=False, encoding='ascii') as handle:
+            handle.write(text)
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_the_docker_bridge_is_read_and_the_default_route_is_not(self):
+        networks = rate_limit._connected_networks(self.write_table(CONTAINER_ROUTES))
+        self.assertEqual(networks, (DOCKER_BRIDGE,))
+
+    def test_a_route_through_a_gateway_is_not_connected(self):
+        table = CONTAINER_ROUTES + 'eth0\t0001A8C0\t010012AC\t0003\t0\t0\t0\t00FFFFFF\t0\t0\t0\n'
+        self.assertEqual(rate_limit._connected_networks(self.write_table(table)), (DOCKER_BRIDGE,))
+
+    def test_a_missing_table_trusts_nothing(self):
+        self.assertEqual(rate_limit._connected_networks('/nonexistent/route'), ())
+
+    def test_garbage_lines_are_skipped(self):
+        table = CONTAINER_ROUTES + 'eth1\tnot-hex\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0\nshort line\n'
+        self.assertEqual(rate_limit._connected_networks(self.write_table(table)), (DOCKER_BRIDGE,))
+
+
 class ClientKeyTest(unittest.TestCase):
     """Who the caller is: X-Forwarded-For only counts when whoever wrote it can be believed.
 
@@ -94,6 +147,9 @@ class ClientKeyTest(unittest.TestCase):
     the client address it resolved, so music-manager has to tell that header apart from one
     a client typed itself.
     """
+
+    def setUp(self):
+        _pin_connected_networks(self)
 
     def make_request(self, headers=None, host='172.18.0.5'):
         request = MagicMock()
@@ -142,13 +198,13 @@ class ClientKeyTest(unittest.TestCase):
     def test_the_client_written_left_end_of_the_chain_is_not_believed(self):
         """A trusted proxy appends the real client; anything left of it is the client's own claim.
         Taking the left-most entry used to let every guess arrive under a fresh address."""
-        request = self.make_request(headers={'x-forwarded-for': '1.2.3.4, 203.0.113.9, 172.16.0.10'})
+        request = self.make_request(headers={'x-forwarded-for': '1.2.3.4, 203.0.113.9, 172.18.0.10'})
         self.assertEqual(rate_limit.client_key(request), '203.0.113.9')
 
     def test_a_chain_of_trusted_hops_falls_back_to_the_left_most(self):
         """LMS not looking behind the proxy in front of it reports that proxy: the best there is."""
-        request = self.make_request(headers={'x-forwarded-for': '172.16.0.10, 10.0.0.2'})
-        self.assertEqual(rate_limit.client_key(request), '172.16.0.10')
+        request = self.make_request(headers={'x-forwarded-for': '172.18.0.10, 127.0.0.1'})
+        self.assertEqual(rate_limit.client_key(request), '172.18.0.10')
 
     def test_an_ipv4_mapped_peer_is_recognised_as_trusted(self):
         request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'}, host='::ffff:172.18.0.5')
@@ -157,6 +213,26 @@ class ClientKeyTest(unittest.TestCase):
     def test_a_non_address_peer_is_not_trusted(self):
         request = self.make_request(headers={'x-forwarded-for': '203.0.113.9'}, host='testclient')
         self.assertEqual(rate_limit.client_key(request), 'testclient')
+
+    def test_a_lan_client_naming_another_address_is_not_believed(self):
+        """A host on the home LAN that reaches port 8000 is not a proxy, so it cannot pick a bucket
+        per guess (issue #218)."""
+        keys = {
+            rate_limit.client_key(self.make_request(headers={'x-forwarded-for': f'198.51.100.{n}'}, host=LAN_HOST))
+            for n in range(5)
+        }
+        self.assertEqual(keys, {LAN_HOST})
+
+    def test_the_default_trusts_loopback_and_the_container_networks_only(self):
+        for address in ('127.0.0.1', '::1', '172.18.0.5'):
+            self.assertTrue(rate_limit._is_trusted_proxy(address), address)
+        for address in (LAN_HOST, '10.0.0.2', '172.16.0.10', '100.64.0.7'):
+            self.assertFalse(rate_limit._is_trusted_proxy(address), address)
+
+    def test_connected_can_be_combined_with_a_named_network(self):
+        with patch.dict('os.environ', {'AUTH_TRUSTED_PROXIES': '203.0.113.0/24, Connected'}):
+            self.assertTrue(rate_limit._is_trusted_proxy('203.0.113.50'))
+            self.assertTrue(rate_limit._is_trusted_proxy('172.18.0.5'))
 
     def test_the_trusted_networks_are_configurable(self):
         with patch.dict('os.environ', {'AUTH_TRUSTED_PROXIES': '203.0.113.0/24, not-a-network'}):
@@ -235,6 +311,7 @@ class AuthEndpointRateLimitTest(unittest.TestCase):
     def setUp(self):
         # A peer on the Docker network, like LMS or the nginx in front of the web-player host:
         # its X-Forwarded-For is believed, so a test can present a different client.
+        _pin_connected_networks(self)
         self.client = TestClient(app, client=('172.18.0.5', 50000))
         rate_limit.reset_limiters()
         self.addCleanup(rate_limit.reset_limiters)

@@ -129,6 +129,25 @@ def test_database_ports_stay_on_their_bind_address():
     assert services['phpmyadmin']['ports'] == ['${PHPMYADMIN_BIND_ADDRESS:-127.0.0.1}:8002:80']
 
 
+# Every compose file that runs music-manager for real. The test stack (compose.test.yml) is left
+# out: it runs on a CI runner, never with real data.
+MUSIC_MANAGER_FILES = [PROD, ROOT / 'docker' / 'docker-compose.core.yml', ROOT / 'docker' / 'docker-compose.full.yml']
+
+
+@pytest.mark.parametrize('path', MUSIC_MANAGER_FILES, ids=lambda path: path.name)
+def test_music_manager_publishes_no_port_on_every_interface(path):
+    """The API is reached through nginx and the Docker network; the host port is loopback (issue #218).
+
+    A port without a host address, or with 0.0.0.0, answered the LAN and the tailnet without nginx,
+    and the login rate limit then had to guess who was behind it.
+    """
+    ports = _services(path)['music-manager'].get('ports') or []
+    assert ports, f'{path.name}: music-manager publishes no port, update this test'
+    for entry in ports:
+        spec = entry if isinstance(entry, str) else f"{entry.get('host_ip', '')}:{entry.get('published')}"
+        assert spec.startswith('${MUSIC_MANAGER_BIND_ADDRESS:-127.0.0.1}:'), f'{path.name}: {spec}'
+
+
 @pytest.mark.parametrize('test_name', sorted(MIRRORS))
 def test_the_test_stack_runs_the_same_hardening(test_name):
     path, prod_name = MIRRORS[test_name]

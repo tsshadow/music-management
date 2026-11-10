@@ -1,0 +1,7 @@
+- **Before you deploy this release, move every direct user of port 8000 or 8003 (Uptime Kuma, a Home Assistant sensor, a script) to the nginx route or the Docker network.** `music-manager` publishes ports 8000 and 8003 on `127.0.0.1` only (`MUSIC_MANAGER_BIND_ADDRESS`, default `127.0.0.1`). Before, they listened on every interface, so the LAN and the tailnet reached the API without nginx in front. A call from another machine to `http://<host>:8000` now fails to connect. nginx, LMS and the workers call `music-manager:8000` over the `music-management_db` network and are not affected. (issue #218)
+- The login rate limit believes `X-Forwarded-For` only from loopback and the Docker networks of the `music-manager` container. The default of `AUTH_TRUSTED_PROXIES` is `127.0.0.0/8,::1/128,connected`, where `connected` is read from the container's routing table. Before, it was the three private ranges, so any host on the LAN could name a new client address with every guess and get a new per-client bucket each time. The per-account limit of 50 a minute was not affected.
+
+<!-- release notes -->
+
+- **Before you deploy, move Uptime Kuma and any other direct user of port 8000 to the nginx route.** The music-manager API now answers on the server itself only. Browsers and the app reach it through nginx as before.
+- The login rate limit no longer believes a client address that a host on the home network sends with its request.

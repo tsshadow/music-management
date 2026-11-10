@@ -45,6 +45,8 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `PUBLIC_SOURCE_URL` | Where users get the source code (AGPL-3.0 section 13), shown as the Source code link on the About and login screens. Default `https://github.com/OWNER/music-management`, a placeholder: set your own repository or fork. |
 | `FIREFOX_PASSWORD` | The login of the `firefox` container, which has no default. |
 | `FIREFOX_BIND_ADDRESS` | Address the `firefox` container publishes its port 7003 on. Default `127.0.0.1`. Set `0.0.0.0` or a LAN address if you open the browser from another machine. |
+| `MUSIC_MANAGER_BIND_ADDRESS` | Address `music-manager` publishes its API on (ports 8000 and 8003). Default `127.0.0.1`. Browsers and apps reach the API through the player's nginx at `/muma/api/`, and the other containers through the Docker network, so neither needs it. Set a LAN address only for a tool on another machine that must call port 8000 directly, and know that it then skips nginx. |
+| `AUTH_TRUSTED_PROXIES` | Optional. The networks whose `X-Forwarded-For` header the login rate limit believes. Default `127.0.0.0/8,::1/128,connected`, where `connected` means the Docker networks the `music-manager` container is attached to: the nginx and LMS that sit in front of it. A LAN address is not trusted. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 
 Three more paths of the main stack decide where `music-manager` finds the player's data. Set them in

@@ -295,7 +295,7 @@ Uptime Kuma monitor on that endpoint meaningful. nginx serves it to the internet
 `https://<domain>/health` (an exact-match `location` in `reverse-proxy.conf`), which is where Kuma
 checks it. Without a valid `X-API-Key` (the system key or a user's own) the body is `status` and
 `source_url` only; the full report needs the key. The status code follows the same rule either
-way, so Kuma and the container healthcheck need no key. muma-ops' `deploy/post-deploy-verify.sh` reads the version
+way, so Kuma and the container healthcheck need no key. the operations repository's post-deploy check reads the version
 with the system key from the container's environment, and `tools/muma_mcp` sends its key
 (`MUMA_PROD_URL=https://<domain>` for `/health`, `MUMA_PROD_API_URL=https://<domain>/muma` for its
 `/api/...` calls).

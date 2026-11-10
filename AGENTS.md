@@ -417,15 +417,18 @@ To maintain high code quality, the system employs an automated test suite:
     - **Commit-msg Hook**: the versioned `scripts/hooks/commit-msg` refuses a commit whose author,
       committer or message has personal data, with the checks `public:history` runs on develop
       (`scripts/ci/public_guard.py message`). It prints the kind of finding, never the value.
-    - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
-      verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
-      `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the
-      `release/*` pipeline immediately if not. GitLab itself has no mechanism to enforce this (a file-type
-      variable being non-empty says nothing about a specific key inside it), so **this job's pass/fail result
-      is treated as a hard requirement by project convention, on par with any other required check in this
-      list** — a release is not "done" if this job was skipped, allowed to fail, or removed without a
-      replacement check covering the same secrets. Add new required keys to that script (and to
-      `docs/self-hosting.md`) whenever a new secret becomes load-bearing for production.
+    - **Required release secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
+      verifies that the CI/CD variables a release build needs are set (`DOCKERHUB_*`, `APK_HOSTER_URL`,
+      `SIGNING_STORE_FILE`, and `VITE_GOOGLE_CLIENT_ID` or `MUMA_GOOGLE_CLIENT_ID`), and that `DOCKER_USER`,
+      when set, equals `DOCKERHUB_USERNAME`. It fails the `release/*` pipeline immediately if not: a job
+      gated on a missing variable in `rules:` silently drops out instead of failing. **This job's pass/fail
+      result is treated as a hard requirement by project convention, on par with any other required check
+      in this list** — a release is not "done" if this job was skipped, allowed to fail, or removed without
+      a replacement check covering the same variables. This repository has no production variables: the
+      host, the SSH key and the env files belong to the operations repository that deploys a tag
+      (docs/designs/ops-split/), and its deploy checks the env files. The image names are plain CI/CD
+      variables with defaults (`scripts/ci/release-image-names.sh`). Add a new required variable to that
+      script (and to `docs/self-hosting.md`) whenever one becomes load-bearing for a release.
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).

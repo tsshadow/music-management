@@ -7,9 +7,9 @@ things this test pins:
 
 - which service is behind which profile, in the file production deploys
   (docker/docker-compose.yml) and in docker/docker-compose.full.yml;
-- the production env check (scripts/ci/check-required-secrets.sh) requires
-  COMPOSE_PROFILES, and scripts/deploy.sh refuses a compose file with profiles
-  when the env file has none;
+- scripts/deploy.sh refuses a compose file with profiles when the env file has
+  none (the operations repository's deploy checks the production env file and
+  the running workers);
 - the test stack starts the same services as before, none behind a profile.
 """
 
@@ -26,8 +26,6 @@ PROD = ROOT / 'docker' / 'docker-compose.yml'
 FULL = ROOT / 'docker' / 'docker-compose.full.yml'
 TEST = ROOT / 'docker' / 'compose.test.yml'
 DEPLOY_SH = ROOT / 'scripts' / 'deploy.sh'
-VERIFY_SH = ROOT / 'scripts' / 'ci' / 'post-deploy-verify.sh'
-SECRETS_SH = ROOT / 'scripts' / 'ci' / 'check-required-secrets.sh'
 DEV_SH = ROOT / 'scripts' / 'dev.sh'
 
 EXPECTED = {
@@ -83,57 +81,6 @@ def test_deploy_guard_reads_flow_style_profiles():
     lines = re.findall(r'^ +profiles: *\[.*\]$', text, flags=re.M)
     assert len(lines) == len(EXPECTED)
     assert 'COMPOSE_PROFILES' in DEPLOY_SH.read_text(encoding='utf-8')
-
-
-def test_prod_env_must_carry_compose_profiles():
-    """The release pipeline fails when PROD_ENV_FILE lacks COMPOSE_PROFILES."""
-    assert 'compose_profiles_value "$env_content"' in SECRETS_SH.read_text(encoding='utf-8')
-
-
-def _run_secrets_check(tmp_path, env_lines):
-    """Run check-required-secrets.sh with a PROD_ENV_FILE holding env_lines."""
-    env = tmp_path / 'prod.env'
-    env.write_text('\n'.join(env_lines) + '\n', encoding='utf-8')
-    lms = tmp_path / 'lms.env'
-    lms.write_text(
-        'VITE_GOOGLE_CLIENT_ID=x\nLMS_API_KEY=a\nLMS_SUBSONIC_API_KEY=b\nMUSIC_MANAGEMENT_API_KEY=c\n', encoding='utf-8'
-    )
-    base = {
-        'PATH': '/usr/bin:/bin',
-        'DOCKERHUB_USERNAME': 'u',
-        'DOCKERHUB_TOKEN': 't',
-        'APK_HOSTER_URL': 'h',
-        'SIGNING_STORE_FILE': 'f',
-        'PROD_ENV_FILE': str(env),
-        'PROD_ENV_FILE_LMS': str(lms),
-        'PROD_REMOTE_HOST': 'prod.example.org',
-        'PROD_SSH_ACCEPT_NEW_HOST_KEY': 'true',
-    }
-    return subprocess.run(['bash', str(SECRETS_SH)], env=base, capture_output=True, text=True, check=False)
-
-
-def test_secrets_check_behaviour(tmp_path):
-    """Missing COMPOSE_PROFILES fails the check; the full set passes it."""
-    common = ['GOOGLE_CLIENT_ID=g', 'API_KEY=k', 'FIREFOX_PASSWORD=p', 'DOCKER_USER=u']
-    bad = _run_secrets_check(tmp_path, common)
-    assert bad.returncode == 1
-    assert "'COMPOSE_PROFILES'" in bad.stdout
-    good = _run_secrets_check(tmp_path, [*common, 'COMPOSE_PROFILES=soundcloud,youtube,telegram,importer'])
-    assert good.returncode == 0, good.stdout
-
-
-def test_verify_script_worker_map_matches_compose():
-    """post-deploy-verify.sh maps each profile to the container name the compose file sets."""
-    text = VERIFY_SH.read_text(encoding='utf-8')
-    mapping = dict(entry.split(':') for entry in re.search(r'PROFILE_WORKERS="([^"]+)"', text).group(1).split())
-    services = _services(PROD)
-    expected = {
-        profile: services[svc]['container_name']
-        for svc, profiles in EXPECTED.items()
-        if svc.endswith('_worker')
-        for profile in profiles
-    }
-    assert mapping == expected
 
 
 def test_dev_stack_enables_all_profiles():
@@ -215,50 +162,6 @@ def test_deploy_skips_services_of_disabled_profiles():
     text = DEPLOY_SH.read_text(encoding='utf-8')
     assert 'case \\" $SKIP_SERVICES $PROFILE_SKIPPED_SERVICES \\" in' in text
     assert 'compose_disabled_services "$COMPOSE_CONTENT"' in text
-
-
-def _run_verify_check(env_extra, sample):
-    """Source post-deploy-verify.sh's check function in isolation."""
-    text = VERIFY_SH.read_text(encoding='utf-8')
-    start = text.index('PROFILE_WORKERS=')
-    end = text.index('# restarts_increased')
-    snippet = text[start:end]
-    return subprocess.run(
-        ['bash', '-c', f'. {LIB}; {snippet}\ncheck_profile_workers "$SAMPLE"'],
-        env={'PATH': os.environ['PATH'], 'SAMPLE': sample, **env_extra},
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-RUNNING = ''.join(
-    f'music-management|/{c}|unless-stopped|running|none|0\n'
-    for c in ('muma-soundcloud-worker', 'muma-youtube-worker', 'muma-telegram-worker', 'muma-importer-worker')
-)
-
-
-def test_verify_check_skips_loudly_outside_the_deploy_jobs():
-    """No PROD_ENV_FILE or no COMPOSE_PROFILES: SKIPPED, exit 0 locally, exit 1 in deploy:production."""
-    local = _run_verify_check({}, RUNNING)
-    assert local.returncode == 0 and 'SKIPPED' in local.stdout
-    for job in ('deploy:production',):
-        failing = _run_verify_check({'CI_JOB_NAME': job}, RUNNING)
-        assert failing.returncode == 1 and 'SKIPPED' in failing.stdout
-        no_key = _run_verify_check({'CI_JOB_NAME': job, 'PROD_ENV_FILE': 'OTHER=1\n'}, RUNNING)
-        assert no_key.returncode == 1 and 'COMPOSE_PROFILES' in no_key.stdout
-
-
-def test_verify_check_flags_a_worker_that_is_not_running():
-    """A worker of an enabled profile that is exited or missing fails the check."""
-    env = {'PROD_ENV_FILE': f'COMPOSE_PROFILES={ALL}\r\n'}
-    assert _run_verify_check(env, RUNNING).returncode == 0
-    exited = RUNNING.replace(
-        '/muma-telegram-worker|unless-stopped|running', '/muma-telegram-worker|unless-stopped|exited'
-    )
-    result = _run_verify_check(env, exited)
-    assert result.returncode == 1 and 'telegram' in result.stdout
-    assert _run_verify_check({'PROD_ENV_FILE': 'COMPOSE_PROFILES=youtube\n'}, exited).returncode == 0
 
 
 def test_one_off_commands_on_profiled_services_pass_the_profile():

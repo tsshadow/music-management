@@ -1,0 +1,5 @@
+- **This repository no longer has deploy scripts or production variables.** `scripts/ci-deploy.sh`, `prod-ssh-setup.sh`, `post-deploy-verify.sh`, `prune-prod-images.sh`, `promote-release-images.sh` and `prod_image_prune_plan.py` moved to the operations repository, whose deploy runs its own copies against the release tag (step 3b of docs/designs/ops-split/, issue #202). `release:build-images`, `muma:refresh-downloader` and the image audit take `DOCKER_USER` and the image names from plain CI/CD variables, with defaults in `scripts/ci/release-image-names.sh` (`music-manager`, `muma-base`, `muma-downloader`, `muma-telegram`, `muma-importer`, `muma-tools`, `lms`), and the player's Google client id from `VITE_GOOGLE_CLIENT_ID`, else `MUMA_GOOGLE_CLIENT_ID`. `release:check-secrets` checks only what the build needs: `PROD_REMOTE_HOST`, the pinned host key and the keys inside `PROD_ENV_FILE`/`PROD_ENV_FILE_LMS` are the deploy's check now. A no-push image build no longer reads a developer's `.env`.
+
+<!-- release notes -->
+
+- The release pipeline builds and publishes only: the deploy scripts and the production settings live with the installation that deploys.

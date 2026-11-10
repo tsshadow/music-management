@@ -69,10 +69,9 @@ this on 2026-11-10, together with the separate table and the shared relay.
 
 ## Open Questions / Not Yet Decided
 
-- The limits. This design uses the listen outbox's numbers: 10,000 changes, 14 days, a retry at
-  most once a minute. A listen has a second way back (music-manager's backfill reads LMS's listen
-  table), and a rating does not. A dropped rating stays wrong until
-  `scripts/restore_lms_ratings.py export-lms` and `import-muma` run. One row per user and item
-  keeps the table small, so a longer age limit (or none) costs little. The age limit is there so
-  that one change music-manager keeps answering with a server error cannot block every listen and
-  rating behind it for good. Proposed: keep 14 days. Teun to confirm.
+- None. Teun fixed the limits on 2026-11-10: 10,000 rating changes and 14 days, the same as the
+  listen outbox, with a retry at most once a minute. A listen has a second way back
+  (music-manager's backfill reads LMS's listen table), and a rating does not: a dropped rating stays
+  wrong until `scripts/restore_lms_ratings.py export-lms` and `import-muma` run. The age limit stays
+  all the same, so that one change music-manager keeps answering with a server error cannot block
+  every listen and rating behind it for good.

@@ -23,7 +23,9 @@ production users have `MusicManagement` (2). This design keeps that rule.
 New table in `lms.db`, created by LMS migration step 127 to **128** (`LMS_DATABASE_VERSION` 128,
 `migrateFromV127`), the next free step under the
 [database version policy](../../../services/music-management-server/FORK.md#database-version-policy).
-Before merge, check that no other open branch claims step 127; whichever merges second renumbers.
+On 2026-11-10 no branch on origin claimed step 127 (none ahead of develop has a higher
+`LMS_DATABASE_VERSION`). Check again before the implementation merges; whichever merges second
+renumbers.
 
 A fresh database starts at the current version and runs no step, so `Session::createIndexesIfNeeded()`
 creates the table as well. Both use `Migration::mumaRatingOutboxTableDefinition` and
@@ -161,7 +163,7 @@ user and item.
 | Bound | Listens | Ratings |
 |---|---|---|
 | `maxCount` | 10,000 | 10,000 |
-| `maxAge` | 14 days | 14 days (open question in functional.md) |
+| `maxAge` | 14 days | 14 days |
 | On a drop | WARNING with the count | WARNING per dropped row with username, object type and id |
 
 A dropped listen is still in LMS's `listen` table, where music-manager's `lms-listen-backfill` can

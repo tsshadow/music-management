@@ -69,15 +69,18 @@ derived from it, and the address can be changed in the settings. Issue #192.
 8. The Google button is shown only for the server the APK was built for.
 9. The web player in a browser looks and works as before.
 
+## Decisions
+
+Teun settled these on 2026-11-10:
+
+- **"Toch doorgaan" when only MuMa does not answer.** Offered. LMS alone can play music, and the
+  MuMa pages and features show their own error until MuMa answers.
+- **`https` only, also on a home network.** The app refuses cleartext to every host but
+  `localhost` (bug report 054), and the server screen refuses `http://` addresses everywhere.
+- **Google sign-in only for the build's own server.** A Google token is made for one OAuth client,
+  and music-manager accepts tokens for its own client id only. Other servers sign in with a name and
+  password.
+
 ## Open Questions / Not Yet Decided
 
-- **"Toch doorgaan" when only MuMa does not answer.** Proposed: allow it, because LMS alone can
-  still play music and the MuMa part may be restarting. The other choice is to refuse, as for a
-  server that does not answer at all.
-- **`http://` on a home network.** The app refuses cleartext to every host but `localhost`
-  (bug report 054), so this design refuses `http://` addresses. Someone with a server on their LAN
-  and no certificate cannot use the public APK. Proposed: keep it so.
-- **Google sign-in for other servers.** A Google token is made for one OAuth client, and
-  music-manager accepts tokens for its own client id only. A server run by someone else would need
-  the APK's client id in its own configuration. Proposed: no Google for other servers in this
-  change. A follow-up can let music-manager accept a list of client ids.
+- None.

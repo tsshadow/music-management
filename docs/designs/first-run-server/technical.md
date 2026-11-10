@@ -148,8 +148,8 @@ bumped for a frontend change to reach phones), so a bundle never meets a shell o
   shows `LoginPage`.
 - `FirstRunServer.svelte`: the MuMa mark, a title, one `type="url"` field prefilled with
   `suggestedServerAddress()` on a first run (or the current address when opened to change it), the
-  "Verbinden" button, and one message line per `state`. `mumaUnreachable` adds "Toch doorgaan" (open
-  question in functional.md). While a check runs the button shows the existing button spinner and
+  "Verbinden" button, and one message line per `state`. `mumaUnreachable` adds "Toch doorgaan", which
+  stores the address as `ok` does; the MuMa pages then show their own error until MuMa answers. While a check runs the button shows the existing button spinner and
   the field is disabled.
 - `LoginPage.svelte`: in the shell, the editable server field and `applyServer()` go. In their place
   one line with the server's host and a "Wijzigen" link to `FirstRunServer`. `saveCredentials` stops
@@ -173,8 +173,8 @@ for a token is registered with the APK's signing certificate in the owner's Goog
 
 So `googleSignInAvailable` answers true only when a client id is compiled in and
 `ServerAddress.isBuildServer(current)` holds. The login page already hides the button on false. A
-public build has no client id and never shows it. Letting music-manager accept a list of audiences
-is the follow-up named in functional.md.
+public build has no client id and never shows it. Google sign-in stays limited to the build's own
+server (decided, functional.md).
 
 ## Build Settings
 

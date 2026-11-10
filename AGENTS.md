@@ -378,6 +378,10 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
     - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
+      A rating that cannot reach the server (offline mode, server down) waits in a durable queue on the
+      phone (`RatingManager`, last rating per track wins) and goes out when the server answers again;
+      Android Auto browses the downloaded library while the last check found the server down
+      ([docs/designs/offline-followups/](docs/designs/offline-followups/technical.md)).
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 

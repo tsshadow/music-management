@@ -58,9 +58,6 @@ was added to the original two options during review.
 
 ## Open Questions / Not Yet Decided
 
-- Ratings made while offline are not queued: the rating call fails as it does today on a dropped connection.
-  Scrobbles already queue durably natively (bug report 071) and are delivered when the server is back.
-  Queuing ratings is left as a follow-up issue.
-- Android Auto connecting while the app is *not* in offline mode (cold start in the car with the server down,
-  or during "Wachten op server") still uses the online service and its timeouts. Deferred; see the technical
-  design.
+- Ratings made while offline, and Android Auto outside offline mode (a cold start in the car with the
+  server down, or during "Wachten op server"), are covered by
+  [`offline-followups/`](../offline-followups/functional.md) (#149).

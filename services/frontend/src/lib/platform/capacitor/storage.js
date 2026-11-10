@@ -154,6 +154,21 @@ export function createCapacitorStorage(plugin) {
     },
 
     /**
+     * Hands a rating to the phone's durable rating queue (`RatingManager.kt`), which sends it now
+     * or as soon as the server answers again (docs/designs/offline-followups/). Last rating per
+     * track wins.
+     *
+     * @param {string} id
+     * @param {number} rating - 0 clears, 1 to 5.
+     * @returns {Promise<boolean>} True once it is on the phone; false when this APK has no queue.
+     */
+    async queueRating(id, rating) {
+      if (typeof plugin.queueRating !== "function") return false;
+      const answer = await plugin.queueRating({ id: String(id), rating });
+      return answer?.queued === true;
+    },
+
+    /**
      * @param {function({online: boolean}): void} handler
      * @returns {function(): void} Unsubscribes.
      */

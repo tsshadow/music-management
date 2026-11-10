@@ -1,10 +1,12 @@
 /**
- * The channels linked to a label, for the label page's "Kanalen" section (issue #122).
+ * The channels linked to a label or an artist, for the "Kanalen" section on the label page
+ * (issue #122), the artist page and the label edit page (issue #126).
  *
  * A channel is the SoundCloud, YouTube or Telegram account a file came in through; a curator
- * links it to its label under Management > Downloaders > Links (docs/designs/channel-links).
- * The answer is cached per label for the session, so going back to a label page shows its
- * channels at once and refreshes them behind the scenes (styleguide, Loading States: Refresh).
+ * links it to its label or artist under Management > Downloaders > Links
+ * (docs/designs/channel-links). The answer is cached per kind and name for the session, so going
+ * back to a page shows its channels at once and refreshes them behind the scenes (styleguide,
+ * Loading States: Refresh).
  */
 import { apiBase, fetchMumaJson, getHeaders } from "./mumaApi.js";
 import { listOf, subsonicJson } from "./subsonic.js";
@@ -16,35 +18,73 @@ export const PLATFORM_LABELS = {
   telegram: "Telegram",
 };
 
-/** @type {Map<string, Array<Object>>} Last answer per label name. */
+/** What a channel can be linked to; each has its own list endpoint, `/by-<kind>`. */
+export const CHANNEL_KINDS = ["label", "artist"];
+
+/** @type {Map<string, Array<Object>>} Last answer per kind and name. */
 const cache = new Map();
 
+function cacheKey(kind, name) {
+  return `${kind}\n${name}`;
+}
+
 /**
- * The label's last known channels, or undefined when this session never asked.
- * @param {string} label
+ * The last known channels of a label or artist, or undefined when this session never asked.
+ * @param {'label'|'artist'} kind
+ * @param {string} name
  * @returns {Array<Object>|undefined}
  */
-export function cachedLabelChannels(label) {
-  return cache.get(label);
+export function cachedLinkedChannels(kind, name) {
+  return cache.get(cacheKey(kind, name));
 }
 
 /** Forget every cached answer (tests, sign-out). */
-export function clearLabelChannels() {
+export function clearLinkedChannels() {
   cache.clear();
 }
 
 /**
- * Fetch the channels linked to a label, busiest first, and remember the answer.
- * @param {string} label - The label's name, as the label page's route carries it.
+ * Fetch the channels linked to a label or artist, busiest first, and remember the answer.
+ *
+ * Each row also names the channel's other link: `artist` on a label's channel, `label` on an
+ * artist's.
+ *
+ * @param {'label'|'artist'} kind
+ * @param {string} name - The label's or artist's name. The artist page's route carries the LMS
+ *   id, which means nothing to MuMa, so the name is the key for both.
  * @returns {Promise<Array<{id: number, platform: string, name: string, track_count: number,
- *   artist: {id: number, name: string}|null, album: string|null, source_url: string|null}>>}
+ *   album: string|null, source_url: string|null}>>}
  */
-export async function fetchLabelChannels(label) {
-  const url = `${apiBase()}/api/channel-links/by-label?name=${encodeURIComponent(label)}`;
+export async function fetchLinkedChannels(kind, name) {
+  if (!CHANNEL_KINDS.includes(kind)) throw new Error(`Unknown channel kind: ${kind}`);
+  const url = `${apiBase()}/api/channel-links/by-${kind}?name=${encodeURIComponent(name)}`;
   const rows = await fetchMumaJson(url, { headers: getHeaders() });
   const channels = Array.isArray(rows) ? rows : [];
-  cache.set(label, channels);
+  cache.set(cacheKey(kind, name), channels);
   return channels;
+}
+
+/**
+ * Remove a channel's link of this kind (`DELETE /api/channel-links/channels/{id}/{kind}`), and
+ * drop the channel from the cached answer for `name`. The backend rejects the proposal behind the
+ * link and queues the channel's files for the tagger.
+ *
+ * @param {'label'|'artist'} kind
+ * @param {string} name - The label or artist the channel is unlinked from.
+ * @param {{id: number}} channel
+ * @returns {Promise<{status: string, queued: number}>}
+ */
+export async function unlinkChannel(kind, name, channel) {
+  if (!CHANNEL_KINDS.includes(kind)) throw new Error(`Unknown channel kind: ${kind}`);
+  const url = `${apiBase()}/api/channel-links/channels/${channel.id}/${kind}`;
+  const result = await fetchMumaJson(url, { method: "DELETE", headers: getHeaders() });
+  const cached = cache.get(cacheKey(kind, name));
+  if (cached)
+    cache.set(
+      cacheKey(kind, name),
+      cached.filter((row) => row.id !== channel.id),
+    );
+  return result;
 }
 
 /**

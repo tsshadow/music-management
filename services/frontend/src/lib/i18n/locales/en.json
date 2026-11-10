@@ -175,7 +175,11 @@
   "labelChannels": {
     "title": "Channels",
     "manage": "Manage links",
-    "none": "No channel is linked to this label yet."
+    "none": "No channel is linked to this label yet.",
+    "noneArtist": "No channel is linked to this artist yet.",
+    "unlink": "Unlink {channel}",
+    "unlinked": "{channel} unlinked.",
+    "unlinkFailed": "Could not unlink {channel}."
   },
   "equalizer": {
     "band": "{freq} band",

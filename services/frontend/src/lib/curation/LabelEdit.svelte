@@ -1,7 +1,7 @@
 <script>
   /**
    * Editing one label: identity, the parent label, catalogue prefixes, catalogue
-   * coverage and genre rules.
+   * coverage, the channels linked to it (with unlink, issue #126) and genre rules.
    *
    * The parent label is stored and shown but nothing in the tagger reads it yet. That
    * is on purpose: the relations have to be enterable before a rule that lets a
@@ -14,6 +14,7 @@
   import CurationShell from './CurationShell.svelte';
   import GenreRuleEditor from './GenreRuleEditor.svelte';
   import LabelCatalog from './LabelCatalog.svelte';
+  import LabelChannels from '../LabelChannels.svelte';
   import { isMbid, mbidUrl } from './curation.js';
   import {
     addLabelCatid,
@@ -28,7 +29,13 @@
     setLabelParent
   } from './curationApi.js';
 
-  let { name, onback } = $props();
+  /**
+   * @property {string} name - The label's name, from the route.
+   * @property {() => void} onback - Back to the label page.
+   * @property {(view: string) => void} [onnavigate] - Opens a view (a channel's track list).
+   * @property {() => void} [onmanage] - Opens Management > Downloaders > Links.
+   */
+  let { name, onback, onnavigate, onmanage } = $props();
 
   let label = $state(null);
   let whiteGenres = $state([]);
@@ -153,6 +160,17 @@
     {#if label.in_library}
       <LabelCatalog name={label.name} />
     {/if}
+
+    <LabelChannels
+      kind="label"
+      name={label.name}
+      {onnavigate}
+      {onmanage}
+      canManage
+      canUnlink
+      onmessage={(text) => { error = null; message = text; }}
+      onerror={(text) => { message = null; error = text; }}
+    />
 
     <GenreRuleEditor
       rules={label.genre_rules}

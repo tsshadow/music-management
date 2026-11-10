@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/svelte";
 
-// Issue #122: the label page's "Kanalen" section and its helpers.
+// Issue #122: the label page's "Kanalen" section and its helpers; #126: the artist page and
+// the label edit page, with unlink.
 
 const api = vi.hoisted(() => ({
   fetchMumaJson: vi.fn(),
@@ -22,11 +23,12 @@ vi.mock("../../src/lib/subsonic.js", async (importOriginal) => ({
 
 import LabelChannels from "../../src/lib/LabelChannels.svelte";
 import {
-  cachedLabelChannels,
+  cachedLinkedChannels,
   channelAlbumView,
   channelDestination,
-  clearLabelChannels,
-  fetchLabelChannels,
+  clearLinkedChannels,
+  fetchLinkedChannels,
+  unlinkChannel,
 } from "../../src/lib/labelChannels.js";
 
 const TRAXTORM = {
@@ -59,7 +61,7 @@ function albums(...names) {
 }
 
 beforeEach(() => {
-  clearLabelChannels();
+  clearLinkedChannels();
   api.fetchMumaJson.mockReset();
   api.subsonicJson.mockReset();
 });
@@ -71,12 +73,48 @@ afterEach(() => {
 describe("labelChannels helpers", () => {
   it("asks the endpoint by label name and remembers the answer", async () => {
     api.fetchMumaJson.mockResolvedValue([TRAXTORM]);
-    expect(await fetchLabelChannels("Traxtorm & Co / NL")).toEqual([TRAXTORM]);
+    expect(await fetchLinkedChannels("label", "Traxtorm & Co / NL")).toEqual([TRAXTORM]);
     expect(api.fetchMumaJson).toHaveBeenCalledWith(
       "/muma/api/channel-links/by-label?name=Traxtorm%20%26%20Co%20%2F%20NL",
       { headers: { "X-API-Key": "k" } },
     );
-    expect(cachedLabelChannels("Traxtorm & Co / NL")).toEqual([TRAXTORM]);
+    expect(cachedLinkedChannels("label", "Traxtorm & Co / NL")).toEqual([TRAXTORM]);
+    expect(cachedLinkedChannels("artist", "Traxtorm & Co / NL")).toBeUndefined();
+  });
+
+  it("asks the artist endpoint by artist name, cached apart from a label of that name", async () => {
+    api.fetchMumaJson.mockResolvedValue([TUBE]);
+    expect(await fetchLinkedChannels("artist", "D-Sturb")).toEqual([TUBE]);
+    expect(api.fetchMumaJson).toHaveBeenCalledWith(
+      "/muma/api/channel-links/by-artist?name=D-Sturb",
+      { headers: { "X-API-Key": "k" } },
+    );
+    expect(cachedLinkedChannels("artist", "D-Sturb")).toEqual([TUBE]);
+    expect(cachedLinkedChannels("label", "D-Sturb")).toBeUndefined();
+  });
+
+  it("refuses a kind it has no endpoint for", async () => {
+    await expect(fetchLinkedChannels("genre", "x")).rejects.toThrow(/genre/);
+    await expect(unlinkChannel("genre", "x", TUBE)).rejects.toThrow(/genre/);
+    expect(api.fetchMumaJson).not.toHaveBeenCalled();
+  });
+
+  it("unlinks a channel and drops it from the cached answer", async () => {
+    api.fetchMumaJson.mockResolvedValueOnce([TRAXTORM, TUBE]);
+    await fetchLinkedChannels("label", "Traxtorm");
+    api.fetchMumaJson.mockResolvedValueOnce({ status: "unlinked", queued: 3 });
+    expect(await unlinkChannel("label", "Traxtorm", TUBE)).toEqual({
+      status: "unlinked",
+      queued: 3,
+    });
+    expect(api.fetchMumaJson).toHaveBeenLastCalledWith("/muma/api/channel-links/channels/4/label", {
+      method: "DELETE",
+      headers: { "X-API-Key": "k" },
+    });
+    expect(cachedLinkedChannels("label", "Traxtorm")).toEqual([TRAXTORM]);
+    api.fetchMumaJson.mockResolvedValueOnce({ status: "unlinked", queued: 0 });
+    await unlinkChannel("artist", "Nobody", TUBE);
+    expect(cachedLinkedChannels("artist", "Nobody")).toBeUndefined();
   });
 
   it("finds the channel's album only by its exact name", async () => {
@@ -108,14 +146,18 @@ describe("LabelChannels", () => {
     const onnavigate = vi.fn();
     const onmanage = vi.fn();
     const openUrl = vi.fn(async () => {});
+    const onmessage = vi.fn();
+    const onerror = vi.fn();
     render(LabelChannels, {
-      label: "Traxtorm",
+      name: "Traxtorm",
+      onmessage,
+      onerror,
       onnavigate,
       onmanage,
       platform: { system: { openUrl } },
       ...props,
     });
-    return { onnavigate, onmanage, openUrl };
+    return { onnavigate, onmanage, openUrl, onmessage, onerror };
   }
 
   it("lists the linked channels with platform and track count", async () => {
@@ -172,10 +214,71 @@ describe("LabelChannels", () => {
 
   it("shows the last answer at once on a revisit and refreshes it", async () => {
     api.fetchMumaJson.mockResolvedValue([TRAXTORM]);
-    await fetchLabelChannels("Traxtorm");
+    await fetchLinkedChannels("label", "Traxtorm");
     api.fetchMumaJson.mockReturnValue(new Promise(() => {}));
     show();
     expect(screen.getAllByTestId("label-channel")).toHaveLength(1);
     expect(api.fetchMumaJson).toHaveBeenCalledTimes(2);
+  });
+  it("defaults to a label and offers no unlink outside the edit page", async () => {
+    api.fetchMumaJson.mockResolvedValue([TRAXTORM]);
+    show();
+    await screen.findByTestId("label-channel");
+    expect(api.fetchMumaJson.mock.calls[0][0]).toContain("/by-label?name=Traxtorm");
+    expect(screen.getByTestId("label-channels").dataset.kind).toBe("label");
+    expect(screen.queryByTestId("label-channel-unlink")).toBeNull();
+  });
+
+  it("lists an artist's channels from the artist endpoint", async () => {
+    api.fetchMumaJson.mockResolvedValue([TUBE]);
+    show({ kind: "artist", name: "D-Sturb" });
+    expect((await screen.findAllByTestId("label-channel"))[0].textContent).toContain("Traxtorm TV");
+    expect(api.fetchMumaJson.mock.calls[0][0]).toBe(
+      "/muma/api/channel-links/by-artist?name=D-Sturb",
+    );
+    expect(screen.getByTestId("label-channels").dataset.kind).toBe("artist");
+  });
+
+  it("tells a curator no channel is linked to this artist", async () => {
+    api.fetchMumaJson.mockResolvedValue([]);
+    show({ kind: "artist", name: "D-Sturb", canManage: true });
+    expect((await screen.findByTestId("label-channels-empty")).textContent).toMatch(
+      /artiest|artist/i,
+    );
+  });
+
+  it("unlinks a channel on the edit page and says so", async () => {
+    api.fetchMumaJson.mockResolvedValueOnce([TRAXTORM, TUBE]);
+    const { onmessage, onerror } = show({ canManage: true, canUnlink: true });
+    const buttons = await screen.findAllByTestId("label-channel-unlink");
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1].getAttribute("aria-label")).toContain("Traxtorm TV");
+    api.fetchMumaJson.mockResolvedValueOnce({ status: "unlinked", queued: 1 });
+    await fireEvent.click(buttons[1]);
+    await waitFor(() => expect(screen.getAllByTestId("label-channel")).toHaveLength(1));
+    expect(api.fetchMumaJson).toHaveBeenLastCalledWith(
+      "/muma/api/channel-links/channels/4/label",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(onmessage).toHaveBeenCalledWith(expect.stringContaining("Traxtorm TV"));
+    expect(onerror).not.toHaveBeenCalled();
+  });
+
+  it("keeps the channel and reports the backend's reason when an unlink fails", async () => {
+    api.fetchMumaJson.mockResolvedValueOnce([TRAXTORM]);
+    const { onmessage, onerror } = show({ canManage: true, canUnlink: true });
+    const button = await screen.findByTestId("label-channel-unlink");
+    api.fetchMumaJson.mockRejectedValueOnce(
+      Object.assign(new Error("403"), { body: { detail: "Missing permission: rules.manage" } }),
+    );
+    await fireEvent.click(button);
+    await waitFor(() => expect(onerror).toHaveBeenCalledWith("Missing permission: rules.manage"));
+    api.fetchMumaJson.mockRejectedValueOnce(new Error("offline"));
+    await fireEvent.click(button);
+    await waitFor(() =>
+      expect(onerror).toHaveBeenLastCalledWith(expect.stringContaining("Traxtorm Records")),
+    );
+    expect(screen.getAllByTestId("label-channel")).toHaveLength(1);
+    expect(onmessage).not.toHaveBeenCalled();
   });
 });

@@ -1218,7 +1218,8 @@
     {#if activeView.startsWith('label:')}
       <!-- The channels linked to this label, as a section of its own (issue #122). -->
       <LabelChannels
-        label={viewArgument(activeView)}
+        kind="label"
+        name={viewArgument(activeView)}
         onnavigate={(v) => activeView = v}
         canManage={canManageRules}
         onmanage={openChannelLinks}
@@ -1546,7 +1547,7 @@
   {:else if activeView.startsWith('artist-edit:')}
     <LazyView name="artistEdit" props={{ artistId: viewArgument(activeView), onback: () => activeView = `artist:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('label-edit:')}
-    <LazyView name="labelEdit" props={{ name: viewArgument(activeView), onback: () => activeView = `label:${viewArgument(activeView)}` }} />
+    <LazyView name="labelEdit" props={{ name: viewArgument(activeView), onback: () => activeView = `label:${viewArgument(activeView)}`, onnavigate: (v) => activeView = v, onmanage: openChannelLinks }} />
   {:else if activeView.startsWith('genre-edit:')}
     <LazyView name="genreEdit" props={{ name: viewArgument(activeView), onback: () => activeView = `genre:${viewArgument(activeView)}` }} />
   {:else if activeView.startsWith('artist:')}
@@ -1555,7 +1556,7 @@
     {#key viewArgument(activeView)}
       <!-- The page is its own chunk; until it is in, the seeded header keeps the heading on
            screen from the first frame (issue #118, optimistic navigation of #107). -->
-      <LazyView name="artistPage" props={{ artistId: viewArgument(activeView), onnavigate: (v) => activeView = v }}>
+      <LazyView name="artistPage" props={{ artistId: viewArgument(activeView), onnavigate: (v) => activeView = v, canManage: canManageRules, onmanage: openChannelLinks }}>
         {#snippet placeholder()}
           <EntityPageShell kind="artist" id={viewArgument(activeView)} />
         {/snippet}

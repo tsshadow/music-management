@@ -1,4 +1,4 @@
-"""A label page's channels: GET /api/channel-links/by-label and its pure helpers (issue #122)."""
+"""A label or artist page's channels: GET /api/channel-links/by-label (issue #122), /by-artist (#126)."""
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -65,8 +65,10 @@ class SourceUrlTest(unittest.TestCase):
         self.assertEqual({'hysta': ['hysta']}, links.account_index(['hysta', 'hysta', '---', '']))
 
 
-class LabelChannelsEndpointTest(unittest.TestCase):
-    """The endpoint: one indexed read for the channels, the accounts only when there are channels."""
+class ChannelsCall:
+    """Calls one of the two list endpoints against a scripted cursor; mixed into both test cases."""
+
+    path = ''
 
     def setUp(self):
         self.client = TestClient(app)
@@ -87,8 +89,14 @@ class LabelChannelsEndpointTest(unittest.TestCase):
         conn = MagicMock()
         conn.cursor.return_value.__enter__.return_value = cursor
         with patch.object(router_module, 'get_db_connection', return_value=conn):
-            response = self.client.get('/api/channel-links/by-label', params={'name': name}, headers=self.headers)
+            response = self.client.get(self.path, params={'name': name}, headers=self.headers)
         return response, executed
+
+
+class LabelChannelsEndpointTest(ChannelsCall, unittest.TestCase):
+    """The endpoint: one indexed read for the channels, the accounts only when there are channels."""
+
+    path = '/api/channel-links/by-label'
 
     def test_a_label_lists_its_channels_with_counts_album_and_source(self):
         rows = [
@@ -166,6 +174,83 @@ class LabelChannelsEndpointTest(unittest.TestCase):
 
     def test_the_list_needs_an_api_key(self):
         self.assertEqual(401, self.client.get('/api/channel-links/by-label?name=x').status_code)
+
+
+class ArtistChannelsEndpointTest(ChannelsCall, unittest.TestCase):
+    """The mirror on the artist page: keyed on the artist's name, each channel with its label."""
+
+    path = '/api/channel-links/by-artist'
+
+    def test_an_artist_lists_its_channels_with_their_labels(self):
+        rows = [
+            {
+                'id': 5,
+                'platform': 'soundcloud',
+                'name': 'D-Sturb',
+                'label_id': 2,
+                'label_name': 'Traxtorm',
+                'track_count': 40,
+            },
+            {'id': 6, 'platform': 'telegram', 'name': 'dsturb', 'label_id': None, 'label_name': None, 'track_count': 0},
+        ]
+        response, executed = self.call(
+            ' D-Sturb ',
+            {
+                normalize(router_module.ARTIST_CHANNELS_QUERY): rows,
+                normalize(router_module.ACCOUNTS_QUERY['soundcloud']): [{'name': 'dsturb'}],
+            },
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            [
+                {
+                    'id': 5,
+                    'platform': 'soundcloud',
+                    'name': 'D-Sturb',
+                    'track_count': 40,
+                    'label': {'id': 2, 'name': 'Traxtorm'},
+                    'album': 'Soundcloud (D-Sturb)',
+                    'source_url': 'https://soundcloud.com/dsturb',
+                },
+                {
+                    'id': 6,
+                    'platform': 'telegram',
+                    'name': 'dsturb',
+                    'track_count': 0,
+                    'label': None,
+                    'album': 'Telegram (dsturb)',
+                    'source_url': None,
+                },
+            ],
+            response.json(),
+        )
+        self.assertEqual((normalize(router_module.ARTIST_CHANNELS_QUERY), ('D-Sturb',)), executed[0])
+
+    def test_an_artist_without_channels_asks_nothing_more(self):
+        response, executed = self.call('Nobody', {})
+        self.assertEqual([], response.json())
+        self.assertEqual([normalize(router_module.ARTIST_CHANNELS_QUERY)], [sql for sql, _ in executed])
+
+    def test_only_the_platforms_present_have_their_accounts_read(self):
+        row = {'id': 1, 'platform': 'youtube', 'name': 'A', 'label_id': None, 'label_name': None, 'track_count': 1}
+        _response, executed = self.call('A', {normalize(router_module.ARTIST_CHANNELS_QUERY): [row]})
+        self.assertNotIn(normalize(router_module.ACCOUNTS_QUERY['soundcloud']), [sql for sql, _ in executed])
+        self.assertIn(normalize(router_module.ACCOUNTS_QUERY['youtube']), [sql for sql, _ in executed])
+
+    def test_an_unreadable_accounts_table_costs_the_link_not_the_list(self):
+        row = {'id': 1, 'platform': 'soundcloud', 'name': 'A', 'label_id': None, 'label_name': None, 'track_count': 1}
+        response, _ = self.call(
+            'A',
+            {
+                normalize(router_module.ARTIST_CHANNELS_QUERY): [row],
+                normalize(router_module.ACCOUNTS_QUERY['soundcloud']): RuntimeError('no table'),
+            },
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIsNone(response.json()[0]['source_url'])
+
+    def test_the_list_needs_an_api_key(self):
+        self.assertEqual(401, self.client.get('/api/channel-links/by-artist?name=x').status_code)
 
 
 if __name__ == '__main__':

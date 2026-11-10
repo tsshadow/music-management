@@ -108,6 +108,7 @@ READ_ENDPOINTS = [
     ('/api/channel-links/targets?kind=artist&q=x', 200),
     ('/api/channel-links/targets?kind=genre&q=x', 400),
     ('/api/channel-links/by-label?name=x', 200),
+    ('/api/channel-links/by-artist?name=x', 200),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -1326,6 +1327,47 @@ class ChannelLinksTest:
             },
         ]
         assert api.get('/api/channel-links/by-label?name=Nobody', headers=headers).json() == []
+
+    def test_an_artist_page_lists_its_linked_channels_with_their_labels(self, api, headers, db):
+        """Issue #126: the artist by name, its channels busiest first, each with its label."""
+        label_id, artist_id, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name, label_id, artist_id) VALUES "
+                "('soundcloud', 'D-Sturb Official', 'd-sturb official', %s, %s)",
+                (label_id, artist_id),
+            )
+            busy = cursor.lastrowid
+            cursor.execute('UPDATE channels SET artist_id = %s WHERE id = %s', (artist_id, channels['D-Sturb']))
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-a0', 't')")
+            cursor.execute(
+                'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (cursor.lastrowid, busy)
+            )
+            cursor.execute("INSERT INTO downloads_youtube_accounts (name) VALUES ('@dsturb')")
+        db.commit()
+        response = api.get('/api/channel-links/by-artist', params={'name': 'd-sturb'}, headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json() == [
+            {
+                'id': busy,
+                'platform': 'soundcloud',
+                'name': 'D-Sturb Official',
+                'track_count': 1,
+                'label': {'id': label_id, 'name': 'Traxtorm'},
+                'album': 'Soundcloud (D-Sturb Official)',
+                'source_url': None,
+            },
+            {
+                'id': channels['D-Sturb'],
+                'platform': 'youtube',
+                'name': 'D-Sturb',
+                'track_count': 0,
+                'label': None,
+                'album': 'Youtube (D-Sturb)',
+                'source_url': 'https://www.youtube.com/@dsturb',
+            },
+        ]
+        assert api.get('/api/channel-links/by-artist?name=Nobody', headers=headers).json() == []
 
     def test_a_link_change_queues_the_channels_files_for_the_tagger(self, api, headers, db):
         from services.common import db_init

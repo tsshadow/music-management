@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArtistView from "../../src/lib/ArtistView.svelte";
 import GenreEdit from "../../src/lib/curation/GenreEdit.svelte";
 import ArtistEdit from "../../src/lib/curation/ArtistEdit.svelte";
+import LabelEdit from "../../src/lib/curation/LabelEdit.svelte";
+import { clearLinkedChannels } from "../../src/lib/labelChannels.js";
 import {
   credentials,
   currentTrack,
@@ -50,6 +52,7 @@ beforeEach(() => {
   userPermissions.set([]);
   mumaUser.set(null);
   globalThis.fetch = subsonicFetch();
+  clearLinkedChannels();
 });
 
 afterEach(() => {
@@ -177,5 +180,94 @@ describe("the genre edit page", () => {
     expect(call).toBeTruthy();
     expect(call[1].method).toBe("PUT");
     expect(JSON.parse(call[1].body)).toEqual({ hardness: 80 });
+  });
+});
+
+// Issue #126: the channels linked to an artist on its page, and to a label on its edit page.
+const CHANNEL = {
+  id: 7,
+  platform: "youtube",
+  name: "Angerfist Official",
+  track_count: 12,
+  label: null,
+  album: "Youtube (Angerfist Official)",
+  source_url: null,
+};
+
+/** `subsonicFetch`, plus the channel endpoints and a label to edit. */
+function channelFetch(channels) {
+  const base = subsonicFetch();
+  return vi.fn(async (url, options = {}) => {
+    if (url.includes("/api/channel-links/by-")) {
+      return { ok: true, status: 200, json: async () => channels };
+    }
+    if (url.includes("/api/channel-links/channels/") && options.method === "DELETE") {
+      return { ok: true, status: 200, json: async () => ({ status: "unlinked", queued: 12 }) };
+    }
+    if (url.includes("/api/curation/labels/")) {
+      return {
+        ok: true,
+        json: async () => ({
+          name: "Traxtorm",
+          in_library: false,
+          track_count: 0,
+          catids: [],
+          genre_rules: [],
+          mbid: null,
+        }),
+      };
+    }
+    return base(url, options);
+  });
+}
+
+describe("the channels on the artist page", () => {
+  it("lists the artist's channels by the artist's name", async () => {
+    globalThis.fetch = channelFetch([CHANNEL]);
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn() });
+
+    expect(await screen.findByText("Angerfist Official")).toBeTruthy();
+    const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/api/channel-links/by-artist?name=Angerfist"))).toBe(
+      true,
+    );
+    expect(screen.getByTestId("label-channels").dataset.kind).toBe("artist");
+    expect(screen.queryByTestId("label-channel-unlink")).toBeNull();
+  });
+
+  it("gives a curator the way to Koppelingen", async () => {
+    globalThis.fetch = channelFetch([]);
+    const onmanage = vi.fn();
+    render(ArtistView, { artistId: "artist-1", onnavigate: vi.fn(), canManage: true, onmanage });
+
+    await fireEvent.click(await screen.findByTestId("label-channels-manage"));
+    expect(onmanage).toHaveBeenCalled();
+  });
+});
+
+describe("the channels on the label edit page", () => {
+  it("lists the label's channels and opens one through onnavigate", async () => {
+    globalThis.fetch = channelFetch([{ ...CHANNEL, artist: null }]);
+    const onnavigate = vi.fn();
+    render(LabelEdit, { name: "Traxtorm", onback: vi.fn(), onnavigate });
+
+    await fireEvent.click(await screen.findByTestId("label-channel"));
+    await waitFor(() => expect(onnavigate).toHaveBeenCalledWith("search:Angerfist Official"));
+    const urls = globalThis.fetch.mock.calls.map(([url]) => url);
+    expect(urls.some((url) => url.includes("/api/channel-links/by-label?name=Traxtorm"))).toBe(
+      true,
+    );
+  });
+
+  it("unlinks a channel and confirms it in the page's message line", async () => {
+    globalThis.fetch = channelFetch([{ ...CHANNEL, artist: null }]);
+    render(LabelEdit, { name: "Traxtorm", onback: vi.fn() });
+
+    await fireEvent.click(await screen.findByTestId("label-channel-unlink"));
+    expect(await screen.findByRole("status")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Angerfist Official");
+    expect(screen.queryByTestId("label-channel")).toBeNull();
+    const call = globalThis.fetch.mock.calls.find(([, options]) => options?.method === "DELETE");
+    expect(call[0]).toContain("/api/channel-links/channels/7/label");
   });
 });

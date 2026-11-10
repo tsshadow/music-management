@@ -189,6 +189,9 @@ Removed outright, because every caller already uses the target: `GET|PUT
     channel's downloads under (`null` for an unknown platform); `source_url` is the platform page of the
     followed account whose letters and digits equal the channel's, when exactly one does, else `null`.
     An unknown label, a label nothing is linked to, or a blank name return `[]` (never `404`).
+  - **GET `/by-artist?name=`** (any authenticated account, issue #126): the same for the artist of that
+    name, for the artist page. Each row has `label: {id, name}|null` in place of `artist`. Keyed on the
+    name because the artist page's route carries the LMS artist id. `[]` for an unknown or blank name.
 - **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
   `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
   path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).

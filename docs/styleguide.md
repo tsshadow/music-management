@@ -532,6 +532,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
   font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
   menu.
 
+- **Done** (2026-11-10, issue #126) — The same section on the artist page (above the biography) and
+  on the label edit page. On the edit page every card gets a `w-10` unlink button on its right edge,
+  inside the card's background: lucide `X` at 16px in secondary text, hover white on
+  `bg-muma-spotify-hover`, labelled "<channel> ontkoppelen". It acts without a confirmation dialog,
+  as the `X` on a link chip in the Coverage table does, because linking again is one step; the card
+  dims while the request runs.
+
 - **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new
   place clears to skeletons, same place dims stale results, search says "Zoeken…" until it has an

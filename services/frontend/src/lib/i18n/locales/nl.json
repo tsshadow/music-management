@@ -175,7 +175,11 @@
   "labelChannels": {
     "title": "Kanalen",
     "manage": "Koppelingen beheren",
-    "none": "Nog geen kanaal aan dit label gekoppeld."
+    "none": "Nog geen kanaal aan dit label gekoppeld.",
+    "noneArtist": "Nog geen kanaal aan deze artiest gekoppeld.",
+    "unlink": "{channel} ontkoppelen",
+    "unlinked": "{channel} ontkoppeld.",
+    "unlinkFailed": "{channel} kon niet worden ontkoppeld."
   },
   "equalizer": {
     "band": "Band {freq}",

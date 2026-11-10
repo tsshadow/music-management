@@ -231,6 +231,10 @@ namespace lms::db
             // Created here for a fresh database, whose version starts at the current one so no
             // migration step runs; migration step 124 creates it for an existing one.
             utils::executeCommand(_session, std::string{ Migration::mumaListenOutboxTableDefinition });
+            // The rating changes still to be relayed (database/MumaRatingOutbox.hpp), the same
+            // way: migration step 127 creates both for an existing database.
+            utils::executeCommand(_session, std::string{ Migration::mumaRatingOutboxTableDefinition });
+            utils::executeCommand(_session, std::string{ Migration::mumaRatingOutboxIndexDefinition });
             utils::executeCommand(_session, "CREATE TABLE IF NOT EXISTS volatile.ui_state (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, key TEXT, value TEXT)");
         }
 

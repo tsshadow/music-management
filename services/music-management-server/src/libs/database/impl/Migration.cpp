@@ -38,7 +38,7 @@ namespace lms::db
         // Versions up to 103 are upstream LMS v3.76.0's; everything above is this fork's own
         // sequence. Upstream migrations above 103 are ported under the next free number here,
         // never merged under theirs -- see services/music-management-server/FORK.md.
-        static constexpr Version LMS_DATABASE_VERSION{ 127 };
+        static constexpr Version LMS_DATABASE_VERSION{ 128 };
     } // namespace
 
     VersionInfo::VersionInfo()
@@ -2118,6 +2118,16 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             if (session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('scan_settings') WHERE name = 'release_artwork_rules'").resultValue() == 0)
                 utils::executeCommand(*session.getDboSession(), "ALTER TABLE scan_settings ADD COLUMN release_artwork_rules TEXT NOT NULL DEFAULT ''");
         }
+
+        void migrateFromV127(Session& session)
+        {
+            // The rating outbox: every rating change for music-manager is written here first and
+            // removed once music-manager has it, so an outage of music-manager or a restart of
+            // LMS no longer loses a rating (issue #222, docs/designs/lms-rating-outbox/).
+            // Re-runnable, like its neighbours.
+            utils::executeCommand(*session.getDboSession(), std::string{ mumaRatingOutboxTableDefinition });
+            utils::executeCommand(*session.getDboSession(), std::string{ mumaRatingOutboxIndexDefinition });
+        }
     } // namespace
 
     bool doDbMigration(Session& session)
@@ -2223,6 +2233,7 @@ WHERE id NOT IN (SELECT MIN(id) FROM auth_token GROUP BY domain, value))");
             { 124, migrateFromV124 },
             { 125, migrateFromV125 },
             { 126, migrateFromV126 },
+            { 127, migrateFromV127 },
         };
 
         bool migrationPerformed{};

@@ -37,7 +37,7 @@
 ### music-management-server (LMS, C++, port 5082)
 - Build: CMake + Ninja/Make, see `CMakeLists.txt`; release build via `Dockerfile-release` (multi-stage: frontend build first, then Alpine C++ build)
 - Test: **CTest + GTest are already present upstream** (`include(CTest)`, `find_package(GTest REQUIRED)`)
-  - Existing test targets (`gtest_discover_tests`): `test-podcast`, `test-scanner`, `test-scrobbling`, `test-subsonic`, `test-database`, `test-som`, `test-core`
+  - Existing test targets (`gtest_discover_tests`): `test-podcast`, `test-scanner`, `test-scrobbling`, `test-feedback`, `test-mumaoutbox`, `test-subsonic`, `test-database`, `test-som`, `test-core`
   - ⇒ **No new test framework needed** for Phase 2, just run/extend the existing CTest targets.
   - How to run: `ctest` in the build directory (not yet confirmed to pass locally on the current commit — not executed in this step, no production changes allowed)
 - Config: `conf/lms.conf` (`listen-port = 5082`, `docroot`, `db-integrity-check`)

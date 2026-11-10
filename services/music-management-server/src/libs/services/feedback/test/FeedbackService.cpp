@@ -26,13 +26,14 @@
 #include "core/Service.hpp"
 #include "database/objects/RatedTrack.hpp"
 
+#include "CapturingLogger.hpp"
 #include "Common.hpp"
 #include "FeedbackService.hpp"
 
 int main(int argc, char** argv)
 {
     using namespace lms;
-    core::Service<core::logging::ILogger> logger{ core::logging::createLogger(core::logging::Severity::ERROR) };
+    core::Service<core::logging::ILogger> logger{ std::make_unique<feedback::tests::CapturingLogger>() };
 
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

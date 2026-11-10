@@ -77,6 +77,7 @@ target_link_libraries(lms PRIVATE
 	lmsdatabase
 	lmsfeedback
 	lmsjukebox
+	lmsmumaoutbox
 	lmsmuma
 	lmspodcast
 	lmsrecommendation

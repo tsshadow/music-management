@@ -49,8 +49,9 @@ Wholly ours (new files; upstream has no counterpart):
 |---|---|
 | `/muma` resource: auth, admin routes, MuMa reverse proxy | `src/libs/muma/` (`MumaResource`, `Authentication`, `PathEncoding`, `Routing`) |
 | Accounts from music-manager | `src/libs/services/auth/impl/musicmanagement/` (`MusicManagementPasswordService`, `UserSynchronizer`, `MumaUserSync.hpp`), `src/libs/services/auth/include/services/auth/IUserSynchronizer.hpp` |
-| Listen relay to music-manager | `src/libs/services/scrobbling/impl/musicmanagement/` |
-| Rating relay to music-manager | `src/libs/services/feedback/impl/musicmanagement/` |
+| Outbox relay to music-manager: delivers the listen and rating outboxes, oldest first | `src/libs/services/mumaoutbox/`, `src/libs/database/*/MumaListenOutbox.*`, `src/libs/database/*/MumaRatingOutbox.*` |
+| Listen backend: queues each listen in the outbox | `src/libs/services/scrobbling/impl/musicmanagement/` |
+| Rating backend: queues each rating change in the outbox | `src/libs/services/feedback/impl/musicmanagement/` |
 | HTTP client hardening (retry policy, proxy continuation, concurrency gate) | `src/libs/core/impl/http/RetryPolicy.*`, `ProxyContinuation.cpp`, `ProxyState.hpp`, `src/libs/core/include/core/http/ProxyContinuation.hpp`, `src/libs/core/*/ConcurrencyGate.*`, `src/libs/core/*/Md5.*` |
 | Spotify-style Subsonic extensions (`getSpotify*`, dedupe/paging, memories, festival line-ups, songs by path, scan scope) | `src/libs/subsonic/impl/endpoints/Spotify.*`, `SpotifyPaging.hpp`, `Memories.*`, `FestivalLineupRepository.*`, `SongsByPath.*`, `ScanScope.*`, `UserSettingsValidation.hpp`, `src/libs/subsonic/impl/AuthCache.*` |
 | Scan lanes (quick/full scan schedule, request collector) | `src/libs/services/scanner/impl/ScanRequestCollector.*`, `ScanSchedule.*`, `ScanStepSequence.*`, `ScanStepScanFiles.cpp` |
@@ -59,7 +60,7 @@ Wholly ours (new files; upstream has no counterpart):
 
 Ours inside upstream files (modified, not new) -- the places a port most often lands on:
 
-- `src/libs/database/impl/Migration.cpp` -- steps 103 to 126 (versions 104 to 127), see below.
+- `src/libs/database/impl/Migration.cpp` -- steps 103 to 127 (versions 104 to 128), see below.
 - `src/libs/database/include/database/objects/User.hpp` -- `muma_id`, `muma_scrobbling_enabled`,
   web-player settings, `disabled`; `Track.hpp` -- `rating`, `play_count`, song-version columns, `bpm`
   (the file's BPM tag, step 125); `ScanSettings.hpp` -- `release_artwork_rules` (step 126).
@@ -106,7 +107,7 @@ The policy:
    porting anything that touches these tables.
 2. **Everything from 103 up is the fork's own sequence**, contiguous, owned by this repository
    alone. `LMS_DATABASE_VERSION` is the version a fresh migration run ends at, so the next free
-   step is `migrateFromV<LMS_DATABASE_VERSION>` (today: `migrateFromV127`, taking 127 to 128).
+   step is `migrateFromV<LMS_DATABASE_VERSION>` (today: `migrateFromV128`, taking 128 to 129).
 3. **An upstream migration is ported, never merged under its own number.** It becomes the fork's next
    free step, and its function carries a comment naming the source:
    `// Port of upstream LMS migrateFromV108 (v3.78.0, <commit>)`. Add it to the table below.

@@ -6,16 +6,12 @@
 
 #include "MusicManagementBackend.hpp"
 
-#include <Wt/Http/Client.h>
 #include <Wt/Json/Object.h>
 #include <Wt/Json/Serializer.h>
 #include <Wt/Json/Value.h>
 #include <Wt/WDateTime.h>
 
-#include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
-#include "core/Service.hpp"
-#include "core/http/ClientRequestParameters.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
@@ -26,38 +22,14 @@
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackList.hpp"
 #include "database/objects/User.hpp"
+#include "services/mumaoutbox/IMumaOutboxRelay.hpp"
 
 namespace lms::feedback::musicManagement
 {
-    namespace
-    {
-        // NOTE: "music-management-url" already includes the "/api" prefix (see
-        // UserSynchronizer.cpp / MusicManagementPasswordService.cpp). The real
-        // route is "/api/rating/lms-event", so only "/rating/lms-event" must
-        // be appended here (was incorrectly "/rating/api/lms-event").
-        std::unique_ptr<core::http::IClient> createConfiguredClient(boost::asio::io_context& ioContext)
-        {
-            const std::string apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/rating/lms-event" };
-            LMS_LOG(SCROBBLING, INFO, "Starting MusicManagement feedback backend... API endpoint = '" << apiUrl << "'");
-            return core::http::createClient(ioContext, apiUrl);
-        }
-    } // namespace
-
-    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
-        : MusicManagementBackend{ db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
-    {
-    }
-
-    MusicManagementBackend::MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey)
+    MusicManagementBackend::MusicManagementBackend(db::IDb& db, mumaOutbox::IMumaOutboxRelay* relay)
         : _db{ db }
-        , _apiKey{ std::move(apiKey) }
-        , _client{ std::move(client) }
+        , _relay{ relay }
     {
-    }
-
-    MusicManagementBackend::~MusicManagementBackend()
-    {
-        LMS_LOG(SCROBBLING, INFO, "Stopped MusicManagement feedback backend!");
     }
 
     void MusicManagementBackend::onStarred(db::StarredArtistId)
@@ -96,7 +68,7 @@ namespace lms::feedback::musicManagement
                     username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ", user: " << username << ")");
-                sendEvent("rating_changed", "artist", artistName, username, rating);
+                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "artist", .objectId = artistName }, rating);
             }
         }
     }
@@ -118,7 +90,7 @@ namespace lms::feedback::musicManagement
                     username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ", user: " << username << ")");
-                sendEvent("rating_changed", "release", releaseName, username, rating);
+                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "release", .objectId = releaseName }, rating);
             }
         }
     }
@@ -141,7 +113,7 @@ namespace lms::feedback::musicManagement
                     username = user->getLoginName();
 
                 LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ", user: " << username << ")");
-                sendEvent("rating_changed", "track", trackId, username, rating, path);
+                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "track", .objectId = trackId }, rating, path);
             }
         }
     }
@@ -151,7 +123,7 @@ namespace lms::feedback::musicManagement
         // MuMa's rating mirror is only ever written from here (the sync is one-way), so a
         // cleared rating that is not reported keeps its old star there forever.
         LMS_LOG(SCROBBLING, INFO, "Rating removed for " << event.objectType << " " << event.objectId << " (previous rating: " << event.previousRating << ", user: " << event.username << ")");
-        sendEvent("rating_removed", event.objectType, event.objectId, event.username, 0, event.path);
+        sendEvent("rating_removed", mumaOutbox::RatingKey{ .username = event.username, .objectType = event.objectType, .objectId = event.objectId }, 0, event.path);
     }
 
     void MusicManagementBackend::onPlaylistChanged(db::TrackListId playlistId)
@@ -159,51 +131,23 @@ namespace lms::feedback::musicManagement
         (void)playlistId;
     }
 
-    void MusicManagementBackend::sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating, const std::string& path)
+    void MusicManagementBackend::sendEvent(std::string_view eventType, const mumaOutbox::RatingKey& key, int rating, const std::string& path)
     {
-        LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::sendEvent(" << eventType << ", " << objectType << ", " << objectId << ", " << username << ", " << rating << ")");
-        if (!_client)
-        {
-            LMS_LOG(SCROBBLING, WARNING, "No HTTP client available!");
+        if (!_relay)
             return;
-        }
-
-        core::http::ClientPOSTRequestParameters request;
-        request.message.addHeader("Content-Type", "application/json");
-        if (!_apiKey.empty())
-        {
-            request.message.addHeader("X-API-Key", _apiKey);
-        }
 
         Wt::Json::Object obj;
-        obj["event"] = Wt::Json::Value(eventType);
-        obj["object_type"] = Wt::Json::Value(objectType);
-        obj["object_id"] = Wt::Json::Value(objectId);
-        obj["username"] = Wt::Json::Value(username);
+        obj["event"] = Wt::Json::Value(std::string{ eventType });
+        obj["object_type"] = Wt::Json::Value(key.objectType);
+        obj["object_id"] = Wt::Json::Value(key.objectId);
+        obj["username"] = Wt::Json::Value(key.username);
         obj["rating"] = Wt::Json::Value(rating);
         if (!path.empty())
-        {
             obj["path"] = Wt::Json::Value(path);
-        }
 
-        std::string jsonBody = Wt::Json::serialize(obj);
-        LMS_LOG(SCROBBLING, INFO, "Sending JSON: " << jsonBody);
-        request.message.addBodyText(jsonBody);
-
-        request.onSuccessFunc = [](const Wt::Http::Message& msg) {
-            if (msg.status() >= 200 && msg.status() < 300)
-            {
-                LMS_LOG(SCROBBLING, INFO, "Successfully sent event to music-management");
-            }
-            else
-            {
-                LMS_LOG(SCROBBLING, WARNING, "Failed to send event to music-management, status: " << msg.status());
-            }
-        };
-        request.onFailureFunc = []() {
-            LMS_LOG(SCROBBLING, WARNING, "Failed to send event to music-management, connection error");
-        };
-
-        _client->sendPOSTRequest(std::move(request));
+        // Written to the outbox before anything is sent, on this thread, and delivered from the
+        // io_context. The body is fixed here, so every retry sends the same state; the API key is
+        // added at send time.
+        _relay->enqueueRating(key, Wt::Json::serialize(obj));
     }
 } // namespace lms::feedback::musicManagement

@@ -6,7 +6,6 @@ add_library(lmsscrobbling STATIC
 	impl/listenbrainz/ListensParser.cpp
 	impl/listenbrainz/ListensSynchronizer.cpp
 	impl/listenbrainz/Utils.cpp
-	impl/musicmanagement/ListenOutboxRelay.cpp
 	impl/musicmanagement/MusicManagementBackend.cpp
 	impl/ScrobblingService.cpp
 	)
@@ -26,6 +25,7 @@ target_link_libraries(lmsscrobbling PRIVATE
 
 target_link_libraries(lmsscrobbling PUBLIC
 	lmsdatabase
+	lmsmumaoutbox
 	)
 
 if(BUILD_TESTING)

@@ -120,9 +120,11 @@ While you listen:
   `music-manager`, which stores it in `scrobble_listens`. A listen that matches no track goes to
   `scrobble_unmatched_listens` and is matched again later. If LMS gave up on a listen (outbox full,
   listen too old), a backfill loop in `music-manager` reads it from `lms.db`.
-- **Ratings.** The player and the app call the Subsonic `setRating` method on LMS. LMS then sends a
-  webhook to `POST /api/rating/lms-event`, and `music-manager` upserts `rating_tracks`. It finds the
-  `track_uid` from the file path in the event. A rating of 0 deletes the row.
+- **Ratings.** The player and the app call the Subsonic `setRating` method on LMS. LMS writes the
+  change to its rating outbox (one row per user and item, the last change wins) and delivers it to
+  `POST /api/rating/lms-event` through the same relay as the listens, and `music-manager` upserts
+  `rating_tracks`. It finds the `track_uid` from the file path in the event. A rating of 0 deletes
+  the row.
 - **Settings.** The app and the web player back up their settings to
   `/api/users/{id}/settings/{app_id}`, so they survive a reinstall or a new device.
 

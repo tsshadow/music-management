@@ -24,12 +24,17 @@ gets a score, the sum of independent terms in natural-log units:
   to its hand-set band (`bands.GENRE_BANDS`), read as a Gaussian with the band's edges at 1 sigma.
 - **path**: tracks under a mainstream compilation folder (Hitzone, Spotify, Lidarr, Top 100) are
   pop and dance: a prior around 115 BPM.
+- **getsongbpm**: the tempo GetSongBPM lists for the same artist and title (issue #152), a strong
+  prior for mainstream tracks that have no label or artist prior. Only looked up and only applied
+  for those (`weak_priors`), and only when it lies close to one of the candidates: a listed tempo
+  that matches no octave of the measurement is a different recording, not evidence.
 - **neutral**: a broad prior around 125 BPM that settles it when nothing else speaks, strongest
   when there is no genre, label or artist evidence at all. It is what folds a genre-less 234 down
   to 117 and a genre-less 64 up to 128, while a strong fast pulse can still keep a genre-less 205.
 
 The candidate with the highest score wins, with one hard rule: a doubled estimate above
-`FOLD_UP_LIMIT` (200) is only a candidate when the track's own genre or its label favours it -- an
+`FOLD_UP_LIMIT` (200) is only a candidate when the track's own genre, its label or its GetSongBPM
+tempo favours it -- an
 artist's prior (or the neutral one) alone never folds a track up into hard-dance territory. The confidence of the result is the estimator's pulse
 confidence times an octave certainty derived from the margin to the runner-up, and a value that
 moved away from the raw estimate is discounted once more (`FOLD_DISCOUNT`): an octave choice made
@@ -90,6 +95,12 @@ W_PATH = 1.0
 #: The path prior's weight relative to W_PATH when the track has a genre of its own.
 PATH_WITH_GENRE = 0.5
 
+#: GetSongBPM (issue #152): its tempo is read as a narrow prior with this weight. It only counts
+#: when it lies within `EXTERNAL_MATCH` octaves (about 9%) of one of the candidates.
+W_EXTERNAL = 1.5
+EXTERNAL_SPREAD = MIN_SPREAD
+EXTERNAL_MATCH = 0.12
+
 NEUTRAL_CENTRE_BPM = 135.0
 NEUTRAL_SPREAD = 0.5
 #: The neutral prior's weight without any genre, label or artist evidence, and with some.
@@ -128,6 +139,7 @@ EVIDENCE_GENRE = 'genre'
 EVIDENCE_BAND = 'band'
 EVIDENCE_PATH = 'path'
 EVIDENCE_NEUTRAL = 'neutral'
+EVIDENCE_EXTERNAL = 'getsongbpm'
 #: Stored when a person set the tempo (manual override); never produced by `choose_octave`.
 EVIDENCE_MANUAL = 'manual'
 
@@ -157,7 +169,8 @@ class Evidence:
     `genres` are the track's own genre names; `root` the top-level folder under the music root
     (`Hitzone`, `Soundcloud`, ...). `label` and `artist` are the learned priors of its label (the
     best-sampled one when it has several) and its primary artist's own tracks; `genre_priors` maps a
-    lower-cased genre name to its learned prior.
+    lower-cased genre name to its learned prior. `external` is the tempo GetSongBPM lists for the
+    track (issue #152), set only for a track with weak priors (`weak_priors`).
     """
 
     genres: tuple[str, ...] = ()
@@ -165,6 +178,7 @@ class Evidence:
     label: Prior | None = None
     artist: Prior | None = None
     genre_priors: Mapping[str, Prior] = field(default_factory=dict)
+    external: Prior | None = None
 
 
 @dataclass(frozen=True)
@@ -185,6 +199,8 @@ class Choice:
     confidence: float
     evidence: str
     margin: float
+    #: The GetSongBPM tempo the choice weighed, None when that term did not apply.
+    external_bpm: float | None = None
 
     @property
     def octave_corrected(self) -> bool:
@@ -253,10 +269,37 @@ def _vouched(evidence: Evidence, genre: tuple[Prior, float, str] | None, candida
     other = raw if candidate != raw else raw / 2 if candidate > FOLD_UP_LIMIT else raw * 2
     if genre is not None and _distance(candidate, genre[0]) < _distance(other, genre[0]):
         return True
+    external = external_prior(evidence, raw)
+    if external is not None and _distance(candidate, external) < _distance(other, external):
+        return True
     label = evidence.label
     if label is not None and _learned_weight(label, W_LABEL, LABEL_MIN_SAMPLES, LABEL_HALF_WEIGHT):
         return _distance(candidate, label) < _distance(other, label)
     return False
+
+
+def weak_priors(evidence: Evidence) -> bool:
+    """True for a mainstream track without a usable label or artist prior (issue #152).
+
+    Only these tracks are looked up on GetSongBPM: everywhere else the collection's own priors
+    already settle the octave.
+    """
+    if (evidence.root or '').strip().lower() not in MAINSTREAM_ROOTS:
+        return False
+    label = _learned_weight(evidence.label, W_LABEL, LABEL_MIN_SAMPLES, LABEL_HALF_WEIGHT)
+    artist = _learned_weight(evidence.artist, W_ARTIST, ARTIST_MIN_SAMPLES, ARTIST_HALF_WEIGHT)
+    return not label and not artist
+
+
+def external_prior(evidence: Evidence, raw: float) -> Prior | None:
+    """The track's GetSongBPM prior when it lies close to one octave of `raw`, else None."""
+    external = evidence.external
+    if external is None or raw <= 0:
+        return None
+    for factor in (1.0, 0.5, 2.0):
+        if abs(math.log2(raw * factor) - external.centre) <= EXTERNAL_MATCH:
+            return external
+    return None
 
 
 def audio_term(ratio: float | None) -> float:
@@ -290,6 +333,10 @@ def _terms(candidate: float, factor: float, raw: float, evidence: Evidence, scor
     if genre is not None:
         prior, weight, kind = genre
         terms[kind] = -weight * _penalty(candidate, prior)
+        has_evidence = True
+    external = external_prior(evidence, raw)
+    if external is not None:
+        terms[EVIDENCE_EXTERNAL] = -W_EXTERNAL * _penalty(candidate, external)
         has_evidence = True
     if (evidence.root or '').strip().lower() in MAINSTREAM_ROOTS:
         path_weight = W_PATH * (PATH_WITH_GENRE if genre is not None else 1.0)
@@ -336,12 +383,14 @@ def choose_octave(
         confidence *= FOLD_DISCOUNT
         if decider in WEAK_EVIDENCE:
             confidence = min(confidence, WEAK_FOLD_CAP)
+    external = external_prior(evidence, raw)
     return Choice(
         bpm=round(candidate, 2),
         factor=factor,
         confidence=round(min(1.0, max(0.0, confidence)), 3),
         evidence=decider,
         margin=round(margin, 3),
+        external_bpm=None if external is None else round(2**external.centre, 2),
     )
 
 

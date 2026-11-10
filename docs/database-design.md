@@ -96,6 +96,7 @@ These tables contain the "knowledge" of the system, used by the tagger service t
 | `rules_festival_aliases` | The spellings a festival occurs under in titles and folder names. The longest matching alias wins. | `festival_id`, `normalized_alias` |
 | `rules_festival_editions` | The date of one edition. Optional -- without it a set is still labelled, only its date is left alone. | `festival_id`, `year` |
 | `rules_podcasts` | One row per radio show or podcast series, curated white/black/unknown; only `white` is ever tagged. | `id`, `normalized_name`, `state` |
+| `getsongbpm_lookups` | GetSongBPM's tempo per song, keyed on a SHA-1 of the normalised first artist and title: asked once by the bpm-analyzer while a key is set, a miss again after 90 days. The octave choice reads `bpm` as a prior. See [docs/designs/getsongbpm-prior/technical.md](designs/getsongbpm-prior/technical.md). | `lookup_key`, `status`, `bpm`, `fetched_at` |
 | `radio_stations` | One row per live station from outside MuMa, kept in Beheer. A device plays `stream_url` directly. No seed adds a station, so a new database has none. | `slug`, `name`, `stream_url`, `sort_order`, `enabled` |
 | `rules_podcast_aliases` | The spellings one show occurs under, so every variant matches the same name. The longest matching alias wins. | `podcast_id`, `normalized_alias` |
 | `rules_genre_backlog` | (Legacy) Migrated into `rules_genres` as state `unknown`; no longer read by the tagger. | `genre` |

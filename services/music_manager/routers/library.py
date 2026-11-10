@@ -367,13 +367,22 @@ def _effective_bpm(cursor, track_id: int) -> EffectiveBpm | None:
 def _bpm_fields(found: EffectiveBpm | None) -> dict:
     """The BPM fields of a track details answer; all None without a BPM."""
     if found is None:
-        return {'bpm': None, 'bpm_source': None, 'bpm_confidence': None, 'bpm_approximate': None, 'bpm_folded': None}
+        return {
+            'bpm': None,
+            'bpm_source': None,
+            'bpm_confidence': None,
+            'bpm_approximate': None,
+            'bpm_folded': None,
+            'bpm_external_source': None,
+        }
     return {
         'bpm': found.bpm,
         'bpm_source': found.source,
         'bpm_confidence': found.confidence,
         'bpm_approximate': found.approximate,
         'bpm_folded': found.folded,
+        # `getsongbpm` when GetSongBPM's tempo helped choose the octave: the sheet credits it.
+        'bpm_external_source': found.external_source,
     }
 
 

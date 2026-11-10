@@ -61,10 +61,10 @@ correct a track by hand: halve it, double it, or type the tempo.
 
 ## Open Questions / Not Yet Decided
 
-- **External lookups.** GetSongBPM (free key, attribution) covers mainstream pop well and could be a
-  strong prior for tracks without a label or artist prior; Deezer's `bpm` is always 0, Beatport has
-  no public API, Spotify's audio features are closed to new apps and AcousticBrainz is gone. Left
-  for a follow-up (GitLab issue #152), behind an optional `getsongbpm_api_key`.
+- **External lookups.** GetSongBPM (free key, attribution) is a prior for mainstream tracks without a
+  label or artist prior: [getsongbpm-prior](../getsongbpm-prior/functional.md), issue #152. Deezer's
+  `bpm` is always 0, Beatport has no public API, Spotify's audio features are closed to new apps and
+  AcousticBrainz is gone.
 - **A folder prior.** Soundcloud and YouTube files sit in a folder per uploader, which is often a
   better tempo predictor than the credited artist; not built, measured first (issue #153).
 - **Genre-less uptempo in Soundcloud.** Without a label, artist or clearly fast pulse such a track is

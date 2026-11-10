@@ -36,7 +36,19 @@ ONLY_ON_PRODUCTION: dict[str, str] = {}
 # Lines a fresh database has and production does not, each with its reason: a declaration the
 # next deploy's reconcile adds, or one a script in tools/ adds.
 _NEW_STATIONS_TABLE = 'radio_stations is new (issue #213): the reconcile adds it at the next release'
+_NEW_GETSONGBPM = 'the GetSongBPM prior is new (issue #152): the reconcile adds it at the next release'
 ONLY_ON_FRESH: dict[str, str] = {
+    'C\tgetsongbpm_lookups\tartist\tvarchar(255)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tbpm\tdecimal(5,2)\tYES\tNULL\t\t<none>': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tfetched_at\tdatetime\tNO\t<none>\t\t<none>': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tlookup_key\tchar(40)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tsong_id\tvarchar(64)\tYES\tNULL\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tsong_url\tvarchar(512)\tYES\tNULL\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    "C\tgetsongbpm_lookups\tstatus\tenum('ok','not_found')\tNO\t<none>\t\tutf8mb4_general_ci": _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\ttitle\tvarchar(255)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'I\tgetsongbpm_lookups\tPRIMARY\t1\tlookup_key\tBTREE': _NEW_GETSONGBPM,
+    'T\tgetsongbpm_lookups\tInnoDB\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'C\tlibrary_track_bpm\texternal_bpm\tdecimal(5,2)\tYES\tNULL\t\t<none>': _NEW_GETSONGBPM,
     'C\tradio_stations\tcreated_at\ttimestamp\tNO\tcurrent_timestamp()\t\t<none>': _NEW_STATIONS_TABLE,
     'C\tradio_stations\tenabled\ttinyint(1)\tNO\t1\t\t<none>': _NEW_STATIONS_TABLE,
     'C\tradio_stations\tid\tint(11)\tNO\t<none>\tauto_increment\t<none>': _NEW_STATIONS_TABLE,

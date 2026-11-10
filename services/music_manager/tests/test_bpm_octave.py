@@ -186,3 +186,49 @@ def test_band_prior_puts_the_band_edges_at_one_sigma():
 )
 def test_root_of(path, root):
     assert octave.root_of(path) == root
+
+
+# ----------------------------------------------------------------------------- GetSongBPM (issue #152)
+
+
+def _listed(bpm):
+    """A GetSongBPM tempo as the evidence carries it."""
+    return Prior.around(bpm, octave.EXTERNAL_SPREAD)
+
+
+def test_a_listed_tempo_makes_the_hazes_fold_reliable():
+    evidence = Evidence(root='Hitzone', genre_priors=GENRES, external=_listed(128.0))
+    choice = choose_octave(64.0, 1.0, evidence, Scores(0.5693, None, 0.4739))
+    assert (choice.bpm, choice.evidence, choice.external_bpm) == (128.0, octave.EVIDENCE_EXTERNAL, 128.0)
+    assert choice.confidence >= 0.75
+
+
+def test_a_listed_half_time_keeps_a_ballad_at_its_measured_octave():
+    evidence = Evidence(root='Spotify', genre_priors=GENRES, external=_listed(72.0))
+    choice = choose_octave(144.4, 0.9, evidence)
+    assert choice.bpm == pytest.approx(72.2)
+    assert choice.evidence == octave.EVIDENCE_EXTERNAL
+
+
+def test_a_listed_tempo_near_no_octave_is_another_recording_and_ignored():
+    evidence = Evidence(root='Hitzone', genre_priors=GENRES, external=_listed(100.0))
+    with_it = choose_octave(64.0, 1.0, evidence, Scores(0.5693, None, 0.4739))
+    without = choose_octave(64.0, 1.0, Evidence(root='Hitzone', genre_priors=GENRES), Scores(0.5693, None, 0.4739))
+    assert with_it == without
+    assert with_it.external_bpm is None
+
+
+def test_a_listed_fast_tempo_vouches_for_a_doubling_above_the_limit():
+    """Without it a genre-less 107 never doubles to 214; with GetSongBPM saying 214 it may."""
+    plain = choose_octave(107.0, 0.9, Evidence(root='Spotify'))
+    assert plain.bpm == 107.0
+    listed = choose_octave(107.0, 0.9, Evidence(root='Spotify', external=_listed(214.0)))
+    assert listed.bpm == 214.0
+
+
+def test_weak_priors_means_a_mainstream_path_without_label_or_artist_prior():
+    assert octave.weak_priors(Evidence(root='Hitzone'))
+    assert octave.weak_priors(Evidence(root='top 100', artist=Prior.around(120, 0.2, 2)))  # too thin
+    assert not octave.weak_priors(Evidence(root='Soundcloud'))
+    assert not octave.weak_priors(Evidence(root='Lidarr', artist=Prior.around(120, 0.2, 40)))
+    assert not octave.weak_priors(Evidence(root='Spotify', label=GENOSHA_RECORDS))

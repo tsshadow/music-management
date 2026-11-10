@@ -36,6 +36,11 @@ a failure due for a retry); then measurements from before bug report 140 that la
 and whose octave is in doubt (above 200, below 70, folded, or an ambiguous choice); then every
 other measurement without comb scores. Only the first tier is ever urgent.
 
+When the `getsongbpm_api_key` setting holds a key, every `getsongbpm.PASS_SECONDS` a lookup pass
+asks GetSongBPM for the tempo of up to `getsongbpm.PASS_BUDGET` mainstream tracks whose octave has
+no label or artist prior (issue #152), and those tracks' octaves are chosen again at once with
+the listed tempo as one more prior. Without a key nothing is asked and no cached tempo is used.
+
 Resumable by construction: the queue is whatever has no current row, so a restart, a pause or a
 crash simply continues. Settings are re-read from music-manager's config file every round
 (`read_settings`), so Management > Configuration → BPM takes effect without a restart. Progress goes to a
@@ -62,7 +67,7 @@ from typing import Any
 
 import numpy as np
 
-from services.music_manager.bpm import effective_table, estimator, octave, refold
+from services.music_manager.bpm import effective_table, estimator, getsongbpm, octave, refold
 from services.music_manager.bpm import priors as priors_module
 
 logger = logging.getLogger('music-manager.bpm')
@@ -102,6 +107,8 @@ SETTINGS: tuple[tuple[str, str, Any], ...] = (
     ('bpm_analysis_max_minutes', 'integer', 15),
     # Not an analysis setting, but it decides the stored effective confidence (effective.py).
     ('bpm_reliable_confidence', 'integer', 75),
+    # A secret: never logged. Empty switches the GetSongBPM prior off (issue #152).
+    ('getsongbpm_api_key', 'string', ''),
 )
 _BOUNDS = {
     'bpm_analysis_workers': (1, 8),
@@ -201,8 +208,9 @@ UPSERT_SQL = """
     INSERT INTO library_track_bpm
         (track_uid, status, bpm, raw_bpm, confidence, method, octave_corrected,
          file_mtime, file_size, attempts, error, analyzed_at,
-         raw_confidence, strength, half_score, double_score, fold_evidence, fold_margin, fold_version)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+         raw_confidence, strength, half_score, double_score, fold_evidence, fold_margin, fold_version,
+         external_bpm)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON DUPLICATE KEY UPDATE
         attempts = IF(VALUES(status) = 'failed' AND status = 'failed', attempts + 1, 1),
         status = VALUES(status),
@@ -221,7 +229,8 @@ UPSERT_SQL = """
         double_score = VALUES(double_score),
         fold_evidence = VALUES(fold_evidence),
         fold_margin = VALUES(fold_margin),
-        fold_version = VALUES(fold_version)
+        fold_version = VALUES(fold_version),
+        external_bpm = VALUES(external_bpm)
 """
 
 
@@ -298,9 +307,25 @@ class BpmStore:
         """Recompute, store and return the tempo priors."""
         return priors_module.recompute(self._connect_fn, now)
 
-    def refold(self, priors: priors_module.Priors, reliable_confidence: float) -> refold.RefoldResult:
-        """Choose every stored measurement's octave again and write what changed."""
-        return refold.refold(self._connect_fn, priors, reliable=reliable_confidence)
+    def refold(
+        self,
+        priors: priors_module.Priors,
+        reliable_confidence: float,
+        external: Mapping[str, float] | None = None,
+        track_ids: list[int] | None = None,
+    ) -> refold.RefoldResult:
+        """Choose every (or the given tracks') stored octave again and write what changed."""
+        return refold.refold(
+            self._connect_fn, priors, track_ids=track_ids, reliable=reliable_confidence, external=external
+        )
+
+    def external_tempos(self) -> dict[str, float]:
+        """The cached GetSongBPM tempos by lookup key."""
+        return getsongbpm.load_tempos(self._connect_fn)
+
+    def getsongbpm_pass(self, priors: priors_module.Priors, api_key: str, now: datetime) -> getsongbpm.PassResult:
+        """One GetSongBPM lookup pass over the weak-prior mainstream tracks."""
+        return getsongbpm.lookup_pass(self._connect_fn, priors, api_key, now)
 
     def sync_effective(self, track_ids: list[int] | None, reliable_confidence: float) -> effective_table.SyncResult:
         """Sync `library_track_effective_bpm`, for every track (None) or the given ones."""
@@ -390,7 +415,7 @@ def to_row(job: dict, result: dict, evidence: octave.Evidence | None, now: datet
     if not result.get('ok'):
         return (
             job['track_uid'], 'failed', None, None, None, estimator.METHOD, 0, *common, result.get('error'), now,
-            None, None, None, None, None, None, None,
+            None, None, None, None, None, None, None, None,
         )  # fmt: skip
     scores = octave.Scores(result.get('strength'), result.get('half_score'), result.get('double_score'))
     raw_confidence = float(result['confidence'])
@@ -413,6 +438,7 @@ def to_row(job: dict, result: dict, evidence: octave.Evidence | None, now: datet
         choice.evidence,
         round(choice.margin, 3),
         octave.FOLD_VERSION,
+        choice.external_bpm,
     )
 
 
@@ -504,6 +530,11 @@ class Worker:
         #: The tempo priors the octave choice uses; loaded on the first tick (`_maintain_priors`).
         self.priors = priors_module.Priors()
         self._next_priors = 0.0
+        #: GetSongBPM tempos by lookup key; empty while no key is set (issue #152).
+        self.external: dict[str, float] = {}
+        self._external_on = False
+        self._external_key = ''
+        self._next_lookup = 0.0
 
     def _executor(self, workers: int) -> Executor:
         """The pool, recreated when the configured size changed."""
@@ -544,7 +575,7 @@ class Worker:
 
     def _evidence(self, job: dict, row: dict | None) -> octave.Evidence:
         """The octave evidence of one job: its EVIDENCE_SQL row and path, read with the priors."""
-        return refold.evidence_from(row or {}, self.priors, file_path=job.get('file_path'))
+        return refold.evidence_from(row or {}, self.priors, file_path=job.get('file_path'), external=self.external)
 
     def _maintain_priors(self, config: dict) -> None:
         """At start and every PRIORS_SECONDS: recompute the priors when a day old, then refold all.
@@ -564,8 +595,9 @@ class Worker:
                 age = 0.0
             else:
                 self.priors = self.store.load_priors()
+            self.external = self.store.external_tempos() if self._external_on else {}
             reliable = config.get('bpm_reliable_confidence', 75) / 100.0
-            result = self.store.refold(self.priors, reliable)
+            result = self.store.refold(self.priors, reliable, self.external)
         except Exception:  # pylint: disable=broad-except  # the analysis carries on with the old priors
             logger.exception('bpm: recomputing the priors or refolding failed')
             self._next_priors = now + IDLE_SECONDS
@@ -581,6 +613,54 @@ class Worker:
         if result.written:
             # The refold changed stored tempos: bring the effective table along now.
             self._next_full_sync = 0.0
+
+    def _switch_external(self, config: dict) -> None:
+        """Follow the GetSongBPM key: switching it on or off refolds everything on the next tick.
+
+        A changed key also ends the wait after a refused one.
+        """
+        key = str(config.get('getsongbpm_api_key') or '').strip()
+        if key != self._external_key:
+            self._external_key = key
+            self._next_lookup = 0.0
+        on = bool(key)
+        if on != self._external_on:
+            self._external_on = on
+            self._next_priors = 0.0
+            if not on:
+                self.external = {}
+
+    def _external_lookups(self, config: dict) -> None:
+        """Every getsongbpm.PASS_SECONDS while a key is set: one lookup pass, then refold what it found.
+
+        A failure is logged and retried after the next interval; the analysis carries on either way.
+        """
+        now = self.clock()
+        if not self._external_on or now < self._next_lookup:
+            return
+        self._next_lookup = now + getsongbpm.PASS_SECONDS
+        try:
+            found = self.store.getsongbpm_pass(self.priors, self._external_key, self.now())
+            if found.stopped == getsongbpm.KeyRejected.__name__:
+                # A refused key is asked again after a day, or at once when someone changes it.
+                self._next_lookup = now + getsongbpm.KEY_REJECTED_WAIT_SECONDS
+            if found.tempos:
+                self.external.update(found.tempos)
+                reliable = config.get('bpm_reliable_confidence', 75) / 100.0
+                self.store.refold(self.priors, reliable, self.external, track_ids=found.track_ids)
+        except Exception:  # pylint: disable=broad-except  # an optional source never stops the analysis
+            logger.exception('bpm: the GetSongBPM lookup pass failed')
+            return
+        if found.asked:
+            logger.info(
+                'bpm: asked GetSongBPM about %d songs: %d found, %d unknown%s',
+                found.asked,
+                found.found,
+                found.not_found,
+                f' (stopped: {found.stopped})' if found.stopped else '',
+            )
+        if found.track_ids:
+            self._sync_effective(config, found.track_ids)
 
     def _sync_effective(self, config: dict, track_ids: list[int] | None = None) -> None:
         """Sync the effective-BPM table: in full when due (`track_ids` None), else for those tracks.
@@ -631,12 +711,14 @@ class Worker:
     def tick(self) -> float:
         """One step of the loop; returns how long to wait before the next."""
         config = self.settings()
+        self._switch_external(config)
         self._maintain_priors(config)
         self._sync_effective(config)
         if not config['bpm_analysis_enabled'] or config['bpm_analysis_paused']:
             self.progress.state = 'disabled' if not config['bpm_analysis_enabled'] else 'paused'
             self.status(self.progress, config)
             return OFF_SECONDS
+        self._external_lookups(config)
         handled = self.run_round(config)
         self.progress.state = 'running' if handled else 'idle'
         self._summary(config, force=not handled and self.progress.remaining != 0)

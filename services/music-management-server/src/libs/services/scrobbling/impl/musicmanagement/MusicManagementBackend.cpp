@@ -13,9 +13,7 @@
 #include <Wt/Json/Value.h>
 #include <Wt/WDateTime.h>
 
-#include "core/IConfig.hpp"
 #include "core/ILogger.hpp"
-#include "core/Service.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
@@ -24,42 +22,14 @@
 #include "database/objects/Track.hpp"
 #include "database/objects/TrackArtistLink.hpp"
 #include "database/objects/User.hpp"
+#include "services/mumaoutbox/IMumaOutboxRelay.hpp"
 
 namespace lms::scrobbling::musicManagement
 {
-    namespace
-    {
-        // NOTE: "music-management-url" already includes the "/api" prefix
-        // (see UserSynchronizer.cpp / MusicManagementPasswordService.cpp, which
-        // append "/users/" and "/auth/login" directly onto it). The real route
-        // is "/api/scrobble/event", so only "/scrobble/event" must be appended here.
-        std::unique_ptr<core::http::IClient> createConfiguredClient(boost::asio::io_context& ioContext)
-        {
-            const std::string apiUrl{ std::string{ core::Service<core::IConfig>::get()->getString("music-management-url", "") } + "/scrobble/event" };
-            LMS_LOG(SCROBBLING, INFO, "MusicManagement scrobbling backend started with API: " << apiUrl);
-            return core::http::createClient(ioContext, apiUrl);
-        }
-    } // namespace
-
-    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db)
-        : MusicManagementBackend{ ioContext, db, createConfiguredClient(ioContext), std::string{ core::Service<core::IConfig>::get()->getString("music-management-api-key", "") } }
-    {
-    }
-
-    MusicManagementBackend::MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey, ListenOutboxSettings settings)
+    MusicManagementBackend::MusicManagementBackend(db::IDb& db, mumaOutbox::IMumaOutboxRelay* relay)
         : _db{ db }
+        , _relay{ relay }
     {
-        if (!client)
-            return;
-
-        _relay = std::make_shared<ListenOutboxRelay>(ioContext, db, std::move(client), std::move(apiKey), settings);
-        _relay->start();
-    }
-
-    MusicManagementBackend::~MusicManagementBackend()
-    {
-        if (_relay)
-            _relay->stop();
     }
 
     void MusicManagementBackend::listenStarted(const Listen& listen)
@@ -145,6 +115,6 @@ namespace lms::scrobbling::musicManagement
         // Written to the outbox before anything is sent, on this thread, and delivered from the
         // io_context. The body is fixed here, start time included, so every retry is the same
         // listen to music-manager.
-        _relay->enqueue(jsonBody);
+        _relay->enqueueListen(jsonBody);
     }
 } // namespace lms::scrobbling::musicManagement

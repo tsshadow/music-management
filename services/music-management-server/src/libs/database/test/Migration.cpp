@@ -454,7 +454,7 @@ VALUES
         EXPECT_EQ(loginNameIndexCount(), 0);
         {
             auto transaction{ session.createReadTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 128);
             EXPECT_EQ(User::getCount(session), 3U);
         }
 
@@ -490,7 +490,7 @@ VALUES
         EXPECT_EQ(outboxCount(), 1);
         {
             auto transaction{ session.createWriteTransaction() };
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 128);
             session.execute("DELETE FROM muma_listen_outbox");
         }
 
@@ -515,7 +515,7 @@ VALUES
         {
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('track') WHERE name = 'bpm'").resultValue(), 1);
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 128);
         }
 
         // migrateFromV126: the release artwork fingerprint exists, empty on the rows that were
@@ -536,7 +536,33 @@ VALUES
             auto transaction{ session.createReadTransaction() };
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM pragma_table_info('scan_settings') WHERE name = 'release_artwork_rules'").resultValue(), 1);
             EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM scan_settings WHERE release_artwork_rules <> 'v1-recorded'").resultValue(), 0);
-            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 127);
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 128);
+        }
+
+        // migrateFromV127: the rating outbox exists with its unique (username, object_type,
+        // object_id) index, and a second run -- on a database that already holds a waiting
+        // rating change -- neither fails nor touches it.
+        const auto ratingOutboxCount{ [&] {
+            auto transaction{ session.createReadTransaction() };
+            return session.getDboSession()->query<int>("SELECT COUNT(*) FROM muma_rating_outbox").resultValue();
+        } };
+        EXPECT_EQ(ratingOutboxCount(), 0);
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'muma_rating_outbox_item_idx' AND sql LIKE 'CREATE UNIQUE INDEX%'").resultValue(), 1);
+        }
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("INSERT INTO muma_rating_outbox (username, object_type, object_id, payload, created) VALUES ('user', 'track', '12', '{}', 1700000000)");
+            session.execute("UPDATE version_info SET db_version = 127");
+        }
+        EXPECT_NO_THROW(db.getTLSSession().migrateSchemaIfNeeded());
+        EXPECT_EQ(ratingOutboxCount(), 1);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            EXPECT_EQ(session.getDboSession()->query<int>("SELECT db_version FROM version_info").resultValue(), 128);
+            EXPECT_ANY_THROW(session.execute("INSERT INTO muma_rating_outbox (username, object_type, object_id, payload, created) VALUES ('user', 'track', '12', '{}', 1700000001)"));
+            session.execute("DELETE FROM muma_rating_outbox");
         }
 
         // Now perform some dummy finds to ensure all fields are correctly mapped

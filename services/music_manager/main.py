@@ -270,7 +270,8 @@ def health(response: Response, x_api_key: str | None = Header(None)):
     `threads` is True per loop when its thread is alive and its heartbeat -- the
     last completed tick -- is younger than that loop's staleness window;
     `heartbeats` carries the detail behind each verdict. `lms_listen_outbox` says, per
-    LMS, how many listens it still holds for us and since when; it never affects `status`.
+    LMS, how many listens it still holds for us and since when, and `lms_rating_outbox` the same
+    for rating changes; neither affects `status`.
     `schema` is 'failed' when the start-up create pass (db_init.ensure_tables_exist) failed, so
     tables may be missing; that turns `status` red until a restart creates them.
     """
@@ -302,6 +303,7 @@ def health(response: Response, x_api_key: str | None = Header(None)):
         'threads': threads,
         'heartbeats': heartbeats,
         'lms_listen_outbox': _lms_listen_outbox_status(),
+        'lms_rating_outbox': _lms_rating_outbox_status(),
         # The bpm-analyzer container's own report; informational, never affects `status`
         # (services/music_manager/bpm/status.py says why).
         'bpm_analysis': bpm_analysis,
@@ -318,6 +320,19 @@ def _lms_listen_outbox_status() -> list[dict] | None:
         return lms_listen_backfill.outbox_status()
     except Exception:  # pylint: disable=broad-except  # a status field must not break the health check
         logger.debug('lms listen outbox status unavailable', exc_info=True)
+        return None
+
+
+def _lms_rating_outbox_status() -> list[dict] | None:
+    """The rating changes each LMS still has to relay to us; None when unreadable.
+
+    Informational, like `_lms_listen_outbox_status`: a change waits there during every restart of
+    this service, and LMS drops what it has to with its own WARNING (docs/designs/lms-rating-outbox/).
+    """
+    try:
+        return lms_listen_backfill.outbox_status(table=lms_listen_backfill.RATING_OUTBOX_TABLE)
+    except Exception:  # pylint: disable=broad-except  # a status field must not break the health check
+        logger.debug('lms rating outbox status unavailable', exc_info=True)
         return None
 
 

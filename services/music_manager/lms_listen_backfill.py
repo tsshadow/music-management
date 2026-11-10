@@ -11,7 +11,7 @@ reconcile's classification (`scrobble_reconcile.backfill`) over a bounded recent
 few minutes and inserts the `insertable` LMS-only listens under source `lms-backfill`, with LMS's
 start time, where the `(username, listened_at, track_id)` key makes a repeat a no-op.
 
-`outbox_status()` reads that outbox, read-only, for `/health`.
+`outbox_status()` reads that outbox, and LMS's rating outbox, read-only, for `/health`.
 
 It never applies `shifted`: restoring times moved by bug 039 stays a manual, admin-triggered
 repair (`POST /api/scrobble/reconcile/lms`), as does inserting the historical backlog older than
@@ -103,24 +103,39 @@ def _open_servers() -> list:
 
 
 #: LMS's outbox of listens still to be relayed (LMS database version 125 and later).
-OUTBOX_STATUS_SQL = 'SELECT COUNT(*), MIN(created) FROM muma_listen_outbox'
+LISTEN_OUTBOX_TABLE = 'muma_listen_outbox'
+#: LMS's outbox of rating changes still to be relayed (LMS database version 128 and later).
+RATING_OUTBOX_TABLE = 'muma_rating_outbox'
+
+#: The one query per outbox table. A fixed map, so no table name from a caller reaches the SQL.
+OUTBOX_STATUS_SQL = {
+    LISTEN_OUTBOX_TABLE: f'SELECT COUNT(*), MIN(created) FROM {LISTEN_OUTBOX_TABLE}',
+    RATING_OUTBOX_TABLE: f'SELECT COUNT(*), MIN(created) FROM {RATING_OUTBOX_TABLE}',
+}
 
 
-def outbox_status(servers_factory: Callable[[], list] | None = None) -> list[dict[str, Any]]:
-    """Per LMS database: how many listens its outbox still holds for muma, and since when.
+def outbox_status(
+    servers_factory: Callable[[], list] | None = None, table: str = LISTEN_OUTBOX_TABLE
+) -> list[dict[str, Any]]:
+    """Per LMS database: how many rows one of its outboxes still holds for muma, and since when.
 
+    `table` is `muma_listen_outbox` (listens, LMS database version 125 and later) or
+    `muma_rating_outbox` (rating changes, version 128 and later); anything else is a ValueError.
     One entry per server, `{'server', 'count', 'oldest'}`: `oldest` is when the oldest waiting
-    listen was queued (ISO 8601, UTC), None when nothing waits. An LMS older than database version
-    125 has no outbox; its entry carries `count: None`. So does a database that could not be read,
-    with an `error`. Informational only: a listen waiting through a music-manager restart is the
-    outbox working, not a fault.
+    row was queued (ISO 8601, UTC), None when nothing waits. An LMS too old to have the table
+    gets `count: None`. So does a database that could not be read, with an `error`.
+    Informational only: a row waiting through a music-manager restart is the outbox working, not
+    a fault.
     """
+    sql = OUTBOX_STATUS_SQL.get(table)
+    if sql is None:
+        raise ValueError(f'not an LMS outbox table: {table!r}')
     servers = (servers_factory or _open_servers)()
     status = []
     for server_conn, server in servers:
         entry: dict[str, Any] = {'server': server, 'count': None, 'oldest': None}
         try:
-            count, oldest = server_conn.execute(OUTBOX_STATUS_SQL).fetchone()
+            count, oldest = server_conn.execute(sql).fetchone()
             entry['count'] = int(count)
             if oldest is not None:
                 entry['oldest'] = datetime.fromtimestamp(int(oldest), tz=UTC).isoformat()

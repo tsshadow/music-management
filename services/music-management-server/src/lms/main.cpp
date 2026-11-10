@@ -51,6 +51,7 @@
 #include "services/auth/IUserSynchronizer.hpp"
 #include "services/feedback/IFeedbackService.hpp"
 #include "services/jukebox//IJukeboxService.hpp"
+#include "services/mumaoutbox/IMumaOutboxRelay.hpp"
 #include "services/podcast/IPodcastService.hpp"
 #include "services/recommendation/IPlaylistGeneratorService.hpp"
 #include "services/recommendation/IRecommendationService.hpp"
@@ -637,8 +638,15 @@ namespace lms
                 artworkService->flushCache();
             });
 
+            // The relay of listens and ratings to music-manager, shared by the two services below.
+            // Created before them so it outlives both (core::Service destroys in reverse order),
+            // and started once both exist, so its resume line covers both outboxes
+            // (docs/designs/lms-rating-outbox/technical.md). Null without music-management-url.
+            const core::Service<mumaOutbox::IMumaOutboxRelay> mumaOutboxRelay{ mumaOutbox::createMumaOutboxRelay(ioContext, *database) };
             core::Service<feedback::IFeedbackService> feedbackService{ feedback::createFeedbackService(ioContext, *database) };
             core::Service<scrobbling::IScrobblingService> scrobblingService{ scrobbling::createScrobblingService(ioContext, *database) };
+            if (auto* relay{ core::Service<mumaOutbox::IMumaOutboxRelay>::get() })
+                relay->start();
 
             LMS_LOG(MAIN, INFO, "Stopping init web server...");
             server.stop();

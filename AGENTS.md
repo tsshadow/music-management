@@ -329,6 +329,11 @@ affects the status code, because /health is also music-manager's own container h
   music-manager restart. LMS delivers them in order with backoff, and it logs a `WARNING` for each
   one it drops (over 10,000 waiting, older than 14 days, or refused as malformed). See
   `docs/designs/lms-listen-outbox/`.
+- `lms_rating_outbox` is the same for rating changes (`muma_rating_outbox`, LMS db version 128+):
+  one row per user and item, so only the last change during an outage is sent. LMS sends both
+  outboxes through one relay, oldest first, and logs a `WARNING` naming the user and the item for
+  each rating it drops (same limits). `POST /api/rating/lms-event` answers 503 when its path lookup
+  gets no database connection, so LMS keeps the change. See `docs/designs/lms-rating-outbox/`.
 - A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
   503 with `Retry-After`, rather than waiting forever.
 

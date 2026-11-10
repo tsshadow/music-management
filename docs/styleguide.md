@@ -338,6 +338,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
   the BPM pill of the BPM browse list (`text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10
   text-muma-spotify-text`) reading "handmatig".
 
+- **Done** — GetSongBPM attribution (2026-11-10, issue #152, `docs/designs/getsongbpm-prior/`): when
+  GetSongBPM's tempo helped choose a measured BPM, the BPM row in the player's track details ends in a
+  plain muted link "via GetSongBPM" (`ml-1 text-[10px] text-muma-spotify-muted hover:text-white
+  hover:underline`) to getsongbpm.com, opened in the system browser like the source URL. No pill, no
+  icon: it credits a source, it is not a state of the track.
+
 - **Done** — Browse by BPM in Android Auto (2026-09-30, issue #140, `docs/designs/android-auto-bpm/`):
   no new style. One more text row ("BPM") in the Nummers tab's Bladeren group, after Lineups,
   leading to ten plain folder rows ("150 BPM", "210+ BPM") with the track count as the row's

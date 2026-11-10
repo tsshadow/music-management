@@ -23,11 +23,11 @@ import json
 import logging
 import random
 from collections import Counter
-from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from services.music_manager.bpm import octave
+from services.music_manager.bpm import getsongbpm, octave
 from services.music_manager.bpm.effective import GENRE_SEPARATOR, split_genres
 from services.music_manager.bpm.priors import HARD_GENRES, Priors
 
@@ -39,8 +39,9 @@ logger = logging.getLogger('music-manager.bpm')
 FOLD_INPUTS_SQL = f"""
     SELECT b.track_uid, t.id AS track_id, b.raw_bpm, b.raw_confidence, b.confidence,
            b.strength, b.half_score, b.double_score,
-           b.bpm, b.octave_corrected, b.fold_evidence, b.fold_margin, b.fold_version,
-           t.primary_artist_id,
+           b.bpm, b.octave_corrected, b.fold_evidence, b.fold_margin, b.fold_version, b.external_bpm,
+           t.primary_artist_id, t.title,
+           (SELECT a.name FROM library_artists a WHERE a.id = t.primary_artist_id) AS artist_name,
            (SELECT mf.file_path FROM library_media_files mf WHERE mf.track_id = t.id
             ORDER BY mf.id LIMIT 1) AS file_path,
            (SELECT GROUP_CONCAT(g.name SEPARATOR '{GENRE_SEPARATOR}') FROM library_track_genres tg
@@ -54,7 +55,8 @@ FOLD_INPUTS_SQL = f"""
 
 #: The evidence of tracks about to be measured (they may have no library_track_bpm row yet).
 EVIDENCE_SQL = f"""
-    SELECT t.id AS track_id, t.primary_artist_id,
+    SELECT t.id AS track_id, t.primary_artist_id, t.title,
+           (SELECT a.name FROM library_artists a WHERE a.id = t.primary_artist_id) AS artist_name,
            (SELECT GROUP_CONCAT(g.name SEPARATOR '{GENRE_SEPARATOR}') FROM library_track_genres tg
             JOIN rules_genres g ON g.id = tg.genre_id WHERE tg.track_id = t.id) AS genres,
            (SELECT GROUP_CONCAT(tl.label_id) FROM library_track_labels tl
@@ -67,7 +69,7 @@ EVIDENCE_SQL = f"""
 UPDATE_SQL = """
     UPDATE library_track_bpm
     SET bpm = %s, confidence = %s, raw_confidence = %s, octave_corrected = %s,
-        fold_evidence = %s, fold_margin = %s, fold_version = %s
+        fold_evidence = %s, fold_margin = %s, fold_version = %s, external_bpm = %s
     WHERE track_uid = %s AND raw_bpm <=> %s
 """
 
@@ -85,16 +87,27 @@ def _float(value: Any) -> float | None:
         return None
 
 
-def evidence_from(row: dict, priors: Priors, file_path: str | None = None) -> octave.Evidence:
-    """The octave evidence of one row shaped like FOLD_INPUTS_SQL / EVIDENCE_SQL."""
+def evidence_from(
+    row: dict,
+    priors: Priors,
+    file_path: str | None = None,
+    external: Mapping[str, float] | None = None,
+) -> octave.Evidence:
+    """The octave evidence of one row shaped like FOLD_INPUTS_SQL / EVIDENCE_SQL.
+
+    `external` maps a GetSongBPM lookup key to its cached tempo (issue #152); empty or None while
+    the GetSongBPM key is not set. It is only read for a track with weak priors.
+    """
     labels = [label for label in str(row.get('labels') or '').split(',') if label.strip()]
-    return octave.Evidence(
+    evidence = octave.Evidence(
         genres=split_genres(row.get('genres')),
         root=octave.root_of(file_path if file_path is not None else row.get('file_path')),
         label=priors.best_label(labels),
         artist=priors.for_artist(row.get('primary_artist_id')),
         genre_priors=priors.genre,
     )
+    prior = getsongbpm.evidence_prior(row, evidence, external or {})
+    return evidence if prior is None else replace(evidence, external=prior)
 
 
 def scores_from(row: dict) -> octave.Scores | None:
@@ -111,10 +124,10 @@ def raw_confidence_of(row: dict) -> float | None:
     return value if value is not None else _float(row.get('confidence'))
 
 
-def choose(row: dict, priors: Priors) -> octave.Choice:
+def choose(row: dict, priors: Priors, external: Mapping[str, float] | None = None) -> octave.Choice:
     """The octave choice for one FOLD_INPUTS_SQL row."""
     return octave.choose_octave(
-        float(row['raw_bpm']), raw_confidence_of(row), evidence_from(row, priors), scores_from(row)
+        float(row['raw_bpm']), raw_confidence_of(row), evidence_from(row, priors, external=external), scores_from(row)
     )
 
 
@@ -128,6 +141,7 @@ def _stored(row: dict) -> tuple:
         round(float(row['fold_margin']), 3) if row.get('fold_margin') is not None else None,
         row.get('fold_version'),
         row.get('raw_confidence') is not None,
+        round(float(row['external_bpm']), 2) if row.get('external_bpm') is not None else None,
     )
 
 
@@ -140,6 +154,7 @@ def _outcome(choice: octave.Choice) -> tuple:
         round(choice.margin, 3),
         octave.FOLD_VERSION,
         True,
+        choice.external_bpm,
     )
 
 
@@ -196,6 +211,7 @@ def compare(
     reliable: float = 0.75,
     sample: int = 0,
     seed: int = 140,
+    external: Mapping[str, float] | None = None,
 ) -> tuple[list[tuple], RefoldResult]:
     """(UPDATE_SQL rows for what changed, the tally) over FOLD_INPUTS_SQL `rows`."""
     result = RefoldResult()
@@ -204,7 +220,7 @@ def compare(
     rng = random.Random(seed)
     for row in rows:
         result.rows += 1
-        choice = choose(row, priors)
+        choice = choose(row, priors, external)
         before = _float(row.get('bpm'))
         soft = not any(g.lower() in hard for g in split_genres(row.get('genres')))
         result.above_200_before += bool(before and before > 200)
@@ -254,6 +270,7 @@ def compare(
                 choice.evidence,
                 round(choice.margin, 3),
                 octave.FOLD_VERSION,
+                choice.external_bpm,
                 row['track_uid'],
                 row['raw_bpm'],
             )
@@ -276,8 +293,12 @@ def refold(
     dry_run: bool = False,
     reliable: float = 0.75,
     sample: int = 0,
+    external: Mapping[str, float] | None = None,
 ) -> RefoldResult:
-    """Choose every (or the given tracks') octave again; write the changes unless `dry_run`."""
+    """Choose every (or the given tracks') octave again; write the changes unless `dry_run`.
+
+    `external` is the GetSongBPM tempo cache (`getsongbpm.load_tempos`), empty while it is off.
+    """
     ids = None if track_ids is None else sorted({int(i) for i in track_ids})
     if ids is not None and not ids:
         return RefoldResult()
@@ -288,7 +309,7 @@ def refold(
         cursor = _unbuffered_cursor(conn)
         try:
             cursor.execute(inputs_sql(ids), ids or [])
-            updates, result = compare(_stream(cursor), priors, reliable=reliable, sample=sample)
+            updates, result = compare(_stream(cursor), priors, reliable=reliable, sample=sample, external=external)
         finally:
             cursor.close()
     finally:

@@ -286,6 +286,16 @@ class TrackByPathTest(RouterTestCase):
         self.assertIn('library_track_bpm', sql)
         self.assertIn('t.id = %s', sql)
 
+    def test_a_measurement_weighed_on_getsongbpm_says_so(self):
+        """Issue #152: the sheet credits GetSongBPM only when its tempo helped choose the octave."""
+        inputs = {'track_id': 7, 'measured': 128.0, 'measured_confidence': 0.8, 'measured_folded': 1, 'genres': None}
+        self.cursor.fetchall.return_value = []
+        for external, expected in ((128.0, 'getsongbpm'), (None, None)):
+            with self.subTest(external=external):
+                self.answer(self.MEDIA, {**inputs, 'measured_external': external}, None, None, None, None)
+                body = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers).json()
+                self.assertEqual(body['bpm_external_source'], expected)
+
     def test_a_tag_is_folded_into_the_genre_band_and_marked_approximate(self):
         found = self._bpm_of({'track_id': 7, 'bpm_tag': 76.0, 'tempo': None, 'measured': None, 'genres': 'Hardstyle'})
         self.assertEqual(found['bpm'], 152.0)

@@ -353,6 +353,8 @@ need `rules.manage`.
   sheet (channels, source URL, ingestion tags, ML genre). Its BPM is the effective BPM resolved live by
   `bpm/effective.py` (issue #141): `bpm`, `bpm_source` (`measured`/`tag`/`analyzer`), `bpm_confidence`
   (`high`/`medium`/`low`), `bpm_approximate` and `bpm_folded`, all null when the track has no tempo.
+  `bpm_external_source` is `getsongbpm` when the tempo is a measurement whose octave was chosen with
+  GetSongBPM's listed tempo (issue #152), so the sheet can show the attribution link; else null.
   `404` for a file MuMa never scanned.
 - **POST `/api/library/tracks/{id}/redownload`**: fetches the track again from the archive's source URL
   and replaces the file in place, atomically (a failed download leaves the old file). The source is

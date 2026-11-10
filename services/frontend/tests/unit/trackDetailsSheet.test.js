@@ -363,6 +363,38 @@ describe("TrackDetailsSheet tempo correction", () => {
     expect(screen.getByTestId("tag-details").textContent).toContain("300");
   });
 
+  it("links GetSongBPM next to a tempo its listing helped, opened in the system browser", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: {
+        track_id: 7,
+        bpm: 128,
+        bpm_source: "measured",
+        bpm_external_source: "getsongbpm",
+        tags: {},
+      },
+    });
+    const platform = { system: { openUrl: vi.fn(async () => {}) } };
+    renderSheet({ track: track({ path: "Hitzone/a.mp3" }), platform });
+
+    const credit = await waitFor(() => screen.getByTestId("bpm-credit"));
+    expect(credit.getAttribute("href")).toBe("https://getsongbpm.com");
+    expect(credit.textContent).toContain("GetSongBPM");
+    await fireEvent.click(credit);
+    expect(platform.system.openUrl).toHaveBeenCalledWith("https://getsongbpm.com");
+  });
+
+  it("credits nobody on a plain measurement", async () => {
+    globalThis.__fetchTrackDetails.mockResolvedValue({
+      state: "ok",
+      details: { track_id: 7, bpm: 150, bpm_source: "measured", tags: {} },
+    });
+    renderSheet({ track: track({ path: "EPs/a.mp3" }) });
+
+    await waitFor(() => expect(screen.getByTestId("tag-details").textContent).toContain("150"));
+    expect(screen.queryByTestId("bpm-credit")).toBeNull();
+  });
+
   it("offers no correction without the permission", async () => {
     globalThis.__fetchTrackDetails.mockResolvedValue({
       state: "ok",

@@ -2434,6 +2434,10 @@
       "folded": "Doubled or halved into the genre's tempo",
       "manual": "Set by hand"
     },
+    "credit": {
+      "via": "via {name}",
+      "title": "The octave of this tempo was checked against {name}"
+    },
     "override": {
       "title": "Correct the tempo",
       "manualMarker": "manual",

@@ -3,6 +3,7 @@ import {
   fileName,
   folderOf,
   formatSummary,
+  GETSONGBPM_CREDIT,
   hasFileDetails,
   tagRows,
 } from "../../src/lib/trackFile.js";
@@ -128,6 +129,15 @@ describe("tagRows", () => {
     expect(coarse).toEqual([{ key: "bpm", value: "≈152" }]);
     const measured = tagRows({ bpm: 150.02, bpm_approximate: false }, {});
     expect(measured).toEqual([{ key: "bpm", value: "150" }]);
+  });
+
+  it("credits GetSongBPM only on a measurement its tempo helped (issue #152)", () => {
+    const weighed = { bpm: 128, bpm_source: "measured", bpm_external_source: "getsongbpm" };
+    expect(tagRows(weighed, {})).toEqual([{ key: "bpm", value: "128", credit: GETSONGBPM_CREDIT }]);
+    expect(GETSONGBPM_CREDIT.href).toBe("https://getsongbpm.com");
+    const manual = { ...weighed, bpm_source: "manual" };
+    expect(tagRows(manual, {})[0].credit).toBeUndefined();
+    expect(tagRows({ bpm: 128, bpm_source: "measured" }, {})[0].credit).toBeUndefined();
   });
 
   it("falls back to the tagged bpm and the LMS comment when MuMa has neither", () => {

@@ -77,6 +77,12 @@ class ResolveTest(unittest.TestCase):
         found = resolve(measured=100.0, measured_confidence=0.9, measured_folded=True, genres=['Hardstyle'])
         self.assertEqual((found.bpm, found.folded), (100.0, True))
 
+    def test_a_measurement_weighed_on_getsongbpm_names_it_and_a_manual_value_does_not(self):
+        """Issue #152: the attribution follows the measurement that used the listed tempo."""
+        self.assertEqual(resolve(measured=128.0, measured_external=128.0).external_source, 'getsongbpm')
+        self.assertIsNone(resolve(measured=128.0).external_source)
+        self.assertIsNone(resolve(manual=130.0, measured=128.0, measured_external=128.0).external_source)
+
     def test_the_tag_wins_over_the_analyzer(self):
         found = resolve(tag=152.0, tempo=161.5, genres=['Hardstyle'])
         self.assertEqual((found.bpm, found.source), (152.0, SOURCE_TAG))

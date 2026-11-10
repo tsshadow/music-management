@@ -160,6 +160,10 @@ The system is split into specialized services, each handling a specific part of 
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
   (docs/designs/bpm-tag-writeback/).
+- **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
+  analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
+  or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the
+  measurement; the track details then link getsongbpm.com (docs/designs/getsongbpm-prior/).
 
 ### 8. Live stations (`radio_stations`, `services/music_manager/routers/radio.py`)
 - **Purpose**: "Radio" in the interface is the list of broadcasters a curator keeps in Beheer. The

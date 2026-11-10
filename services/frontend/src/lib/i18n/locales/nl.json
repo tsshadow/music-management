@@ -2434,6 +2434,10 @@
       "folded": "Verdubbeld of gehalveerd naar het tempo van het genre",
       "manual": "Met de hand ingesteld"
     },
+    "credit": {
+      "via": "via {name}",
+      "title": "Het octaaf van dit tempo is gecontroleerd met {name}"
+    },
     "override": {
       "title": "Tempo corrigeren",
       "manualMarker": "handmatig",

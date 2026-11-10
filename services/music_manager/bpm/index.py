@@ -46,6 +46,7 @@ INPUTS_SQL = """
            MAX(m.bpm) AS measured,
            MAX(m.confidence) AS measured_confidence,
            MAX(m.octave_corrected) AS measured_folded,
+           MAX(m.external_bpm) AS measured_external,
            GROUP_CONCAT(DISTINCT g.name SEPARATOR '|') AS genres
     FROM library_tracks t
     LEFT JOIN library_track_audio_features af ON af.internal_track_id = t.id

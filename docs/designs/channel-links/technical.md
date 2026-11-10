@@ -336,7 +336,7 @@ change, no migration.
 
 ### Frontend
 
-- `src/lib/labelChannels.js`: `fetchLabelChannels` (session cache per label name),
+- `src/lib/labelChannels.js`: `fetchLinkedChannels("label", name)` (session cache per label name),
   `channelAlbumView` (Subsonic `search3`, albums only, exact case-insensitive name match -> `album:<id>`),
   `channelDestination` (album view, else `source_url` through `platform.system.openUrl`, else
   `search:<name>`). The album is resolved on tap, not on load: resolving every card up front would put
@@ -366,6 +366,43 @@ change, no migration.
     Links link, retries after an error, and shows the cached answer on a revisit;
     `DownloadersTab` starts on a requested sub-tab once. Playwright: the section at phone, tablet and
     desktop widths without widening the page, and the curator's link landing on Links.
+
+## The artist page and the label edit page (issue #126)
+
+Implements the section of the same name in [functional.md](functional.md).
+
+### API — additive
+
+`GET /api/channel-links/by-artist?name=<artist>` (API key). `library_artists.name` is unique, so the
+statement is the mirror of `by-label`: the artist by name -> `channels.artist_id`
+(`idx_channel_artist`) -> the same correlated count. Each row carries `label: {id, name} | null` where
+a `by-label` row carries `artist`. The two endpoints share `_linked_channels(query, name, other)`.
+Keyed on the name because the artist page's route (`/artist/<id>`) holds the LMS artist id; the page
+passes the name from `getArtist` (or its seed). No schema change. Unlink uses the existing
+`DELETE /channels/{id}/{kind}`.
+
+### Frontend
+
+- `labelChannels.js`: `fetchLinkedChannels(kind, name)` / `cachedLinkedChannels(kind, name)` (cache
+  per kind and name), `unlinkChannel(kind, name, channel)` (DELETE, then drops the row from the
+  cached answer so the label page does not show it on the way back).
+- `LabelChannels.svelte` takes `kind` (`label` | `artist`, default `label`) and `name` in place of
+  `label`, plus `canUnlink`, `onmessage` and `onerror` for the edit page.
+- `ArtistView.svelte` renders it with `kind="artist"` once `display.name` is known; `Dashboard`
+  passes it `canManage` and `onmanage` (Management > Downloaders > Links).
+- `LabelEdit.svelte` renders it with `canManage canUnlink` and the page's own message and error
+  lines. `Dashboard` now passes the edit page `onnavigate` and `onmanage`, which it did not have.
+- i18n: `labelChannels.noneArtist|unlink|unlinked|unlinkFailed` (nl, en).
+
+### Acceptance criteria (artist page, label edit page)
+
+22. `by-artist` returns an artist's channels busiest first with their label, `album` and
+    `source_url`, runs against MariaDB (`test_router_sql.py`), and returns `[]` for a blank or unknown
+    name; it needs an API key.
+23. Frontend (vitest): the section asks `by-artist` for `kind="artist"` and keeps the two caches
+    apart; the artist page asks by the artist's name; the label edit page opens a channel through
+    `onnavigate`, unlinks a channel (the card goes, the message line names it), and keeps the card
+    with the backend's reason when the unlink fails.
 
 ## Related Docs
 

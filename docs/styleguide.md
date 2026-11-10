@@ -338,6 +338,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
   the BPM pill of the BPM browse list (`text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10
   text-muma-spotify-text`) reading "handmatig".
 
+- **Done** — GetSongBPM attribution (2026-11-10, issue #152, `docs/designs/getsongbpm-prior/`): when
+  GetSongBPM's tempo helped choose a measured BPM, the BPM row in the player's track details ends in a
+  plain muted link "via GetSongBPM" (`ml-1 text-[10px] text-muma-spotify-muted hover:text-white
+  hover:underline`) to getsongbpm.com, opened in the system browser like the source URL. No pill, no
+  icon: it credits a source, it is not a state of the track.
+
 - **Done** — Browse by BPM in Android Auto (2026-09-30, issue #140, `docs/designs/android-auto-bpm/`):
   no new style. One more text row ("BPM") in the Nummers tab's Bladeren group, after Lineups,
   leading to ten plain folder rows ("150 BPM", "210+ BPM") with the track count as the row's
@@ -531,6 +537,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
   the track list. The curator's way to Links is a text button in the heading row (`text-xs
   font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
   menu.
+
+- **Done** (2026-11-10, issue #126) — The same section on the artist page (above the biography) and
+  on the label edit page. On the edit page every card gets a `w-10` unlink button on its right edge,
+  inside the card's background: lucide `X` at 16px in secondary text, hover white on
+  `bg-muma-spotify-hover`, labelled "<channel> ontkoppelen". It acts without a confirmation dialog,
+  as the `X` on a link chip in the Coverage table does, because linking again is one step; the card
+  dims while the request runs.
 
 - **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new

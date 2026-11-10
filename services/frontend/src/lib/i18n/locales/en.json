@@ -175,7 +175,11 @@
   "labelChannels": {
     "title": "Channels",
     "manage": "Manage links",
-    "none": "No channel is linked to this label yet."
+    "none": "No channel is linked to this label yet.",
+    "noneArtist": "No channel is linked to this artist yet.",
+    "unlink": "Unlink {channel}",
+    "unlinked": "{channel} unlinked.",
+    "unlinkFailed": "Could not unlink {channel}."
   },
   "equalizer": {
     "band": "{freq} band",
@@ -1673,6 +1677,7 @@
     "queueSaveFailed": "Could not save the playlist",
     "queueSaved": "Playlist saved",
     "ratingFailed": "Could not save your rating",
+    "ratingQueued": "Rating saved, it goes to the server once the server answers again",
     "region": "Notifications",
     "resumeAt": "Resuming at {time}",
     "resumeRestart": "Restart",
@@ -2428,6 +2433,10 @@
       "analyzer": "From the old analysis",
       "folded": "Doubled or halved into the genre's tempo",
       "manual": "Set by hand"
+    },
+    "credit": {
+      "via": "via {name}",
+      "title": "The octave of this tempo was checked against {name}"
     },
     "override": {
       "title": "Correct the tempo",

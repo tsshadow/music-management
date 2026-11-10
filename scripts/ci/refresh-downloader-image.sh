@@ -48,49 +48,17 @@ if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
     exit 1
 fi
 
-if [ -z "${PROD_ENV_FILE}" ]; then
-    echo "Error: PROD_ENV_FILE CI/CD variable is not set. See docs/self-hosting.md."
-    exit 1
-fi
-
 # shellcheck source=scripts/ci/docker-hub-session.sh
 . "$SCRIPT_DIR/docker-hub-session.sh"
+# shellcheck source=scripts/ci/release-image-names.sh
+. "$SCRIPT_DIR/release-image-names.sh"
+trap docker_hub_logout EXIT
 
-# Same materialization release:build-images does: the image names production
-# pulls live in the prod .env, and jobs do not share a filesystem. Written to a
-# private temp directory rather than the checkout, which is the build context
-# of every image below and outlives the job on the shell-executor runner.
-ENV_DIR="$(mktemp -d)"
-chmod 700 "$ENV_DIR"
-ROOT_ENV_FILE="$ENV_DIR/music-management.env"
-
-# cleanup_on_exit: end the Docker Hub session and remove the env file.
-cleanup_on_exit() {
-    docker_hub_logout
-    rm -rf "$ENV_DIR"
-}
-trap cleanup_on_exit EXIT
-
-(
-    umask 077
-    if [ -f "${PROD_ENV_FILE}" ]; then
-        cp "${PROD_ENV_FILE}" "$ROOT_ENV_FILE"
-    else
-        printf '%s\n' "${PROD_ENV_FILE}" > "$ROOT_ENV_FILE"
-    fi
-)
+# The same names release:build-images pushes: plain CI/CD variables or the
+# defaults in release-image-names.sh.
+resolve_release_image_names
 
 docker_hub_login
-
-set -a
-# shellcheck disable=SC1090,SC1091 # a per-run env file, path known only at runtime
-source "$ROOT_ENV_FILE"
-set +a
-DOCKER_USER="${DOCKER_USER:-$DOCKERHUB_USERNAME}"
-IMAGE_BASE="${IMAGE_BASE:-muma-base}"
-IMAGE_DOWNLOADER="${IMAGE_DOWNLOADER:-muma-downloader}"
-IMAGE_TELEGRAM="${IMAGE_TELEGRAM:-muma-telegram}"
-IMAGE_IMPORTER="${IMAGE_IMPORTER:-muma-importer}"
 
 REFRESH_TAG="refresh-$(date -u +%Y%m%d)"
 

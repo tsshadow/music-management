@@ -94,6 +94,7 @@ READ_ROUTES = [
     '/api/channel-links/channels?q=x',
     '/api/channel-links/targets?kind=label&q=x',
     '/api/channel-links/by-label?name=x',
+    '/api/channel-links/by-artist?name=x',
     '/api/config',
 ]
 

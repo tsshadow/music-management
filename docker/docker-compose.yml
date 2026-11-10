@@ -68,7 +68,7 @@ x-logging: &default-logging
 # the restart policy takes over) and opens a TCP connection to the database,
 # the one dependency every worker loop needs. It does not detect a loop that
 # hangs while the process lives; nothing short of a heartbeat would. What it
-# buys is that `docker ps` and scripts/ci/post-deploy-verify.sh see "unhealthy"
+# buys is that `docker ps` and the deploy's post-deploy check see "unhealthy"
 # for a worker that cannot reach MariaDB, instead of a green "Up".
 x-worker-healthcheck: &worker-healthcheck
   test: ["CMD", "python", "-c", "import os, socket; h, _, p = (os.environ.get('DB_HOST') or 'db').partition(':'); socket.create_connection((h, int(p or os.environ.get('DB_PORT') or 3306)), 5).close()"]
@@ -379,7 +379,7 @@ services:
   # services/music-management-server/docker-compose.yml ("lms" project: "lms"
   # + "reverse-proxy" services), which is why it joins this stack's
   # "music-management_db" network as an external network below. Both stacks
-  # are deployed together by the deploy (scripts/ci-deploy.sh).
+  # are deployed together by the production deploy (docs/designs/ops-split/).
   # See the operator's runbook for the full rationale and rollback procedure.
 
   # The following services are now integrated into music-manager:

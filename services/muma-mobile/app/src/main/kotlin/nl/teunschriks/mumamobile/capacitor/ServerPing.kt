@@ -43,3 +43,28 @@ suspend fun pingWithin(call: Call<SubsonicResponse>, timeoutMs: Long): PingOutco
         })
     }
 } ?: PingOutcome.Timeout
+
+/**
+ * One native check of the server, recorded in [ServerReachability.record].
+ *
+ * The web's start-up check and the Android Auto tree both run it, so each sees what the other
+ * found last (docs/designs/offline-followups/).
+ *
+ * @param networkUp a network with internet capability is up.
+ * @param ping a fresh `ping` call, or null when there is no server to ask (the hand-picked
+ *   offline library).
+ * @param timeoutMs how long to wait for an answer.
+ * @param nowMs the clock the answer is stamped with.
+ * @return the classified answer and the raw outcome behind it, for the log.
+ */
+suspend fun checkServerNow(
+    networkUp: Boolean,
+    ping: (() -> Call<SubsonicResponse>)?,
+    timeoutMs: Long = ServerReachability.DEFAULT_TIMEOUT_MS,
+    nowMs: () -> Long = System::currentTimeMillis,
+): Pair<Reachability, PingOutcome?> {
+    val outcome = ping?.let { pingWithin(it(), timeoutMs) }
+    val state = ServerReachability.classify(networkUp, outcome)
+    ServerReachability.record(state, nowMs())
+    return state to outcome
+}

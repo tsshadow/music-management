@@ -160,6 +160,10 @@ The system is split into specialized services, each handling a specific part of 
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
   (docs/designs/bpm-tag-writeback/).
+- **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
+  analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
+  or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the
+  measurement; the track details then link getsongbpm.com (docs/designs/getsongbpm-prior/).
 
 ### 8. Live stations (`radio_stations`, `services/music_manager/routers/radio.py`)
 - **Purpose**: "Radio" in the interface is the list of broadcasters a curator keeps in Beheer. The
@@ -291,7 +295,7 @@ Uptime Kuma monitor on that endpoint meaningful. nginx serves it to the internet
 `https://<domain>/health` (an exact-match `location` in `reverse-proxy.conf`), which is where Kuma
 checks it. Without a valid `X-API-Key` (the system key or a user's own) the body is `status` and
 `source_url` only; the full report needs the key. The status code follows the same rule either
-way, so Kuma and the container healthcheck need no key. `post-deploy-verify.sh` reads the version
+way, so Kuma and the container healthcheck need no key. muma-ops' `deploy/post-deploy-verify.sh` reads the version
 with the system key from the container's environment, and `tools/muma_mcp` sends its key
 (`MUMA_PROD_URL=https://<domain>` for `/health`, `MUMA_PROD_API_URL=https://<domain>/muma` for its
 `/api/...` calls).
@@ -387,6 +391,10 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
     - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
+      A rating that cannot reach the server (offline mode, server down) waits in a durable queue on the
+      phone (`RatingManager`, last rating per track wins) and goes out when the server answers again;
+      Android Auto browses the downloaded library while the last check found the server down
+      ([docs/designs/offline-followups/](docs/designs/offline-followups/technical.md)).
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 
@@ -418,15 +426,18 @@ To maintain high code quality, the system employs an automated test suite:
     - **Commit-msg Hook**: the versioned `scripts/hooks/commit-msg` refuses a commit whose author,
       committer or message has personal data, with the checks `public:history` runs on develop
       (`scripts/ci/public_guard.py message`). It prints the kind of finding, never the value.
-    - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
-      verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
-      `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the
-      `release/*` pipeline immediately if not. GitLab itself has no mechanism to enforce this (a file-type
-      variable being non-empty says nothing about a specific key inside it), so **this job's pass/fail result
-      is treated as a hard requirement by project convention, on par with any other required check in this
-      list** — a release is not "done" if this job was skipped, allowed to fail, or removed without a
-      replacement check covering the same secrets. Add new required keys to that script (and to
-      `docs/self-hosting.md`) whenever a new secret becomes load-bearing for production.
+    - **Required release secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
+      verifies that the CI/CD variables a release build needs are set (`DOCKERHUB_*`, `APK_HOSTER_URL`,
+      `SIGNING_STORE_FILE`, and `VITE_GOOGLE_CLIENT_ID` or `MUMA_GOOGLE_CLIENT_ID`), and that `DOCKER_USER`,
+      when set, equals `DOCKERHUB_USERNAME`. It fails the `release/*` pipeline immediately if not: a job
+      gated on a missing variable in `rules:` silently drops out instead of failing. **This job's pass/fail
+      result is treated as a hard requirement by project convention, on par with any other required check
+      in this list** — a release is not "done" if this job was skipped, allowed to fail, or removed without
+      a replacement check covering the same variables. This repository has no production variables: the
+      host, the SSH key and the env files belong to the operations repository that deploys a tag
+      (docs/designs/ops-split/), and its deploy checks the env files. The image names are plain CI/CD
+      variables with defaults (`scripts/ci/release-image-names.sh`). Add a new required variable to that
+      script (and to `docs/self-hosting.md`) whenever one becomes load-bearing for a release.
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).

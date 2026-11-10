@@ -1,5 +1,5 @@
 # LOCAL ONLY. scripts/dev.sh layers this on top of docker-compose.yml; production deploys
-# docker-compose.yml alone (scripts/ci-deploy.sh) and never reads this file. The containers
+# docker-compose.yml alone (scripts/deploy.sh) and never reads this file. The containers
 # below are the same ones docker-compose.yml defines, with an older, flat environment, so a
 # path or setting cited from here is not what production runs. Not valid on its own either:
 # every worker depends on `db`, which only docker-compose.yml defines.

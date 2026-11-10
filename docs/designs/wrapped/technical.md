@@ -278,8 +278,8 @@ environment but not the containers.
 Afterwards, two things that are not optional:
 
 1. **Full LMS rescan.** It keys its own library on paths, and every path just changed.
-2. **Update the `PROD_ENV_FILE` CI/CD variable.** Production's `.env` is rewritten from it on every
-   deploy (`scripts/ci-deploy.sh`), so without this the next deploy restores the old paths.
+2. **Update the production env file.** Production's `.env` is rewritten from it on every
+   deploy (the operations repository's `PROD_ENV_FILE`), so without this the next deploy restores the old paths.
 
 ## Related Docs
 

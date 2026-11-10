@@ -8,6 +8,7 @@ import browserDiagnostics, {
   CAPACITY,
 } from "../../src/lib/platform/browser/diagnostics.js";
 import browserSystem from "../../src/lib/platform/browser/system.js";
+import { createCapacitorStorage } from "../../src/lib/platform/capacitor/storage.js";
 import { credentials, mumaApiUrl } from "../../src/lib/store.js";
 
 describe("platform selection", () => {
@@ -133,6 +134,27 @@ describe("browser storage", () => {
 
   it("clearCache is a no-op that resolves", async () => {
     await expect(browserStorage.clearCache()).resolves.toBeUndefined();
+  });
+
+  it("has no rating queue: queueRating answers false", async () => {
+    expect(await browserStorage.queueRating("song-1", 4)).toBe(false);
+  });
+});
+
+describe("capacitor storage: the rating queue", () => {
+  it("hands the rating to the plugin and reports it queued", async () => {
+    const plugin = { queueRating: vi.fn(async () => ({ queued: true })) };
+    const storage = createCapacitorStorage(plugin);
+
+    expect(await storage.queueRating(12, 0)).toBe(true);
+    expect(plugin.queueRating).toHaveBeenCalledWith({ id: "12", rating: 0 });
+  });
+
+  it("answers false when the APK has no queue", async () => {
+    expect(await createCapacitorStorage({}).queueRating("12", 3)).toBe(false);
+    expect(
+      await createCapacitorStorage({ queueRating: vi.fn(async () => ({})) }).queueRating("12", 3),
+    ).toBe(false);
   });
 });
 

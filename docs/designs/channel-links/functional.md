@@ -201,8 +201,25 @@ proposals are confirmed.
 
 **A channel view showing its label or artist.** There is no channel page in the web interface; the
 only place a channel is shown is the Coverage table under Management > Downloaders, which already
-has the "Gekoppeld aan" column. An artist page listing *its* channels would be the mirror of this
-section and is issue #126 (with the label edit page and a per-channel filter).
+has the "Gekoppeld aan" column.
+
+## The artist page and the label edit page list their channels (issue #126)
+
+The same **Kanalen** section, in two more places. It behaves as on the label page in every row of
+the table above, except where this table says otherwise.
+
+| Situation | Observable outcome |
+|---|---|
+| An artist with linked channels | On the artist page, above the biography, the cards of the channels a curator linked to this artist, busiest first. |
+| An artist nothing is linked to, for a curator | The section with "Nog geen kanaal aan deze artiest gekoppeld." and **Koppelingen beheren**. |
+| The artist page before its name is known | No section. The page's address carries the player's artist number, which MuMa does not know, so the section waits for the artist's name and asks by name. |
+| The label edit page (Beheer > Curatie > label) | The section after the catalogue, always shown (only a curator reaches this page), with **Koppelingen beheren**. Tapping a card opens the channel's tracks, as on the label page. |
+| Unlink on the label edit page | Every card has an **x**. It removes the link at once, without a question, as the **x** in the Coverage table does: linking again is one step under Koppelingen. The card goes, the page's message line says "<channel> ontkoppeld.", and the next search does not propose the link again. The channel's files go back to the tagger, which takes the label off them. |
+| An unlink that fails | The card stays and the page's error line gives the reason. |
+
+Out of scope: filtering a label's track list by channel (the optional third item of the issue).
+Unlink is offered only on the label edit page, not on the artist page or the label page, which are
+pages for listening.
 
 ## Open Questions / Not Yet Decided
 

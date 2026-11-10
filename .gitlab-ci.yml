@@ -1324,7 +1324,7 @@ release:version-check:
 # the host pulls :latest, so pushing it here let a release's code start before
 # the deploy had migrated, or ship with no deploy at all. The deploy, which an
 # installation runs from the tag (docs/designs/ops-split/), moves :latest after
-# the backup and the migrations (scripts/ci/promote-release-images.sh).
+# the backup and the migrations (its promote-release-images.sh).
 release:build-images:
   stage: release
   timeout: 60m

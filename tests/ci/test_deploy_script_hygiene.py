@@ -21,7 +21,6 @@ import base64
 import contextlib
 import gzip
 import os
-import shutil
 import signal
 import stat
 import subprocess
@@ -34,8 +33,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_SH = REPO_ROOT / "scripts" / "deploy.sh"
 DEPLOY_STACK_SH = REPO_ROOT / "services" / "music-management-server" / "scripts" / "deploy-stack.sh"
-CI_DEPLOY_SH = REPO_ROOT / "scripts" / "ci-deploy.sh"
-PROD_SSH_SETUP_SH = REPO_ROOT / "scripts" / "ci" / "prod-ssh-setup.sh"
 DOCKER_HUB_SESSION_SH = REPO_ROOT / "scripts" / "ci" / "docker-hub-session.sh"
 BUILD_AND_PUSH_SH = REPO_ROOT / "scripts" / "ci" / "build-and-push-images.sh"
 REFRESH_SH = REPO_ROOT / "scripts" / "ci" / "refresh-downloader-image.sh"
@@ -113,21 +110,12 @@ def test_docker_login_happens_only_inside_a_throwaway_docker_config() -> None:
 
 
 @pytest.mark.parametrize("script", IMAGE_SCRIPTS, ids=lambda p: p.name)
-def test_image_scripts_log_out_and_keep_prod_env_out_of_the_checkout(script: Path) -> None:
+def test_image_scripts_log_out_and_write_no_env_file_into_the_checkout(script: Path) -> None:
     text = _text(script)
     assert "docker_hub_login" in text
     assert "docker_hub_logout" in text
-    assert "trap cleanup_on_exit EXIT" in text
-    assert '"$PROJECT_ROOT/.env"' not in text.split("PUSH_IMAGES=false: building")[0], (
-        "the prod .env must not be written into the checkout (the build context)"
-    )
-
-
-def test_ci_deploy_keeps_prod_env_out_of_the_checkout() -> None:
-    text = _text(CI_DEPLOY_SH)
-    assert '"$PROJECT_ROOT/.env"' not in text
-    assert "services/music-management-server/.env" not in text
-    assert "trap cleanup_deploy EXIT" in text
+    assert "trap cleanup_on_exit EXIT" in text or "trap docker_hub_logout EXIT" in text
+    assert '"$PROJECT_ROOT/.env"' not in text, "no .env may be written into the checkout (the build context)"
 
 
 def test_env_files_are_excluded_from_every_build_context() -> None:
@@ -145,12 +133,6 @@ def test_no_dockerfile_copies_an_env_file() -> None:
         for line in _text(path).splitlines():
             if line.strip().upper().startswith(("COPY", "ADD")):
                 assert ".env" not in line, f"{path.name}: {line}"
-
-
-def test_prod_ssh_setup_kills_its_agent() -> None:
-    text = _text(PROD_SSH_SETUP_SH)
-    assert "trap prod_ssh_teardown EXIT" in text
-    assert "ssh-add -t" in text
 
 
 # --- the .env parser ----------------------------------------------------------
@@ -514,47 +496,6 @@ def test_docker_hub_session_logs_in_privately_and_cleans_up(tmp_path: Path) -> N
     assert not (real_config / "config.json").exists()
 
 
-@pytest.mark.skipif(
-    not (shutil.which("ssh-agent") and shutil.which("ssh-keygen") and shutil.which("ssh-add")),
-    reason="needs OpenSSH client tools",
-)
-def test_prod_ssh_setup_agent_dies_with_the_sourcing_shell(tmp_path: Path) -> None:
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    keyscan = bin_dir / "ssh-keyscan"
-    keyscan.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    keyscan.chmod(0o755)
-    key = tmp_path / "id_test"
-    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
-    env = _env(
-        tmp_path,
-        bin_dir,
-        log_dir,
-        SSH_PRIVATE_KEY=str(key),
-        PROD_REMOTE_HOST="prod.example.org",
-        PROD_SSH_ACCEPT_NEW_HOST_KEY="true",
-    )
-    env["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '/usr/bin:/bin')}"
-    pid_file = tmp_path / "agent.pid"
-    script = 'set -e; . "$1"; echo "$SSH_AGENT_PID" > "$2"; ssh-add -l >/dev/null'
-    result = subprocess.run(
-        ["bash", "-c", script, "_", str(PROD_SSH_SETUP_SH), str(pid_file)],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-    pid = int(pid_file.read_text().strip())
-    # SIGTERM is asynchronous; give the agent a moment to act on it.
-    for _ in range(50):
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return
-        time.sleep(0.1)
-    pytest.fail(f"ssh-agent {pid} outlived the shell that sourced prod-ssh-setup.sh")
-
-
 # --- deploy order (bug report 050) ------------------------------------------
 #
 # The deploy used to recreate every container -- `db` included, with
@@ -753,37 +694,25 @@ def test_image_tag_reaches_compose_and_is_validated(tmp_path: Path) -> None:
     assert "not a valid image tag" in bad.stdout
 
 
-def test_ci_deploy_promotes_images_through_the_pre_up_hook() -> None:
-    text = _text(CI_DEPLOY_SH)
-    assert 'DEPLOY_PRE_UP_HOOK="$SCRIPT_DIR/ci/promote-release-images.sh"' in text
-    assert "IMAGE_TAG" not in text.split("# 4. Deploy stack 1")[1].split("# 5.")[0].replace("(IMAGE_TAG unset)", ""), (
-        "the stack must keep pulling :latest so muma:refresh-downloader still reaches it"
-    )
-
-
 # --- image tags: :latest only moves inside the deploy ----------------------
+#
+# The deploy that moves :latest lives in the operations repository
+# (docs/designs/ops-split/). The build here pushes :VERSION and :rc only, under
+# names from plain CI/CD variables -- no production env file.
 
-PROMOTE_SH = REPO_ROOT / "scripts" / "ci" / "promote-release-images.sh"
-MUMA_IMAGE_ENV = (
-    "DOCKER_USER=tester\nIMAGE_CORE=music-manager\nIMAGE_BASE=muma-base\nIMAGE_DOWNLOADER=muma-downloader\n"
-    "IMAGE_TELEGRAM=muma-telegram\nIMAGE_IMPORTER=muma-importer\nIMAGE_TOOLS=muma-tools\n"
-)
-LMS_IMAGE_ENV = "IMAGE_NAME=tester/lms\nDOCKER_USER=someone-else\n"
+
+def _run_release_build(tmp_path: Path, **extra: str) -> tuple[subprocess.CompletedProcess, Path]:
+    """Run build-and-push-images.sh in push mode against the fake docker."""
+    bin_dir, log_dir = _fake_bin(tmp_path)
+    env = _env(
+        tmp_path, bin_dir, log_dir, PUSH_IMAGES="true", DOCKERHUB_USERNAME="tester", DOCKERHUB_TOKEN="tok", **extra
+    )
+    result = subprocess.run(["bash", str(BUILD_AND_PUSH_SH)], capture_output=True, text=True, env=env, check=False)
+    return result, log_dir
 
 
 def test_the_release_image_build_never_pushes_latest_or_stable(tmp_path: Path) -> None:
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    env = _env(
-        tmp_path,
-        bin_dir,
-        log_dir,
-        PUSH_IMAGES="true",
-        DOCKERHUB_USERNAME="tester",
-        DOCKERHUB_TOKEN="tok",
-        PROD_ENV_FILE=MUMA_IMAGE_ENV,
-        PROD_ENV_FILE_LMS=LMS_IMAGE_ENV,
-    )
-    result = subprocess.run(["bash", str(BUILD_AND_PUSH_SH)], capture_output=True, text=True, env=env, check=False)
+    result, log_dir = _run_release_build(tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     pushes = (log_dir / "pushes").read_text(encoding="utf-8").splitlines()
     version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -795,147 +724,40 @@ def test_the_release_image_build_never_pushes_latest_or_stable(tmp_path: Path) -
     assert f"push tester/lms:{version}" in pushes, "lms needs the release version as promotion source"
 
 
-@pytest.mark.parametrize("buildx", ["1", "0"], ids=["imagetools", "pull-tag-push"])
-def test_promotion_moves_latest_and_stable_from_the_release_version(tmp_path: Path, buildx: str) -> None:
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    muma_env = tmp_path / "muma.env"
-    muma_env.write_text(MUMA_IMAGE_ENV, encoding="utf-8")
-    lms_env = tmp_path / "lms.env"
-    lms_env.write_text(LMS_IMAGE_ENV, encoding="utf-8")
-    env = _env(
-        tmp_path,
-        bin_dir,
-        log_dir,
-        FAKE_BUILDX=buildx,
-        DOCKERHUB_USERNAME="tester",
-        DOCKERHUB_TOKEN="tok",
-        PROMOTE_ENV_FILE=str(muma_env),
-        PROMOTE_LMS_ENV_FILE=str(lms_env),
-        VERSION="9.9.9-from-the-environment",
+def test_the_release_build_takes_image_names_from_plain_ci_variables(tmp_path: Path) -> None:
+    """DOCKER_USER and IMAGE_* override the defaults; no PROD_ENV_FILE is read."""
+    result, log_dir = _run_release_build(
+        tmp_path, DOCKER_USER="registry-user", IMAGE_CORE="core", IMAGE_LMS="player", PROD_ENV_FILE="DOCKER_USER=x\n"
     )
-    result = subprocess.run(["bash", str(PROMOTE_SH)], capture_output=True, text=True, env=env, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-
-    expected = [
-        f"tester/{image}:{version} -> tester/{image}:latest"
-        for image in ["muma-base", "muma-downloader", "muma-telegram", "muma-importer", "muma-tools", "music-manager"]
-    ]
-    expected += [f"tester/lms:{version} -> tester/lms:latest", f"tester/lms:{version} -> tester/lms:stable"]
-    if buildx == "1":
-        assert (log_dir / "promotions").read_text(encoding="utf-8").splitlines() == expected
-    else:
-        pushes = (log_dir / "pushes").read_text(encoding="utf-8").splitlines()
-        assert pushes == ["push " + line.split(" -> ")[1] for line in expected]
-    assert "tok" not in (log_dir / "docker-argv").read_text(encoding="utf-8")
+    pushes = (log_dir / "pushes").read_text(encoding="utf-8").splitlines()
+    assert f"push registry-user/core:{version}" in pushes
+    assert f"push registry-user/player:{version}" in pushes
+    assert f"push registry-user/muma-base:{version}" in pushes
+    assert not [p for p in pushes if p.startswith("push x/")], "PROD_ENV_FILE must not name anything"
 
 
-def test_promotion_refuses_to_run_without_credentials(tmp_path: Path) -> None:
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    env = _env(tmp_path, bin_dir, log_dir, DOCKERHUB_USERNAME="", DOCKERHUB_TOKEN="")
-    result = subprocess.run(["bash", str(PROMOTE_SH)], capture_output=True, text=True, env=env, check=False)
-    assert result.returncode != 0
-    assert not (log_dir / "pushes").exists()
-
-
-# --- post-deploy verification -----------------------------------------------
-
-VERIFY_SH = REPO_ROOT / "scripts" / "ci" / "post-deploy-verify.sh"
-
-FAKE_VERIFY_DOCKER = r"""#!/bin/bash
-# Answers the two docker calls post-deploy-verify.sh makes. The first two
-# `inspect` calls are the first sample (one per stack); later calls report
-# FAKE_LATER_RESTARTS for music-manager.
-case "$1" in
-    ps) for arg; do case "$arg" in *project=*) echo "id-${arg##*project=}" ;; esac; done ;;
-    exec) printf 'X-API-Key: %s\n' "${FAKE_SYSTEM_KEY-the-key}" ;;
-    inspect)
-        project="${3%%|*}"
-        n=$(( $(cat "$FAKE_LOG/inspect-count" 2>/dev/null || echo 0) + 1 ))
-        echo "$n" > "$FAKE_LOG/inspect-count"
-        restarts=2
-        [ "$n" -gt 2 ] && restarts="${FAKE_LATER_RESTARTS:-2}"
-        if [ "$project" = music-management ]; then
-            echo "music-management|/music-manager|unless-stopped|running|${FAKE_HEALTH:-healthy}|$restarts"
-            echo "music-management|/muma-soundcloud-fetcher|no|exited|none|0"
-        else
-            echo "lms|/lms|unless-stopped|running|healthy|0"
-        fi
-        ;;
-esac
-"""
-
-# /health shows the version only with a key (issue #218), so the fake does too: the header
-# arrives on stdin (`-H @-`), as post-deploy-verify.sh sends it.
-FAKE_CURL = r"""#!/bin/bash
-case "$*" in
-    *ping.view*) printf '%s' "${FAKE_LMS_CODE:-400}" ;;
-    *health*)
-        header="$(cat)"
-        if [ "$header" = "X-API-Key: the-key" ]; then
-            printf '{"status":"ok","version":"%s"}' "${FAKE_VERSION:-1.2.3}"
-        else
-            printf '{"status":"ok"}'
-        fi
-        ;;
-esac
-"""
-
-
-def _run_verify(tmp_path: Path, **extra: str) -> subprocess.CompletedProcess:
-    """Run post-deploy-verify.sh against a fake production host."""
-    bin_dir, log_dir = _fake_bin(tmp_path)
-    for name, body in {"docker": FAKE_VERIFY_DOCKER, "curl": FAKE_CURL}.items():
-        (bin_dir / name).write_text(body, encoding="utf-8")
-        (bin_dir / name).chmod(0o755)
-    env = _env(
-        tmp_path,
-        bin_dir,
-        log_dir,
-        VERIFY_SETTLE_SECONDS="0",
-        VERIFY_POLL_SECONDS="0",
-        VERIFY_TIMEOUT_SECONDS="2",
-        **extra,
-    )
-    return subprocess.run(["bash", str(VERIFY_SH), "1.2.3"], capture_output=True, text=True, env=env, check=False)
-
-
-def test_verify_passes_when_everything_stays_up(tmp_path: Path) -> None:
-    result = _run_verify(tmp_path)
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        ({"MUMA_GOOGLE_CLIENT_ID": "app-id"}, "VITE_GOOGLE_CLIENT_ID=app-id"),
+        ({"MUMA_GOOGLE_CLIENT_ID": "app-id", "VITE_GOOGLE_CLIENT_ID": "web-id"}, "VITE_GOOGLE_CLIENT_ID=web-id"),
+    ],
+    ids=["app-id-fallback", "own-variable-wins"],
+)
+def test_the_player_google_client_id_is_a_plain_ci_variable(tmp_path: Path, extra: dict, expected: str) -> None:
+    result, log_dir = _run_release_build(tmp_path, **extra)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Post-deploy verification passed" in result.stdout
+    assert expected in (log_dir / "docker-argv").read_text(encoding="utf-8")
 
 
-def test_verify_fails_when_a_container_restarts_between_samples(tmp_path: Path) -> None:
-    """Both samples see "running"; only the restart count gives the crash loop away."""
-    result = _run_verify(tmp_path, FAKE_LATER_RESTARTS="3")
-    assert result.returncode != 0
-    assert "music-manager restarted 1 time(s)" in result.stdout
+def test_the_release_build_reads_no_production_env_file() -> None:
+    for script in IMAGE_SCRIPTS:
+        assert "PROD_ENV_FILE" not in _text(script), script.name
 
 
-def test_verify_fails_on_an_unhealthy_container(tmp_path: Path) -> None:
-    result = _run_verify(tmp_path, FAKE_HEALTH="unhealthy")
-    assert result.returncode != 0
-    assert "healthcheck is failing" in result.stdout
-
-
-def test_verify_fails_when_lms_does_not_answer(tmp_path: Path) -> None:
-    result = _run_verify(tmp_path, FAKE_LMS_CODE="000")
-    assert result.returncode != 0
-    assert "Subsonic ping" in result.stdout
-
-
-def test_verify_reads_the_version_with_the_containers_system_key(tmp_path: Path) -> None:
-    """Without the key /health answers no version, and the deploy cannot be confirmed."""
-    result = _run_verify(tmp_path, FAKE_SYSTEM_KEY="")
-    assert result.returncode != 0
-    assert "version is ''" in result.stdout
-
-
-def test_verify_fails_on_the_wrong_version(tmp_path: Path) -> None:
-    result = _run_verify(tmp_path, FAKE_VERSION="1.2.2")
-    assert result.returncode != 0
-    assert "not the 1.2.3 this pipeline deployed" in result.stdout
+# --- a stalled pre-deploy dump ---------------------------------------------
 
 
 def test_a_stalled_fallback_dump_is_stopped_and_refuses_the_deploy(tmp_path: Path) -> None:

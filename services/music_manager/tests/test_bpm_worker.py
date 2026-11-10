@@ -16,7 +16,7 @@ import pytest
 np = pytest.importorskip('numpy')
 
 from services.common import config_store  # noqa: E402
-from services.music_manager.bpm import estimator, octave, refold, status, worker  # noqa: E402
+from services.music_manager.bpm import estimator, getsongbpm, octave, refold, status, worker  # noqa: E402
 from services.music_manager.bpm.priors import Priors  # noqa: E402
 
 NOW = datetime(2026, 9, 29, 12, 0, 0)
@@ -235,8 +235,13 @@ class ToRowTest(unittest.TestCase):
         row = worker.to_row(job(1), {'ok': False, 'error': 'DecodeError: x'}, None, NOW)
         self.assertEqual(
             row,
-            ('uid-1', 'failed', None, None, None, estimator.METHOD, 0, 1.5, 1000, 'DecodeError: x', NOW) + (None,) * 7,
+            ('uid-1', 'failed', None, None, None, estimator.METHOD, 0, 1.5, 1000, 'DecodeError: x', NOW) + (None,) * 8,
         )
+
+    def test_a_getsongbpm_tempo_the_choice_weighed_is_stored(self):
+        evidence = octave.Evidence(root='Hitzone', external=octave.Prior.around(128.0, octave.EXTERNAL_SPREAD))
+        row = worker.to_row(job(1), {'ok': True, 'raw': 64.0, 'confidence': 0.9}, evidence, NOW)
+        self.assertEqual((row[2], row[15], row[-1]), (128.0, octave.EVIDENCE_EXTERNAL, 128.0))
 
     def test_the_row_fills_every_upsert_placeholder(self):
         row = worker.to_row(job(1), {'ok': True, 'raw': 128.0, 'confidence': 0.8}, None, NOW)
@@ -253,6 +258,8 @@ class FakeStore:
         #: (track_ids or None for a full sync, reliable_confidence) per effective-BPM sync.
         self.synced = []
         self.sync_error = None
+        self.refold_calls = []
+        self.lookups = []
 
     def sync_effective(self, track_ids, reliable_confidence):
         self.synced.append((track_ids, reliable_confidence))
@@ -288,9 +295,24 @@ class FakeStore:
         self.recomputes += 1
         return Priors()
 
-    def refold(self, _priors, _reliable):
+    def refold(self, _priors, _reliable, external=None, track_ids=None):
         self.refolds += 1
+        self.refold_calls.append((dict(external or {}), track_ids))
         return refold.RefoldResult(rows=10, written=self.refold_written)
+
+    #: GetSongBPM (issue #152): the cached tempos, and what a lookup pass returns.
+    tempos: dict = {}
+    lookup_result = None
+    lookup_error = None
+
+    def external_tempos(self):
+        return dict(self.tempos)
+
+    def getsongbpm_pass(self, _priors, api_key, _now):
+        self.lookups.append(api_key)
+        if self.lookup_error:
+            raise self.lookup_error
+        return self.lookup_result or getsongbpm.PassResult()
 
     def save(self, rows):
         self.saved.extend(rows)
@@ -505,3 +527,74 @@ class StatusTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GetSongBpmWorkerTest(unittest.TestCase):
+    """Issue #152: the lookup pass runs only with a key, on its own cadence, and refolds what it found."""
+
+    make = WorkerTest.make
+
+    def test_without_a_key_nothing_is_asked_and_no_tempo_is_used(self):
+        store = FakeStore([])
+        store.tempos = {'k': 128.0}
+        w, _, _ = self.make(store, config())
+        w.tick()
+        self.assertEqual(store.lookups, [])
+        self.assertEqual(store.refold_calls, [({}, None)])
+
+    def test_with_a_key_the_cache_is_used_and_a_pass_refolds_the_found_tracks(self):
+        store = FakeStore([])
+        store.tempos = {'old': 120.0}
+        store.lookup_result = getsongbpm.PassResult(asked=2, found=1, not_found=1, track_ids=[7], tempos={'new': 128.0})
+        now = [1000.0]
+        w, _, _ = self.make(store, config(getsongbpm_api_key='secret'), clock=lambda: now[0])
+        w.tick()
+        self.assertEqual(store.lookups, ['secret'])
+        self.assertEqual(store.refold_calls, [({'old': 120.0}, None), ({'old': 120.0, 'new': 128.0}, [7])])
+        self.assertIn(([7], 0.75), store.synced)
+        now[0] += getsongbpm.PASS_SECONDS - 1
+        w.tick()
+        self.assertEqual(len(store.lookups), 1)
+        now[0] += 2
+        w.tick()
+        self.assertEqual(len(store.lookups), 2)
+
+    def test_no_pass_while_the_analysis_is_paused(self):
+        store = FakeStore([])
+        w, _, _ = self.make(store, config(getsongbpm_api_key='secret', bpm_analysis_paused=True))
+        w.tick()
+        self.assertEqual(store.lookups, [])
+
+    def test_switching_the_key_off_refolds_without_the_tempos(self):
+        store = FakeStore([])
+        store.tempos = {'k': 128.0}
+        settings = config(getsongbpm_api_key='secret', bpm_analysis_paused=True)
+        now = [1000.0]
+        w, _, _ = self.make(store, settings, clock=lambda: now[0])
+        w.tick()
+        settings['getsongbpm_api_key'] = ''
+        now[0] += 60
+        w.tick()
+        self.assertEqual([external for external, _ in store.refold_calls], [{'k': 128.0}, {}])
+
+    def test_a_refused_key_waits_a_day_unless_the_key_changes(self):
+        store = FakeStore([])
+        store.lookup_result = getsongbpm.PassResult(stopped='KeyRejected')
+        settings = config(getsongbpm_api_key='wrong')
+        now = [1000.0]
+        w, _, _ = self.make(store, settings, clock=lambda: now[0])
+        w.tick()
+        now[0] += getsongbpm.PASS_SECONDS + 1
+        w.tick()
+        self.assertEqual(store.lookups, ['wrong'])
+        settings['getsongbpm_api_key'] = 'right'
+        w.tick()
+        self.assertEqual(store.lookups, ['wrong', 'right'])
+
+    def test_a_failed_pass_does_not_stop_the_round(self):
+        store = FakeStore([job(1)])
+        store.lookup_error = RuntimeError('database down')
+        w, _, _ = self.make(store, config(getsongbpm_api_key='secret'))
+        with self.assertLogs('music-manager.bpm', level='ERROR'):
+            self.assertEqual(w.tick(), 0.0)
+        self.assertEqual([row[0] for row in store.saved], ['uid-1'])

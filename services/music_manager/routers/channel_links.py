@@ -161,6 +161,17 @@ LABEL_CHANNELS_QUERY = """
     WHERE l.name = %s
     ORDER BY track_count DESC, c.name
 """
+# An artist page's channels (issue #126), the mirror: the artist by its unique name, its channels
+# through idx_channel_artist. The page's route carries the LMS artist id, so the name is the key.
+ARTIST_CHANNELS_QUERY = """
+    SELECT c.id, c.platform, c.name, c.label_id, l.name AS label_name,
+           (SELECT COUNT(*) FROM library_track_channels tc WHERE tc.channel_id = c.id) AS track_count
+    FROM library_artists a
+    JOIN channels c ON c.artist_id = a.id
+    LEFT JOIN library_labels l ON l.id = c.label_id
+    WHERE a.name = %s
+    ORDER BY track_count DESC, c.name
+"""
 # The followed accounts, a few hundred short names per platform, for the channel's source link.
 ACCOUNTS_QUERY = {
     'soundcloud': 'SELECT name FROM downloads_soundcloud_accounts',
@@ -509,21 +520,20 @@ def _account_indexes(cursor, platforms: set[str]) -> dict[str, dict[str, list[st
     return indexes
 
 
-@router.get('/by-label')
-def channels_of_label(name: str = '', _auth: dict = Depends(verify_api_key)):
-    """The channels linked to a label, busiest first, for the label page (issue #122).
+def _linked_channels(query: str, name: str, other: str) -> list[dict[str, Any]]:
+    """The channels one query lists for a label or artist name, each with its other link.
 
-    Read-only and keyed on the label's name, because that is what the label page's route
-    carries. A name the library has no label for, or a label nothing is linked to, is an empty
-    list -- not a 404: every label page asks, and almost none has a channel.
+    `other` is the kind the rows carry besides the one asked for (`artist` on a label page,
+    `label` on an artist page), read from the `<other>_id` / `<other>_name` columns. A blank
+    name asks nothing.
     """
-    label = name.strip()
-    if not label:
+    key = name.strip()
+    if not key:
         return []
     conn = _connect()
     try:
         with conn.cursor() as cursor:
-            rows = _rows(cursor, LABEL_CHANNELS_QUERY, (label,))
+            rows = _rows(cursor, query, (key,))
             accounts = _account_indexes(cursor, {row['platform'] for row in rows}) if rows else {}
     finally:
         conn.close()
@@ -533,9 +543,31 @@ def channels_of_label(name: str = '', _auth: dict = Depends(verify_api_key)):
             'platform': row['platform'],
             'name': row['name'],
             'track_count': int(row['track_count'] or 0),
-            'artist': {'id': row['artist_id'], 'name': row['artist_name']} if row['artist_id'] else None,
+            other: {'id': row[f'{other}_id'], 'name': row[f'{other}_name']} if row[f'{other}_id'] else None,
             'album': links.channel_album(row['platform'], row['name']),
             'source_url': links.source_url(row['platform'], row['name'], accounts.get(row['platform'], {})),
         }
         for row in rows
     ]
+
+
+@router.get('/by-label')
+def channels_of_label(name: str = '', _auth: dict = Depends(verify_api_key)):
+    """The channels linked to a label, busiest first, for the label page (issue #122).
+
+    Read-only and keyed on the label's name, because that is what the label page's route
+    carries. A name the library has no label for, or a label nothing is linked to, is an empty
+    list -- not a 404: every label page asks, and almost none has a channel.
+    """
+    return _linked_channels(LABEL_CHANNELS_QUERY, name, links.ARTIST)
+
+
+@router.get('/by-artist')
+def channels_of_artist(name: str = '', _auth: dict = Depends(verify_api_key)):
+    """The channels linked to an artist, busiest first, for the artist page (issue #126).
+
+    Keyed on the artist's name: the artist page's route carries the LMS artist id, which means
+    nothing in MuMa's tables, while `library_artists.name` is unique. An unknown name, or an
+    artist nothing is linked to, is an empty list, as on the label page.
+    """
+    return _linked_channels(ARTIST_CHANNELS_QUERY, name, links.LABEL)

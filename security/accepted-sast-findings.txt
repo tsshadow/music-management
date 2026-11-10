@@ -54,7 +54,7 @@ b75c3d49465f1c12 x1  # detected-private-key services/muma-mobile/core/subsonic-a
 # deployment's own settings rather than from a request. In
 # reverse-proxy.conf the variable is what makes nginx re-resolve the
 # container name on every connection (see the resolver comment there).
-215b7d436a195271 x5  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
+215b7d436a195271 x6  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
 # --- dynamic-urllib-use-detected --- [r:0ebd60e6]
 # scripts/backfill_artwork.py has two sites: one builds a SoundCloud API URL

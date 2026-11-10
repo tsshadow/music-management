@@ -264,6 +264,25 @@ CREATE TABLE IF NOT EXISTS `feeds_snapshot` (
     # when the pair is no longer met. `fingerprint` is what both folders looked like when they were
     # last compared. The extractor files single files here too (bug report 119): `target` is empty or
     # a detail, and `reason` says why the file was left in place; NULL for a folder pair.
+    # GetSongBPM's tempo per song (issue #152), keyed on a SHA-256 of the normalised first artist and
+    # title: asked once, a miss again after 90 days. Read by the bpm-analyzer's octave choice.
+    # See services/music_manager/bpm/getsongbpm.py.
+    (
+        'getsongbpm_lookups',
+        """
+CREATE TABLE IF NOT EXISTS `getsongbpm_lookups` (
+  `lookup_key` char(64) NOT NULL,
+  `artist` varchar(255) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `status` enum('ok','not_found') NOT NULL,
+  `bpm` decimal(5,2) DEFAULT NULL,
+  `song_id` varchar(64) DEFAULT NULL,
+  `song_url` varchar(512) DEFAULT NULL,
+  `fetched_at` datetime NOT NULL,
+  PRIMARY KEY (`lookup_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+""",
+    ),
     (
         'importer_conflicts',
         """
@@ -413,6 +432,7 @@ CREATE TABLE IF NOT EXISTS `library_track_bpm` (
   `fold_evidence` varchar(16) DEFAULT NULL,
   `fold_margin` float DEFAULT NULL,
   `fold_version` smallint(6) DEFAULT NULL,
+  `external_bpm` decimal(5,2) DEFAULT NULL,
   PRIMARY KEY (`track_uid`),
   KEY `idx_track_bpm_bpm` (`bpm`),
   KEY `idx_track_bpm_status` (`status`,`analyzed_at`)

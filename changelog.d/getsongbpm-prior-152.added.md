@@ -1,0 +1,5 @@
+- **GetSongBPM as an octave prior for mainstream tracks (issue #152).** A Hitzone, Spotify, Lidarr or Top 100 track without a label or artist prior had only the general priors to pick 64, 128 or 256 on, so its fold was capped at 0.6 and never written into the file. With a key in Beheer > Config > BPM (`getsongbpm_api_key`, a secret, empty is off), the bpm-analyzer asks getsongbpm.com for those tracks' tempo, 50 songs per 10 minutes, keeps every answer in `getsongbpm_lookups` (a miss is asked again after 90 days), and weighs the listed tempo as a prior on the octave. The measurement stays the number. A listed tempo that matches no octave of the measurement is ignored. `library_track_bpm.external_bpm` records the tempo that was weighed, and `/api/library/tracks/by-path` returns `bpm_external_source`, which makes the player's track details show "via GetSongBPM", a link to getsongbpm.com.
+
+<!-- release notes -->
+
+- With a GetSongBPM key in the configuration, mainstream tracks get the right octave of their tempo (128 instead of 64) from getsongbpm.com, credited in the track details.

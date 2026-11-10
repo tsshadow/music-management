@@ -39,6 +39,8 @@ SOURCE_MANUAL = 'manual'
 SOURCE_MEASURED = 'measured'
 SOURCE_TAG = 'tag'
 SOURCE_ANALYZER = 'analyzer'
+#: Not a source of the tempo itself: the prior a measurement's octave was weighed on (issue #152).
+SOURCE_GETSONGBPM = 'getsongbpm'
 
 CONFIDENCE_HIGH = 'high'
 CONFIDENCE_MEDIUM = 'medium'
@@ -63,6 +65,9 @@ class EffectiveBpm:
     confidence: str
     folded: bool
     approximate: bool
+    #: `getsongbpm` when a measurement's octave was weighed on GetSongBPM's tempo (issue #152):
+    #: the details sheet then shows the attribution link GetSongBPM asks for.
+    external_source: str | None = None
 
 
 def _valid(value) -> float | None:
@@ -82,6 +87,7 @@ def resolve(
     measured: float | None = None,
     measured_confidence: float | None = None,
     measured_folded: bool = False,
+    measured_external: float | None = None,
     tag: float | None = None,
     tempo: float | None = None,
     genres: Iterable[str] = (),
@@ -106,6 +112,7 @@ def resolve(
             confidence=CONFIDENCE_HIGH if sure else CONFIDENCE_MEDIUM,
             folded=bool(measured_folded),
             approximate=False,
+            external_source=SOURCE_GETSONGBPM if measured_external is not None else None,
         )
 
     tag_value = _valid(tag)
@@ -152,6 +159,7 @@ def resolve_row(row: dict, reliable_confidence: float = DEFAULT_RELIABLE_CONFIDE
         measured=row.get('measured'),
         measured_confidence=row.get('measured_confidence'),
         measured_folded=bool(row.get('measured_folded')),
+        measured_external=row.get('measured_external'),
         tag=row.get('bpm_tag'),
         tempo=row.get('tempo'),
         genres=split_genres(row.get('genres')),

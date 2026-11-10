@@ -102,6 +102,12 @@ function joined(tags, name) {
   return text || null;
 }
 
+/** The attribution GetSongBPM asks for when its tempo helped choose a track's octave. */
+export const GETSONGBPM_CREDIT = Object.freeze({
+  name: "GetSongBPM",
+  href: "https://getsongbpm.com",
+});
+
 /**
  * The named rows the sheet shows under "Tags", from MuMa's answer to
  * `/api/library/tracks/by-path` plus the LMS song object. Each row is
@@ -118,7 +124,7 @@ function joined(tags, name) {
  * @param {Object|null} details - MuMa's answer, or null when there was none.
  * @param {Object} track - The Subsonic song object.
  * @returns {Array<{key: string, value: string, href?: string, view?: string, raw?: boolean,
- *   manual?: boolean}>}
+ *   manual?: boolean, credit?: {name: string, href: string}}>}
  */
 export function tagRows(details, track) {
   const rows = [];
@@ -143,11 +149,19 @@ export function tagRows(details, track) {
   const bpm = effective || (tagged ? String(Math.round(Number(tagged)) || tagged) : "");
   if (bpm) {
     // A tempo set by hand says so, so nobody takes it for a measurement.
-    rows.push(
+    const row =
       effective && details?.bpm_source === "manual"
         ? { key: "bpm", value: bpm, manual: true }
-        : { key: "bpm", value: bpm },
-    );
+        : { key: "bpm", value: bpm };
+    // GetSongBPM's terms ask for a link wherever its data helped (issue #152).
+    if (
+      effective &&
+      details?.bpm_source === "measured" &&
+      details?.bpm_external_source === "getsongbpm"
+    ) {
+      row.credit = GETSONGBPM_CREDIT;
+    }
+    rows.push(row);
   }
   const named = [
     ["catalogNumber", "catalognumber"],

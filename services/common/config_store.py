@@ -335,6 +335,18 @@ def _bpm_fields() -> list[ConfigField]:
             description='Only measurements with at least this estimator confidence (0-100) are written into '
             'the files. 75 is where the evaluation found 89% of the measurements right.',
         ),
+        # Read by the bpm-analyzer (worker.py SETTINGS) like the analysis settings (issue #152).
+        ConfigField(
+            key='getsongbpm_api_key',
+            type='string',
+            default='',
+            secret=True,
+            env='GETSONGBPM_API_KEY',
+            group=group,
+            description='API key of getsongbpm.com (free, request it on their site). With a key the BPM '
+            'analysis asks GetSongBPM for the tempo of mainstream tracks that have no label or artist '
+            'to go by, and uses it to pick the right octave (64, 128 or 256). Empty: off.',
+        ),
     ]
 
 

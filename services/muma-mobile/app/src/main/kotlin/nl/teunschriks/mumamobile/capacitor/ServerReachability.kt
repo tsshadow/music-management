@@ -7,6 +7,9 @@
 
 package nl.teunschriks.mumamobile.capacitor
 
+import java.util.concurrent.CopyOnWriteArrayList
+import timber.log.Timber
+
 /**
  * What the start-up check found out about the server, in the four answers the app acts on
  * differently (docs/designs/app-start-reachability/).
@@ -28,6 +31,18 @@ enum class Reachability(val wire: String) {
      * runs, and its first refused call brings the login page back.
      */
     AUTH_FAILED("authFailed"),
+}
+
+/**
+ * One native check: what it found and when.
+ *
+ * @property state the classified answer.
+ * @property atMs when the answer came, in `System.currentTimeMillis()` time.
+ */
+data class ServerCheck(val state: Reachability, val atMs: Long) {
+    /** The server did not answer: no network, or a network without the server. */
+    val unreachable: Boolean
+        get() = state == Reachability.NO_NETWORK || state == Reachability.SERVER_UNREACHABLE
 }
 
 /** How one `ping` ended, before it is classified. */
@@ -79,9 +94,68 @@ object ServerReachability {
      * Whether the listener chose "Offline verder" in this process. Read by [hasRouteToServer] and
      * by `MusicServiceFactory`, so the web UI, the native services and the Android Auto tree all
      * agree on offline. In memory only: the next cold start asks the server again.
+     *
+     * Turning it off tells the [addReachableListener] listeners: the server answered again.
      */
     @Volatile
     var offlineChosen: Boolean = false
+        set(value) {
+            val left = field && !value
+            field = value
+            if (left) notifyReachable()
+        }
+
+    /**
+     * The newest native check in this process, from the web's start-up check or from the Android
+     * Auto tree's own (docs/designs/offline-followups/). Null until the first one.
+     */
+    @Volatile
+    var lastCheck: ServerCheck? = null
+        private set
+
+    private val reachableListeners = CopyOnWriteArrayList<() -> Unit>()
+
+    /**
+     * Stores the answer of one native check. A [Reachability.REACHABLE] answer outside offline
+     * mode tells the [addReachableListener] listeners, so queued work goes out at once.
+     *
+     * @param state what the check found.
+     * @param atMs when, in `System.currentTimeMillis()` time.
+     */
+    fun record(state: Reachability, atMs: Long) {
+        lastCheck = ServerCheck(state, atMs)
+        if (state == Reachability.REACHABLE && !offlineChosen) notifyReachable()
+    }
+
+    /**
+     * Calls [listener] every time the server is found to answer again: a reachable check, or the
+     * end of offline mode. The listener runs on the caller's thread and must return quickly.
+     */
+    fun addReachableListener(listener: () -> Unit) {
+        reachableListeners.add(listener)
+    }
+
+    /** Removes a listener added with [addReachableListener]. */
+    fun removeReachableListener(listener: () -> Unit) {
+        reachableListeners.remove(listener)
+    }
+
+    /** Forgets the last check; for the tests. */
+    fun resetForTest() {
+        lastCheck = null
+        reachableListeners.clear()
+    }
+
+    private fun notifyReachable() {
+        for (listener in reachableListeners) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                listener()
+            } catch (all: Exception) {
+                Timber.w(all, "A reachability listener failed")
+            }
+        }
+    }
 
     /**
      * Classifies one start-up check.

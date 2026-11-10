@@ -5,8 +5,8 @@
 # Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
 # dump -> db recreate (DEPLOY_DB=1 only) -> schema reconcile -> DEPLOY_PRE_UP_HOOK ->
 # pull + up of what changed. See the comment above step 2 below and
-# docs/self-hosting.md. Unused images are pruned afterwards by
-# scripts/ci/prune-prod-images.sh, once post-deploy verification has passed.
+# docs/self-hosting.md. The production deploy (the operations repository) prunes
+# unused images afterwards, once its post-deploy verification has passed.
 #
 # Knobs (environment; all optional):
 #   IMAGE_TAG=<tag>       deploy that tag of every image this repo builds
@@ -78,7 +78,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/compose_profiles.sh"
 
 # The env file is both the configuration of this script and the file shipped
-# to the host for the stack. It may be absolute: ci-deploy.sh materialises it in
+# to the host for the stack. It may be absolute: the production deploy writes it to
 # a private temp directory, outside the checkout and therefore outside every
 # docker build context.
 LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-.env}"
@@ -181,8 +181,8 @@ fi
 #   d. schema    the release's schema-reconcile adds what the database lacks,
 #                while the *old* containers still run -- it only adds, so the
 #                old code keeps working on the new schema
-#   e. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
-#                to :latest here (scripts/ci/promote-release-images.sh), so
+#   e. hook      DEPLOY_PRE_UP_HOOK, if set; the production deploy promotes the
+#                release's images to :latest here (promote-release-images.sh), so
 #                Watchtower cannot start new code before (d) has finished
 #   f. up        pull and recreate what changed -- never `db` (that was (c)),
 #                and not the one-shot tool containers unless asked for
@@ -426,7 +426,7 @@ $1" < /dev/null
             esac
             AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
             if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
-                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or changed. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or changed. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
                 exit 1
             fi
             echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"

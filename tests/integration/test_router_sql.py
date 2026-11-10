@@ -108,6 +108,7 @@ READ_ENDPOINTS = [
     ('/api/channel-links/targets?kind=artist&q=x', 200),
     ('/api/channel-links/targets?kind=genre&q=x', 400),
     ('/api/channel-links/by-label?name=x', 200),
+    ('/api/channel-links/by-artist?name=x', 200),
     ('/api/artists/search', 200),
     ('/api/artists/search-all', 200),
     ('/api/artists/images/stats', 200),
@@ -1326,6 +1327,47 @@ class ChannelLinksTest:
             },
         ]
         assert api.get('/api/channel-links/by-label?name=Nobody', headers=headers).json() == []
+
+    def test_an_artist_page_lists_its_linked_channels_with_their_labels(self, api, headers, db):
+        """Issue #126: the artist by name, its channels busiest first, each with its label."""
+        label_id, artist_id, channels = self._library(db)
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO channels (platform, name, normalized_name, label_id, artist_id) VALUES "
+                "('soundcloud', 'D-Sturb Official', 'd-sturb official', %s, %s)",
+                (label_id, artist_id),
+            )
+            busy = cursor.lastrowid
+            cursor.execute('UPDATE channels SET artist_id = %s WHERE id = %s', (artist_id, channels['D-Sturb']))
+            cursor.execute("INSERT INTO library_tracks (track_uid, title) VALUES ('uid-a0', 't')")
+            cursor.execute(
+                'INSERT INTO library_track_channels (track_id, channel_id) VALUES (%s, %s)', (cursor.lastrowid, busy)
+            )
+            cursor.execute("INSERT INTO downloads_youtube_accounts (name) VALUES ('@dsturb')")
+        db.commit()
+        response = api.get('/api/channel-links/by-artist', params={'name': 'd-sturb'}, headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json() == [
+            {
+                'id': busy,
+                'platform': 'soundcloud',
+                'name': 'D-Sturb Official',
+                'track_count': 1,
+                'label': {'id': label_id, 'name': 'Traxtorm'},
+                'album': 'Soundcloud (D-Sturb Official)',
+                'source_url': None,
+            },
+            {
+                'id': channels['D-Sturb'],
+                'platform': 'youtube',
+                'name': 'D-Sturb',
+                'track_count': 0,
+                'label': None,
+                'album': 'Youtube (D-Sturb)',
+                'source_url': 'https://www.youtube.com/@dsturb',
+            },
+        ]
+        assert api.get('/api/channel-links/by-artist?name=Nobody', headers=headers).json() == []
 
     def test_a_link_change_queues_the_channels_files_for_the_tagger(self, api, headers, db):
         from services.common import db_init
@@ -3223,6 +3265,82 @@ class BpmBrowseSqlTest:
         assert (
             api.put('/api/library/bpm/tracks/999999999/manual', json={'bpm': 120}, headers=headers).status_code == 404
         )
+
+    def test_the_getsongbpm_prior_runs_against_a_real_schema(self, api, headers, db):
+        """Issue #152 end to end: a pass finds the weak-prior Hitzone track (not the EPs one), stores
+        the answer, the refold folds 64 to 128 on it and records external_bpm, the details answer
+        credits GetSongBPM, and a refold without the cache clears it again."""
+        from datetime import datetime
+
+        from services.music_manager.bpm import getsongbpm, priors, refold
+
+        run_sql(db, "INSERT INTO library_artists (name) VALUES ('Getsong Hazes')")
+        artist = run_sql(db, "SELECT id FROM library_artists WHERE name = 'Getsong Hazes'")[0]['id']
+
+        def measured(title, path):
+            track_id = self._track(db, title)
+            run_sql(db, 'UPDATE library_tracks SET primary_artist_id = %s WHERE id = %s', (artist, track_id))
+            run_sql(db, 'UPDATE library_media_files SET file_path = %s WHERE track_id = %s', (path, track_id))
+            run_sql(
+                db,
+                'INSERT INTO library_track_bpm (track_uid, status, bpm, raw_bpm, confidence, raw_confidence, method,'
+                " analyzed_at) VALUES (%s, 'ok', 64, 64, 0.9, 0.9, 'acf-comb-v1', NOW())",
+                (f'uid-bpm-{title}',),
+            )
+            return track_id
+
+        ballad = measured('Getsong Ballad', '/mnt/music/Hitzone/Hitzone 33/CD/01 - Getsong Ballad.mp3')
+        measured('Getsong Underground', '/mnt/music/EPs/Label/REL/Getsong Underground.mp3')
+        answers = [(200, {'search': [{'id': 'g1', 'title': 'Getsong Ballad', 'artist': {'name': 'Getsong Hazes'},
+                                       'uri': 'https://getsongbpm.com/song/g1', 'tempo': '128'}]})]  # fmt: skip
+        asked = []
+
+        def http_get(url, params):
+            asked.append(params['lookup'])
+            return answers.pop(0)
+
+        class NoWait:
+            def wait(self):
+                pass
+
+        now = datetime.now().replace(microsecond=0)
+        found = getsongbpm.lookup_pass(_connect, priors.Priors(), 'k', now, http_get=http_get, pace=NoWait())
+        assert asked == ['song:Getsong Ballad artist:Getsong Hazes']
+        assert (found.found, found.track_ids) == (1, [ballad])
+        key = getsongbpm.lookup_key('Getsong Hazes', 'Getsong Ballad')
+        stored = run_sql(db, 'SELECT status, bpm, song_url FROM getsongbpm_lookups WHERE lookup_key = %s', (key,))[0]
+        assert (stored['status'], float(stored['bpm']), stored['song_url']) == (
+            'ok',
+            128.0,
+            'https://getsongbpm.com/song/g1',
+        )
+        tempos = getsongbpm.load_tempos(_connect)
+        assert tempos[key] == 128.0
+        # Asked once: a second pass has nothing left to ask.
+        assert getsongbpm.lookup_pass(_connect, priors.Priors(), 'k', now, http_get=http_get, pace=NoWait()).asked == 0
+
+        refold.refold(_connect, priors.Priors(), track_ids=[ballad], external=tempos)
+        row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-bpm-Getsong Ballad'")[0]
+        assert (float(row['bpm']), row['fold_evidence'], float(row['external_bpm'])) == (128.0, 'getsongbpm', 128.0)
+        assert float(row['confidence']) >= 0.75
+
+        ballad_path = '/mnt/music/Hitzone/Hitzone 33/CD/01 - Getsong Ballad.mp3'
+        run_sql(
+            db,
+            'UPDATE library_media_files SET file_path_hash = %s WHERE track_id = %s',
+            (hashlib.sha256(ballad_path.encode()).hexdigest(), ballad),
+        )
+        response = api.get(
+            '/api/library/tracks/by-path',
+            params={'path': 'Hitzone/Hitzone 33/CD/01 - Getsong Ballad.mp3'},
+            headers=headers,
+        )
+        assert response.status_code == 200, response.text
+        assert (response.json()['bpm'], response.json()['bpm_external_source']) == (128.0, 'getsongbpm')
+
+        refold.refold(_connect, priors.Priors(), track_ids=[ballad], external={})
+        row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-bpm-Getsong Ballad'")[0]
+        assert row['external_bpm'] is None and row['fold_evidence'] != 'getsongbpm'
 
 
 class RadioStationsSqlTest:

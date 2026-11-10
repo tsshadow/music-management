@@ -26,7 +26,7 @@
 #
 # The difference between 1 and 2 is deliberate. Exit 2 means a tool or a CI
 # variable is simply absent -- that is the normal outcome of running this
-# locally, where docker or PROD_ENV_FILE may be missing, and it says nothing
+# locally, where docker or DOCKER_USER may be missing, and it says nothing
 # about the code. A scanner that had its tool and its input and still produced
 # nothing is a broken audit, and a broken audit must not read as a quiet skip:
 # the section scanned zero packages, so passing it would mean "not checked"
@@ -171,31 +171,24 @@ echo
 echo "=== Production images (trivy, OS packages + bundled libraries) ==="
 # The requirements/lockfile scans above cover what the repo declares; the
 # images production actually runs also contain a Debian/Alpine userland that
-# nothing scanned. Resolves the same image names deploy uses from the
-# PROD_ENV_FILE CI/CD variables, so this section runs in CI (schedule/master)
-# and silently skips locally where those variables do not exist.
+# nothing scanned. Takes the image names release:build-images pushes
+# (scripts/ci/release-image-names.sh: plain CI/CD variables, else defaults), so
+# this section runs in CI (schedule/master) and skips locally, where neither
+# DOCKER_USER nor DOCKERHUB_USERNAME is set.
 # --ignore-unfixed: a base-image CVE without an upstream fix is not actionable
 # from this repo and would leave the section permanently red.
-read_env_file_value() {
-    # $1: variable content or path (GitLab file-type variables inject a path),
-    # $2: key.
-    local content
-    if [ -f "${1}" ]; then content="$(cat "${1}")"; else content="${1}"; fi
-    printf '%s\n' "$content" | grep -E "^${2}=" | tail -1 | cut -d'=' -f2-
-}
-if command -v docker >/dev/null 2>&1 && [ -n "${PROD_ENV_FILE:-}" ]; then
-    DOCKER_USER="$(read_env_file_value "$PROD_ENV_FILE" DOCKER_USER)"
-    IMAGE_CORE="$(read_env_file_value "$PROD_ENV_FILE" IMAGE_CORE)"
-    LMS_IMAGE="$(read_env_file_value "${PROD_ENV_FILE_LMS:-}" IMAGE_NAME)"
+# shellcheck source=scripts/ci/release-image-names.sh
+. "$ROOT_DIR/scripts/ci/release-image-names.sh"
+if command -v docker >/dev/null 2>&1 && resolve_release_image_names 2>/dev/null; then
     IMAGES=(
-        "${DOCKER_USER}/${IMAGE_CORE:-music-manager}:latest"
-        "${DOCKER_USER}/muma-base:latest"
-        "${DOCKER_USER}/muma-downloader:latest"
-        "${DOCKER_USER}/muma-telegram:latest"
-        "${DOCKER_USER}/muma-importer:latest"
-        "${DOCKER_USER}/muma-tools:latest"
+        "${DOCKER_USER}/${IMAGE_CORE}:latest"
+        "${DOCKER_USER}/${IMAGE_BASE}:latest"
+        "${DOCKER_USER}/${IMAGE_DOWNLOADER}:latest"
+        "${DOCKER_USER}/${IMAGE_TELEGRAM}:latest"
+        "${DOCKER_USER}/${IMAGE_IMPORTER}:latest"
+        "${DOCKER_USER}/${IMAGE_TOOLS}:latest"
+        "${LMS_IMAGE}:latest"
     )
-    [ -n "$LMS_IMAGE" ] && IMAGES+=("${LMS_IMAGE}:latest")
     # --scanners vuln: trivy's secret scanner flagged the self-signed *test*
     # certificate that muma-mobile's integration tests ship (the tools image
     # copies all of services/), which is exactly the kind of noise that gets a
@@ -210,7 +203,7 @@ if command -v docker >/dev/null 2>&1 && [ -n "${PROD_ENV_FILE:-}" ]; then
         fi
     done
 else
-    echo "docker or PROD_ENV_FILE missing, skipping (CI-only section)"
+    echo "docker or DOCKER_USER missing, skipping (CI-only section)"
     SKIPPED=1
 fi
 

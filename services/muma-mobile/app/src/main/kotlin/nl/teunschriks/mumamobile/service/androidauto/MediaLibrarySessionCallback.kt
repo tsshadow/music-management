@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.R
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.ServerReachability
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
@@ -100,12 +101,28 @@ class MediaLibrarySessionCallback :
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private val carServerCheck = CarServerCheck(
+        scope = serviceScope,
+        lastCheck = { ServerReachability.lastCheck },
+        offlineChosen = { ServerReachability.offlineChosen },
+        nowMs = System::currentTimeMillis,
+        check = { checkServerForCar(subsonicAPIClient) }
+    )
+
     // Resolved per call, never captured: MusicServiceFactory.resetMusicService() (server switch,
     // credential edit, network coming back) replaces the instance, and getMusicService() returns
     // the offline service while the server is unreachable. Holding on to one instance would leave
     // Android Auto browsing a dead or offline service until the process is restarted, even though
     // the phone UI has already recovered.
-    private val musicService get() = MusicServiceFactory.getMusicService()
+    //
+    // The car alone also prefers the downloaded library while the server is known to be down,
+    // offline mode chosen or not (#149); every other caller keeps getMusicService().
+    private val musicService
+        get() = if (carServerCheck.prefersOffline()) {
+            MusicServiceFactory.getOfflineMusicService()
+        } else {
+            MusicServiceFactory.getMusicService()
+        }
 
     // Named rather than a trailing lambda: the data provider takes a feed repository after the
     // service provider now, and a trailing lambda would silently bind to that instead.
@@ -630,11 +647,13 @@ class MediaLibrarySessionCallback :
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
         params: MediaLibraryService.LibraryParams?
-    ): ListenableFuture<LibraryResult<MediaItem>> = this.mediaLibrarBrowser.getLibraryRoot(
-        session,
-        browser,
-        params
-    )
+    ): ListenableFuture<LibraryResult<MediaItem>> = serviceScope.future {
+        // A car that connects while the server is down (a cold start in the car, or the phone
+        // waiting for the server) finds out here, within the ping budget, so its first lists
+        // already come from the downloaded library instead of timing out one by one (#149).
+        carServerCheck.ensureFresh()
+        mediaLibrarBrowser.getLibraryRoot(session, browser, params).get()
+    }
 
     @OptIn(UnstableApi::class)
     override fun onGetChildren(

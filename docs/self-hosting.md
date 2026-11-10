@@ -1,6 +1,6 @@
 # Self-hosting
 
-How to run the stack on your own server and how a GitLab CI pipeline can deploy it. The examples
+How to run the stack on your own server and how a GitLab CI pipeline builds and publishes it. The examples
 use `example.org` and `203.0.113.10`, replace them with your own values.
 
 ## What runs
@@ -310,47 +310,42 @@ IMAGE_TAG=0.72.0 ./scripts/deploy.sh
 The old release runs on the current schema because the reconcile only adds. The deploy takes its
 own pre-deploy dump first.
 
-## Deploy from GitLab CI
+## Build and publish from GitLab CI
 
 A pipeline on a `release/*` branch builds the images and the APK. Merging it to `master` tags
-`release-vX.Y.Z` once `release:publish` has found both. The deploy itself, `scripts/ci-deploy.sh`
-from that tag, runs where your installation keeps its own settings
-([docs/designs/ops-split/](designs/ops-split/functional.md)). Until the build moves its own
-settings out too, set these in Project > Settings > CI/CD > Variables.
-`scripts/ci/check-required-secrets.sh` (job `release:check-secrets`) fails the pipeline when a
-required one is missing.
+`release-vX.Y.Z` once `release:publish` has found both. The pipeline deploys nothing and holds no
+production host, SSH key or env file: your installation deploys a tag with its own settings, for
+example with `scripts/deploy.sh` as above
+([docs/designs/ops-split/](designs/ops-split/functional.md)). Set these in Project > Settings >
+CI/CD > Variables. `scripts/ci/check-required-secrets.sh` (job `release:check-secrets`) fails the
+pipeline when a required one is missing.
 
 | Variable | Purpose |
 |---|---|
-| `SSH_PRIVATE_KEY` | Key of a deploy user on the target host. |
-| `PROD_REMOTE_HOST` | Host name or address, for example `203.0.113.10`. No default. |
-| `PROD_REMOTE_USER` | Login on the host. Optional, default `root`. |
-| `PROD_SSH_KNOWN_HOSTS` | File type. The host's public keys in `known_hosts` format, under the same string as `PROD_REMOTE_HOST`. Without a pinned key the deploy stops. `PROD_SSH_ACCEPT_NEW_HOST_KEY=true` accepts the key on first use instead. |
-| `PROD_URL` | Public address of the stack, for example `https://music.example.org`. Used as the environment URL. |
-| `PROD_ENV_FILE` | File type. The full `.env` of the `music-management` stack. |
-| `PROD_ENV_FILE_LMS` | File type. The full `.env` of the player stack. |
-| `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | Registry login the images are pushed with. The username must equal `DOCKER_USER` in `PROD_ENV_FILE`. |
+| `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` | Registry login the images are pushed with. Required. |
+| `DOCKER_USER` | Optional. The registry user the images are named under, default `DOCKERHUB_USERNAME`. When set, it must equal it. |
+| `IMAGE_CORE`, `IMAGE_BASE`, `IMAGE_DOWNLOADER`, `IMAGE_TELEGRAM`, `IMAGE_IMPORTER`, `IMAGE_TOOLS`, `IMAGE_LMS` | Optional. Image names, defaults in `scripts/ci/release-image-names.sh` (`music-manager`, `muma-base`, `muma-downloader`, `muma-telegram`, `muma-importer`, `muma-tools`, `lms`). Your `.env` files must pull the same names: `IMAGE_*` and `IMAGE_NAME=<DOCKER_USER>/<IMAGE_LMS>` for the player. |
+| `VITE_GOOGLE_CLIENT_ID` | Optional. The Web client id of "Sign in with Google", compiled into the player image. Default `MUMA_GOOGLE_CLIENT_ID`. One of the two is required. |
 | `APK_HOSTER_URL` | Address of the service that hosts the APK, built into the app. Only for the Android jobs. |
 | `APK_HOSTER_PASSWORD` | Upload password of that service. Only for `mobile:build-debug`; the release APK goes to the package registry and the installation uploads it. |
 | `SIGNING_STORE_FILE` | File type. The release keystore, base64-encoded (`base64 -w0`). Only for the Android release job. |
 | `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Keystore password, key alias and key password. Only for the Android release job. |
 | `TAG_CREATION_TOKEN` | Project access token (Maintainer, `api` scope) that pushes the release tags (made with `git tag -a` as `ci-release-tagging`, so the tagger is not the token's bot user) and pushes the back-merge of master into develop (a merge commit made with git as `ci-release-tagging`, so a Maintainer token must be allowed to push to develop), and reads the release pipeline for `release:publish`. |
 
-`release:check-secrets` requires `PROD_REMOTE_HOST`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
-`APK_HOSTER_URL` and `SIGNING_STORE_FILE`, because a job gated on a missing variable silently
-drops out of the pipeline instead of failing. The Android jobs (`mobile:build-debug`,
-`mobile:build-release`) run only when `APK_HOSTER_URL` is set, and the release job also needs
-`SIGNING_STORE_FILE`. If you do not ship an Android app, remove that part of the check in
-`scripts/ci/check-required-secrets.sh` (the `APK_HOSTER_URL` and `SIGNING_STORE_FILE` lines) and
-leave both variables unset.
+`release:check-secrets` requires `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `APK_HOSTER_URL`,
+`SIGNING_STORE_FILE`, and `VITE_GOOGLE_CLIENT_ID` or `MUMA_GOOGLE_CLIENT_ID`, because a job gated on
+a missing variable silently drops out of the pipeline instead of failing, and a player built without
+the client id has no Google button. The Android jobs (`mobile:build-debug`, `mobile:build-release`)
+run only when `APK_HOSTER_URL` is set, and the release job also needs `SIGNING_STORE_FILE`. If you
+do not ship an Android app, remove that part of the check in `scripts/ci/check-required-secrets.sh`
+(the `APK_HOSTER_URL` and `SIGNING_STORE_FILE` lines) and leave both variables unset. Add a variable
+to that script and to this list when a new one becomes required for a release.
 
-Keys the check requires inside `PROD_ENV_FILE`: `GOOGLE_CLIENT_ID`, `API_KEY` or `MUMA_API_KEY`,
-`DOCKER_USER`, `COMPOSE_PROFILES` and `FIREFOX_PASSWORD`. Inside `PROD_ENV_FILE_LMS`:
-`VITE_GOOGLE_CLIENT_ID`, `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` and `MUSIC_MANAGEMENT_API_KEY`. Add a key to `scripts/ci/check-required-secrets.sh` and to this list when a
-new secret becomes required.
-
-`scripts/deploy.sh` sends the env file over SSH on stdin, never on a command line, and the host keeps
-it only while the deploy runs.
+Your deploy, not this pipeline, checks the env files. The keys a working stack needs: in the
+`music-management` `.env`, `GOOGLE_CLIENT_ID`, `API_KEY` or `MUMA_API_KEY`, `DOCKER_USER`,
+`COMPOSE_PROFILES` and `FIREFOX_PASSWORD`; in the player's `.env`, `LMS_API_KEY`,
+`LMS_SUBSONIC_API_KEY` and `MUSIC_MANAGEMENT_API_KEY`. `scripts/deploy.sh` sends the env file over
+SSH on stdin, never on a command line, and the host keeps it only while the deploy runs.
 
 ### Android app build
 

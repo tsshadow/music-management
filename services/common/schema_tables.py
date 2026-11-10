@@ -264,14 +264,14 @@ CREATE TABLE IF NOT EXISTS `feeds_snapshot` (
     # when the pair is no longer met. `fingerprint` is what both folders looked like when they were
     # last compared. The extractor files single files here too (bug report 119): `target` is empty or
     # a detail, and `reason` says why the file was left in place; NULL for a folder pair.
-    # GetSongBPM's tempo per song (issue #152), keyed on a SHA-1 of the normalised first artist and
+    # GetSongBPM's tempo per song (issue #152), keyed on a SHA-256 of the normalised first artist and
     # title: asked once, a miss again after 90 days. Read by the bpm-analyzer's octave choice.
     # See services/music_manager/bpm/getsongbpm.py.
     (
         'getsongbpm_lookups',
         """
 CREATE TABLE IF NOT EXISTS `getsongbpm_lookups` (
-  `lookup_key` char(40) NOT NULL,
+  `lookup_key` char(64) NOT NULL,
   `artist` varchar(255) NOT NULL,
   `title` varchar(255) NOT NULL,
   `status` enum('ok','not_found') NOT NULL,

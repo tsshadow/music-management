@@ -63,7 +63,7 @@ class FakeHttp:
 
 def test_the_key_ignores_case_accents_brackets_and_featuring():
     key = getsongbpm.lookup_key('André Hazes', 'Vaag en Stil')
-    assert len(key) == 40
+    assert len(key) == 64
     assert getsongbpm.lookup_key('ANDRE HAZES', 'vaag en stil (Live)') == key
     assert getsongbpm.lookup_key('André Hazes feat. Jan Smit', 'Vaag en Stil [Remastered]') == key
     assert getsongbpm.lookup_key('André Hazes & Jan Smit', 'Vaag en Stil') == key

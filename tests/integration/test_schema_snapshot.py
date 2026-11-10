@@ -41,7 +41,7 @@ ONLY_ON_FRESH: dict[str, str] = {
     'C\tgetsongbpm_lookups\tartist\tvarchar(255)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tbpm\tdecimal(5,2)\tYES\tNULL\t\t<none>': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tfetched_at\tdatetime\tNO\t<none>\t\t<none>': _NEW_GETSONGBPM,
-    'C\tgetsongbpm_lookups\tlookup_key\tchar(40)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
+    'C\tgetsongbpm_lookups\tlookup_key\tchar(64)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tsong_id\tvarchar(64)\tYES\tNULL\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tsong_url\tvarchar(512)\tYES\tNULL\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
     "C\tgetsongbpm_lookups\tstatus\tenum('ok','not_found')\tNO\t<none>\t\tutf8mb4_general_ci": _NEW_GETSONGBPM,

@@ -11,7 +11,7 @@ New `getsongbpm_lookups`, one row per song asked about:
 
 | Column | Type | Meaning |
 |---|---|---|
-| `lookup_key` | CHAR(40) PK | SHA-1 of `"<artist>\t<title>"`, both normalised (`getsongbpm.lookup_key`): first credited artist, bracketed parts and a featuring tail dropped, accents folded, lower case, letters and digits only. |
+| `lookup_key` | CHAR(64) PK | SHA-256 of `"<artist>\t<title>"`, both normalised (`getsongbpm.lookup_key`): first credited artist, bracketed parts and a featuring tail dropped, accents folded, lower case, letters and digits only. |
 | `artist`, `title` | VARCHAR(255) | The search terms, for a person reading the table. |
 | `status` | ENUM('ok','not_found') | A transient failure is not stored. |
 | `bpm` | DECIMAL(5,2) NULL | The listed tempo (40-250), NULL for `not_found`. |

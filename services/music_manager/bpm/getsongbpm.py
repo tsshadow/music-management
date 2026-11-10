@@ -94,12 +94,12 @@ def clean_artist(artist: str | None) -> str:
 
 
 def lookup_key(artist: str | None, title: str | None) -> str | None:
-    """The cache key of a song: a SHA-1 of its normalised first artist and title, None when either is empty."""
+    """The cache key of a song: a SHA-256 of its normalised first artist and title, None when either is empty."""
     artist_part = _fold(clean_artist(artist))
     title_part = _fold(clean_title(title))
     if not artist_part or not title_part:
         return None
-    return hashlib.sha1(f'{artist_part}\t{title_part}'.encode(), usedforsecurity=False).hexdigest()
+    return hashlib.sha256(f'{artist_part}\t{title_part}'.encode()).hexdigest()
 
 
 # ----------------------------------------------------------------------------- the API

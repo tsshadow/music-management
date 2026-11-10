@@ -145,6 +145,12 @@ expect POST   "/muma/api/tracks/42/refresh?u=user&p=x"                  lms "/mu
 expect GET    "/muma/users/sync"                                        lms "/muma/users/sync"
 expect GET    "/muma/users/settings/frontend?u=user&p=x"                lms "/muma/users/settings/frontend?u=user&p=x"
 
+# The public health check goes to MuMa as it is (issue #218), exact match only:
+# /health/backup and a look-alike stay with the frontend.
+expect GET    "/health"                                                 music-manager "/health"
+expect GET    "/health/backup"                                          lms "/spotify/health/backup"
+expect GET    "/healthz"                                                lms "/spotify/healthz"
+
 # The two namespaces that were never MuMa's.
 expect GET    "/rest/ping.view?u=user"                                  lms "/rest/ping.view?u=user"
 expect GET    "/index.html"                                             lms "/spotify/index.html"

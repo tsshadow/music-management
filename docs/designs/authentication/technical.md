@@ -211,7 +211,8 @@ already shows `detail` as it is.
   `request.clientAddress()` is the TCP peer unless `behind-reverse-proxy` and `trusted-proxies` are
   set in `lms.conf`.
 - **MuMa** (`rate_limit.py`): `client_key` believes `X-Forwarded-For` only from a peer on
-  `AUTH_TRUSTED_PROXIES` (default loopback + the private ranges nginx trusts) or a request with the
+  `AUTH_TRUSTED_PROXIES` (default loopback + `connected`, the container's own Docker networks, since
+  issue #218; before that the private ranges nginx trusts) or a request with the
   system key, and reads it from the right, skipping trusted hops (nginx's `real_ip_recursive`); the
   left-most entry was client-controlled whenever a proxy appended to the chain. `auth_attempt` with a
   subject counts two buckets: per client and account (`AUTH_RATE_LIMIT_ATTEMPTS`, 10) and per

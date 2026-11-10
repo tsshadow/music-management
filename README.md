@@ -58,7 +58,8 @@ maintainer's host. They are not needed to run the stack.
 
 When the stack is up:
 - **Web player and Subsonic API**: port 8080 (`LMS_SUBSONIC_PORT`).
-- **music-manager API**: port 8000.
+- **music-manager API**: port 8000, on the host's loopback only (`MUSIC_MANAGER_BIND_ADDRESS` opens
+  it to the network). Other machines reach it through the player's nginx at `/muma/api/`.
 - **phpMyAdmin**: port 8002, on the host's loopback only (`PHPMYADMIN_BIND_ADDRESS` opens it to the
   network).
 

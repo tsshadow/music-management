@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +21,7 @@ from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager import artist_auto_approve_worker, lms_listen_backfill
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.bpm import status as bpm_status
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import (
@@ -210,8 +211,8 @@ async def database_busy_handler(_request: Request, exc: RuntimeError):
 def _public_source_url() -> str:
     """The `public_source_url` setting if it is a plain http(s) address, else an empty string.
 
-    /health is unauthenticated and the About and login screens turn this value into a link, so
-    it is checked here instead of in every client: the scheme must be http or https (any case),
+    /health gives it to every caller, key or not, and the About and login screens turn it into
+    a link, so it is checked here instead of in every client: the scheme must be http or https (any case),
     there must be a host, and no user info (`https://a@evil.example` hides the real host).
     """
     try:
@@ -226,9 +227,36 @@ def _public_source_url() -> str:
     return url
 
 
+def _health_caller_is_known(x_api_key: str | None, database: str) -> bool:
+    """Whether the /health caller presented a valid key: the system key or a user's own.
+
+    The system key is a local comparison. A user key is a database lookup, so it is only tried
+    while the database answered the probe; a failing lookup counts as no key, because /health
+    must answer, and answer fast, whatever state the database is in.
+    """
+    if not x_api_key:
+        return False
+    if is_system_api_key(x_api_key):
+        return True
+    if database != 'ok':
+        return False
+    try:
+        users.verify_api_key(x_api_key)
+    except Exception:  # pylint: disable=broad-except  # an unknown key or a busy pool is "no key"
+        return False
+    return True
+
+
 @app.get('/health')
-def health(response: Response):
+def health(response: Response, x_api_key: str | None = Header(None)):
     """Report what it claims, so that the Uptime Kuma monitor measures something.
+
+    Two bodies, one status code (issue #218). nginx serves this path to the internet, so a
+    caller without a valid `X-API-Key` gets `status` and `source_url` only; the version, the
+    thread states and the heartbeats say too much about the host to give away. `source_url` is
+    public by design: the login screen offers the source code (AGPL-3.0 section 13) before
+    anyone has a key. A caller with the system key or a user's own key gets the full report. Either way the code is 200 when healthy and 503 when
+    not, so a monitor or the container healthcheck needs no key.
 
     The old version always returned 'ok' and so stayed green while the
     database was gone or a background loop had died of an exception.
@@ -260,11 +288,15 @@ def health(response: Response):
     healthy = database == 'ok' and schema != 'failed' and all(threads.values())
     if not healthy:
         response.status_code = 503
+    status = 'ok' if healthy else 'degraded'
+    source_url = _public_source_url()
+    if not _health_caller_is_known(x_api_key, database):
+        return {'status': status, 'source_url': source_url}
     return {
-        'status': 'ok' if healthy else 'degraded',
+        'status': status,
         'service': 'music-manager',
         'version': get_version(),
-        'source_url': _public_source_url(),
+        'source_url': source_url,
         'database': database,
         'schema': schema,
         'threads': threads,

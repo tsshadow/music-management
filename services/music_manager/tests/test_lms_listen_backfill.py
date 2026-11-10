@@ -7,6 +7,7 @@ loop against a real MariaDB.
 """
 
 import logging
+import os
 import sqlite3
 import sys
 import threading
@@ -29,6 +30,13 @@ from services.music_manager import lms_listen_backfill as loop
 from services.music_manager import scrobble_reconcile as rec
 from services.music_manager import thread_registry
 from services.music_manager.main import app
+
+
+def _full_health():
+    """GET /health with the system key, which the full report needs since issue #218."""
+    with patch.dict(os.environ, {'API_KEY': 'backfill-test-system-key'}):
+        return TestClient(app).get('/health', headers={'X-API-Key': 'backfill-test-system-key'})
+
 
 NOW = 1_790_000_000  # 2026-09-21, the moment every test runs "at"
 HOUR = 3600
@@ -461,7 +469,7 @@ class OutboxStatusTest(unittest.TestCase):
         self.addCleanup(thread_registry.reset)
         waiting = [{'server': 'server-a', 'count': 12, 'oldest': '2026-09-21T10:00:00+00:00'}]
         with patch.object(loop, 'outbox_status', return_value=waiting):
-            response = TestClient(app).get('/health')
+            response = _full_health()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['lms_listen_outbox'], waiting)
 
@@ -472,7 +480,7 @@ class OutboxStatusTest(unittest.TestCase):
         thread_registry.reset()
         self.addCleanup(thread_registry.reset)
         with patch.object(loop, 'outbox_status', side_effect=RuntimeError('boom')):
-            response = TestClient(app).get('/health')
+            response = _full_health()
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.json()['lms_listen_outbox'])
 
@@ -499,7 +507,7 @@ class LoopThreadTest(unittest.TestCase):
         with patch.object(loop, 'backfill_tick', side_effect=fake_tick):
             thread = thread_registry.start_thread(loop.THREAD_NAME, loop.run_lms_listen_backfill)
             self.assertTrue(ticked.wait(2))
-            body = TestClient(app).get('/health').json()
+            body = _full_health().json()
             self.assertTrue(body['threads']['lms-listen-backfill'])
             self.assertEqual(body['heartbeats']['lms-listen-backfill']['stale_after_seconds'], loop.STALE_AFTER_SECONDS)
             loop.stop_event.set()

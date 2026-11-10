@@ -34,12 +34,12 @@ class FakeResponse:
         return self._payload
 
 
-def test_health_is_unauthenticated():
-    """/health carries no key, which is what makes it usable as a first probe."""
+def test_health_sends_the_api_key():
+    """Without a key /health answers the status alone (issue #218); the version needs the key."""
     with patch('tools.muma_mcp.api.requests.get', return_value=FakeResponse(payload={'version': '0.40.0'})) as get:
         assert api.health(CONFIG) == {'version': '0.40.0'}
 
-    assert get.call_args.kwargs['headers'] == {}
+    assert get.call_args.kwargs['headers'] == {'X-API-Key': 'the-system-key'}
     assert get.call_args.args[0] == 'http://192.0.2.27:8000/health'
 
 

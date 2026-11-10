@@ -279,13 +279,20 @@ sound, distinct from the milestones topic.
 
 ### Home Assistant and health monitoring
 Home Assistant needs no dedicated integration — a REST sensor on
-`/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
-drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
+`/muma/api/events?level=ERROR&level=CRITICAL&since=-1h` through nginx, with the API key sent as a
+header, is enough to drive automations off the event count. Port 8000 is published on the host's
+loopback only (`MUSIC_MANAGER_BIND_ADDRESS`, issue #218), so a monitor on another machine goes
+through nginx. Separately, `GET /health` reports `status`, `service`,
 `version`, `database` (`ok`/`unreachable`), `schema`, `threads` and `heartbeats`, and returns HTTP 503 when
 any of those is unhealthy — instead of the old hard-coded `ok`. `schema` is `failed` when the
 start-up create pass (`db_init.ensure_tables_exist`) failed, which also logs an `ERROR`: tables may be
-missing until a restart creates them (`ok` after a good pass, `unknown` before it ran). This is what makes the existing
-Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
+missing until a restart creates them (`ok` after a good pass, `unknown` before it ran). This is what makes the
+Uptime Kuma monitor on that endpoint meaningful. nginx serves it to the internet at
+`https://<domain>/health` (an exact-match `location` in `reverse-proxy.conf`), which is where Kuma
+checks it. Without a valid `X-API-Key` (the system key or a user's own) the body is `status` and
+`source_url` only; the full report needs the key. The status code follows the same rule either
+way, so Kuma and the container healthcheck need no key. `post-deploy-verify.sh` reads the version
+with the system key from the container's environment, and `tools/muma_mcp` sends its key.
 It also carries `bpm_analysis`, the bpm-analyzer container's own status file (state, analysed,
 failed, remaining, rate, ETA), mirrored as a `bpm-analyzer` entry in `heartbeats`; that one never
 affects the status code, because /health is also music-manager's own container healthcheck.

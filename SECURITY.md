@@ -71,6 +71,10 @@ Summarised here because it affects what counts as a vulnerability;
 * `music-manager` publishes port 8000 on the host's loopback only
   (`MUSIC_MANAGER_BIND_ADDRESS`, issue #218). Clients reach it through nginx,
   the other containers through the Docker network.
+* `GET /health` is public through nginx (`https://<domain>/health`), for an
+  outside monitor. Without a valid `X-API-Key` it answers `status` and the
+  source code address only; the version, the thread states and the heartbeats
+  need the system key or a user's key. The code is 200 or 503 either way.
   Both proxies in front of MuMa -- nginx and LMS -- send the client address
   they resolved, never the client's own header
   (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).

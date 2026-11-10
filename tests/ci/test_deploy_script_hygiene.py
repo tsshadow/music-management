@@ -848,6 +848,7 @@ FAKE_VERIFY_DOCKER = r"""#!/bin/bash
 # FAKE_LATER_RESTARTS for music-manager.
 case "$1" in
     ps) for arg; do case "$arg" in *project=*) echo "id-${arg##*project=}" ;; esac; done ;;
+    exec) printf 'X-API-Key: %s\n' "${FAKE_SYSTEM_KEY-the-key}" ;;
     inspect)
         project="${3%%|*}"
         n=$(( $(cat "$FAKE_LOG/inspect-count" 2>/dev/null || echo 0) + 1 ))
@@ -864,10 +865,19 @@ case "$1" in
 esac
 """
 
+# /health shows the version only with a key (issue #218), so the fake does too: the header
+# arrives on stdin (`-H @-`), as post-deploy-verify.sh sends it.
 FAKE_CURL = r"""#!/bin/bash
 case "$*" in
     *ping.view*) printf '%s' "${FAKE_LMS_CODE:-400}" ;;
-    *health*) printf '{"status":"ok","version":"%s"}' "${FAKE_VERSION:-1.2.3}" ;;
+    *health*)
+        header="$(cat)"
+        if [ "$header" = "X-API-Key: the-key" ]; then
+            printf '{"status":"ok","version":"%s"}' "${FAKE_VERSION:-1.2.3}"
+        else
+            printf '{"status":"ok"}'
+        fi
+        ;;
 esac
 """
 
@@ -913,6 +923,13 @@ def test_verify_fails_when_lms_does_not_answer(tmp_path: Path) -> None:
     result = _run_verify(tmp_path, FAKE_LMS_CODE="000")
     assert result.returncode != 0
     assert "Subsonic ping" in result.stdout
+
+
+def test_verify_reads_the_version_with_the_containers_system_key(tmp_path: Path) -> None:
+    """Without the key /health answers no version, and the deploy cannot be confirmed."""
+    result = _run_verify(tmp_path, FAKE_SYSTEM_KEY="")
+    assert result.returncode != 0
+    assert "version is ''" in result.stdout
 
 
 def test_verify_fails_on_the_wrong_version(tmp_path: Path) -> None:

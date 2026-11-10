@@ -69,6 +69,11 @@ fi
 # proxy: this job answers "did the deploy work", not "is the domain
 # resolving", and those are different alarms.
 HEALTH_URL="http://localhost:8000/health"
+# /health gives the version only to a caller with a key (issue #218). The
+# system key is in the container's environment, so the container prints the
+# header and curl reads it from stdin: the key never appears on a command line
+# (tests/ci/test_no_secrets_on_command_lines.py) or in this job's log.
+HEALTH_KEY_HEADER="docker exec music-manager sh -c 'printf \"X-API-Key: %s\\n\" \"\${API_KEY:-\$MUMA_API_KEY}\"'"
 LMS_PING_URL="http://localhost:${LMS_SUBSONIC_PORT:-8080}/rest/ping.view"
 DEADLINE=$((SECONDS + ${VERIFY_TIMEOUT_SECONDS:-180}))
 SETTLE_SECONDS="${VERIFY_SETTLE_SECONDS:-60}"
@@ -192,7 +197,7 @@ last_body=""
 while true; do
     # curl over SSH: prod does not expose 8000 publicly and should not start.
     # `|| true` so a connection refused during startup is a retry, not a crash.
-    last_body="$(remote "curl -sS --max-time 10 ${HEALTH_URL}" 2>&1 || true)"
+    last_body="$(remote "${HEALTH_KEY_HEADER} | curl -sS --max-time 10 -H @- ${HEALTH_URL}" 2>&1 || true)"
 
     status="$(printf '%s' "$last_body" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
     version="$(printf '%s' "$last_body" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"

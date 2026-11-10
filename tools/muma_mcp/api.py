@@ -2,8 +2,8 @@
 
 Three endpoints, all read-only, all already deployed:
 
-- ``GET /health`` -- unauthenticated, reports the running version and every
-  background thread. This is the honest answer to "what is live", more honest
+- ``GET /health`` -- reports the running version and every background thread
+  to a caller with a key; without one it answers the status alone (issue #218). This is the honest answer to "what is live", more honest
   than a git tag, which has been created for a version production never received.
 - ``GET /api/system/containers``
 - ``GET /api/system/logs/{name}?tail=``
@@ -56,7 +56,7 @@ def _get(config: Config, path: str, *, authenticated: bool, params: dict[str, An
 
 def health(config: Config) -> Any:
     """The deployed version and the state of every background thread."""
-    return _get(config, '/health', authenticated=False)
+    return _get(config, '/health', authenticated=True)
 
 
 def containers(config: Config) -> Any:

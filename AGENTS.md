@@ -292,7 +292,9 @@ Uptime Kuma monitor on that endpoint meaningful. nginx serves it to the internet
 checks it. Without a valid `X-API-Key` (the system key or a user's own) the body is `status` and
 `source_url` only; the full report needs the key. The status code follows the same rule either
 way, so Kuma and the container healthcheck need no key. `post-deploy-verify.sh` reads the version
-with the system key from the container's environment, and `tools/muma_mcp` sends its key.
+with the system key from the container's environment, and `tools/muma_mcp` sends its key
+(`MUMA_PROD_URL=https://<domain>` for `/health`, `MUMA_PROD_API_URL=https://<domain>/muma` for its
+`/api/...` calls).
 It also carries `bpm_analysis`, the bpm-analyzer container's own status file (state, analysed,
 failed, remaining, rate, ETA), mirrored as a `bpm-analyzer` entry in `heartbeats`; that one never
 affects the status code, because /health is also music-manager's own container healthcheck.

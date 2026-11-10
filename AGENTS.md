@@ -382,6 +382,11 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 ### MuMa Mobile (`services/muma-mobile`)
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
+- **Server address**: the listener types it on the first-run screen; the app stores it
+  (`ServerAddress`, the one reader and writer of `Settings.serverUrl`) and derives the MuMa API
+  from it. Only `https` is accepted. The build's `muma.serverUrl` is the suggestion for a fresh
+  install, and Google sign-in shows only for that server. An install that was already used gets the build's
+  server stored once and stays signed in (issue #192, docs/designs/first-run-server/).
 - **Settings Backup & Sync**:
     - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/settings/ultrasonic`, read back with `GET` on the same path).
     - The account settings it shares with the web player (`app_id=frontend`: favourite genres, set

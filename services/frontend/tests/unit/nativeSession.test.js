@@ -846,3 +846,35 @@ describe("bootstrapShell - deferred queue restore (issue #113)", () => {
     expect(await result.queueRestored).toBe(0);
   });
 });
+
+// Issue #192: a fresh install has no server address; the app asks for one first.
+describe("bootstrapShell - no server address yet", () => {
+  it("returns needsServer without checking or signing in", async () => {
+    const platform = shell({ servers: { subsonic: "", mumaApi: "", configured: false } });
+    platform.storage = { supported: true, checkServer: vi.fn() };
+
+    const result = await bootstrapShell(platform);
+
+    expect(result).toMatchObject({ native: true, signedIn: false, needsServer: true });
+    expect(platform.storage.checkServer).not.toHaveBeenCalled();
+    expect(platform.system.credentials).not.toHaveBeenCalled();
+    expect(platform.diagnostics.log).toHaveBeenCalledWith("shell:boot", {
+      signedIn: false,
+      needsServer: true,
+    });
+  });
+
+  it("goes on as before for a configured server", async () => {
+    const result = await bootstrapShell(
+      shell({
+        servers: {
+          subsonic: "https://lms.example",
+          mumaApi: "https://lms.example/muma",
+          configured: true,
+        },
+      }),
+    );
+
+    expect(result.needsServer).toBeUndefined();
+  });
+});

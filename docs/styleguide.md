@@ -102,6 +102,18 @@
   font-medium`, 1px `#747775` border, Google's four-colour "G" at 18px left of the label, below the
   hairline-flanked "OF" divider that separates it from the password form. It is only shown when the
   app was built with a Google client ID; there is never a button that can only fail.
+- **First-run server screen** (app only, `FirstRunServer.svelte`, issue #192): the login page's
+  card layout and its fixed `brand-green` accent (the login page's exception to the brand token).
+  One address field in the login page's field style, the example address in muted `text-[11px]`
+  under it, "Verbinden" as the primary pill. A refused check is one line in the login page's error
+  box (`bg-[#e91429]`); a check in progress is the button spinner plus a muted `text-xs` line, with
+  the field disabled. "Toch doorgaan" (MuMa did not answer) and "Opnieuw proberen" (no network) are
+  secondary pills (`bg-muma-spotify-hover`) under the form. Opened to change the server, it has a
+  muted "Annuleren" text link at the bottom.
+- **Server line on the login page** (app only): where the server field was, one muted `text-xs`
+  line "Server: <host>" with "Wijzigen" as a text link after it. Settings > Apparaat starts with a
+  "Server" row of the same shape; a change to another server asks first with the Confirmation
+  dialog.
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
@@ -326,6 +338,11 @@ To maintain clean design governance and prevent ad-hoc style drift:
 3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/muma-mobile`), then mark the item as completed in the style guide.
 
 ### Design Backlog
+
+- **Done** — First-run server screen and server line (2026-11-10, issue #192,
+  `docs/designs/first-run-server/`): see "First-run server screen" and "Server line on the login
+  page" under Components. The settings row and the switch dialog reuse the Apparaat rows and the
+  Confirmation dialog.
 
 - **Done** — Correct a BPM by hand (2026-09-30, `BpmOverride.svelte`): no new token or component
   style. Shown only with the `bpm.override` permission, under the BPM tile of the management

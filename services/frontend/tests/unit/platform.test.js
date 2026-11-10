@@ -285,7 +285,21 @@ describe("browser system", () => {
     expect(browserSystem.serverUrl()).toEqual({
       subsonic: "https://lms.example",
       mumaApi: "/muma",
+      configured: true,
     });
+  });
+
+  // Issue #192: the first-run screen is the shell's; a browser tab never needs it.
+  it("has no server address of its own to check, store or suggest", async () => {
+    await expect(
+      browserSystem.checkServerAddress("https://music.example.net"),
+    ).resolves.toMatchObject({
+      state: "ok",
+    });
+    await expect(
+      browserSystem.setServerAddress({ url: "https://music.example.net", signOut: false }),
+    ).rejects.toMatchObject({ code: "invalid" });
+    await expect(browserSystem.suggestedServerAddress()).resolves.toBe("");
   });
 
   it("has no platform events, but every subscription can be undone", () => {

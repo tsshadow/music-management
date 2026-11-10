@@ -401,8 +401,8 @@
     "requestPending": "Your access request is pending. An administrator has to approve it before you can log in.",
     "requestRejected": "Your access request was rejected. Contact an administrator for more information.",
     "requestedOn": "Requested on: {date}",
-    "server": "Server",
-    "serverHint": "The address of your music server. Only needed in the app; the web version knows its own.",
+    "serverLine": "Server: {host}",
+    "changeServer": "Change",
     "settingUp": "Setting up…",
     "setupIntro": "No users exist yet. Create the first administrator to get started.",
     "setupTitle": "System setup",
@@ -416,6 +416,28 @@
     "googleSignIn": "Sign in with Google",
     "googleNoCredential": "Google returned no account. Is there a Google account on this phone, and is this app registered with Google?",
     "googleFailed": "Google sign-in failed ({reason})."
+  },
+  "firstRun": {
+    "title": "Which server do you want to connect to?",
+    "changeTitle": "Another server",
+    "intro": "Enter the address of your MuMa server. Whoever runs the server knows it.",
+    "label": "Server address",
+    "example": "For example",
+    "connect": "Connect",
+    "checking": "Checking the server…",
+    "continueAnyway": "Continue anyway",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "saveFailed": "The address could not be saved: {reason}",
+    "state": {
+      "invalid": "This is not a server address.",
+      "insecure": "Only https addresses work, also on your home network.",
+      "noNetwork": "Your phone has no network connection.",
+      "unreachable": "The server at {url} does not answer.",
+      "certificate": "The connection is not secure: this server's certificate is not trusted.",
+      "notMuma": "No MuMa server was found at this address.",
+      "mumaUnreachable": "The server was found, but MuMa does not answer. Playback works; the MuMa pages show an error until MuMa answers."
+    }
   },
   "logout": {
     "confirmTitle": "Log out?",
@@ -1904,7 +1926,13 @@
       "mumaUserId": "Muma user id",
       "mumaApiKeySet": "Muma API key",
       "mumaSyncLinked": "Linked",
-      "mumaSyncNotLinked": "Not linked"
+      "mumaSyncNotLinked": "Not linked",
+      "server": "Server",
+      "serverNone": "No server set",
+      "serverChange": "Change",
+      "serverSwitchTitle": "Use another server?",
+      "serverSwitchBody": "You are signed out and the queue is cleared. Downloads stay on your phone.",
+      "serverSwitchConfirm": "Switch"
     },
     "general": {
       "albumSort": "Default album sorting",

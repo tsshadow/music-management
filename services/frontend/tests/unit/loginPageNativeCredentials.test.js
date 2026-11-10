@@ -4,6 +4,8 @@ import LoginPage from "../../src/lib/LoginPage.svelte";
 import { platform } from "../../src/lib/platform/index.js";
 import { credentials, mumaApiUrl } from "../../src/lib/store.js";
 import { tokenRetry } from "../../src/lib/login.js";
+import { serverScreen } from "../../src/lib/serverAddress.js";
+import { get } from "svelte/store";
 
 tokenRetry.delayMs = 0;
 
@@ -63,7 +65,6 @@ describe("LoginPage native credential save", () => {
 
     await waitFor(() => expect(saveCredentials).toHaveBeenCalledOnce());
     expect(saveCredentials).toHaveBeenCalledWith({
-      url: "https://lms.example",
       username: "demo-user",
       mumaApiKey: "own-key",
       mumaUserId: 1,
@@ -91,7 +92,6 @@ describe("LoginPage native credential save", () => {
 
     await waitFor(() => expect(saveCredentials).toHaveBeenCalledOnce());
     expect(saveCredentials).toHaveBeenCalledWith({
-      url: "https://lms.example",
       username: "demo-user",
       mumaApiKey: "own-key",
       mumaUserId: 1,
@@ -122,5 +122,19 @@ describe("LoginPage native credential save", () => {
 
     await waitFor(() => expect(console.warn).toHaveBeenCalled());
     expect(queryByText(/Fout/)).toBeNull();
+  });
+
+  // Issue #192: the address was checked on the first-run screen; this page only shows its host.
+  it("shows the server's host with a link back to the server screen, and no server field", async () => {
+    serverScreen.set(null);
+    const { getByTestId, getByText, queryByLabelText } = render(LoginPage);
+
+    expect(getByTestId("login-server").textContent).toContain("Server: lms.example");
+    expect(queryByLabelText("Server")).toBeNull();
+
+    await fireEvent.click(getByText("Wijzigen"));
+
+    expect(get(serverScreen)).toBe("change");
+    serverScreen.set(null);
   });
 });

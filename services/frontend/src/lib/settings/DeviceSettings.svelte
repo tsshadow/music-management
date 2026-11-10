@@ -5,6 +5,8 @@
   import { platform } from '../platform/index.js';
   import { logAction } from '../diagnosticsLog.js';
   import Modal from '../Modal.svelte';
+  import FirstRunServer from '../FirstRunServer.svelte';
+  import { useServerAddress, sameServer, switchServer } from '../serverAddress.js';
 
   /**
    * `null` while `getSettings()` has not resolved yet. Once it has, every field
@@ -52,6 +54,45 @@
   let selectedDeviceAddresses = $state([]);
   let isDevicePickerOpen = $state(false);
   let isLoadingDevices = $state(false);
+
+  /** The server address in use, the first-run screen open to change it, and a checked other server waiting for a yes. */
+  let serverAddress = $state(platform.system.serverUrl().subsonic);
+  let isChangingServer = $state(false);
+  let pendingServer = $state(null);
+  let isSwitchingServer = $state(false);
+
+  /**
+   * The first-run screen checked an address. Another spelling of the same server is stored at
+   * once and keeps the session; another server waits for the confirmation dialog (issue #192).
+   *
+   * @param {{url: string}} check
+   */
+  async function serverChecked(check) {
+    if (sameServer(serverAddress, check.url)) {
+      const urls = await useServerAddress(check.url, { signOut: false });
+      serverAddress = urls.subsonic;
+      isChangingServer = false;
+      return;
+    }
+    pendingServer = check.url;
+    isChangingServer = false;
+  }
+
+  /** The listener said yes: sign out, switch, and reload onto the new server's login page. */
+  async function confirmServerSwitch() {
+    if (!pendingServer || isSwitchingServer) return;
+    isSwitchingServer = true;
+    logAction('settings.server.switch');
+    try {
+      await switchServer(pendingServer);
+      window.location.reload();
+    } catch (e) {
+      console.error('Could not switch to the other server', e);
+      saveError = $t('firstRun.saveFailed', { reason: e?.message || e?.code || '?' });
+      pendingServer = null;
+      isSwitchingServer = false;
+    }
+  }
 
   onMount(async () => {
     try {
@@ -200,6 +241,21 @@
     {/if}
 
     <div class="flex flex-col gap-6">
+      <!-- Server: the address the first-run screen stored (issue #192). -->
+      <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5" data-testid="device-server">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex flex-col gap-1 min-w-0">
+            <h3 class="text-lg font-bold">{$t('settings.device.server')}</h3>
+            <p class="text-sm text-muma-spotify-text break-all">{serverAddress || $t('settings.device.serverNone')}</p>
+          </div>
+          <button
+            type="button"
+            class="bg-muma-spotify-hover hover:bg-[#444] text-white font-bold py-2 px-6 rounded-full shrink-0"
+            onclick={() => (isChangingServer = true)}
+          >{$t('settings.device.serverChange')}</button>
+        </div>
+      </section>
+
       <!-- Downloads -->
       <section class="bg-muma-spotify-panel rounded-lg p-6 shadow-lg border border-white/5">
         <h2 class="text-xl font-bold mb-6 border-b border-white/10 pb-2">{$t('settings.device.groups.downloads')}</h2>
@@ -594,6 +650,39 @@
         </div>
       </section>
     </div>
+
+    {#if isChangingServer}
+      <div class="fixed inset-0 z-[90] overflow-y-auto bg-black">
+        <FirstRunServer
+          mode="change"
+          current={serverAddress}
+          onconfirm={serverChecked}
+          oncancel={() => (isChangingServer = false)}
+        />
+      </div>
+    {/if}
+
+    {#if pendingServer}
+      <Modal title={$t('settings.device.serverSwitchTitle')} onclose={() => (pendingServer = null)} widthClass="max-w-md">
+        <div class="flex flex-col gap-4" data-testid="server-switch-confirm">
+          <p class="text-sm text-white m-0 break-all">{pendingServer}</p>
+          <p class="text-sm text-muma-spotify-text m-0">{$t('settings.device.serverSwitchBody')}</p>
+          <div class="flex flex-wrap gap-3 justify-end">
+            <button
+              class="bg-transparent border border-muma-spotify-muted text-white px-6 py-2 rounded-[24px] font-bold cursor-pointer hover:border-white"
+              onclick={() => (pendingServer = null)}
+              disabled={isSwitchingServer}
+            >{$t('common.cancel')}</button>
+            <button
+              class="bg-brand text-black px-6 py-2 rounded-[24px] font-bold cursor-pointer disabled:opacity-50"
+              data-testid="server-switch-confirm-button"
+              onclick={confirmServerSwitch}
+              disabled={isSwitchingServer}
+            >{$t('settings.device.serverSwitchConfirm')}</button>
+          </div>
+        </div>
+      </Modal>
+    {/if}
 
     {#if isDevicePickerOpen}
       <Modal title={$t('settings.device.carModeDevicesEdit')} onclose={() => (isDevicePickerOpen = false)}>

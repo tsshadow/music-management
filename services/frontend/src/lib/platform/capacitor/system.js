@@ -33,7 +33,7 @@ import { listen, fireAndForget } from "./listen.js";
  * @returns {object} An implementation of the `platform.system` interface.
  */
 export function createCapacitorSystem(plugin) {
-  let servers = { subsonic: "", mumaApi: "" };
+  let servers = { subsonic: "", mumaApi: "", configured: true };
 
   return {
     isNative: true,
@@ -111,26 +111,75 @@ export function createCapacitorSystem(plugin) {
     /**
      * The bases every URL is built on, as last read by {@link loadServerUrl}.
      *
-     * @returns {{subsonic: string, mumaApi: string}}
+     * @returns {{subsonic: string, mumaApi: string, configured: boolean}}
      */
     serverUrl() {
       return { ...servers };
     },
 
     /**
-     * Reads the server the phone is signed in to and caches it.
+     * Reads the server address the phone stores and caches it.
      *
-     * Called once, from the shell boot path, before the first request.
+     * Called from the shell boot path before the first request, and again after the first-run
+     * screen stored an address. `configured` is false while none is stored (a fresh install,
+     * issue #192); a shell from before that answer reads as configured.
      *
-     * @returns {Promise<{subsonic: string, mumaApi: string}>}
+     * @returns {Promise<{subsonic: string, mumaApi: string, configured: boolean}>}
      */
     async loadServerUrl() {
       const answer = await plugin.serverUrl();
       servers = {
         subsonic: trimTrailingSlash(answer?.subsonic),
         mumaApi: trimTrailingSlash(answer?.mumaApi),
+        configured: answer?.configured !== false,
       };
       return { ...servers };
+    },
+
+    /**
+     * Asks the phone whether a MuMa server answers at `url`. The check is native: a `fetch` from
+     * the WebView's origin is refused by a server without CORS headers for it.
+     *
+     * @param {string} url What the listener typed.
+     * @returns {Promise<ServerAddressCheck>}
+     */
+    async checkServerAddress(url) {
+      const answer = await plugin.checkServerAddress({ url });
+      return {
+        state: answer?.state ?? "unreachable",
+        url: answer?.url ?? "",
+        subsonic: trimTrailingSlash(answer?.subsonic),
+        mumaApi: trimTrailingSlash(answer?.mumaApi),
+        buildServer: answer?.buildServer === true,
+      };
+    },
+
+    /**
+     * Stores the server address and makes the phone use it. `signOut` ends the session and
+     * drops the old server's cache first; pass it for another server, not for another spelling
+     * of the same one. Rejects with code `invalid` or `insecure`.
+     *
+     * @param {{url: string, signOut: boolean}} request
+     * @returns {Promise<void>}
+     */
+    async setServerAddress({ url, signOut }) {
+      await plugin.setServerAddress({ url, signOut: signOut === true });
+    },
+
+    /**
+     * The address a first run suggests: the build's own server, or `""` when the build has
+     * none.
+     *
+     * @returns {Promise<string>}
+     */
+    async suggestedServerAddress() {
+      try {
+        const answer = await plugin.suggestedServerAddress();
+        return typeof answer?.url === "string" ? answer.url : "";
+      } catch (error) {
+        console.warn("Could not ask the shell for a suggested server", error);
+        return "";
+      }
     },
 
     /**
@@ -178,7 +227,7 @@ export function createCapacitorSystem(plugin) {
 
     /**
      * Whether this APK can do "Sign in with Google" natively: a real Web client ID was compiled
-     * in. A bridge failure reads as "no", so the login page simply does not offer the button.
+     * in and the stored address is the build's own server (issue #192). A bridge failure reads as "no", so the login page simply does not offer the button.
      *
      * @returns {Promise<boolean>}
      */

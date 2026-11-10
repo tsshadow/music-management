@@ -14,6 +14,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Build
 import android.provider.DocumentsContract
 import androidx.activity.result.ActivityResult
@@ -32,6 +33,7 @@ import nl.teunschriks.mumamobile.BuildConfig
 import nl.teunschriks.mumamobile.car.CAR_DEVICE_CLASSES
 import nl.teunschriks.mumamobile.car.CarPresence
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.ServerAddress
 import nl.teunschriks.mumamobile.data.SubsonicSigning
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
@@ -60,7 +62,10 @@ import timber.log.Timber
  * | `checkForUpdate()` | `checkForUpdate()` → `{available, currentVersionCode, currentVersionName, currentSeries, latestVersionCode, latestVersionName, latestSeries, url}`, rejects when the hoster cannot be asked; see [checkForUpdate] |
  * | `openUrl({url})` | `openUrl({url})`, an `ACTION_VIEW` to whatever handles it; rejects when nothing does |
  * | `releaseNotes()` | `releaseNotes()` → `{text}`, muma-mobile's own `CHANGELOG.md` |
- * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi}` |
+ * | `serverUrl()` | `serverUrl()` → `{subsonic, mumaApi, configured}` |
+ * | `checkServerAddress({url})` | [checkServerAddress] → `{state, url, subsonic, mumaApi, buildServer}` |
+ * | `setServerAddress({url, signOut})` | [setServerAddress] → `{subsonic, mumaApi, configured}` |
+ * | `suggestedServerAddress()` | [suggestedServerAddress] → `{url}` |
  * | `signOut()` | `signOut()` |
  * | `saveCredentials({url, username, mumaApiKey, mumaUserId})` | `saveCredentials()` |
  * | `onBack(fn)` | listener on the `back` event, answered with `handledBack({seq})` |
@@ -301,26 +306,86 @@ class MumaSystemPlugin :
     private val calls = PluginCallScope("MumaSystem")
 
     /**
-     * The two bases every URL in the web player is built on.
+     * The two bases every URL in the web player is built on, and whether an address is stored.
      *
-     * `subsonic` is the LMS server the app is logged in to; `mumaApi` is derived from it exactly
-     * as `SubsonicAPIClient.mumaBaseUrlFor` does for the native code, so the shell and the Kotlin
-     * app can never disagree about which backend they are talking to. Neither is ever an empty
-     * string here: a native shell has no origin to fall back on.
+     * `subsonic` is the LMS server the listener entered on the first-run screen; `mumaApi` is
+     * derived from it exactly as `SubsonicAPIClient.mumaBaseUrlFor` does for the native code, so
+     * the shell and the Kotlin app can never disagree about which backend they are talking to.
+     * While no address is stored (a fresh install) both are `""` and `configured` is false: the
+     * web shows the first-run screen (issue #192).
      *
      * Read from [ActiveServerProvider.signInServer] rather than the active server: with Offline
-     * active (every fresh install) the active url is `http://localhost`, the WebView's own origin,
-     * and every request the web player made would have been answered by its own index.html.
+     * active the active url is `http://localhost`, the WebView's own origin, and every request the
+     * web player made would have been answered by its own index.html.
      */
     @PluginMethod
     fun serverUrl(call: PluginCall) {
-        val urls = serverUrlsOf(activeServerProvider.signInServer().url)
-        call.resolve(
-            JSObject()
-                .put("subsonic", urls.subsonic)
-                .put("mumaApi", urls.mumaApi)
-        )
+        call.resolve(serverUrlAnswer(activeServerProvider.signInServer()?.url))
     }
+
+    /**
+     * Whether a MuMa server answers at `{url}`, for the first-run screen. Normalizes the input
+     * first; an input [ServerAddress.normalize] refuses answers `invalid` or `insecure` without a
+     * request. Otherwise [ServerAddressProbe] sends the ping and the `/health` request. Resolves
+     * with the state in every case; rejects only when the call itself fails.
+     */
+    @PluginMethod
+    fun checkServerAddress(call: PluginCall) {
+        val input = call.getString("url") ?: ""
+        val normalized = ServerAddress.normalize(input)
+        if (normalized is ServerAddress.Result.Refused) {
+            call.resolve(checkAnswer(normalized.reason.wire, ""))
+            return
+        }
+        val url = (normalized as ServerAddress.Result.Ok).url
+        val networkUp = connectivity?.hasInternetCapability() == true
+        calls.runCall(call) { answer ->
+            val state = ServerAddressProbe.check(probeClient, url, serverUrlsOf(url).mumaApi, networkUp)
+            withContext(Dispatchers.Main) { answer.resolve(checkAnswer(state.wire, url)) }
+        }
+    }
+
+    /**
+     * Stores the address `{url}` and makes the app use it. With `signOut: true` -- another server
+     * -- the session and the queue are cleared first, as [signOut] does, and the Room cache of the
+     * old server is deleted; downloaded files stay. Rejects with the code `invalid` or `insecure`
+     * when [ServerAddress.normalize] refuses `url`. It does not check again: the page did.
+     */
+    @PluginMethod
+    fun setServerAddress(call: PluginCall) {
+        val normalized = ServerAddress.normalize(call.getString("url") ?: "")
+        if (normalized is ServerAddress.Result.Refused) {
+            call.reject("not a server address", normalized.reason.wire)
+            return
+        }
+        val url = (normalized as ServerAddress.Result.Ok).url
+        val signOut = call.getBoolean("signOut", false) == true
+        calls.runCall(call) { answer ->
+            withContext(Dispatchers.Main) {
+                if (signOut) {
+                    SessionSignOut.run(
+                        clearCredentials = { activeServerProvider.signOut() },
+                        clearQueue = { mediaPlayerManager.clear() }
+                    )
+                }
+            }
+            if (signOut) activeServerProvider.deleteMetaDatabase(0)
+            ServerAddress.store(url, activeServerProvider)
+            withContext(Dispatchers.Main) { answer.resolve(serverUrlAnswer(url)) }
+        }
+    }
+
+    /** The address a first run suggests: the build's own server, or `""` for the example default. */
+    @PluginMethod
+    fun suggestedServerAddress(call: PluginCall) {
+        call.resolve(JSObject().put("url", ServerAddress.suggestion()))
+    }
+
+    private val connectivity: ConnectivityManager?
+        get() = safeContext?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+
+    /** The first-run check's own client, see [ServerAddressProbe.client]. */
+    private val probeClient by lazy { ServerAddressProbe.client() }
 
     /**
      * The session the native side holds, for the web shell to take over on boot.
@@ -385,12 +450,15 @@ class MumaSystemPlugin :
     }
 
     /**
-     * Whether this build can offer "Sign in with Google": a real Web client ID was compiled in.
-     * The page hides its button otherwise rather than showing one that can only fail.
+     * Whether this build can offer "Sign in with Google": a real Web client ID was compiled in and
+     * the stored address is the build's own server. The client ID is registered with that server's
+     * music-manager; another server cannot verify the token, so the page hides its button rather
+     * than showing one that can only fail (issue #192).
      */
     @PluginMethod
     fun googleSignInAvailable(call: PluginCall) {
-        call.resolve(JSObject().put("available", GoogleSignIn.isConfigured(BuildConfig.GOOGLE_WEB_CLIENT_ID)))
+        val ownServer = ServerAddress.current()?.let(ServerAddress::isBuildServer) == true
+        call.resolve(JSObject().put("available", ownServer && GoogleSignIn.isConfigured(BuildConfig.GOOGLE_WEB_CLIENT_ID)))
     }
 
     /**
@@ -421,9 +489,8 @@ class MumaSystemPlugin :
      * mumaUserId}` -- so downloads and Android Auto see the same session afterwards. Goes through
      * [ActiveServerProvider.saveSession]. No password: the page signed in with it, and neither
      * side keeps it (issue #101); a `password` member sent by anything else is ignored. `url` is
-     * accepted for symmetry with the JS contract but not stored: static mode has exactly one server
-     * address (see `StaticServers.STATIC_SERVERS`), so there is nowhere on this side to put a
-     * different one. Rejected without a name or a key: there is no session to record then.
+     * ignored: the address is stored only by [setServerAddress], after the first-run screen checked
+     * it. Rejected without a name or a key: there is no session to record then.
      */
     @PluginMethod
     fun saveCredentials(call: PluginCall) {
@@ -821,4 +888,31 @@ private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -
  */
 private fun jsArrayToStringSet(array: JSArray): Set<String> = buildSet {
     for (i in 0 until array.length()) (array.opt(i) as? String)?.let { add(it) }
+}
+
+/**
+ * `serverUrl()`'s answer for the stored address [url]: both bases and `configured: true`, or two
+ * empty strings and `configured: false` while none is stored (issue #192).
+ */
+internal fun serverUrlAnswer(url: String?): JSObject {
+    if (url.isNullOrBlank()) {
+        return JSObject().put("subsonic", "").put("mumaApi", "").put("configured", false)
+    }
+    val urls = serverUrlsOf(url)
+    return JSObject().put("subsonic", urls.subsonic).put("mumaApi", urls.mumaApi).put("configured", true)
+}
+
+/**
+ * `checkServerAddress()`'s answer: the [state] word, the normalized [url] (`""` when refused), the
+ * two bases derived from it, and whether it is the build's own server (Google sign-in is offered
+ * only there).
+ */
+internal fun checkAnswer(state: String, url: String): JSObject {
+    val urls = if (url.isEmpty()) ServerUrls("", "") else serverUrlsOf(url)
+    return JSObject()
+        .put("state", state)
+        .put("url", url)
+        .put("subsonic", urls.subsonic)
+        .put("mumaApi", urls.mumaApi)
+        .put("buildServer", url.isNotEmpty() && ServerAddress.isBuildServer(url))
 }

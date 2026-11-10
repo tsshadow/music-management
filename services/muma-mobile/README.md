@@ -89,7 +89,7 @@ The APK does not carry a server in its source. `app/build.gradle` compiles four 
 
 | Gradle property | Environment | Default | Effect |
 | --- | --- | --- | --- |
-| `muma.serverUrl` | `MUMA_SERVER_URL` | `https://music.example.org` | The one server the app talks to (`StaticServers.SERVER_URL`). |
+| `muma.serverUrl` | `MUMA_SERVER_URL` | `https://music.example.org` | The address a fresh install suggests on its first-run screen, and the host `muma.apiUrl` belongs to. The listener types the server the app talks to; the example default suggests nothing (issue #192). |
 | `muma.googleClientId` | `MUMA_GOOGLE_CLIENT_ID` | empty | The Google OAuth Web client id of "Sign in with Google". Empty hides the button. |
 | `muma.apiUrl` | `MUMA_API_URL` | empty | Own host for the MuMa API. Empty means `<server>/muma`. |
 | `muma.ownDomain` | `MUMA_OWN_DOMAIN` | empty | The owner's domain. A stored server whose host equals the server's host, the domain, or ends in `.<domain>` gets `muma.apiUrl`. Empty means exact host match only. |
@@ -103,8 +103,8 @@ generated code.
 A release (`assembleRelease`, `bundleRelease`, `packageRelease`) fails in Gradle when the server is
 the example default or the client id is empty, and `scripts/ci/muma-mobile-build-upload.sh release`
 stops earlier for the same reason. `MUMA_ALLOW_DEFAULTS=true` lifts the Gradle check for a build that
-is never shipped; `mobile:smoke` sets it and expects the server from `MUMA_SERVER_URL` on the login
-page. `./scripts/test/muma-mobile-config-check.sh` runs the cases in the Android image.
+is never shipped; `mobile:smoke` sets it and expects the server from `MUMA_SERVER_URL` prefilled on the
+first-run screen. `./scripts/test/muma-mobile-config-check.sh` runs the cases in the Android image.
 
 ### Release-build smoke test
 The shipped APK is R8-minified (`app/minify/*.pro`), and a missing keep rule only fails in that
@@ -112,7 +112,8 @@ build -- the 6.21.0 startup crash (`docs/bug-reports/029`) was invisible to ever
 `./scripts/test/muma-mobile-emulator-smoke.sh` (CI job `mobile:smoke`, which gates
 `mobile:build-release`) builds the release variant with a throwaway keystore, starts it twice on a
 headless emulator and checks that it survives, that `CapacitorActivity` is resumed, and that the
-login page shows the static server, which only arrives through a Capacitor plugin call. Needs
+first-run screen shows the build's suggested server, which only arrives through Capacitor plugin
+calls. Needs
 `/dev/kvm`; run it locally after touching a keep rule. Details in `docs/testing-inventory.md`.
 
 ### APK Hoster

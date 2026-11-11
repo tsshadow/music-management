@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## Global Version 7.21.0 (2026-11-11)
+
+- Een beoordeling zonder verbinding met de server blijft bewaard en gaat naar de server zodra die
+  terug is.
+- Android Auto toont de gedownloade muziek als de server uit staat, ook zonder "Offline verder".
+
+- De app vertrouwt alleen nog een geldig servercertificaat, en de oude servertabel bewaart geen
+  API-sleutel meer.
+
+- Bij de eerste start vraagt de app het adres van je MuMa-server en controleert het.
+- Op het inlogscherm en in Instellingen > Apparaat kun je de server wijzigen.
+- Na de update blijf je gewoon ingelogd op je eigen server.
+
 ## Global Version 7.20.1 (2026-11-07)
 
 - A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).

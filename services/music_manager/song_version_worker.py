@@ -303,11 +303,11 @@ def find_suspicious_works(cursor, min_members: int = 4) -> list[dict]:
 def split_work(cursor, work_id: int) -> list[int]:
     """Give every unlocked member of a work a work of its own, locked there.
 
-    The same move the split endpoint in routers/songs.py makes for one track: a `split:`
-    key that cannot collide with a real one, and `work_locked = 1` so neither this worker
-    nor scripts/repair_song_works.py puts the track back. Each statement states its own
-    precondition -- the track is still in this work and still unlocked -- because the
-    connection runs with autocommit on. Returns the ids of the tracks that moved.
+    Each track gets a `split:` key that cannot collide with a real one, and
+    `work_locked = 1` so neither this worker nor scripts/repair_song_works.py puts the
+    track back. Each statement states its own precondition -- the track is still in this
+    work and still unlocked -- because the connection runs with autocommit on. Returns
+    the ids of the tracks that moved.
     """
     cursor.execute(
         'SELECT id, title, primary_artist_id FROM library_tracks WHERE work_id = %s AND work_locked = 0 ORDER BY id',

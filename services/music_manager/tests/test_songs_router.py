@@ -31,7 +31,6 @@ from services.music_manager.song_version_worker import RankingContext
 from services.music_manager.tests.scripted_cursor import (
     ScriptedCursor,
     assert_atomic,
-    assert_rolled_back,
     transaction_log,
 )
 
@@ -204,77 +203,6 @@ class PinVersionTest(SongsTestCase):
         self.conn.commit.assert_not_called()
 
 
-class SplitTrackTest(SongsTestCase):
-    rules = (
-        (
-            'SELECT work_id, title, primary_artist_id FROM library_tracks',
-            (22,),
-            {'work_id': 5, 'title': 'Raise Your Fist (Radio Edit)', 'primary_artist_id': 7},
-        ),
-    )
-    lastrowid = 80
-
-    def test_split_gives_the_track_its_own_locked_work(self):
-        response = self.client.post('/api/songs/tracks/22/split', headers=self.headers)
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json(), {'status': 'ok', 'track_id': 22, 'work_id': 80})
-
-        inserts = self.cursor.statements_matching('INSERT INTO library_works')
-        self.assertEqual(len(inserts), 1)
-        # The key carries the track id so it can never collide with the group it
-        # left, nor with another split; the title and artist are the track's own.
-        self.assertEqual(inserts[0][1], ('split:22', 'Raise Your Fist (Radio Edit)', 7))
-
-        moves = self.cursor.statements_matching('UPDATE library_tracks SET work_id')
-        self.assertEqual(len(moves), 1)
-        self.assertIn('work_locked = 1', moves[0][0])
-        self.assertEqual(moves[0][1], (80, 22))
-
-    def test_both_the_old_and_the_new_work_are_recomputed(self):
-        # The old group lost a candidate and may need a new canonical; the new
-        # one has exactly one and needs it set. Missing either leaves a stale
-        # canonical pointing at a track that is no longer in that work.
-        self.client.post('/api/songs/tracks/22/split', headers=self.headers)
-        self.recompute.assert_called_once_with(self.cursor, {5, 80})
-        self.conn.commit.assert_called_once()
-
-    def test_the_old_pin_is_cleared_when_it_named_the_track_that_left(self):
-        # A pin is a statement about one group. Left behind, it keeps deciding for a
-        # work the track no longer belongs to, and the recompute follows it.
-        self.client.post('/api/songs/tracks/22/split', headers=self.headers)
-
-        cleared = self.cursor.statements_matching('SET pinned_track_id = NULL')
-        self.assertEqual(len(cleared), 1)
-        # Conditional on the pin naming this track, so another version's pin stays.
-        self.assertIn('WHERE id = %s AND pinned_track_id = %s', cleared[0][0])
-        self.assertEqual(cleared[0][1], (5, 22))
-
-    def test_unknown_track_is_a_404_and_writes_nothing(self):
-        response = self.client.post('/api/songs/tracks/404/split', headers=self.headers)
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(self.cursor.statements_matching('INSERT'), [])
-        self.recompute.assert_not_called()
-        self.conn.commit.assert_not_called()
-
-
-class UngroupedTrackSplitTest(SongsTestCase):
-    """A track the worker has not reached yet has no old work to recompute."""
-
-    rules = (
-        (
-            'SELECT work_id, title, primary_artist_id FROM library_tracks',
-            (23,),
-            {'work_id': None, 'title': 'Loose Track', 'primary_artist_id': None},
-        ),
-    )
-    lastrowid = 81
-
-    def test_only_the_new_work_is_recomputed(self):
-        response = self.client.post('/api/songs/tracks/23/split', headers=self.headers)
-        self.assertEqual(response.status_code, 200, response.text)
-        self.recompute.assert_called_once_with(self.cursor, {81})
-
-
 CURATION_ROW = {
     'id': 5,
     'title': 'Raise Your Fist',
@@ -371,7 +299,6 @@ class DatabaseDownTest(unittest.TestCase):
         with patch.object(songs_router, 'get_db_connection', return_value=None):
             self.assertEqual(client.get('/api/songs/5', headers=headers).status_code, 503)
             self.assertEqual(client.post('/api/songs/5/pin', json={'track_id': 1}, headers=headers).status_code, 503)
-            self.assertEqual(client.post('/api/songs/tracks/1/split', headers=headers).status_code, 503)
 
 
 class PinAtomicityTest(SongsTestCase):
@@ -385,26 +312,6 @@ class PinAtomicityTest(SongsTestCase):
         response = self.client.post('/api/songs/5/pin', json={'track_id': 22}, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         assert_atomic(self, log, 'UPDATE library_works SET pinned_track_id', 'RECOMPUTE')
-
-
-class SplitAtomicityTest(SongsTestCase):
-    """A split's new work, the moved track and the recompute land together."""
-
-    rules = SplitTrackTest.rules
-    lastrowid = SplitTrackTest.lastrowid
-
-    def test_the_split_is_one_transaction(self):
-        log = transaction_log(self.conn, self.cursor)
-        response = self.client.post('/api/songs/tracks/22/split', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        assert_atomic(self, log, 'INSERT INTO library_works', 'UPDATE library_tracks SET work_id')
-
-    def test_a_failing_recompute_rolls_the_split_back(self):
-        log = transaction_log(self.conn, self.cursor)
-        self.recompute.side_effect = RuntimeError('deadlock')
-        with self.assertRaises(RuntimeError):
-            self.client.post('/api/songs/tracks/22/split', headers=self.headers)
-        assert_rolled_back(self, log)
 
 
 if __name__ == '__main__':

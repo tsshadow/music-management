@@ -7,7 +7,7 @@ Implements [functional.md](functional.md). The ranking (`KIND_ORDER`, `version_k
 
 No schema change. `library_works.work_key` keeps its shape `<artist>:::<title>`, plus the reserved
 `track:` and `split:` prefixes. Auto-split works use `split:<track_id>` and set
-`library_tracks.work_locked = 1`, the same as `POST /api/songs/tracks/{id}/split`.
+`library_tracks.work_locked = 1`, so no later grouping pass moves the track back.
 
 ## Key rules (`services/music_manager/song_versions.py`)
 

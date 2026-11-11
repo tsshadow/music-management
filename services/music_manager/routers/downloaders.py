@@ -17,7 +17,6 @@ from services.downloader.settings_store import DatabaseSettingsStore
 from services.downloader.timing import SOURCES, TIMING_FIELDS, load_timing
 from services.music_manager import downloader_coverage
 from services.music_manager.database import get_db_connection
-from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.downloader_coverage import ConfiguredAccount, youtube_key
 from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
@@ -127,24 +126,6 @@ def reset_rate_state(source: str, _auth: dict = Depends(require_config_manage)):
     timing = load_timing(source, overrides=_stored(source))
     RateState(source, timing, store=rate_state_store).reset()
     return {'status': 'success', 'source': source}
-
-
-@router.get('/schedule/{source}', deprecated=True, dependencies=[DEPRECATED_CALL])
-def get_schedule(source: str, _auth: dict = Depends(verify_api_key)):
-    """When each account of a source was last checked."""
-    if source not in SOURCES:
-        raise HTTPException(status_code=400, detail=f'Unknown downloader source: {source}')
-    try:
-        checked = DatabaseCheckStore().load(source)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f'Could not read the schedule: {exc}') from exc
-    return {
-        'source': source,
-        'accounts': [
-            {'account': account, 'last_checked_at': check.last_checked_at.isoformat()}
-            for account, check in sorted(checked.items())
-        ],
-    }
 
 
 class CoverageQueries:

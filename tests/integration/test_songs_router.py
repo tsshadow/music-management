@@ -107,26 +107,6 @@ def test_a_pin_on_a_track_from_another_work_is_refused(client, database, grouped
     assert response.status_code == 400
 
 
-def test_splitting_gives_the_track_its_own_work_and_locks_it(client, database, grouped):
-    response = client.post(f"/api/songs/tracks/{grouped['uid-ext']}/split", headers=HEADERS)
-    assert response.status_code == 200
-
-    with database.cursor() as cursor:
-        cursor.execute('SELECT work_id, work_locked FROM library_tracks WHERE id = %s', (grouped['uid-ext'],))
-        row = cursor.fetchone()
-    assert row['work_locked'] == 1
-    assert row['work_id'] != grouped['work_id']
-
-
-def test_a_split_survives_the_next_grouping_pass(client, database, grouped):
-    client.post(f"/api/songs/tracks/{grouped['uid-ext']}/split", headers=HEADERS)
-    song_version_worker.group_once(database)
-
-    with database.cursor() as cursor:
-        cursor.execute('SELECT work_id FROM library_tracks WHERE id = %s', (grouped['uid-ext'],))
-        assert cursor.fetchone()['work_id'] != grouped['work_id']
-
-
 def test_the_curation_list_shows_the_song_and_its_version_count(client, grouped):
     response = client.get('/api/songs/curation?q=Raise', headers=HEADERS)
     assert response.status_code == 200, response.text

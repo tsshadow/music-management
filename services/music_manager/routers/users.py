@@ -18,7 +18,6 @@ from pydantic import BaseModel, field_validator
 from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
-from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.dynamic_playlist_params import read_params, validate_params
 from services.music_manager.identity import username_taken
 from services.music_manager.lms_schema import usable_lms_targets
@@ -855,19 +854,6 @@ def list_roles(auth: dict = Depends(require_permission('roles.read'))):
         conn.close()
 
 
-@router.get('/permissions', deprecated=True, dependencies=[DEPRECATED_CALL])
-def list_permissions(auth: dict = Depends(require_permission('permissions.read'))):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail='DB failed')
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT id, name, description FROM permissions ORDER BY name')
-            return cursor.fetchall()
-    finally:
-        conn.close()
-
-
 @router.put('/{user_id}/role')
 def assign_role(user_id: int, req: RoleAssign, auth: dict = Depends(require_permission('users.assign-role'))):
     """Give an account a role; 409 when that would demote the last enabled admin."""
@@ -1470,7 +1456,6 @@ def patch_user_app_settings(user_id: int, app_id: str, req: AppSettingsPatch, au
 
 
 @router.post('/sync/muma-server')
-@router.post('/sync/lms-db', deprecated=True, dependencies=[DEPRECATED_CALL])
 def sync_lms_db(background_tasks: BackgroundTasks, _auth: dict = Depends(rbac.require_admin())):
     """Run the lms.db sync now and return its count. Admin only; 409 while one is running.
 

@@ -3,14 +3,11 @@ import logging
 import os
 from typing import Any
 
-import markdown
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, field_validator
 
 import docker
 from services.common.config_store import ConfigStore as Settings
-from services.common.Helpers.FilterTableHelper import resolve_redirect_chains
 from services.common.Helpers.GenreNameAnalyzer import KINDS as PROPOSAL_KINDS
 from services.common.Helpers.GenreRulesHelper import BLACK, VALID_STATES, WHITE
 from services.common.Helpers.LmsScanTrigger import lms_scan_trigger
@@ -21,7 +18,6 @@ from services.common.Helpers.RescanInvalidator import invalidate_quietly, rescan
 from services.common.version_helper import get_changelog, get_release_notes, get_version
 from services.music_manager import curation_rules
 from services.music_manager.database import get_db_connection, transaction
-from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.rbac import has_permission, require_admin, require_permission
 
 # Re-exported: news, radio and events import it from here. It is the canonical
@@ -64,13 +60,6 @@ class GenreDecisionRequest(BaseModel):
 class LabelGenreRule(BaseModel):
     label_name: str
     genre_id: int
-
-
-class ArtistRedirect(BaseModel):
-    """A name the tagger should rewrite, or ignore when there is no correction."""
-
-    name: str
-    corrected_name: str | None = None
 
 
 class PodcastDecisionRequest(BaseModel):
@@ -364,17 +353,6 @@ def get_config(auth: dict = Depends(verify_api_key)):
         'VERSION': version,
         'PHPMYADMIN_URL': os.getenv('PHPMYADMIN_URL', ''),
     }
-
-
-@router.get('/about', response_class=HTMLResponse, deprecated=True, dependencies=[DEPRECATED_CALL])
-def get_about(_auth: dict = Depends(verify_api_key)):
-    readme_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.md')
-    content = '# Music Manager\nDocumentation not found.'
-    if os.path.exists(readme_path):
-        with open(readme_path, encoding='utf-8') as f:
-            content = f.read()
-    html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
-    return html
 
 
 @router.get('/stats')
@@ -1134,101 +1112,6 @@ def delete_label_genre_rule(rule_id: int, _auth: dict = Depends(require_rules_ma
     return {'status': 'ok'}
 
 
-@router.get('/rules/artist-redirects', deprecated=True, dependencies=[DEPRECATED_CALL])
-def get_artist_redirects(_auth: dict = Depends(verify_api_key)):
-    """Names the tagger should rewrite, or ignore when there is no correction."""
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT id, name, corrected_name FROM rules_ignored_artists ORDER BY name')
-            return cursor.fetchall()
-    finally:
-        conn.close()
-
-
-def _refuse_bad_redirect_target(cursor, name: str, corrected: str) -> None:
-    """400 for a redirect that would end at a rejected artist or close a loop.
-
-    The same rule the artist curation page applies (routers/artist_curation.py): a
-    correction must never rewrite one problem into another. A correction that only
-    changes the casing of the name itself is fine -- that is not a loop.
-    """
-    cursor.execute('SELECT state FROM rules_artists WHERE name = %s', (corrected,))
-    decision = cursor.fetchone()
-    if decision and decision.get('state') == BLACK:
-        raise HTTPException(status_code=400, detail=f"'{corrected}' is rejected; pick an approved name")
-    if corrected.lower() == name.lower():
-        return
-    cursor.execute('SELECT name, corrected_name FROM rules_ignored_artists WHERE corrected_name IS NOT NULL')
-    corrections = {
-        row['name']: row['corrected_name']
-        for row in cursor.fetchall()
-        if row['corrected_name'] and row['name'].lower() != name.lower()
-    }
-    corrections[name] = corrected
-    _resolved, _paths, cycles = resolve_redirect_chains(corrections)
-    for cycle in cycles:
-        if name.lower() in {member.lower() for member in cycle}:
-            raise HTTPException(
-                status_code=400, detail=f"'{name}' -> '{corrected}' closes a loop: {' -> '.join(cycle)}"
-            )
-
-
-@router.post('/rules/artist-redirects', deprecated=True, dependencies=[DEPRECATED_CALL])
-def save_artist_redirect(redirect: ArtistRedirect, _auth: dict = Depends(require_rules_manage)):
-    """Add a redirect, or change the correction on one that already exists."""
-    name = redirect.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail='A redirect needs a name')
-    corrected = (redirect.corrected_name or '').strip() or None
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500)
-    try:
-        with conn.cursor() as cursor:
-            if corrected:
-                _refuse_bad_redirect_target(cursor, name, corrected)
-            cursor.execute('SELECT id FROM rules_ignored_artists WHERE LOWER(name) = LOWER(%s)', (name,))
-            if cursor.fetchone():
-                cursor.execute(
-                    'UPDATE rules_ignored_artists SET corrected_name = %s WHERE LOWER(name) = LOWER(%s)',
-                    (corrected, name),
-                )
-            else:
-                cursor.execute(
-                    'INSERT INTO rules_ignored_artists (name, corrected_name) VALUES (%s, %s)', (name, corrected)
-                )
-            conn.commit()
-    finally:
-        conn.close()
-    curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
-    # The old spelling is what sits in the files today, so that is the term to search
-    # for -- not the corrected name, which nothing carries yet.
-    invalidate_quietly(name, 'artist_redirect')
-    return {'status': 'ok'}
-
-
-@router.delete('/rules/artist-redirects/{rule_id}', deprecated=True, dependencies=[DEPRECATED_CALL])
-def delete_artist_redirect(rule_id: int, _auth: dict = Depends(require_rules_manage)):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute('SELECT name FROM rules_ignored_artists WHERE id = %s', (rule_id,))
-            row = cursor.fetchone()
-            cursor.execute('DELETE FROM rules_ignored_artists WHERE id = %s', (rule_id,))
-            conn.commit()
-    finally:
-        conn.close()
-    curation_rules.refresh(curation_rules.ARTIST_REDIRECT_HELPER)
-    if row:
-        invalidate_quietly(row['name'], 'artist_redirect')
-    return {'status': 'ok'}
-
-
 @router.get('/scrobble/import/latest')
 def get_latest_scrobble_imports_proxy(auth: dict = Depends(verify_api_key)):
     """The same list as GET /api/scrobble/import/latest, with the same admin-or-own scope (issue #38).
@@ -1257,10 +1140,3 @@ def trigger_tagger_rescan(_auth: dict = Depends(require_rules_manage)):
     # With its reason: this is bulk, and the queue serves every decision before it.
     helper.mark_for_rescan(reason='rescan_all')
     return {'status': 'ok', 'message': 'All files marked for rescan'}
-
-
-@router.post('/tagger/rescan/file', deprecated=True, dependencies=[DEPRECATED_CALL])
-def trigger_file_rescan(filepath: str = Body(..., embed=True), _auth: dict = Depends(require_rules_manage)):
-    helper = ProcessedFilesHelper()
-    helper.mark_for_rescan(filepath, reason='manual')
-    return {'status': 'ok', 'message': f"File '{filepath}' marked for rescan"}

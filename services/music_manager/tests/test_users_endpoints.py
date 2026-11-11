@@ -405,10 +405,6 @@ class UserManagementTest(UsersEndpointTestCase):
         self.cursor.fetchall.return_value = [{'id': 1, 'name': 'admin'}]
         self.assertEqual(self.client.get('/api/users/roles', headers=self.headers).status_code, 200)
 
-    def test_the_permissions_are_listed(self):
-        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'users.read'}]
-        self.assertEqual(self.client.get('/api/users/permissions', headers=self.headers).status_code, 200)
-
     def test_a_role_can_be_assigned(self):
         with (
             patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),

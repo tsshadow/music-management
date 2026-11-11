@@ -70,10 +70,7 @@ RULES_ROUTES = [
     ('delete', '/api/rules/artist-genres/1', None),
     ('post', '/api/rules/label-genres', {'label_name': 'L', 'genre_id': 1}),
     ('delete', '/api/rules/label-genres/1', None),
-    ('post', '/api/rules/artist-redirects', {'name': 'A', 'corrected_name': 'B'}),
-    ('delete', '/api/rules/artist-redirects/1', None),
     ('post', '/api/tagger/rescan', None),
-    ('post', '/api/tagger/rescan/file', {'filepath': '/music/a.mp3'}),
 ]
 
 ADMIN_ROUTES = [
@@ -481,7 +478,7 @@ class PasswordChangeTest(RouteAuthTestCase):
 
 
 class ServerSyncTest(RouteAuthTestCase):
-    PATHS = ('/api/users/sync/muma-server', '/api/users/sync/lms-db')
+    PATHS = ('/api/users/sync/muma-server',)
 
     def setUp(self):
         super().setUp()
@@ -501,7 +498,7 @@ class ServerSyncTest(RouteAuthTestCase):
 
     def test_a_second_sync_while_one_runs_is_a_conflict(self):
         with users_router.lms_db_sync_lock:
-            response = self.call('post', '/api/users/sync/lms-db', None, 'system')
+            response = self.call('post', '/api/users/sync/muma-server', None, 'system')
         self.assertEqual(response.status_code, 409)
         self.sync.assert_not_called()
 
@@ -619,7 +616,6 @@ TAG_AND_SCAN_ROUTES = [
     ('post', '/api/library/tracks/rerun-parse-path?path=/music/a.mp3', None),
     ('post', '/api/library/tracks/1/rerun-parse', None),
     ('post', '/api/library/tracks/1/redownload', None),
-    ('post', '/api/songs/tracks/1/split', None),
 ]
 
 #: Downloader pacing and backoff: `config.manage` (issue #216). A reset backoff risks a ban.

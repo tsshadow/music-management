@@ -119,6 +119,12 @@ Removed outright, because every caller already uses the target: `GET|PUT
     music-manager answers `rating_removed` with `{"status": "ignored"}`, so the server and
     music-manager must be deployed together.
   - Any other `event` is answered with `{"status": "ignored", "reason": "unsupported event type"}`.
+  - 503 when the `path` lookup gets no database connection, and 500 when the write does: nothing is
+    stored, and LMS keeps the change in its rating outbox and sends it again (LMS db version 128+,
+    [docs/designs/lms-rating-outbox/](designs/lms-rating-outbox/technical.md)). A `path` that
+    matches no track is not an error: the rating is stored under the LMS `object_id`.
+  - A repeat is harmless, and LMS sends one when it never saw the answer: `rating_changed` is an
+    upsert and `rating_removed` a delete by key.
 - **GET `/api/rating/ratings/{username}`**: an account's ratings. Own username, or admin/system key.
 
 ### 🛠 Management & Rules
@@ -129,7 +135,19 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `DELETE /api/rules/artist-genres/{id}`, `POST /api/rules/label-genres`, `DELETE /api/rules/label-genres/{id}`,
   `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
   `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
-  (deprecated).
+  (deprecated), `POST /api/tagger/tag/all|stop|file`, `POST /api/tagger/retag/run|restart`,
+  `POST /api/scanner/scan/all|file`, `POST /api/library/tracks/{id}/rerun-parse|redownload`,
+  `POST /api/library/rerun-parse-path`, `POST /api/songs/tracks/{track_id}/split` (deprecated).
+  Until issue #216 any account could start these.
+- **`GET /api/config`** returns the database settings only to a caller with `config.manage`. Any
+  other account gets `{"VERSION": <version>}`, which is all Beheer reads from it to check a sign-in.
+- **A file path** sent to `POST /api/tagger/tag/file`, `POST /api/scanner/scan/file` or
+  `POST /api/library/rerun-parse-path` must be inside `music_folder_path`, `eps_folder_path` or the
+  import queue after links and `..` are resolved. A path outside them is a `400`. The LMS spelling
+  (`/music/...`) is turned into music-manager's (`/mnt/music/...`) first.
+- **`POST /api/label-proposals/{id}/confirm`**: `label` must be one folder name. An empty name, `.`,
+  `..`, a `/`, a `\` or a NUL byte is a `422`, and a target that resolves outside `eps_folder_path`
+  is a `400`.
 - **GET `/api/import-conflicts`** (any authenticated account): the folder pairs the importer's renamer or
   mover left in place because the name it wanted is taken by a folder holding a different release
   (bug report 091), and the single files its extractor left in place (bug report 119).
@@ -137,7 +155,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
   `mover`, `source`/`target` are the two folders and `reason` is null. For `step` `extractor`, `source`
   is the file, `target` a detail or empty, and `reason` one of `not-an-archive`, `loose-audio`,
   `not-music-video`, `not-music-image`, `not-music-document`, `not-music-other`, `unreadable`,
-  `extraction-failed`, `extraction-empty`, `extraction-name-taken`. Read-only: a row disappears on the
+  `extraction-failed`, `extraction-empty`, `extraction-name-taken`, `extraction-unsafe`, `extraction-too-large`. Read-only: a row disappears on the
   importer's next cycle once the folder or file was removed or renamed by hand.
 - **Channel links** (`/api/channel-links`, docs/designs/channel-links/technical.md): proposals that link a
   SoundCloud/YouTube channel to its label or artist on strong name equality.
@@ -177,6 +195,9 @@ Removed outright, because every caller already uses the target: `GET|PUT
     channel's downloads under (`null` for an unknown platform); `source_url` is the platform page of the
     followed account whose letters and digits equal the channel's, when exactly one does, else `null`.
     An unknown label, a label nothing is linked to, or a blank name return `[]` (never `404`).
+  - **GET `/by-artist?name=`** (any authenticated account, issue #126): the same for the artist of that
+    name, for the artist page. Each row has `label: {id, name}|null` in place of `artist`. Keyed on the
+    name because the artist page's route carries the LMS artist id. `[]` for an unknown or blank name.
 - **GET `/api/downloaders/coverage/{source}`**: each account row gained (additive) `channel`: `null` or
   `{id, name, label: {id, name}|null, artist: {id, name}|null, open_proposals}`, found through one archive
   path of the account. SoundCloud `last_download_at` is now looked up by `soundcloud_id` (bug report 089).
@@ -309,6 +330,8 @@ need `rules.manage`.
   10 MB (413).
 
 ### ⚙️ Configuration (`config.manage`)
+- **POST `/api/downloaders/settings`** and **POST `/api/downloaders/rate-state/{source}/reset`** need
+  `config.manage` too. The downloader `GET` routes stay open to any account.
 - **GET `/api/config/fields`**: The schema: per field `key`, `type`, `group`, `description`, `nullable`, `default`, `secret`, `read_only` and the current `value`. A secret that is set reads as the sentinel (eight `•`), an unset one as its empty value.
 - **GET `/api/config/`**: `{"config": {<key>: <value>}, "groups": [...]}`, secrets masked the same way.
 - **POST `/api/config/`**: Body `{"updates": {<key>: <value>}}`. The whole payload is validated before anything changes: an unknown key, an unparsable value or a changed `read_only` field (the `db_*` database settings, which come from the environment) is a 400. A secret posted as the sentinel is left untouched. Response: `{"status": "success", "config": {<key>: <public value>}}` for every posted key -- **masked like the GET**. Until 0.72 this echoed each secret back in the clear. Only keys that differ from their environment value or default are persisted; see "Runtime Configuration" in `AGENTS.md` for the precedence.
@@ -321,7 +344,7 @@ need `rules.manage`.
 - `image_status` values: `active`, `failed`, `cleared`, or empty (never decided).
 
 ### ❤️ Health
-- **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Response: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "source_url": <string>, "database": "ok"|"unreachable", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "lms-listen-backfill": <bool>, "artist-auto-approve": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}, "lms_listen_outbox": [{"server": <string>, "count": <int|null>, "oldest": <ISO-8601 UTC|null>}] | null}`. `source_url` is the `public_source_url` setting (AGPL-3.0 section 13: where users get the source), shown as the Source code link on the About screen; it is `""` when unset or not an http(s) address, and was added without changing any other field (docs/designs/agpl-source-link/). `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable or any of those threads has died or gone stale. `lms_listen_outbox` is informational and never affects `status`: per LMS database, how many listens its outbox (`muma_listen_outbox`, LMS db version 125+) still holds for music-manager and when the oldest was queued. `count` is `null` for an LMS without the table; an unreadable file adds an `error` string; the whole field is `null` when the LMS databases cannot be listed (docs/designs/lms-listen-outbox/). `bpm_analysis` is informational too: the bpm-analyzer container's status file (`{heartbeat_at, state: "running"|"idle"|"paused"|"disabled", analyzed, failed, remaining, rate_per_hour, eta_hours, workers, method, started_at, age_seconds, stale}`), also shown as a `bpm-analyzer` entry in `heartbeats`, or `null` when the worker has never written one (docs/designs/bpm-browse/).
+- **GET `/health`**: Reports actual service health instead of a hard-coded `ok`. Public through nginx at `https://<domain>/health` (issue #218). Without a valid `X-API-Key` (the system key or a user's own) the response is `{"status": "ok"|"degraded", "source_url": <string>}` only, with the same status code; a wrong key also gets this short body, not a 401. With a valid key the response is: `{"status": "ok"|"degraded", "service": "music-manager", "version": <string>, "source_url": <string>, "database": "ok"|"unreachable", "schema": "ok"|"failed"|"unknown", "threads": {"tagger": <bool>, "scanner": <bool>, "radio": <bool>, "news": <bool>, "events-retention": <bool>, "scrobble-rematch": <bool>, "song-versions": <bool>, "feeds-refresh": <bool>, "lms-db-sync": <bool>, "lms-listen-backfill": <bool>, "artist-auto-approve": <bool>, "events": <bool>}, "heartbeats": {"<loop>": {"alive": <bool>, "stale": <bool>, "last_tick_age_seconds": <float|null>, "stale_after_seconds": <float|null>, "ticks": <int>, "failures": <int>}}, "lms_listen_outbox": [{"server": <string>, "count": <int|null>, "oldest": <ISO-8601 UTC|null>}] | null, "lms_rating_outbox": [{"server": <string>, "count": <int|null>, "oldest": <ISO-8601 UTC|null>}] | null}`. `source_url` is the `public_source_url` setting (AGPL-3.0 section 13: where users get the source), shown as the Source code link on the About screen; it is `""` when unset or not an http(s) address, and was added without changing any other field (docs/designs/agpl-source-link/). `database` is the result of `SELECT 1` on a dedicated short-lived connection, bounded at about 2 s, so the endpoint always answers. `threads` covers the long-running background loops plus the event worker; a loop is `true` only when its thread is alive and its last completed tick is younger than its staleness window (three intervals with a one-hour floor; tagger 24 h, scanner 12 h, news 3 h), counted from startup. One-shot startup tasks are deliberately excluded, since registering them would pin the endpoint to `degraded` within a minute of every restart. `schema` is how the start-up create pass (`db_init.ensure_tables_exist`) ended: `failed` means tables may be missing, `unknown` that it has not run. `status` is `degraded` — and the HTTP status code is 503 — when the database is unreachable, the create pass failed, or any of those threads has died or gone stale. `lms_listen_outbox` is informational and never affects `status`: per LMS database, how many listens its outbox (`muma_listen_outbox`, LMS db version 125+) still holds for music-manager and when the oldest was queued. `count` is `null` for an LMS without the table; an unreadable file adds an `error` string; the whole field is `null` when the LMS databases cannot be listed (docs/designs/lms-listen-outbox/). `lms_rating_outbox` has the same shape and rules for rating changes (`muma_rating_outbox`, LMS db version 128+; `count` is `null` for an older LMS) and never affects `status` either (docs/designs/lms-rating-outbox/). `bpm_analysis` is informational too: the bpm-analyzer container's status file (`{heartbeat_at, state: "running"|"idle"|"paused"|"disabled", analyzed, failed, remaining, rate_per_hour, eta_hours, workers, method, started_at, age_seconds, stale}`), also shown as a `bpm-analyzer` entry in `heartbeats`, or `null` when the worker has never written one (docs/designs/bpm-browse/).
 - **Any endpoint — 503 `{"detail": "No free database connection: the pool is exhausted"}`** with `Retry-After: 5`, when every pooled database connection stayed busy for `DB_POOL_WAIT_SECONDS` (default 5). Before, such a request waited forever.
 - **Any endpoint — 503 `{"detail": "Database unavailable"}`** with `Retry-After: 5`, when the connection pool could not be created at all (MariaDB unreachable at startup). The curation, festival, genre and artist rules, radio, news and songs routers used to answer this with a 500.
 
@@ -336,6 +359,8 @@ need `rules.manage`.
   sheet (channels, source URL, ingestion tags, ML genre). Its BPM is the effective BPM resolved live by
   `bpm/effective.py` (issue #141): `bpm`, `bpm_source` (`measured`/`tag`/`analyzer`), `bpm_confidence`
   (`high`/`medium`/`low`), `bpm_approximate` and `bpm_folded`, all null when the track has no tempo.
+  `bpm_external_source` is `getsongbpm` when the tempo is a measurement whose octave was chosen with
+  GetSongBPM's listed tempo (issue #152), so the sheet can show the attribution link; else null.
   `404` for a file MuMa never scanned.
 - **POST `/api/library/tracks/{id}/redownload`**: fetches the track again from the archive's source URL
   and replaces the file in place, atomically (a failed download leaves the old file). The source is

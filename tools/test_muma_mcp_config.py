@@ -34,6 +34,19 @@ def test_trailing_slash_is_stripped_from_the_url():
     assert load(dict(COMPLETE)).prod_url == 'http://192.0.2.27:8000'
 
 
+def test_the_api_url_defaults_to_the_prod_url():
+    """An env file from before issue #218 (one direct host:8000 address) keeps working."""
+    config = load(dict(COMPLETE))
+    assert config.api_url == ''
+    assert config.api_base == 'http://192.0.2.27:8000'
+
+
+def test_the_api_url_can_point_through_nginx():
+    config = load(dict(COMPLETE, MUMA_PROD_URL='https://muma.example', MUMA_PROD_API_URL='https://muma.example/muma/'))
+    assert config.prod_url == 'https://muma.example'
+    assert config.api_base == 'https://muma.example/muma'
+
+
 def test_missing_variables_are_all_named_at_once():
     partial = dict(COMPLETE)
     del partial['MUMA_RO_DB_PASS']

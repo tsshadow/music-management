@@ -102,6 +102,18 @@
   font-medium`, 1px `#747775` border, Google's four-colour "G" at 18px left of the label, below the
   hairline-flanked "OF" divider that separates it from the password form. It is only shown when the
   app was built with a Google client ID; there is never a button that can only fail.
+- **First-run server screen** (app only, `FirstRunServer.svelte`, issue #192): the login page's
+  card layout and its fixed `brand-green` accent (the login page's exception to the brand token).
+  One address field in the login page's field style, the example address in muted `text-[11px]`
+  under it, "Verbinden" as the primary pill. A refused check is one line in the login page's error
+  box (`bg-[#e91429]`); a check in progress is the button spinner plus a muted `text-xs` line, with
+  the field disabled. "Toch doorgaan" (MuMa did not answer) and "Opnieuw proberen" (no network) are
+  secondary pills (`bg-muma-spotify-hover`) under the form. Opened to change the server, it has a
+  muted "Annuleren" text link at the bottom.
+- **Server line on the login page** (app only): where the server field was, one muted `text-xs`
+  line "Server: <host>" with "Wijzigen" as a text link after it. Settings > Apparaat starts with a
+  "Server" row of the same shape; a change to another server asks first with the Confirmation
+  dialog.
 - **Session controls**: "Log out" lives in the overflow/secondary menu (Android: the toolbar
   overflow, directly above "Exit"), never as a primary action. It always confirms first, stating
   what is lost (playback stops) and what is kept (downloads), and it returns the user to the login
@@ -327,6 +339,11 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Done** — First-run server screen and server line (2026-11-10, issue #192,
+  `docs/designs/first-run-server/`): see "First-run server screen" and "Server line on the login
+  page" under Components. The settings row and the switch dialog reuse the Apparaat rows and the
+  Confirmation dialog.
+
 - **Done** — Correct a BPM by hand (2026-09-30, `BpmOverride.svelte`): no new token or component
   style. Shown only with the `bpm.override` permission, under the BPM tile of the management
   library's track inspector and under the tag list of the player's details sheet. A small uppercase
@@ -337,6 +354,12 @@ To maintain clean design governance and prevent ad-hoc style drift:
   "Zet" pill. A refusal is one `text-xs text-red-400` line under it. A manual tempo is marked with
   the BPM pill of the BPM browse list (`text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10
   text-muma-spotify-text`) reading "handmatig".
+
+- **Done** — GetSongBPM attribution (2026-11-10, issue #152, `docs/designs/getsongbpm-prior/`): when
+  GetSongBPM's tempo helped choose a measured BPM, the BPM row in the player's track details ends in a
+  plain muted link "via GetSongBPM" (`ml-1 text-[10px] text-muma-spotify-muted hover:text-white
+  hover:underline`) to getsongbpm.com, opened in the system browser like the source URL. No pill, no
+  icon: it credits a source, it is not a state of the track.
 
 - **Done** — Browse by BPM in Android Auto (2026-09-30, issue #140, `docs/designs/android-auto-bpm/`):
   no new style. One more text row ("BPM") in the Nummers tab's Bladeren group, after Lineups,
@@ -531,6 +554,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
   the track list. The curator's way to Links is a text button in the heading row (`text-xs
   font-bold`, secondary text, hover white, `Link2` icon), on the element it concerns rather than in a
   menu.
+
+- **Done** (2026-11-10, issue #126) — The same section on the artist page (above the biography) and
+  on the label edit page. On the edit page every card gets a `w-10` unlink button on its right edge,
+  inside the card's background: lucide `X` at 16px in secondary text, hover white on
+  `bg-muma-spotify-hover`, labelled "<channel> ontkoppelen". It acts without a confirmation dialog,
+  as the `X` on a link chip in the Coverage table does, because linking again is one step; the card
+  dims while the request runs.
 
 - **Done** (2026-09-27, issues #109 and #112) — The genre, label, festival, podcast, year and
   lineup lists and the search results page, dropdown and "more" modal follow Loading States: new

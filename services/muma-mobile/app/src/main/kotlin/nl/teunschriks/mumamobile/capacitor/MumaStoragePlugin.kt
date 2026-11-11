@@ -14,6 +14,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.StarRating
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -25,15 +26,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.api.subsonic.SubsonicAPIClient
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.service.DownloadService
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
+import nl.teunschriks.mumamobile.service.RatingManager
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.plusAssign
 import nl.teunschriks.mumamobile.util.CacheCleaner
 import nl.teunschriks.mumamobile.util.FileUtil
 import nl.teunschriks.mumamobile.util.FileUtil.getCompleteFile
 import nl.teunschriks.mumamobile.util.FileUtil.getPinnedFile
+import nl.teunschriks.mumamobile.util.MAX_STARS
 import nl.teunschriks.mumamobile.util.Storage
 import org.json.JSONArray
 import org.json.JSONObject
@@ -61,6 +65,7 @@ import timber.log.Timber
  * | `isOffline()` | [hasRouteToServer], the same test the Kotlin services make |
  * | `checkServer({timeoutMs})` | one `ping` within the budget, classified by [ServerReachability] |
  * | `setOfflineMode({enabled})` | [ServerReachability.offlineChosen] |
+ * | `queueRating({id, rating})` | [RatingManager], whose durable queue sends it when the server answers |
  * | `onProgress(fn)` | the `progress` event, from `RxBus.trackDownloadStatePublisher` |
  * | `onConnectivity(fn)` | the `connectivity` event, from a `ConnectivityManager` callback |
  * | `clearCache()` | cancels queued/active downloads, then [CacheCleaner.clearCache] |
@@ -308,12 +313,9 @@ class MumaStoragePlugin :
         calls.runCall(call) { answer ->
             val started = System.nanoTime()
             val networkUp = connectivity?.hasInternetCapability() == true
-            val outcome = if (ActiveServerProvider.isOffline()) {
-                null
-            } else {
-                pingWithin(get<SubsonicAPIClient>().api.ping(), timeoutMs)
-            }
-            val state = ServerReachability.classify(networkUp, outcome)
+            val ping = if (ActiveServerProvider.isOffline()) null else ({ get<SubsonicAPIClient>().api.ping() })
+            // Recorded, so the Android Auto tree knows what this check found (#149).
+            val (state, outcome) = checkServerNow(networkUp, ping, timeoutMs)
             val elapsedMs = (System.nanoTime() - started) / NANOS_PER_MILLI
             Timber.i("Start-up check: %s (%s) in %d ms", state, outcome, elapsedMs)
             withContext(Dispatchers.Main) {
@@ -338,6 +340,25 @@ class MumaStoragePlugin :
         Timber.i("Offline mode %s", if (ServerReachability.offlineChosen) "chosen" else "left")
         emitConnectivity(online())
         call.resolve()
+    }
+
+    /**
+     * Hands one rating (`rating` 0 to 5, 0 clears) to [RatingManager], the path every native
+     * rating takes: it is in the durable queue before this resolves, and goes to the server now
+     * or as soon as the server answers again (docs/designs/offline-followups/). The web calls it
+     * in offline mode and when its own request could not reach the server. Resolves
+     * `{queued: true}`; rejects a missing id or a rating outside 0 to 5.
+     */
+    @PluginMethod
+    fun queueRating(call: PluginCall) {
+        val id = call.getString("id")
+        val rating = call.getInt("rating")
+        if (id.isNullOrBlank() || rating == null || rating !in 0..MAX_STARS) {
+            call.reject("queueRating needs an id and a rating from 0 to $MAX_STARS")
+            return
+        }
+        RatingManager.instance.submitRating(RatingUpdate(id, StarRating(MAX_STARS, rating.toFloat())))
+        call.resolve(JSObject().put("queued", true))
     }
 
     // ------------------------------------------------------------------ plumbing

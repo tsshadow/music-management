@@ -25,6 +25,40 @@ from fastapi.testclient import TestClient
 from services.music_manager.main import app
 
 
+class _RatingTable:
+    """A stand-in for `rating_tracks` keyed as the real table is, for the statements the handler runs.
+
+    `INSERT ... ON DUPLICATE KEY UPDATE` replaces the row with the same key and `DELETE` removes it,
+    so a repeated event can be checked by what the table holds afterwards, not by the SQL text.
+    """
+
+    def __init__(self, track_uid: str | None = None):
+        self.rows: dict[tuple, int] = {}
+        self._track_uid = track_uid
+        self._last: str | None = None
+
+    def connection(self) -> MagicMock:
+        """A new connection whose cursor writes into this table; one per get_db_connection call."""
+        conn = MagicMock()
+        conn.cursor.return_value.__enter__.return_value = self
+        return conn
+
+    def execute(self, sql: str, params: tuple = ()) -> None:
+        """Apply one statement of the handler to the rows."""
+        if 'INSERT INTO rating_tracks' in sql:
+            entity_type, entity_id, username, rating = params
+            self.rows[(entity_type, entity_id, username)] = rating
+        elif 'DELETE FROM rating_tracks' in sql:
+            self.rows.pop(tuple(params), None)
+        self._last = sql
+
+    def fetchone(self):
+        """The path lookup's track, or no row for anything else (the username lookup)."""
+        if self._last and 'SELECT t.track_uid' in self._last and self._track_uid:
+            return {'track_uid': self._track_uid}
+        return None
+
+
 class TestRating(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
@@ -151,6 +185,79 @@ class TestRating(unittest.TestCase):
             call for call in mock_cursor.execute.call_args_list if 'DELETE FROM rating_tracks' in call[0][0]
         )
         self.assertEqual(delete_call[0][1], ('artist', 'Headhunterz', 'user'))
+
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_a_repeated_rating_changed_leaves_one_row(self, mock_get_db):
+        """LMS's outbox sends a change again when it never saw the answer; the repeat changes nothing."""
+        table = _RatingTable(track_uid='resolved-uid')
+        mock_get_db.side_effect = lambda: table.connection()
+        payload = {
+            'event': 'rating_changed',
+            'object_type': 'track',
+            'object_id': '1392868',
+            'username': 'user',
+            'rating': 4,
+            'path': '/music/a/b.mp3',
+        }
+        for _ in range(2):
+            response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+            self.assertEqual(response.json(), {'status': 'success', 'entity_id': 'resolved-uid'})
+        self.assertEqual(table.rows, {('track', 'resolved-uid', 'user'): 4})
+
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_a_repeated_rating_removed_leaves_no_row(self, mock_get_db):
+        table = _RatingTable(track_uid='resolved-uid')
+        table.rows[('track', 'resolved-uid', 'user')] = 3
+        mock_get_db.side_effect = lambda: table.connection()
+        payload = {
+            'event': 'rating_removed',
+            'object_type': 'track',
+            'object_id': '1392868',
+            'username': 'user',
+            'rating': 0,
+            'path': '/music/a/b.mp3',
+        }
+        for _ in range(2):
+            response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+            self.assertEqual(response.json(), {'status': 'removed', 'entity_id': 'resolved-uid'})
+        self.assertEqual(table.rows, {})
+
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_a_path_lookup_without_a_connection_answers_503_and_writes_nothing(self, mock_get_db):
+        """Stored under the LMS id and answered 200, the rating would be lost: LMS drops what it
+        sees accepted. A 503 keeps it in LMS's outbox for a retry."""
+        table = _RatingTable(track_uid='resolved-uid')
+        connections = iter([None, table.connection()])
+        mock_get_db.side_effect = lambda: next(connections)
+        payload = {
+            'event': 'rating_changed',
+            'object_type': 'track',
+            'object_id': '1392868',
+            'username': 'user',
+            'rating': 5,
+            'path': '/music/a/b.mp3',
+        }
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(mock_get_db.call_count, 1)
+        self.assertEqual(table.rows, {})
+
+    @patch('services.music_manager.routers.rating.get_db_connection')
+    def test_a_path_that_matches_no_track_keeps_the_lms_id(self, mock_get_db):
+        """Not a delivery failure: the rating is stored under the LMS id, as before."""
+        table = _RatingTable(track_uid=None)
+        mock_get_db.side_effect = lambda: table.connection()
+        payload = {
+            'event': 'rating_changed',
+            'object_type': 'track',
+            'object_id': '1392868',
+            'username': 'user',
+            'rating': 2,
+            'path': '/music/a/gone.mp3',
+        }
+        response = self.client.post('/api/rating/lms-event', json=payload, headers={'x-api-key': self.api_key})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(table.rows, {('track', '1392868', 'user'): 2})
 
     def test_candidate_paths_bridges_both_roots(self):
         from services.music_manager.routers.rating import candidate_paths

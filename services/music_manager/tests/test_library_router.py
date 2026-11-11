@@ -286,6 +286,16 @@ class TrackByPathTest(RouterTestCase):
         self.assertIn('library_track_bpm', sql)
         self.assertIn('t.id = %s', sql)
 
+    def test_a_measurement_weighed_on_getsongbpm_says_so(self):
+        """Issue #152: the sheet credits GetSongBPM only when its tempo helped choose the octave."""
+        inputs = {'track_id': 7, 'measured': 128.0, 'measured_confidence': 0.8, 'measured_folded': 1, 'genres': None}
+        self.cursor.fetchall.return_value = []
+        for external, expected in ((128.0, 'getsongbpm'), (None, None)):
+            with self.subTest(external=external):
+                self.answer(self.MEDIA, {**inputs, 'measured_external': external}, None, None, None, None)
+                body = self.client.get('/api/library/tracks/by-path?path=x.mp3', headers=self.headers).json()
+                self.assertEqual(body['bpm_external_source'], expected)
+
     def test_a_tag_is_folded_into_the_genre_band_and_marked_approximate(self):
         found = self._bpm_of({'track_id': 7, 'bpm_tag': 76.0, 'tempo': None, 'measured': None, 'genres': 'Hardstyle'})
         self.assertEqual(found['bpm'], 152.0)
@@ -372,17 +382,21 @@ class RerunParseTest(RouterTestCase):
             patch.object(library_router, 'ProcessedFilesHelper') as helper,
             patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
             patch('services.music_manager.routers.scanner.scanner_manager') as scanner,
+            patch.object(library_router, 'require_library_file', return_value='/mnt/music/b.mp3') as check,
         ):
             response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)
         self.assertEqual(response.json()['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/b.mp3', reason='rerun_parse')
-        tagger.tag_single.assert_called_once_with('/music/b.mp3')
-        scanner.scan_single.assert_called_once_with('/music/b.mp3')
+        # LMS's spelling goes through the library check, which answers with muma's own.
+        check.assert_called_once_with('/music/b.mp3')
+        helper.return_value.mark_for_rescan.assert_called_once_with('/mnt/music/b.mp3', reason='rerun_parse')
+        tagger.tag_single.assert_called_once_with('/mnt/music/b.mp3')
+        scanner.scan_single.assert_called_once_with('/mnt/music/b.mp3')
 
     def test_a_failing_retag_by_path_is_still_reported_as_accepted(self):
         with (
             patch.object(library_router, 'ProcessedFilesHelper'),
             patch('services.music_manager.routers.tagger.tagger_manager') as tagger,
+            patch.object(library_router, 'require_library_file', return_value='/mnt/music/b.mp3'),
         ):
             tagger.tag_single.side_effect = RuntimeError('tagger busy')
             response = self.client.post('/api/library/tracks/rerun-parse-path?path=/music/b.mp3', headers=self.headers)

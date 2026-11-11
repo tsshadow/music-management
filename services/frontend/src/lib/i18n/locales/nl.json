@@ -175,7 +175,11 @@
   "labelChannels": {
     "title": "Kanalen",
     "manage": "Koppelingen beheren",
-    "none": "Nog geen kanaal aan dit label gekoppeld."
+    "none": "Nog geen kanaal aan dit label gekoppeld.",
+    "noneArtist": "Nog geen kanaal aan deze artiest gekoppeld.",
+    "unlink": "{channel} ontkoppelen",
+    "unlinked": "{channel} ontkoppeld.",
+    "unlinkFailed": "{channel} kon niet worden ontkoppeld."
   },
   "equalizer": {
     "band": "Band {freq}",
@@ -397,8 +401,8 @@
     "requestPending": "Je toegangsaanvraag is in behandeling. Een beheerder moet deze goedkeuren voordat je kunt inloggen.",
     "requestRejected": "Je toegangsaanvraag is afgewezen. Neem contact op met een beheerder voor meer informatie.",
     "requestedOn": "Aangevraagd op: {date}",
-    "server": "Server",
-    "serverHint": "Het adres van je muziekserver. Alleen nodig in de app; de webversie weet dit zelf.",
+    "serverLine": "Server: {host}",
+    "changeServer": "Wijzigen",
     "settingUp": "Bezig met instellen...",
     "setupIntro": "Er zijn nog geen gebruikers gevonden. Maak de eerste beheerder aan om te beginnen.",
     "setupTitle": "Systeem Setup",
@@ -412,6 +416,28 @@
     "googleSignIn": "Inloggen met Google",
     "googleNoCredential": "Google gaf geen account terug. Is er een Google-account op deze telefoon, en is deze app bij Google geregistreerd?",
     "googleFailed": "Inloggen met Google is mislukt ({reason})."
+  },
+  "firstRun": {
+    "title": "Met welke server wil je verbinden?",
+    "changeTitle": "Andere server",
+    "intro": "Vul het adres van je MuMa-server in. Wie de server beheert, weet het.",
+    "label": "Serveradres",
+    "example": "Bijvoorbeeld",
+    "connect": "Verbinden",
+    "checking": "Server controleren…",
+    "continueAnyway": "Toch doorgaan",
+    "retry": "Opnieuw proberen",
+    "cancel": "Annuleren",
+    "saveFailed": "Het adres kon niet worden opgeslagen: {reason}",
+    "state": {
+      "invalid": "Dit is geen serveradres.",
+      "insecure": "Alleen https-adressen werken, ook op je thuisnetwerk.",
+      "noNetwork": "Je telefoon heeft geen netwerkverbinding.",
+      "unreachable": "De server op {url} antwoordt niet.",
+      "certificate": "De verbinding is niet veilig: het certificaat van deze server wordt niet vertrouwd.",
+      "notMuma": "Op dit adres is geen MuMa-server gevonden.",
+      "mumaUnreachable": "De server is gevonden, maar MuMa antwoordt niet. Afspelen werkt wel; de MuMa-pagina's tonen een fout tot MuMa antwoordt."
+    }
   },
   "logout": {
     "confirmTitle": "Uitloggen?",
@@ -720,6 +746,8 @@
         "extraction-failed": "Archief kon niet uitgepakt worden",
         "extraction-empty": "Archief bleek leeg",
         "extraction-name-taken": "Archief bevat een map waarvan de naam al bezet is",
+        "extraction-unsafe": "Archief bevat een link naar een plek buiten de eigen map",
+        "extraction-too-large": "Archief wordt uitgepakt groter dan het budget of de vrije schijfruimte",
         "unknown": "Door de importer laten staan"
       },
       "conflictSince": "Sinds",
@@ -1671,6 +1699,7 @@
     "queueSaveFailed": "Afspeellijst kon niet worden opgeslagen",
     "queueSaved": "Afspeellijst opgeslagen",
     "ratingFailed": "Beoordeling kon niet worden opgeslagen",
+    "ratingQueued": "Beoordeling bewaard, gaat naar de server zodra die weer bereikbaar is",
     "region": "Meldingen",
     "resumeAt": "Hervat op {time}",
     "resumeRestart": "Opnieuw",
@@ -1897,7 +1926,13 @@
       "mumaUserId": "Muma-gebruikers-ID",
       "mumaApiKeySet": "Muma-API-sleutel",
       "mumaSyncLinked": "Gekoppeld",
-      "mumaSyncNotLinked": "Niet gekoppeld"
+      "mumaSyncNotLinked": "Niet gekoppeld",
+      "server": "Server",
+      "serverNone": "Geen server ingesteld",
+      "serverChange": "Wijzigen",
+      "serverSwitchTitle": "Andere server gebruiken?",
+      "serverSwitchBody": "Je wordt uitgelogd en de wachtrij wordt gewist. Downloads blijven op je telefoon.",
+      "serverSwitchConfirm": "Wisselen"
     },
     "general": {
       "albumSort": "Standaard Sortering Albums",
@@ -2426,6 +2461,10 @@
       "analyzer": "Uit de oude analyse",
       "folded": "Verdubbeld of gehalveerd naar het tempo van het genre",
       "manual": "Met de hand ingesteld"
+    },
+    "credit": {
+      "via": "via {name}",
+      "title": "Het octaaf van dit tempo is gecontroleerd met {name}"
     },
     "override": {
       "title": "Tempo corrigeren",

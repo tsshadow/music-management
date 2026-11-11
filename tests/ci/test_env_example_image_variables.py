@@ -1,7 +1,8 @@
-"""Every ${VAR} in an active `image:` line of docker/docker-compose.yml has a line in .env.example.
+"""Every ${VAR} without a default in docker/docker-compose.yml has a line in .env.example.
 
 A missing one renders as an empty string with only a warning, so a new host got the image
-`muma/:latest` (issue #210). Commented-out services are skipped; their variables are not used.
+`muma/:latest` and workers without a music-manager address (issue #210). Commented-out lines are
+skipped; their variables are not used.
 """
 
 import re
@@ -46,3 +47,21 @@ def test_every_image_variable_is_in_env_example():
     optional = {'IMAGE_TAG', 'SCHEMA_IMAGE_TAG'}
     missing = sorted(_image_variables() - _env_example_keys() - optional)
     assert not missing, f'.env.example lacks {missing}: compose renders an empty image name'
+
+
+def _variables_without_default():
+    """Return the variables the active lines of the main compose file use without a default."""
+    names = set()
+    for line in COMPOSE.read_text(encoding='utf-8').splitlines():
+        if line.lstrip().startswith('#'):
+            continue
+        for match in re.finditer(r'\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-?])?', line):
+            if not match.group(2):
+                names.add(match.group(1))
+    return names
+
+
+def test_every_variable_without_a_default_is_in_env_example():
+    """`docker compose config` with a copied .env.example warns about no unset variable."""
+    missing = sorted(_variables_without_default() - _env_example_keys())
+    assert not missing, f'.env.example lacks {missing}: compose renders them empty'

@@ -7,6 +7,7 @@ loop against a real MariaDB.
 """
 
 import logging
+import os
 import sqlite3
 import sys
 import threading
@@ -29,6 +30,13 @@ from services.music_manager import lms_listen_backfill as loop
 from services.music_manager import scrobble_reconcile as rec
 from services.music_manager import thread_registry
 from services.music_manager.main import app
+
+
+def _full_health():
+    """GET /health with the system key, which the full report needs since issue #218."""
+    with patch.dict(os.environ, {'API_KEY': 'backfill-test-system-key'}):
+        return TestClient(app).get('/health', headers={'X-API-Key': 'backfill-test-system-key'})
+
 
 NOW = 1_790_000_000  # 2026-09-21, the moment every test runs "at"
 HOUR = 3600
@@ -413,7 +421,8 @@ class RunOnceTest(unittest.TestCase):
 
 
 class OutboxStatusTest(unittest.TestCase):
-    """`outbox_status()`: what each LMS still holds for muma in `muma_listen_outbox` (LMS db 125+)."""
+    """`outbox_status()`: what each LMS still holds for muma in `muma_listen_outbox` (LMS db 125+)
+    and `muma_rating_outbox` (LMS db 128+)."""
 
     @staticmethod
     def _server_with_outbox(created: list[int]) -> sqlite3.Connection:
@@ -453,6 +462,56 @@ class OutboxStatusTest(unittest.TestCase):
         self.assertEqual(status, [{'server': 'server-a', 'count': None, 'oldest': None, 'error': 'database is locked'}])
         server.close.assert_called_once()
 
+    @staticmethod
+    def _server_with_rating_outbox(created: list[int]) -> sqlite3.Connection:
+        """An in-memory LMS database with the rating outbox as LMS creates it, holding `created`."""
+        server = sqlite3.connect(':memory:')
+        server.execute(
+            'CREATE TABLE muma_rating_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL,'
+            ' object_type TEXT NOT NULL, object_id TEXT NOT NULL, payload TEXT NOT NULL,'
+            ' created INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)'
+        )
+        server.executemany(
+            'INSERT INTO muma_rating_outbox (username, object_type, object_id, payload, created)'
+            " VALUES ('alice', 'track', ?, '{}', ?)",
+            [(str(i), c) for i, c in enumerate(created)],
+        )
+        return server
+
+    def test_counts_the_waiting_rating_changes_per_server(self):
+        first = self._server_with_rating_outbox([NOW - HOUR, NOW - 3 * HOUR])
+        second = self._server_with_rating_outbox([])
+        status = loop.outbox_status(
+            servers_factory=lambda: [(first, 'server-a'), (second, 'server-b')], table=loop.RATING_OUTBOX_TABLE
+        )
+        self.assertEqual(
+            status,
+            [
+                {
+                    'server': 'server-a',
+                    'count': 2,
+                    'oldest': datetime.fromtimestamp(NOW - 3 * HOUR, tz=UTC).isoformat(),
+                },
+                {'server': 'server-b', 'count': 0, 'oldest': None},
+            ],
+        )
+
+    def test_the_rating_table_does_not_count_listens(self):
+        server = self._server_with_outbox([NOW])
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')], table=loop.RATING_OUTBOX_TABLE)
+        self.assertEqual(status, [{'server': 'server-a', 'count': None, 'oldest': None}])
+
+    def test_an_lms_without_a_rating_outbox_reports_no_count_and_no_error(self):
+        server = sqlite3.connect(':memory:')
+        status = loop.outbox_status(servers_factory=lambda: [(server, 'server-a')], table=loop.RATING_OUTBOX_TABLE)
+        self.assertEqual(status, [{'server': 'server-a', 'count': None, 'oldest': None}])
+
+    def test_any_other_table_is_refused_before_a_database_is_opened(self):
+        factory = MagicMock()
+        with self.assertRaises(ValueError):
+            loop.outbox_status(servers_factory=factory, table='user')
+        factory.assert_not_called()
+
     @patch('services.music_manager.main.event_service')
     @patch('services.music_manager.main.check_database', return_value=True)
     def test_health_carries_it_without_turning_red(self, _check, mock_events):
@@ -461,9 +520,29 @@ class OutboxStatusTest(unittest.TestCase):
         self.addCleanup(thread_registry.reset)
         waiting = [{'server': 'server-a', 'count': 12, 'oldest': '2026-09-21T10:00:00+00:00'}]
         with patch.object(loop, 'outbox_status', return_value=waiting):
-            response = TestClient(app).get('/health')
+            response = _full_health()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['lms_listen_outbox'], waiting)
+
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_health_carries_the_rating_outbox_without_turning_red(self, _check, mock_events):
+        mock_events.is_alive.return_value = True
+        thread_registry.reset()
+        self.addCleanup(thread_registry.reset)
+        listens = [{'server': 'server-a', 'count': 0, 'oldest': None}]
+        ratings = [{'server': 'server-a', 'count': 4, 'oldest': '2026-11-09T21:00:00+00:00'}]
+
+        def by_table(servers_factory=None, table=loop.LISTEN_OUTBOX_TABLE):
+            del servers_factory
+            return ratings if table == loop.RATING_OUTBOX_TABLE else listens
+
+        with patch.object(loop, 'outbox_status', side_effect=by_table):
+            response = _full_health()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'ok')
+        self.assertEqual(response.json()['lms_rating_outbox'], ratings)
+        self.assertEqual(response.json()['lms_listen_outbox'], listens)
 
     @patch('services.music_manager.main.event_service')
     @patch('services.music_manager.main.check_database', return_value=True)
@@ -472,9 +551,10 @@ class OutboxStatusTest(unittest.TestCase):
         thread_registry.reset()
         self.addCleanup(thread_registry.reset)
         with patch.object(loop, 'outbox_status', side_effect=RuntimeError('boom')):
-            response = TestClient(app).get('/health')
+            response = _full_health()
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.json()['lms_listen_outbox'])
+        self.assertIsNone(response.json()['lms_rating_outbox'])
 
 
 class LoopThreadTest(unittest.TestCase):
@@ -499,7 +579,7 @@ class LoopThreadTest(unittest.TestCase):
         with patch.object(loop, 'backfill_tick', side_effect=fake_tick):
             thread = thread_registry.start_thread(loop.THREAD_NAME, loop.run_lms_listen_backfill)
             self.assertTrue(ticked.wait(2))
-            body = TestClient(app).get('/health').json()
+            body = _full_health().json()
             self.assertTrue(body['threads']['lms-listen-backfill'])
             self.assertEqual(body['heartbeats']['lms-listen-backfill']['stale_after_seconds'], loop.STALE_AFTER_SECONDS)
             loop.stop_event.set()

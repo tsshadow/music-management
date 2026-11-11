@@ -38,6 +38,9 @@ The system is split into specialized services, each handling a specific part of 
   (`00-*.m3u`, `.nfo`, `.sfv`, cover) instead of placing it, with an `INFO` event; audio at any
   depth, an unextracted archive or any other file keeps it (`services/common/audio_less_folder.py`,
   bug report 147).
+- **Extraction budget**: a backend whose output passes `import_extract_max_gb` (default 50) or leaves
+  less than `import_extract_min_free_gb` (default 10) free is killed mid-run, and the archive stays
+  with reason `extraction-too-large` (`services/importer/extract_budget.py`, issue #231).
 - **Catalogue numbers**: `services/common/catalogue_number.py` is the one test of what a catalogue
   number looks like (letters and digits, at least one digit, no title words like `Anthem`/`Edit`,
   not a bare year). A folder name without one keeps its name -- no ` - ` prefix (bug report 145).
@@ -157,6 +160,10 @@ The system is split into specialized services, each handling a specific part of 
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
   (docs/designs/bpm-tag-writeback/).
+- **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
+  analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
+  or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the
+  measurement; the track details then link getsongbpm.com (docs/designs/getsongbpm-prior/).
 
 ### 8. Live stations (`radio_stations`, `services/music_manager/routers/radio.py`)
 - **Purpose**: "Radio" in the interface is the list of broadcasters a curator keeps in Beheer. The
@@ -276,11 +283,22 @@ sound, distinct from the milestones topic.
 
 ### Home Assistant and health monitoring
 Home Assistant needs no dedicated integration — a REST sensor on
-`/api/events?level=ERROR&level=CRITICAL&since=-1h`, with the API key sent as a header, is enough to
-drive automations off the event count. Separately, `GET /health` reports `status`, `service`,
-`version`, `database` (`ok`/`unreachable`), `threads` and `heartbeats`, and returns HTTP 503 when
-any of those is unhealthy — instead of the old hard-coded `ok`. This is what makes the existing
-Uptime Kuma monitor on that endpoint meaningful; nothing needs to change on the Kuma side.
+`/muma/api/events?level=ERROR&level=CRITICAL&since=-1h` through nginx, with the API key sent as a
+header, is enough to drive automations off the event count. Port 8000 is published on the host's
+loopback only (`MUSIC_MANAGER_BIND_ADDRESS`, issue #218), so a monitor on another machine goes
+through nginx. Separately, `GET /health` reports `status`, `service`,
+`version`, `database` (`ok`/`unreachable`), `schema`, `threads` and `heartbeats`, and returns HTTP 503 when
+any of those is unhealthy — instead of the old hard-coded `ok`. `schema` is `failed` when the
+start-up create pass (`db_init.ensure_tables_exist`) failed, which also logs an `ERROR`: tables may be
+missing until a restart creates them (`ok` after a good pass, `unknown` before it ran). This is what makes the
+Uptime Kuma monitor on that endpoint meaningful. nginx serves it to the internet at
+`https://<domain>/health` (an exact-match `location` in `reverse-proxy.conf`), which is where Kuma
+checks it. Without a valid `X-API-Key` (the system key or a user's own) the body is `status` and
+`source_url` only; the full report needs the key. The status code follows the same rule either
+way, so Kuma and the container healthcheck need no key. The operations repository's post-deploy check reads the version
+with the system key from the container's environment, and `tools/muma_mcp` sends its key
+(`MUMA_PROD_URL=https://<domain>` for `/health`, `MUMA_PROD_API_URL=https://<domain>/muma` for its
+`/api/...` calls).
 It also carries `bpm_analysis`, the bpm-analyzer container's own status file (state, analysed,
 failed, remaining, rate, ETA), mirrored as a `bpm-analyzer` entry in `heartbeats`; that one never
 affects the status code, because /health is also music-manager's own container healthcheck.
@@ -311,6 +329,11 @@ affects the status code, because /health is also music-manager's own container h
   music-manager restart. LMS delivers them in order with backoff, and it logs a `WARNING` for each
   one it drops (over 10,000 waiting, older than 14 days, or refused as malformed). See
   `docs/designs/lms-listen-outbox/`.
+- `lms_rating_outbox` is the same for rating changes (`muma_rating_outbox`, LMS db version 128+):
+  one row per user and item, so only the last change during an outage is sent. LMS sends both
+  outboxes through one relay, oldest first, and logs a `WARNING` naming the user and the item for
+  each rating it drops (same limits). `POST /api/rating/lms-event` answers 503 when its path lookup
+  gets no database connection, so LMS keeps the change. See `docs/designs/lms-rating-outbox/`.
 - A request that finds every pooled connection busy for `DB_POOL_WAIT_SECONDS` (default 5) gets a
   503 with `Retry-After`, rather than waiting forever.
 
@@ -364,6 +387,11 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
 ### MuMa Mobile (`services/muma-mobile`)
 - **Mobile Client**: A native Android application for interacting with the music collection on the go.
 - **Subsonic Integration**: Connects directly to the `music-management-server` for audio streaming and library browsing.
+- **Server address**: the listener types it on the first-run screen; the app stores it
+  (`ServerAddress`, the one reader and writer of `Settings.serverUrl`) and derives the MuMa API
+  from it. Only `https` is accepted. The build's `muma.serverUrl` is the suggestion for a fresh
+  install, and Google sign-in shows only for that server. An install that was already used gets the build's
+  server stored once and stays signed in (issue #192, docs/designs/first-run-server/).
 - **Settings Backup & Sync**:
     - Synchronizes application settings (stored as JSON) to the `music-manager` API (`POST /api/users/{id}/settings/ultrasonic`, read back with `GET` on the same path).
     - The account settings it shares with the web player (`app_id=frontend`: favourite genres, set
@@ -373,6 +401,10 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
     - Provides a seamless transition when switching devices or re-installing the app.
 - **Real-time Feedback**:
     - **Ratings**: Star ratings changed within MuMa Mobile are sent to LMS via the Subsonic API and then webhooked to `music-manager`.
+      A rating that cannot reach the server (offline mode, server down) waits in a durable queue on the
+      phone (`RatingManager`, last rating per track wins) and goes out when the server answers again;
+      Android Auto browses the downloaded library while the last check found the server down
+      ([docs/designs/offline-followups/](docs/designs/offline-followups/technical.md)).
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 
@@ -404,15 +436,18 @@ To maintain high code quality, the system employs an automated test suite:
     - **Commit-msg Hook**: the versioned `scripts/hooks/commit-msg` refuses a commit whose author,
       committer or message has personal data, with the checks `public:history` runs on develop
       (`scripts/ci/public_guard.py message`). It prints the kind of finding, never the value.
-    - **Required deployment secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
-      verifies that specific keys required inside file-type CI/CD variables (e.g. `GOOGLE_CLIENT_ID` inside
-      `PROD_ENV_FILE`, `VITE_GOOGLE_CLIENT_ID` inside `PROD_ENV_FILE_LMS`) are actually set, and fails the
-      `release/*` pipeline immediately if not. GitLab itself has no mechanism to enforce this (a file-type
-      variable being non-empty says nothing about a specific key inside it), so **this job's pass/fail result
-      is treated as a hard requirement by project convention, on par with any other required check in this
-      list** — a release is not "done" if this job was skipped, allowed to fail, or removed without a
-      replacement check covering the same secrets. Add new required keys to that script (and to
-      `docs/self-hosting.md`) whenever a new secret becomes load-bearing for production.
+    - **Required release secrets**: the `release:check-secrets` CI job (`scripts/ci/check-required-secrets.sh`)
+      verifies that the CI/CD variables a release build needs are set (`DOCKERHUB_*`, `APK_HOSTER_URL`,
+      `SIGNING_STORE_FILE`, and `VITE_GOOGLE_CLIENT_ID` or `MUMA_GOOGLE_CLIENT_ID`), and that `DOCKER_USER`,
+      when set, equals `DOCKERHUB_USERNAME`. It fails the `release/*` pipeline immediately if not: a job
+      gated on a missing variable in `rules:` silently drops out instead of failing. **This job's pass/fail
+      result is treated as a hard requirement by project convention, on par with any other required check
+      in this list** — a release is not "done" if this job was skipped, allowed to fail, or removed without
+      a replacement check covering the same variables. This repository has no production variables: the
+      host, the SSH key and the env files belong to the operations repository that deploys a tag
+      (docs/designs/ops-split/), and its deploy checks the env files. The image names are plain CI/CD
+      variables with defaults (`scripts/ci/release-image-names.sh`). Add a new required variable to that
+      script (and to `docs/self-hosting.md`) whenever one becomes load-bearing for a release.
 
 ### Full test inventory & local commands
 - **Inventory**: See [docs/testing-inventory.md](docs/testing-inventory.md) for a per-module breakdown (build/start/test/lint commands, ports, health endpoints, databases, Docker findings).

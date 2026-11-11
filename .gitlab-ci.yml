@@ -264,6 +264,8 @@ stages:
         - scripts/**/*.sh
         - pyproject.toml
         - .pylintrc
+        # The tooling container installs ruff and pylint from it (scripts/lib/python-tooling-install.sh).
+        - requirements-dev.txt
         - .gitlab-ci.yml
 
 backend:format:
@@ -427,6 +429,8 @@ backend:typecheck:
         - services/**/*.py
         - pyproject.toml
         - scripts/typecheck.sh
+        # mypy and its stubs come from it.
+        - requirements-dev.txt
         - .gitlab-ci.yml
   script:
     - ./scripts/typecheck.sh
@@ -451,6 +455,7 @@ backend:typecheck-all:
         - tools/**/*.py
         - pyproject.toml
         - scripts/typecheck.sh
+        - requirements-dev.txt
         - .gitlab-ci.yml
   script:
     - ./scripts/typecheck.sh --all
@@ -1154,6 +1159,9 @@ muma:images:
         - docker/Dockerfile*
         - services/music-management-server/Dockerfile-release
         - scripts/ci/build-and-push-images.sh
+        # Six of the Dockerfiles pip-install from it; a bad pin should fail here, not in
+        # release:build-images.
+        - requirements.txt
   script:
     - ./scripts/ci/build-and-push-images.sh
 
@@ -1316,11 +1324,13 @@ release:version-check:
 # the host pulls :latest, so pushing it here let a release's code start before
 # the deploy had migrated, or ship with no deploy at all. The deploy, which an
 # installation runs from the tag (docs/designs/ops-split/), moves :latest after
-# the backup and the migrations (scripts/ci/promote-release-images.sh).
+# the backup and the migrations (its promote-release-images.sh).
 release:build-images:
   stage: release
   timeout: 60m
   interruptible: false
+  # Two release pipelines push the same :rc tags; one at a time, so their pushes cannot interleave.
+  resource_group: release-images
   retry: !reference [.infra_retry, retry]
   rules:
     - !reference [.dedicated_schedule_guard, rules]

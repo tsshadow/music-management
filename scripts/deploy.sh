@@ -1,12 +1,12 @@
 #!/bin/bash
 # Comprehensive Docker Stack Deployment Script
-# Handles: Webhooks, Remote SSH updates, and the database schema.
+# Handles: remote SSH updates and the database schema.
 #
 # Remote deploy order: prepare (disk check, db up + ready) -> verified pre-deploy
 # dump -> db recreate (DEPLOY_DB=1 only) -> schema reconcile -> DEPLOY_PRE_UP_HOOK ->
 # pull + up of what changed. See the comment above step 2 below and
-# docs/self-hosting.md. Unused images are pruned afterwards by
-# scripts/ci/prune-prod-images.sh, once post-deploy verification has passed.
+# docs/self-hosting.md. The production deploy (the operations repository) prunes
+# unused images afterwards, once its post-deploy verification has passed.
 #
 # Knobs (environment; all optional):
 #   IMAGE_TAG=<tag>       deploy that tag of every image this repo builds
@@ -78,7 +78,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/compose_profiles.sh"
 
 # The env file is both the configuration of this script and the file shipped
-# to the host for the stack. It may be absolute: ci-deploy.sh materialises it in
+# to the host for the stack. It may be absolute: the production deploy writes it to
 # a private temp directory, outside the checkout and therefore outside every
 # docker build context.
 LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-.env}"
@@ -156,25 +156,13 @@ if ! printf '%s' "$DEPLOY_DISK_CHECK_PATH" | grep -Eq '^/[A-Za-z0-9_./-]*$'; the
     exit 1
 fi
 
-# 1. Trigger Portainer Webhook if configured
+# 1. A Portainer webhook would recreate the stack on its own, before the backup and the
+# schema step below -- the order bug report 050 is about. CI never set it; refuse it
+# rather than start new code on an old schema.
 if [ -n "${PORTAINER_WEBHOOK_URL}" ]; then
-    echo "--- Triggering Portainer Webhook for: $STACK_NAME ---"
-    if command -v curl >/dev/null 2>&1; then
-        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${PORTAINER_WEBHOOK_URL}")
-        if [ "$STATUS_CODE" -ge 200 ] && [ "$STATUS_CODE" -lt 300 ]; then
-            echo "--- Webhook triggered successfully (Status: $STATUS_CODE) ---"
-        elif [ "$STATUS_CODE" -eq 404 ]; then
-            echo "Error: Portainer Webhook returned 404 Not Found."
-            echo "Note: Stack Webhooks are a Business Edition feature."
-            exit 1
-        else
-            echo "Error: Portainer Webhook failed with status code $STATUS_CODE"
-            exit 1
-        fi
-    else
-        echo "Error: curl not found. Cannot trigger Portainer Webhook."
-        exit 1
-    fi
+    echo "Error: PORTAINER_WEBHOOK_URL is set. This deploy only runs over SSH (REMOTE_HOST), so that"
+    echo "the backup and the schema step come before the new containers. Unset it and run again."
+    exit 1
 fi
 
 # 2. Remote Deployment via SSH if configured
@@ -193,8 +181,8 @@ fi
 #   d. schema    the release's schema-reconcile adds what the database lacks,
 #                while the *old* containers still run -- it only adds, so the
 #                old code keeps working on the new schema
-#   e. hook      DEPLOY_PRE_UP_HOOK, if set; CI promotes the release's images
-#                to :latest here (scripts/ci/promote-release-images.sh), so
+#   e. hook      DEPLOY_PRE_UP_HOOK, if set; the production deploy promotes the
+#                release's images to :latest here (promote-release-images.sh), so
 #                Watchtower cannot start new code before (d) has finished
 #   f. up        pull and recreate what changed -- never `db` (that was (c)),
 #                and not the one-shot tool containers unless asked for
@@ -438,7 +426,7 @@ $1" < /dev/null
             esac
             AVAIL_GB=\$(awk -v kb=\"\$AVAIL_KB\" 'BEGIN { printf \"%.1f\", kb / 1048576 }')
             if [ \"\$AVAIL_KB\" -lt \"\$MIN_KB\" ]; then
-                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or changed. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then scripts/ci/prune-prod-images.sh from the runner or 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
+                echo \"Error: only \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH, below the $DEPLOY_MIN_FREE_GB GB this deploy needs; nothing was pulled, dumped or changed. A pull into a full disk half-deploys. Free space first -- old images are the usual culprit: 'docker system df', then 'docker image prune -a -f --filter until=72h' on the host (docs/self-hosting.md#deploy-by-hand).\"
                 exit 1
             fi
             echo \"Disk: \${AVAIL_GB} GB free on $DEPLOY_DISK_CHECK_PATH (minimum $DEPLOY_MIN_FREE_GB GB).\"
@@ -773,7 +761,7 @@ $1" < /dev/null
 
     echo "--- Remote deployment completed successfully ---"
 else
-    echo "Error: Remote deployment skipped. No PORTAINER_WEBHOOK_URL, REMOTE_HOST, or SSH targets configured in .env."
+    echo "Error: Remote deployment skipped. No REMOTE_HOST or SSH targets configured in .env."
     echo "To deploy locally, use 'docker compose up -d' or configure your remote target."
     exit 1
 fi

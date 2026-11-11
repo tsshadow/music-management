@@ -6,7 +6,7 @@ from typing import Any
 import markdown
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import docker
 from services.common.config_store import ConfigStore as Settings
@@ -22,7 +22,7 @@ from services.common.version_helper import get_changelog, get_release_notes, get
 from services.music_manager import curation_rules
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.deprecation import DEPRECATED_CALL
-from services.music_manager.rbac import require_admin, require_permission
+from services.music_manager.rbac import has_permission, require_admin, require_permission
 
 # Re-exported: news, radio and events import it from here. It is the canonical
 # users.verify_api_key -- this module used to carry its own copy, which accepted any
@@ -160,7 +160,21 @@ def search_labels(q: str = '', _auth: dict = Depends(verify_api_key)):
 
 
 class LabelDecisionRequest(BaseModel):
+    """The label a curator files a proposal under: one folder name directly under the EPs root."""
+
     label: str
+
+    @field_validator('label')
+    @classmethod
+    def one_folder_name(cls, value: str) -> str:
+        """Refuse a value that is not a single folder name.
+
+        The label becomes a path segment of the move target and a rule the importer acts on
+        later; `../x` or an absolute path would move the release out of the EPs root.
+        """
+        if not value.strip() or value.strip() in ('.', '..') or any(c in value for c in ('/', '\\', '\x00')):
+            raise ValueError('a label is one folder name, without "/" or ".."')
+        return value
 
 
 def folder_exists(path: str) -> bool:
@@ -267,6 +281,12 @@ def confirm_label_proposal(
                     conn.commit()
                     return {'status': 'stale', 'folder': folder}
                 dst = os.path.join(settings.eps_folder_path, decision.label, folder)
+                # The label is one folder name (LabelDecisionRequest); the folder comes from the
+                # importer's own row. Checked once more on the result, so neither can move a
+                # release out of the EPs root.
+                eps_root = os.path.realpath(settings.eps_folder_path)
+                if not os.path.realpath(dst).startswith(eps_root.rstrip(os.sep) + os.sep):
+                    raise HTTPException(status_code=400, detail=f'{dst} is not inside the EPs folder')
                 # Never a bare shutil.move: it does not fail on an existing destination
                 # directory, it moves into it, and the release ends up one level inside the
                 # folder it collided with. The proposal stays open when that happens --
@@ -325,13 +345,19 @@ def reject_label_proposal(proposal_id: int, _auth: dict = Depends(require_rules_
 
 
 @router.get('/config')
-def get_config(_auth: dict = Depends(verify_api_key)):
+def get_config(auth: dict = Depends(verify_api_key)):
+    """The version for every account; where the database lives only for `config.manage`.
+
+    Beheer calls this as its sign-in check, so every account still gets an answer.
+    """
     version = '1.3.0'
     try:
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'VERSION'), encoding='utf-8') as f:
             version = f.read().strip()
     except Exception:
         pass
+    if not has_permission(auth, 'config.manage'):
+        return {'VERSION': version}
     return {
         'DB_HOST': os.getenv('DB_HOST'),
         'DB_NAME': os.getenv('DB_DB'),

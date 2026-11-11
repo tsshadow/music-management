@@ -270,6 +270,17 @@ namespace lms::api::muma
         return rights.isAdmin || rights.mumaUserId == targetMumaUserId;
     }
 
+    std::optional<std::string> trackRefreshKey(const CallerRights& rights, const TrackRefreshKeys& keys)
+    {
+        if (isSystemCaller(rights))
+            return std::string{ keys.systemKey };
+        if (rights.method == AuthMethod::MumaUserKey && !keys.callerKey.empty())
+            return std::string{ keys.callerKey };
+        if (mayAdministerServer(rights))
+            return std::string{ keys.systemKey };
+        return std::nullopt;
+    }
+
     std::optional<std::string> subsonicTokenProblem(std::string_view token)
     {
         if (token.empty() || subsonic::userSettings::isAcceptableSubsonicToken(token))

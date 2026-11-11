@@ -15,18 +15,32 @@ import org.junit.Test
 
 /**
  * The one server the app signs in to shipped with `allowSelfSignedCertificate = true`, which
- * installs a trust-all certificate manager and hostname verifier for a server that has a valid
- * certificate (bug report 054). These pin the transport settings of that server.
+ * installed a trust-all certificate manager and hostname verifier for a server that has a valid
+ * certificate (bug report 054). The trust-all path is gone (issue #227); these pin the transport
+ * settings of that server.
  */
 class StaticServersTest {
 
-    private val server = StaticServers.STATIC_SERVERS.single()
+    private val server = StaticServers.servers("https://music.example.org").single()
+
+    /** A fresh install has no stored address and therefore no server (issue #192). */
+    @Test
+    fun `without an address there is no server`() {
+        StaticServers.servers(null).isEmpty().shouldBeTrue()
+        StaticServers.servers("").isEmpty().shouldBeTrue()
+    }
+
+    /** The one entry is the stored address, with the id the Room cache and downloads key on. */
+    @Test
+    fun `the server is the stored address under id 0`() {
+        server.url shouldBeEqualTo "https://music.example.org"
+        server.id shouldBeEqualTo 0
+    }
 
     @Test
     fun `the server is reached over https with certificate checks on`() {
         server.url shouldStartWith "https://"
         server.allowSelfSignedCertificate.shouldBeFalse()
-        StaticServers.ALLOW_SELF_SIGNED_CERTIFICATE.shouldBeFalse()
     }
 
     /**

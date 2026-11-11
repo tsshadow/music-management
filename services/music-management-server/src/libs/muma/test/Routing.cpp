@@ -81,4 +81,23 @@ namespace lms::api::muma::tests
         EXPECT_EQ(buildProxyHeaders({ .forwardKey = "callers-key", .forwardedFor = "192.0.2.7", .contentType = "application/json" }),
                   (ProxyHeaders{ { "X-API-Key", "callers-key" }, { "X-Forwarded-For", "192.0.2.7" }, { "Content-Type", "application/json" } }));
     }
+
+    // The verb travels with the request (bug report 116): a PUT, DELETE or PATCH used to leave as
+    // a POST, and an unknown verb parked a thread until the timeout instead of a 405.
+    TEST(MumaRouting, theProxyForwardsTheVerbItReceived)
+    {
+        EXPECT_EQ(proxyMethodFor("GET"), ProxyMethod::Get);
+        EXPECT_EQ(proxyMethodFor("POST"), ProxyMethod::Post);
+        EXPECT_EQ(proxyMethodFor("PUT"), ProxyMethod::Put);
+        EXPECT_EQ(proxyMethodFor("DELETE"), ProxyMethod::Delete);
+        EXPECT_EQ(proxyMethodFor("PATCH"), ProxyMethod::Patch);
+    }
+
+    TEST(MumaRouting, theProxyRefusesAVerbItDoesNotForward)
+    {
+        EXPECT_FALSE(proxyMethodFor("HEAD").has_value());
+        EXPECT_FALSE(proxyMethodFor("OPTIONS").has_value());
+        EXPECT_FALSE(proxyMethodFor("get").has_value());
+        EXPECT_FALSE(proxyMethodFor("").has_value());
+    }
 } // namespace lms::api::muma::tests

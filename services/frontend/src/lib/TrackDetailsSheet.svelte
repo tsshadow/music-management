@@ -311,6 +311,17 @@
                     data-testid="bpm-manual-marker"
                   >{$t('bpm.override.manualMarker')}</span>
                 {/if}
+                {#if row.credit}
+                  <a
+                    href={row.credit.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-1 text-[10px] text-muma-spotify-muted hover:text-white hover:underline"
+                    title={$t('bpm.credit.title', { name: row.credit.name })}
+                    data-testid="bpm-credit"
+                    onclick={(e) => openSource(e, row.credit.href)}
+                  >{$t('bpm.credit.via', { name: row.credit.name })}</a>
+                {/if}
               </dd>
             {/each}
           </dl>

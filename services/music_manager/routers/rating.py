@@ -67,17 +67,21 @@ def handle_server_event(event: MuMaServerEvent, _auth: dict = Depends(require_sy
     if event.object_type == 'track' and event.path:
         possible_paths = candidate_paths(event.path)
         conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cursor:
-                    placeholders = ', '.join(['%s'] * len(possible_paths))
-                    sql = f'\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN ({placeholders})\n                    '
-                    cursor.execute(sql, tuple(possible_paths))
-                    row = cursor.fetchone()
-                    if row:
-                        entity_id = row['track_uid']
-            finally:
-                conn.close()
+        if not conn:
+            # Without the lookup the rating would be stored under the LMS id, which means nothing
+            # here, and answered with 200 -- so LMS's outbox would drop it. A 503 makes LMS keep
+            # it and send it again (docs/designs/lms-rating-outbox/technical.md).
+            raise HTTPException(status_code=503, detail='Database connection failed')
+        try:
+            with conn.cursor() as cursor:
+                placeholders = ', '.join(['%s'] * len(possible_paths))
+                sql = f'\n                        SELECT t.track_uid\n                        FROM library_media_files f\n                        JOIN library_tracks t ON f.track_id = t.id\n                        WHERE f.file_path IN ({placeholders})\n                    '
+                cursor.execute(sql, tuple(possible_paths))
+                row = cursor.fetchone()
+                if row:
+                    entity_id = row['track_uid']
+        finally:
+            conn.close()
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail='Database connection failed')

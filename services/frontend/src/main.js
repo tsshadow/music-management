@@ -3,6 +3,7 @@ import "./app.css";
 import App from "./App.svelte";
 import { platform } from "./lib/platform/index.js";
 import { bootstrapShell } from "./lib/nativeSession.js";
+import { serverScreen } from "./lib/serverAddress.js";
 import { askServerDecision } from "./lib/bootUnreachable.js";
 import { watchServerReturn } from "./lib/offlineMode.js";
 import { notify } from "./lib/notifications.js";
@@ -62,7 +63,9 @@ const app = platform.system.isNative
   ? bootstrapShell(platform, undefined, setBootStage, {
       decide: askServerDecision,
       deferQueue: true,
-    }).then(() => {
+    }).then((result) => {
+      // A fresh install has no server yet: the app opens on the first-run screen (issue #192).
+      if (result?.needsServer) serverScreen.set("first");
       setBootStage("starting");
       watchServerReturn(platform, { onBack: announceServerBack });
       return mountApp();

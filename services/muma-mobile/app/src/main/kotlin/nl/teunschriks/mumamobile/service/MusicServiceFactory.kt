@@ -137,6 +137,15 @@ object MusicServiceFactory : KoinComponent {
     fun getOnlineMusicService(): MusicService = get(named(ONLINE_MUSIC_SERVICE))
 
     /**
+     * The downloaded library, without touching the active server or the auto-switch state. For
+     * the Android Auto tree while the server is known to be down
+     * (`CarServerCheck`, docs/designs/offline-followups/); every other caller keeps
+     * [getMusicService].
+     */
+    @JvmStatic
+    fun getOfflineMusicService(): MusicService = get(named(OFFLINE_MUSIC_SERVICE))
+
+    /**
      * Resets [MusicService] to initial state, so on next call to [.getMusicService]
      * it will return updated instance of it.
      */

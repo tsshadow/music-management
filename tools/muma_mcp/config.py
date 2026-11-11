@@ -14,6 +14,14 @@ that way:
 Resolution fails closed and names *everything* that is missing at once, the same
 contract as ``tools/db_url.py``: a server that silently defaults to some host is
 how "which database did that just read" becomes a question.
+
+Two addresses, because production publishes port 8000 on its loopback only
+(issue #218) and nginx serves the two paths under different prefixes:
+
+- ``MUMA_PROD_URL`` -- where ``/health`` is. Through nginx: ``https://<domain>``.
+- ``MUMA_PROD_API_URL`` -- optional, where every ``/api/...`` call goes. Through
+  nginx: ``https://<domain>/muma`` (nginx sends ``/muma/api/`` to music-manager).
+  Left out, it is ``MUMA_PROD_URL``, which suits a direct ``http://<host>:8000``.
 """
 
 from __future__ import annotations
@@ -49,6 +57,13 @@ class Config:
     db_user: str
     db_pass: str
     db_name: str
+    # Where the /api/... calls go; empty means prod_url (see the module docstring).
+    api_url: str = ''
+
+    @property
+    def api_base(self) -> str:
+        """The base URL for every ``/api/...`` call: ``api_url`` when set, else ``prod_url``."""
+        return self.api_url or self.prod_url
 
     @property
     def secrets(self) -> tuple[str, ...]:
@@ -126,4 +141,5 @@ def load(environ: dict[str, str] | None = None) -> Config:
         db_user=env['MUMA_RO_DB_USER'],
         db_pass=env['MUMA_RO_DB_PASS'],
         db_name=env['MUMA_RO_DB_NAME'],
+        api_url=env.get('MUMA_PROD_API_URL', '').strip().rstrip('/'),
     )

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.music_manager.bpm import octave, priors, refold
+from services.music_manager.bpm import getsongbpm, octave, priors, refold
 from services.music_manager.bpm.octave import Prior
 
 NOW = datetime(2026, 9, 30, 12, 0, 0)
@@ -145,8 +145,9 @@ def bpm_row(**overrides):
 def test_the_hazes_row_is_refolded_to_128_keeping_its_raw_confidence():
     updates, result = refold.compare([bpm_row()], priors.Priors(), sample=5)
     assert len(updates) == 1
-    bpm, confidence, raw_confidence, corrected, evidence, _margin, version, uid, raw = updates[0]
+    bpm, confidence, raw_confidence, corrected, evidence, _margin, version, external, uid, raw = updates[0]
     assert (bpm, corrected, version, uid, raw) == (128.0, 1, octave.FOLD_VERSION, 'uid-hazes', 64.0)
+    assert external is None  # GetSongBPM is off without a cache
     assert raw_confidence == 0.5  # the old `confidence` becomes the estimator's own
     assert confidence <= 0.5
     assert evidence in (octave.EVIDENCE_NEUTRAL, octave.EVIDENCE_PATH)
@@ -156,7 +157,7 @@ def test_the_hazes_row_is_refolded_to_128_keeping_its_raw_confidence():
 
 def test_an_unchanged_row_is_not_written_again():
     first, _ = refold.compare([bpm_row()], priors.Priors())
-    bpm, confidence, raw_confidence, corrected, evidence, margin, version, _, _ = first[0]
+    bpm, confidence, raw_confidence, corrected, evidence, margin, version, _, _, _ = first[0]
     settled = bpm_row(
         bpm=bpm,
         confidence=confidence,
@@ -168,6 +169,39 @@ def test_an_unchanged_row_is_not_written_again():
     )
     updates, result = refold.compare([settled], priors.Priors())
     assert updates == [] and result.changed == 0
+
+
+HAZES_KEY = getsongbpm.lookup_key('André Hazes', 'Vaag en Stil')
+
+
+def test_a_getsongbpm_tempo_makes_the_hazes_fold_reliable_and_is_recorded():
+    """Issue #152: the listed 128 decides the octave, the confidence is no longer capped."""
+    row = bpm_row(raw_confidence=0.9, artist_name='André Hazes', title='Vaag en Stil')
+    updates, _ = refold.compare([row], priors.Priors(), external={HAZES_KEY: 128.0})
+    bpm, confidence, _, _, evidence, _, _, external, _, _ = updates[0]
+    assert (bpm, evidence, external) == (128.0, octave.EVIDENCE_EXTERNAL, 128.0)
+    assert confidence >= 0.75
+
+
+def test_a_getsongbpm_tempo_is_ignored_for_a_track_with_an_artist_prior():
+    row = bpm_row(raw_confidence=0.9, artist_name='André Hazes', title='Vaag en Stil')
+    loaded = priors.Priors(artist={37353: Prior.around(128.0, 0.2, 40)})
+    updates, _ = refold.compare([row], loaded, external={HAZES_KEY: 128.0})
+    assert updates[0][4] != octave.EVIDENCE_EXTERNAL and updates[0][7] is None
+
+
+def test_a_stored_external_tempo_is_cleared_when_the_cache_is_off():
+    row = bpm_row(artist_name='André Hazes', title='Vaag en Stil')
+    first, _ = refold.compare([row], priors.Priors(), external={HAZES_KEY: 128.0})
+    bpm, confidence, raw_confidence, corrected, evidence, margin, version, external, _, _ = first[0]
+    settled = bpm_row(
+        artist_name='André Hazes', title='Vaag en Stil', bpm=bpm, confidence=confidence,
+        raw_confidence=raw_confidence, octave_corrected=corrected, fold_evidence=evidence,
+        fold_margin=margin, fold_version=version, external_bpm=external,
+    )  # fmt: skip
+    assert refold.compare([settled], priors.Priors(), external={HAZES_KEY: 128.0})[0] == []
+    off, _ = refold.compare([settled], priors.Priors(), external={})
+    assert off and off[0][7] is None
 
 
 def test_stored_comb_scores_are_used():

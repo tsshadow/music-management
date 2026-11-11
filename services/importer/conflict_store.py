@@ -268,6 +268,8 @@ UNREADABLE = 'unreadable'
 EXTRACTION_FAILED = 'extraction-failed'
 EXTRACTION_EMPTY = 'extraction-empty'
 EXTRACTION_NAME_TAKEN = 'extraction-name-taken'
+EXTRACTION_UNSAFE = 'extraction-unsafe'
+EXTRACTION_TOO_LARGE = 'extraction-too-large'
 
 REASONS: dict[str, str] = {
     NOT_AN_ARCHIVE: 'named like an archive, but its contents are not one',
@@ -280,6 +282,8 @@ REASONS: dict[str, str] = {
     EXTRACTION_FAILED: 'no backend could extract this archive',
     EXTRACTION_EMPTY: 'this archive extracted to nothing',
     EXTRACTION_NAME_TAKEN: 'this archive holds a folder whose name is taken by a different release',
+    EXTRACTION_UNSAFE: 'this archive holds a link to a place outside its own folder',
+    EXTRACTION_TOO_LARGE: 'this archive expands past the extraction budget or the free disk space',
 }
 
 

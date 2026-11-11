@@ -206,6 +206,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(boolean): Promise<void>} setOfflineMode "Offline verder" on or off: while on,
  *   `isOffline()` answers true and the native services use the downloaded library. No-op in a
  *   browser.
+ * @property {function(string, number): Promise<boolean>} queueRating Hands a rating (0 clears) to
+ *   the phone's durable rating queue, sent when the server answers again
+ *   (docs/designs/offline-followups/). False when there is no queue: a browser, an older APK.
  * @property {function(function({id: string, state: string, progress: number}): void):
  *   function(): void} onProgress `progress` is a percentage, 0 to 100, and 0
  *   whenever the server sent no content length to measure against.
@@ -373,6 +376,16 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  */
 
 /**
+ * @typedef {object} ServerAddressCheck What the first-run screen's check found (issue #192).
+ * @property {"ok"|"invalid"|"insecure"|"noNetwork"|"unreachable"|"certificate"|"notMuma"|"mumaUnreachable"} state
+ * @property {string} url The normalized address, `""` when `invalid` or `insecure`.
+ * @property {string} subsonic The music server's base at that address.
+ * @property {string} mumaApi The MuMa API base derived from it.
+ * @property {boolean} buildServer The address is the server this APK was built for; Google
+ *   sign-in is offered only there.
+ */
+
+/**
  * @typedef {object} PlatformSystem The shell itself.
  * @property {boolean} isNative
  * @property {function(): Promise<string>} appVersion The APK's own `versionName`, for the
@@ -398,10 +411,21 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   itself, since `frontend:bundle`'s Docker build context is `services/frontend` alone and
  *   cannot reach a file in `services/muma-mobile`. A browser tab has no such asset and answers
  *   `null`, which is also what keeps `mobileReleaseNotes.js`'s modal from ever showing there.
- * @property {function(): {subsonic: string, mumaApi: string}} serverUrl Bases to
+ * @property {function(): {subsonic: string, mumaApi: string, configured: boolean}} serverUrl Bases to
  *   build URLs on; an empty string means same origin. Synchronous everywhere: a
  *   shell that has to ask across a bridge caches the answer, and its boot path
- *   pulls it once with `loadServerUrl()` before anything fetches.
+ *   pulls it once with `loadServerUrl()` before anything fetches. `configured` is false only
+ *   in a shell that has no server address stored yet (a fresh install, issue #192); the boot
+ *   path then shows the first-run screen. A browser tab is always configured.
+ * @property {function(string): Promise<ServerAddressCheck>} checkServerAddress Whether a MuMa
+ *   server answers at an address, for the first-run screen. The shell checks natively: a
+ *   `fetch` from the WebView's origin is refused by a server without CORS headers for it. Never
+ *   rejects on a failed check, only when the bridge call fails. A browser tab answers `ok`.
+ * @property {function({url: string, signOut: boolean}): Promise<void>} setServerAddress Stores
+ *   the address and makes the phone use it; `signOut` ends the session and drops the old
+ *   server's cache first. Rejects with `code` `invalid` or `insecure`. A browser tab rejects.
+ * @property {function(): Promise<string>} suggestedServerAddress The address a first run
+ *   suggests: the build's own server, or `""`. A browser tab answers `""`.
  * @property {function(): Promise<void>} signOut Ends the session on the phone -- the
  *   signed-in flag, the muma API key/user id and the muma tokens, plus whatever the
  *   platform service had queued. A browser tab has none of that and resolves at once.
@@ -410,14 +434,15 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   sign back in with.
  * @property {function(): Promise<boolean>} googleSignInAvailable Whether the platform can
  *   do "Sign in with Google" natively. Only the Android shell can (Credential Manager), and only
- *   when the APK was built with a Web client ID; a browser answers `false` and uses Google
+ *   when the APK was built with a Web client ID and talks to the server it was built for; a browser answers `false` and uses Google
  *   Identity Services on the login page instead.
  * @property {function(): Promise<string|null>} googleSignIn A Google ID token for
  *   `/api/auth/google`, `null` when the user closed the chooser; rejects with `code`
  *   `not-configured`, `no-credential` or `failed` otherwise.
- * @property {function({url?: string, username: string, mumaApiKey: string, mumaUserId?: number}): Promise<void>}
+ * @property {function({username: string, mumaApiKey: string, mumaUserId?: number}): Promise<void>}
  *   saveCredentials Hands the session the web login screen just started -- the account's
- *   name, its MuMa API key and account id, never the password (issue #101) -- to the phone,
+ *   name, its MuMa API key and account id, never the password (issue #101), never the server,
+ *   which only `setServerAddress` stores (issue #192) -- to the phone,
  *   so downloads and Android Auto see the same session afterwards. A browser tab has nowhere
  *   to put it and resolves at once.
  * @property {function(function(): boolean): function(): void} onBack The platform's

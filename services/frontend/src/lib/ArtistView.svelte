@@ -38,8 +38,15 @@
   import SkeletonTiles from './loading/SkeletonTiles.svelte';
   import SectionState from './loading/SectionState.svelte';
   import Throbber from './loading/Throbber.svelte';
+  import LabelChannels from './LabelChannels.svelte';
 
-  const { artistId, onnavigate } = $props();
+  /**
+   * @property {string} artistId - The LMS artist id from the route.
+   * @property {(view: string) => void} onnavigate - Opens a view.
+   * @property {boolean} [canManage] - Whether the user may (un)link channels (rules.manage).
+   * @property {() => void} [onmanage] - Opens Management > Downloaders > Links.
+   */
+  const { artistId, onnavigate, canManage = false, onmanage } = $props();
 
   /** Subsonic's "the requested data was not found". */
   const SUBSONIC_NOT_FOUND = 70;
@@ -506,6 +513,10 @@
     </header>
 
     <div class="p-6 md:p-8 flex flex-col gap-8">
+        {#if display?.name}
+            <!-- The channels linked to this artist, by name: the route's id is LMS's (issue #126). -->
+            <LabelChannels kind="artist" name={display.name} {onnavigate} {canManage} {onmanage} />
+        {/if}
         {#if biography || mbid}
             <section>
                 <h2 class="text-2xl font-bold mb-4">{$t('artist.about', { name: display?.name ?? '' })}</h2>

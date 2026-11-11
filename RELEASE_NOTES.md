@@ -11,6 +11,61 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.99.0 (2026-11-11)
+
+- The README and the contributing and security guides are correct for someone who finds the project on GitHub. Security reports go through GitHub's private vulnerability reporting.
+
+- The download page of the app shows the release notes of each version again.
+
+- **Before you deploy, point Uptime Kuma at `https://<domain>/health`, and move any other direct user of port 8000 to the nginx route.** The music-manager API now answers on the server itself only. Browsers and the app reach it through nginx as before.
+- The login rate limit no longer believes a client address that a host on the home network sends with its request.
+- The health check is reachable through the website at `/health`. Without a key it says only whether the service is healthy.
+
+- Artist pages show the channels linked to the artist, and the label edit page lets a curator unlink
+  a channel.
+
+- Release checks are stricter: a release stops when a player key is missing, and two releases can no longer publish images at the same time.
+
+- The default playlists are no longer added again each time you ask for them, and a playlist with an invalid definition is refused instead of failing later.
+
+- In the app you choose your server on the first start, and you can change it later.
+
+- With a GetSongBPM key in the configuration, mainstream tracks get the right octave of their tempo (128 instead of 64) from getsongbpm.com, credited in the track details.
+
+- A rating you set while the server was restarting is no longer lost: it waits on the server and
+  arrives once the restart is done.
+
+- Only admins can reload a track's tags from the player.
+- An archive that expands too far is stopped before it fills the disk.
+
+- **The Android build-config check passed its refusal cases when Gradle never started.** Any
+  non-zero exit counted as the expected refusal, so a docker error or a broken wrapper also looked
+  green. Each refusal case now needs the message Gradle prints for it (#196).
+
+- **SECURITY.md said LMS's `/muma` proxy never sends MuMa the system key; three routes do.** The
+  generic `/api/` proxy forwards the caller's own key, but per-user settings, an artist image and a
+  track refresh go out with the system key once LMS checked the caller. The text now says so, and
+  the proxy's verb mapping and the `/users/sync` rule have their own GTest cases (#228).
+
+- **The frontend's lint tooling pulled in a minimatch with a denial-of-service advisory
+  (GHSA-g3hv-75wg-m249).** eslint and typescript-eslint still ask for minimatch 10; an npm
+  override pins 11.0.5, which eslint runs on unchanged, and `security:dependency-audit` is green
+  again. deepmerge (GHSA-gcqx-w48m-w2h4, low, no fixed release, dev only through
+  vite-plugin-svelte) stays below the audit level (#212).
+
+- The release pipeline builds and publishes only: the deploy scripts and the production settings live with the installation that deploys.
+
+- Changing a track's tags no longer loses its BPM, measured or set by hand.
+
+- Only curators can start tagging and scanning runs. A path outside the library is refused.
+
+- A server that could not create its database tables at start-up now reports an error and shows as unhealthy, instead of starting as if all was well.
+
+- **A copied `.env.example` now renders the compose file without an unset variable.** The workers'
+  `AUTH_SERVICE_URL` was the last one missing; a new host got workers that could not announce a
+  tagged file. `docs/self-hosting.md` also says which folder names under the music root the tagger
+  walks: a download written elsewhere is never tagged (#210).
+
 ## Global Version 0.98.0 (2026-11-07)
 
 - The back-merge of master into develop after a release is now a merge commit made with git under the neutral release identity. Before, GitLab wrote it as the bot of the token, whose address names the private GitLab host, and `public:history` failed on develop (bug report 157).

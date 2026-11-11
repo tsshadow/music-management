@@ -6,6 +6,7 @@
   import { platform } from './platform/index.js';
   import SourceCodeLink from './SourceCodeLink.svelte';
   import { fetchSourceUrl } from './sourceLink.js';
+  import { hostOf, serverScreen } from './serverAddress.js';
 
   let username = $state('');
   let password = $state('');
@@ -13,22 +14,11 @@
   let isLoading = $state(false);
   let setupRequired = $state(false);
 
-  // The browser knows its server: the page came from it. Inside the Android
-  // shell the page came from `https://localhost`, so the server is a field --
-  // prefilled from what the phone is signed in to, and editable, because a
-  // first run against a new server is exactly when it is wrong.
+  // The browser knows its server: the page came from it. Inside the Android shell the address
+  // was entered and checked on the first-run screen (issue #192); this page shows its host and a
+  // link back to that screen to change it.
   const isNative = platform.system.isNative;
   let server = $state('');
-
-  /**
-   * Points the app at the typed server before anything is verified against it.
-   * Native only; on the web `credentials.url` is derived from the location and
-   * must stay that way.
-   */
-  function applyServer() {
-    if (!isNative) return;
-    credentials.update(c => ({ ...c, url: server.trim().replace(/\/+$/, '') }));
-  }
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   // Inside the Android shell Google's web sign-in cannot run (Google refuses OAuth in a WebView),
@@ -46,7 +36,6 @@
   async function verifyLogin() {
     error = '';
     isLoading = true;
-    applyServer();
 
     // `signIn` is the one sign-in path in the app: this screen and the Android
     // shell's silent boot login both go through it, so "signed in" has one
@@ -83,7 +72,6 @@
   async function saveNativeSession(verifiedUsername) {
     try {
       await platform.system.saveCredentials({
-        url: server,
         username: verifiedUsername,
         mumaApiKey: $mumaApiKey,
         mumaUserId: $mumaUser?.id ?? 0,
@@ -213,7 +201,6 @@
    */
   async function nativeGoogleSignIn() {
     error = '';
-    applyServer();
     let token;
     try {
       token = await platform.system.googleSignIn();
@@ -249,7 +236,7 @@
         username = $credentials.username;
     }
     if (isNative) {
-        server = platform.system.serverUrl().subsonic || $credentials.url;
+        server = platform.system.serverUrl().subsonic;
     }
 
     if (isNative) {
@@ -341,11 +328,12 @@
       {/if}
 
       {#if isNative}
-        <div class="flex flex-col gap-2">
-          <label for="server" class="text-xs font-bold text-muma-spotify-text uppercase tracking-wider">{$t('login.server')}</label>
-          <input id="server" type="url" inputmode="url" autocomplete="url" value={server} oninput={(e) => server = e.target.value} placeholder="https://muma.example" class="bg-[#2a2a2a] border border-transparent rounded-lg p-3 text-white text-sm focus:outline-none focus:border-brand-green disabled:opacity-50" disabled={isLoading} />
-          <p class="text-[11px] text-muma-spotify-text m-0">{$t('login.serverHint')}</p>
-        </div>
+        <!-- The server line (style guide: "Server line on the login page"): the host the
+             first-run screen stored, and the way back to that screen. -->
+        <p class="text-xs text-muma-spotify-text text-center m-0" data-testid="login-server">
+          {$t('login.serverLine', { host: hostOf(server) })}
+          <button type="button" class="bg-transparent border-none p-0 ml-1 text-xs text-white font-bold underline cursor-pointer disabled:opacity-50" onclick={() => serverScreen.set('change')} disabled={isLoading}>{$t('login.changeServer')}</button>
+        </p>
       {/if}
       <div class="flex flex-col gap-2">
         <label for="username" class="text-xs font-bold text-muma-spotify-text uppercase tracking-wider">{$t('login.username')}</label>

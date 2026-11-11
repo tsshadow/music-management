@@ -20,6 +20,7 @@
 #include "ScrobblingService.hpp"
 
 #include "core/ILogger.hpp"
+#include "core/Service.hpp"
 #include "database/IDb.hpp"
 #include "database/Session.hpp"
 #include "database/objects/Artist.hpp"
@@ -27,6 +28,7 @@
 #include "database/objects/Release.hpp"
 #include "database/objects/Track.hpp"
 #include "database/objects/User.hpp"
+#include "services/mumaoutbox/IMumaOutboxRelay.hpp"
 
 #include "internal/InternalBackend.hpp"
 #include "listenbrainz/ListenBrainzBackend.hpp"
@@ -68,7 +70,9 @@ namespace lms::scrobbling
         LMS_LOG(SCROBBLING, INFO, "Starting service...");
         _scrobblingBackends.emplace(ScrobblingBackend::Internal, std::make_unique<InternalBackend>(_db));
         _scrobblingBackends.emplace(ScrobblingBackend::ListenBrainz, std::make_unique<listenBrainz::ListenBrainzBackend>(ioContext, _db));
-        _mumaScrobbler = std::make_unique<musicManagement::MusicManagementBackend>(ioContext, _db);
+        // The relay is created before this service and outlives it (main.cpp); it is null when no
+        // music-management-url is configured.
+        _mumaScrobbler = std::make_unique<musicManagement::MusicManagementBackend>(_db, core::Service<mumaOutbox::IMumaOutboxRelay>::get());
         LMS_LOG(SCROBBLING, INFO, "Service started!");
     }
 

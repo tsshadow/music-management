@@ -51,14 +51,20 @@ class ScannerEndpointTest(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
 
     def test_a_single_file_can_be_scanned(self):
-        with patch.object(scanner_router.scanner_manager, 'scan_single') as scan_single:
+        with (
+            patch.object(scanner_router.scanner_manager, 'scan_single') as scan_single,
+            patch.object(scanner_router, 'require_library_file', side_effect=lambda path: path),
+        ):
             body = self.client.post('/api/scanner/scan/file?path=/music/a.mp3', headers=self.headers).json()
         self.assertIn('/music/a.mp3', body['message'])
         self.assertTrue(body['scanned'])
         scan_single.assert_called_once_with('/music/a.mp3', force=False)
 
     def test_a_single_file_scan_reports_when_the_scanner_did_not_take_it(self):
-        with patch.object(scanner_router.scanner_manager, 'scan_single', return_value=False):
+        with (
+            patch.object(scanner_router.scanner_manager, 'scan_single', return_value=False),
+            patch.object(scanner_router, 'require_library_file', side_effect=lambda path: path),
+        ):
             body = self.client.post('/api/scanner/scan/file?path=/music/a.mp3', headers=self.headers).json()
         self.assertFalse(body['scanned'])
 
@@ -554,10 +560,27 @@ class TaggerEndpointTest(unittest.TestCase):
         stop.assert_called_once()
 
     def test_a_single_file_can_be_tagged(self):
-        with patch.object(tagger_router.tagger_manager, 'tag_single') as tag_single:
+        with (
+            patch.object(tagger_router.tagger_manager, 'tag_single') as tag_single,
+            patch.object(tagger_router, 'require_library_file', side_effect=lambda path: path),
+        ):
             body = self.client.post('/api/tagger/tag/file?path=/music/a.mp3', headers=self.headers).json()
         self.assertIn('/music/a.mp3', body['message'])
         tag_single.assert_called_once_with('/music/a.mp3')
+
+    def test_a_file_outside_the_library_is_refused(self):
+        # The real check, against a settings object with one root: the tagger would write
+        # tags into any audio file it can open, so nothing outside gets that far.
+        settings = MagicMock(music_folder_path='/mnt/music', eps_folder_path='', import_folder_path='')
+        with (
+            patch.object(tagger_router.tagger_manager, 'tag_single') as tag_single,
+            patch('services.common.config_store.ConfigStore', return_value=settings),
+        ):
+            for path in ('/etc/passwd', '/mnt/music/../etc/a.mp3', '/mnt/musicx/a.mp3'):
+                with self.subTest(path=path):
+                    response = self.client.post(f'/api/tagger/tag/file?path={path}', headers=self.headers)
+                    self.assertEqual(response.status_code, 400)
+        tag_single.assert_not_called()
 
     def test_a_request_without_a_key_is_unauthorized(self):
         self.assertEqual(self.client.post('/api/tagger/tag/all').status_code, 401)

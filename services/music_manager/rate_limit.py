@@ -26,9 +26,11 @@ container. So an X-Forwarded-For header is read, but only when whoever wrote it
 can be believed:
 
 * The peer is on a trusted network (``AUTH_TRUSTED_PROXIES``, by default
-  loopback and the three private ranges -- the same set nginx's
-  `set_real_ip_from` trusts in reverse-proxy.conf), or the request carries the
-  system key (LMS's password checks do).
+  loopback and the networks this container is attached to -- the Docker
+  bridge that nginx and LMS reach it over), or the request carries the system
+  key (LMS's password checks do). A LAN address is not trusted: port 8000 is
+  published on the host's loopback only (issue #218), so a LAN caller that
+  reaches the app anyway is keyed on its own address.
 * The chain is then walked from the right, skipping trusted addresses, and the
   first address that is not a proxy is the client -- nginx's
   `real_ip_recursive`. The left-most entry is whatever the client typed; it
@@ -69,7 +71,10 @@ Configuration:
     AUTH_RATE_LIMIT_WINDOW_SECONDS    window length in seconds (default 60)
     AUTH_RATE_LIMIT_ENABLED           set to 0/false to switch off
     AUTH_TRUSTED_PROXIES              comma-separated networks whose X-Forwarded-For is
-                                      believed (default loopback + 10/8, 172.16/12, 192.168/16)
+                                      believed (default loopback + `connected`). The word
+                                      `connected` stands for every IPv4 network the process
+                                      reaches without a gateway: inside the container, its
+                                      Docker networks.
 """
 
 import ipaddress
@@ -90,8 +95,15 @@ logger = logging.getLogger('music-manager.rate-limit')
 DEFAULT_ATTEMPTS = 10
 DEFAULT_ACCOUNT_ATTEMPTS = 50
 DEFAULT_WINDOW_SECONDS = 60
-# Kept in step with set_real_ip_from in services/music-management-server/nginx/reverse-proxy.conf.
-DEFAULT_TRUSTED_PROXIES = '127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+# Loopback and the Docker networks the container sits on, never the LAN (issue #218): a LAN host
+# that could name its own client address would get a fresh bucket for every guess.
+DEFAULT_TRUSTED_PROXIES = '127.0.0.0/8,::1/128,connected'
+# The token in AUTH_TRUSTED_PROXIES that expands to the directly connected IPv4 networks.
+CONNECTED = 'connected'
+# The kernel's IPv4 routing table of this network namespace (the container's own, in Docker).
+ROUTE_TABLE = '/proc/net/route'
+_RTF_UP = 0x1
+_RTF_GATEWAY = 0x2
 
 
 def _int_env(name: str, default: int) -> int:
@@ -178,13 +190,57 @@ def reset_limiters() -> None:
     account_limiter.reset()
 
 
+def _connected_networks(route_table: str = ROUTE_TABLE) -> tuple[ipaddress.IPv4Network, ...]:
+    """The IPv4 networks reached without a gateway, read from the kernel's routing table.
+
+    In the music-manager container these are its Docker networks, the bridge nginx and LMS
+    call it over, whatever subnet Docker picked for it. The default route never counts: it
+    would trust every address. A table that cannot be read gives nothing, so the default
+    falls back to loopback alone rather than to a guess.
+    """
+    try:
+        with open(route_table, encoding='ascii') as table:
+            lines = table.read().splitlines()[1:]
+    except OSError as exc:
+        logger.warning('Cannot read %s (%s); AUTH_TRUSTED_PROXIES "connected" trusts nothing', route_table, exc)
+        return ()
+    networks = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 8:
+            continue
+        try:
+            destination, gateway, flags, mask = (int(fields[i], 16) for i in (1, 2, 3, 7))
+        except ValueError:
+            continue
+        if not flags & _RTF_UP or flags & _RTF_GATEWAY or gateway or not mask:
+            continue
+        # The table is in host byte order, little-endian on every platform this runs on.
+        address = ipaddress.IPv4Address(destination.to_bytes(4, 'little'))
+        netmask = ipaddress.IPv4Address(mask.to_bytes(4, 'little'))
+        try:
+            network = ipaddress.IPv4Network(f'{address}/{netmask}', strict=False)
+        except ValueError:
+            continue
+        if network not in networks:
+            networks.append(network)
+    return tuple(networks)
+
+
 @lru_cache(maxsize=8)
 def _parse_networks(spec: str) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
-    """The networks in a comma-separated list; an entry that does not parse is skipped, loudly."""
-    networks = []
+    """The networks in a comma-separated list; an entry that does not parse is skipped, loudly.
+
+    The entry `connected` expands to `_connected_networks()`, read once per value of the
+    setting: a container's networks only change when it is recreated.
+    """
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
     for entry in spec.split(','):
         entry = entry.strip()
         if not entry:
+            continue
+        if entry.lower() == CONNECTED:
+            networks.extend(_connected_networks())
             continue
         try:
             networks.append(ipaddress.ip_network(entry, strict=False))
@@ -215,8 +271,8 @@ def client_key(request: Request) -> str:
     See the module docstring. The X-Forwarded-For chain is only read when the peer is a
     trusted proxy or the request carries the system key, and then from the right: the
     first hop that is not itself a trusted proxy is the client. When every hop is trusted
-    (a LAN client, or LMS reporting the address of a proxy it does not look behind), the
-    left-most is the best there is.
+    (LMS reporting the address of a proxy on the Docker network that it does not look
+    behind), the left-most is the best there is.
     """
     peer = request.client.host if request.client else 'unknown'
     forwarded = request.headers.get('x-forwarded-for')

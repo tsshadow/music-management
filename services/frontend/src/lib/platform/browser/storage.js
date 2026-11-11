@@ -110,6 +110,17 @@ const storage = {
   async setOfflineMode(_enabled) {},
 
   /**
+   * A browser tab has no rating queue: a rating that cannot reach the server fails, as before.
+   *
+   * @param {string} _id
+   * @param {number} _rating
+   * @returns {Promise<boolean>} Always false.
+   */
+  async queueRating(_id, _rating) {
+    return false;
+  },
+
+  /**
    * @param {function({online: boolean}): void} _handler
    * @returns {function(): void} Unsubscribes. Never fires here.
    */

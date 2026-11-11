@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.99.0] - 2026-11-11
+
+### Added
+- **An artist page and the label edit page now list the channels linked to them.** The artist page
+  shows the **Kanalen** section of the label page for the SoundCloud, YouTube and Telegram channels
+  a curator linked to that artist (`GET /api/channel-links/by-artist?name=`, looked up by name
+  because the page's route carries the player's artist id). The label edit page (Beheer > Curatie)
+  shows the label's channels with an unlink button on each, and a tap on a channel opens its tracks
+  there too (issue #126).
+
+- The web player inside the Android app has a first-run server screen: it asks for the server's
+  address, has the phone check it, and shows the login page once a MuMa server answers. The login
+  page in the app shows the server's host with a "Wijzigen" link instead of a server field, and
+  Settings > Apparaat has a "Server" row to change it; a change to another server asks first and
+  signs out. The browser build is unchanged (#192).
+
+- **GetSongBPM as an octave prior for mainstream tracks (issue #152).** A Hitzone, Spotify, Lidarr or Top 100 track without a label or artist prior had only the general priors to pick 64, 128 or 256 on, so its fold was capped at 0.6 and never written into the file. With a key in Beheer > Config > BPM (`getsongbpm_api_key`, a secret, empty is off), the bpm-analyzer asks getsongbpm.com for those tracks' tempo, 50 songs per 10 minutes, keeps every answer in `getsongbpm_lookups` (a miss is asked again after 90 days), and weighs the listed tempo as a prior on the octave. The measurement stays the number. A listed tempo that matches no octave of the measurement is ignored. `library_track_bpm.external_bpm` records the tempo that was weighed, and `/api/library/tracks/by-path` returns `bpm_external_source`, which makes the player's track details show "via GetSongBPM", a link to getsongbpm.com.
+
+### Changed
+- The README, CONTRIBUTING and SECURITY files describe the stack as a reader of the GitHub mirror finds it. The README listed the deprecated ml-analyzer as a BPM, key and mood pipeline, named three event sources instead of four, gave container ports as host ports and a build target `build.sh` does not know, and described the owner's deploy flow as the way to run the stack. SECURITY.md now sends reports to GitHub's private vulnerability reporting instead of a GitLab issue and a mail address that an outsider cannot reach.
+
+- A release now fails its secrets check when `PROD_ENV_FILE_LMS` lacks `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` or `MUSIC_MANAGEMENT_API_KEY`; before, LMS deployed with an empty key and refused every call it should serve or make. Two release pipelines no longer push images at the same time (`release:build-images` has a resource group), a change to `requirements-dev.txt` runs format, lint and both type checks, and a change to `requirements.txt` builds the images on the merge request. `scripts/deploy.sh` refuses to run with `PORTAINER_WEBHOOK_URL` set, because a webhook recreated the stack before the backup and the schema step. The importer image no longer installs an unpinned `patool` on top of the pinned one in the base image.
+
+- **SECURITY.md said LMS's `/muma` proxy never sends MuMa the system key; three routes do.** The
+  generic `/api/` proxy forwards the caller's own key, but per-user settings, an artist image and a
+  track refresh go out with the system key once LMS checked the caller. The text now says so, and
+  the proxy's verb mapping and the `/users/sync` rule have their own GTest cases (#228).
+
+- **A copied `.env.example` now renders the compose file without an unset variable.** The workers'
+  `AUTH_SERVICE_URL` was the last one missing; a new host got workers that could not announce a
+  tagged file. `docs/self-hosting.md` also says which folder names under the music root the tagger
+  walks: a download written elsewhere is never tagged (#210).
+
+### Removed
+- **This repository no longer has deploy scripts or production variables.** `scripts/ci-deploy.sh`, `prod-ssh-setup.sh`, `post-deploy-verify.sh`, `prune-prod-images.sh`, `promote-release-images.sh` and `prod_image_prune_plan.py` moved to the operations repository, whose deploy runs its own copies against the release tag (step 3b of docs/designs/ops-split/, issue #202). `release:build-images`, `muma:refresh-downloader` and the image audit take `DOCKER_USER` and the image names from plain CI/CD variables, with defaults in `scripts/ci/release-image-names.sh` (`music-manager`, `muma-base`, `muma-downloader`, `muma-telegram`, `muma-importer`, `muma-tools`, `lms`), and the player's Google client id from `VITE_GOOGLE_CLIENT_ID`, else `MUMA_GOOGLE_CLIENT_ID`. `release:check-secrets` checks only what the build needs: `PROD_REMOTE_HOST`, the pinned host key and the keys inside `PROD_ENV_FILE`/`PROD_ENV_FILE_LMS` are the deploy's check now. A no-push image build no longer reads a developer's `.env`.
+
+### Fixed
+- The APK hoster showed no release notes for an app version since the changelog fragments came in: `publish.sh` looked for a `## [7.18.4]` heading in the app's `RELEASE_NOTES.md`, while the release assembler writes `## Global Version 7.18.4 (2026-10-30)`, so no `.txt` notes file went out with the APK. `scripts/release-notes.sh` reads both headings, and `publish.sh` warns when a version has no section.
+
+- A dynamic playlist accepted any text as its definition, and the track list for it answered 500 on a `size` that was not a number or a definition that was not a JSON object. Create and update now answer 422 for those, and for a `size` outside 1 to 2000; a stored row that is still malformed is read with defaults, and a stored `size` above 2000 is cut to 2000. Clients that send what the web and the phone send today are not affected.
+- "Defaults" on the playlist management tab added the four default playlists again on every click: the upsert keyed on `(source, remote_id)`, and `remote_id` is NULL for them, so nothing ever collided. A default the user already has, by name, is now left alone.
+
+- **A star set in the app or the web player while music-manager was down never reached
+  music-manager.** LMS sent each rating change once, from memory: a connection failure or a 503
+  during a deploy dropped it, and nothing sent it again. LMS now writes each rating change to a
+  `muma_rating_outbox` table first (LMS database version 128) and delivers it from there once
+  music-manager answers, with the listen outbox's backoff (5 s, doubling to 60 s). One row per user
+  and item, so three changes during an outage send the last one only, and a cleared rating sends
+  the removal. A row waits at most 14 days and the table holds at most 10,000 rows; LMS logs a
+  `WARNING` that names the user and the item for each row it drops. One relay in a new
+  `mumaoutbox` library sends both outboxes, oldest first, one request at a time.
+  `POST /api/rating/lms-event` answers 503 when the path lookup gets no database connection,
+  instead of storing the rating under the LMS id, and `/health` has `lms_rating_outbox` next to
+  `lms_listen_outbox` (issue #222).
+
+- **The Android build-config check passed its refusal cases when Gradle never started.** Any
+  non-zero exit counted as the expected refusal, so a docker error or a broken wrapper also looked
+  green. Each refusal case now needs the message Gradle prints for it (#196).
+
+- A retag that changed a track's title, artist or duration lost its measured and its hand-corrected BPM: the relink to the new track row moved ratings, listens and the ml-analyzer rows, but not `library_track_bpm` and `library_track_bpm_manual`, which are keyed on the old `track_uid`. Both now move with the track; a value the new track already has is kept.
+
+- A music-manager that started without being able to create its tables said nothing: the create pass stopped at the first failing statement, logged a `WARNING` and went on, and `/health` stayed `ok`. The failure is now an `ERROR` event, and `/health` has a `schema` field that is `failed` until a restart gets through the pass, which makes the endpoint answer 503. A deploy was never affected, because the schema reconcile step stops it first; a fresh or local stack was.
+
+### Security
+- **Before you deploy this release, point Uptime Kuma at `https://<domain>/health`, and move every other direct user of port 8000 or 8003 (a Home Assistant sensor, a script) to the nginx route `/muma/api/` or the Docker network. Before the deploy, point the muma-prod MCP at the domain: `MUMA_PROD_URL=https://<domain>` and the new `MUMA_PROD_API_URL=https://<domain>/muma` in `~/.config/muma-mcp/env`.** `music-manager` publishes ports 8000 and 8003 on `127.0.0.1` only (`MUSIC_MANAGER_BIND_ADDRESS`, default `127.0.0.1`). Before, they listened on every interface, so the LAN and the tailnet reached the API without nginx in front. A call from another machine to `http://<host>:8000` now fails to connect. nginx, LMS and the workers call `music-manager:8000` over the `music-management_db` network and are not affected. (issue #218)
+- The login rate limit believes `X-Forwarded-For` only from loopback and the Docker networks of the `music-manager` container. The default of `AUTH_TRUSTED_PROXIES` is `127.0.0.0/8,::1/128,connected`, where `connected` is read from the container's routing table. Before, it was the three private ranges, so any host on the LAN could name a new client address with every guess and get a new per-client bucket each time. The per-account limit of 50 a minute was not affected.
+
+- `GET /health` is public through nginx at `https://<domain>/health` (an exact-match `location` in `reverse-proxy.conf`), so an outside monitor needs no port of its own. Without a valid `X-API-Key` the body is `status` and `source_url` only; the version, database, thread and heartbeat fields need the system key or a user's key. The status code is 200 or 503 either way, so Uptime Kuma and the container healthcheck need no key. `post-deploy-verify.sh` reads the version with the system key from the container's environment, and `tools/muma_mcp` sends its key. `tools/muma_mcp` has an optional `MUMA_PROD_API_URL` for its `/api/...` calls, because through nginx they sit under `/muma` while `/health` sits at the root; left out, it is `MUMA_PROD_URL`, so a direct host:8000 setup keeps working.
+
+- Reloading a track through LMS needs an admin, or a MuMa key with the `rules.manage` permission. Before, any listener could start a retag that way (issue #230). The web player shows the reload button to admins only.
+- The importer stops extracting an archive when the output passes `import_extract_max_gb` (default 50) or leaves less than `import_extract_min_free_gb` (default 10) free. The archive stays in the import folder as `extraction-too-large` (issue #231).
+
+- **The frontend's lint tooling pulled in a minimatch with a denial-of-service advisory
+  (GHSA-g3hv-75wg-m249).** eslint and typescript-eslint still ask for minimatch 10; an npm
+  override pins 11.0.5, which eslint runs on unchanged, and `security:dependency-audit` is green
+  again. deepmerge (GHSA-gcqx-w48m-w2h4, low, no fixed release, dev only through
+  vite-plugin-svelte) stays below the audit level (#212).
+
+- Starting a tag run, a scan, a retag, a parse rerun, a redownload or a track split now needs the `rules.manage` permission, and changing the downloader settings needs `config.manage`. Before, any account could do these (issue #216). `GET /api/config` shows the database settings only to `config.manage`.
+- A file path sent to the tag, scan and rerun-parse routes must be inside the library, a label decision must name one folder, and the importer leaves an archive alone when it holds a link to a place outside its own folder (issue #217).
+
 ## [0.98.0] - 2026-11-07
 
 ### Added

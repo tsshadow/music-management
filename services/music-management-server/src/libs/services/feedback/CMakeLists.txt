@@ -25,6 +25,7 @@ target_link_libraries(lmsfeedback PRIVATE
 
 target_link_libraries(lmsfeedback PUBLIC
 	lmsdatabase
+	lmsmumaoutbox
 	)
 
 if(BUILD_TESTING)

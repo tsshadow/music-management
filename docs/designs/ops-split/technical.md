@@ -4,6 +4,10 @@ Implements [functional.md](functional.md). The contract between the two reposito
 tag, `release-vX.Y.Z`, and what exists when it exists. This repository never calls the operations
 repository, and the operations repository reads this one only at a tag.
 
+Status (2026-11-10): steps 1 to 3 are done, and release 0.98.0 deployed through the operations
+repository. Step 3b is done with issue #202: the deploy scripts are the operations repository's
+own, and this repository's pipeline reads no production variable.
+
 ## What Stays, What Moves
 
 | Part | Today | After |
@@ -13,11 +17,11 @@ repository, and the operations repository reads this one only at a tag.
 | Tag (`release:tag`) | here, after `release:verify-deployed` checked production | here, after `release:publish` checked that every image and the APK exist |
 | Compose files (`docker/`), `scripts/deploy.sh`, `schema_reconcile` | here | here: they are the install recipe of a version and are read at its tag |
 | Deploy job (`muma:deploy`) | here | operations repository (`deploy:production`) |
-| Deploy scripts (`scripts/ci-deploy.sh`, `prod-ssh-setup.sh`, `ssh_host_keys.sh`) | here | here until step 3b, read at the tag; then the operations repository |
-| Post-deploy checks (`muma:verify`, `release:verify-deployed`, `verify-prod-version.sh`) | here | removed: `ci-deploy.sh` already ends in `post-deploy-verify.sh`, which checks the version |
-| Image pruning on the host (`prune-prod-images.sh`) | here | here until step 3b, run by `ci-deploy.sh` |
+| Deploy scripts (`scripts/ci-deploy.sh`, `prod-ssh-setup.sh`, `promote-release-images.sh`) | here | operations repository (`deploy/`) since step 3b. `scripts/lib/ssh_host_keys.sh` and `compose_profiles.sh` stay: `scripts/deploy.sh` uses them, and the deploy reads them at the tag |
+| Post-deploy checks (`muma:verify`, `release:verify-deployed`, `verify-prod-version.sh`) | here | removed: `ci-deploy.sh` already ends in `post-deploy-verify.sh`, which checks the version; both are in the operations repository since step 3b |
+| Image pruning on the host (`prune-prod-images.sh`, `prod_image_prune_plan.py`) | here | operations repository since step 3b, run by its `ci-deploy.sh` |
 | APK upload to the app download service | here | operations repository, after the check |
-| Production CI variables (`PROD_*`, `APK_HOSTER_PASSWORD`) | here | operations repository; deleted here in step 3b. `APK_HOSTER_URL` stays: the app is built with it |
+| Production CI variables (`PROD_*`, `SSH_PRIVATE_KEY`) | here | operations repository; deleted here after step 3b. `APK_HOSTER_URL` stays: the app is built with it. `APK_HOSTER_PASSWORD` stays for `mobile:build-debug`, which uploads the debug app |
 
 `scripts/deploy.sh` stays here because it is generic: it takes the stack name, the compose files
 and the image tag from its environment, and a self-hoster runs it too. What makes a deploy
@@ -102,7 +106,12 @@ added.
 3. This repository: add the package upload and `release:publish`, and remove the deploy jobs.
    Operations repository: the automatic deploy, `deploy:apk` and Renovate with automerge.
 3b. Move `ci-deploy.sh` and its helpers to the operations repository, stop the image build
-   reading `PROD_ENV_FILE`, and delete the production variables here.
+   reading `PROD_ENV_FILE`, and delete the production variables here. The operations repository
+   switches to its own `deploy/ci-deploy.sh` first: it runs against every tag, old or new, so a
+   rollback to a tag that still has `scripts/ci-deploy.sh` works the same. Only then does a
+   release without those files exist. The image names are plain CI/CD variables with defaults
+   (`scripts/ci/release-image-names.sh`), and `release:check-secrets` checks only what the build
+   needs; the production env file checks moved into the operations repository's deploy.
 4. First release on the new path. Check the four items of functional criterion 2 and the deploy.
 
 ## Data Model
@@ -118,7 +127,7 @@ No application API changes. The contract between the repositories:
 | Tag `release-vX.Y.Z` | `release:tag` | Renovate, `deploy/fetch.sh` | Exists only after the images and the package files below |
 | Images `<image>:X.Y.Z` | `release:build-images` | `deploy` | Every image of `build-and-push-images.sh` |
 | `muma-mobile/<versionName>/` package | `mobile:build-release` | `deploy:apk` | APK, release notes and mapping, signed with the release key |
-| Files under `docker/` and `scripts/` at the tag | git | `fetch` | `scripts/deploy.sh` keeps its environment interface (`STACK_NAME`, `LOCAL_COMPOSE_FILE`, `LOCAL_ENV_FILE`, `REMOTE_HOST`, `IMAGE_TAG`, `SCHEMA_IMAGE_TAG`, `DEPLOY_PRE_UP_HOOK`) or the change is called out in the changelog as breaking |
+| Files under `docker/` and `scripts/` at the tag | git | `fetch`, `deploy/ci-deploy.sh` | The deploy scripts source `scripts/lib/ssh_host_keys.sh`, `compose_profiles.sh`, `dotenv.sh` and `scripts/ci/docker-hub-session.sh` from the tag, so they stay here under those names. `scripts/deploy.sh` keeps its environment interface (`STACK_NAME`, `LOCAL_COMPOSE_FILE`, `LOCAL_ENV_FILE`, `REMOTE_HOST`, `IMAGE_TAG`, `SCHEMA_IMAGE_TAG`, `DEPLOY_PRE_UP_HOOK`) or the change is called out in the changelog as breaking |
 
 ## Cross-App Impact
 

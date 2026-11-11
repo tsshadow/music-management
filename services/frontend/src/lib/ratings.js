@@ -17,6 +17,8 @@ import { subsonicError } from "./utils.js";
 import { notify } from "./notifications.js";
 import { t } from "./i18n/index.js";
 import { logAction } from "./diagnosticsLog.js";
+import { offline } from "./subsonic.js";
+import { platform as defaultPlatform } from "./platform/index.js";
 
 /** The highest rating; also what "favourite" means. */
 export const MAX_RATING = 5;
@@ -37,6 +39,37 @@ export const ratings = writable({});
  * @type {Map<string, number>}
  */
 const generations = new Map();
+
+/**
+ * Tracks whose rating went into the phone's queue this session. A later rating of the same track
+ * goes there too, even online, so the queue cannot send an older value after a newer direct
+ * write: the queue keeps the last rating per track (docs/designs/offline-followups/).
+ *
+ * @type {Set<string>}
+ */
+const queuedOnPhone = new Set();
+
+/** HTTP answers of a proxy whose server behind it is down: the server was not reached. */
+const SERVER_DOWN_STATUSES = new Set([502, 503, 504]);
+
+/**
+ * Hands a rating to the phone's durable queue (`platform.storage.queueRating`).
+ *
+ * @param {object} platform
+ * @param {string} id
+ * @param {number} value
+ * @returns {Promise<boolean>} False when there is no queue (a browser, an older APK) or it failed.
+ */
+async function queueOnPhone(platform, id, value) {
+  try {
+    const queued = (await platform?.storage?.queueRating?.(id, value)) === true;
+    if (queued) queuedOnPhone.add(id);
+    return queued;
+  } catch (error) {
+    console.warn("Could not queue the rating on the phone", error);
+    return false;
+  }
+}
 
 /**
  * The rating to show for a track.
@@ -89,6 +122,11 @@ function show(id, value) {
  * Sends one value to the server, optimistically: the new value is shown before the request goes
  * out and put back to `previous` if the server refuses or cannot be reached.
  *
+ * In the app, a rating that cannot reach the server is not lost: in offline mode, or when the
+ * request never got an answer from the server (a network error, a proxy's 502/503/504), it goes
+ * to the phone's durable rating queue and stays on screen. A refusal by the server still rolls
+ * back. A browser has no queue and rolls back as before.
+ *
  * @param {string|number} trackId
  * @param {number} value - 0 clears.
  * @param {object} [options]
@@ -96,11 +134,12 @@ function show(id, value) {
  * @param {object} [options.track] - A plain track object to keep in step (`userRating`), for the
  *   callers whose list is not reactive state.
  * @param {typeof fetch} [options.fetchImpl] - Injected by the tests.
- * @returns {Promise<boolean>} Whether the server stored it.
+ * @param {object} [options.platform] - Injected by the tests.
+ * @returns {Promise<boolean>} Whether the server stored it, or the phone queued it.
  */
 async function write(trackId, value, options = {}) {
   const id = String(trackId);
-  const { track, fetchImpl = globalThis.fetch } = options;
+  const { track, fetchImpl = globalThis.fetch, platform = defaultPlatform } = options;
   const previous = options.previous ?? shownFor(id, track);
   const generation = (generations.get(id) ?? 0) + 1;
   generations.set(id, generation);
@@ -109,18 +148,28 @@ async function write(trackId, value, options = {}) {
   show(id, value);
   if (track) track.userRating = value;
 
+  if ((get(offline) || queuedOnPhone.has(id)) && (await queueOnPhone(platform, id, value))) {
+    if (get(offline)) notify.info(get(t)("notify.ratingQueued"));
+    return true;
+  }
+
+  let reached = false;
   try {
+    const response = await fetchImpl(
+      restUrl(`/rest/setRating?id=${encodeURIComponent(id)}&rating=${value}&${get(authParams)}`),
+    );
+    reached = !SERVER_DOWN_STATUSES.has(response?.status);
     // Subsonic reports its own errors (a throttled login, an id it cannot parse, a failed write)
     // in the body with HTTP 200, so the status in the body is the only thing that says whether
     // the rating was stored.
-    const failure = await subsonicError(
-      await fetchImpl(
-        restUrl(`/rest/setRating?id=${encodeURIComponent(id)}&rating=${value}&${get(authParams)}`),
-      ),
-    );
+    const failure = await subsonicError(response);
     if (failure) throw new Error(failure.message);
     return true;
   } catch (e) {
+    if (!reached && (await queueOnPhone(platform, id, value))) {
+      notify.info(get(t)("notify.ratingQueued"));
+      return true;
+    }
     console.error("Failed to update rating:", e);
     if (generations.get(id) === generation) {
       show(id, previous);
@@ -177,4 +226,5 @@ export function tapStar(track, star, options = {}) {
 export function resetRatings() {
   ratings.set({});
   generations.clear();
+  queuedOnPhone.clear();
 }

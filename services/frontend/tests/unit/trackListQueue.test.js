@@ -7,6 +7,7 @@ import {
   credentials,
   currentTrack,
   isMobile,
+  mumaUser,
   playerState,
   playlist,
   queueSource,
@@ -54,6 +55,7 @@ describe("TrackList", () => {
     currentTrack.set(null);
     playerState.set({ playing: false });
     isMobile.set(false);
+    mumaUser.set({ username: "demo-user", role_name: "admin" });
     globalThis.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -237,6 +239,13 @@ describe("TrackList", () => {
     await waitFor(() =>
       expect(globalThis.fetch.mock.calls.some(([url]) => url.includes("/refresh"))).toBe(true),
     );
+  });
+
+  it("a listener is not offered the reload, which needs an admin (issue #230)", () => {
+    mumaUser.set({ username: "demo-user", role_name: "user" });
+    render(TrackList, props());
+
+    expect(screen.queryAllByTitle("Verversen")).toEqual([]);
   });
 
   it("a reload that is not confirmed asks the server nothing", async () => {

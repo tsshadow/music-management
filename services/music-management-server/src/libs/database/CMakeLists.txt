@@ -38,6 +38,7 @@ add_library(lmsdatabase STATIC
 	impl/IdType.cpp
 	impl/Migration.cpp
 	impl/MumaListenOutbox.cpp
+	impl/MumaRatingOutbox.cpp
 	impl/Object.cpp
 	impl/QueryPlanRecorder.cpp
 	impl/Session.cpp

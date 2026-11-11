@@ -10,17 +10,18 @@ from urllib.parse import urlsplit
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from services.common.config_store import ConfigStore
-from services.common.db_init import ensure_tables_exist
+from services.common.db_init import ensure_tables_exist, schema_status
 from services.common.Helpers.EventService import event_service
 from services.common.Helpers.logging_setup import setup_logging
 from services.common.version_helper import get_version
 from services.music_manager import artist_auto_approve_worker, lms_listen_backfill
+from services.music_manager.api_key import is_system_api_key
 from services.music_manager.bpm import status as bpm_status
 from services.music_manager.cors import ALLOWED_METHODS, allowed_origins
 from services.music_manager.database import (
@@ -210,8 +211,8 @@ async def database_busy_handler(_request: Request, exc: RuntimeError):
 def _public_source_url() -> str:
     """The `public_source_url` setting if it is a plain http(s) address, else an empty string.
 
-    /health is unauthenticated and the About and login screens turn this value into a link, so
-    it is checked here instead of in every client: the scheme must be http or https (any case),
+    /health gives it to every caller, key or not, and the About and login screens turn it into
+    a link, so it is checked here instead of in every client: the scheme must be http or https (any case),
     there must be a host, and no user info (`https://a@evil.example` hides the real host).
     """
     try:
@@ -226,9 +227,36 @@ def _public_source_url() -> str:
     return url
 
 
+def _health_caller_is_known(x_api_key: str | None, database: str) -> bool:
+    """Whether the /health caller presented a valid key: the system key or a user's own.
+
+    The system key is a local comparison. A user key is a database lookup, so it is only tried
+    while the database answered the probe; a failing lookup counts as no key, because /health
+    must answer, and answer fast, whatever state the database is in.
+    """
+    if not x_api_key:
+        return False
+    if is_system_api_key(x_api_key):
+        return True
+    if database != 'ok':
+        return False
+    try:
+        users.verify_api_key(x_api_key)
+    except Exception:  # pylint: disable=broad-except  # an unknown key or a busy pool is "no key"
+        return False
+    return True
+
+
 @app.get('/health')
-def health(response: Response):
+def health(response: Response, x_api_key: str | None = Header(None)):
     """Report what it claims, so that the Uptime Kuma monitor measures something.
+
+    Two bodies, one status code (issue #218). nginx serves this path to the internet, so a
+    caller without a valid `X-API-Key` gets `status` and `source_url` only; the version, the
+    thread states and the heartbeats say too much about the host to give away. `source_url` is
+    public by design: the login screen offers the source code (AGPL-3.0 section 13) before
+    anyone has a key. A caller with the system key or a user's own key gets the full report. Either way the code is 200 when healthy and 503 when
+    not, so a monitor or the container healthcheck needs no key.
 
     The old version always returned 'ok' and so stayed green while the
     database was gone or a background loop had died of an exception.
@@ -242,9 +270,13 @@ def health(response: Response):
     `threads` is True per loop when its thread is alive and its heartbeat -- the
     last completed tick -- is younger than that loop's staleness window;
     `heartbeats` carries the detail behind each verdict. `lms_listen_outbox` says, per
-    LMS, how many listens it still holds for us and since when; it never affects `status`.
+    LMS, how many listens it still holds for us and since when, and `lms_rating_outbox` the same
+    for rating changes; neither affects `status`.
+    `schema` is 'failed' when the start-up create pass (db_init.ensure_tables_exist) failed, so
+    tables may be missing; that turns `status` red until a restart creates them.
     """
     database = _database_status()
+    schema = schema_status()
 
     threads = thread_status()
     threads['events'] = event_service.is_alive()
@@ -254,18 +286,24 @@ def health(response: Response):
     if bpm_analysis is not None:
         heartbeats['bpm-analyzer'] = bpm_status.heartbeat_entry(bpm_analysis)
 
-    healthy = database == 'ok' and all(threads.values())
+    healthy = database == 'ok' and schema != 'failed' and all(threads.values())
     if not healthy:
         response.status_code = 503
+    status = 'ok' if healthy else 'degraded'
+    source_url = _public_source_url()
+    if not _health_caller_is_known(x_api_key, database):
+        return {'status': status, 'source_url': source_url}
     return {
-        'status': 'ok' if healthy else 'degraded',
+        'status': status,
         'service': 'music-manager',
         'version': get_version(),
-        'source_url': _public_source_url(),
+        'source_url': source_url,
         'database': database,
+        'schema': schema,
         'threads': threads,
         'heartbeats': heartbeats,
         'lms_listen_outbox': _lms_listen_outbox_status(),
+        'lms_rating_outbox': _lms_rating_outbox_status(),
         # The bpm-analyzer container's own report; informational, never affects `status`
         # (services/music_manager/bpm/status.py says why).
         'bpm_analysis': bpm_analysis,
@@ -282,6 +320,19 @@ def _lms_listen_outbox_status() -> list[dict] | None:
         return lms_listen_backfill.outbox_status()
     except Exception:  # pylint: disable=broad-except  # a status field must not break the health check
         logger.debug('lms listen outbox status unavailable', exc_info=True)
+        return None
+
+
+def _lms_rating_outbox_status() -> list[dict] | None:
+    """The rating changes each LMS still has to relay to us; None when unreadable.
+
+    Informational, like `_lms_listen_outbox_status`: a change waits there during every restart of
+    this service, and LMS drops what it has to with its own WARNING (docs/designs/lms-rating-outbox/).
+    """
+    try:
+        return lms_listen_backfill.outbox_status(table=lms_listen_backfill.RATING_OUTBOX_TABLE)
+    except Exception:  # pylint: disable=broad-except  # a status field must not break the health check
+        logger.debug('lms rating outbox status unavailable', exc_info=True)
         return None
 
 

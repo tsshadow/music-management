@@ -162,27 +162,34 @@ wait_for_text() {
 
 # What the screen has to show, depending on what the APK carries.
 #
-# With the Svelte bundle: the login page's server field, prefilled with the
-# app's static server. That value only gets there through a JS -> native call
-# (`MumaSystem.serverUrl`, a @PluginMethod the Capacitor bridge finds by its
-# method name, reached through the Koin-provided ActiveServerProvider). R8
-# stripping or renaming the plugin -- see minify/proguard-capacitor.pro --
-# never crashes anything: bootstrapShell catches the rejection and the page
-# comes up with an empty server field. This is the check that notices.
+# With the Svelte bundle: the first-run server screen (issue #192), since a wiped
+# install has no server address yet. A build with its own server prefills the
+# field with it. That value only gets there through a JS -> native call
+# (`MumaSystem.suggestedServerAddress`, a @PluginMethod the Capacitor bridge
+# finds by its method name, after `MumaSystem.serverUrl` answered
+# `configured: false`). R8 stripping or renaming the plugin -- see
+# minify/proguard-capacitor.pro -- never crashes anything: bootstrapShell catches
+# the rejection and the page comes up without the prefill. This is the check
+# that notices.
 #
-# Without it (no frontend:bundle in the pipeline) the placeholder page is all
-# there is, and seeing it only proves the WebView and the bridge came up.
+# A build with the example default suggests nothing (SMOKE_EXPECTED_SERVER is
+# empty); then the screen's example address is the needle, which proves the
+# screen mounted but not the prefill round trip.
+#
+# Without the bundle (no frontend:bundle in the pipeline) the placeholder page is
+# all there is, and seeing it only proves the WebView and the bridge came up.
+FIRST_RUN_EXAMPLE="https://music.example.net"
 if grep -q "The web bundle was not built" app/src/main/assets/public/index.html 2>/dev/null; then
     EXPECT_TEXT="The web bundle was not built"
     EXPECT_WHAT="placeholder page rendered; no Svelte bundle in this APK, so the plugin round trip is NOT checked"
     echo "WARNING: this APK carries the placeholder page, not the Svelte bundle; only the WebView is checked." >&2
-else
-    if [ -z "$SMOKE_EXPECTED_SERVER" ]; then
-        echo "Error: SMOKE_EXPECTED_SERVER is not set (the wrapper sets it from MUMA_SERVER_URL)." >&2
-        exit 1
-    fi
+elif [ -n "${SMOKE_EXPECTED_SERVER:-}" ]; then
     EXPECT_TEXT="$SMOKE_EXPECTED_SERVER"
-    EXPECT_WHAT="login page mounted and MumaSystem.serverUrl answered across the Capacitor bridge"
+    EXPECT_WHAT="first-run screen mounted and MumaSystem.suggestedServerAddress answered across the Capacitor bridge"
+else
+    EXPECT_TEXT="$FIRST_RUN_EXAMPLE"
+    EXPECT_WHAT="first-run screen mounted; this build suggests no server, so the prefill round trip is NOT checked"
+    echo "WARNING: this APK was built with the example server; only the first-run screen is checked." >&2
 fi
 
 echo "--- First launch ---"

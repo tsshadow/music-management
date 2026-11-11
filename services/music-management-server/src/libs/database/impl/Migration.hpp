@@ -65,5 +65,13 @@ namespace lms::db
         // Session::createIndexesIfNeeded() for a fresh database, so the two cannot drift.
         // `created` is Unix seconds; `attempts` counts failed deliveries, for the status only.
         inline constexpr std::string_view mumaListenOutboxTableDefinition{ "CREATE TABLE IF NOT EXISTS muma_listen_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)" };
+
+        // The outbox of rating changes still to be relayed to music-manager
+        // (database/MumaRatingOutbox.hpp), one row per user and rated item. Shared by migration
+        // step 127 and by Session::createIndexesIfNeeded() for a fresh database, like the listen
+        // outbox above. `object_id` is the LMS track id, or the release or artist name.
+        inline constexpr std::string_view mumaRatingOutboxTableDefinition{ "CREATE TABLE IF NOT EXISTS muma_rating_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT NOT NULL, payload TEXT NOT NULL, created INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0)" };
+        // The key music-manager stores a rating under; a new change replaces the waiting one.
+        inline constexpr std::string_view mumaRatingOutboxIndexDefinition{ "CREATE UNIQUE INDEX IF NOT EXISTS muma_rating_outbox_item_idx ON muma_rating_outbox (username, object_type, object_id)" };
     } // namespace Migration
 } // namespace lms::db

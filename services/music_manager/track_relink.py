@@ -168,11 +168,29 @@ def _move_listens(cursor: Any, old_id: int, new_id: int, counts: dict[str, int])
     counts['listens_dropped'] += max(cursor.rowcount or 0, 0)
 
 
+#: The BPM tables keyed on track_uid (services/music_manager/bpm/): move a row, then drop the one
+#: the new uid already had a row for.
+_BPM_MOVES = (
+    (
+        'UPDATE IGNORE library_track_bpm SET track_uid = %s WHERE track_uid = %s',
+        'DELETE FROM library_track_bpm WHERE track_uid = %s',
+    ),
+    (
+        'UPDATE IGNORE library_track_bpm_manual SET track_uid = %s WHERE track_uid = %s',
+        'DELETE FROM library_track_bpm_manual WHERE track_uid = %s',
+    ),
+)
+
+
 def _move_analysis(cursor: Any, old: dict[str, Any], new: dict[str, Any]) -> None:
     """Point the ml-analyzer's rows at the new track instead of letting the FK null them.
 
     `library_track_ml_labels.track_id` is read by `track_uid` (library.py), so a label moves under
     the new uid too -- unless the new uid already has one, which is kept (UPDATE IGNORE).
+
+    The measured and the hand-set BPM are keyed on `track_uid` alone, so they move the same way:
+    a retag changes the tags, not the audio. A row the new uid already has was written after the
+    retag and is kept; the old one it beat is deleted, since its uid is gone with the old track.
     """
     cursor.execute(
         'UPDATE library_track_audio_features SET internal_track_id = %s WHERE internal_track_id = %s',
@@ -187,6 +205,9 @@ def _move_analysis(cursor: Any, old: dict[str, Any], new: dict[str, Any]) -> Non
             'UPDATE IGNORE library_track_ml_labels SET track_id = %s, updated_at = updated_at WHERE track_id = %s',
             (new['track_uid'], old['track_uid']),
         )
+        for move, leftover in _BPM_MOVES:
+            cursor.execute(move, (new['track_uid'], old['track_uid']))
+            cursor.execute(leftover, (old['track_uid'],))
 
 
 def _detach_works(cursor: Any, old_id: int, new_id: int) -> set[int]:

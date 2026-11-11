@@ -335,6 +335,18 @@ def _bpm_fields() -> list[ConfigField]:
             description='Only measurements with at least this estimator confidence (0-100) are written into '
             'the files. 75 is where the evaluation found 89% of the measurements right.',
         ),
+        # Read by the bpm-analyzer (worker.py SETTINGS) like the analysis settings (issue #152).
+        ConfigField(
+            key='getsongbpm_api_key',
+            type='string',
+            default='',
+            secret=True,
+            env='GETSONGBPM_API_KEY',
+            group=group,
+            description='API key of getsongbpm.com (free, request it on their site). With a key the BPM '
+            'analysis asks GetSongBPM for the tempo of mainstream tracks that have no label or artist '
+            'to go by, and uses it to pick the right octave (64, 128 or 256). Empty: off.',
+        ),
     ]
 
 
@@ -464,6 +476,28 @@ def _config_fields() -> list[ConfigField]:
                 'How long a release folder in the import folder must sit unchanged before the importer '
                 'renames, flattens or moves it, so a copy still in progress is never picked up half-done. '
                 '0 switches the wait off.'
+            ),
+        ),
+        ConfigField(
+            key='import_extract_max_gb',
+            type='integer',
+            default=50,
+            env='import_extract_max_gb',
+            group='Paths',
+            description=(
+                'The most one archive may expand to, in GB. The importer stops the extraction past it and '
+                'leaves the archive in the import folder with reason extraction-too-large. 0 switches the cap off.'
+            ),
+        ),
+        ConfigField(
+            key='import_extract_min_free_gb',
+            type='integer',
+            default=10,
+            env='import_extract_min_free_gb',
+            group='Paths',
+            description=(
+                'The free space, in GB, an extraction must leave on the import filesystem. The importer stops '
+                'the extraction when free space drops below it. 0 switches the check off.'
             ),
         ),
         ConfigField(

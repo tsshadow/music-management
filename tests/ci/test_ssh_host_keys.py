@@ -5,9 +5,11 @@ after appending whatever ssh-keyscan returned to the runner's known_hosts, so
 anything answering on the production address got the root key's signature,
 the production env file on stdin and the schema changes
 (docs/bug-reports/081-compose-logs-grow-without-bound.md).
+
+The CI side of the production SSH setup lives in the operations repository
+(docs/designs/ops-split/); this file tests the library and the scripts here.
 """
 
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -17,12 +19,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 LIB = ROOT / "scripts" / "lib" / "ssh_host_keys.sh"
 HOST = "203.0.113.9"
-PROD_SSH_SETUP = ROOT / "scripts" / "ci" / "prod-ssh-setup.sh"
 SSH_SCRIPTS = [
     ROOT / "scripts" / "deploy.sh",
-    ROOT / "scripts" / "ci-deploy.sh",
-    PROD_SSH_SETUP,
-    ROOT / "scripts" / "ci" / "post-deploy-verify.sh",
     ROOT / "services" / "music-management-server" / "scripts" / "deploy-stack.sh",
 ]
 
@@ -61,24 +59,6 @@ def _opts(host: str, pinned: Path) -> list[str]:
 def test_no_production_ssh_call_disables_host_key_checking(path: Path):
     for line in _code_lines(path):
         assert "StrictHostKeyChecking=no" not in line, f"{path.name}: {line.strip()}"
-
-
-def test_the_ci_setup_no_longer_learns_the_key_from_ssh_keyscan():
-    assert not any("ssh-keyscan" in line for line in _code_lines(PROD_SSH_SETUP))
-
-
-def test_the_ci_setup_has_no_default_production_host():
-    """A missing PROD_REMOTE_HOST stops the job and names the variable; nothing is guessed."""
-    assert not re.search(r"PROD_REMOTE_HOST:-[^}]", PROD_SSH_SETUP.read_text(encoding="utf-8"))
-    result = subprocess.run(
-        ["bash", "-c", '. "$1"; echo reached', "_", str(PROD_SSH_SETUP)],
-        capture_output=True,
-        text=True,
-        env={"PATH": "/usr/bin:/bin", "SSH_PRIVATE_KEY": "unused"},
-    )
-    assert result.returncode == 1
-    assert "PROD_REMOTE_HOST" in result.stderr
-    assert "reached" not in result.stdout
 
 
 @pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
@@ -139,26 +119,6 @@ class TestPipelineFailsClosed:
         status, opts, _ = _into({}, tmp_path / "absent")
         assert status == 0 and opts == ["-o", "StrictHostKeyChecking=accept-new"]
 
-    def test_prod_ssh_setup_stops_in_a_pipeline_without_the_file(self, tmp_path: Path):
-        """The real script, with a fake ssh-add so only the host key decides."""
-        fake = tmp_path / "bin"
-        fake.mkdir()
-        (fake / "ssh-add").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        (fake / "ssh-add").chmod(0o755)
-        key = tmp_path / "id"
-        key.write_text("x\n", encoding="utf-8")
-        env = {
-            "PATH": f"{fake}:/usr/bin:/bin",
-            "CI": "1",
-            "SSH_PRIVATE_KEY": str(key),
-            "SSH_AUTH_SOCK": "/nonexistent",
-            "PROD_REMOTE_HOST": HOST,
-            "PROD_SSH_KNOWN_HOSTS": str(tmp_path / "absent"),
-        }
-        result = subprocess.run(["bash", str(PROD_SSH_SETUP)], capture_output=True, text=True, env=env)
-        assert result.returncode != 0
-        assert "no pinned host key" in result.stderr
-
 
 def _opts_env(host: str, pinned: Path, **extra: str):
     """Run ssh_host_key_opts with PROD_REMOTE_HOST set; return the completed process."""
@@ -185,20 +145,3 @@ def test_accepting_a_new_production_key_needs_an_explicit_switch(tmp_path: Path,
     result = _opts_env("other-name.example.org", pinned, PROD_SSH_ACCEPT_NEW_HOST_KEY="true")
     assert result.stdout.splitlines() == ["-o", "StrictHostKeyChecking=accept-new"]
     assert result.stderr == ""
-
-
-@pytest.mark.skipif(not shutil.which("ssh-keygen"), reason="needs ssh-keygen")
-def test_the_ci_setup_stops_when_the_production_host_is_not_pinned(pinned: Path):
-    result = subprocess.run(
-        ["bash", "-c", '. "$1"; echo reached', "_", str(PROD_SSH_SETUP)],
-        capture_output=True,
-        text=True,
-        env={
-            "PATH": "/usr/bin:/bin",
-            "SSH_PRIVATE_KEY": "unused",
-            "PROD_REMOTE_HOST": "unlisted.example.org",
-            "SSH_PINNED_KNOWN_HOSTS": str(pinned),
-        },
-    )
-    assert "reached" not in result.stdout
-    assert result.returncode != 0

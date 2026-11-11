@@ -19,9 +19,14 @@ from services.music_manager import downloader_coverage
 from services.music_manager.database import get_db_connection
 from services.music_manager.deprecation import DEPRECATED_CALL
 from services.music_manager.downloader_coverage import ConfiguredAccount, youtube_key
+from services.music_manager.rbac import require_permission
 from services.music_manager.routers.users import verify_api_key
 
 router = APIRouter(tags=['downloaders'])
+
+#: Changing the downloaders' pacing or forgetting a 403/429 backoff risks a ban at SoundCloud or
+#: YouTube for the whole installation: the same permission as the runtime configuration.
+require_config_manage = require_permission('config.manage')
 
 # Module level so tests can swap them for in-memory stores.
 settings_store = DatabaseSettingsStore()
@@ -73,7 +78,7 @@ def get_settings(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/settings')
-def update_settings(payload: SettingsUpdatePayload, _auth: dict = Depends(verify_api_key)):
+def update_settings(payload: SettingsUpdatePayload, _auth: dict = Depends(require_config_manage)):
     from services.downloader.settings_store import save_settings
 
     try:
@@ -115,7 +120,7 @@ def get_rate_state(_auth: dict = Depends(verify_api_key)):
 
 
 @router.post('/rate-state/{source}/reset')
-def reset_rate_state(source: str, _auth: dict = Depends(verify_api_key)):
+def reset_rate_state(source: str, _auth: dict = Depends(require_config_manage)):
     """Forget the backoff for one source and let it run at full speed again."""
     if source not in SOURCES:
         raise HTTPException(status_code=400, detail=f'Unknown downloader source: {source}')

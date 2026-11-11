@@ -310,7 +310,7 @@ def dismiss_change(work_id: int, _auth: dict = WRITE):
 
 
 @router.post('/tracks/{track_id}/split', deprecated=True, dependencies=[DEPRECATED_CALL])
-def split_track(track_id: int, _auth: dict = Depends(verify_api_key)):
+def split_track(track_id: int, _auth: dict = WRITE):
     """Pull a track out of its group, give it a work of its own, and lock it there.
 
     The lock is what makes it stick: without it the next grouping pass would

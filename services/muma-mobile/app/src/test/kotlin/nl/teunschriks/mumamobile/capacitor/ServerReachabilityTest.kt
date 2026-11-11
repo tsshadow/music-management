@@ -22,6 +22,7 @@ class ServerReachabilityTest {
     @After
     fun resetChoice() {
         ServerReachability.offlineChosen = false
+        ServerReachability.resetForTest()
     }
 
     @Test
@@ -85,5 +86,47 @@ class ServerReachabilityTest {
         hasRouteToServer(activeServerIsOfflineDb = false, networkHasInternet = true, offlineChosen = false) shouldBeEqualTo true
         // The default keeps every existing caller's answer.
         hasRouteToServer(activeServerIsOfflineDb = false, networkHasInternet = true) shouldBeEqualTo true
+    }
+
+    @Test
+    fun `a check is recorded, and a reachable one tells the listeners`() {
+        var told = 0
+        ServerReachability.addReachableListener { told++ }
+
+        ServerReachability.record(Reachability.SERVER_UNREACHABLE, 100)
+        ServerReachability.lastCheck shouldBeEqualTo ServerCheck(Reachability.SERVER_UNREACHABLE, 100)
+        ServerReachability.lastCheck?.unreachable shouldBeEqualTo true
+        told shouldBeEqualTo 0
+
+        ServerReachability.record(Reachability.REACHABLE, 200)
+        ServerReachability.lastCheck?.unreachable shouldBeEqualTo false
+        told shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `in offline mode a reachable check waits until offline mode ends`() {
+        var told = 0
+        ServerReachability.addReachableListener { told++ }
+        ServerReachability.offlineChosen = true
+
+        ServerReachability.record(Reachability.REACHABLE, 100)
+        told shouldBeEqualTo 0
+
+        ServerReachability.offlineChosen = false
+        told shouldBeEqualTo 1
+        // Setting it off again is no new event.
+        ServerReachability.offlineChosen = false
+        told shouldBeEqualTo 1
+    }
+
+    @Test
+    fun `a failing listener does not keep the others from hearing it`() {
+        var told = 0
+        ServerReachability.addReachableListener { error("boom") }
+        ServerReachability.addReachableListener { told++ }
+
+        ServerReachability.record(Reachability.REACHABLE, 100)
+
+        told shouldBeEqualTo 1
     }
 }

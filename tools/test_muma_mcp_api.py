@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from unittest.mock import patch
 
 import pytest
@@ -34,13 +35,32 @@ class FakeResponse:
         return self._payload
 
 
-def test_health_is_unauthenticated():
-    """/health carries no key, which is what makes it usable as a first probe."""
+def test_health_sends_the_api_key():
+    """Without a key /health answers the status alone (issue #218); the version needs the key."""
     with patch('tools.muma_mcp.api.requests.get', return_value=FakeResponse(payload={'version': '0.40.0'})) as get:
         assert api.health(CONFIG) == {'version': '0.40.0'}
 
-    assert get.call_args.kwargs['headers'] == {}
+    assert get.call_args.kwargs['headers'] == {'X-API-Key': 'the-system-key'}
     assert get.call_args.args[0] == 'http://192.0.2.27:8000/health'
+
+
+# Production through nginx (issue #218): /health at the root, the API under /muma.
+NGINX_CONFIG = dataclasses.replace(CONFIG, prod_url='https://muma.example', api_url='https://muma.example/muma')
+
+
+def test_through_nginx_health_stays_on_the_prod_url():
+    with patch('tools.muma_mcp.api.requests.get', return_value=FakeResponse(payload={'status': 'ok'})) as get:
+        api.health(NGINX_CONFIG)
+
+    assert get.call_args.args[0] == 'https://muma.example/health'
+
+
+def test_through_nginx_api_calls_go_to_the_api_url():
+    with patch('tools.muma_mcp.api.requests.get', return_value=FakeResponse(payload={'logs': ''})) as get:
+        api.containers(NGINX_CONFIG)
+        assert get.call_args.args[0] == 'https://muma.example/muma/api/system/containers'
+        api.logs(NGINX_CONFIG, 'music-manager')
+        assert get.call_args.args[0] == 'https://muma.example/muma/api/system/logs/music-manager'
 
 
 def test_containers_sends_the_api_key():

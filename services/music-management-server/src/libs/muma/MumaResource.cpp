@@ -764,6 +764,17 @@ namespace lms::api::muma
                 return;
             }
 
+            // MuMa's rerun-parse-path needs rules.manage. Sending the system key for every caller
+            // let any listener start a retag through here (issue #230).
+            const std::optional<std::string> refreshKey{ trackRefreshKey(rights, { .callerKey = auth.forwardKey, .systemKey = _mumaApiKey }) };
+            if (!refreshKey)
+            {
+                LMS_LOG(API_SUBSONIC, WARNING, "MumaResource: track refresh refused, the caller is not an admin and has no MuMa key");
+                response.setStatus(403);
+                response.out() << "{\"status\":\"error\", \"detail\": \"Missing permission: rules.manage\"}";
+                return;
+            }
+
             if (!_httpClient)
             {
                 response.setStatus(500);
@@ -787,8 +798,8 @@ namespace lms::api::muma
 
             core::http::ClientPOSTRequestParameters postParams;
             postParams.relativeUrl = relativeUrl;
-            if (!_mumaApiKey.empty())
-                postParams.message.addHeader("X-API-Key", _mumaApiKey);
+            if (!refreshKey->empty())
+                postParams.message.addHeader("X-API-Key", *refreshKey);
 
             // Raw pass-through proxy: forward MuMa's real status verbatim.
             postParams.treatAnyStatusAsSuccess = true;
@@ -1006,7 +1017,8 @@ namespace lms::api::muma
             // Only filled for a streamed response; every other call still reads msg.body().
             auto streamedBody = std::make_shared<std::string>();
 
-            if (request.method() == "GET")
+            const std::optional<ProxyMethod> proxyMethod{ proxyMethodFor(request.method()) };
+            if (proxyMethod == ProxyMethod::Get)
             {
                 core::http::ClientGETRequestParameters getParams;
                 // pathInfo comes back from Wt already decoded, so a name like "Silky Noize"
@@ -1037,7 +1049,7 @@ namespace lms::api::muma
                 };
                 _httpClient->sendGETRequest(std::move(getParams));
             }
-            else if (request.method() == "POST" || request.method() == "PUT" || request.method() == "DELETE" || request.method() == "PATCH")
+            else if (proxyMethod)
             {
                 core::http::ClientRequestWithBodyParameters bodyParams;
                 // See the matching comment in the GET branch above: pathInfo is decoded.
@@ -1071,11 +1083,11 @@ namespace lms::api::muma
                 // PATCH too: MuMa's per-key account-settings write (bug report 116). It used to
                 // fall through every branch here, send nothing, and then park this thread -- and
                 // a MuMa call slot -- on a promise nobody would ever fulfil until the 30 s timeout.
-                if (request.method() == "PUT")
+                if (proxyMethod == ProxyMethod::Put)
                     _httpClient->sendPUTRequest(core::http::ClientPUTRequestParameters{ std::move(bodyParams) });
-                else if (request.method() == "DELETE")
+                else if (proxyMethod == ProxyMethod::Delete)
                     _httpClient->sendDELETERequest(core::http::ClientDELETERequestParameters{ std::move(bodyParams) });
-                else if (request.method() == "PATCH")
+                else if (proxyMethod == ProxyMethod::Patch)
                     _httpClient->sendPATCHRequest(core::http::ClientPATCHRequestParameters{ std::move(bodyParams) });
                 else
                     _httpClient->sendPOSTRequest(core::http::ClientPOSTRequestParameters{ std::move(bodyParams) });

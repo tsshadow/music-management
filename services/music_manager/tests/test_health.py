@@ -23,6 +23,18 @@ from fastapi.testclient import TestClient
 from services.music_manager import thread_registry
 from services.music_manager.main import app
 
+# Without a valid key /health answers `status` and `source_url` only (issue #218). The tests
+# that read the full report present the system key.
+SYSTEM_KEY = 'health-test-system-key'
+
+
+def _keyed_client(test):
+    """A TestClient that sends the system key, with that key configured for the duration of `test`."""
+    patcher = patch.dict(os.environ, {'API_KEY': SYSTEM_KEY})
+    patcher.start()
+    test.addCleanup(patcher.stop)
+    return TestClient(app, headers={'X-API-Key': SYSTEM_KEY})
+
 
 class ThreadRegistryTest(unittest.TestCase):
     def setUp(self):
@@ -49,7 +61,7 @@ class BpmAnalysisHealthTest(unittest.TestCase):
     """The bpm-analyzer container's status file is reported, and never turns /health red."""
 
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         thread_registry.reset()
 
     def tearDown(self):
@@ -87,7 +99,7 @@ class BpmAnalysisHealthTest(unittest.TestCase):
 
 class HealthTest(unittest.TestCase):
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         thread_registry.reset()
 
     def tearDown(self):
@@ -161,12 +173,35 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json()['threads']['events'])
 
+    @patch('services.music_manager.main.schema_status', return_value='failed')
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_degraded_when_the_startup_create_pass_failed(self, _db, mock_events, _schema):
+        mock_events.is_alive.return_value = True
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'degraded')
+        self.assertEqual(response.json()['schema'], 'failed')
+
+    @patch('services.music_manager.main.schema_status', return_value='ok')
+    @patch('services.music_manager.main.event_service')
+    @patch('services.music_manager.main.check_database', return_value=True)
+    def test_reports_a_good_create_pass(self, _db, mock_events, _schema):
+        mock_events.is_alive.return_value = True
+
+        response = self.client.get('/health')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['schema'], 'ok')
+
 
 class HealthHeartbeatTest(unittest.TestCase):
     """A loop that is alive but no longer completes a tick is as broken as a dead one."""
 
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         thread_registry.reset()
         stop = threading.Event()
         self.addCleanup(stop.set)
@@ -220,7 +255,7 @@ class HealthDatabaseProbeTest(unittest.TestCase):
     """`database: ok` has to mean MariaDB answered, and the answer has to come in time."""
 
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         thread_registry.reset()
         self.addCleanup(thread_registry.reset)
 
@@ -280,7 +315,7 @@ class BackupHealthTest(unittest.TestCase):
     """
 
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.dest = Path(self.tmp.name)
@@ -345,7 +380,7 @@ class SourceUrlHealthTest(unittest.TestCase):
     """AGPL-3.0 section 13: /health tells the About screen where the source is."""
 
     def setUp(self):
-        self.client = TestClient(app)
+        self.client = _keyed_client(self)
         thread_registry.reset()
 
     def tearDown(self):
@@ -414,3 +449,66 @@ class SourceUrlHealthTest(unittest.TestCase):
             with patch.dict(os.environ, env, clear=True):
                 store = load_real_config_store(os.path.join(tmp, 'config.json'))
                 self.assertEqual(store.get('public_source_url'), 'https://github.com/OWNER/music-management')
+
+
+class HealthBodyByKeyTest(unittest.TestCase):
+    """nginx serves /health to the internet: the full report needs a key, the status code does not."""
+
+    def setUp(self):
+        thread_registry.reset()
+        self.addCleanup(thread_registry.reset)
+        env = patch.dict(os.environ, {'API_KEY': SYSTEM_KEY})
+        env.start()
+        self.addCleanup(env.stop)
+        self.client = TestClient(app)
+
+    def _get(self, healthy=True, headers=None):
+        with (
+            patch('services.music_manager.main.event_service') as events,
+            patch('services.music_manager.main.check_database', return_value=healthy),
+            patch('services.music_manager.main._public_source_url', return_value='https://git.example/muma'),
+        ):
+            events.is_alive.return_value = True
+            return self.client.get('/health', headers=headers or {})
+
+    def test_without_a_key_only_the_status_and_the_source_offer(self):
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'status': 'ok', 'source_url': 'https://git.example/muma'})
+
+    def test_without_a_key_a_sick_service_still_answers_503(self):
+        """The container healthcheck and Uptime Kuma look at the code only."""
+        response = self._get(healthy=False)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {'status': 'degraded', 'source_url': 'https://git.example/muma'})
+
+    def test_a_wrong_key_gets_the_short_body_not_a_401(self):
+        with patch('services.music_manager.routers.users.verify_token', return_value={'status': 'invalid'}):
+            response = self._get(headers={'X-API-Key': 'a-guess'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {'status', 'source_url'})
+
+    def test_the_system_key_gets_the_full_report(self):
+        body = self._get(headers={'X-API-Key': SYSTEM_KEY}).json()
+        for field in ('service', 'version', 'database', 'schema', 'threads', 'heartbeats', 'lms_listen_outbox'):
+            self.assertIn(field, body)
+
+    def test_a_user_key_gets_the_full_report(self):
+        with patch('services.music_manager.routers.users.verify_token', return_value={'status': 'ok', 'type': 'user'}):
+            body = self._get(headers={'X-API-Key': 'a-user-key'}).json()
+        self.assertIn('version', body)
+        self.assertIn('threads', body)
+
+    def test_a_user_key_is_not_looked_up_while_the_database_is_down(self):
+        """The lookup is a database call; /health must not wait on it during an outage."""
+        with patch('services.music_manager.routers.users.verify_token') as lookup:
+            response = self._get(healthy=False, headers={'X-API-Key': 'a-user-key'})
+        lookup.assert_not_called()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(set(response.json()), {'status', 'source_url'})
+
+    def test_a_failing_lookup_counts_as_no_key(self):
+        with patch('services.music_manager.routers.users.verify_token', side_effect=RuntimeError('pool exhausted')):
+            response = self._get(headers={'X-API-Key': 'a-user-key'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.json()), {'status', 'source_url'})

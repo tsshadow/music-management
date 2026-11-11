@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <boost/asio/io_context.hpp>
-#include <memory>
 #include <string>
+#include <string_view>
+
+#include "services/mumaoutbox/IMumaOutboxRelay.hpp"
 
 #include "IFeedbackBackend.hpp"
-#include "core/http/IClient.hpp"
 
 namespace lms::db
 {
@@ -20,14 +20,17 @@ namespace lms::db
 
 namespace lms::feedback::musicManagement
 {
+    // Relays every rating change to music-manager's /api/rating/lms-event. Each change is written
+    // to lms.db's rating outbox, replacing a change still waiting for the same item, and then
+    // delivered by the shared MuMa outbox relay on the io_context, so an outage of music-manager
+    // or a restart of LMS delays a rating instead of losing it (issue #222,
+    // docs/designs/lms-rating-outbox/).
     class MusicManagementBackend final : public IFeedbackBackend
     {
     public:
-        MusicManagementBackend(boost::asio::io_context& ioContext, db::IDb& db);
-        // Sends through `client` (null switches the relay off) with `apiKey` as X-API-Key.
-        // What the configured constructor delegates to, and what the tests use.
-        MusicManagementBackend(db::IDb& db, std::unique_ptr<core::http::IClient> client, std::string apiKey);
-        ~MusicManagementBackend() override;
+        // Queues through `relay`, which outlives this backend; null switches the relay off.
+        MusicManagementBackend(db::IDb& db, mumaOutbox::IMumaOutboxRelay* relay);
+        ~MusicManagementBackend() override = default;
 
     private:
         MusicManagementBackend(const MusicManagementBackend&) = delete;
@@ -46,10 +49,10 @@ namespace lms::feedback::musicManagement
         void onRatingRemoved(const RatingRemovedEvent& event) override;
         void onPlaylistChanged(db::TrackListId playlistId) override;
 
-        void sendEvent(const std::string& eventType, const std::string& objectType, const std::string& objectId, const std::string& username, int rating = 0, const std::string& path = "");
+        // Queues one change of `key` in the rating outbox; `path` only for a track.
+        void sendEvent(std::string_view eventType, const mumaOutbox::RatingKey& key, int rating = 0, const std::string& path = "");
 
         db::IDb& _db;
-        std::string _apiKey;
-        std::unique_ptr<core::http::IClient> _client;
+        mumaOutbox::IMumaOutboxRelay* _relay; // null when no music-management-url is configured
     };
 } // namespace lms::feedback::musicManagement

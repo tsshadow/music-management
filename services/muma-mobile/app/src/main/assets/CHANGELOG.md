@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.20.1] - 2026-11-07
+
+### Fixed
+- A track that you pick while a station or MuMa Radio plays now ends the radio and plays. Before, the station kept playing and the track did not start (bug report 156).
+
+## [7.20.0] - 2026-11-07
+
+### Added
+- **Android Auto shows the station logos and lists your favorite stations first.** `StationLogoProvider`
+  serves the logos of the web bundle to the car, and the web layer stores the favorites through
+  `setFavoriteStations`. The Radio page has 67 stations, with logos, favorites and recent stations.
+
+### Fixed
+- **A station no longer flashes an error when it starts, pause works, and the disc button is gone.** The
+  web layer read the short `ended` state during the start of a station as a failure.
+
+## [7.19.1] - 2026-11-07
+
+### Changed
+- Radio moved from a button in the player to a page under Browse, with the stations and MuMa Radio in one list that scrolls. The player shows a stop button only while radio plays.
+
+### Fixed
+- Live stations played nothing on a phone with a custom cache folder. The app looked for the stream URL in that folder, the folder gave an error, and the app never sent a request. The app now goes straight to the stream. MuMa Radio uses the same kind of URL, so it gets the same fix.
+
+- The song title of a live station can now reach the screen. The app asked the broadcaster for titles, but did not pass on the header that takes that text out of the audio.
+
+## [7.19.0] - 2026-11-06
+
+### Added
+- Radio in the app and in Android Auto (Start > Live > Radio): SLAM, Q-dance and 538 play live, and the car shows the title when the stream sends one. Next and previous are not available during a station. After a connection loss the app tries again for 5 minutes. The channels MuMa makes from your library are now called MuMa Radio.
+
+### Fixed
+- **The play button in the app showed no throbber while a track was still loading.** The web player
+  got one in 7.18.4, but in the app the playback service never told the web screen it was
+  buffering: it only sent an event when playback started or stopped. The service now sends
+  `buffering` when Media3 buffers towards playing (`STATE_BUFFERING` with `playWhenReady`), and
+  every state snapshot carries the flag. A seek while paused shows no throbber, the same as in the
+  browser.
+
 ## [7.18.4] - 2026-10-30
 
 ### Fixed

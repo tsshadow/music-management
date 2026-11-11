@@ -3,8 +3,9 @@
 ## Reporting a vulnerability
 
 This is a personally hosted music library, not a public service. Report anything
-security-relevant privately to the maintainer rather than in a public issue:
-open a **confidential** issue in GitLab, or mail the address on the commits.
+security-relevant privately, not in public: on GitHub, open the repository's
+**Security** tab and choose **Report a vulnerability**. Only the maintainer sees
+the report.
 
 ## What is scanned, and when
 
@@ -63,9 +64,17 @@ Summarised here because it affects what counts as a vulnerability;
   Subsonic request, so counting successes logged the whole installation out.
   A login is counted per client and account (10 a minute) and per account from
   anywhere (50 a minute). The client is named by `X-Forwarded-For`, which is
-  believed only from a trusted network (`AUTH_TRUSTED_PROXIES`, default the
-  private ranges and loopback) or a caller holding the system key, and read
-  from the right, so a client cannot pick its own bucket from outside the LAN.
+  believed only from a trusted network (`AUTH_TRUSTED_PROXIES`, default
+  loopback and the Docker networks of the `music-manager` container) or a
+  caller holding the system key, and read from the right, so a client cannot
+  pick its own bucket, from the LAN or from outside it.
+* `music-manager` publishes port 8000 on the host's loopback only
+  (`MUSIC_MANAGER_BIND_ADDRESS`, issue #218). Clients reach it through nginx,
+  the other containers through the Docker network.
+* `GET /health` is public through nginx (`https://<domain>/health`), for an
+  outside monitor. Without a valid `X-API-Key` it answers `status` and the
+  source code address only; the version, the thread states and the heartbeats
+  need the system key or a user's key. The code is 200 or 503 either way.
   Both proxies in front of MuMa -- nginx and LMS -- send the client address
   they resolved, never the client's own header
   (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).
@@ -87,7 +96,18 @@ Summarised here because it affects what counts as a vulnerability;
   downloader sources, event deletion, the lms.db sync) needs the admin role; a
   webhook that names the acting user in its body (the LMS rating webhook)
   accepts only the system key. `services/music_manager/tests/test_rbac_route_gaps.py`
-  pins each of those.
+  pins each of those, and `test_route_permission_matrix.py` fails on any new
+  write route that has no permission and no written reason (issue #216).
+* A file path from a caller (tag a file, scan a file, rerun a parse, the label
+  of a label decision) must stay inside the library roots after links and `..`
+  are resolved; otherwise the route answers 400 or 422. The importer leaves an
+  archive in the queue when it extracts a link that points outside its own
+  folder (`extraction-unsafe`, issue #217), and stops an extraction whose
+  output passes `import_extract_max_gb` or leaves less than
+  `import_extract_min_free_gb` free (`extraction-too-large`, issue #231).
+* LMS's track refresh sends MuMa the system key only for an admin or a
+  service; a MuMa user key goes through as itself, and any other caller gets
+  403 (issue #230).
 * No response lists another account's `api_key`, and no login hands out a key
   that is not the caller's own. The web login (`/muma/api/auth/login`) is
   MuMa's login; LMS used to answer it with its own `api-key` for every user.
@@ -114,7 +134,10 @@ Summarised here because it affects what counts as a vulnerability;
   LMS's own `api-key` or a key MuMa confirms through `/api/auth/verify`, and
   the caller's identity comes only from that verified credential or from a
   checked Subsonic `u`/`p` pair -- never from the bare `u` parameter. Its
-  proxy forwards the caller's own key and never substitutes the system key.
+  generic `/api/` proxy forwards the caller's own key, never the system key.
+  The system key goes to MuMa only on three routes, each after this server
+  checked the caller: per-user settings (that user or an admin), an artist
+  image (any verified caller), and a track refresh (an admin or a service).
   See [docs/authentication.md](docs/authentication.md#the-lms-muma-bridge-mumaresource)
   and [bug report 056](docs/bug-reports/056-lms-any-key-is-admin.md).
 

@@ -96,7 +96,6 @@ describe("LoginPage native Google sign-in", () => {
     expect(get(credentials)).toMatchObject({ username: "demo-user" });
     expect(get(credentials)).not.toHaveProperty("password");
     expect(saveCredentials).toHaveBeenCalledWith({
-      url: "https://lms.example",
       username: "demo-user",
       mumaApiKey: "key-1",
       mumaUserId: 1,

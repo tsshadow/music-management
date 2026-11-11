@@ -326,9 +326,23 @@ def test_no_job_deploys():
         name
         for name in job_names(ci)
         if "environment" in ci[name]
-        or any("ci-deploy.sh" in line for line in ci[name].get("script", []) if isinstance(line, str))
+        or any("deploy.sh" in line for line in ci[name].get("script", []) if isinstance(line, str))
     ]
     assert offenders == [], f"these jobs deploy: {offenders}"
+
+
+def test_no_production_variable_is_read_by_ci():
+    """Step 3b of the ops split: the production host, its SSH key and its env
+    files are the operations repository's variables. Nothing in the pipeline
+    or its scripts reads them here, so they can be deleted from this project."""
+    production_vars = re.compile(r"PROD_REMOTE_HOST|PROD_SSH|PROD_ENV_FILE|SSH_PRIVATE_KEY")
+    offenders = []
+    for path in [REPO_ROOT / ".gitlab-ci.yml", *sorted((REPO_ROOT / "scripts" / "ci").rglob("*"))]:
+        if path.is_file() and production_vars.search(path.read_text(encoding="utf-8", errors="replace")):
+            offenders.append(str(path.relative_to(REPO_ROOT)))
+    assert offenders == [], f"these files still read a production variable: {offenders}"
+    for gone in ["ci-deploy.sh", "ci/prod-ssh-setup.sh", "ci/post-deploy-verify.sh", "ci/prune-prod-images.sh"]:
+        assert not (REPO_ROOT / "scripts" / gone).exists(), f"scripts/{gone} belongs to the operations repository"
 
 
 def test_feature_branches_get_no_branch_pipeline():
@@ -738,15 +752,23 @@ def test_the_release_image_build_still_pushes():
     assert "false" not in str(ci["release:build-images"].get("variables", {}))
 
 
-# --- The deploy actually has to be verified ----------------------------------
+def test_two_release_image_builds_never_run_at_once():
+    """Both push the same :rc tags; interleaved, production could pull a mix of two releases (#226)."""
+    ci = load_ci()
+    assert ci["release:build-images"]["resource_group"] == "release-images"
 
 
-def test_ci_deploy_ends_in_a_gate_that_can_fail():
-    """ci-deploy.sh used to end with two `docker ps --format` calls whose
-    output nobody inspected, then echo success unconditionally. `docker ps`
-    exits 0 for a restart-looping container and for an empty stack alike."""
-    script = (REPO_ROOT / "scripts" / "ci-deploy.sh").read_text(encoding="utf-8")
-    assert "post-deploy-verify.sh" in script
+def _change_globs(ci, job):
+    """Every `changes:` path a job's rules list."""
+    return [path for rule in ci[job]["rules"] if isinstance(rule, dict) for path in rule.get("changes", [])]
+
+
+def test_a_requirements_change_runs_the_jobs_it_feeds():
+    """requirements-dev.txt holds ruff, pylint and mypy; requirements.txt goes into the images (#226)."""
+    ci = load_ci()
+    for job in ("backend:format", "backend:lint", "backend:typecheck", "backend:typecheck-all"):
+        assert "requirements-dev.txt" in _change_globs(ci, job), job
+    assert "requirements.txt" in _change_globs(ci, "muma:images")
 
 
 def test_tagging_is_gated_on_what_the_release_published():
@@ -856,9 +878,6 @@ def test_latest_is_only_moved_by_the_deploy():
     assert pushes, "the release build must still push"
     offenders = [line for line in pushes if ':latest"' in line or ':stable"' in line]
     assert offenders == [], f"release:build-images must not push production's tags: {offenders}"
-
-    ci_deploy = (REPO_ROOT / "scripts" / "ci-deploy.sh").read_text(encoding="utf-8")
-    assert "promote-release-images.sh" in ci_deploy
 
 
 def test_backend_test_jobs_rerun_when_their_environment_changes():

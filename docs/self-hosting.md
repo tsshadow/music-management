@@ -107,6 +107,7 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d
 | `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` | Keys of the player's own API and of the Subsonic API. |
 | `MUSIC_MANAGEMENT_URL`, `MUSIC_MANAGEMENT_API_KEY` | Where `music-manager` answers (`http://music-manager:8000/api`) and the shared key, the same value as `MUMA_API_KEY` above. |
 | `LMS_PORT`, `LMS_SUBSONIC_PORT` | Published ports of the web UI (default 80) and the Subsonic API (default 8080). |
+| `NGINX_TRUSTED_PROXY` | The reverse proxy on your LAN that sends requests to the `reverse-proxy` container, for example `192.0.2.30`. A comma or space separated list of addresses or CIDRs. nginx takes the client address from `X-Forwarded-For` only when the request comes from loopback, a Docker network (172.16.0.0/12) or an entry here. Empty by default. Set it when a proxy such as Nginx Proxy Manager sits in front, or MuMa's login rate limit counts every login against the proxy's address. Do not set a LAN range: any host in it could then name its own client address. A value that is not an address or a CIDR stops the container at start. Docker networks outside 172.16.0.0/12 (a custom address pool) go here too. |
 | `VITE_GOOGLE_CLIENT_ID` | Build-time only, for "Sign in with Google". |
 
 Start it after the main stack:

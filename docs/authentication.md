@@ -289,7 +289,7 @@ holding such a key is signed out at startup (`endLeftoverSharedKeySession` in
 LMS's `api-key` remains the key MuMa presents when *it* calls LMS.
 
 On the direct route nginx passes MuMa one `X-Forwarded-For` address, the right-most one not written
-by a private-network proxy. See `docs/designs/authentication/technical.md`, 2026-09-24.
+by a trusted proxy. See `docs/designs/authentication/technical.md`, 2026-09-24.
 
 ### The client address MuMa sees
 
@@ -316,9 +316,12 @@ therefore the Docker network that nginx and LMS share with `music-manager`. A LA
 trusted, and port 8000 is published on the host's loopback only (issue #218), so a LAN host reaches
 the API through nginx or not at all.
 
-nginx itself still takes the client address from `X-Forwarded-For` when the request comes from a
-private network (`set_real_ip_from` in `reverse-proxy.conf`), because Nginx Proxy Manager on the
-LAN sits in front of it.
+nginx itself takes the client address from `X-Forwarded-For` only when the request comes from
+loopback, a Docker network (172.16.0.0/12) or a proxy named in `NGINX_TRUSTED_PROXY`
+(`set_real_ip_from` in `reverse-proxy.conf`, issue #234). nginx publishes port 80 on every
+interface, so a LAN range is not trusted: production sets the variable to the address of Nginx
+Proxy Manager, which sits in front of nginx. Without it, every login through that proxy counts
+against the proxy's own address.
 
 A login is counted in two buckets and refused when either is full: per client and account
 (`AUTH_RATE_LIMIT_ATTEMPTS`, 10 failures a minute), so one client stuck on a stale password locks

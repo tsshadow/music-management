@@ -60,8 +60,15 @@ docker run -d --rm --name "lms-stub-$TAG" --network "$NET" --network-alias lms \
     -v "$STUB_DIR/stub.py:/stub.py:ro" python:3-alpine python /stub.py lms 5082 >/dev/null
 docker run -d --rm --name "muma-stub-$TAG" --network "$NET" --network-alias music-manager \
     -v "$STUB_DIR/stub.py:/stub.py:ro" python:3-alpine python /stub.py music-manager 8000 >/dev/null
+# The test client below plays Nginx Proxy Manager. Docker may take this network
+# from outside 172.16.0.0/12, which reverse-proxy.conf trusts on its own, so the
+# test trusts its subnet the way NGINX_TRUSTED_PROXY does in production: one
+# set_real_ip_from line in the file the conf includes (issue #234).
+SUBNET=$(docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}} {{end}}' "$NET" | awk '{print $1}')
+printf 'set_real_ip_from %s;\n' "$SUBNET" > "$STUB_DIR/trusted-proxies.conf"
 docker run -d --rm --name "proxy-stub-$TAG" --network "$NET" --network-alias proxy \
-    -v "$CONF:/etc/nginx/conf.d/default.conf:ro" nginx:alpine >/dev/null
+    -v "$CONF:/etc/nginx/conf.d/default.conf:ro" \
+    -v "$STUB_DIR/trusted-proxies.conf:/etc/nginx/muma/trusted-proxies.conf:ro" nginx:alpine >/dev/null
 
 # The client runs inside the lms stub: busybox wget cannot send a PUT or a
 # DELETE, and python can. Raw path in, raw response out.
@@ -156,7 +163,7 @@ expect GET    "/rest/ping.view?u=user"                                  lms "/re
 expect GET    "/index.html"                                             lms "/spotify/index.html"
 
 # expect_forwarded_for <X-Forwarded-For sent> <X-Forwarded-For MuMa must see>
-# The test client sits on a Docker bridge, a trusted private network, so it
+# The test client sits on the test network, which the proxy trusts, so it
 # plays the part of Nginx Proxy Manager: whatever the browser sent comes first,
 # the address NPM saw is appended last. MuMa's login rate limit keys on the
 # left-most entry, so it must receive the right-most untrusted address alone --

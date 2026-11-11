@@ -330,6 +330,7 @@ muma:proxy-routing:
     - !reference [.release_rule, rules]
     - changes:
         - services/music-management-server/nginx/**/*
+        - services/music-management-server/docker-compose.yml
         - scripts/test/reverse-proxy-routing.sh
         - .gitlab-ci.yml
   script:

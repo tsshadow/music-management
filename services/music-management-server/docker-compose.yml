@@ -185,7 +185,36 @@ services:
     tmpfs:
       - /var/run:size=1m
       - /tmp:size=8m
+      - /etc/nginx/muma:size=64k
     pids_limit: 256
+    # The proxies nginx takes a client address from, besides loopback and the
+    # Docker networks: a comma or space separated list of addresses and CIDRs,
+    # for example the host of Nginx Proxy Manager. Empty by default, so no LAN
+    # host is trusted (issue #234). The entrypoint writes one set_real_ip_from
+    # per entry into the include that reverse-proxy.conf reads, refuses to start
+    # on anything that is not an address or a CIDR, and then runs the image's
+    # own entrypoint. tests/ci/test_nginx_trusted_proxy.py runs this script.
+    environment:
+      NGINX_TRUSTED_PROXY: ${NGINX_TRUSTED_PROXY:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -euf
+        out=/etc/nginx/muma/trusted-proxies.conf
+        : > "$$out"
+        for proxy in $$(printf '%s' "$${NGINX_TRUSTED_PROXY:-}" | tr ',' ' '); do
+          case "$$proxy" in
+            *[!0-9A-Fa-f:./]*|*/*/*|/*|*/)
+              echo "NGINX_TRUSTED_PROXY: '$$proxy' is not an address or a CIDR" >&2
+              exit 1
+              ;;
+          esac
+          echo "set_real_ip_from $$proxy;" >> "$$out"
+        done
+        exec /docker-entrypoint.sh "$$@"
+      - sh
+    command: ["nginx", "-g", "daemon off;"]
     ports:
       - "${LMS_PORT:-80}:80"
     volumes:

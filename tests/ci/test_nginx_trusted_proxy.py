@@ -56,7 +56,8 @@ def _render(tmp_path, value):
 def test_the_conf_trusts_no_lan_range():
     trusted = re.findall(r'set_real_ip_from\s+([^;]+);', _muma_api_location())
     assert trusted == ['127.0.0.1', '::1', '172.16.0.0/12']
-    assert '192.168.' not in CONF.read_text(encoding='utf-8').split('location /muma/api/')[1]
+    after = CONF.read_text(encoding='utf-8').split('location /muma/api/')[1]
+    assert not re.search(r'set_real_ip_from\s+(10|192)\.', after)
 
 
 def test_the_conf_includes_the_rendered_file_by_pattern():

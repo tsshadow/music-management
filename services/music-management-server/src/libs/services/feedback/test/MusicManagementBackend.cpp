@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include <boost/asio/io_context.hpp>
@@ -20,6 +21,7 @@
 #include <Wt/Json/Parser.h>
 #include <Wt/WDateTime.h>
 
+#include "database/MumaListenOutbox.hpp"
 #include "database/MumaRatingOutbox.hpp"
 #include "database/objects/Artist.hpp"
 #include "database/objects/RatedArtist.hpp"
@@ -51,6 +53,31 @@ namespace lms::feedback::musicManagement::tests
         {
             return RatingRemovedEvent{ .objectType = "track", .objectId = objectId, .username = "user", .path = "/music/a.mp3", .previousRating = 3 };
         }
+
+        // The relay as the backend sees it, with another connection committing a write just before
+        // each rating is queued: the relay removing the row it just delivered, a listen, a scan.
+        class CommitFirstRelay final : public mumaOutbox::IMumaOutboxRelay
+        {
+        public:
+            CommitFirstRelay(mumaOutbox::IMumaOutboxRelay& relay, std::function<void()> commitElsewhere)
+                : _relay{ relay }
+                , _commitElsewhere{ std::move(commitElsewhere) }
+            {
+            }
+
+            void start() override { _relay.start(); }
+            void enqueueListen(std::string_view payload) override { _relay.enqueueListen(payload); }
+            void enqueueRating(const mumaOutbox::RatingKey& key, std::string_view payload) override
+            {
+                _commitElsewhere();
+                _relay.enqueueRating(key, payload);
+            }
+            void stop() override { _relay.stop(); }
+
+        private:
+            mumaOutbox::IMumaOutboxRelay& _relay;
+            std::function<void()> _commitElsewhere;
+        };
 
         // The rating relay to MuMa's /api/rating/lms-event: the backend on a relay of its own,
         // with the network replaced by a recorder and a real database underneath.
@@ -464,5 +491,31 @@ namespace lms::feedback::musicManagement::tests
         EXPECT_EQ(static_cast<std::string>(bodyOf(0).get("object_id")), "13");
         const auto warnings{ lms::feedback::tests::CapturingLogger::warnings() };
         EXPECT_TRUE(std::ranges::any_of(warnings, [](const std::string& line) { return line.find("rating of track '12' by user") != std::string::npos; }));
+    }
+
+    // A rating is read in one transaction and queued in another. Queued from inside the read
+    // transaction, the outbox write had to upgrade a snapshot that a commit on any other
+    // connection had already made stale, SQLite refused it, and the rating never reached
+    // music-manager: the intermittent e2e and contract failures of issue #242.
+    TEST_F(MusicManagementFeedback, aCommitElsewhereWhileTheRatingIsReadDoesNotLoseIt)
+    {
+        start();
+        CommitFirstRelay racing{ *relay, [this] {
+                                    auto transaction{ session.createWriteTransaction() };
+                                    db::mumaListenOutbox::push(session, R"({"username":"other"})", Wt::WDateTime::currentDateTime());
+                                } };
+        backend = std::make_unique<MusicManagementBackend>(session.getDb(), &racing);
+
+        rateTrack(4);
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.execute("DELETE FROM muma_listen_outbox");
+        }
+
+        EXPECT_EQ(outboxCount(), 1U);
+        drain();
+        ASSERT_EQ(sent->posts.size(), 1U);
+        EXPECT_EQ(static_cast<int>(bodyOf(0).get("rating")), 4);
+        backend.reset();
     }
 } // namespace lms::feedback::musicManagement::tests

@@ -19,7 +19,7 @@ app.include_router(wrapped.router, prefix='/api/wrapped')
 SYSTEM = {'status': 'ok', 'type': 'system'}
 
 
-def user(name='teun', permissions=()):
+def user(name='alice', permissions=()):
     return {'status': 'ok', 'type': 'user', 'user': {'username': name, 'permissions': list(permissions)}}
 
 
@@ -52,18 +52,18 @@ class UserTabTest:
         response = client.get('/api/wrapped/user?year=2026&tz=Europe/Amsterdam')
         assert response.status_code == 200
         assert response.headers['cache-control'] == 'private, max-age=300'
-        assert computed == [('user', 'teun', '2026', 'Europe/Amsterdam')]
+        assert computed == [('user', 'alice', '2026', 'Europe/Amsterdam')]
 
     def test_naming_another_account_is_forbidden(self, client, computed):
         as_(user())
         assert client.get('/api/wrapped/user?year=2026&username=other').status_code == 403
-        assert client.get('/api/wrapped/user?year=2026&username=TEUN').status_code == 200
-        assert [c[1] for c in computed] == ['teun']
+        assert client.get('/api/wrapped/user?year=2026&username=ALICE').status_code == 200
+        assert [c[1] for c in computed] == ['alice']
 
     def test_the_system_key_must_name_an_account(self, client, computed):
         as_(SYSTEM)
         assert client.get('/api/wrapped/user?year=2026').status_code == 400
-        assert client.get('/api/wrapped/user?year=2026&username=teun').status_code == 200
+        assert client.get('/api/wrapped/user?year=2026&username=alice').status_code == 200
         assert len(computed) == 1
 
     @pytest.mark.parametrize(
@@ -108,7 +108,7 @@ class PeriodsTest:
         assert body['years'] == [{'year': 2026, 'listens': 10, 'own_listens': 4}]
         assert body['server_tz'] == 'Europe/Amsterdam'
         ((_sql, params),) = cursor.statements_matching('SELECT y')
-        assert params == ('teun', 'teun')
+        assert params == ('alice', 'alice')
 
     def test_a_bad_zone_is_400(self, client):
         as_(user())
@@ -130,7 +130,7 @@ class RefreshTest:
                 (
                     'SELECT scope, username, period_key, tz',
                     None,
-                    [{'scope': 'user', 'username': 'teun', 'period_key': '2026', 'tz': 'UTC'}],
+                    [{'scope': 'user', 'username': 'alice', 'period_key': '2026', 'tz': 'UTC'}],
                 )
             ]
         )
@@ -138,16 +138,18 @@ class RefreshTest:
         conn.cursor.return_value = cursor
         monkeypatch.setattr(wrapped, 'get_db_connection', lambda: conn)
         response = client.post(
-            '/api/wrapped/refresh', json={'scope': 'user', 'year': 2026, 'username': 'Teun'}, headers={'x-api-key': 'k'}
+            '/api/wrapped/refresh',
+            json={'scope': 'user', 'year': 2026, 'username': 'Alice'},
+            headers={'x-api-key': 'k'},
         )
         assert response.status_code == 202
         assert response.json() == {'queued': 1}
         ((_sql, params),) = cursor.statements_matching('SELECT scope')
-        assert params == ('user', '2026', 'teun')
+        assert params == ('user', '2026', 'alice')
         deadline = time.time() + 2
         while not computed and time.time() < deadline:
             time.sleep(0.01)
-        assert computed == [('user', 'teun', '2026', 'UTC')]
+        assert computed == [('user', 'alice', '2026', 'UTC')]
 
     def test_a_library_refresh_without_stored_rows_still_computes(self, client, monkeypatch, computed):
         monkeypatch.setattr(users, 'verify_api_key', lambda _key: SYSTEM)

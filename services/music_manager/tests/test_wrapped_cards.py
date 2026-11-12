@@ -13,13 +13,13 @@ UTC_ZONE = ZoneInfo('UTC')
 AMS = ZoneInfo('Europe/Amsterdam')
 
 
-def scope(zone=UTC_ZONE, username='teun', start=date(2026, 1, 1), end=date(2026, 12, 31)):
+def scope(zone=UTC_ZONE, username='alice', start=date(2026, 1, 1), end=date(2026, 12, 31)):
     return ListeningScope(username, start, end, zone)
 
 
 def listen(at, track_id=None, s=None, **fields):
     s = s or scope()
-    fields.setdefault('username', 'teun')
+    fields.setdefault('username', 'alice')
     fields.setdefault('source', 'frontend')
     fields.setdefault('played_secs', None)
     if track_id is not None:
@@ -67,7 +67,7 @@ class TotalsTest:
 
     def test_listeners_counts_deleted_accounts_as_former_and_names_nobody(self):
         data = period(
-            [listen(T0, 1, username='teun'), listen(T0, 1, username='Teun'), listen(T0, 2, username='deleted-7')]
+            [listen(T0, 1, username='alice'), listen(T0, 1, username='Alice'), listen(T0, 2, username='deleted-7')]
         )
         assert lc.card_listeners(data)['data'] == {'active': 1, 'former': 1}
 

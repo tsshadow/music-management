@@ -25,13 +25,13 @@ NOW = datetime(2026, 11, 12, 12, 0, tzinfo=UTC)
 YEAR = parse_period(2026, None, None)
 
 
-def scope(username='teun'):
+def scope(username='alice'):
     return ListeningScope(username, date(2026, 1, 1), date(2026, 12, 31), UTC_ZONE)
 
 
 LINKED_ROW = {
     'listened_at': datetime(2026, 3, 1, 10),
-    'username': 'teun',
+    'username': 'alice',
     'source': 'mobile',
     'played_secs': 120,
     'track_id': 7,
@@ -47,7 +47,7 @@ LINKED_ROW = {
 }
 UNMATCHED_ROW = {
     'listened_at': datetime(2026, 2, 1, 10),
-    'username': 'teun',
+    'username': 'alice',
     'source': 'listenbrainz_import',
     'played_secs': None,
     'artist_name': 'ID',
@@ -107,7 +107,7 @@ class LoadPeriodTest:
         cursor = ScriptedCursor(period_rules())
         wd.load_period(cursor, scope())
         ((_sql, params),) = cursor.statements_matching('FROM library_track_labels tl')
-        assert params.count('teun') == 2
+        assert params.count('alice') == 2
 
     def test_skips_the_track_queries_without_linked_listens(self):
         cursor = ScriptedCursor([('FROM scrobble_unmatched_listens', None, [UNMATCHED_ROW])])
@@ -127,13 +127,13 @@ class LoadPeriodTest:
         assert history.prior_genres == {'Hardcore'} and history.prior_artists == {3}
         assert history.others_tracks == {9} and len(history.ratings) == 1
         ((_sql, params),) = cursor.statements_matching('SELECT DISTINCT track_id')
-        assert params == (datetime(2026, 1, 1), datetime(2027, 1, 1), 'teun')
+        assert params == (datetime(2026, 1, 1), datetime(2027, 1, 1), 'alice')
 
 
 class PayloadTest:
     def test_user_tab_has_every_card_in_order_and_paths(self):
         cc._facts_cache.clear()
-        payload = wp.build_payload(ScriptedCursor(period_rules()), wp.USER, 'teun', YEAR, UTC_ZONE, NOW)
+        payload = wp.build_payload(ScriptedCursor(period_rules()), wp.USER, 'alice', YEAR, UTC_ZONE, NOW)
         assert [c['id'] for c in payload['cards']] == list(wp.USER_ORDER)
         assert payload['period']['running'] is True
         assert payload['period']['data_until'] == NOW.isoformat()
@@ -150,7 +150,7 @@ class PayloadTest:
         cc._facts_cache.clear()
         payload = wp.build_payload(ScriptedCursor(period_rules()), wp.LIBRARY, None, YEAR, UTC_ZONE, NOW)
         assert [c['id'] for c in payload['cards']] == list(wp.LIBRARY_ORDER)
-        assert 'teun' not in json.dumps(payload)
+        assert 'alice' not in json.dumps(payload)
         growth = next(c for c in payload['cards'] if c['id'] == 'growth')
         assert growth['reason'] == 'no_arrival_date'
 
@@ -268,7 +268,7 @@ class SnapshotsTest:
         cursor = ScriptedCursor([('FROM wrapped_snapshots', None, snapshot_row({'x': 1}, datetime(2026, 11, 12, 6)))])
         conn = MagicMock()
         conn.cursor.return_value = cursor
-        assert snapshots.get_or_compute(lambda: conn, 'user', 'teun', YEAR, UTC_ZONE, NOW) == {'x': 1}
+        assert snapshots.get_or_compute(lambda: conn, 'user', 'alice', YEAR, UTC_ZONE, NOW) == {'x': 1}
         build.assert_not_called()
 
     def test_a_missing_row_is_computed_and_stored_closed_when_the_period_ended(self, monkeypatch):

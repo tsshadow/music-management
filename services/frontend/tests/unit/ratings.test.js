@@ -68,6 +68,41 @@ describe("ratings store", () => {
     expect(ratingOf(get(ratings), null)).toBe(0);
   });
 
+  // Issue #256: the phone's player holds its own copy of the queue, and the car's rating button
+  // starts from it. It hears about every rating, and about a rollback too, but writes nothing.
+  it("tells the phone's player about a rating, and about a rollback", async () => {
+    const setRatingOnPlayer = vi.fn(async () => {});
+    const platform = { player: { setRating: setRatingOnPlayer } };
+
+    await setRating("7", 4, { fetchImpl: vi.fn(async () => ok()), platform, previous: 2 });
+    expect(setRatingOnPlayer).toHaveBeenCalledWith("7", 4);
+
+    setRatingOnPlayer.mockClear();
+    await setRating("7", 5, { fetchImpl: vi.fn(async () => refused()), platform, previous: 4 });
+    expect(setRatingOnPlayer.mock.calls).toEqual([
+      ["7", 5],
+      ["7", 4],
+    ]);
+  });
+
+  it("still writes the rating when the player cannot be told", async () => {
+    const platform = {
+      player: {
+        setRating: vi.fn(async () => {
+          throw new Error("not implemented");
+        }),
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async () => ok());
+
+    await expect(setRating("8", 3, { fetchImpl, platform, previous: 0 })).resolves.toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(get(ratings)["8"]).toBe(3);
+    await Promise.resolve();
+    expect(warn).toHaveBeenCalled();
+  });
+
   it("shows the new rating before the server has answered", async () => {
     const { impl, calls } = deferredFetch();
     const done = setRating("1", 5, { fetchImpl: impl, previous: 2 });

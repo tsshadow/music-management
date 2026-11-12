@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.util
 import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import nl.teunschriks.mumamobile.domain.Track
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBeNull
 import org.junit.Before
@@ -163,5 +164,85 @@ class MediaItemUserRatingTest {
         MediaItemConverter.applyRating("another-track", 4)
 
         MediaItemConverter.mediaItemCache[mediaId]?.get() `should be equal to` item
+    }
+
+    // Issue #256: everything below keeps "unknown" apart from 0, because the car's rating button
+    // steps from the value and a guessed 0 wrote 1 over real ratings.
+
+    @Test
+    fun `an item built without a rating reports it as unknown`() {
+        val item = buildMediaItem(title = "A track", mediaId = mediaId, isPlayable = true)
+
+        item.toTrack().userRating.shouldBeNull()
+    }
+
+    @Test
+    fun `an item built without a rating stays unknown after the track cache expires`() {
+        val item = Track(id = mediaId, serverId = 1, title = "A track").toMediaItem()
+        MediaItemConverter.trackCache.clear()
+
+        item.toTrack().userRating.shouldBeNull()
+    }
+
+    @Test
+    fun `a track without a rating does not replace the rated item in the cache`() {
+        val rated = Track(id = mediaId, serverId = 1, title = "A track", userRating = 4).toMediaItem()
+
+        val again = Track(id = mediaId, serverId = 1, title = "A track").toMediaItem()
+
+        again `should be equal to` rated
+        again.toTrack().userRating `should be equal to` 4
+    }
+
+    @Test
+    fun `a track without a rating takes the one the cached track knows`() {
+        Track(id = mediaId, serverId = 1, title = "A track", userRating = 3).toMediaItem()
+        MediaItemConverter.mediaItemCache.clear()
+
+        val rebuilt = Track(id = mediaId, serverId = 1, title = "A track").toMediaItem()
+
+        rebuilt.toTrack().userRating `should be equal to` 3
+        rebuilt.ratingExtra() `should be equal to` 3
+    }
+
+    @Test
+    fun `a track with a newer rating replaces the cached item`() {
+        Track(id = mediaId, serverId = 1, title = "A track", userRating = 2).toMediaItem()
+
+        val rebuilt = Track(id = mediaId, serverId = 1, title = "A track", userRating = 5).toMediaItem()
+
+        rebuilt.ratingExtra() `should be equal to` 5
+        rebuilt.toTrack().userRating `should be equal to` 5
+    }
+
+    @Test
+    fun `a known 0 is kept apart from unknown`() {
+        val item = Track(id = mediaId, serverId = 1, title = "A track", userRating = 0).toMediaItem()
+        MediaItemConverter.trackCache.clear()
+
+        item.toTrack().userRating `should be equal to` 0
+    }
+
+    @Test
+    fun `a rating set elsewhere reaches the car's composite entries for the track`() {
+        val composite = "bpm|140|$mediaId"
+        val track = Track(id = mediaId, serverId = 1, title = "A track", userRating = 2)
+        track.toMediaItem(composite)
+
+        MediaItemConverter.applyRating(mediaId, 4)
+
+        track.userRating `should be equal to` 4
+        MediaItemConverter.mediaItemCache[composite]?.get().shouldBeNull()
+    }
+
+    @Test
+    fun `a rating for another track leaves composite entries that only contain its id alone`() {
+        val composite = "bpm|$mediaId|other-track"
+        val track = Track(id = "other-track", serverId = 1, title = "Another", userRating = 2)
+        track.toMediaItem(composite)
+
+        MediaItemConverter.applyRating(mediaId, 4)
+
+        track.userRating `should be equal to` 2
     }
 }

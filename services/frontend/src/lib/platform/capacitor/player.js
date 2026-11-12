@@ -373,6 +373,18 @@ export function createCapacitorPlayer(plugin) {
     },
 
     /**
+     * Tells the service a track's rating changed, so every queued copy of it and the car's
+     * rating button show the new value. Only records it: the server write is `ratings.js`'s.
+     *
+     * @param {string|number} id
+     * @param {number} rating - 0 to 5, 0 for a cleared rating.
+     * @returns {Promise<void>}
+     */
+    async setRating(id, rating) {
+      await plugin.setRating({ id: String(id), rating });
+    },
+
+    /**
      * A no-op on the far side, and called anyway.
      *
      * The `MediaSession` derives the notification from the queue it was handed,

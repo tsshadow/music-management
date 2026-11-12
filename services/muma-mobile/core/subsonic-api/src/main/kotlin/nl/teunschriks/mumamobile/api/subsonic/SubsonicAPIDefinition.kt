@@ -26,6 +26,7 @@ import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetPlaylistsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetPodcastsResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetRandomSongsResponse
+import nl.teunschriks.mumamobile.api.subsonic.response.GetSongResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByGenreResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByMoodResponse
 import nl.teunschriks.mumamobile.api.subsonic.response.GetSongsByPathResponse
@@ -124,6 +125,10 @@ interface SubsonicAPIDefinition {
         @Query("albumId") albumId: String? = null,
         @Query("artistId") artistId: String? = null
     ): Call<SubsonicResponse>
+
+    /** One track by id, with the user's rating. OpenSubsonic and LMS both answer it. */
+    @GET("getSong.view")
+    fun getSong(@Query("id") id: String): Call<GetSongResponse>
 
     @GET("setRating.view")
     fun setRating(@Query("id") id: String, @Query("rating") rating: Int): Call<SubsonicResponse>

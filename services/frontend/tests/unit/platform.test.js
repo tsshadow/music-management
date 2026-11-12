@@ -96,6 +96,10 @@ describe("browser player queue", () => {
     expect(() => browserPlayer.next()).not.toThrow();
     expect(() => browserPlayer.previous()).not.toThrow();
   });
+
+  it("takes a rating and does nothing with it: a tab has no service queue", async () => {
+    await expect(browserPlayer.setRating("1", 4)).resolves.toBeUndefined();
+  });
 });
 
 describe("browser storage", () => {

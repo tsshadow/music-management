@@ -119,6 +119,26 @@ function show(id, value) {
 }
 
 /**
+ * Tells the phone's player about a rating, so the queue it holds and the car's rating button show
+ * it at once. The player only records the value: the write to the server stays here (or in the
+ * phone's rating queue), so this never sends a second one. A browser tab has nothing to tell, and
+ * its player answers with a no-op. A failure only costs the car's button until the next track,
+ * when the service asks the server itself (docs/designs/car-rating-state/).
+ *
+ * @param {object} platform
+ * @param {string} id
+ * @param {number} value - 0 for a cleared rating.
+ */
+function tellPlayer(platform, id, value) {
+  try {
+    const answer = platform?.player?.setRating?.(id, value);
+    answer?.catch?.((error) => console.warn("Could not hand the rating to the player", error));
+  } catch (error) {
+    console.warn("Could not hand the rating to the player", error);
+  }
+}
+
+/**
  * Sends one value to the server, optimistically: the new value is shown before the request goes
  * out and put back to `previous` if the server refuses or cannot be reached.
  *
@@ -147,6 +167,7 @@ async function write(trackId, value, options = {}) {
 
   show(id, value);
   if (track) track.userRating = value;
+  tellPlayer(platform, id, value);
 
   if ((get(offline) || queuedOnPhone.has(id)) && (await queueOnPhone(platform, id, value))) {
     if (get(offline)) notify.info(get(t)("notify.ratingQueued"));
@@ -174,6 +195,7 @@ async function write(trackId, value, options = {}) {
     if (generations.get(id) === generation) {
       show(id, previous);
       if (track) track.userRating = previous;
+      tellPlayer(platform, id, previous);
     }
     notify.error(get(t)("notify.ratingFailed"), { detail: e.message });
     return false;

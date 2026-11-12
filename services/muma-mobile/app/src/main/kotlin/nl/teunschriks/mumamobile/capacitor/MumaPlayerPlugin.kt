@@ -21,10 +21,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.audiofx.EqualizerController
 import nl.teunschriks.mumamobile.data.ActiveServerProvider
+import nl.teunschriks.mumamobile.service.CachedMusicService
+import nl.teunschriks.mumamobile.service.KnownRating
 import nl.teunschriks.mumamobile.service.MediaPlayerManager
+import nl.teunschriks.mumamobile.service.MusicServiceFactory
+import nl.teunschriks.mumamobile.service.QueueRatings
 import nl.teunschriks.mumamobile.service.RxBus
 import nl.teunschriks.mumamobile.service.androidauto.StationOrder
 import nl.teunschriks.mumamobile.service.plusAssign
+import nl.teunschriks.mumamobile.service.writeRatingToRoom
+import nl.teunschriks.mumamobile.util.MAX_STARS
+import nl.teunschriks.mumamobile.util.MediaItemConverter
 import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.toTrack
 import org.koin.core.component.KoinComponent
@@ -67,6 +74,7 @@ private const val MILLIS_PER_SECOND = 1000.0
  * | `setMode({shuffle, repeat})` | `mediaPlayerManager.isShufflePlayEnabled`/`repeatMode`, resolved with a fresh [snapshot] |
  * | `startRadio({slug})` | `mediaPlayerManager.startRadioChannel(slug)` -- a media id [nl.teunschriks.mumamobile.service.androidauto.MediaLibrarySessionCallback.onAddMediaItems] already resolves onto the server's timeline |
  * | `setFavoriteStations({slugs})` | stores the slugs that the car lists first |
+ * | `setRating({id, rating})` | records a rating the web made on every queued copy and the car's button; never writes to the server |
  * | `startStation({slug})` | `mediaPlayerManager.startStation(slug)` -- a media id `onAddMediaItems` resolves to a live station |
  * | `stopRadio()` | `mediaPlayerManager.stopRadio()` -- the `CUSTOM_COMMAND_STOP_RADIO` session command, for MuMa Radio and a live station |
  * | `toggleNews()` | `mediaPlayerManager.toggleNews()` -- the `CUSTOM_COMMAND_PLAY_NEWS` session command, which already toggles both ways |
@@ -402,6 +410,40 @@ class MumaPlayerPlugin :
         onMain {
             mediaPlayerManager.startRadioChannel(slug)
             call.resolve()
+        }
+    }
+
+    /**
+     * A rating the web player made (`rating` 0 to 5, 0 clears): onto every queued copy of the
+     * track and the car's rating button, through `RxBus.ratingKnown` to the playback service, and
+     * then into the app's caches and Room in the background.
+     *
+     * The web sends the rating to the server itself, or hands it to the phone's rating queue
+     * (`MumaStorage.queueRating`). This call writes nothing to the server, so a rating is never
+     * sent twice (issue #256, docs/designs/car-rating-state/).
+     */
+    @PluginMethod
+    fun setRating(call: PluginCall) {
+        val id = call.getString("id")
+        val rating = call.getInt("rating")
+        if (id.isNullOrBlank() || rating == null || rating !in 0..MAX_STARS) {
+            call.reject("setRating needs an id and a rating from 0 to $MAX_STARS")
+            return
+        }
+        QueueRatings.markLocalChange()
+        RxBus.ratingKnown.onNext(KnownRating(id, rating))
+        calls.launch { ratingWriteThrough(id, rating) }
+        call.resolve()
+    }
+
+    /** Where [setRating] stores a rating off the main thread; replaced by the tests. */
+    internal var ratingWriteThrough: (String, Int) -> Unit = { id, rating ->
+        val service = MusicServiceFactory.getMusicService()
+        if (service is CachedMusicService) {
+            service.applyKnownRating(id, rating)
+        } else {
+            MediaItemConverter.applyRating(id, rating)
+            writeRatingToRoom(activeServerProvider, id, rating)
         }
     }
 

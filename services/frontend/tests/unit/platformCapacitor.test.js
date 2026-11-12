@@ -306,6 +306,14 @@ describe("capacitor player", () => {
     ]);
   });
 
+  // Issue #256: the service keeps its queued copies and the car's rating button in step; the
+  // server write stays with `ratings.js`.
+  it("hands a rating to the service with the id as a string", async () => {
+    await platform.player.setRating(42, 4);
+
+    expect(plugins.MumaPlayer.calls).toEqual([["setRating", { id: "42", rating: 4 }]]);
+  });
+
   it("takes transport handlers and wires none of them", () => {
     expect(() => platform.player.setCommandHandlers({ next: () => {} })).not.toThrow();
     expect(plugins.MumaPlayer.calls).toEqual([]);

@@ -282,6 +282,12 @@ class PlaybackService :
             exo.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(list, seed))
         }
 
+        // A rating the web player made, or one the server answered with: onto every queued copy
+        // of the track and the car's rating button (docs/designs/car-rating-state/).
+        rxBusSubscription += RxBus.ratingKnownObservable.subscribe {
+            applyKnownRating(it.trackId, it.rating)
+        }
+
         // Listen to the shutdown command
         rxBusSubscription += RxBus.shutdownCommandObservable.subscribe {
             Timber.i("Received destroy command via Rx")
@@ -408,7 +414,9 @@ class PlaybackService :
             // Therefore the track must be our source of truth
             val track = mediaItem?.toTrack()
             if (track != null) {
-                updateCustomRatingButton(track.userRating ?: 0)
+                // Null is "not known yet", drawn as no stars; a tap looks the rating up first.
+                updateCustomRatingButton(track.userRating)
+                refreshRating(mediaItem, track.id)
             }
             // Every departure from a track closes its play, not only the ones that reached the end:
             // a skip, an automatic advance, a repeat, a cleared queue. How long it actually played
@@ -574,11 +582,46 @@ class PlaybackService :
         librarySessionCallback.getCommandHelper().updateCustomCommandsWrapper(mediaLibrarySession)
     }
 
-    private fun updateCustomRatingButton(rating: Int) {
+    private fun updateCustomRatingButton(rating: Int?) {
         librarySessionCallback.getCommandHelper().updateCustomRatingButton(
             mediaLibrarySession,
-            rating
+            rating ?: 0
         )
+    }
+
+    /**
+     * Puts a rating learned from elsewhere on every queued copy of the track, and on the car's
+     * button when that track is playing. Main thread only. It sends nothing to the server.
+     */
+    private fun applyKnownRating(trackId: String, rating: Int) {
+        if (!::mediaLibrarySession.isInitialized) return
+        RatingManager.instance.forgetLast(trackId)
+        if (QueueRatings.applyToQueue(player, trackId, rating)) updateCustomRatingButton(rating)
+    }
+
+    /**
+     * Asks the server for the rating of the track that just started, in the background, and puts
+     * the answer on the queue and the car's button. This is what brings a rating made on another
+     * device, or a queue restored from an earlier session, up to date (issue #256). An answer
+     * that arrives after a rating was set on this device is older than that rating, and is
+     * dropped. Offline there is no server to ask.
+     */
+    private fun refreshRating(mediaItem: MediaItem, trackId: String) {
+        if (StationPlaybackController.isStationItem(mediaItem.mediaId)) return
+        if (ActiveServerProvider.isOffline()) return
+        val stamp = QueueRatings.stamp()
+        launch {
+            val service = getMusicService() as? CachedMusicService ?: return@launch
+            val rating = try {
+                service.getSong(trackId)?.let { it.userRating ?: 0 }
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                Timber.d(failure, "Could not refresh the rating of %s", trackId)
+                null
+            } ?: return@launch
+            withContext(Dispatchers.Main) {
+                if (!QueueRatings.changedSince(stamp)) applyKnownRating(trackId, rating)
+            }
+        }
     }
 
     private fun cacheNextSongs() {

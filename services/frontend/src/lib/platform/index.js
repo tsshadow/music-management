@@ -109,8 +109,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   Promise<{index: number, length: number, trackIds: string[]}>} setQueue
  *   Replaces the platform queue wholesale; the order of `tracks` is the order
  *   of the queue. Each track is `{id, title, artist, album, coverArt,
- *   duration}`, where `coverArt` is a Subsonic cover-art id and never a URL. A browser answers with an empty queue and keeps its own list,
- *   so the UI can call this unconditionally.
+ *   duration, userRating}`, where `userRating` is 0-5 or null when unknown and
+ *   `coverArt` is a Subsonic cover-art id and never a URL. A browser answers with an empty queue
+ *   and keeps its own list, so the UI can call this unconditionally.
  * @property {function(): Promise<{index: number, length: number, trackIds: string[]}>} queueState
  *   What the platform is holding. This is what a UI rebuilt after the WebView
  *   died reads to find its way back.
@@ -165,6 +166,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   address to `load` and never calls this.
  * @property {function(): Promise<void>} stopRadio Leaves radio mode or a live station without
  *   starting anything else. Native only in effect, the mirror of `startRadio`.
+ * @property {function(string|number, number): Promise<void>} setRating Tells a native service a
+ *   track's rating (0 clears) so its queue and the car's rating button show it. It never writes
+ *   to the server; a browser answers with a no-op.
  * @property {function(): Promise<void>} toggleNews Plays the latest bulletin, or hands the music
  *   back if one is already running -- one call either way. Native only in effect; see `startRadio`.
  * @property {function(PlayerEvent, function(PlayerState): void): function(): void} on

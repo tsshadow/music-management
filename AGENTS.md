@@ -409,6 +409,10 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
       phone (`RatingManager`, last rating per track wins) and goes out when the server answers again;
       Android Auto browses the downloaded library while the last check found the server down
       ([docs/designs/offline-followups/](docs/designs/offline-followups/technical.md)).
+      The queue the web player gives the phone has each track's rating (null when unknown), and a
+      rating set in the web player reaches the phone's player through `MumaPlayer.setRating`. The
+      car's rating button never steps from an unknown rating: a tap first asks the server, the
+      cached copy, then the downloaded library ([docs/designs/car-rating-state/](docs/designs/car-rating-state/technical.md)).
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 

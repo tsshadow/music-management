@@ -51,71 +51,87 @@ namespace lms::feedback::musicManagement
     {
     }
 
+    // Each onRatingChanged reads what it needs in a read transaction that ends before the change
+    // is queued. Queuing writes to the outbox on the same session, and a write nested in a read
+    // transaction cannot start as BEGIN IMMEDIATE: it upgrades the read snapshot instead, and
+    // SQLite refuses that upgrade (SQLITE_BUSY_SNAPSHOT) whenever any other connection committed
+    // in between -- the relay removing the previous row, say. The rating was then lost with an
+    // ERROR in the log (issue #242, bug report 160).
     void MusicManagementBackend::onRatingChanged(db::RatedArtistId ratedArtistId)
     {
         LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Artist)");
-        db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createReadTransaction() };
-
-        if (auto ratedArtist{ db::RatedArtist::find(session, ratedArtistId) })
+        mumaOutbox::RatingKey key;
+        int rating{};
         {
-            if (auto artist{ ratedArtist->getArtist() })
-            {
-                std::string artistName{ artist->getName() };
-                int rating = ratedArtist->getRating();
-                std::string username;
-                if (auto user = db::User::find(session, ratedArtist->getUserId()))
-                    username = user->getLoginName();
+            db::Session& session{ _db.getTLSSession() };
+            auto transaction{ session.createReadTransaction() };
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << artistName << " (rating: " << rating << ", user: " << username << ")");
-                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "artist", .objectId = artistName }, rating);
-            }
+            const auto ratedArtist{ db::RatedArtist::find(session, ratedArtistId) };
+            const auto artist{ ratedArtist ? ratedArtist->getArtist() : db::Artist::pointer{} };
+            if (!artist)
+                return;
+
+            rating = ratedArtist->getRating();
+            std::string username;
+            if (auto user = db::User::find(session, ratedArtist->getUserId()))
+                username = user->getLoginName();
+            key = mumaOutbox::RatingKey{ .username = username, .objectType = "artist", .objectId = std::string{ artist->getName() } };
         }
+
+        LMS_LOG(SCROBBLING, INFO, "Rating changed for artist " << key.objectId << " (rating: " << rating << ", user: " << key.username << ")");
+        sendEvent("rating_changed", key, rating);
     }
 
     void MusicManagementBackend::onRatingChanged(db::RatedReleaseId ratedReleaseId)
     {
         LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Release)");
-        db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createReadTransaction() };
-
-        if (auto ratedRelease{ db::RatedRelease::find(session, ratedReleaseId) })
+        mumaOutbox::RatingKey key;
+        int rating{};
         {
-            if (auto release{ ratedRelease->getRelease() })
-            {
-                std::string releaseName{ release->getName() };
-                int rating = ratedRelease->getRating();
-                std::string username;
-                if (auto user = db::User::find(session, ratedRelease->getUserId()))
-                    username = user->getLoginName();
+            db::Session& session{ _db.getTLSSession() };
+            auto transaction{ session.createReadTransaction() };
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << releaseName << " (rating: " << rating << ", user: " << username << ")");
-                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "release", .objectId = releaseName }, rating);
-            }
+            const auto ratedRelease{ db::RatedRelease::find(session, ratedReleaseId) };
+            const auto release{ ratedRelease ? ratedRelease->getRelease() : db::Release::pointer{} };
+            if (!release)
+                return;
+
+            rating = ratedRelease->getRating();
+            std::string username;
+            if (auto user = db::User::find(session, ratedRelease->getUserId()))
+                username = user->getLoginName();
+            key = mumaOutbox::RatingKey{ .username = username, .objectType = "release", .objectId = std::string{ release->getName() } };
         }
+
+        LMS_LOG(SCROBBLING, INFO, "Rating changed for release " << key.objectId << " (rating: " << rating << ", user: " << key.username << ")");
+        sendEvent("rating_changed", key, rating);
     }
 
     void MusicManagementBackend::onRatingChanged(db::RatedTrackId ratedTrackId)
     {
         LMS_LOG(SCROBBLING, INFO, "MusicManagementBackend::onRatingChanged(Track)");
-        db::Session& session{ _db.getTLSSession() };
-        auto transaction{ session.createReadTransaction() };
-
-        if (auto ratedTrack{ db::RatedTrack::find(session, ratedTrackId) })
+        mumaOutbox::RatingKey key;
+        int rating{};
+        std::string path;
         {
-            if (auto track{ ratedTrack->getTrack() })
-            {
-                std::string trackId = track->getId().toString();
-                int rating = ratedTrack->getRating();
-                std::string path = track->getAbsoluteFilePath().string();
-                std::string username;
-                if (auto user = db::User::find(session, ratedTrack->getUserId()))
-                    username = user->getLoginName();
+            db::Session& session{ _db.getTLSSession() };
+            auto transaction{ session.createReadTransaction() };
 
-                LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << trackId << " (rating: " << rating << ", path: " << path << ", user: " << username << ")");
-                sendEvent("rating_changed", mumaOutbox::RatingKey{ .username = username, .objectType = "track", .objectId = trackId }, rating, path);
-            }
+            const auto ratedTrack{ db::RatedTrack::find(session, ratedTrackId) };
+            const auto track{ ratedTrack ? ratedTrack->getTrack() : db::Track::pointer{} };
+            if (!track)
+                return;
+
+            rating = ratedTrack->getRating();
+            path = track->getAbsoluteFilePath().string();
+            std::string username;
+            if (auto user = db::User::find(session, ratedTrack->getUserId()))
+                username = user->getLoginName();
+            key = mumaOutbox::RatingKey{ .username = username, .objectType = "track", .objectId = track->getId().toString() };
         }
+
+        LMS_LOG(SCROBBLING, INFO, "Rating changed for track " << key.objectId << " (rating: " << rating << ", path: " << path << ", user: " << key.username << ")");
+        sendEvent("rating_changed", key, rating, path);
     }
 
     void MusicManagementBackend::onRatingRemoved(const RatingRemovedEvent& event)

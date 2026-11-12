@@ -29,7 +29,7 @@ after it.
 | Situation | Observable outcome |
 |---|---|
 | An account is disabled in MuMa | MuMa pokes the music server's user sync right after the change; from then on the music server refuses that user's Subsonic key, password and web session. |
-| An account is deleted in MuMa | Same as disabled; MuMa pokes the sync after the delete, as it does after a disable. |
+| An account is deleted in MuMa | Same as disabled, and the LMS user is renamed to `deleted-<id>`, so a new account with the name starts empty. MuMa pokes the sync after the delete. |
 | A disabled account is enabled again | The user can sign in again. Its listening history, ratings, stars and playlists are all still there. Clients need a new Subsonic key: the old ones were revoked. |
 | MuMa's user list has one malformed row | That row is skipped and logged; every other account is synced. |
 | MuMa answers with an empty list or an error | Nobody is disabled. |

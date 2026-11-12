@@ -32,14 +32,26 @@ gets a score, the sum of independent terms in natural-log units:
   when there is no genre, label or artist evidence at all. It is what folds a genre-less 234 down
   to 117 and a genre-less 64 up to 128, while a strong fast pulse can still keep a genre-less 205.
 
-The candidate with the highest score wins, with one hard rule: a doubled estimate above
-`FOLD_UP_LIMIT` (200) is only a candidate when the track's own genre, its label or its GetSongBPM
-tempo favours it -- an
-artist's prior (or the neutral one) alone never folds a track up into hard-dance territory. The confidence of the result is the estimator's pulse
+The candidate with the highest score wins, with two hard rules around `FOLD_UP_LIMIT` (205):
+
+- a doubled estimate above it is only a candidate when the track's own genre, its label or its
+  GetSongBPM tempo favours it -- an artist's prior (or the neutral one) alone never folds a track
+  up into hard-dance territory;
+- a raw estimate above it is only halved when real evidence favours the half: the track's own
+  genre, its label, its artist, its GetSongBPM tempo or a mainstream folder (`_halving_vouched`,
+  issue #153). The neutral prior alone halved 4,209 genre-less fast tracks on production, 3,482 of
+  them Soundcloud/YouTube uploads. Without that evidence the estimate stays and the octave is
+  `unsettled`: kept, but with the confidence of a tie and capped at `WEAK_FOLD_CAP`. A fast
+  estimate that wins with nothing on its side (no prior, no clearly weaker half pulse) is
+  unsettled too.
+
+The confidence of the result is the estimator's pulse
 confidence times an octave certainty derived from the margin to the runner-up, and a value that
 moved away from the raw estimate is discounted once more (`FOLD_DISCOUNT`): an octave choice made
 against the estimator is never as sure as the pulse it came from. A fold that only the general
-priors (neutral, path) decided is capped at `WEAK_FOLD_CAP`, below "reliable".
+priors (neutral, path) decided is capped at `WEAK_FOLD_CAP`, below "reliable" -- as is an
+unsettled estimate. `weak_value` says which stored outcomes those are; the tag writeback never
+writes one.
 """
 
 from __future__ import annotations
@@ -51,7 +63,8 @@ from dataclasses import dataclass, field
 from services.music_manager.bpm.bands import GENRE_BANDS
 
 #: Bump when the rule changes: rows folded by an older version are folded again (worker.refold).
-FOLD_VERSION = 2
+#: 3: a halving above FOLD_UP_LIMIT needs real evidence (issue #153).
+FOLD_VERSION = 3
 
 #: The candidates must lie in this range, the same bounds as the effective BPM (effective.py).
 MIN_BPM = 40.0
@@ -140,6 +153,9 @@ EVIDENCE_BAND = 'band'
 EVIDENCE_PATH = 'path'
 EVIDENCE_NEUTRAL = 'neutral'
 EVIDENCE_EXTERNAL = 'getsongbpm'
+#: A raw estimate above FOLD_UP_LIMIT that no evidence settles either way (issue #153): kept as
+#: measured, with the confidence of a tie.
+EVIDENCE_UNSETTLED = 'unsettled'
 #: Stored when a person set the tempo (manual override); never produced by `choose_octave`.
 EVIDENCE_MANUAL = 'manual'
 
@@ -278,6 +294,62 @@ def _vouched(evidence: Evidence, genre: tuple[Prior, float, str] | None, candida
     return False
 
 
+def _real_priors(evidence: Evidence, genre: tuple[Prior, float, str] | None, raw: float) -> list[Prior]:
+    """The priors that count as real evidence on the octave of a fast `raw` (issue #153).
+
+    The track's own genre (learned or band), its label and its artist when their weight is not
+    zero, its GetSongBPM tempo when it matches an octave, and the mainstream path prior. Measured on
+    production (2026-11-12): on the 411 fast mainstream rows, the artist prior sided with the half
+    in 223 of 233 and the genre in 176 of 177, so the path prior is evidence, not a guess. Only the
+    neutral prior is left out: it knows nothing about the track.
+    """
+    found: list[Prior] = []
+    if genre is not None:
+        found.append(genre[0])
+    if evidence.label is not None and _learned_weight(evidence.label, W_LABEL, LABEL_MIN_SAMPLES, LABEL_HALF_WEIGHT):
+        found.append(evidence.label)
+    if evidence.artist is not None and _learned_weight(
+        evidence.artist, W_ARTIST, ARTIST_MIN_SAMPLES, ARTIST_HALF_WEIGHT
+    ):
+        found.append(evidence.artist)
+    external = external_prior(evidence, raw)
+    if external is not None:
+        found.append(external)
+    if (evidence.root or '').strip().lower() in MAINSTREAM_ROOTS:
+        found.append(Prior.around(PATH_CENTRE_BPM, PATH_SPREAD))
+    return found
+
+
+def _halving_vouched(evidence: Evidence, genre: tuple[Prior, float, str] | None, raw: float) -> bool:
+    """True when a real prior puts a fast `raw` estimate's half closer than the estimate itself."""
+    return any(_distance(raw / 2, prior) < _distance(raw, prior) for prior in _real_priors(evidence, genre, raw))
+
+
+def _estimate_supported(
+    evidence: Evidence, genre: tuple[Prior, float, str] | None, raw: float, scores: Scores | None
+) -> bool:
+    """True when something real backs a fast `raw` estimate against its half.
+
+    A real prior closer to the estimate than to its half, or the audio: a half whose comb score is
+    below `AUDIO_KNEE` of the estimate's (a clearly fast pulse).
+    """
+    if any(_distance(raw, prior) < _distance(raw / 2, prior) for prior in _real_priors(evidence, genre, raw)):
+        return True
+    if scores is None or not scores.strength or scores.half is None:
+        return False
+    return scores.half / scores.strength < AUDIO_KNEE
+
+
+def weak_value(octave_corrected: bool, fold_evidence: str | None) -> bool:
+    """True for a stored outcome that general priors or no evidence decided (never written to a tag).
+
+    A fold decided by `WEAK_EVIDENCE` alone, or an unsettled estimate.
+    """
+    if fold_evidence == EVIDENCE_UNSETTLED:
+        return True
+    return bool(octave_corrected) and fold_evidence in WEAK_EVIDENCE
+
+
 def weak_priors(evidence: Evidence) -> bool:
     """True for a mainstream track without a usable label or artist prior (issue #152).
 
@@ -358,6 +430,8 @@ def choose_octave(
     """The octave of `raw` the evidence favours; see the module docstring for the terms."""
     evidence = evidence or Evidence()
     genre = genre_evidence(evidence.genres, evidence.genre_priors)
+    fast = raw > FOLD_UP_LIMIT
+    halving_vouched = fast and _halving_vouched(evidence, genre, raw)
     scored: list[tuple[float, float, float, dict[str, float]]] = []
     for factor in (1.0, 0.5, 2.0):
         candidate = raw * factor
@@ -376,13 +450,19 @@ def choose_octave(
         decider = max(sorted(diffs), key=lambda name: diffs[name])
     else:
         margin, decider = 10.0, EVIDENCE_ESTIMATE
+    if fast and factor < 1.0 and not halving_vouched:
+        # Only the neutral prior wanted the half: the estimate stays, the octave is not settled.
+        factor, candidate = 1.0, raw
+        margin, decider = 0.0, EVIDENCE_UNSETTLED
+    elif fast and factor == 1.0 and not _estimate_supported(evidence, genre, raw, scores):
+        margin, decider = 0.0, EVIDENCE_UNSETTLED
 
     certainty = 1.0 - 0.5 * math.exp(-CERTAINTY_RATE * margin)
     confidence = float(raw_confidence or 0.0) * certainty
     if factor != 1.0:
         confidence *= FOLD_DISCOUNT
-        if decider in WEAK_EVIDENCE:
-            confidence = min(confidence, WEAK_FOLD_CAP)
+    if weak_value(factor != 1.0, decider):
+        confidence = min(confidence, WEAK_FOLD_CAP)
     external = external_prior(evidence, raw)
     return Choice(
         bpm=round(candidate, 2),

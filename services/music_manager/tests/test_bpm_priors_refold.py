@@ -155,6 +155,38 @@ def test_the_hazes_row_is_refolded_to_128_keeping_its_raw_confidence():
     assert result.samples[0]['after'] == 128.0
 
 
+def test_a_neutral_halving_of_a_fast_upload_is_undone_by_the_refold():
+    """Issue #153: a genre-less Soundcloud upload at 234 that FOLD_VERSION 2 halved to 117 on the
+    neutral prior alone goes back to 234 -- unsettled, not reliable -- once the rule is version 3."""
+    row = bpm_row(
+        track_uid='uid-upload',
+        raw_bpm=234.0,
+        raw_confidence=0.95,
+        confidence=0.6,
+        strength=0.5,
+        half_score=0.45,
+        bpm=117.0,
+        fold_evidence=octave.EVIDENCE_NEUTRAL,
+        fold_margin=0.4,
+        fold_version=2,
+        primary_artist_id=None,
+        file_path='/mnt/music/Soundcloud/Some Uploader/track.mp3',
+    )
+    updates, result = refold.compare([row], priors.Priors())
+    bpm, confidence, _, corrected, evidence, margin, version, _, uid, raw = updates[0]
+    assert (bpm, corrected, evidence, margin, uid, raw) == (
+        234.0,
+        0,
+        octave.EVIDENCE_UNSETTLED,
+        0.0,
+        'uid-upload',
+        234.0,
+    )
+    assert version == octave.FOLD_VERSION == 3
+    assert confidence <= octave.WEAK_FOLD_CAP
+    assert (result.above_200_before, result.above_200_after) == (0, 1)
+
+
 def test_an_unchanged_row_is_not_written_again():
     first, _ = refold.compare([bpm_row()], priors.Priors())
     bpm, confidence, raw_confidence, corrected, evidence, margin, version, _, _, _ = first[0]

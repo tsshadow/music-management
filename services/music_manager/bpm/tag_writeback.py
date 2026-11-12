@@ -41,7 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from services.common.Helpers.ProcessedFilesHelper import changed_on_disk
-from services.music_manager.bpm.octave import FOLD_VERSION
+from services.music_manager.bpm.octave import EVIDENCE_UNSETTLED, FOLD_VERSION, WEAK_EVIDENCE
 
 logger = logging.getLogger('music-manager.bpm.tags')
 
@@ -350,11 +350,15 @@ def library_roots(settings: Any = None) -> list[str]:
 #: else the measurement -- and a measurement only when its octave was chosen by the current rule
 #: (`fold_version`; a deploy's refold must run first) and it is confident. A file this step once
 #: wrote is queued again whenever its value changes, confident or not: the value it carries came
-#: from a rule that has since changed its mind, so any current value is better than keeping it. A measurement is current while its file_mtime/size match what the
+#: from a rule that has since changed its mind, so any current value is better than keeping it --
+#: except a weak one (`octave.weak_value`, issue #153): a fold the general priors alone decided, or
+#: an unsettled estimate, is never written, whatever the confidence threshold says. A measurement is
+#: current while its file_mtime/size match what the
 #: scanner last saw (the analyzer's own test); one that is not is the analyzer's to redo.
 #: Folders: under a root (`{roots}`, one LIKE each), never through a hidden (`.quarantine`),
 #: underscore (`__TODO`, the import queue), `#recycle` or `@eaDir` folder.
-#: Parameters: method, min confidence, the skipped forms, the root patterns, the limit.
+#: Parameters: method, fold version, the weak evidence names, min confidence, the skipped forms,
+#: the root patterns, the limit.
 DUE_SQL = """
     SELECT t.id AS track_id, b.track_uid, COALESCE(mb.bpm, b.bpm) AS bpm, b.confidence,
            mb.bpm AS manual_bpm, b.file_mtime, b.file_size, mf.id AS media_id, mf.file_path
@@ -365,7 +369,9 @@ DUE_SQL = """
     LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = b.track_uid
     WHERE b.status = 'ok' AND b.method = %s AND b.bpm IS NOT NULL
       AND (mb.bpm IS NOT NULL
-           OR (b.fold_version = %s AND (b.confidence >= %s OR b.tag_action = 'written')))
+           OR (b.fold_version = %s
+               AND NOT (b.fold_evidence <=> %s OR (b.octave_corrected = 1 AND b.fold_evidence IN ({weak})))
+               AND (b.confidence >= %s OR b.tag_action = 'written')))
       AND NOT (b.tag_bpm <=> COALESCE(mb.bpm, b.bpm))
       AND b.file_mtime <=> mf.file_mtime AND b.file_size <=> mf.file_size
       AND (t.form IS NULL OR t.form NOT IN ({forms}))
@@ -423,13 +429,17 @@ def _due_params(config: dict, roots: list[str], limit: int | None) -> tuple[str,
     """The queue statement and its parameters; `limit=None` gives the counting variant."""
     forms = [*config['skip_forms'], '']
     root_patterns = [f'{_escape_like(root.rstrip("/"))}/%' for root in roots] or ['']
+    weak = sorted(WEAK_EVIDENCE)
     sql = (REMAINING_SQL if limit is None else DUE_SQL).format(
+        weak=', '.join(['%s'] * len(weak)),
         forms=', '.join(['%s'] * len(forms)),
         roots=' OR '.join(['mf.file_path LIKE %s'] * len(root_patterns)),
     )
     params: list = [
         MEASURED_METHOD,
         FOLD_VERSION,
+        EVIDENCE_UNSETTLED,
+        *weak,
         config['bpm_tag_writeback_min_confidence'] / 100.0,
         *forms,
         *root_patterns,

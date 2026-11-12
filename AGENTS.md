@@ -160,7 +160,10 @@ The system is split into specialized services, each handling a specific part of 
   music-manager ends with a capped step (`services/music_manager/bpm/tag_writeback.py`, default 300 files
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
-  (docs/designs/bpm-tag-writeback/).
+  (docs/designs/bpm-tag-writeback/). It never writes a weak octave (`octave.weak_value`).
+- **Octave**: `bpm/octave.py` picks half, measured or double from the label, artist, genre and folder
+  priors. A reading above 205 BPM is halved only when one of them sides with the half; otherwise it
+  stays, marked `unsettled` and not reliable (docs/designs/bpm-octave/, issue #153).
 - **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
   analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
   or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the

@@ -3277,6 +3277,18 @@ class BpmBrowseSqlTest:
         assert float(row['raw_confidence']) == 0.5 and float(row['confidence']) <= 0.5
         assert refold.refold(_connect, stored, track_ids=[hazes]).written == 0  # settled
 
+        # Issue #241: an uploader folder's prior halves a genre-less upload read at 348; the
+        # upload itself is too far from the folder's mean to be one of its training rows.
+        for n in range(6):
+            measured(f'Liquid {n}', 174.0, 174.0, f'/mnt/music/Youtube/Liquicity/l{n}.m4a', by_artist=False)
+        upload = measured('Liquid Fast', 348.0, 348.0, '/mnt/music/Youtube/Liquicity/fast.m4a', by_artist=False)
+        stored = priors.recompute(_connect, datetime.now())
+        assert stored.folder['youtube/liquicity'].samples == 6
+        assert refold.evidence_for(_connect, [upload])[upload]['raw_bpm'] == 348.0
+        refold.refold(_connect, stored, track_ids=[upload])
+        row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-bpm-Liquid Fast'")[0]
+        assert (float(row['bpm']), row['octave_corrected'], row['fold_evidence']) == (174.0, 1, octave.EVIDENCE_FOLDER)
+
         effective_table.sync(_connect, track_ids=[hazes])
         url = f'/api/library/bpm/tracks/{hazes}/manual'
         response = api.put(url, json={'factor': 2}, headers=headers)

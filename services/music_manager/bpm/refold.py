@@ -29,7 +29,7 @@ from typing import Any
 
 from services.music_manager.bpm import getsongbpm, octave
 from services.music_manager.bpm.effective import GENRE_SEPARATOR, split_genres
-from services.music_manager.bpm.priors import HARD_GENRES, Priors
+from services.music_manager.bpm.priors import HARD_GENRES, Priors, training_value
 
 logger = logging.getLogger('music-manager.bpm')
 
@@ -53,15 +53,19 @@ FOLD_INPUTS_SQL = f"""
     WHERE b.status = 'ok' AND b.raw_bpm IS NOT NULL{{where}}
 """
 
-#: The evidence of tracks about to be measured (they may have no library_track_bpm row yet).
+#: The evidence of tracks about to be measured (they may have no library_track_bpm row yet). The
+#: stored measurement, when there is one, is what the track's folder prior was trained on: it is
+#: left out of that prior (issue #241).
 EVIDENCE_SQL = f"""
     SELECT t.id AS track_id, t.primary_artist_id, t.title,
+           b.raw_bpm, b.raw_confidence, b.confidence,
            (SELECT a.name FROM library_artists a WHERE a.id = t.primary_artist_id) AS artist_name,
            (SELECT GROUP_CONCAT(g.name SEPARATOR '{GENRE_SEPARATOR}') FROM library_track_genres tg
             JOIN rules_genres g ON g.id = tg.genre_id WHERE tg.track_id = t.id) AS genres,
            (SELECT GROUP_CONCAT(tl.label_id) FROM library_track_labels tl
             WHERE tl.track_id = t.id) AS labels
     FROM library_tracks t
+    LEFT JOIN library_track_bpm b ON b.track_uid = t.track_uid AND b.status = 'ok'
     WHERE t.id IN ({{placeholders}})
 """
 
@@ -99,11 +103,15 @@ def evidence_from(
     the GetSongBPM key is not set. It is only read for a track with weak priors.
     """
     labels = [label for label in str(row.get('labels') or '').split(',') if label.strip()]
+    path = file_path if file_path is not None else row.get('file_path')
+    genres = split_genres(row.get('genres'))
+    own = training_value(row.get('raw_bpm'), raw_confidence_of(row), genres)
     evidence = octave.Evidence(
-        genres=split_genres(row.get('genres')),
-        root=octave.root_of(file_path if file_path is not None else row.get('file_path')),
+        genres=genres,
+        root=octave.root_of(path),
         label=priors.best_label(labels),
         artist=priors.for_artist(row.get('primary_artist_id')),
+        folder=priors.for_folder(path, own),
         genre_priors=priors.genre,
     )
     prior = getsongbpm.evidence_prior(row, evidence, external or {})

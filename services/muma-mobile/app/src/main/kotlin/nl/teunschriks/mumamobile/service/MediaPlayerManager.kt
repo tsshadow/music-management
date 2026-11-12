@@ -292,6 +292,11 @@ class MediaPlayerManager(
         controller?.addListener(listener)
     }
 
+    /** Undoes [addListener]; nothing happens for a listener that was never added. */
+    fun removeListener(listener: Player.Listener) {
+        controller?.removeListener(listener)
+    }
+
     private fun clearBookmark() {
         // This method is called just before we update the cachedMediaItem,
         // so in fact cachedMediaItem will refer to the track that has just finished.

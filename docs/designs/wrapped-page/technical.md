@@ -153,6 +153,12 @@ order. "Min" is the minimum for status `ok`.
 The scanner's artist writer adds a `role='remixer'` row for each name in the file's `REMIXER` tag,
 the same way it writes `featuring`. No schema change: the enum has the value.
 
+The tagger's `InferRemixerFromTitleRule` adds a remixer to ARTIST as well, so the remixer keeps its
+`featuring` row and gets a `remixer` row next to it (the primary key includes `role`). Queries that
+count tracks per artist use `COUNT(DISTINCT track_id)`; the auto-approve backlog did not and now
+does. The scanner only rereads a changed file, so existing tracks get their remixer rows after a
+forced rescan (`POST /api/scanner/scan/all?force=true`), an operator step.
+
 ## Snapshots and caching (OQ 4)
 
 One new table in `services/common/schema_tables.py`:

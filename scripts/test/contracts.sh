@@ -27,6 +27,15 @@ COMPOSE="docker compose -f $COMPOSE_FILE -p $COMPOSE_PROJECT_NAME"
 FIXTURE="$ROOT_DIR/tests/fixtures/music/ci-test-track-001.mp3"
 
 cleanup() {
+    local status=$?
+    # A red run says which hop failed, not why: the relay's own log lines (outbox, retries,
+    # client errors) and music-manager's answers live only in the containers, which go next.
+    if [ "$status" -ne 0 ]; then
+        echo "--- Relay and error lines of the failed run (issue #242) ---"
+        $COMPOSE logs --no-color --timestamps music-management-server music-manager 2>&1 \
+            | grep -E 'MuMa outbox|Retry [0-9]|client error|lms-event|database is locked|ERROR|CRITICAL' \
+            | tail -n 200 || true
+    fi
     echo "--- Tearing down test stack ---"
     # --rmi local also deletes the two images compose built for this project.
     # Without it they stay behind under the job-id-scoped project name, one pair

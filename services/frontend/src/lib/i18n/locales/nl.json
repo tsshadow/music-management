@@ -1648,7 +1648,9 @@
   "miniplayer": {
     "navigate": "Navigeren naast MuMa",
     "navigateFailed": "Google Maps ging niet open",
-    "fullApp": "Volledige app"
+    "fullApp": "Volledige app",
+    "float": "Zwevende speler",
+    "floatFailed": "Het zwevende venster ging niet open"
   },
   "mobile": {
     "browseAll": "Alles doorbladeren",
@@ -1904,6 +1906,8 @@
       "resumeOnBluetoothDeviceHelp": "Welke bluetooth-apparaten het afspelen hervatten zodra ze verbinden.",
       "resumeOnHeadphonesPlug": "Hervatten bij aansluiten koptelefoon",
       "resumeOnHeadphonesPlugHelp": "Start het afspelen opnieuw zodra de koptelefoon weer is aangesloten.",
+      "pipOnLeave": "Zwevende speler bij verlaten",
+      "pipOnLeaveHelp": "Laat MuMa een klein venster boven andere apps worden als je de app verlaat terwijl er muziek speelt.",
       "saveError": "Kon die instelling niet opslaan.",
       "scrobbleEnabled": "Scrobbelen",
       "scrobbleEnabledHelp": "Meldt wat je afspeelt aan de luistergeschiedenis van de server.",

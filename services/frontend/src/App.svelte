@@ -66,6 +66,9 @@
   const showSplitPlayer = $derived(
     $compactLayout === 'split' && !compactDismissed && $activeView !== 'car' && $compactPlayerProps !== null,
   );
+  // The floating window (#178): cover, title and artist over the whole viewport. Its buttons are
+  // the system's, so there is nothing to dismiss; it ends when the window mode changes.
+  const showPipPlayer = $derived($compactLayout === 'pip' && $compactPlayerProps !== null);
   // Keeps the screen on while the split player shows and music plays: the bike's phone is read
   // at a glance, not touched. Sent only on a change, and only as `keepOn`, so car mode's own
   // lock-screen flags are never touched.
@@ -678,6 +681,13 @@
         onnavigate={mapsAvailable ? navigateNextToMuma : null}
         onexpand={showFullApp}
       />
+    </div>
+  {/if}
+
+  <!-- The floating window, same layer as the split player. -->
+  {#if showPipPlayer}
+    <div class="fixed inset-0 z-[45] bg-muma-spotify-panel" data-testid="pip-player">
+      <CompactPlayer {...$compactPlayerProps} variant="pip" showRating={false} />
     </div>
   {/if}
 

@@ -164,6 +164,10 @@
     secondary pills (`bg-muma-spotify-light text-white rounded-full px-4 min-h-11 text-sm
     font-bold`, hover `bg-muma-spotify-hover`): "Navigeren naast MuMa" (only when Google Maps is
     installed) and "Volledige app".
+  - **Floating window** (the app as a picture-in-picture window, issue #178): the cover, the
+    title and the artist on the panel color, 16:9, with no buttons, no stars and no progress
+    line. The window's previous, play/pause and next buttons are Android's own. "Zwevende speler"
+    is a plain row in the Now Playing header menu, after "Add to queue", in the app only.
 - **Miniplayer button** (desktop player bar, Chrome and Edge only): the lucide `PictureInPicture2`
   icon at 16px, in the right cluster before the queue button, with the same muted-to-white hover as
   its neighbors. A browser that cannot open the window does not show it.
@@ -372,6 +376,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
 - **Done** -- Wrapped cards (2026-11-12, issue #60, `docs/designs/wrapped-page/`, approved with
   the design): see "Wrapped card" under Components. No new token.
 
+- **Done** -- Compact player in the floating window (2026-11-12, issue #178,
+  `docs/designs/miniplayer/`): see "Floating window" under "Compact player". No new token.
 - **Done** -- Compact player in a split screen (2026-11-12, issue #179,
   `docs/designs/miniplayer/`): see "Split screen" under "Compact player". No new token.
 

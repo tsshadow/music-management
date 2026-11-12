@@ -332,6 +332,8 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {number} pauseOnBluetoothDevice Same three values as `resumeOnBluetoothDevice`.
  * @property {boolean} hardwareOffload
  * @property {boolean} carModeManual
+ * @property {boolean} [pipOnLeave] "Zwevende speler bij verlaten": the app floats as a window
+ *   when the listener leaves it while music plays. Absent in an app older than #178.
  * @property {string[]} carModeDevices Read-only: the Bluetooth addresses marked as "this is my
  *   car". Changed through `setSetting({key: 'carModeDevices', value: [...]})`, built from
  *   `listBondedDevices()`'s own addresses -- not hand-typed, so it is listed as read-only here in
@@ -478,6 +480,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {function(): Promise<void>} navigateAdjacent Opens Google Maps, with no destination,
  *   next to the app. Rejects when Maps does not open. A browser tab resolves without doing
  *   anything.
+ * @property {function(): Promise<void>} enterPictureInPicture "Zwevende speler": the app floats
+ *   as a picture-in-picture window. Rejects when Android refuses it. A browser tab resolves
+ *   without doing anything.
  * @property {function(): Promise<DeviceSettings>} getSettings The "Apparaat" settings tab's
  *   whole state in one call. A browser tab answers `{}`; the tab is hidden there anyway
  *   (`system.isNative` is how it decides), so an empty object is never read.

@@ -179,6 +179,8 @@ stay as they are.
     setting` (decision 3).
   - `setSeamlessResizeEnabled(false)`: the content is not video, and the cross-fade looks better
     for a layout switch.
+  - `setSourceRectHint`: a 16:9 band across the middle of the window, so the shrink starts from
+    the floating window's shape. Android Lint requires it with auto-enter.
   - `setTitle` / `setSubtitle`: the track's title and artist, for the system's accessibility and
     the menu.
   - `setActions`: three `RemoteAction`s, previous, play/pause, next, each a broadcast
@@ -189,7 +191,10 @@ stay as they are.
   `Player.Listener` on `MediaPlayerManager` (`onIsPlayingChanged`, `onMediaMetadataChanged`), so
   the auto-enter flag and the play/pause icon are never stale.
 - `MumaSystemPlugin.enterPictureInPicture()`: calls `enterPictureInPictureMode(params)` on the
-  running activity, for the "Zwevende speler" button (decision 4).
+  running activity, for the "Zwevende speler" button (decision 4). The plugin reaches the activity
+  through the `FloatingWindowHost` interface, which `CapacitorActivity` implements. The button is
+  a row in the track details sheet that the Now Playing header menu opens, shown in the app only.
+  Writing `pipOnLeave` through `setSetting` sets the parameters again at once.
 - The device setting `pipOnLeave` (boolean, default false) goes through `getSettings` /
   `setSetting` and `DEVICE_SETTING_WHITELIST`, shown in Instellingen > Apparaat.
 

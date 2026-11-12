@@ -226,6 +226,19 @@ filesystem. The per-service sets, the reasons, and what is still open (non-root 
 read-only roots for the muma images, Firefox) are in the operator's runbook, "Container
 hardening"; `tests/ci/test_compose_hardening.py` pins them.
 
+## Agent access to the hosts
+
+An agent reads the homelab hosts through `muma-ro` (issue #176,
+`docs/designs/claude-readonly-access/`). Its key on each host has
+`restrict,from=...,command="/usr/local/bin/muma-ro --key <name>"`, so sshd runs
+the wrapper whatever the client asks for. The wrapper refuses any shell
+character, runs one fixed argument list per verb without a shell, and logs
+every request to the host's journal. Commands that need root go through
+`sudo` to one helper, which checks the text again against the root-owned
+policy and runs only root verbs. The tests in `tools/test_muma_ro_*.py` hold
+the refusal list. A person installs it with `scripts/muma-ro/install.sh`; an
+agent never installs its own access.
+
 ## Secrets
 
 * `.env` is gitignored and must never be committed; `.env.example` documents the

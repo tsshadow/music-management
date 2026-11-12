@@ -1,0 +1,34 @@
+{
+  "_comment": "Example for a runner host. install.sh copies it to /etc/muma-ro/policy.json; replace the paths, names and ids with the host's own.",
+  "class": "runner",
+  "verbs": [
+    "ls",
+    "stat",
+    "find",
+    "du",
+    "df",
+    "free",
+    "uptime",
+    "docker-ps",
+    "docker-logs",
+    "docker-inspect",
+    "docker-stats",
+    "docker-system-df",
+    "systemctl-status",
+    "systemctl-timers",
+    "journalctl"
+  ],
+  "roots": [
+    {
+      "path": "/srv/ci-cache",
+      "mode": "list"
+    }
+  ],
+  "container_patterns": [
+    "^runner-[a-z0-9-]+$"
+  ],
+  "units": [
+    "gitlab-runner.service",
+    "docker.service"
+  ]
+}

@@ -129,4 +129,20 @@ class WindowModeTest {
     fun `the manifest may ask whether Google Maps is installed`() {
         elements("package").map { it.android("name") }.contains(MAPS_PACKAGE) shouldBeEqualTo true
     }
+
+    @Test
+    fun `the app activity may float as a picture-in-picture window`() {
+        val shell = elements("activity").single { it.android("name") == ".activity.CapacitorActivity" }
+
+        shell.android("supportsPictureInPicture") shouldBeEqualTo "true"
+    }
+
+    @Test
+    fun `enterPictureInPicture rejects without a running activity`() {
+        val call = mockk<PluginCall>(relaxed = true)
+
+        MumaSystemPlugin().enterPictureInPicture(call)
+
+        verify { call.reject("no activity") }
+    }
 }

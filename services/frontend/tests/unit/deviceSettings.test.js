@@ -182,6 +182,15 @@ describe("DeviceSettings", () => {
     expect(platform.system.setSetting).toHaveBeenCalledWith({ key: "wifiOnly", value: true });
   });
 
+  it("switches the floating player on leave through setSetting", async () => {
+    render(DeviceSettings);
+    const toggle = await screen.findByLabelText("Zwevende speler bij verlaten");
+
+    await fireEvent.click(toggle);
+
+    expect(platform.system.setSetting).toHaveBeenCalledWith({ key: "pipOnLeave", value: true });
+  });
+
   it("rolls a toggle back and shows an error when the write is rejected", async () => {
     platform.system.setSetting = vi.fn(async () => {
       throw new Error("rejected: unknown setting");

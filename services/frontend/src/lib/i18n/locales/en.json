@@ -1648,7 +1648,9 @@
   "miniplayer": {
     "navigate": "Navigate next to MuMa",
     "navigateFailed": "Google Maps did not open",
-    "fullApp": "Full app"
+    "fullApp": "Full app",
+    "float": "Floating player",
+    "floatFailed": "The floating window did not open"
   },
   "mobile": {
     "browseAll": "Browse all",
@@ -1904,6 +1906,8 @@
       "resumeOnBluetoothDeviceHelp": "Which Bluetooth devices resume playback when they connect.",
       "resumeOnHeadphonesPlug": "Resume when headphones are plugged in",
       "resumeOnHeadphonesPlugHelp": "Starts playback again after headphones are reconnected.",
+      "pipOnLeave": "Floating player when you leave",
+      "pipOnLeaveHelp": "MuMa becomes a small window above other apps when you leave the app while music plays.",
       "saveError": "Could not save that setting.",
       "scrobbleEnabled": "Scrobble plays",
       "scrobbleEnabledHelp": "Reports what you play to the server's listening history.",

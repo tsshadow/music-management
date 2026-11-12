@@ -18,6 +18,11 @@
    * (cover left, text and buttons right), from 200px a stack (cover on top). It uses no Svelte
    * transition and no animation frame: in the PC window it runs on the main tab's JavaScript, and
    * a hidden tab gets no animation frames.
+   *
+   * `variant` says where it is: `window` (the PC window), or `split` (the phone app in half of a
+   * split screen, issue #179). `split` makes the transport as large as possible for a glance from a
+   * bike -- 64px skip buttons, an 80px play button -- and adds two pills under it: "Navigeren
+   * naast MuMa" when `onnavigate` is given, and "Volledige app" when `onexpand` is given.
    */
 
   let {
@@ -35,17 +40,25 @@
     isLiveStation = false,
     restoringQueue = false,
     showRating = true,
+    variant = 'window',
     ontogglePlay,
     onnext,
     onprev,
     onrate,
+    onnavigate = null,
+    onexpand = null,
   } = $props();
+
+  const large = $derived(variant === 'split');
+  const skipClass = $derived(large ? 'w-16 h-16 flex items-center justify-center' : 'p-0');
+  const skipIcon = $derived(large ? 32 : 16);
+  const playIcon = $derived(large ? 36 : 18);
 
   const showSkip = $derived(track !== null && !isLiveStation);
   const showStars = $derived(showRating && track !== null && !isLiveStation);
 </script>
 
-<div class="compact-player h-full w-full bg-muma-spotify-panel text-white" data-testid="compact-player">
+<div class="compact-player h-full w-full bg-muma-spotify-panel text-white" data-testid="compact-player" data-variant={variant}>
 <div class="compact-layout">
   <div class="compact-cover">
     {#if track}
@@ -80,46 +93,46 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex items-center {large ? 'justify-center gap-6' : 'gap-3'}">
       {#if showSkip}
         <button
-          class="bg-transparent border-none p-0 text-muma-spotify-text hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          class="bg-transparent border-none {skipClass} text-muma-spotify-text hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           onclick={onprev}
           disabled={transportLocked}
           aria-label={$t('player.previous')}
         >
-          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width={skipIcon} height={skipIcon} fill="currentColor" aria-hidden="true">
             <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.15v5.15a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z"></path>
           </svg>
         </button>
       {/if}
       <button
-        class="w-9 h-9 rounded-full bg-white text-black border-none flex items-center justify-center cursor-pointer hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        class="{large ? 'w-20 h-20' : 'w-9 h-9'} rounded-full bg-white text-black border-none flex items-center justify-center cursor-pointer hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
         onclick={ontogglePlay}
         disabled={playLocked || (!track && !restoringQueue)}
         aria-label={playing ? $t('player.pause') : $t('common.play')}
         data-testid="compact-play"
       >
         {#if buffering}
-          <Throbber size={18} label={$t('player.buffering')} />
+          <Throbber size={playIcon} label={$t('player.buffering')} />
         {:else if playing}
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width={playIcon} height={playIcon} fill="currentColor" aria-hidden="true">
             <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path>
           </svg>
         {:else}
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width={playIcon} height={playIcon} fill="currentColor" aria-hidden="true">
             <path d="M7.05 3.606l13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
           </svg>
         {/if}
       </button>
       {#if showSkip}
         <button
-          class="bg-transparent border-none p-0 text-muma-spotify-text hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          class="bg-transparent border-none {skipClass} text-muma-spotify-text hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           onclick={onnext}
           disabled={transportLocked}
           aria-label={$t('player.next')}
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width={skipIcon + 4} height={skipIcon + 4} fill="currentColor" aria-hidden="true">
             <path d="M16.7 3.3a.7.7 0 0 0-.7.7v6.85L6.05 4.806A.7.7 0 0 0 5 5.412v13.175a.7.7 0 0 0 1.05.607L16 13.15v6.85a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V4a.7.7 0 0 0-.7-.7h-1.6z"></path>
           </svg>
         </button>
@@ -140,6 +153,29 @@
         </div>
       {/if}
     </div>
+
+    {#if onnavigate || onexpand}
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        {#if onnavigate}
+          <button
+            class="bg-muma-spotify-light text-white border-none rounded-full px-4 min-h-11 text-sm font-bold cursor-pointer hover:bg-muma-spotify-hover"
+            onclick={onnavigate}
+            data-testid="compact-navigate"
+          >
+            {$t('miniplayer.navigate')}
+          </button>
+        {/if}
+        {#if onexpand}
+          <button
+            class="bg-muma-spotify-light text-white border-none rounded-full px-4 min-h-11 text-sm font-bold cursor-pointer hover:bg-muma-spotify-hover"
+            onclick={onexpand}
+            data-testid="compact-expand"
+          >
+            {$t('miniplayer.fullApp')}
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   </div>

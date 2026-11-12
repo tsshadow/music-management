@@ -7,6 +7,7 @@ import {
   activeModal,
   activeSettingsTab,
   activeView,
+  compactPlayerProps,
   credentials,
   currentPlaylist,
   isMobile,
@@ -514,6 +515,98 @@ describe("App", () => {
       render(App);
 
       await waitFor(() => expect(screen.getByTestId("car-mode")).toBeTruthy());
+    });
+  });
+
+  // `docs/designs/miniplayer/`, issue #179. The shell's window mode is spied on, like the car
+  // events above; the viewport height is jsdom's `innerHeight`.
+  describe("split screen", () => {
+    let modeHandler;
+
+    beforeEach(() => {
+      modeHandler = null;
+      Object.defineProperty(window, "innerHeight", { value: 400, configurable: true });
+      vi.spyOn(platform.system, "onWindowModeChanged").mockImplementation((fn) => {
+        modeHandler = fn;
+        return () => {};
+      });
+      vi.spyOn(platform.system, "windowMode").mockResolvedValue({ mode: "split" });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, "innerHeight", { value: 768, configurable: true });
+    });
+
+    it("shows the compact player in a short split half, without stars", async () => {
+      render(App);
+
+      const half = await screen.findByTestId("split-player");
+      expect(within(half).getByTestId("compact-player").dataset.variant).toBe("split");
+      expect(within(half).queryByTestId("compact-stars")).toBeNull();
+    });
+
+    it("gives the half back to the normal screens on Volledige app, until the mode changes", async () => {
+      render(App);
+      await screen.findByTestId("split-player");
+
+      await fireEvent.click(screen.getByText("Volledige app"));
+      await waitFor(() => expect(screen.queryByTestId("split-player")).toBeNull());
+
+      modeHandler("full");
+      modeHandler("split");
+      await screen.findByTestId("split-player");
+    });
+
+    it("offers Maps only where it can open, and opens it next to the app", async () => {
+      vi.spyOn(platform.system, "canNavigate").mockResolvedValue({ value: true });
+      const navigate = vi.spyOn(platform.system, "navigateAdjacent").mockResolvedValue();
+      render(App);
+
+      await fireEvent.click(await screen.findByText("Navigeren naast MuMa"));
+
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the screen on while it shows and music plays, and lets go after", async () => {
+      const keep = vi.spyOn(platform.system, "setKeepScreenOn").mockResolvedValue();
+      render(App);
+      await screen.findByTestId("split-player");
+
+      compactPlayerProps.set({ ...get(compactPlayerProps), playing: true });
+      await waitFor(() => expect(keep).toHaveBeenLastCalledWith({ keepOn: true }));
+
+      await fireEvent.click(screen.getByText("Volledige app"));
+      await waitFor(() => expect(keep).toHaveBeenLastCalledWith({ keepOn: false }));
+    });
+
+    it("has no Maps button in a browser", async () => {
+      render(App);
+      await screen.findByTestId("split-player");
+
+      expect(screen.queryByTestId("compact-navigate")).toBeNull();
+    });
+
+    it("keeps the normal screens in a tall split half", async () => {
+      Object.defineProperty(window, "innerHeight", { value: 700, configurable: true });
+      render(App);
+      await waitFor(() => expect(platform.system.windowMode).toHaveBeenCalled());
+      await Promise.resolve();
+
+      expect(screen.queryByTestId("split-player")).toBeNull();
+    });
+
+    it("lets car mode win over the compact player", async () => {
+      platform.system.isNative = true;
+      vi.spyOn(platform.system, "carConnected").mockImplementation(() => () => {});
+      vi.spyOn(platform.system, "carState").mockResolvedValue({ connected: true });
+      try {
+        render(App);
+        await screen.findByTestId("car-mode");
+
+        expect(screen.queryByTestId("split-player")).toBeNull();
+      } finally {
+        platform.system.isNative = false;
+      }
     });
   });
 });

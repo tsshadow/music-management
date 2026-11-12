@@ -1533,8 +1533,7 @@ def _sync_server_playlists(conn, sqlite_cursor, source):
             )
             gone = [row['id'] for row in cursor.fetchall() if int(row['remote_id']) not in on_server]
             if gone:
-                placeholders = ', '.join(['%s'] * len(gone))
-                cursor.execute(f'DELETE FROM dynamic_playlists WHERE id IN ({placeholders})', tuple(gone))
+                cursor.executemany('DELETE FROM dynamic_playlists WHERE id = %s', [(row_id,) for row_id in gone])
                 logger.info('Removed %d playlist(s) that %s no longer has', len(gone), source)
     except Exception as exc:  # pylint: disable=broad-except  # one server's failure must not stop the sync
         logger.warning('Playlist sync failed for %s: %s', source, exc)

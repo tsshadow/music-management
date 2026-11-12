@@ -874,7 +874,7 @@ class ServerSyncTest(unittest.TestCase):
         )
         users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
         (delete,) = cursor.statements_matching('DELETE FROM dynamic_playlists')
-        self.assertEqual(delete[1], (41,))
+        self.assertEqual(delete[1], [(41,)])
 
     def test_upserts_and_deletes_land_in_one_transaction(self):
         conn, cursor = self.muma(

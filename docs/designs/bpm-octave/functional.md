@@ -37,7 +37,8 @@ correct a track by hand: halve it, double it, or type the tempo.
 | A hardstyle track measured at half time (75) | Shown at 150, reliable (its own genre settles it). |
 | An industrial hardcore track that really is 115 | Stays at 115 once its audio evidence is measured (below). |
 | A genre-less uptempo track measured at 215 with a clear fast pulse | Stays at 215. |
-| The same without a clear fast pulse, and no label or artist that plays that fast | Shown at 107.5, not reliable. |
+| The same without a clear fast pulse, and no genre, label, artist or folder that says it is slower | Stays at 215, marked unsettled: not reliable, not written into the file (issue #153). |
+| A fast reading whose genre, label, artist or mainstream folder sits at the half | Shown at the half. |
 | An artist whose only fast tracks are other people's remixes | Their remixes no longer decide the tempo of their own songs. |
 | A user with `bpm.override` opens a track's details | ½×, 2×, a tempo field and "Set"; after a change the tile says "handmatig" and a "Gemeten" button undoes it. |
 | A user without the permission | Sees the tempo, no controls. |
@@ -65,8 +66,41 @@ correct a track by hand: halve it, double it, or type the tempo.
   label or artist prior: [getsongbpm-prior](../getsongbpm-prior/functional.md), issue #152. Deezer's
   `bpm` is always 0, Beatport has no public API, Spotify's audio features are closed to new apps and
   AcousticBrainz is gone.
-- **A folder prior.** Soundcloud and YouTube files sit in a folder per uploader, which is often a
-  better tempo predictor than the credited artist; not built, measured first (issue #153).
-- **Genre-less uptempo in Soundcloud.** Without a label, artist or clearly fast pulse such a track is
-  now halved (not reliable, not written). The re-measure adds the audio evidence; the manual override
-  fixes the rest. Whether more is needed is decided after a week of data (issue #153).
+- **An uploader-folder prior.** Soundcloud and YouTube files sit in a folder per uploader. Measured
+  on 2026-11-12 (below), it is about as good as the artist prior and covers more tracks, but it is
+  weaker on exactly the fast tracks in question. Not built.
+
+## Change: A Halving Needs Real Evidence (issue #153)
+
+Measured read-only on production on 2026-11-12, a week after the octave rule shipped:
+
+- 4,209 tracks with a library entry had a raw estimate above 205 BPM that the neutral prior or the
+  mainstream path prior alone had halved: Soundcloud 1,856, YouTube 1,626, EPs 527, mainstream
+  folders 145, other 55. 3,751 of them have no genre. Nobody corrected one by hand.
+- For 3,049 of the 4,209 neither the label nor the artist had a prior. Where one did, it sided with
+  the half 848 times and with the measured tempo 277 times: those 277 had been halved against the
+  only evidence about them.
+- The comb score of the half was at least 0.6 of the estimate's for 4,169 of them: the audio does
+  not settle these, in either direction.
+- The mainstream path prior agrees with the other evidence. On the 411 fast tracks in the
+  mainstream folders, the artist prior sided with the half in 223 of 233 halvings, the track's genre
+  in 176 of 177.
+
+What changed:
+
+- A track measured above 205 BPM is only halved when its own genre, its label, its artist, its
+  GetSongBPM tempo or its mainstream folder sits closer to the half. The neutral guess around
+  135 BPM no longer decides it.
+- Otherwise the measured tempo stays, marked **unsettled**: shown, not reliable, never written into
+  the file. A fast tempo that wins without any evidence on its side is unsettled too.
+- The tag writeback never writes an unsettled tempo, or a fold that only the general priors
+  decided, also not with a lower confidence threshold and also not into a file it wrote before.
+
+Effect on production's rows (dry run of the new rule on a dump, 2026-11-12): 3,127 of the 4,209 go
+back to their measured tempo, 3,124 of them unsettled. 1,082 stay halved because real evidence sides with the
+half, still not reliable. No other track changes tempo, and no track becomes reliable that was not.
+
+The uploader folder, measured like the artist prior (confident estimates, each track left out of its
+own prior): it puts 96.9% of Soundcloud/YouTube tracks on their own octave, covering 99% of them,
+against 97.1% for the artist prior, covering 67%. On tracks above 205 BPM it drops to 76.8% against
+81.3%. It would decide 1,157 of the unsettled tracks towards the half, so it waits for a decision.

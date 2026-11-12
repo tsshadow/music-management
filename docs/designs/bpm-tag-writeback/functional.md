@@ -31,6 +31,7 @@ else in the file.
 | The file's tag already says 150 and the track measures 150.3 | Nothing is written: it already matches. |
 | The file's tag is 150 -- a whole number the old analyzer could not have produced -- and the track measures 150.9 | Nothing is written: a genuine tag within 1 BPM of the measurement is trusted. At 151.2 it would become 151. |
 | The measurement is unsure (below the confidence threshold) | Nothing is written; the file keeps its tag. MuMa still shows the measurement. |
+| The octave is a guess: a fold only the general priors decided, or a fast tempo marked unsettled (issue #153) | Never written, whatever the confidence threshold, and also not into a file this step wrote before. The file keeps its tag. |
 | A set, a podcast, a file in Livesets/Podcasts/Warm Up Mixes, a file under Lidarr, Hitzone or Spotify, or anything in a quarantine, recycle, or `__TODO`/underscore folder | Never written. |
 | The file was replaced or changed since it was measured | Not written until it has been measured again. |
 | A track is measured again (a new estimator version) and the value changes | Its file is looked at again and, by the same rule, updated. |

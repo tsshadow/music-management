@@ -2,7 +2,7 @@
   import { seedFromTrack } from './entitySeeds.js';
   import { t } from './i18n/index.js';
   import { onMount, untrack } from 'svelte';
-  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, knownStations, radioNowPlaying, liveStation, favoriteStations, recentStations, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores } from './store.js';
+  import { currentTrack, playerState, authParams, credentials, playlist, isMobile, syncMode, highlightedTrackId, activeView, radioChannel, knownStations, radioNowPlaying, liveStation, favoriteStations, recentStations, mumaApiUrl, mumaApiKey, equalizerSettings, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, flushPersistedStores, compactPlayerProps } from './store.js';
   import { extendQueue } from './listContinuation.js';
   // Opened from its button only: its own chunk (lazyViews.js, issue #114).
   import LazyView from './LazyView.svelte';
@@ -1505,8 +1505,15 @@
       restoringQueue,
     });
   });
-  // Logging out unmounts this component; the window goes with it.
-  onMount(() => closeMiniplayer);
+  // Logging out unmounts this component; the window goes with it. The same props object is
+  // what `App.svelte` gives the compact player in a split screen (issue #179).
+  onMount(() => {
+    compactPlayerProps.set(miniplayerProps);
+    return () => {
+      compactPlayerProps.set(null);
+      closeMiniplayer();
+    };
+  });
 
   /** Opens the miniplayer window from the player bar's button (a click: the API needs one). */
   function openMiniplayerWindow() {

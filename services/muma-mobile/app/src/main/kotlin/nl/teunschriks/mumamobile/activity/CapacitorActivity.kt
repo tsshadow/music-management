@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.activity
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
@@ -30,6 +31,7 @@ import nl.teunschriks.mumamobile.capacitor.MumaPlayerPlugin
 import nl.teunschriks.mumamobile.capacitor.MumaSpeechPlugin
 import nl.teunschriks.mumamobile.capacitor.MumaStoragePlugin
 import nl.teunschriks.mumamobile.capacitor.MumaSystemPlugin
+import nl.teunschriks.mumamobile.capacitor.WindowMode
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
@@ -64,7 +66,9 @@ import timber.log.Timber
  * - `lifecycleSupport.onCreate()` in [onResume], which is what starts the player's event
  *   receivers -- it is deliberately *not* in `onCreate`, as it was not in `NavigationActivity`;
  * - `CrashReportManager.maybeHandlePendingReport`, so a pending crash report is offered;
- * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating.
+ * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating;
+ * - the window mode (`full`, `split`, `pip`), emitted as `windowModeChanged` so the web UI can
+ *   show its compact player (`docs/designs/miniplayer/`).
  *
  * Deep links arrive the way they always have -- as intent extras and actions -- and are
  * translated into the route strings the web router understands, so the quick-settings tile, the
@@ -178,6 +182,26 @@ class CapacitorActivity : BridgeActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         deliver(intent)
+    }
+
+    /**
+     * Split screen starts, ends or moves. The manifest's `configChanges` keep the activity (and
+     * the music, and the web state) alive through it; the web UI only needs to know the mode.
+     */
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        emitWindowMode()
+    }
+
+    /** The floating window opens or closes. Same signal as split screen, with `pip` first. */
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        emitWindowMode()
+    }
+
+    private fun emitWindowMode() {
+        val mode = WindowMode.of(isInPictureInPictureMode, isInMultiWindowMode)
+        MumaSystemPlugin.emit("windowModeChanged") { it.emitWindowMode(mode) }
     }
 
     override fun onDestroy() {

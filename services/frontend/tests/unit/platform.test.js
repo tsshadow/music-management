@@ -325,6 +325,17 @@ describe("browser system", () => {
     ).resolves.toBeUndefined();
   });
 
+  // The PC's floating window is its own document, so the tab itself is always full.
+  it("is always a full window that cannot open Maps next to itself", async () => {
+    const handler = vi.fn();
+
+    await expect(browserSystem.windowMode()).resolves.toEqual({ mode: "full" });
+    browserSystem.onWindowModeChanged(handler)();
+    await expect(browserSystem.canNavigate()).resolves.toEqual({ value: false });
+    await expect(browserSystem.navigateAdjacent()).resolves.toBeUndefined();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   // A browser tab has no native session and nowhere to persist one; both resolve at
   // once rather than making every caller branch on `isNative` first.
   it("signOut and saveCredentials are no-ops that resolve", async () => {

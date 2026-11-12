@@ -51,8 +51,8 @@ library NAS by a person:
 | `muma-mirror-status` | `restrict,command="rrsync -wo <status directory>"` | write files into one directory |
 
 `rrsync` is the restricted rsync wrapper that ships with rsync 3.2 and later. The status directory
-is the directory that production mounts as `HOST_MIRROR_STATUS_PATH` (below). The default is
-`${HOST_BACKUP_PATH}/music-mirror`, next to the database dumps.
+is `${HOST_BACKUP_PATH}/music-mirror` on the library NAS side, next to the database dumps, so
+production already sees it through its read-only `/backups` mount (below).
 
 ## The Job: `tools/music_mirror.py`
 
@@ -155,26 +155,29 @@ shape of answer. It reads `${MIRROR_STATUS_PATH}/latest.json`.
 | Condition | Status code | `status` |
 |---|---|---|
 | `MIRROR_STATUS_PATH` not set | 503 | `unconfigured` |
-| No `latest.json`, or it does not parse | 503 | `missing` |
+| No `latest.json` | 503 | `missing` |
+| `latest.json` does not parse, has no time zone, or an unknown `result` | 503 | `unreadable` |
 | Last run `failed` or `refused` | 503 | `failed` / `refused`, with `reason` |
 | Last good run older than `MIRROR_STALE_AFTER_HOURS` (default 36) | 503 | `stale` |
-| Sample found differing files | 503 | `differing` |
+| Sample or monthly checksum found differing files | 503 | `differing` |
 | Otherwise | 200 | `ok` |
 
-The body adds `finished_at`, `age_hours`, `files_total`, `orphans` and `pool_used_percent`. It is
+The body adds `finished_at`, `age_hours`, `files_total`, `orphans` and `pool_used_percent`. It
+needs no key, so it never names a file: `differing` gives a count, and the file names go only into
+the daily check's alert. It is
 separate from `/health` for the reason `scripts/backup/README.md` gives: a stale backup is a real
 problem, but not an outage of the service. An Uptime Kuma monitor points at it.
 
-`docker/docker-compose.yml` mounts `${HOST_MIRROR_STATUS_PATH}:/mirror-status:ro` into
-music-manager and sets `MIRROR_STATUS_PATH=/mirror-status`. Like `HOST_BACKUP_PATH`, the variable
-needs a default that renders a valid mount when unset.
+No new mount: music-manager already mounts `${HOST_BACKUP_PATH}` read-only at `/backups` for
+`/health/backup`. `docker/docker-compose.yml` passes `MIRROR_STATUS_PATH` (empty by default), and
+the operator sets it to `/backups/music-mirror` once the mirror runs.
 
 ### The daily check
 
-`tools/music_mirror_check.py` in the tools image, as a one-shot service `music-mirror-check` in
-`docker/docker-compose.backup.yml`. A systemd timer `muma-music-mirror-check.timer` starts it daily
+`tools/music_mirror_check.py` in the tools image, run in the existing `db-restore-check` service
+of `docker/docker-compose.backup.yml`, which has the read-only `/backups`, the database and ntfy. A systemd timer `muma-music-mirror-check.timer` starts it daily
 at 09:42 (the database staleness check runs at 09:12). `scripts/backup/install-systemd.sh` installs
-it when `HOST_MIRROR_STATUS_PATH` is set.
+it when `MIRROR_STATUS_PATH` is set.
 
 It reads the same file and applies the same table. Every non-`ok` row gives an `ERROR` event with
 source `music-mirror` and a push, through the `alert()` path of `tools/db_backup.py` (push through
@@ -236,7 +239,8 @@ checksums with the library. Record the date in the issue.
    `tools/music_mirror.py` to `/opt/muma-mirror/bin/` as root, and fill `/opt/muma-mirror/env`.
 3. On the library NAS: check that `rrsync` exists, create the `muma-mirror` account, and install
    the two keys with the forced commands above. Make sure the SSH service starts at boot.
-4. On production: set `HOST_MIRROR_STATUS_PATH`, deploy, and install the check timer.
+4. On production: set `MIRROR_STATUS_PATH=/backups/music-mirror`, deploy, and install the check
+   timer.
 5. Add the Uptime Kuma monitor on `https://<domain>/health/music-mirror`.
 6. Start the first run with `--initial` and watch it to the end. Then do the restore drill.
 

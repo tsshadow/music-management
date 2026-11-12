@@ -59,7 +59,10 @@ root.
 | `verbs.py` | One spec per verb: allowed flags, argument kinds, the fixed `argv` template, time limit, privilege |
 | `run.py` | Runs the `argv` with a time limit and an output cap, then masks secrets |
 | `audit.py` | Writes the log line |
-| `redact.py` | A copy of `tools/muma_mcp/redact.py`, so the host masks secrets before they leave it |
+| `cli.py` | The two entry points and the self-test |
+
+The zipapp also holds `tools/muma_mcp/redact.py`, so the host masks secrets with the same code as
+the MCP server, without a second copy in the repository.
 
 ### Parsing
 
@@ -305,7 +308,7 @@ copies `tools/muma_mcp`, and `hosts.py` adds nothing the tools image runs.
 
 ## Technical Acceptance Criteria
 
-1. Parser tests (`tools/tests/test_muma_ro_parse.py`) refuse, each with its own reason:
+1. Parser tests (`tools/test_muma_ro_parse.py`) refuse, each with its own reason:
    - paths: `..` in any position, `/mnt/music/../etc`, `/mnt/musicx`, a symbolic link under a root
      that points outside it, a relative path, a path under a `list` root for `head`;
    - verbs: `sh`, `bash`, `python3`, `rm`, `cat`, `docker run`, `docker exec C sh`,

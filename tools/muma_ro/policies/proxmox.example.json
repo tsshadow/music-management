@@ -1,0 +1,36 @@
+{
+  "_comment": "Example for a proxmox host. install.sh copies it to /etc/muma-ro/policy.json; replace the paths, names and ids with the host's own.",
+  "class": "proxmox",
+  "verbs": [
+    "ls",
+    "stat",
+    "df",
+    "free",
+    "uptime",
+    "systemctl-status",
+    "systemctl-timers",
+    "journalctl",
+    "pct-list",
+    "qm-list",
+    "pvesm-status",
+    "pct-config",
+    "qm-config",
+    "vzdump-log",
+    "pct-exec"
+  ],
+  "roots": [
+    {
+      "path": "/var/lib/vz/dump",
+      "mode": "list"
+    }
+  ],
+  "units": [
+    "pvedaemon.service",
+    "pveproxy.service",
+    "pve-cluster.service"
+  ],
+  "ctids": [
+    "100",
+    "101"
+  ]
+}

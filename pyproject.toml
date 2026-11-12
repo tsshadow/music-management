@@ -143,7 +143,9 @@ module = [
     "tools.muma_mcp.config",
     "tools.muma_mcp.db",
     "tools.muma_mcp.guard",
+    "tools.muma_mcp.hosts",
     "tools.muma_mcp.redact",
+    "tools.muma_ro.*",
 ]
 disallow_untyped_defs = false
 check_untyped_defs = true

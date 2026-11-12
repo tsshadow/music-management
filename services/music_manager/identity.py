@@ -11,7 +11,34 @@ The lookups use `LOWER()` on both sides rather than relying on the column's coll
 they mean the same thing on a database created under a different default collation.
 """
 
+import re
 from typing import Any
+
+#: A deleted account's ratings, listens, imports and feeds stay under this name plus its old id,
+#: so the server totals keep them and a new account with the same name starts empty (issue #220).
+TOMBSTONE_PREFIX = 'deleted-'
+
+_TOMBSTONE_NAME = re.compile(r'deleted-[0-9]+', re.IGNORECASE)
+
+#: The tables that key a person's data by `username` instead of `users.id`.
+USERNAME_KEYED_TABLES = (
+    'rating_tracks',
+    'scrobble_listens',
+    'scrobble_unmatched_listens',
+    'scrobble_imports',
+    'feeds_snapshot',
+    'feeds_profile_exclusions',
+)
+
+
+def tombstone_name(user_id: int) -> str:
+    """The name a deleted account's username-keyed rows get: `deleted-<id>`."""
+    return f'{TOMBSTONE_PREFIX}{int(user_id)}'
+
+
+def is_tombstone_name(name: str | None) -> bool:
+    """Whether `name` has the shape of a tombstone, which no account may take."""
+    return bool(name) and _TOMBSTONE_NAME.fullmatch(name or '') is not None
 
 
 def same_username(first: str | None, second: str | None) -> bool:
@@ -37,7 +64,12 @@ def canonical_username(cursor: Any, name: str | None) -> str | None:
 
 
 def username_taken(cursor: Any, name: str, exclude_user_id: int | None = None) -> bool:
-    """Whether an account other than `exclude_user_id` already carries `name` in any case."""
+    """Whether an account other than `exclude_user_id` already carries `name` in any case.
+
+    A tombstone name (`deleted-<id>`) is always taken: it holds a deleted account's history.
+    """
+    if is_tombstone_name(name):
+        return True
     if exclude_user_id is None:
         cursor.execute('SELECT id FROM users WHERE LOWER(username) = LOWER(%s) LIMIT 1', (name,))
     else:

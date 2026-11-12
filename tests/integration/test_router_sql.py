@@ -449,6 +449,43 @@ class UserLifecycleTest:
         assert deleted.status_code == 200, deleted.text
         assert {row['username'] for row in api.get('/api/users', headers=headers).json()} == {'root'}
 
+    def test_a_recreated_username_starts_empty_and_the_history_stays(self, api, headers, db):
+        """Issue #220: the deleted account's rows move to deleted-<id>, none reach the new account."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        user_id = api.post('/api/users', headers=headers, json={'username': 'user'}).json()['id']
+        for statement in (
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', 'uid-1', 'user', 5)",
+            "INSERT INTO scrobble_listens (username, listened_at) VALUES ('user', '2026-11-01 12:00:00')",
+            "INSERT INTO scrobble_unmatched_listens (username, listened_at, artist_name, track_title) "
+            "VALUES ('user', '2026-11-01 12:00:00', 'Nobody', 'Nothing')",
+            "INSERT INTO scrobble_imports (username, lb_username, status) VALUES ('user', 'lb-user', 'done')",
+            "INSERT INTO feeds_snapshot (username, slug, feed_date, generated_at, params_key, payload) "
+            "VALUES ('user', 'daily', '2026-11-01', '2026-11-01 06:00:00', 'k', '[]')",
+            "INSERT INTO feeds_profile_exclusions (username, entity_type, entity_name) VALUES ('user', 'artist', 'X')",
+        ):
+            run_sql(db, statement)
+
+        assert api.delete(f'/api/users/{user_id}', headers=headers).status_code == 200
+        assert api.post('/api/users', headers=headers, json={'username': 'user'}).status_code == 200
+
+        tables = (
+            'rating_tracks',
+            'scrobble_listens',
+            'scrobble_unmatched_listens',
+            'scrobble_imports',
+            'feeds_snapshot',
+            'feeds_profile_exclusions',
+        )
+        for table in tables:
+            assert not run_sql(db, f"SELECT 1 FROM {table} WHERE username = 'user'"), table
+            kept = run_sql(db, f'SELECT username FROM {table}')
+            assert [row['username'] for row in kept] == [f'deleted-{user_id}'], table
+
+    def test_a_tombstone_name_cannot_be_taken_by_a_new_account(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'Deleted-12'})
+        assert created.status_code == 409, created.text
+
     def test_approving_a_google_request_whose_email_is_taken_is_a_409(self, api, headers, db):
         """The e-mail becomes the username; an account already carrying it, in any case,
         used to hit the unique index and answer a 500 (bug report 079)."""

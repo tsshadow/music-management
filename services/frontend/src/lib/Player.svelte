@@ -48,6 +48,8 @@
   import { artistImageFallback, coverArtSrc, FALLBACK, localCoverArt, resolveCoverArt } from './coverArt.js';
   import { offline, subsonicPost } from './subsonic.js';
   import { fetchGenreTints, trackTint } from './genreTints.js';
+  import { isSupported as isMiniplayerSupported, openMiniplayer, closeMiniplayer } from './miniplayerWindow.js';
+  import { PictureInPicture2 } from '@lucide/svelte';
 
   const { onnavigate, ontoggleQueue } = $props();
 
@@ -1475,6 +1477,44 @@
   // portraits MuMa has already said it does not have.
   const artistUrl = $derived(artistImageFallback(track, $authParams));
   const tint = $derived(trackTint(track, genreTints));
+
+  // The PC's miniplayer window (issue #177, `miniplayerWindow.js`). `CompactPlayer` is mounted
+  // into that window with this object as its props; the effect keeps it current, and its
+  // functions are this component's own, so the window and the player bar cannot disagree.
+  const miniplayerSupported = isMiniplayerSupported(platform.system);
+  const miniplayerProps = $state({
+    ontogglePlay: togglePlay,
+    onnext: playNext,
+    onprev: playPrev,
+    onrate: updateRating,
+  });
+  $effect(() => {
+    Object.assign(miniplayerProps, {
+      track,
+      playing,
+      buffering,
+      progress,
+      duration,
+      rating: currentRating,
+      coverUrl: fullCoverUrl,
+      artistUrl,
+      tint,
+      transportLocked,
+      playLocked,
+      isLiveStation: $liveStation !== null,
+      restoringQueue,
+    });
+  });
+  // Logging out unmounts this component; the window goes with it.
+  onMount(() => closeMiniplayer);
+
+  /** Opens the miniplayer window from the player bar's button (a click: the API needs one). */
+  function openMiniplayerWindow() {
+    logAction('player.miniplayer', { trackId: track?.id ?? null });
+    openMiniplayer(miniplayerProps, { title: $t('player.miniplayer') }).catch((e) => {
+      console.warn('Could not open the miniplayer window', e);
+    });
+  }
   // Offline, the art lives on disk and `coverArtSrc` only knows that once the
   // shell has been asked; a no-op online, so the player pays nothing there.
   $effect(() => {
@@ -2334,6 +2374,18 @@
             </div>
           {/if}
         </div>
+      {/if}
+      {#if miniplayerSupported}
+        <!-- Chrome and Edge on a desktop only; elsewhere there is no button (issue #177). -->
+        <button
+          class="bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text"
+          onclick={openMiniplayerWindow}
+          aria-label={$t('player.miniplayer')}
+          title={$t('player.miniplayer')}
+          data-testid="open-miniplayer"
+        >
+          <PictureInPicture2 size={16} aria-hidden="true" />
+        </button>
       {/if}
       <button class="mr-2 bg-transparent border-none p-0 flex items-center justify-center cursor-pointer transition-colors hover:text-white text-muma-spotify-text" onclick={ontoggleQueue} aria-label={$t('queue.title')}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">

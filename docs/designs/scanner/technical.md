@@ -106,6 +106,12 @@ survives the move, and its extension keeps the MP3 and the FLAC apart. On 2026-1
 removed 473 rows and left 134 tracks without a file this way. 410 of the 412 fileless tracks made
 since 2026-10-01 have a track with the same title and duration.
 
+Step 6 only catches a move it sees. The 1,019 tracks left before it shipped go through
+`tools/relink_fileless_backlog.py`, a dry run unless `--apply` is given. It relinks a track to
+the one track with a file that has the same title and a duration within 5 ms, purges the rest
+that nothing a user made points at, and lists what is left. `--apply` writes a JSON backup first,
+and `--rollback` restores it. The operator runs it in the music-manager container.
+
 A move with unchanged tags needs no relink: the walk gives the new path a row on the same track
 (same `track_uid`) before the pass runs, so the track keeps a file. One INFO line (an event) is
 logged when a row was deleted or a track failed.

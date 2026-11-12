@@ -202,6 +202,36 @@ const system = {
   async setKeepScreenOn(_flags) {},
 
   /**
+   * A browser tab is always a whole window to the app: the PC's floating window is its own
+   * document (`miniplayerWindow.js`), not a mode of this one.
+   *
+   * @returns {Promise<{mode: import('../index.js').WindowMode}>}
+   */
+  async windowMode() {
+    return { mode: "full" };
+  },
+
+  /**
+   * @param {function(import('../index.js').WindowMode): void} _handler
+   * @returns {function(): void} Unsubscribes. Never fires here.
+   */
+  onWindowModeChanged(_handler) {
+    return () => {};
+  },
+
+  /**
+   * A browser tab cannot put Google Maps next to itself.
+   *
+   * @returns {Promise<{value: boolean}>}
+   */
+  async canNavigate() {
+    return { value: false };
+  },
+
+  /** Nothing to open in a browser tab; `canNavigate` already said so. */
+  async navigateAdjacent() {},
+
+  /**
    * The "Apparaat" settings tab has nothing to read in a browser tab -- there is no
    * native whitelist behind it -- and the tab itself never shows without `isNative`,
    * so this is never actually read.

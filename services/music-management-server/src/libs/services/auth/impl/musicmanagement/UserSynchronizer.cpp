@@ -7,6 +7,9 @@
 #include "UserSynchronizer.hpp"
 
 #include <limits>
+#include <optional>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <Wt/Dbo/Session.h>
@@ -115,7 +118,16 @@ namespace lms::auth
 
                 db::User::pointer user{ db::User::findByMumaId(session, account.mumaId) };
                 if (!user)
+                {
                     user = db::User::find(session, account.username); // case-insensitive, see User::find
+                    // The name finds only a user no MuMa account owns yet. A user linked to another
+                    // id belongs to another account -- a deleted one, when the list could not prove
+                    // it gone -- and taking it over would hand this account that person's ratings,
+                    // history and playlists (issue #239). The write fails and the next sync retries.
+                    const std::optional<int> ownerId{ user ? user->getMumaId() : std::nullopt };
+                    if (ownerId && *ownerId != account.mumaId)
+                        throw std::runtime_error{ "login name '" + account.username + "' belongs to the LMS user of MuMa id " + std::to_string(*ownerId) };
+                }
 
                 if (!user)
                 {
@@ -162,7 +174,7 @@ namespace lms::auth
                 return unlisted;
             }
 
-            void disableUnlistedUsers(db::Session& session, const MumaAccountList& list, MumaSyncSummary& summary)
+            void tombstoneUnlistedUsers(db::Session& session, const MumaAccountList& list, MumaSyncSummary& summary)
             {
                 // An empty list is far more likely a MuMa that answered badly than a MuMa without a
                 // single account; and a list with an unreadable id cannot prove any account gone.
@@ -175,8 +187,23 @@ namespace lms::auth
                 for (const db::UserId userId : findUnlistedMumaUsers(session, list))
                 {
                     const bool written{ writeIsolated(session, "deleted account (user id " + userId.toString() + ")", [&] {
-                        const db::User::pointer user{ db::User::find(session, userId) };
-                        if (user && disableAndRevoke(session, user))
+                        db::User::pointer user{ db::User::find(session, userId) };
+                        const std::optional<int> mumaId{ user ? user->getMumaId() : std::nullopt };
+                        if (!mumaId)
+                            return;
+
+                        // The same name music-manager gives the deleted account's history, so the
+                        // listens LMS reports for this user land on that history (issue #239). The
+                        // user row stays, with its ratings, stars, listens and playlists; only the
+                        // name is freed for a new account.
+                        const std::string tombstone{ tombstoneLoginName(*mumaId) };
+                        if (user->getLoginName() != tombstone)
+                        {
+                            LMS_LOG(AUTH, INFO, "User '" << user->getLoginName() << "' no longer exists in MusicManagement: renamed to '" << tombstone << "'");
+                            user.modify()->setLoginName(tombstone);
+                            ++summary.tombstoned;
+                        }
+                        if (disableAndRevoke(session, user))
                         {
                             LMS_LOG(AUTH, INFO, "User '" << user->getLoginName() << "' no longer exists in MusicManagement: disabled here, auth tokens revoked");
                             ++summary.disabled;
@@ -187,6 +214,11 @@ namespace lms::auth
                 }
             }
         } // namespace
+
+        std::string tombstoneLoginName(int mumaId)
+        {
+            return "deleted-" + std::to_string(mumaId);
+        }
 
         std::optional<MumaAccountList> parseMumaAccounts(std::string_view body)
         {
@@ -253,15 +285,17 @@ namespace lms::auth
         {
             MumaSyncSummary summary;
 
+            // Deleted accounts first: a name deleted and made again between two syncs is free by
+            // the time the new account looks for it.
+            tombstoneUnlistedUsers(session, list, summary);
+
             for (const MumaAccount& account : list.accounts)
             {
                 if (!writeIsolated(session, "account '" + account.username + "' (MuMa id " + std::to_string(account.mumaId) + ")", [&] { applyAccount(session, account, summary); }))
                     ++summary.failed;
             }
 
-            disableUnlistedUsers(session, list, summary);
-
-            LMS_LOG(AUTH, INFO, "MusicManagement user sync: " << summary.created << " created, " << summary.updated << " updated, " << summary.disabled << " disabled, " << summary.reenabled << " re-enabled, " << summary.failed << " failed, " << list.rejectedRows << " unusable rows");
+            LMS_LOG(AUTH, INFO, "MusicManagement user sync: " << summary.created << " created, " << summary.updated << " updated, " << summary.disabled << " disabled, " << summary.reenabled << " re-enabled, " << summary.tombstoned << " renamed as deleted, " << summary.failed << " failed, " << list.rejectedRows << " unusable rows");
             return summary;
         }
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=MuMa music mirror check (issue #25)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/muma-backup
+# The db-restore-check service has what this check needs: /backups read-only, the
+# database for the event row, and ntfy for the push.
+ExecStart=/usr/bin/docker-compose --env-file /opt/muma-backup/.env -f /opt/muma-backup/docker-compose.backup.yml -p music-management run --rm db-restore-check python tools/music_mirror_check.py

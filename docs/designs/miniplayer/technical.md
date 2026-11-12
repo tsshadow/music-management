@@ -233,9 +233,11 @@ switch split screen off by accident.
 ### Keeping the screen on
 
 `setKeepScreenOn` gets a third flag, `keepOn`, which adds or clears
-`WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON` on the activity's window. Car mode keeps
-passing `false` for it, so nothing changes there. `App.svelte` asks for `keepOn: true` while
-`$compactLayout === 'split'` and music plays, and releases it when either stops. (Google Maps
+`WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON` on the activity's window. The shell applies
+each ask only when the call has it: a call with only `keepOn` leaves the lock-screen flags as
+they are, and car mode's calls (without `keepOn`) leave the keep-on flag as it is. So car mode
+and the split screen cannot undo each other. `App.svelte` sends `{keepOn: true}` while the split
+player shows and music plays, and `{keepOn: false}` when either stops, only on a change. (Google Maps
 also keeps the screen on while it navigates, so this matters mainly before the route starts and
 after it ends.)
 
@@ -269,7 +271,7 @@ shell (`frontend/src/lib/platform/index.js`, `PlatformSystem`):
 | `enterPictureInPicture()` | none | resolves when asked | rejects `no activity`; browser resolves without doing anything |
 | `canNavigate()` | none | `{value: boolean}` | browser: `{value: false}` |
 | `navigateAdjacent()` | none | resolves when started | rejects when nothing handles the intent |
-| `setKeepScreenOn({showWhenLocked, turnScreenOn, keepOn})` | `keepOn` new, default false | unchanged | unchanged |
+| `setKeepScreenOn({showWhenLocked, turnScreenOn, keepOn})` | `keepOn` new, applied only when present | unchanged | unchanged |
 
 An old APK with a new web bundle cannot happen: the bundle is baked into the APK.
 

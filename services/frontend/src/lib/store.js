@@ -456,6 +456,13 @@ export const searchResultsOpen = writable(false);
 export const isMobile = writable(false);
 
 /**
+ * The compact player's props, owned by `Player.svelte` (one `$state` object it keeps current) and
+ * read by `App.svelte` for the split-screen layout (issue #179, `docs/designs/miniplayer/`).
+ * `null` while no player is mounted.
+ */
+export const compactPlayerProps = writable(null);
+
+/**
  * True from Tailwind's `md` breakpoint (48rem) up: the width at which `App.svelte`'s grid shows
  * the sidebar and the desktop player bar, and every `md:hidden` / `hidden md:flex` class flips.
  *

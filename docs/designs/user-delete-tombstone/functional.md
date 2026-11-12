@@ -31,8 +31,19 @@ totals keep counting it, and the new account starts empty.
 2. The library-wide play and rating totals are the same before and after the delete.
 3. No account can be made with a name `deleted-<number>`.
 
-## Open Questions / Not Yet Decided
+## The Music Server (issue #239)
 
-- The LMS user of a deleted account is disabled, not deleted, and LMS finds users by name. A new
-  account with the same name gets the old LMS user back, with the listens and ratings LMS keeps.
-  That is outside this change (issue #239).
+LMS keeps its own user per account, with ratings, stars, listens and playlists. A deleted account's
+LMS user was only disabled, under its old name. A new account with that name took the old LMS user
+over, with all of it. Teun decided on 2026-11-12 that LMS renames the user to `deleted-<id>` too,
+with the same id as music-manager.
+
+| Situation | Observable outcome |
+|---|---|
+| An admin deletes account 12 "anna" | On the next user sync, the LMS user is renamed to `deleted-12` and disabled. It keeps its data. |
+| An admin makes a new account "anna" | It gets a new LMS user with no ratings, stars, listens or playlists. |
+| Both happen before LMS syncs | The same: the rename runs before the new account is looked up. |
+| An account deleted before this change | Its LMS user is renamed on the first sync after the update. |
+
+4. After a delete and a new account with the same name, the new account's LMS user is a new user.
+5. The deleted account's LMS user still has its ratings and listens, under `deleted-<id>`.

@@ -122,8 +122,10 @@ that possible.
 ## What is not covered
 
 - **`apk-hoster`**, two tables on the same server, belonging to another stack.
-- **The music files.** Six terabytes; see the discussion in the changelog entry.
-  The rules and download archives that can re-fetch much of it *are* in this
-  database and therefore are covered.
+- **The music files.** Six terabytes, too much for a dump. The music mirror
+  copies them nightly to a second NAS instead, see
+  [scripts/music-mirror/README.md](../music-mirror/README.md). The rules and
+  download archives that can re-fetch much of it *are* in this database and
+  therefore are covered.
 - **Point-in-time recovery.** No binlog shipping; the worst case is losing up to
   a day.

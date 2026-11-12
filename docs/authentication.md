@@ -33,7 +33,9 @@ A row in the `users` table always has:
   Disabling (or deleting) an account also pokes the music server's user sync, which disables the
   LMS user and revokes every Subsonic key and web session it holds; no LMS credential is accepted
   for it afterwards. The LMS user is kept, with its listens and ratings, and is enabled again with
-  the account. See [designs/lms-fork-baseline](designs/lms-fork-baseline/technical.md).
+  the account. After a delete the LMS user is renamed to `deleted-<id>` as well, so a new account
+  with the same name gets a new, empty LMS user. See
+  [designs/lms-fork-baseline](designs/lms-fork-baseline/technical.md).
 - **Delete** — music-manager keys ratings, listens, unmatched listens, ListenBrainz imports and
   feeds by username. A delete moves them to `deleted-<id>` in the same transaction, so the server
   totals keep them and a new account with the same name starts empty. No account can take a

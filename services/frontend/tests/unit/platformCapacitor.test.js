@@ -698,6 +698,55 @@ describe("capacitor system", () => {
     ]);
   });
 
+  it("sends only keepOn for the split screen, so car mode's lock-screen flags stay as they are", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.setKeepScreenOn({ keepOn: true });
+    await platform.system.setKeepScreenOn({ keepOn: false });
+
+    expect(plugins.MumaSystem.calls).toEqual([
+      ["setKeepScreenOn", { keepOn: true }],
+      ["setKeepScreenOn", { keepOn: false }],
+    ]);
+  });
+
+  it("reads the window mode, and anything it does not know as full", async () => {
+    const split = nativePlatform({ MumaSystem: { windowMode: { mode: "split" } } });
+    const odd = nativePlatform({ MumaSystem: { windowMode: { mode: "freeform" } } });
+
+    expect(await split.platform.system.windowMode()).toEqual({ mode: "split" });
+    expect(await odd.platform.system.windowMode()).toEqual({ mode: "full" });
+  });
+
+  it("reports window-mode changes, a malformed one as full", () => {
+    const { platform, plugins } = nativePlatform();
+    const seen = [];
+    platform.system.onWindowModeChanged((mode) => seen.push(mode));
+
+    plugins.MumaSystem.emit("windowModeChanged", { mode: "pip" });
+    plugins.MumaSystem.emit("windowModeChanged", {});
+
+    expect(seen).toEqual(["pip", "full"]);
+  });
+
+  it("asks whether Maps can open, and opens it next to the app", async () => {
+    const { platform, plugins } = nativePlatform({ MumaSystem: { canNavigate: { value: true } } });
+
+    expect(await platform.system.canNavigate()).toEqual({ value: true });
+    await platform.system.navigateAdjacent();
+
+    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual([
+      "canNavigate",
+      "navigateAdjacent",
+    ]);
+  });
+
+  it("reads a missing canNavigate answer as no", async () => {
+    const { platform } = nativePlatform({ MumaSystem: { canNavigate: {} } });
+
+    expect(await platform.system.canNavigate()).toEqual({ value: false });
+  });
+
   it("forwards signOut to the plugin and awaits it", async () => {
     const { platform, plugins } = nativePlatform();
 

@@ -1645,6 +1645,11 @@
     },
     "homeSummary": "{years} years • {tracks} tracks today"
   },
+  "miniplayer": {
+    "navigate": "Navigate next to MuMa",
+    "navigateFailed": "Google Maps did not open",
+    "fullApp": "Full app"
+  },
   "mobile": {
     "browseAll": "Browse all",
     "recent": "Recent"

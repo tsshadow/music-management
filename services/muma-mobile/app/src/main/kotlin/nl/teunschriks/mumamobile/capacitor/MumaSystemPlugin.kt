@@ -77,7 +77,11 @@ import java.util.Base64
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
  * | `carState()` | `carState()` → `{connected}`, see [carState] |
- * | `setKeepScreenOn({showWhenLocked, turnScreenOn})` | [setKeepScreenOn] |
+ * | `setKeepScreenOn({showWhenLocked, turnScreenOn, keepOn})` | [setKeepScreenOn] |
+ * | `windowMode()` | `windowMode()` → `{mode}`, see [windowMode] |
+ * | `onWindowModeChanged(fn)` | listener on the `windowModeChanged` event |
+ * | `canNavigate()` | `canNavigate()` → `{value}`, see [canNavigate] |
+ * | `navigateAdjacent()` | [navigateAdjacent] |
  * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
  * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
  * | `outputRoute()` | `outputRoute()` → `{name, type}`, see [outputRoute] |
@@ -553,8 +557,12 @@ class MumaSystemPlugin :
      * so the web view asks explicitly when its own car screen is on top, and again with both flags
      * false when it closes.
      *
-     * Both flags are applied together and default to `false` when absent, so a call that forgets
-     * one does not leave the other stuck on from a previous call.
+     * Two independent asks share this call. `showWhenLocked` and `turnScreenOn` (the car screen)
+     * are applied together and default to `false` when absent, so a call that forgets one does not
+     * leave the other stuck on. `keepOn` (the compact player in a split screen, issue #179) sets
+     * or clears `FLAG_KEEP_SCREEN_ON` and is applied only when the call has it, so the car screen
+     * and the split screen never undo each other's flags. A call with only `keepOn` leaves the
+     * lock-screen flags as they are.
      */
     @PluginMethod
     fun setKeepScreenOn(call: PluginCall) {
@@ -563,13 +571,69 @@ class MumaSystemPlugin :
             call.reject("no activity")
             return
         }
+        val data = call.data
+        val lockScreen = data.has("showWhenLocked") || data.has("turnScreenOn") || !data.has("keepOn")
         val showWhenLocked = call.getBoolean("showWhenLocked") ?: false
         val turnScreenOn = call.getBoolean("turnScreenOn") ?: false
+        val keepOn = if (data.has("keepOn")) call.getBoolean("keepOn") ?: false else null
         running.runOnUiThread {
-            running.setShowWhenLocked(showWhenLocked)
-            running.setTurnScreenOn(turnScreenOn)
+            if (lockScreen) {
+                running.setShowWhenLocked(showWhenLocked)
+                running.setTurnScreenOn(turnScreenOn)
+            }
+            if (keepOn != null) applyKeepScreenOn(running.window, keepOn)
         }
         call.resolve()
+    }
+
+    /**
+     * The window the activity is in now: `full`, `split` or `pip`. For a WebView that subscribes to
+     * `windowModeChanged` after the activity already changed mode, the same reason [carState]
+     * exists. Without an activity the answer is `full`.
+     */
+    @PluginMethod
+    fun windowMode(call: PluginCall) {
+        val running = runningActivity
+        val mode = if (running == null) {
+            WindowMode.FULL
+        } else {
+            WindowMode.of(running.isInPictureInPictureMode, running.isInMultiWindowMode)
+        }
+        call.resolve(JSObject().put("mode", mode.wire))
+    }
+
+    /** Emitted by [nl.teunschriks.mumamobile.activity.CapacitorActivity] on every mode change. */
+    fun emitWindowMode(mode: WindowMode) = notifyListeners(EVENT_WINDOW_MODE_CHANGED, JSObject().put("mode", mode.wire))
+
+    /**
+     * Whether "Navigeren naast MuMa" can work: Google Maps is installed and takes [mapsAdjacentIntent].
+     * The web UI hides the button when this is false.
+     */
+    @PluginMethod
+    fun canNavigate(call: PluginCall) {
+        val packageManager = safeContext?.packageManager
+        val value = packageManager?.let { mapsAdjacentIntent().resolveActivity(it) } != null
+        call.resolve(JSObject().put("value", value))
+    }
+
+    /**
+     * Opens Google Maps next to MuMa, with no destination (decision 8 of
+     * `docs/designs/miniplayer/`). Rejects when there is no activity or Maps does not take the intent.
+     */
+    @PluginMethod
+    fun navigateAdjacent(call: PluginCall) {
+        val running = runningActivity
+        if (running == null) {
+            call.reject("no activity")
+            return
+        }
+        try {
+            running.startActivity(mapsAdjacentIntent())
+            call.resolve()
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            Timber.w(all, "Google Maps did not open next to MuMa")
+            call.reject("Google Maps did not open")
+        }
     }
 
     /**
@@ -891,6 +955,7 @@ class MumaSystemPlugin :
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
         const val EVENT_CAR_CONNECTED = "carConnected"
+        const val EVENT_WINDOW_MODE_CHANGED = "windowModeChanged"
         const val EVENT_OUTPUT_ROUTE_CHANGED = "outputRouteChanged"
 
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */

@@ -78,6 +78,9 @@ Summarised here because it affects what counts as a vulnerability;
 * `GET /health/backup` is public through nginx too (issue #236), for the
   nightly check. It needs no key and gives the backup status, the dump's file
   name, its age and its table count; 503 when the backup is stale or missing.
+* `GET /health/music-mirror` is public the same way (issue #25). It gives the
+  mirror's status, its counts and its age, never a file name: the names of
+  differing files go only into the daily check's alert.
   Both proxies in front of MuMa -- nginx and LMS -- send the client address
   they resolved, never the client's own header
   (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).

@@ -1,6 +1,8 @@
 """The learned tempo priors and the refold pass (bug report 140)."""
 
+import math
 import re
+import statistics
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -46,6 +48,70 @@ def test_only_the_artist_leaves_remixes_out_and_counts_fast_genre_less_tracks():
     assert '/mnt/music/hitzone/%' in artist_params
 
 
+def test_the_folder_prior_counts_uploads_only_and_keys_them_by_uploader_folder():
+    """Issue #241: the two folders under the music root, over Soundcloud and YouTube files only,
+    with the artist's fast genre-less rows and without its remix filter."""
+    sql, params = priors.priors_sql(priors.KIND_FOLDER)
+    assert "SUBSTRING_INDEX(fm.file_path, '/', 5), 12), 191)" in sql
+    assert params[1:3] == ['/mnt/music/soundcloud/%/%', '/mnt/music/youtube/%/%']
+    assert priors.REMIX_PATTERN not in params and 'REGEXP' not in sql
+    assert 'b.raw_bpm > %s' in sql
+
+
+def _sql_folder_key(path):
+    """What _FOLDER_KEY_SQL gives for `path`, spelled with Python's string operations."""
+    return '/'.join(path.split('/')[:5])[11:][:191]
+
+
+@pytest.mark.parametrize('path', ['/mnt/music/Soundcloud/Rebelion/a.mp3', '/mnt/music/Youtube/Q-dance/2024/set.m4a'])
+def test_the_sql_folder_key_matches_folder_key(path):
+    assert _sql_folder_key(path).lower() == octave.folder_key(path)
+
+
+@pytest.mark.parametrize(
+    ('raw', 'confidence', 'genres', 'trains'),
+    [
+        (174.0, 0.9, [], True),
+        (174.0, 0.6, [], False),  # not confident
+        (234.0, 0.9, [], True),  # fast and genre-less
+        (234.0, 0.9, ['Hardstyle'], False),  # fast with a genre that is not hard
+        (234.0, 0.9, ['Uptempo Hardcore'], True),
+        (60.0, 0.9, [], False),
+        (None, 0.9, [], False),
+        (174.0, None, [], False),
+    ],
+)
+def test_training_value_is_the_priors_sql_row_test(raw, confidence, genres, trains):
+    value = priors.training_value(raw, confidence, genres)
+    assert (value is not None) is trains
+    if trains:
+        assert value == pytest.approx(math.log2(raw))
+
+
+def test_without_takes_one_row_out_of_the_statistics():
+    rows = [math.log2(bpm) for bpm in (170, 172, 174, 175, 176, 178, 230)]
+    kept = rows[:-1]
+    full = Prior(statistics.fmean(rows), statistics.pstdev(rows), len(rows))
+    loo = priors.without(full, rows[-1])
+    assert loo.samples == len(kept)
+    assert loo.centre == pytest.approx(statistics.fmean(kept))
+    assert loo.spread == pytest.approx(statistics.pstdev(kept))
+
+
+def test_without_ignores_a_row_the_trim_left_out_and_drops_a_thin_prior():
+    prior = Prior(math.log2(174.0), 0.05, 20)
+    assert priors.without(prior, math.log2(87.0)) is prior
+    assert priors.without(Prior(math.log2(174.0), 0.05, priors.MIN_SAMPLES), math.log2(174.0)) is None
+
+
+def test_for_folder_leaves_the_track_itself_out():
+    loaded = priors.Priors(folder={'youtube/liquicity': Prior(math.log2(174.0), 0.05, 6)})
+    path = '/mnt/music/Youtube/Liquicity/x.m4a'
+    assert loaded.for_folder(path).samples == 6
+    assert loaded.for_folder(path, math.log2(174.0)).samples == 5
+    assert loaded.for_folder('/mnt/music/EPs/x/y.mp3') is None
+
+
 @pytest.mark.parametrize(
     ('title', 'remix'),
     [
@@ -77,12 +143,14 @@ def test_from_rows_keys_labels_and_artists_by_id_and_genres_by_name():
             {'kind': 'label', 'prior_key': '7', 'centre': 7.2, 'spread': 0.1, 'samples': 40},
             {'kind': 'artist', 'prior_key': '3', 'centre': 7.0, 'spread': 0.2, 'samples': 8},
             {'kind': 'genre', 'prior_key': 'Hardstyle ', 'centre': 7.27, 'spread': 0.05, 'samples': 900},
+            {'kind': 'folder', 'prior_key': 'Soundcloud/Rebelion', 'centre': 7.6, 'spread': 0.1, 'samples': 50},
             {'kind': 'label', 'prior_key': 'x', 'centre': 7.0, 'spread': 0.1, 'samples': 9},
             {'kind': 'other', 'prior_key': '1', 'centre': 7.0, 'spread': 0.1, 'samples': 9},
         ]
     )
-    assert loaded.coverage() == {'label': 1, 'artist': 1, 'genre': 1}
+    assert loaded.coverage() == {'label': 1, 'artist': 1, 'genre': 1, 'folder': 1}
     assert loaded.for_artist('3') == Prior(7.0, 0.2, 8)
+    assert loaded.for_folder('/mnt/music/SoundCloud/REBELION/x.mp3') == Prior(7.6, 0.1, 50)
     assert loaded.for_artist(None) is None
     assert loaded.genre['hardstyle'].samples == 900
 
@@ -95,14 +163,17 @@ def test_the_best_sampled_label_wins():
 
 def test_recompute_writes_each_kind_then_prunes_what_no_longer_qualifies():
     row = {'prior_key': '7', 'centre': 7.2, 'spread': None, 'samples': 12}
-    connect, conns = fake_connect([row], [row], [row], [], [], [])
+    folder_row = {'prior_key': 'Youtube/Q-dance', 'centre': 7.25, 'spread': 0.04, 'samples': 30}
+    connect, conns = fake_connect([row], [row], [row], [folder_row], [], [], [], [])
     result = priors.recompute(connect, NOW)
-    assert result.coverage() == {'label': 1, 'artist': 1, 'genre': 1}
-    write_cursor = conns[3].cursor.return_value.__enter__.return_value
+    assert result.coverage() == {'label': 1, 'artist': 1, 'genre': 1, 'folder': 1}
+    write_cursor = conns[4].cursor.return_value.__enter__.return_value
     written = write_cursor.executemany.call_args[0][1]
     assert written == [('label', '7', 7.2, 0.0, 12, NOW)]
     assert write_cursor.execute.call_args[0] == (priors.PRUNE_SQL, ('label', NOW))
-    conns[3].commit.assert_called_once()
+    conns[4].commit.assert_called_once()
+    folder_cursor = conns[7].cursor.return_value.__enter__.return_value
+    assert folder_cursor.executemany.call_args[0][1] == [('folder', 'Youtube/Q-dance', 7.25, 0.04, 30, NOW)]
 
 
 def test_load_and_last_update():
@@ -157,7 +228,8 @@ def test_the_hazes_row_is_refolded_to_128_keeping_its_raw_confidence():
 
 def test_a_neutral_halving_of_a_fast_upload_is_undone_by_the_refold():
     """Issue #153: a genre-less Soundcloud upload at 234 that FOLD_VERSION 2 halved to 117 on the
-    neutral prior alone goes back to 234 -- unsettled, not reliable -- once the rule is version 3."""
+    neutral prior alone goes back to 234 -- unsettled, not reliable -- under the version 3 rule,
+    when its uploader folder has no prior of its own."""
     row = bpm_row(
         track_uid='uid-upload',
         raw_bpm=234.0,
@@ -182,9 +254,35 @@ def test_a_neutral_halving_of_a_fast_upload_is_undone_by_the_refold():
         'uid-upload',
         234.0,
     )
-    assert version == octave.FOLD_VERSION == 3
+    assert version == octave.FOLD_VERSION == 4
     assert confidence <= octave.WEAK_FOLD_CAP
     assert (result.above_200_before, result.above_200_after) == (0, 1)
+
+
+def test_an_uploader_folder_halves_a_fast_upload_but_not_with_its_own_vote():
+    """Issue #241: a genre-less Liquicity upload read at 348 is halved to 174 by its folder. When
+    the folder's prior is the track's own row and four others, the track's own reading is taken
+    out and the four left are too few: the estimate stays, unsettled."""
+    upload = {
+        'track_uid': 'uid-liquid',
+        'raw_bpm': 348.0,
+        'raw_confidence': 0.9,
+        'bpm': 348.0,
+        'octave_corrected': 0,
+        'fold_version': 3,
+        'primary_artist_id': None,
+        'file_path': '/mnt/music/Youtube/Liquicity/Track.m4a',
+        'strength': 0.5,
+        'half_score': 0.45,
+    }
+    loaded = priors.Priors(folder={'youtube/liquicity': Prior(math.log2(174.0), 0.05, 80)})
+    updates, _ = refold.compare([bpm_row(**upload)], loaded)
+    assert (updates[0][0], updates[0][3], updates[0][4]) == (174.0, 1, octave.EVIDENCE_FOLDER)
+
+    trained = {**upload, 'raw_bpm': 174.0, 'bpm': 174.0}  # a confident 174: one of the folder's rows
+    thin = priors.Priors(folder={'youtube/liquicity': Prior(math.log2(174.0), 0.05, priors.MIN_SAMPLES)})
+    assert refold.evidence_from(bpm_row(**trained), thin).folder is None
+    assert refold.evidence_from(bpm_row(**upload), thin).folder.samples == priors.MIN_SAMPLES
 
 
 def test_an_unchanged_row_is_not_written_again():

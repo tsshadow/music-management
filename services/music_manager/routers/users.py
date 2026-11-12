@@ -19,7 +19,7 @@ from services.music_manager import rbac
 from services.music_manager.api_key import is_system_api_key
 from services.music_manager.database import get_db_connection, transaction
 from services.music_manager.dynamic_playlist_params import read_params, validate_params
-from services.music_manager.identity import username_taken
+from services.music_manager.identity import USERNAME_KEYED_TABLES, tombstone_name, username_taken
 from services.music_manager.lms_schema import usable_lms_targets
 from services.music_manager.rate_limit import auth_attempt
 from services.music_manager.rbac import has_permission, require_permission
@@ -1052,11 +1052,17 @@ def ensure_not_last_enabled_admin(cursor, target: dict, action: str) -> None:
         raise HTTPException(status_code=409, detail=_LAST_ADMIN_DETAIL[action])
 
 
+#: One rename per username-keyed table, built once from the fixed table list in `identity`.
+_TOMBSTONE_RENAMES = tuple(f'UPDATE {table} SET username = %s WHERE username = %s' for table in USERNAME_KEYED_TABLES)
+
+
 def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: bool = True):
     """Delete a user and all its dependent rows; shared by ``delete_user`` and
     the ``user-requests`` unapprove flow so both get the exact same, robust
     cleanup (and the same clear error on failure) instead of two diverging
-    implementations of "verwijderen gaat niet altijd goed".
+    implementations of "verwijderen gaat niet altijd goed". The ratings, listens,
+    imports and feeds the account keyed by username move to ``deleted-<id>``; the
+    caller runs this inside ``transaction(conn)``, so they move with the delete.
 
     Returns the deleted user's row (as fetched before deletion). Raises
     ``HTTPException`` 404 on a not-found user or (when ``protect_last_admin``) 409 on
@@ -1087,9 +1093,20 @@ def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: boo
     cursor.execute('UPDATE user_requests SET reviewed_by_user_id = NULL WHERE reviewed_by_user_id = %s', (user_id,))
     cursor.execute('UPDATE user_requests SET created_user_id = NULL WHERE created_user_id = %s', (user_id,))
 
+    # Ratings, listens, imports and feeds are keyed by username. They move to the tombstone
+    # name, so the server totals keep them and a new account with this name starts empty
+    # (issue #220). The caller holds the transaction, so they move with the delete or not at all.
+    tombstone = tombstone_name(user_id)
+    for statement in _TOMBSTONE_RENAMES:
+        cursor.execute(statement, (tombstone, target['username']))
+
     cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
     rbac.record_audit_event(
-        cursor, 'user.deleted', actor_user_id=actor_id, target_user_id=user_id, details=f"username={target['username']}"
+        cursor,
+        'user.deleted',
+        actor_user_id=actor_id,
+        target_user_id=user_id,
+        details=f"username={target['username']} history_moved_to={tombstone}",
     )
     return target
 
@@ -1498,22 +1515,45 @@ def _sync_server_users(cursor, sqlite_cursor):
     return 0
 
 
-def _sync_server_playlists(cursor, sqlite_cursor, source):
+def _sync_server_playlists(conn, sqlite_cursor, source):
+    """Make music-manager's copy of `source`'s smart playlists match the server (issue #223).
+
+    The server owns a synced playlist: every pass copies its name, params and owner, and deletes
+    the rows of this source whose playlist the server no longer has. A playlist whose owner has no
+    music-manager account keeps the row it has, because there is nobody to give it to. Every write
+    of one pass lands in one transaction, and a failure is a WARNING event, not a print.
+    """
     try:
         sqlite_cursor.execute('PRAGMA table_info(tracklist)')
         columns = [col[1] for col in sqlite_cursor.fetchall()]
-        if 'smart_params' in columns:
-            sqlite_cursor.execute('SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2')
-            for lms_id, lms_user_ptr, name, params in sqlite_cursor.fetchall():
-                cursor.execute('SELECT id FROM users WHERE server_user_id = %s', (str(lms_user_ptr),))
-                u_row = cursor.fetchone()
-                if u_row:
-                    cursor.execute(
-                        '\n                        INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)\n                        VALUES (%s, %s, %s, %s, %s)\n                        ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)\n                    ',
-                        (u_row['id'], lms_id, source, name, params),
-                    )
-    except Exception as pe:
-        print(f'Playlist sync failed for {source}: {pe}')
+        if 'smart_params' not in columns:
+            return
+        sqlite_cursor.execute('SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2')
+        server_playlists = sqlite_cursor.fetchall()
+        with transaction(conn), conn.cursor() as cursor:
+            cursor.execute('SELECT id, server_user_id FROM users WHERE server_user_id IS NOT NULL')
+            owners = {str(row['server_user_id']): row['id'] for row in cursor.fetchall()}
+            on_server = set()
+            for lms_id, lms_user_ptr, name, params in server_playlists:
+                on_server.add(int(lms_id))
+                user_id = owners.get(str(lms_user_ptr))
+                if user_id is None:
+                    continue
+                cursor.execute(
+                    'INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params) '
+                    'VALUES (%s, %s, %s, %s, %s) '
+                    'ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), name = VALUES(name), params = VALUES(params)',
+                    (user_id, lms_id, source, name, params),
+                )
+            cursor.execute(
+                'SELECT id, remote_id FROM dynamic_playlists WHERE source = %s AND remote_id IS NOT NULL', (source,)
+            )
+            gone = [row['id'] for row in cursor.fetchall() if int(row['remote_id']) not in on_server]
+            if gone:
+                cursor.executemany('DELETE FROM dynamic_playlists WHERE id = %s', [(row_id,) for row_id in gone])
+                logger.info('Removed %d playlist(s) that %s no longer has', len(gone), source)
+    except Exception as exc:  # pylint: disable=broad-except  # one server's failure must not stop the sync
+        logger.warning('Playlist sync failed for %s: %s', source, exc)
 
 
 #: Servers whose schema was not ready during the last sync, by source name. Read by
@@ -1559,8 +1599,7 @@ def sync_single_server_db(muma_conn, db_path, source):
         with muma_conn.cursor() as cursor:
             synced_users = _sync_server_users(cursor, sqlite_cursor)
             muma_conn.commit()
-            _sync_server_playlists(cursor, sqlite_cursor, source)
-            muma_conn.commit()
+        _sync_server_playlists(muma_conn, sqlite_cursor, source)
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
 
         sync_artist_images_to_server(muma_conn, sqlite_conn, source)

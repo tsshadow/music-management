@@ -1721,6 +1721,7 @@
   },
   "player": {
     "buffering": "Bezig met bufferen…",
+    "miniplayer": "Miniplayer",
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",
     "previous": "Vorige",

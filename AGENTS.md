@@ -112,8 +112,9 @@ The system is split into specialized services, each handling a specific part of 
       times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
     - **Vanished files**: after each full walk the scanner deletes the `library_media_files` row of
       a file that is gone from disk, never the track (`services/music_manager/vanished_media.py`).
-      A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
-      relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
+      A track left without a file is relinked on the `relink-orphans` metadata key, else on the
+      gone file's name and duration (issue #71: a pack release indexed before the tagger split
+      its artists), or kept for relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
       be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
       with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
       the operator script `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
@@ -159,7 +160,10 @@ The system is split into specialized services, each handling a specific part of 
   music-manager ends with a capped step (`services/music_manager/bpm/tag_writeback.py`, default 300 files
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
-  (docs/designs/bpm-tag-writeback/).
+  (docs/designs/bpm-tag-writeback/). It never writes a weak octave (`octave.weak_value`).
+- **Octave**: `bpm/octave.py` picks half, measured or double from the label, artist, genre and folder
+  priors. A reading above 205 BPM is halved only when one of them sides with the half; otherwise it
+  stays, marked `unsettled` and not reliable (docs/designs/bpm-octave/, issue #153).
 - **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
   analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
   or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the

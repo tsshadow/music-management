@@ -458,6 +458,43 @@ class UserLifecycleTest:
         assert deleted.status_code == 200, deleted.text
         assert {row['username'] for row in api.get('/api/users', headers=headers).json()} == {'root'}
 
+    def test_a_recreated_username_starts_empty_and_the_history_stays(self, api, headers, db):
+        """Issue #220: the deleted account's rows move to deleted-<id>, none reach the new account."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        user_id = api.post('/api/users', headers=headers, json={'username': 'user'}).json()['id']
+        for statement in (
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', 'uid-1', 'user', 5)",
+            "INSERT INTO scrobble_listens (username, listened_at) VALUES ('user', '2026-11-01 12:00:00')",
+            "INSERT INTO scrobble_unmatched_listens (username, listened_at, artist_name, track_title) "
+            "VALUES ('user', '2026-11-01 12:00:00', 'Nobody', 'Nothing')",
+            "INSERT INTO scrobble_imports (username, lb_username, status) VALUES ('user', 'lb-user', 'done')",
+            "INSERT INTO feeds_snapshot (username, slug, feed_date, generated_at, params_key, payload) "
+            "VALUES ('user', 'daily', '2026-11-01', '2026-11-01 06:00:00', 'k', '[]')",
+            "INSERT INTO feeds_profile_exclusions (username, entity_type, entity_name) VALUES ('user', 'artist', 'X')",
+        ):
+            run_sql(db, statement)
+
+        assert api.delete(f'/api/users/{user_id}', headers=headers).status_code == 200
+        assert api.post('/api/users', headers=headers, json={'username': 'user'}).status_code == 200
+
+        tables = (
+            'rating_tracks',
+            'scrobble_listens',
+            'scrobble_unmatched_listens',
+            'scrobble_imports',
+            'feeds_snapshot',
+            'feeds_profile_exclusions',
+        )
+        for table in tables:
+            assert not run_sql(db, f"SELECT 1 FROM {table} WHERE username = 'user'"), table
+            kept = run_sql(db, f'SELECT username FROM {table}')
+            assert [row['username'] for row in kept] == [f'deleted-{user_id}'], table
+
+    def test_a_tombstone_name_cannot_be_taken_by_a_new_account(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'Deleted-12'})
+        assert created.status_code == 409, created.text
+
     def test_approving_a_google_request_whose_email_is_taken_is_a_409(self, api, headers, db):
         """The e-mail becomes the username; an account already carrying it, in any case,
         used to hit the unique index and answer a 500 (bug report 079)."""
@@ -3049,6 +3086,39 @@ class BpmBrowseSqlTest:
         # Clearing the manual tempo queues the measurement's value -- unconfident, but written before.
         run_sql(db, "DELETE FROM library_track_bpm_manual WHERE track_uid = 'uid-tag-Manual'")
         assert manual in {row['track_id'] for row in store.due(config, [eps], 100)}
+
+    def test_the_tag_writeback_never_writes_a_weak_value(self, db):
+        """Issue #153: an unsettled estimate or a fold the general priors alone decided is never
+        written -- not at a low threshold, not even into a file this step wrote before."""
+        from services.music_manager.bpm import octave, tag_writeback
+
+        eps = '/mnt/music/EPs'
+        weak = {
+            'Unsettled': (0, octave.EVIDENCE_UNSETTLED),
+            'Neutral Fold': (1, octave.EVIDENCE_NEUTRAL),
+            'Path Fold': (1, octave.EVIDENCE_PATH),
+        }
+        ids = {}
+        for title, (corrected, evidence) in {**weak, 'Artist Fold': (1, octave.EVIDENCE_ARTIST)}.items():
+            ids[title] = self._measured(db, title, f'{eps}/Label/REL4/{title}.mp3', bpm=234.0, confidence=0.9)
+            run_sql(
+                db,
+                'UPDATE library_track_bpm SET octave_corrected = %s, fold_evidence = %s WHERE track_uid = %s',
+                (corrected, evidence, f'uid-tag-{title}'),
+            )
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        low = tag_writeback.read_settings({'bpm_tag_writeback_min_confidence': 0}.get)
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert ids['Artist Fold'] in due
+        assert not due & {ids[title] for title in weak}
+        run_sql(
+            db,
+            "UPDATE library_track_bpm SET tag_action = 'written', tag_bpm = 117.0 WHERE track_uid IN (%s, %s, %s)",
+            tuple(f'uid-tag-{title}' for title in weak),
+        )
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert not due & {ids[title] for title in weak}
+        assert store.remaining(low, [eps]) == 1
 
     def test_the_tag_writeback_leaves_a_queued_tagger_row_queued(self, db):
         from datetime import datetime

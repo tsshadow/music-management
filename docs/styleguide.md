@@ -150,6 +150,17 @@
   round button at the top right of the logo (`bg-black/60`, `text-brand` when marked), so the action is on
   the tile and not in a menu. In the full player a logo uses `object-contain` on black, because a logo must
   not be cut to the square of a cover. A station without a logo file shows its name on the tile.
+- **Compact player** (`CompactPlayer.svelte`, `docs/designs/miniplayer/`): the player in a small
+  box, on the panel color (`bg-muma-spotify-panel`). Below 200px high it is a strip: the square
+  cover at the full height on the left, then the title (`text-[13px] font-bold`), the artist in
+  muted `text-[11px]`, and one row with previous, the white round play button (36px), next, and the
+  stars (12px, `text-brand` when set) at the end of that row. From 200px high the cover goes on
+  top. A 2px progress line (`bg-white` on `bg-white/10`) runs along the bottom edge. No
+  transitions and no animation. A live station drops skip, stars and progress. The PC window
+  (issue #177) is the first user.
+- **Miniplayer button** (desktop player bar, Chrome and Edge only): the lucide `PictureInPicture2`
+  icon at 16px, in the right cluster before the queue button, with the same muted-to-white hover as
+  its neighbors. A browser that cannot open the window does not show it.
 - **Memory card**: represents one release *year*, never a single track. Its title is the relative
   age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
   the cover art of the first track in that year's group. It uses the standard card surface and
@@ -338,6 +349,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
 3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/muma-mobile`), then mark the item as completed in the style guide.
 
 ### Design Backlog
+
+- **Pending** — Wrapped cards (issue #60, `docs/designs/wrapped-page/`). New patterns from existing
+  tokens, to be approved before the code: a full-screen card on phone width (`min-h-[100dvh]`,
+  scroll snap) that becomes a two-column grid from `md`; a hero headline in `font-black`
+  `text-5xl` to `text-7xl`; a card background as the leading genre's tint fading into
+  `muma-spotify-dark`, else `bg-muma-spotify-panel` with `brand` accents; the two tabs as
+  `<button aria-pressed>` pills in the chip style (`bg-brand text-black` when picked); a 1080 x 1920
+  share image with the same layout and the MuMa mark.
+
+- **Done** -- Compact player and the PC miniplayer window (2026-11-12, issue #177,
+  `docs/designs/miniplayer/`): see "Compact player" and "Miniplayer button" under Components. No
+  new token. The phone's split-screen and picture-in-picture variants (#179, #178) reuse it.
 
 - **Done** — First-run server screen and server line (2026-11-10, issue #192,
   `docs/designs/first-run-server/`): see "First-run server screen" and "Server line on the login

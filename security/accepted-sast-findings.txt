@@ -56,16 +56,16 @@ b75c3d49465f1c12 x1  # detected-private-key services/muma-mobile/core/subsonic-a
 # container name on every connection (see the resolver comment there).
 215b7d436a195271 x8  # dynamic-proxy-host services/music-management-server/nginx/reverse-proxy.conf
 
-# --- dynamic-urllib-use-detected --- [r:0ebd60e6]
+# --- dynamic-urllib-use-detected --- [r:1e78bf88]
 # scripts/backfill_artwork.py has two sites: one builds a SoundCloud API URL
 # from a literal host and a list of track ids out of our own archive table,
 # the other fetches an artwork URL that did come from a third party's JSON
 # -- and that one goes through artwork.is_web_url() first, which refuses
 # anything but http(s) so a crafted file:// value cannot have the backfill
-# embed a local file. Audited 2026-09-22.
-# tools/music_mirror.py posts its failure alert to MIRROR_NTFY_URL, from the
-# root-owned env file on the mirror NAS; load_config() refuses anything but
-# http(s). Audited 2026-11-12.
+# embed a local file. Audited 2026-09-22. tools/music_mirror.py posts its
+# failure alert to MIRROR_NTFY_URL, from the root-owned env file on the
+# mirror NAS; load_config() refuses anything but http(s). Audited
+# 2026-11-12.
 e4d01bfba9291a3c x2  # dynamic-urllib-use-detected scripts/backfill_artwork.py
 2069dd99e9462e8e x1  # dynamic-urllib-use-detected tools/music_mirror.py
 

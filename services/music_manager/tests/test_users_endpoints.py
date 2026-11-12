@@ -27,7 +27,12 @@ services.music_manager.database.get_db_connection = MagicMock(return_value=None)
 from fastapi.testclient import TestClient
 
 from services.music_manager.main import app
-from services.music_manager.tests.scripted_cursor import assert_atomic, assert_rolled_back, transaction_log
+from services.music_manager.tests.scripted_cursor import (
+    ScriptedCursor,
+    assert_atomic,
+    assert_rolled_back,
+    transaction_log,
+)
 
 API_KEY = users_router.API_KEY
 
@@ -821,40 +826,101 @@ class ServerSyncTest(unittest.TestCase):
             users_router.notify_server_sync_users()
         self.assertEqual(http.post.call_count, 2)
 
-    def test_playlists_are_synced_for_users_known_on_both_sides(self):
-        cursor = MagicMock()
-        cursor.fetchone.return_value = {'id': 7}
+    @staticmethod
+    def server_cursor(playlists, columns=((0, 'smart_params'),)):
+        """A sqlite cursor whose tracklist has `columns` and holds the smart `playlists`."""
         sqlite_cursor = MagicMock()
-        sqlite_cursor.fetchall.side_effect = [
-            [(0, 'smart_params')],
-            [(3, 'lms-user', 'Smart list', '{}')],
-        ]
-        users_router._sync_server_playlists(cursor, sqlite_cursor, 'lms')
-        self.assertEqual(cursor.execute.call_args.args[1][0], 7)
+        sqlite_cursor.fetchall.side_effect = [list(columns), list(playlists)]
+        return sqlite_cursor
+
+    @staticmethod
+    def muma(rules):
+        """A MagicMock connection whose cursor is a ScriptedCursor with `rules`."""
+        conn = MagicMock()
+        cursor = ScriptedCursor(rules)
+        conn.cursor.return_value = cursor
+        return conn, cursor
+
+    OWNERS = (
+        'FROM users WHERE server_user_id',
+        None,
+        [{'id': 7, 'server_user_id': '11'}, {'id': 8, 'server_user_id': '12'}],
+    )
+
+    def test_playlists_are_synced_for_users_known_on_both_sides(self):
+        conn, cursor = self.muma([self.OWNERS])
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
+        (upsert,) = cursor.statements_matching('INSERT INTO dynamic_playlists')
+        self.assertEqual(upsert[1], (7, 3, 'lms', 'Smart list', '{}'))
+
+    def test_an_owner_change_on_the_server_moves_the_playlist(self):
+        """The server owns the playlist, so the upsert rewrites user_id too (issue #223)."""
+        conn, cursor = self.muma([self.OWNERS])
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 12, 'Smart list', '{}')]), 'lms')
+        (upsert,) = cursor.statements_matching('INSERT INTO dynamic_playlists')
+        self.assertIn('user_id = VALUES(user_id)', upsert[0])
+        self.assertEqual(upsert[1][0], 8)
+
+    def test_a_playlist_the_server_deleted_is_deleted_here(self):
+        conn, cursor = self.muma(
+            [
+                self.OWNERS,
+                (
+                    'SELECT id, remote_id FROM dynamic_playlists',
+                    ('lms',),
+                    [{'id': 40, 'remote_id': 3}, {'id': 41, 'remote_id': 4}],
+                ),
+            ]
+        )
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
+        (delete,) = cursor.statements_matching('DELETE FROM dynamic_playlists')
+        self.assertEqual(delete[1], [(41,)])
+
+    def test_upserts_and_deletes_land_in_one_transaction(self):
+        conn, cursor = self.muma(
+            [self.OWNERS, ('SELECT id, remote_id FROM dynamic_playlists', None, [{'id': 41, 'remote_id': 4}])]
+        )
+        log = transaction_log(conn, cursor)
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
+        assert_atomic(self, log, 'INSERT INTO dynamic_playlists', 'DELETE FROM dynamic_playlists')
+
+    def test_a_failing_delete_rolls_the_pass_back_and_logs_a_warning(self):
+        conn, cursor = self.muma(
+            [self.OWNERS, ('SELECT id, remote_id FROM dynamic_playlists', None, [{'id': 41, 'remote_id': 4}])]
+        )
+        log = transaction_log(conn, cursor, fail_on='DELETE FROM dynamic_playlists')
+        with self.assertLogs(users_router.logger, level='WARNING') as logs:
+            users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
+        assert_rolled_back(self, log)
+        self.assertIn('Playlist sync failed for lms', logs.output[0])
+
+    def test_nothing_is_deleted_when_the_server_still_has_every_playlist(self):
+        conn, cursor = self.muma(
+            [self.OWNERS, ('SELECT id, remote_id FROM dynamic_playlists', None, [{'id': 40, 'remote_id': 3}])]
+        )
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 11, 'Smart list', '{}')]), 'lms')
+        self.assertEqual(cursor.statements_matching('DELETE FROM dynamic_playlists'), [])
 
     def test_a_server_without_smart_playlists_is_skipped(self):
-        cursor = MagicMock()
-        sqlite_cursor = MagicMock()
-        sqlite_cursor.fetchall.return_value = [(0, 'name')]
-        users_router._sync_server_playlists(cursor, sqlite_cursor, 'lms')
-        cursor.execute.assert_not_called()
+        conn = MagicMock()
+        users_router._sync_server_playlists(conn, self.server_cursor([], columns=[(0, 'name')]), 'lms')
+        conn.cursor.assert_not_called()
 
-    def test_a_playlist_belonging_to_an_unknown_user_is_skipped(self):
-        cursor = MagicMock()
-        cursor.fetchone.return_value = None
-        sqlite_cursor = MagicMock()
-        sqlite_cursor.fetchall.side_effect = [
-            [(0, 'smart_params')],
-            [(3, 'lms-user', 'Smart list', '{}')],
-        ]
-        users_router._sync_server_playlists(cursor, sqlite_cursor, 'lms')
-        self.assertEqual(len(cursor.execute.call_args_list), 1)
+    def test_a_playlist_belonging_to_an_unknown_user_is_kept_untouched(self):
+        """No account to give it to: no upsert, and no delete either, because the server has it."""
+        conn, cursor = self.muma(
+            [self.OWNERS, ('SELECT id, remote_id FROM dynamic_playlists', None, [{'id': 40, 'remote_id': 3}])]
+        )
+        users_router._sync_server_playlists(conn, self.server_cursor([(3, 99, 'Smart list', '{}')]), 'lms')
+        self.assertEqual(cursor.statements_matching('INSERT INTO dynamic_playlists'), [])
+        self.assertEqual(cursor.statements_matching('DELETE FROM dynamic_playlists'), [])
 
-    def test_a_failing_playlist_sync_is_swallowed(self):
+    def test_a_failing_playlist_sync_is_a_warning_not_an_exception(self):
         sqlite_cursor = MagicMock()
         sqlite_cursor.execute.side_effect = RuntimeError('no such table')
-        with patch('builtins.print'):
+        with self.assertLogs(users_router.logger, level='WARNING') as logs:
             users_router._sync_server_playlists(MagicMock(), sqlite_cursor, 'lms')  # must not raise
+        self.assertIn('no such table', logs.output[0])
 
     def test_user_rows_are_never_pulled_back_from_the_server(self):
         self.assertEqual(users_router._sync_server_users(MagicMock(), MagicMock()), 0)
@@ -874,7 +940,8 @@ class SyncSingleServerDbTest(unittest.TestCase):
             sync_images.assert_called_once()
             # The server's name reaches the image sync, so its log lines say which server.
             self.assertEqual(sync_images.call_args.args[2], 'lms')
-        self.assertEqual(muma_conn.commit.call_count, 2)
+        # One commit for the users; the playlists commit inside their own transaction.
+        self.assertEqual(muma_conn.commit.call_count, 1)
 
     def test_an_unreadable_database_does_not_raise(self):
         with patch('builtins.print'):

@@ -339,6 +339,13 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
+- **Pending** — Wrapped cards (issue #60, `docs/designs/wrapped-page/`). New patterns from existing
+  tokens, to be approved before the code: a full-screen card on phone width (`min-h-[100dvh]`,
+  scroll snap) that becomes a two-column grid from `md`; a hero headline in `font-black`
+  `text-5xl` to `text-7xl`; a card background as the leading genre's tint fading into
+  `muma-spotify-dark`, else `bg-muma-spotify-panel` with `brand` accents; the two tabs as
+  `<button aria-pressed>` pills in the chip style (`bg-brand text-black` when picked); a 1080 x 1920
+  share image with the same layout and the MuMa mark.
 - **Done** — First-run server screen and server line (2026-11-10, issue #192,
   `docs/designs/first-run-server/`): see "First-run server screen" and "Server line on the login
   page" under Components. The settings row and the switch dialog reuse the Apparaat rows and the

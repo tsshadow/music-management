@@ -75,6 +75,9 @@ Summarised here because it affects what counts as a vulnerability;
   outside monitor. Without a valid `X-API-Key` it answers `status` and the
   source code address only; the version, the thread states and the heartbeats
   need the system key or a user's key. The code is 200 or 503 either way.
+* `GET /health/backup` is public through nginx too (issue #236), for the
+  nightly check. It needs no key and gives the backup status, the dump's file
+  name, its age and its table count; 503 when the backup is stale or missing.
   Both proxies in front of MuMa -- nginx and LMS -- send the client address
   they resolved, never the client's own header
   (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).

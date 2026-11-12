@@ -23,9 +23,9 @@ other a folder that collects music with no label at all. A "your label of the ye
 today's data would name SoundCloud. This design covers what replaces it: a **channel** as a first
 class thing, separate from a label, and able to point at the artist or the label it actually is.
 
-The Wrapped itself is planned as two pages: a **user wrapped** (what you listened to, what you rated)
-and a **server wrapped** (what MuMa collected, tagged and downloaded that year). Their contents are
-not decided here.
+The Wrapped itself is one page with two tabs, a **MuMa User** tab (what you listened to, what you
+rated) and a **MuMa Library** tab (the whole server's listening, and what MuMa collected, tagged and
+downloaded that year). Its contents are in [../wrapped-page/](../wrapped-page/functional.md).
 
 ## User Stories
 
@@ -90,8 +90,8 @@ not decided here.
 
 ## Out of Scope
 
-- **The Wrapped page itself.** Deliberately undecided. Web-only is the current thinking, on the
-  grounds that what gets shared is a screenshot; that is not yet settled.
+- **The Wrapped page itself.** It is designed in [../wrapped-page/](../wrapped-page/functional.md):
+  web and app together, two tabs (MuMa User and MuMa Library), decided 2026-10-02.
 - **Re-matching old listening history.** Most of the unmatched two thirds is imported ListenBrainz
   history for music that was never in the library. The raw rows are kept, so nothing is lost, but
   they are not a target.
@@ -105,7 +105,6 @@ not decided here.
 
 ## Open Questions / Not Yet Decided
 
-- Where the Wrapped lives (web only vs. also mobile) and what each of the two pages contains.
 - Whether the car should be its own origin or a flag on top of mobile. Treated here as its own
   origin, because that is how it will be read on the page.
 - Whether a channel may point at both a label and an artist at once, or must pick one.

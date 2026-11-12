@@ -740,6 +740,9 @@ class OfflineMusicService :
     @Throws(OfflineException::class)
     override fun setRating(id: String, rating: Int): Unit = throw OfflineException("setRating isn't available in offline mode")
 
+    /** The downloaded copy of the track, with the rating it was last given on this device. */
+    override fun getSong(id: String): Track? = cachedTracks.byId(id)
+
     @Throws(OfflineException::class)
     override fun getPodcastsChannels(refresh: Boolean): List<PodcastsChannel> = throw OfflineException("getPodcastsChannels isn't available in offline mode")
 

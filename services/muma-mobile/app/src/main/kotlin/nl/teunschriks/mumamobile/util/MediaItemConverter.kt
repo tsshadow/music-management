@@ -60,13 +60,39 @@ object MediaItemConverter {
      * Records a rating that was set somewhere other than on the playing item.
      *
      * The cached Track can be corrected in place, but the cached MediaItem cannot: its metadata
-     * carries the rating as an immutable StarRating, so it is dropped instead and the next
+     * has the rating as an immutable StarRating, so it is dropped instead and the next
      * [toMediaItem] builds a fresh one from the up-to-date Track.
+     *
+     * [trackId] is a track id, and every entry for that track is corrected: the plain one and the
+     * composite ids the car's browse tree builds (`<list>|<track id>`, `bpm|<bucket>|<track id>`).
+     * Before issue #256 only the entry with exactly that key was, so a list in the car kept the old
+     * rating for ten minutes.
      */
-    fun applyRating(mediaId: String, rating: Int) {
-        trackCache[mediaId]?.get()?.userRating = rating
-        mediaItemCache.remove(mediaId)
+    fun applyRating(trackId: String, rating: Int) {
+        for (key in trackCache.keys()) {
+            val track = trackCache[key]?.get()
+            if (isEntryFor(key, trackId) || track?.id == trackId) track?.userRating = rating
+        }
+        for (key in mediaItemCache.keys()) {
+            if (isEntryFor(key, trackId)) mediaItemCache.remove(key)
+        }
     }
+
+    /**
+     * The rating the caches know for [mediaId], or null when they know none. Read by [toMediaItem]
+     * so that a Track built without a rating does not replace one that has it.
+     */
+    fun cachedRating(mediaId: String): Int? = trackCache[mediaId]?.get()?.userRating
+        ?: mediaItemCache[mediaId]?.get()?.ratingExtra()
+
+    /** Whether the cache key [key] is an entry for the track [trackId]. */
+    fun isEntryFor(key: String, trackId: String): Boolean = key == trackId || key.substringAfterLast('|') == trackId
+}
+
+/** The rating stored in the item's extras, or null when it has none: unknown. */
+fun MediaItem.ratingExtra(): Int? {
+    val extras = mediaMetadata.extras ?: return null
+    return if (extras.containsKey("userRating")) extras.getInt("userRating") else null
 }
 
 /**
@@ -74,9 +100,11 @@ object MediaItemConverter {
  */
 @Suppress("LongMethod")
 fun Track.toMediaItem(mediaId: String = id): MediaItem {
-    // Check Cache
+    // Check Cache. A Track without a rating takes the cached item, which may know it. A Track with
+    // one only takes an item built with the same rating: the newer value wins (issue #256).
     val cachedItem = MediaItemConverter.mediaItemCache[mediaId]?.get()
-    if (cachedItem != null) return cachedItem
+    if (cachedItem != null && (userRating == null || cachedItem.ratingExtra() == userRating)) return cachedItem
+    if (userRating == null) userRating = MediaItemConverter.cachedRating(mediaId)
 
     // No cache hit, generate it
     val filePath = FileUtil.getSongFile(this)
@@ -95,7 +123,7 @@ fun Track.toMediaItem(mediaId: String = id): MediaItem {
         genre = genre,
         sourceUri = uri.toUri(),
         imageUri = artworkUri,
-        userRating = userRating ?: 0,
+        userRating = userRating,
         group = null,
         mediaType = if (isDirectory) {
             MEDIA_TYPE_FOLDER_MIXED
@@ -143,7 +171,7 @@ fun Track.toMediaItem(mediaId: String = id): MediaItem {
     }
     if (userRating != null) {
         mediaItem.mediaMetadata.extras?.putInt("userRating", userRating!!)
-        metadataBuilder.setUserRating(StarRating(5, userRating!!.toFloat()))
+        metadataBuilder.setUserRating(StarRating(MAX_STARS, userRating!!.coerceIn(0, MAX_STARS).toFloat()))
     }
     if (averageRating != null) {
         mediaItem.mediaMetadata.extras?.putFloat("averageRating", averageRating!!)
@@ -220,7 +248,7 @@ fun MediaItem.toTrack(): Track {
         createdDate,
         mediaMetadata.extras?.getInt("closeness", 0) ?: 0,
         mediaMetadata.extras?.getInt("bookmarkPosition", 0) ?: 0,
-        mediaMetadata.extras?.getInt("userRating", 0) ?: 0,
+        ratingExtra(),
         mediaMetadata.extras?.getFloat("averageRating", 0F) ?: 0F,
         mediaMetadata.extras?.getString("name")
     )
@@ -229,9 +257,11 @@ fun MediaItem.toTrack(): Track {
     // [setUserRating] can never reach it - while the extras stay current. Letting it win would
     // hand a rating changed in the car back the number the item was built with, and the next tap
     // would recompute the rating that was just set.
+    // An unrated StarRating is "unknown", not 0: the car's rating button would step from it and
+    // write 1 over a real rating (issue #256).
     if (mediaMetadata.extras?.containsKey("userRating") != true) {
-        (mediaMetadata.userRating as? StarRating)?.let {
-            track.userRating = if (it.isRated) it.starRating.toInt() else 0
+        (mediaMetadata.userRating as? StarRating)?.takeIf { it.isRated }?.let {
+            track.userRating = it.starRating.toInt()
         }
     }
 
@@ -268,6 +298,8 @@ private fun safeParseDate(created: String?): Date? = if (created != null) {
 /**
  * Build a new MediaItem from a list of attributes.
  * Especially useful to create folder entries in the Auto interface.
+ *
+ * [userRating] null means the rating is not known, which is not the same as 0 (issue #256).
  */
 @SuppressLint("UnsafeOptInUsageError")
 @Suppress("LongParameterList")
@@ -281,7 +313,7 @@ fun buildMediaItem(
     genre: String? = null,
     sourceUri: Uri? = null,
     imageUri: Uri? = null,
-    userRating: Int = 0,
+    userRating: Int? = null,
     group: String? = null,
     mediaType: @MediaMetadata.MediaType Int? = null
 ): MediaItem {
@@ -293,8 +325,8 @@ fun buildMediaItem(
         .setAlbumArtist(artist)
         .setGenre(genre)
         .setUserRating(
-            if (userRating > 0) {
-                StarRating(MAX_STARS, userRating.toFloat())
+            if (userRating != null && userRating > 0) {
+                StarRating(MAX_STARS, userRating.coerceAtMost(MAX_STARS).toFloat())
             } else {
                 StarRating(MAX_STARS)
             }
@@ -324,6 +356,8 @@ fun buildMediaItem(
     }
 
     val metadata = metadataBuilder.build()
+    // The extras are what [toTrack] reads the rating from. Null leaves them without one: unknown.
+    if (userRating != null) metadata.extras?.putInt("userRating", userRating)
 
     val mediaItemBuilder = MediaItem.Builder()
         .setMediaId(mediaId)

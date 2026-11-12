@@ -189,6 +189,13 @@ open class RESTMusicService(
         API.setRating(id, rating).execute().throwOnFailure()
     }
 
+    /** `getSong`. A rating the server leaves out means the track is unrated. */
+    @Throws(Exception::class)
+    override fun getSong(id: String): Track? {
+        val response = API.getSong(id).execute().throwOnFailure()
+        return response.body()!!.song?.toTrackEntity(activeServerId)
+    }
+
     @Throws(Exception::class)
     override fun getMusicDirectory(id: String, name: String?, refresh: Boolean): MusicDirectory {
         val response = API.getMusicDirectory(id).execute().throwOnFailure()

@@ -518,6 +518,12 @@ export function createBrowserPlayer() {
   /** @see startRadio */
   async function toggleNews() {}
 
+  /**
+   * Does nothing: a browser tab has no service queue or car button to keep in step. The rating
+   * itself is written by `ratings.js`.
+   */
+  async function setRating() {}
+
   return {
     ownsQueue: false,
     setQueue,
@@ -528,6 +534,7 @@ export function createBrowserPlayer() {
     startStation,
     stopRadio,
     toggleNews,
+    setRating,
     attach,
     detach,
     ready,

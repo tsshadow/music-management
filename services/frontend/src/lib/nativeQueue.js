@@ -1,4 +1,6 @@
+import { get } from "svelte/store";
 import { logAction } from "./diagnosticsLog.js";
+import { ratings } from "./ratings.js";
 
 /**
  * Keeping the platform service's queue in step with the UI's.
@@ -59,19 +61,39 @@ import { logAction } from "./diagnosticsLog.js";
  * `getCoverArt?id=https://...` and kept the user's token with the track (bug
  * report 150).
  *
+ * `userRating` is what the car's rating button starts from, so it is sent only when this side
+ * knows it: a rating written in this session, else the one the server sent with the track. A
+ * Subsonic track without `userRating` may be unrated or may come from a list that leaves the
+ * field out, so it goes across as null, "unknown", and the service asks the server before a tap
+ * steps from it. Sending 0 there made the first tap in the car write 1 over a real rating
+ * (issue #256, docs/designs/car-rating-state/).
+ *
  * @param {object} track - A Subsonic track as the library returned it.
+ * @param {Record<string, number>} [sessionRatings] - The value of the `ratings` store.
  * @returns {{id: string, title: string, artist: string, album: string,
- *   coverArt: string, duration: number}}
+ *   coverArt: string, duration: number, userRating: number|null}}
  */
-export function toQueueTrack(track) {
+export function toQueueTrack(track, sessionRatings = {}) {
+  const id = String(track.id);
   return {
-    id: String(track.id),
+    id,
     title: track.title ?? "",
     artist: track.artist ?? "",
     album: track.album ?? "",
     coverArt: track.coverArt ? String(track.coverArt) : "",
     duration: Number(track.duration) || 0,
+    userRating: knownRating(sessionRatings[id] ?? track.userRating),
   };
+}
+
+/**
+ * A rating from 0 to 5, or null when [value] is not one.
+ *
+ * @param {unknown} value
+ * @returns {number|null}
+ */
+function knownRating(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 5 ? value : null;
 }
 
 /**
@@ -323,8 +345,9 @@ export function createNativeQueue(player, { onError = () => {} } = {}) {
     // service on `index` while accepting the queue; it is ignored on an edit
     // that leaves the current item where it is, so a queue that keeps being
     // re-sent cannot un-pause the player.
+    const sessionRatings = get(ratings);
     await player.setQueue({
-      tracks: queue.map((track) => toQueueTrack(track)),
+      tracks: queue.map((track) => toQueueTrack(track, sessionRatings)),
       index: Math.max(index, 0),
       autoplay: autoplay && index >= 0,
     });

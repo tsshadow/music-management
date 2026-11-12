@@ -32,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -42,9 +43,11 @@ import nl.teunschriks.mumamobile.capacitor.ServerReachability
 import nl.teunschriks.mumamobile.data.RatingUpdate
 import nl.teunschriks.mumamobile.domain.SearchCriteria
 import nl.teunschriks.mumamobile.home.PlaybackSourceHolder
+import nl.teunschriks.mumamobile.service.CachedMusicService
 import nl.teunschriks.mumamobile.service.MusicServiceFactory
 import nl.teunschriks.mumamobile.service.PlaybackService
 import nl.teunschriks.mumamobile.service.PlaybackStateSerializer
+import nl.teunschriks.mumamobile.service.QueueRatings
 import nl.teunschriks.mumamobile.service.RatingManager
 import nl.teunschriks.mumamobile.service.toMediaItemsWithStartPosition
 import nl.teunschriks.mumamobile.util.setUserRating
@@ -253,20 +256,7 @@ class MediaLibrarySessionCallback :
 
         when (customCommand.customAction) {
             PlaybackService.CUSTOM_COMMAND_CYCLE_RATING -> {
-                // Android Auto strips the extras the button was built with, so the playing track
-                // - which is what the button was drawn from - decides where the tap goes. The
-                // extras are only read for controllers that do hand them back.
-                val next = MediaLibraryCommandHandler.ratingAfterTap(
-                    trackRating = session.player.currentMediaItem?.toTrack()?.userRating,
-                    extrasRating = ratingFromExtras(args)
-                        ?: ratingFromExtras(customCommand.customExtras)
-                )
-                customCommandFuture = onSetRating(
-                    session,
-                    controller,
-                    StarRating(PlaybackService.MAX_RATING, next.toFloat())
-                )
-                commandHandler.updateCustomRatingButton(session, next)
+                customCommandFuture = onRatingTap(session, controller)
             }
 
             PlaybackService.CUSTOM_COMMAND_PLAY_NEWS -> {
@@ -320,10 +310,61 @@ class MediaLibrarySessionCallback :
             )
     }
 
-    private fun ratingFromExtras(extras: Bundle): Int? {
-        if (!extras.containsKey(PlaybackService.EXTRA_CURRENT_RATING)) return null
-        return extras.getInt(PlaybackService.EXTRA_CURRENT_RATING)
+    /**
+     * A tap on the car's rating button: one step up from the playing track's rating.
+     *
+     * Android Auto strips the extras the button was built with, so the playing track - which is
+     * what the button was drawn from - decides where the tap goes. When that track's rating is
+     * not known (a queue the web player built without one), the tap waits for [ratingResolver]
+     * and steps from the real rating; taps made in the meantime are counted in [pendingTaps]. A
+     * rating no source knows is not stepped from at all (issue #256).
+     */
+    private fun onRatingTap(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo
+    ): ListenableFuture<SessionResult> {
+        fun rateFromTap(rating: Int): ListenableFuture<SessionResult> {
+            val result = onSetRating(session, controller, StarRating(PlaybackService.MAX_RATING, rating.toFloat()))
+            commandHandler.updateCustomRatingButton(session, rating)
+            return result
+        }
+
+        val item = session.player.currentMediaItem
+            ?: return Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
+        val track = item.toTrack()
+        val next = MediaLibraryCommandHandler.ratingAfterTap(track.userRating)
+        if (next != null) return rateFromTap(next)
+
+        val trackId = track.id
+        if (!pendingTaps.add(trackId)) return Futures.immediateFuture(SessionResult(RESULT_SUCCESS))
+        return mainScope.future {
+            val known = withContext(Dispatchers.IO) { ratingResolver.resolve(trackId) }
+            val taps = pendingTaps.take(trackId)
+            if (known == null) {
+                Timber.w("Rating of %s is not known; %d tap(s) in the car ignored", trackId, taps)
+                return@future SessionResult(RESULT_SUCCESS)
+            }
+            if (QueueRatings.applyToQueue(session.player, trackId, known)) {
+                val stepped = MediaLibraryCommandHandler.ratingAfterTap(known, taps) ?: known
+                rateFromTap(stepped).await()
+            } else {
+                // The listener moved on while the rating was looked up; the taps were for the
+                // track that was playing then, and are not moved to the new one.
+                SessionResult(RESULT_SUCCESS)
+            }
+        }
     }
+
+    private val pendingTaps = PendingRatingTaps()
+
+    // The online service only: the offline one answers from Room, which is the last source.
+    private val ratingResolver = RatingResolver(
+        fromServer = { id ->
+            (MusicServiceFactory.getMusicService() as? CachedMusicService)?.getSong(id)?.let { it.userRating ?: 0 }
+        },
+        fromCache = { id -> (MusicServiceFactory.getMusicService() as? CachedMusicService)?.cachedRating(id) },
+        fromRoom = { id -> activeServerProvider.offlineMetaDatabase.trackDao().byId(id)?.userRating }
+    )
 
     override fun onSetRating(
         session: MediaSession,
@@ -334,14 +375,15 @@ class MediaLibrarySessionCallback :
         val mediaItem = session.player.currentMediaItem
 
         if (mediaItem != null) {
-            if (rating is StarRating) {
-                mediaItem.setUserRating(rating.starRating.toInt())
+            if (rating is StarRating && rating.isRated) {
+                val stars = rating.starRating.toInt()
+                QueueRatings.markLocalChange()
+                mediaItem.setUserRating(stars)
+                // Every other queued copy of the track too, or moving to it shows the old rating.
+                QueueRatings.applyToQueue(session.player, mediaItem.toTrack().id, stars)
                 // A rating set on the phone must leave the car's button showing the same
                 // number, or the next tap in the car looks like it skipped a step
-                commandHandler.updateCustomRatingButton(
-                    session,
-                    rating.starRating.toInt()
-                )
+                commandHandler.updateCustomRatingButton(session, stars)
             }
             return onSetRating(
                 session,

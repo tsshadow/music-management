@@ -6,6 +6,7 @@ import {
   toQueueTrack,
   trackAfterCommand,
 } from "../../src/lib/nativeQueue.js";
+import { ratings, resetRatings } from "../../src/lib/ratings.js";
 
 /**
  * The hand-off between the UI's queue and the platform service's.
@@ -78,6 +79,7 @@ describe("toQueueTrack", () => {
       album: "X",
       coverArt: "c1",
       duration: 100,
+      userRating: null,
     });
   });
 
@@ -89,7 +91,27 @@ describe("toQueueTrack", () => {
       album: "",
       coverArt: "",
       duration: 0,
+      userRating: null,
     });
+  });
+
+  // Issue #256: without a rating the car's button started at 0, and its first tap wrote 1 over
+  // the real rating.
+  it("sends the rating the server sent with the track", () => {
+    expect(toQueueTrack({ id: 4, userRating: 4 }).userRating).toBe(4);
+  });
+
+  it("sends a rating written in this session over the one the track came with", () => {
+    expect(toQueueTrack({ id: 4, userRating: 4 }, { 4: 2 }).userRating).toBe(2);
+    expect(toQueueTrack({ id: 4, userRating: 4 }, { 4: 0 }).userRating).toBe(0);
+  });
+
+  // A Subsonic track without `userRating` may be unrated or may come from a list that leaves the
+  // field out; the service has to ask the server rather than step from a guessed 0.
+  it("sends null, not 0, when the rating is not known", () => {
+    expect(toQueueTrack({ id: 4 }).userRating).toBe(null);
+    expect(toQueueTrack({ id: 4, userRating: "4" }).userRating).toBe(null);
+    expect(toQueueTrack({ id: 4, userRating: 9 }).userRating).toBe(null);
   });
 
   // Bug report 150: a signed getCoverArt URL crossed the bridge as the cover,
@@ -123,6 +145,16 @@ describe("createNativeQueue", () => {
     player = fakePlayer();
     onError = vi.fn();
     queue = createNativeQueue(player, { onError });
+  });
+
+  it("carries each track's rating across, a rating written in this session first", async () => {
+    resetRatings();
+    ratings.set({ 2: 3 });
+    await queue.sync([{ ...TRACKS[0], userRating: 4 }, TRACKS[1], TRACKS[2]], TRACKS[0]);
+    resetRatings();
+
+    const sent = player.calls[0][1].tracks.map((track) => track.userRating);
+    expect(sent).toEqual([4, 3, null]);
   });
 
   it("pushes a new queue and starts it in the same call", async () => {

@@ -75,6 +75,13 @@ interface MusicService {
     @Throws(Exception::class)
     fun setRating(id: String, rating: Int)
 
+    /**
+     * One track by id, with the user's rating, or null when the source does not have it. Online
+     * it asks the server (`getSong`); offline it reads the downloaded library.
+     */
+    @Throws(Exception::class)
+    fun getSong(id: String): Track?
+
     @Throws(Exception::class)
     fun getMusicFolders(refresh: Boolean): List<MusicFolder>
 

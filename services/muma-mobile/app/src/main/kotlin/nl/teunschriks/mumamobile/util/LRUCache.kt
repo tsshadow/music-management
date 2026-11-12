@@ -42,6 +42,10 @@ class LRUCache<K, V>(capacity: Int) {
     @Synchronized
     fun values(): List<V> = map.values.mapNotNull { it.getValue() }
 
+    /** Every key held, a copy: callers may [remove] while they walk it. */
+    @Synchronized
+    fun keys(): List<K> = map.keys.toList()
+
     @Synchronized
     fun remove(key: K) {
         map.remove(key)

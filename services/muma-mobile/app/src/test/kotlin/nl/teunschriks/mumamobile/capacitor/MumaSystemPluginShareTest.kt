@@ -15,6 +15,8 @@ import com.getcapacitor.PluginCall
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.io.File
+import java.util.Base64
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeNull
 import org.amshove.kluent.shouldNotBeNull
@@ -25,8 +27,6 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
-import java.io.File
-import java.util.Base64
 
 /**
  * `share`, the [MumaSystemPlugin] method behind the Wrapped page's share button: a PNG from the

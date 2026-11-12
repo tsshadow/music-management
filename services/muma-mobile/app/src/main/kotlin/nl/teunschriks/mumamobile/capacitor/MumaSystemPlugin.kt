@@ -10,8 +10,8 @@ package nl.teunschriks.mumamobile.capacitor
 import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
-import android.content.ClipData
 import android.bluetooth.BluetoothManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -29,6 +29,9 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import java.io.File
+import java.io.IOException
+import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.BuildConfig
@@ -49,9 +52,6 @@ import okhttp3.OkHttpClient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import timber.log.Timber
-import java.io.File
-import java.io.IOException
-import java.util.Base64
 
 /**
  * `platform.system` — the shell itself.

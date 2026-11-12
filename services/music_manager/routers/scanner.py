@@ -496,6 +496,28 @@ class ScannerManager:
             return False
         return record['file_mtime'] == mtime and record['file_size'] == size
 
+    @staticmethod
+    def _artist_ids(cursor, names, overlong: list[str]) -> list[int]:
+        """The library_artists ids of these names, in order, adding a name the library lacks.
+
+        Recording the name is not approving it. A name new to the library enters the artist
+        curation queue as pending: the tagger's artist rules match only approved or
+        grandfathered names (TrustedArtistHelper), so a name a rule guessed out of a title cannot
+        confirm itself on the next file. A name too long for the column is cut, and 'artist' is
+        added to `overlong` so the file is queued for a retag.
+        """
+        ids = []
+        for name in names:
+            if not name:
+                continue
+            if len(name) > NAME_MAX_CHARS:
+                overlong.append('artist')
+                name = fit_column(name, NAME_MAX_CHARS)
+            cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
+            ids.append(cursor.fetchone()['id'])
+        return ids
+
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
@@ -513,23 +535,12 @@ class ScannerManager:
                 song = ReadonlySong(path)
             except Exception:
                 return False
-            artist_names = song.library_artists()
-            artist_ids = []
-            overlong = []
-            for name in artist_names:
-                if not name:
-                    continue
-                if len(name) > NAME_MAX_CHARS:
-                    overlong.append('artist')
-                    name = fit_column(name, NAME_MAX_CHARS)
-                # Recording the name is not approving it. A name new to the library enters
-                # the artist curation queue as pending: the tagger's artist rules match
-                # only approved or grandfathered names (TrustedArtistHelper), so a name a
-                # rule guessed out of a title cannot confirm itself on the next file. The
-                # file keeps its tag and the track is linked to the name as before.
-                cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
-                cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
-                artist_ids.append(cursor.fetchone()['id'])
+            overlong: list[str] = []
+            artist_ids = self._artist_ids(cursor, song.library_artists(), overlong)
+            # The REMIXER tag: InferRemixerFromTitleRule puts a remixer in ARTIST as well, so the
+            # remixer already has a 'featuring' row. The extra 'remixer' row says which of the
+            # credited artists made the remix.
+            remixer_ids = self._artist_ids(cursor, song.remixers() or [], overlong)
             label_id = self._resolve_label_id(cursor, song, path)
             channel_id = self._resolve_channel_id(cursor, path)
             title = song.title()
@@ -584,11 +595,12 @@ class ScannerManager:
             # and a failed relink leaves ratings split between two rows.
             with transaction(conn):
                 cursor.execute('DELETE FROM library_track_artists WHERE track_id = %s', (track_id,))
-                for i, a_id in enumerate(artist_ids):
-                    role = 'primary' if i == 0 else 'featuring'
+                credits = [('primary' if i == 0 else 'featuring', a_id, i) for i, a_id in enumerate(artist_ids)]
+                credits += [('remixer', a_id, i) for i, a_id in enumerate(remixer_ids)]
+                for role, a_id, position in credits:
                     cursor.execute(
                         'INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)',
-                        (track_id, a_id, role, i),
+                        (track_id, a_id, role, position),
                     )
                 self._write_genres(cursor, track_id, genre_ids)
                 self._write_links(cursor, track_id, path_hash, label_id, channel_id)

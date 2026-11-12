@@ -124,6 +124,10 @@ The system is split into specialized services, each handling a specific part of 
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
       pushed into LMS `track.form`) by `track_form_sync.py`. See `docs/designs/track-form/`.
+    - **Artist credits**: `library_track_artists` gets `primary` for the first ARTIST name,
+      `featuring` for the others, and `remixer` for each REMIXER name. The tagger puts a remixer in
+      ARTIST too, so a remixer has both rows; count tracks per artist with `COUNT(DISTINCT
+      track_id)`. A file the scanner skips as unchanged keeps its old credits until it is rescanned.
     - **Redownload Service**: Allows triggering redownloads for tracks that originated from SoundCloud or YouTube.
         - Automatically matches library tracks to original source URLs using the download archive.
         - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.

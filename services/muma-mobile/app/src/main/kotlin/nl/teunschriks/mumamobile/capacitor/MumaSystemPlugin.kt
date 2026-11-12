@@ -77,6 +77,7 @@ import timber.log.Timber
  * | `onWindowModeChanged(fn)` | listener on the `windowModeChanged` event |
  * | `canNavigate()` | `canNavigate()` → `{value}`, see [canNavigate] |
  * | `navigateAdjacent()` | [navigateAdjacent] |
+ * | `enterPictureInPicture()` | [enterPictureInPicture] |
  * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
  * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
  * | `outputRoute()` | `outputRoute()` → `{name, type}`, see [outputRoute] |
@@ -596,6 +597,20 @@ class MumaSystemPlugin :
         call.resolve(JSObject().put("mode", mode.wire))
     }
 
+    /**
+     * "Zwevende speler" (decision 4 of `docs/designs/miniplayer/`): the app floats as a
+     * picture-in-picture window now. Rejects when there is no activity or Android refused it.
+     */
+    @PluginMethod
+    fun enterPictureInPicture(call: PluginCall) {
+        val host = runningActivity as? FloatingWindowHost
+        when {
+            host == null -> call.reject("no activity")
+            host.enterFloatingWindow() -> call.resolve()
+            else -> call.reject("picture-in-picture refused")
+        }
+    }
+
     /** Emitted by [nl.teunschriks.mumamobile.activity.CapacitorActivity] on every mode change. */
     fun emitWindowMode(mode: WindowMode) = notifyListeners(EVENT_WINDOW_MODE_CHANGED, JSObject().put("mode", mode.wire))
 
@@ -681,6 +696,7 @@ class MumaSystemPlugin :
             .put("hideMedia", Settings.hideMedia)
             .put("mediaDeviceExport", Settings.mediaDeviceExportEnabled)
             .put("scrobbleEnabled", Settings.scrobbleEnabled)
+            .put("pipOnLeave", Settings.pipOnLeave)
         // Read-only: login fills both (ActiveServerProvider.setMumaSettings), nothing here lets a
         // user edit them. mumaApiKeySet rather than the raw key, same reason updatePreferenceSummaries
         // masks it on the legacy screen instead of showing it back.
@@ -718,7 +734,11 @@ class MumaSystemPlugin :
             DeviceSettingType.STRING_SET -> call.getArray("value")?.let { jsArrayToStringSet(it) }
         }
         when (writeDeviceSetting(key, value)) {
-            DeviceSettingWriteResult.OK -> call.resolve()
+            DeviceSettingWriteResult.OK -> {
+                // Auto-enter is decided from the parameters set before the listener leaves.
+                if (key == "pipOnLeave") (runningActivity as? FloatingWindowHost)?.refreshFloatingWindow()
+                call.resolve()
+            }
             DeviceSettingWriteResult.INVALID_VALUE -> call.reject("invalid value for $key")
             // Already handled above; the whitelist cannot change between the two lookups.
             DeviceSettingWriteResult.UNKNOWN_KEY -> call.reject("unknown setting: $key")

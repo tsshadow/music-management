@@ -99,7 +99,9 @@ internal val DEVICE_SETTING_WHITELIST: Map<String, DeviceSettingSpec> = mapOf(
     "mediaDeviceExport" to
         DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.mediaDeviceExportEnabled = it as Boolean },
     "scrobbleEnabled" to
-        DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.scrobbleEnabled = it as Boolean }
+        DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.scrobbleEnabled = it as Boolean },
+    "pipOnLeave" to
+        DeviceSettingSpec(DeviceSettingType.BOOLEAN) { Settings.pipOnLeave = it as Boolean }
 )
 
 /**

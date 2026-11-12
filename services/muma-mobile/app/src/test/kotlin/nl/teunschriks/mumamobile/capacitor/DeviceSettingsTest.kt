@@ -68,7 +68,8 @@ class DeviceSettingsTest {
                 "directoryCacheTime",
                 "hideMedia",
                 "mediaDeviceExport",
-                "scrobbleEnabled"
+                "scrobbleEnabled",
+                "pipOnLeave"
             )
     }
 

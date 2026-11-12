@@ -406,3 +406,20 @@ describe("TrackDetailsSheet tempo correction", () => {
     expect(screen.queryByTestId("bpm-override")).toBeNull();
   });
 });
+
+describe("TrackDetailsSheet floating player entry", () => {
+  it("offers the floating player only when the caller can float", async () => {
+    const onfloat = vi.fn();
+    renderSheet({ onfloat });
+
+    await fireEvent.click(screen.getByTestId("details-float"));
+
+    expect(onfloat).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no floating player entry by default", () => {
+    renderSheet();
+
+    expect(screen.queryByTestId("details-float")).toBeNull();
+  });
+});

@@ -333,6 +333,7 @@ describe("browser system", () => {
     browserSystem.onWindowModeChanged(handler)();
     await expect(browserSystem.canNavigate()).resolves.toEqual({ value: false });
     await expect(browserSystem.navigateAdjacent()).resolves.toBeUndefined();
+    await expect(browserSystem.enterPictureInPicture()).resolves.toBeUndefined();
     expect(handler).not.toHaveBeenCalled();
   });
 

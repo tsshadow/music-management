@@ -45,6 +45,7 @@
    * @property {function(): void} [onplaynext]
    * @property {function(): void} [onaddqueue]
    * @property {function(): void} [onremove] - Removes the track from a queue/playlist; the button is hidden when null.
+   * @property {function(): void} [onfloat] - "Zwevende speler": the app floats as a window (Now Playing in the app only, #178); the button is hidden when null.
    * @property {boolean} [downloadsSupported]
    * @property {string} [downloadState] - One of none/queued/running/done/failed.
    * @property {function(): void} [ondownload]
@@ -65,6 +66,7 @@
     onplaynext,
     onaddqueue,
     onremove = null,
+    onfloat = null,
     downloadsSupported = false,
     downloadState = 'none',
     ondownload,
@@ -346,6 +348,7 @@
       {#if hasLyrics}<button onclick={() => onlyrics?.()}>{$t('track.lyrics')}</button>{/if}
       <button onclick={() => onplaynext?.()}>{$t('track.playNext')}</button>
       <button onclick={() => onaddqueue?.()}>{$t('track.addToQueue')}</button>
+      {#if onfloat}<button onclick={() => onfloat()} data-testid="details-float">{$t('miniplayer.float')}</button>{/if}
       {#if downloadsSupported}
         {#if ['none', 'failed'].includes(downloadState)}
           <button onclick={() => ondownload?.()}>{$t('downloads.download')}</button>

@@ -23,6 +23,8 @@
    * split screen, issue #179). `split` makes the transport as large as possible for a glance from a
    * bike -- 64px skip buttons, an 80px play button -- and adds two pills under it: "Navigeren
    * naast MuMa" when `onnavigate` is given, and "Volledige app" when `onexpand` is given.
+   * `pip` (the phone app as a floating window, issue #178) shows the cover, title and artist only:
+   * Android passes no tap into a floating window, so its buttons are the system's own.
    */
 
   let {
@@ -50,6 +52,7 @@
   } = $props();
 
   const large = $derived(variant === 'split');
+  const pip = $derived(variant === 'pip');
   const skipClass = $derived(large ? 'w-16 h-16 flex items-center justify-center' : 'p-0');
   const skipIcon = $derived(large ? 32 : 16);
   const playIcon = $derived(large ? 36 : 18);
@@ -93,7 +96,8 @@
       {/if}
     </div>
 
-    <div class="flex items-center {large ? 'justify-center gap-6' : 'gap-3'}">
+    {#if !pip}
+    <div class="flex items-center {large ? 'justify-center gap-6' : 'gap-3'}" data-testid="compact-transport">
       {#if showSkip}
         <button
           class="bg-transparent border-none {skipClass} text-muma-spotify-text hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -176,11 +180,12 @@
         {/if}
       </div>
     {/if}
+    {/if}
   </div>
 
   </div>
 
-  {#if track && !isLiveStation}
+  {#if track && !isLiveStation && !pip}
     <div class="compact-progress bg-white/10" data-testid="compact-progress">
       <div class="h-full bg-white" style="width: {progressPercent(progress, duration)}%"></div>
     </div>

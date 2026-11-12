@@ -231,6 +231,9 @@ const system = {
   /** Nothing to open in a browser tab; `canNavigate` already said so. */
   async navigateAdjacent() {},
 
+  /** A browser tab cannot float; the PC has its own window (`miniplayerWindow.js`). */
+  async enterPictureInPicture() {},
+
   /**
    * The "Apparaat" settings tab has nothing to read in a browser tab -- there is no
    * native whitelist behind it -- and the tab itself never shows without `isNative`,

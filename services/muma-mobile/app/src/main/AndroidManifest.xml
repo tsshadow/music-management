@@ -67,10 +67,13 @@
             exported and has no launcher filter of its own - it is reached through the trampoline
             below, from a notification, or from a shortcut. singleTask, so the notification's
             CLEAR_TOP reuses the instance instead of stacking WebViews.
+            supportsPictureInPicture: the floating player (#178); the configChanges keep the
+            activity alive when it floats.
         -->
         <activity android:name=".activity.CapacitorActivity"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode"
             android:launchMode="singleTask"
+            android:supportsPictureInPicture="true"
             android:exported="false" />
 
         <!--

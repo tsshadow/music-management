@@ -77,6 +77,9 @@
     // this button; the phone lost it when the full-screen view moved into this component.
     newsActive = false,
     ontoggleNews = null,
+    // "Zwevende speler" in the header's menu (#178): the app floats as a window. Null in a
+    // browser tab, which hides the entry.
+    onfloat = null,
     onclose,
     ontogglePlay,
     onnext,
@@ -891,6 +894,7 @@
       onlyrics: () => { showDetailsSheet = false; showLyricsSheet = true; },
       onplaynext: () => { addAfterCurrent(); showDetailsSheet = false; },
       onaddqueue: () => { addToEnd(); showDetailsSheet = false; },
+      onfloat: onfloat ? () => { showDetailsSheet = false; onfloat(); } : null,
     }} />
   {/if}
 {/if}

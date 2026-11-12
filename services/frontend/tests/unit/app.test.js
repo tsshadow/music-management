@@ -608,5 +608,20 @@ describe("App", () => {
         platform.system.isNative = false;
       }
     });
+
+    it("shows only the cover and title in the floating window, and the normal screens after it", async () => {
+      render(App);
+      await screen.findByTestId("split-player");
+
+      modeHandler("pip");
+      const floating = await screen.findByTestId("pip-player");
+      expect(within(floating).getByTestId("compact-player").dataset.variant).toBe("pip");
+      expect(within(floating).queryByTestId("compact-transport")).toBeNull();
+      expect(screen.queryByTestId("split-player")).toBeNull();
+
+      Object.defineProperty(window, "innerHeight", { value: 700, configurable: true });
+      modeHandler("full");
+      await waitFor(() => expect(screen.queryByTestId("pip-player")).toBeNull());
+    });
   });
 });

@@ -385,6 +385,22 @@ def _events_retention_fields() -> list[ConfigField]:
     return fields
 
 
+def _wrapped_fields() -> list[ConfigField]:
+    """The settings of the Wrapped page (docs/designs/wrapped-page/)."""
+    return [
+        ConfigField(
+            key='wrapped_server_tz',
+            type='string',
+            default='Europe/Amsterdam',
+            env='WRAPPED_SERVER_TZ',
+            group='Wrapped',
+            description='The time zone of the MuMa Library tab: its days, hours and year boundaries. An IANA name '
+            'such as Europe/Amsterdam. The MuMa User tab uses the reader\'s own zone.',
+            nullable=False,
+        ),
+    ]
+
+
 def _config_fields() -> list[ConfigField]:
     """Return the ordered list of supported configuration fields."""
     return [
@@ -927,6 +943,7 @@ def _config_fields() -> list[ConfigField]:
         ),
         *_artist_auto_approve_fields(),
         *_importer_release_info_fields(),
+        *_wrapped_fields(),
     ]
 
 

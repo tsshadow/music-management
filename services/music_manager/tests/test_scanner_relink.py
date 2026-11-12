@@ -100,6 +100,19 @@ class ProcessFileMoveTest(unittest.TestCase):
         ]
         self.assertEqual(credits, [(5, 3, 'primary', 0), (5, 4, 'featuring', 1), (5, 4, 'remixer', 0)])
 
+    def test_a_moving_file_carries_the_earlier_arrival_to_its_new_track(self):
+        with (
+            patch.object(self.manager, '_settle_previous_track'),
+            patch.object(scanner_router, 'carry_arrival') as carry,
+        ):
+            self.run_with_previous_track(2)
+        carry.assert_called_once_with(self.cursor, 2, 5)
+
+    def test_a_file_that_stays_carries_no_arrival(self):
+        with patch.object(scanner_router, 'carry_arrival') as carry:
+            self.run_with_previous_track(5)
+        carry.assert_not_called()
+
     def test_a_failed_relink_rolls_the_move_back(self):
         with (
             patch.object(self.manager, '_settle_previous_track', side_effect=RuntimeError('deadlock')),

@@ -66,9 +66,6 @@ correct a track by hand: halve it, double it, or type the tempo.
   label or artist prior: [getsongbpm-prior](../getsongbpm-prior/functional.md), issue #152. Deezer's
   `bpm` is always 0, Beatport has no public API, Spotify's audio features are closed to new apps and
   AcousticBrainz is gone.
-- **An uploader-folder prior.** Soundcloud and YouTube files sit in a folder per uploader. Measured
-  on 2026-11-12 (below), it is about as good as the artist prior and covers more tracks, but it is
-  weaker on exactly the fast tracks in question. Not built.
 
 ## Change: A Halving Needs Real Evidence (issue #153)
 
@@ -103,4 +100,32 @@ half, still not reliable. No other track changes tempo, and no track becomes rel
 The uploader folder, measured like the artist prior (confident estimates, each track left out of its
 own prior): it puts 96.9% of Soundcloud/YouTube tracks on their own octave, covering 99% of them,
 against 97.1% for the artist prior, covering 67%. On tracks above 205 BPM it drops to 76.8% against
-81.3%. It would decide 1,157 of the unsettled tracks towards the half, so it waits for a decision.
+81.3%. Built as the next change (issue #241).
+
+## Change: The Uploader Folder Counts As Evidence (issue #241)
+
+Soundcloud and YouTube files sit in a folder per uploader, and an uploader mostly posts one kind of
+music. The folder now has a tempo prior of its own, learned and weighted like an artist's: the
+confident measurements of every upload in that folder, with the track itself left out, so a track
+never votes for its own octave. Curator's decision on #241: full weight, and it counts as real
+evidence for a halving, like a label or an artist.
+
+- A Soundcloud or YouTube track measured above 205 BPM is halved when its folder sits closer to the
+  half, and kept, settled, when the folder sits closer to the estimate.
+- The folder alone never doubles a track above 205 BPM, the same rule as for an artist.
+- Other folders (EPs, mainstream, Telegram) have no folder prior and do not change.
+
+Effect on production's rows (dry run on a read-only dump, 2026-11-12, 170,040 Soundcloud/YouTube
+measurements, 1,089 folder priors; 98.9% of these uploads have a usable folder prior, 69.4% an
+artist prior):
+
+- Unsettled tempos: 3,128 to 354. Of the 2,977 unsettled uploads, 1,143 are halved (489 of them
+  reliable), 1,631 keep their tempo and are settled, 203 stay unsettled. The other 151 are outside
+  Soundcloud/YouTube.
+- 3,867 uploads change tempo: 1,985 up, 1,882 down. 1,143 of them are the halvings above. The
+  rest are tracks the folder moves to the other octave where the general priors decided before,
+  for example Liquicity uploads at 87 that become 174, PRSPCT uploads at 100 that become 200, and
+  Monstercat Silk uploads at 246 that become 123.
+- Reliable uploads: 97,803 to 103,301 (5,653 become reliable, 155 stop being reliable). The tag
+  writeback writes the newly reliable ones, at its usual 300 files per round.
+- Weak values, never written: 12,026 to 2,609.

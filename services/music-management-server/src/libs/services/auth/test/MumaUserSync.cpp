@@ -179,9 +179,9 @@ namespace lms::auth::musicManagement::tests
         EXPECT_FALSE(findById(userId)->isDisabled());
     }
 
-    // Deleting an account in MuMa removes it from the list. The LMS user linked to it is disabled
-    // the same way; a user with no MuMa id is nobody MuMa knows, and is left alone.
-    TEST_F(MumaUserSync, anAccountGoneFromTheListIsDisabled)
+    // Deleting an account in MuMa removes it from the list. The LMS user linked to it is renamed to
+    // deleted-<id> and disabled; a user with no MuMa id is nobody MuMa knows, and is left alone.
+    TEST_F(MumaUserSync, anAccountGoneFromTheListIsRenamedAndDisabled)
     {
         const db::UserId kept{ createUser("user", 1) };
         const db::UserId deleted{ createUser("gone", 2) };
@@ -191,10 +191,100 @@ namespace lms::auth::musicManagement::tests
         const MumaSyncSummary summary{ sync(R"([{"id": 1, "username": "user"}])") };
 
         EXPECT_EQ(summary.disabled, 1U);
+        EXPECT_EQ(summary.tombstoned, 1U);
         EXPECT_FALSE(findById(kept)->isDisabled());
+        EXPECT_EQ(findById(kept)->getLoginName(), "user");
         EXPECT_TRUE(findById(deleted)->isDisabled());
+        EXPECT_EQ(findById(deleted)->getLoginName(), "deleted-2");
+        EXPECT_EQ(findById(deleted)->getMumaId(), 2);
         EXPECT_EQ(tokenCount(deleted), 0U);
         EXPECT_FALSE(findById(local)->isDisabled());
+        EXPECT_EQ(findById(local)->getLoginName(), "local");
+
+        // The next sync finds nothing new to do.
+        const MumaSyncSummary again{ sync(R"([{"id": 1, "username": "user"}])") };
+        EXPECT_EQ(again.disabled, 0U);
+        EXPECT_EQ(again.tombstoned, 0U);
+        EXPECT_EQ(findById(deleted)->getLoginName(), "deleted-2");
+    }
+
+    // Issue #239: account 12 "anna" is deleted and a new account 13 "anna" is made before LMS
+    // syncs. The new account gets a new, empty LMS user; the old one keeps its ratings under
+    // deleted-12.
+    TEST_F(MumaUserSync, aNameDeletedAndMadeAgainGetsANewEmptyUser)
+    {
+        const db::UserId old{ createUser("anna", 12) };
+        db::tests::ScopedTrack track{ session };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            session.create<db::RatedTrack>(track.get(), old).modify()->setRating(5);
+        }
+
+        const MumaSyncSummary summary{ sync(R"([{"id": 13, "username": "Anna"}])") };
+
+        EXPECT_EQ(summary.failed, 0U);
+        EXPECT_EQ(summary.created, 1U);
+        EXPECT_EQ(summary.tombstoned, 1U);
+        const db::User::pointer fresh{ findByMumaId(13) };
+        ASSERT_TRUE(fresh);
+        EXPECT_NE(fresh->getId(), old);
+        EXPECT_EQ(fresh->getLoginName(), "Anna");
+        EXPECT_FALSE(fresh->isDisabled());
+
+        const db::User::pointer tombstone{ findById(old) };
+        ASSERT_TRUE(tombstone);
+        EXPECT_EQ(tombstone->getLoginName(), "deleted-12");
+        EXPECT_EQ(tombstone->getMumaId(), 12);
+        EXPECT_TRUE(tombstone->isDisabled());
+        {
+            auto transaction{ session.createReadTransaction() };
+            EXPECT_TRUE(db::RatedTrack::find(session, track.getId(), old));
+            EXPECT_FALSE(db::RatedTrack::find(session, track.getId(), fresh->getId()));
+        }
+    }
+
+    // A user deleted before the rename existed is only disabled, under its old name. The next sync
+    // renames it too, without counting it as newly disabled.
+    TEST_F(MumaUserSync, anEarlierDeletedUserIsRenamedOnTheNextSync)
+    {
+        const db::UserId old{ createUser("anna", 12) };
+        {
+            auto transaction{ session.createWriteTransaction() };
+            db::User::find(session, old).modify()->setDisabled(true);
+        }
+
+        const MumaSyncSummary summary{ sync(R"([{"id": 1, "username": "user"}])") };
+
+        EXPECT_EQ(summary.disabled, 0U);
+        EXPECT_EQ(summary.tombstoned, 1U);
+        EXPECT_EQ(findById(old)->getLoginName(), "deleted-12");
+    }
+
+    // A list that cannot prove account 12 gone renames nobody. The new account 13 with the same
+    // name must still not take over account 12's user: its write fails, and a later full list
+    // sorts it out.
+    TEST_F(MumaUserSync, aUserLinkedToAnotherIdIsNeverTakenOverByName)
+    {
+        const db::UserId old{ createUser("anna", 12) };
+
+        const MumaSyncSummary summary{ sync(R"([{"id": 13, "username": "anna"}, {"id": "x", "username": "other"}])") };
+
+        EXPECT_EQ(summary.failed, 1U);
+        EXPECT_EQ(summary.created, 0U);
+        EXPECT_FALSE(findByMumaId(13));
+        EXPECT_EQ(findById(old)->getMumaId(), 12);
+        EXPECT_EQ(findById(old)->getLoginName(), "anna");
+
+        const MumaSyncSummary full{ sync(R"([{"id": 13, "username": "anna"}])") };
+        EXPECT_EQ(full.created, 1U);
+        EXPECT_EQ(findById(old)->getLoginName(), "deleted-12");
+        ASSERT_TRUE(findByMumaId(13));
+        EXPECT_NE(findByMumaId(13)->getId(), old);
+    }
+
+    TEST_F(MumaUserSync, tombstoneNameMatchesMusicManager)
+    {
+        EXPECT_EQ(tombstoneLoginName(12), "deleted-12");
     }
 
     // An empty list is far likelier a MuMa that answered badly than one with no accounts at all.

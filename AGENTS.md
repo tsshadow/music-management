@@ -165,9 +165,11 @@ The system is split into specialized services, each handling a specific part of 
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
   (docs/designs/bpm-tag-writeback/). It never writes a weak octave (`octave.weak_value`).
-- **Octave**: `bpm/octave.py` picks half, measured or double from the label, artist, genre and folder
-  priors. A reading above 205 BPM is halved only when one of them sides with the half; otherwise it
-  stays, marked `unsettled` and not reliable (docs/designs/bpm-octave/, issue #153).
+- **Octave**: `bpm/octave.py` picks half, measured or double from the label, artist, genre,
+  mainstream-folder and uploader-folder priors (a Soundcloud/YouTube upload's `<Root>/<uploader>`,
+  learned without the track itself, issue #241). A reading above 205 BPM is halved only when one of
+  them sides with the half; otherwise it stays, marked `unsettled` and not reliable
+  (docs/designs/bpm-octave/, issue #153).
 - **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
   analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
   or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the
@@ -184,6 +186,18 @@ The system is split into specialized services, each handling a specific part of 
 - **Logos and favorites**: the logo of a station is `public/images/stations/<slug>.png` in the web
   bundle, also for the car (`StationLogoProvider`), and a station without a file shows its name.
   Favorites and recent stations are slugs in the account's settings; the car lists favorites first.
+
+### 9. MuMa Wrapped (`services/music_manager/wrapped/`, `/api/wrapped`)
+- **Purpose**: the year-in-review page, a User tab (own listens, own zone) and a Library tab (every
+  account, the collection and the system, in `wrapped_server_tz`). No Library card holds a username
+  ([docs/designs/wrapped-page/](docs/designs/wrapped-page/technical.md)).
+- **Storage**: a tab is computed on its first request and kept in `wrapped_snapshots`: a running
+  period for 24 hours, a closed one until `POST /api/wrapped/refresh` or a new `WRAPPED_FORMAT`.
+  The events-retention pass deletes custom ranges after 30 days.
+- **Arrival date**: `library_tracks.arrived_at` / `arrived_source` are set when the scanner creates
+  a track row, and a retag that moves a file to a new row keeps the earlier arrival
+  (`services/common/arrival.py`). Rows from before the columns existed are NULL until the operator
+  runs `tools/backfill_arrival_dates.py`; the arrival cards report them as unknown.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**

@@ -376,6 +376,65 @@ class BackupHealthTest(unittest.TestCase):
         self.assertEqual(response.json()['status'], 'unreadable')
 
 
+class MusicMirrorHealthTest(unittest.TestCase):
+    """The status of the nightly music mirror (issue #25), for an outside monitor."""
+
+    def setUp(self):
+        self.client = _keyed_client(self)
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dest = Path(self.tmp.name)
+
+    def _status(self, age_hours: float, **overrides):
+        payload = {
+            'run_id': '20261113T013000Z',
+            'result': 'ok',
+            'finished_at': (datetime.now(UTC) - timedelta(hours=age_hours)).isoformat(),
+            'files_total': 412000,
+            'sample': {'checked': 200, 'differing': []},
+        }
+        payload.update(overrides)
+        (self.dest / 'latest.json').write_text(json.dumps(payload))
+
+    def _get(self, path=None):
+        env = {'MIRROR_STATUS_PATH': str(self.dest) if path is None else path, 'MIRROR_STALE_AFTER_HOURS': '36'}
+        with patch.dict('os.environ', env, clear=False):
+            return self.client.get('/health/music-mirror')
+
+    def test_a_recent_good_run_is_200(self):
+        self._status(age_hours=8)
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'ok')
+        self.assertEqual(response.json()['files_total'], 412000)
+
+    def test_every_other_status_is_503(self):
+        cases = {
+            'stale': {'age_hours': 40},
+            'failed': {'age_hours': 2, 'result': 'failed', 'reason': 'rsync exit 12'},
+            'refused': {'age_hours': 2, 'result': 'refused', 'reason': 'too much would change'},
+            'differing': {'age_hours': 2, 'sample': {'checked': 200, 'differing': ['Labels/A/1.flac']}},
+        }
+        for status, fields in cases.items():
+            with self.subTest(status=status):
+                self._status(**fields)
+                response = self._get()
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.json()['status'], status)
+
+    def test_differing_file_names_stay_out_of_the_public_answer(self):
+        self._status(age_hours=2, sample={'checked': 200, 'differing': ['Labels/A/1.flac']})
+        self.assertNotIn('Labels/A/1.flac', self._get().text)
+
+    def test_missing_unreadable_and_unconfigured_are_503(self):
+        self.assertEqual(self._get().json()['status'], 'missing')
+        (self.dest / 'latest.json').write_text('{not json')
+        self.assertEqual(self._get().json()['status'], 'unreadable')
+        response = self._get(path='')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()['status'], 'unconfigured')
+
+
 class SourceUrlHealthTest(unittest.TestCase):
     """AGPL-3.0 section 13: /health tells the About screen where the source is."""
 

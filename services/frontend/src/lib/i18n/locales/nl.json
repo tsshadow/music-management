@@ -1645,6 +1645,11 @@
     },
     "homeSummary": "{years} jaar • {tracks} nummers vandaag"
   },
+  "miniplayer": {
+    "navigate": "Navigeren naast MuMa",
+    "navigateFailed": "Google Maps ging niet open",
+    "fullApp": "Volledige app"
+  },
   "mobile": {
     "browseAll": "Alles doorbladeren",
     "recent": "Recent"

@@ -1,0 +1,59 @@
+{
+  "_comment": "Example for a prod host. install.sh copies it to /etc/muma-ro/policy.json; replace the paths, names and ids with the host's own.",
+  "class": "prod",
+  "verbs": [
+    "ls",
+    "stat",
+    "find",
+    "du",
+    "df",
+    "free",
+    "uptime",
+    "head",
+    "docker-ps",
+    "docker-logs",
+    "docker-inspect",
+    "docker-stats",
+    "docker-system-df",
+    "docker-printenv",
+    "systemctl-status",
+    "systemctl-timers",
+    "journalctl"
+  ],
+  "roots": [
+    {
+      "path": "/mnt/music",
+      "mode": "read"
+    },
+    {
+      "path": "/mnt/backups/muma",
+      "mode": "list"
+    }
+  ],
+  "containers": [
+    "music-manager",
+    "muma-bpm-analyzer"
+  ],
+  "container_patterns": [
+    "^music-management-[a-z0-9-]+$"
+  ],
+  "env_keys": [
+    "import_folder_path",
+    "eps_folder_path"
+  ],
+  "units": [
+    "muma-db-backup.service",
+    "muma-db-backup-stale.service",
+    "muma-db-restore-check.service",
+    "muma-music-mirror-check.service"
+  ],
+  "head_extensions": [
+    ".nfo",
+    ".txt",
+    ".json",
+    ".m3u",
+    ".sfv",
+    ".cue",
+    ".log"
+  ]
+}

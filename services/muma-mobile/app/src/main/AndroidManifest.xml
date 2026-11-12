@@ -27,6 +27,8 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- "Navigeren naast MuMa" asks whether Google Maps is installed (issue #179). -->
+        <package android:name="com.google.android.apps.maps" />
     </queries>
 
     <supports-screens

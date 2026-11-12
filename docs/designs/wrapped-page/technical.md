@@ -8,10 +8,16 @@ zone and disclosure rules of [../listening-stats/technical.md](../listening-stat
 
 ## Where this lives
 
-- Backend: a new router `services/music_manager/routers/wrapped.py`, mounted at `/api/wrapped`, and a
-  package `services/music_manager/wrapped/` with one module per card group (`listening_cards.py`,
-  `collection_cards.py`, `system_cards.py`, `snapshots.py`). Each card is one function
-  `card_<id>(cursor, scope) -> CardResult`.
+- Backend: a router `services/music_manager/routers/wrapped.py`, mounted at `/api/wrapped`, and a
+  package `services/music_manager/wrapped/`:
+  - `data.py` reads a period once: every listen of both tables in `{W}`, and the genres, labels,
+    channels, tempo and remixers of the tracks they found, about ten queries.
+  - `listening_cards.py` holds the listening cards as pure functions of that data,
+    `card_<id>(data, ...) -> dict`, so a card test needs no cursor.
+  - `collection_cards.py` holds the Library cards that read the collection, with their own SQL.
+  - `payload.py` sets the card order per tab and adds `file_path` to every track a card names.
+  - `periods.py` parses `year` / `from` / `to` / `tz`, `snapshots.py` stores a tab, `cards.py`
+    builds the status fields, and `words.py` holds the stop list.
 - It imports `ListeningScope`, `parse_scope`'s rules, `release_year_sql` and the duration split from
   `routers/listening.py`. It does not call those endpoints over HTTP.
 - Frontend: `src/lib/wrapped/` with `wrapped.js` (URL, period and payload logic, tested without
@@ -123,12 +129,23 @@ order. "Min" is the minimum for status `ok`.
 | `arrived_at` | `DATETIME NULL` | When the file first entered the library, or NULL when unknown |
 | `arrived_source` | `VARCHAR(16) NULL` | `soundcloud`, `youtube`, `telegram`, `label`, `import`, `unknown` |
 
-- The scanner sets both when it creates a `library_tracks` row and never changes them after.
-- `tools/backfill_arrival_dates.py` (dry run, idempotent) fills them for existing rows from
-  `downloads_soundcloud_archive` / `downloads_youtube_archive` (`filename` matched to the file name
-  of `library_media_files.file_path`), else `library_ingestion_records.recorded_at` when it predates
-  the scanner row. Everything else stays NULL, and the cards say how many tracks have no arrival date.
-- Both columns are nullable and have no default, so `schema_reconcile.py` adds them on deploy.
+- The scanner sets both when it creates a `library_tracks` row (`UTC_TIMESTAMP()`, and the source
+  from the file's top folder by `services/common/arrival.py`). An update of an existing row leaves
+  them alone.
+- A retag that changes a file's `track_uid` moves it to a new track row. That is not an arrival, so
+  the scanner gives the new row the earlier arrival of the two rows, in the same transaction. When
+  either is NULL the new row becomes NULL: a file from before arrival dates were kept makes the
+  track unknown.
+- `tools/backfill_arrival_dates.py` fills NULL rows. Per track it takes the earliest of: the
+  SoundCloud archive's `added_at` (`filename` equals `library_media_files.file_path`), the YouTube
+  archive's `added_at` (`path` equals it), and `library_ingestion_records.recorded_at` (same
+  `file_path_hash`). It accepts that date only when it is at most one hour after the track row's
+  `created_at`: a later date is a redownload or a re-ingest. The source comes from the file that
+  gave the date. Everything else stays NULL, and the cards say how many tracks have no arrival
+  date. It is a dry run by default; `--apply --rollback FILE` writes the filled ids first, and
+  `--undo FILE` sets them back to NULL.
+- Both columns are nullable and have no default, so `schema_reconcile.py` adds them on deploy, with
+  the index `idx_tracks_arrived_at`.
 
 ### Remixer credits (OQ 12, recommended option a)
 
@@ -184,10 +201,10 @@ answer with `Cache-Control: private, max-age=300`.
 
 | Endpoint | Request | Response | Error cases |
 |---|---|---|---|
-| `GET /api/wrapped/periods` | `tz` | `{years: [{year, listens, own_listens}], server_tz, today}`: years with any listen in the library scope, newest first | 400 unknown `tz` |
-| `GET /api/wrapped/user` | `year`, or `from` and `to`; `tz`; `username` (system key only) | `{scope:'user', period:{from,to,label,running,data_until}, generated_at, coverage:{...}, cards:[...]}` | 400: both `year` and `from`/`to`, neither, `to < from`, range over 3 years, unknown `tz`; 403: a user key naming another `username`; 503 with `Retry-After`: the computation passed 20 s (the result is still written when it finishes) |
+| `GET /api/wrapped/periods` | `tz` | `{years: [{year, listens, own_listens}], server_tz, today}`: UTC calendar years with any listen in the library scope, newest first. `today` is in `tz` | 400 unknown `tz` |
+| `GET /api/wrapped/user` | `year`, or `from` and `to`; `tz`; `username` (system key only) | `{scope:'user', period:{from,to,label,running,data_until}, generated_at, coverage:{...}, cards:[...]}` | 400: both `year` and `from`/`to`, neither, `to < from`, range over 3 years, unknown `tz`, the system key without `username`; 403: a user key naming another `username`; 503 with `Retry-After`: the computation passed 20 s (the result is still written when it finishes) |
 | `GET /api/wrapped/library` | `year`, or `from` and `to` | Same shape, `scope:'library'`, `tz` is the server zone | 400 as above |
-| `POST /api/wrapped/refresh` | `scope`, `year` or `from`/`to`, optional `username` | `202 {queued: n}`: drops the matching rows and recomputes in a background thread | 403 without the `wrapped.refresh` permission (granted to the admin role) |
+| `POST /api/wrapped/refresh` | JSON body: `scope`, `year` or `from`/`to`, optional `username` (User tab only; all accounts without it) | `202 {queued: n}`: drops the matching rows and recomputes in a background thread | 400 as above or an unknown `scope`; 403 without the `wrapped.refresh` permission (admin role only) |
 
 `coverage` holds `{listens, linked, unmatched, measured_share, origin_known_share, bpm_share,
 release_year_share, arrival_share}` for the scope, and the list of cards with status other than `ok`.
@@ -255,6 +272,27 @@ No existing endpoint changes. No breaking change.
   first computation must stay under the 20 s budget; the integration test asserts the query count,
   and the implementation MR measures the time on production before it is merged.
 - A payload is about 30 KB of JSON. A read of a fresh snapshot is one primary-key lookup.
+
+## Implementation notes (2026-11-12)
+
+Where the backend MR differs from the text above, and why:
+
+- The cards do not run one query each. `data.py` reads the period once and the listening cards
+  are Python over those rows: a year is at most 50.000 listens, and one read is faster than 40
+  queries and gives every card the same rows.
+- The Library tab shows the cards in `payload.LIBRARY_ORDER`, the list in functional.md: title,
+  listeners, rankings, `most_shared`, `heatmap`, origins, forms, festival, then the collection and
+  system cards. The other listening cards are User tab only.
+- The stop list in `words.py` is longer than the one quoted above: it also has the release words
+  (`edit`, `remix`, `extended`, `radio`, `official`, `video`, `audio`, `live`, `set`) and common
+  English, Dutch and German short words (`from`, `this`, `that`, `are`, `not`, `all`, `your`,
+  `our`, `der`, `die`, `das`, `les`), which would otherwise win every year.
+- `festival` and `time_travel` match festival names in the title only; a path never holds a name
+  the title does not.
+- `/periods` counts UTC calendar years, so it needs no per-zone query.
+- The system key must name a `username` on `/user` (400 without it); a user key reads its own.
+- A deleted account's rows (#220) must be removed from `wrapped_snapshots` by the user deletion
+  (rule 6 of Snapshots). That is part of #220, not of this router.
 
 ## Cross-App Impact
 

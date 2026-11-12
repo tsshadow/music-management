@@ -1,0 +1,11 @@
+[Unit]
+Description=Complain when the music mirror failed, differs or did not run
+
+[Timer]
+# The mirror job starts at 01:30 on the mirror NAS. Half an hour after the
+# database staleness check, so the two alerts do not arrive in one burst.
+OnCalendar=*-*-* 09:42:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

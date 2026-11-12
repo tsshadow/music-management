@@ -114,6 +114,10 @@ services:
       # herstelproef die zijn eigen bronbestand kan overschrijven is geen proef.
       - BACKUP_PATH=/backups
       - NOTIFY_URL=${NOTIFY_URL}
+      # The daily music mirror check (muma-music-mirror-check.service) runs in this
+      # service too: it needs the same read-only /backups, the database and ntfy.
+      - MIRROR_STATUS_PATH=${MIRROR_STATUS_PATH:-}
+      - MIRROR_STALE_AFTER_HOURS=${MIRROR_STALE_AFTER_HOURS:-36}
     volumes:
       - ${HOST_BACKUP_PATH:-/mnt/backups/muma}:/backups:ro
       - ${HOST_DATA_PATH}/importer:/app/data

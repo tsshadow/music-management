@@ -1,0 +1,43 @@
+{
+  "_comment": "Example for a nas host. install.sh copies it to /etc/muma-ro/policy.json; replace the paths, names and ids with the host's own.",
+  "class": "nas",
+  "verbs": [
+    "ls",
+    "stat",
+    "find",
+    "du",
+    "df",
+    "free",
+    "uptime",
+    "getfacl",
+    "zfs-list",
+    "zfs-get",
+    "zpool-status",
+    "zpool-list"
+  ],
+  "roots": [
+    {
+      "path": "/mnt/tank/music",
+      "mode": "list"
+    },
+    {
+      "path": "/mnt/tank/backup",
+      "mode": "list"
+    }
+  ],
+  "datasets": [
+    "tank/music",
+    "tank/backup"
+  ],
+  "zfs_properties": [
+    "used",
+    "available",
+    "referenced",
+    "compression",
+    "compressratio",
+    "mountpoint",
+    "quota",
+    "recordsize",
+    "snapdir"
+  ]
+}

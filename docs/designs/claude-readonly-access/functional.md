@@ -74,16 +74,18 @@ tests pass and production has run it for a week.
 8. The agent reaches all seven hosts through MCP tools, and has no other route to them.
 9. Production has run the wrapper for a week before any other host gets it.
 
-## Open Questions / Not Yet Decided
+## Decisions (2026-11-12)
 
-1. Path arguments with `&`, `(` or `'`: music folders hold names like `Artist & Artist (Live)`.
-   Refuse them, allow them inside a quoted path argument only, or have the tool encode paths.
-2. One SSH key for all five hosts, or one per host.
-3. GitLab: is the read-only token only for the new MCP tools, or does it replace the token the
-   agent uses for merge requests today?
-4. Portainer: which read-only role the installed edition offers, and whether the existing
-   `portainer` MCP tools that restart and redeploy stay available to the agent.
-5. Proxmox: the API with an auditor-role token for the node and backup state, or `muma-ro` over
-   SSH for everything.
-6. The CI runner that is also the owner's workstation: does it get the wrapper, or does the agent
-   already read it as the local user?
+The owner accepted these on 2026-11-12. They were the open questions of this design.
+
+1. **Paths with `&`, `(` or `'`** are allowed inside a single-quoted path argument, and only
+   there. The text never reaches a shell, and refusing them would hide real library folders.
+2. **One SSH key per host**, so one host can be cut off alone and a leaked key reaches one host.
+3. **GitLab:** the `read_api` token is only for the new MCP tools. Merge request work keeps its
+   own token.
+4. **Portainer:** a separate user with a view-only role makes the token. The existing Portainer
+   MCP tools that restart, stop and redeploy are taken out of agent sessions.
+5. **Proxmox:** both. An API token with the auditor role for the node and backup state, and
+   `muma-ro` over SSH for the `pct exec` relay into the LXCs.
+6. **The workstation CI runner** does not get the wrapper while agents run on that machine as the
+   local user. It gets one if agents ever run elsewhere.

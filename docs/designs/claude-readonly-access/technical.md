@@ -1,6 +1,6 @@
 # Read-Only Agent Access: Technical Design
 
-Implements [functional.md](functional.md). Five hosts get an SSH account `muma-ro` whose key is
+Implements [functional.md](functional.md), with the decisions of 2026-11-12 listed there. Five hosts get an SSH account `muma-ro` whose key is
 forced to run `/usr/local/bin/muma-ro`. That program parses `$SSH_ORIGINAL_COMMAND` against the
 host's policy and runs the matching command with `execve`, never through a shell. Portainer and
 GitLab get read-only API tokens. `tools/muma_mcp` gets the tools that call both.
@@ -13,7 +13,7 @@ Host names in this document are placeholders (`prod.example.com`, `192.0.2.x`).
 |---|---|---|---|
 | Production | SSH, `muma-ro` | `prod` | the library, the import queue, container settings, timers |
 | Dev VM | SSH, `muma-ro` | `devvm` | the same view of the local stack |
-| CI runner on the workstation | SSH, `muma-ro` (functional open question 6) | `runner` | job containers, disk, runner service |
+| CI runner on the workstation | none while agents run there as the local user (decision 6) | `runner` | job containers, disk, runner service |
 | CI runner LXC | through the Proxmox relay (below) | `runner` | the same |
 | NAS | SSH, `muma-ro` | `nas` | datasets, snapshots, pool health, ACLs on the music tree |
 | Proxmox node | SSH, `muma-ro` | `proxmox` | container limits, backup jobs, the relay into LXCs |
@@ -38,7 +38,8 @@ The LXCs are not reached by SSH. The Proxmox wrapper has one verb that runs the 
   `restrict` turns off port, agent and X11 forwarding and the TTY. `--key` puts the key's name in
   every log line, so a removed or misused key is easy to find. `from=` limits the key to the
   address of the machine that runs the MCP server.
-- The private key lives on that machine as `~/.ssh/muma-ro_ed25519` (mode 0600). This repository
+- One key pair per host (decision 2): `~/.ssh/muma-ro-<class>_ed25519` on the machine that runs
+  the MCP server (mode 0600). This repository
   and its docs name it only. The agent's permission rules deny reads of `~/.ssh/`. Only the MCP
   server process uses the key.
 - Host keys are pinned: the MCP server connects with `StrictHostKeyChecking=yes` and its own
@@ -68,7 +69,7 @@ root.
    character must be in `[A-Za-z0-9 _./:=@+,%-]`. That refuses the separators (`;`, `|`, `&`),
    substitution (`$`, the backtick), redirection (`<`, `>`), grouping and globbing
    (`( ) { } [ ] * ?`), and `!`, `#`, `~`, `"` and `\`. Inside single quotes any printable character is allowed, but the quoted token may only fill a
-   `path` or `glob` argument (functional open question 1). A double quote or a backslash anywhere
+   `path` or `glob` argument (decision 1). A double quote or a backslash anywhere
    is refused.
 4. Split into tokens. The first token is the verb, and it must be enabled in the host's policy.
 5. Match the rest against the verb's spec. Each flag is an exact token from the spec. Each
@@ -189,6 +190,11 @@ root through the helper. The container has its own `muma-ro` and its own policy;
 the place of `SSH_ORIGINAL_COMMAND`. The node checks only that `<ctid>` is on its list and that
 the inner string passes step 3 of the parser. The container decides the rest and logs it.
 
+### Proxmox API
+
+Besides the relay, the Proxmox MCP tools read node and backup state through the Proxmox API with a
+token whose role is `PVEAuditor` (decision 5): `MUMA_PVE_URL` and `MUMA_PVE_RO_TOKEN`, GET only.
+
 ## Logging
 
 One line per request to syslog (`LOG_AUTH`, tag `muma-ro`), so journald keeps it and the
@@ -209,7 +215,7 @@ The helper logs too, so a privileged command has two lines.
 `__init__.py` says why). It runs
 
 ```
-ssh -i ~/.ssh/muma-ro_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes \
+ssh -i ~/.ssh/muma-ro-<class>_ed25519 -o BatchMode=yes -o IdentitiesOnly=yes \
     -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.config/muma-mcp/known_hosts \
     -T muma-ro@<host> -- <command string>
 ```
@@ -224,7 +230,7 @@ person):
 
 | Variable | Meaning |
 |---|---|
-| `MUMA_RO_SSH_KEY` | path to the private key |
+| `MUMA_RO_SSH_KEY_DIR` | directory with `muma-ro-<class>_ed25519` per host (default `~/.ssh`) |
 | `MUMA_RO_HOSTS` | `prod=muma-ro@prod.example.com,devvm=...,runner=...,nas=...,proxmox=...` |
 | `MUMA_PORTAINER_URL`, `MUMA_PORTAINER_RO_TOKEN` | Portainer API and the read-only token |
 | `MUMA_GITLAB_URL`, `MUMA_GITLAB_RO_TOKEN` | GitLab API and the `read_api` token |
@@ -252,10 +258,10 @@ All output goes through `redact.py` with the configured secrets, as `prod_logs` 
 Neither gets the wrapper.
 
 - **Portainer.** An access token carries the rights of the user who made it. The person makes a
-  separate user with a view-only role on the environments (functional open question 4) and makes
-  the token as that user. The check: a stop call on a throwaway container with that token is
-  refused.
-- **GitLab.** A token with the `read_api` scope only, from a separate bot user or as a project
+  separate user with a view-only role on the environments and makes the token as that user
+  (decision 4). The check: a stop call on a throwaway container with that token is refused. The
+  existing Portainer MCP tools that restart, stop or redeploy are removed from agent sessions.
+- **GitLab.** For the MCP tools only (decision 3), a token with the `read_api` scope only, from a separate bot user or as a project
   access token with the Reporter role. The check: `POST /projects/:id/issues` with that token is
   refused. For the GitLab host's own disk and containers, the Proxmox relay reaches its LXC.
 

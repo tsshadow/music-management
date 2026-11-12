@@ -41,6 +41,7 @@ class MumaSystemPluginSettingsTest {
     fun `getSettings answers the fields the device-settings tab reads`() {
         Settings.isWifiRequiredForDownload = true
         Settings.scrobbleEnabled = false
+        Settings.pipOnLeave = true
 
         val result = slot<JSObject>()
         val resolveCall = mockk<PluginCall>(relaxed = true)
@@ -50,6 +51,7 @@ class MumaSystemPluginSettingsTest {
 
         result.captured.getBoolean("wifiOnly") shouldBeEqualTo true
         result.captured.getBoolean("scrobbleEnabled") shouldBeEqualTo false
+        result.captured.getBoolean("pipOnLeave") shouldBeEqualTo true
         // A read-only field: shown, never accepted by setSetting (see DeviceSettingsTest).
         result.captured.has("carModeDevices") shouldBeEqualTo true
     }

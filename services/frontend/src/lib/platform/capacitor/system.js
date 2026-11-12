@@ -403,6 +403,16 @@ export function createCapacitorSystem(plugin) {
     },
 
     /**
+     * "Zwevende speler": the app floats as a picture-in-picture window now. Rejects when there
+     * is no activity or Android refused it.
+     *
+     * @returns {Promise<void>}
+     */
+    async enterPictureInPicture() {
+      await plugin.enterPictureInPicture();
+    },
+
+    /**
      * The "Apparaat" settings tab's whole state in one call.
      *
      * @returns {Promise<import('../index.js').DeviceSettings>}

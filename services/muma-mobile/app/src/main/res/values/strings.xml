@@ -95,6 +95,10 @@
     <string name="widget.initial_text">Touch to select music</string>
     <string name="widget.sdcard_busy">SD card unavailable</string>
     <string name="widget.sdcard_missing">No SD card</string>
+    <string name="pip.previous">Previous</string>
+    <string name="pip.play">Play</string>
+    <string name="pip.pause">Pause</string>
+    <string name="pip.next">Next</string>
     <string name="share_default_greeting">Check out this music I shared from %s</string>
     <string name="crash_report.dialog_title">Previous session crashed</string>
     <string name="crash_report.dialog_message">MuMa did not shut down cleanly last time. Share diagnostics to help fix this?</string>

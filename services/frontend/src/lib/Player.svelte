@@ -137,6 +137,12 @@
       .catch((error) => console.warn('Could not open the output picker', error));
   }
 
+  /** "Zwevende speler" (#178): the app floats as a picture-in-picture window now. */
+  function floatPlayer() {
+    logAction('miniplayer.float');
+    platform.system.enterPictureInPicture().catch(() => notify.error($t('miniplayer.floatFailed')));
+  }
+
   // The current track's lyrics, or an empty array once LMS has answered and
   // found none -- most tracks. Computed here rather than inside `NowPlaying`
   // (or a second copy on the desktop panel below) for the same reason
@@ -2103,6 +2109,7 @@
       isLiveStation={$liveStation !== null}
       newsActive={newsSnapshot !== null}
       ontoggleNews={toggleNews}
+      onfloat={platform.system.isNative ? floatPlayer : null}
       {onnavigate}
     />
     {:else if $nowPlayingOpen}

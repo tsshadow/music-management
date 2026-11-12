@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.21.0] - 2026-11-11
+
+### Added
+- **A rating given while the server is out of reach is kept and sent later.** In offline mode, or
+  when a request gets no answer from the server, the rating waits in a queue on the phone, the same
+  way listens do, and goes out as soon as the server answers again, also after a restart. The last
+  rating per track wins: rate a track 3 and then 5 offline, and the server gets only the 5. Before
+  this, the stars jumped back and the rating was lost (#149).
+- **Android Auto shows the downloaded music when the server is down, also without "Offline
+  verder".** A car that connects with the home server off (a cold start in the car, or a phone on
+  "Wachten op server") checks the server once, at most 3 s, and then browses the downloaded library
+  instead of timing out on each list. While it browses it asks again every 20 s and goes back to the
+  server when it answers (#149).
+
+- **The app asks which server it talks to.** A fresh install opens on a screen that asks for the
+  address of your MuMa server, checks it, and only then shows the login page. Type
+  `music.example.net` and the app makes it `https://music.example.net`; only `https` is accepted,
+  also on a home network. The check tells you what is wrong: no network, nothing answers, an
+  untrusted certificate, no music server at that address, or a music server without MuMa behind it,
+  where "Toch doorgaan" stores the address anyway. A build made for one server suggests that server
+  on the screen; a build with the example default suggests nothing (#192).
+- **Change the server later.** The login page shows the server's host with "Wijzigen", and Settings
+  > Apparaat starts with a "Server" row. A change to another server asks first, signs you out and
+  clears the cached library; a change in spelling only keeps the session (#192).
+- **Updating keeps your server and your session.** An install that was already used gets the
+  server it used stored once, so the update shows no new screen. "Sign in with Google" shows only
+  for the server the app was built for (#192).
+
+### Security
+- **The app no longer accepts a server certificate it cannot check, and no longer keeps the API
+  key in the old server table.** The trust-all TLS path behind `allowSelfSignedCertificate` is
+  gone: the client always checks the certificate. On start the app blanks `apiKey` in the legacy
+  `ServerSetting` table next to the password it already blanked; the key in use lives in the
+  encrypted settings (#227).
+
 ## [7.20.1] - 2026-11-07
 
 ### Fixed

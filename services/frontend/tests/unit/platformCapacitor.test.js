@@ -741,6 +741,14 @@ describe("capacitor system", () => {
     ]);
   });
 
+  it("asks the shell to float as a picture-in-picture window", async () => {
+    const { platform, plugins } = nativePlatform();
+
+    await platform.system.enterPictureInPicture();
+
+    expect(plugins.MumaSystem.calls.map(([name]) => name)).toEqual(["enterPictureInPicture"]);
+  });
+
   it("reads a missing canNavigate answer as no", async () => {
     const { platform } = nativePlatform({ MumaSystem: { canNavigate: {} } });
 

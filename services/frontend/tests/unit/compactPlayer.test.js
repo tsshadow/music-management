@@ -123,3 +123,16 @@ describe("CompactPlayer in a split screen", () => {
     expect(screen.queryByTestId("compact-expand")).toBeNull();
   });
 });
+
+describe("CompactPlayer in the floating window", () => {
+  it("shows the track without buttons, stars or progress", () => {
+    renderCompact({ variant: "pip", onnavigate: vi.fn(), onexpand: vi.fn() });
+
+    expect(screen.getByTestId("compact-title")).toBeTruthy();
+    expect(screen.queryByTestId("compact-transport")).toBeNull();
+    expect(screen.queryByTestId("compact-play")).toBeNull();
+    expect(screen.queryByTestId("compact-stars")).toBeNull();
+    expect(screen.queryByTestId("compact-progress")).toBeNull();
+    expect(screen.queryByTestId("compact-expand")).toBeNull();
+  });
+});

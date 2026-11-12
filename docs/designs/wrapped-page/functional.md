@@ -92,7 +92,7 @@ track, and says how many listens it could not count.
 | Your seasons | The leading genre in each season | Linked only |
 | Label of the year | The label you played most, real labels only | Linked only |
 | Channel of the year | The SoundCloud or YouTube channel whose uploads you played most | Linked only |
-| Top remixer | The remixer credited on most of your plays | Blocked: see Open question 12 |
+| Top remixer | The remixer credited on most of your plays | Blocked: see Decision 12 |
 | Festival of the year | The festival whose sets you played most, with hours | Linked only |
 | Time travel | The oldest and newest festival edition you played | Linked only |
 | Show of the year | The podcast or radio show you played most | Linked only |
@@ -109,9 +109,9 @@ track, and says how many listens it could not count.
 | Longest session | The longest unbroken listening session | All listens |
 | Where you listened | Web, phone, car and imported, with hours in the car | All listens; origin known only since August 2026 |
 | Release-year spread | The oldest and newest release you played, and plays per decade | Linked only, tracks with a release date |
-| Fresh vs. stock | The share of plays from music that arrived this year | Blocked: see Open question 3 |
-| The long wait | A track that waited longest between arrival and first play | Blocked: see Open question 3 |
-| Impulse score | Median time from arrival to first play | Blocked: see Open question 3 |
+| Fresh vs. stock | The share of plays from music that arrived this year | Partial: see Decision 3 |
+| The long wait | A track that waited longest between arrival and first play | Partial: see Decision 3 |
+| Impulse score | Median time from arrival to first play | Partial: see Decision 3 |
 | The 0.3% | How many of the library's tracks you played, and how many you never touched | Linked only |
 | New genre unlocked | Genres you played for the first time ever | Linked only |
 | Discovery of the year | The artist first heard this period with the most plays after | Linked only |
@@ -121,7 +121,7 @@ track, and says how many listens it could not count.
 | Contradiction | A track you rated 1 or 2 and still played often | Linked only |
 | Word of the year | The most frequent word in the titles you played | All listens |
 | Unidentified | Plays of "ID - ID" tracks | All listens |
-| Only you | Your most played track that no other listener played, and how many of your tracks others also played | Linked only; see Open question 7 |
+| Only you | Your most played track that no other listener played, and how many of your tracks others also played | Linked only; see Decision 7 |
 | Coverage | What each card was based on, and the cards left out | Always shown |
 
 ## Cards in the MuMa Library tab
@@ -137,8 +137,8 @@ track, and says how many listens it could not count.
 | Sets vs. tracks | The server-wide split | Linked only |
 | Festivals | Hours of festival sets played, and the festival editions in the collection from this year | Linked only; collection |
 | Releases of the year | How many tracks released this year are in the collection, and the labels that released most of them | Collection, tracks with a release date |
-| Downloads | Downloads per month and per platform, and the followed channel that delivered most | Download archives; see Open question 3 |
-| Collection growth | Tracks that arrived this year, by source | Blocked: see Open question 3 |
+| Downloads | Downloads per month and per platform, and the followed channel that delivered most | Download archives; see Decision 3 |
+| Collection growth | Tracks that arrived this year, by source | Partial: see Decision 3 |
 | The shelf | The collection's BPM curve and its genre spread | Collection |
 | Start now | The total length of the collection (316.103.088 seconds, about ten years), and the date you would finish it if you started now | Collection |
 | The unplayed | How much of the collection nobody played this period | Collection, linked listens |
@@ -162,8 +162,7 @@ The Library tab never names a listener. It counts accounts, and it shows tracks,
 
 ## Sharing
 
-A card can be shared as an image. See Open question 5 for the choice of method. Whatever the method,
-a shared image:
+A card can be shared as an image, drawn by the page itself (Decision 5). A shared image:
 
 - shows only the card's headline, its sentence, the period and the MuMa mark;
 - never shows a username, a server address or another listener's data;
@@ -191,9 +190,10 @@ a shared image:
 13. A shared card image carries no username and no server address.
 14. The page loads in under two seconds for a period that was computed before.
 
-## Open Questions
+## Decisions
 
-Each question has options and a recommendation. Nothing here is built until they are answered.
+Teun accepted every recommendation below on 2026-11-12. The options stay listed so the reasons
+stay readable.
 
 1. **Which listens count?**
    - (a) Totals and the clock over all listens, rankings over linked listens only, as Listening stats
@@ -201,7 +201,7 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) Linked listens only, everywhere.
    - (c) All listens everywhere, ranking unlinked listens on their raw artist and title text.
 
-   Recommendation: (a). It matches the Listening stats page, so the two pages never disagree, and
+   Decided 2026-11-12: (a). It matches the Listening stats page, so the two pages never disagree, and
    rankings on raw text would list the same artist under several spellings.
 
 2. **How do the two tabs present on the phone?**
@@ -209,7 +209,7 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) A separate tap-through story mode (Spotify), plus the scrolling report (ListenBrainz).
    - (c) A scrolling report only, cards at their natural height.
 
-   Recommendation: (a). It gives the story feel with one layout to build and test. A story mode can
+   Decided 2026-11-12: (a). It gives the story feel with one layout to build and test. A story mode can
    come later on the same card components.
 
 3. **Where does "arrived this year" come from?** Fresh vs. stock, The long wait, Impulse score and
@@ -221,7 +221,7 @@ Each question has options and a recommendation. Nothing here is built until they
      say so.
    - (c) Leave the four cards out of 2026 and start them for 2027.
 
-   Recommendation: (a) now, shown with its coverage. Every week without it loses arrival dates for
+   Decided 2026-11-12: (a), shown with its coverage. Every week without it loses arrival dates for
    good, the same lesson as the played-seconds fix.
 
 4. **How are figures computed and kept?**
@@ -230,7 +230,7 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) Computed live on every request.
    - (c) A nightly job that computes every account's current year in advance.
 
-   Recommendation: (a). The listening side is small (50.000 rows a year), but the collection cards
+   Decided 2026-11-12: (a). The listening side is small (50.000 rows a year), but the collection cards
    scan 358.857 tracks. A frozen year also stops a later rematch from changing a shared image.
 
 5. **How is a card shared?**
@@ -239,7 +239,7 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) Screenshots only; no share button.
    - (c) The server renders the image.
 
-   Recommendation: (a). No new dependency, no image rendering on the server, and the app gets the
+   Decided 2026-11-12: (a). No new dependency, no image rendering on the server, and the app gets the
    real share sheet. It needs one small change to the Android app.
 
 6. **Which periods are offered?**
@@ -247,7 +247,7 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) Calendar years only.
    - (c) Years, a custom range, and "all time".
 
-   Recommendation: (a), as decided. "All time" is what Listening stats already shows.
+   Decided 2026-11-12: (a). "All time" is what Listening stats already shows.
 
 7. **May the User tab compare you with other listeners?** The "Only you" card says that nobody else
    played a track, which tells you something about the others.
@@ -255,27 +255,27 @@ Each question has options and a recommendation. Nothing here is built until they
    - (b) No; leave the card out.
    - (c) Yes, and name the listener you share most with.
 
-   Recommendation: (a). It never names anyone, and five accounts is too few for (c) to stay
+   Decided 2026-11-12: (a). It never names anyone, and five accounts is too few for (c) to stay
    anonymous.
 
 8. **Which time zone does a snapshot use?**
    - (a) The reader's own zone, sent by the page, stored with the snapshot.
    - (b) One server zone (Europe/Amsterdam) for everybody.
 
-   Recommendation: (a) for the User tab, as Listening stats does. The Library tab uses the server zone
+   Decided 2026-11-12: (a) for the User tab, as Listening stats does. The Library tab uses the server zone
    from the configuration, so every reader sees the same server figures.
 
 9. **Who may see the Library tab?**
    - (a) Every signed-in account.
    - (b) Administrators only.
 
-   Recommendation: (a). It names nobody, and the collection is what every listener shares.
+   Decided 2026-11-12: (a). It names nobody, and the collection is what every listener shares.
 
 10. **Does a former listener (`deleted-<id>`) count as a listener?**
     - (a) Yes, in totals and in the listener count, shown as "former listeners".
     - (b) In totals only, not in the listener count.
 
-    Recommendation: (a). Their listens are part of the year, and the count says plainly what they
+    Decided 2026-11-12: (a). Their listens are part of the year, and the count says plainly what they
     are.
 
 11. **When does the home tile appear?**
@@ -284,7 +284,7 @@ Each question has options and a recommendation. Nothing here is built until they
     - (b) Never; the sidebar and Library entries only.
     - (c) All year.
 
-    Recommendation: (a).
+    Decided 2026-11-12: (a).
 
 12. **Where does the remixer come from?**
     - (a) The scanner writes the file's `REMIXER` tag as the credit role `remixer`; the next full scan
@@ -293,6 +293,6 @@ Each question has options and a recommendation. Nothing here is built until they
       computes the card.
     - (c) Leave the card out.
 
-    Recommendation: (a). The tagger already writes `REMIXER`, so the scanner only has to read it, and
+    Decided 2026-11-12: (a). The tagger already writes `REMIXER`, so the scanner only has to read it, and
     every other page that lists credits gains it too. (b) is a fallback if the scan cannot run before
     January.

@@ -4,8 +4,7 @@ Implements [functional.md](functional.md). The data groundwork is in
 [../wrapped/technical.md](../wrapped/technical.md). The listening queries reuse the scope, time
 zone and disclosure rules of [../listening-stats/technical.md](../listening-stats/technical.md).
 
-Where an open question in functional.md changes this design, the section names it as "OQ n". The
-design below follows each recommendation.
+"OQ n" names decision n in functional.md. Every decision was taken on 2026-11-12, as recommended.
 
 ## Where this lives
 

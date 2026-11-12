@@ -24,6 +24,9 @@ class FakeSong:
         self._publisher = publisher
         self._artist = artist
 
+    def remixers(self):
+        return []
+
     def library_artists(self):
         return [self._artist]
 

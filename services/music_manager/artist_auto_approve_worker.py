@@ -259,12 +259,12 @@ _CANDIDATES = """
 """
 NEW_NAMES_SQL = f'SELECT a.id, a.name {_CANDIDATES} AND l.name IS NULL ORDER BY a.id DESC LIMIT %s'
 BACKLOG_SQL = (
-    'SELECT a.id, a.name, (SELECT COUNT(*) FROM library_track_artists lc WHERE lc.artist_id = a.id) AS track_count '
+    'SELECT a.id, a.name, (SELECT COUNT(DISTINCT lc.track_id) FROM library_track_artists lc WHERE lc.artist_id = a.id) AS track_count '
     f'{_CANDIDATES} AND l.name IS NOT NULL ORDER BY track_count DESC, a.name LIMIT %s'
 )
 REMAINING_SQL = f'SELECT COUNT(*) AS n {_CANDIDATES}'
 TITLES_SQL = (
-    'SELECT la.artist_id, t.title FROM library_track_artists la JOIN library_tracks t ON t.id = la.track_id '
+    'SELECT DISTINCT la.artist_id, t.id, t.title FROM library_track_artists la JOIN library_tracks t ON t.id = la.track_id '
     'WHERE la.artist_id IN ({placeholders})'
 )
 IGNORED_SQL = 'SELECT name FROM rules_ignored_artists'

@@ -23,6 +23,9 @@ class FakeSong:
         self._artists = list(artists)
         self._title = title
 
+    def remixers(self):
+        return []
+
     def library_artists(self):
         return self._artists
 

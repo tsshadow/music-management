@@ -158,6 +158,12 @@
   top. A 2px progress line (`bg-white` on `bg-white/10`) runs along the bottom edge. No
   transitions and no animation. A live station drops skip, stars and progress. The PC window
   (issue #177) is the first user.
+  - **Split screen** (the app in a split-screen half lower than 480px, issue #179): the same
+    player over the whole half, with no stars and the transport centered and as large as
+    possible: 64px previous and next buttons with 32px icons, an 80px play button. Under it, two
+    secondary pills (`bg-muma-spotify-light text-white rounded-full px-4 min-h-11 text-sm
+    font-bold`, hover `bg-muma-spotify-hover`): "Navigeren naast MuMa" (only when Google Maps is
+    installed) and "Volledige app".
 - **Miniplayer button** (desktop player bar, Chrome and Edge only): the lucide `PictureInPicture2`
   icon at 16px, in the right cluster before the queue button, with the same muted-to-white hover as
   its neighbors. A browser that cannot open the window does not show it.
@@ -357,6 +363,9 @@ To maintain clean design governance and prevent ad-hoc style drift:
   `muma-spotify-dark`, else `bg-muma-spotify-panel` with `brand` accents; the two tabs as
   `<button aria-pressed>` pills in the chip style (`bg-brand text-black` when picked); a 1080 x 1920
   share image with the same layout and the MuMa mark.
+
+- **Done** -- Compact player in a split screen (2026-11-12, issue #179,
+  `docs/designs/miniplayer/`): see "Split screen" under "Compact player". No new token.
 
 - **Done** -- Compact player and the PC miniplayer window (2026-11-12, issue #177,
   `docs/designs/miniplayer/`): see "Compact player" and "Miniplayer button" under Components. No

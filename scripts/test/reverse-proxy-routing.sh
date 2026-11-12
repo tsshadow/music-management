@@ -157,6 +157,8 @@ expect GET    "/muma/users/settings/frontend?u=user&p=x"                lms "/mu
 expect GET    "/health"                                                 music-manager "/health"
 expect GET    "/health/backup"                                          music-manager "/health/backup"
 expect GET    "/health/backup/x"                                        lms "/spotify/health/backup/x"
+expect GET    "/health/music-mirror"                                    music-manager "/health/music-mirror"
+expect GET    "/health/music-mirror/x"                                  lms "/spotify/health/music-mirror/x"
 expect GET    "/healthz"                                                lms "/spotify/healthz"
 
 # The two namespaces that were never MuMa's.

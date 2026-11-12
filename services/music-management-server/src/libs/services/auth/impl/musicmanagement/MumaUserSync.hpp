@@ -43,6 +43,10 @@ namespace lms::auth::musicManagement
         bool everyRowIdentified{ true };
     };
 
+    /// The login name a deleted account's LMS user gets: the name music-manager moves the deleted
+    /// account's history to (`deleted-<id>`, issue #220), and one no MuMa account can take.
+    std::string tombstoneLoginName(int mumaId);
+
     /// Parses music-manager's user list. nullopt when the body is not a JSON array at all, in which
     /// case nothing may be concluded from it.
     std::optional<MumaAccountList> parseMumaAccounts(std::string_view body);
@@ -54,16 +58,20 @@ namespace lms::auth::musicManagement
         std::size_t updated{};
         std::size_t disabled{}; // newly disabled: disabled in MuMa, or gone from its list
         std::size_t reenabled{};
-        std::size_t failed{}; // accounts whose database write failed and was skipped
+        std::size_t tombstoned{}; // gone from MuMa's list and newly renamed to deleted-<id>
+        std::size_t failed{};     // accounts whose database write failed and was skipped
     };
 
     /// Mirrors the listed accounts onto the LMS `user` table.
     ///
+    /// - A user linked to a MuMa id the list no longer holds (deleted in MuMa) is renamed to
+    ///   `deleted-<id>`, disabled, and loses every auth token. This runs first, so a name deleted
+    ///   and made again between two syncs is free for the new account. The user is never deleted:
+    ///   listens, ratings, stars and playlists refer to the user row by id and would be orphaned.
     /// - A listed account is matched by MuMa id, then case-insensitively by login name, and
-    ///   created when neither finds a user. Its name, role and enabled state follow MuMa.
-    /// - An account disabled in MuMa, or linked to a MuMa id the list no longer holds (deleted in
-    ///   MuMa), is disabled here and loses every auth token. It is never deleted: listens,
-    ///   ratings, stars and playlists refer to the user row by id and would be orphaned.
+    ///   created when neither finds a user. The name only finds a user without a MuMa id; a user
+    ///   linked to another id is never taken over. Its name, role and enabled state follow MuMa.
+    /// - An account disabled in MuMa is disabled here and loses every auth token.
     /// - Users without a MuMa id are left alone: nothing proves they are MuMa accounts.
     ///
     /// Every account is written in its own transaction, so one failing write is logged and skipped

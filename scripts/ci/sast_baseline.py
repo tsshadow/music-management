@@ -221,7 +221,10 @@ REASONS = {
         'that did come from a third party\'s JSON -- and that one goes through '
         'artwork.is_web_url() first, which refuses anything but http(s) so a '
         'crafted file:// value cannot have the backfill embed a local file. '
-        'Audited 2026-09-22.'
+        'Audited 2026-09-22. '
+        'tools/music_mirror.py posts its failure alert to MIRROR_NTFY_URL, from the '
+        'root-owned env file on the mirror NAS; load_config() refuses anything but '
+        'http(s). Audited 2026-11-12.'
     ),
     'unsafe-formatstring': (
         'Format strings built from internal constants in one-off tools, not '

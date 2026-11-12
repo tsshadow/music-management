@@ -115,6 +115,25 @@ class EventServiceWriteTest(unittest.TestCase):
 
         calm.handle.assert_called_once()
 
+    @patch('services.common.Helpers.EventService.DatabaseConnector')
+    def test_record_now_writes_the_row_before_it_returns_and_skips_the_sinks(self, mock_connector):
+        """A one-shot command exits right after; a daemon thread would die with its row."""
+        sink = MagicMock()
+        service = EventService(sinks=[sink])
+        mock_cursor = MagicMock()
+        mock_connector.return_value.connect.return_value.cursor.return_value.__enter__.return_value = mock_cursor
+
+        self.assertTrue(service.record_now(make_event(level='WARNING', source='music-mirror')))
+
+        params = mock_cursor.execute.call_args[0][1]
+        self.assertEqual(params[:2], ('WARNING', 'music-mirror'))
+        sink.handle.assert_not_called()
+        self.assertFalse(service.is_alive())
+
+    def test_record_now_rejects_unknown_level(self):
+        with self.assertRaises(ValueError):
+            self.service.record_now(make_event(level='TRACE'))
+
     def test_emit_rejects_unknown_level(self):
         with self.assertRaises(ValueError):
             self.service.emit('TRACE', 'titel', 'bericht', 'downloader')

@@ -3078,6 +3078,39 @@ class BpmBrowseSqlTest:
         run_sql(db, "DELETE FROM library_track_bpm_manual WHERE track_uid = 'uid-tag-Manual'")
         assert manual in {row['track_id'] for row in store.due(config, [eps], 100)}
 
+    def test_the_tag_writeback_never_writes_a_weak_value(self, db):
+        """Issue #153: an unsettled estimate or a fold the general priors alone decided is never
+        written -- not at a low threshold, not even into a file this step wrote before."""
+        from services.music_manager.bpm import octave, tag_writeback
+
+        eps = '/mnt/music/EPs'
+        weak = {
+            'Unsettled': (0, octave.EVIDENCE_UNSETTLED),
+            'Neutral Fold': (1, octave.EVIDENCE_NEUTRAL),
+            'Path Fold': (1, octave.EVIDENCE_PATH),
+        }
+        ids = {}
+        for title, (corrected, evidence) in {**weak, 'Artist Fold': (1, octave.EVIDENCE_ARTIST)}.items():
+            ids[title] = self._measured(db, title, f'{eps}/Label/REL4/{title}.mp3', bpm=234.0, confidence=0.9)
+            run_sql(
+                db,
+                'UPDATE library_track_bpm SET octave_corrected = %s, fold_evidence = %s WHERE track_uid = %s',
+                (corrected, evidence, f'uid-tag-{title}'),
+            )
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        low = tag_writeback.read_settings({'bpm_tag_writeback_min_confidence': 0}.get)
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert ids['Artist Fold'] in due
+        assert not due & {ids[title] for title in weak}
+        run_sql(
+            db,
+            "UPDATE library_track_bpm SET tag_action = 'written', tag_bpm = 117.0 WHERE track_uid IN (%s, %s, %s)",
+            tuple(f'uid-tag-{title}' for title in weak),
+        )
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert not due & {ids[title] for title in weak}
+        assert store.remaining(low, [eps]) == 1
+
     def test_the_tag_writeback_leaves_a_queued_tagger_row_queued(self, db):
         from datetime import datetime
         from types import SimpleNamespace

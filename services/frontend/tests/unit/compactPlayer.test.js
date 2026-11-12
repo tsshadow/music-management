@@ -86,3 +86,40 @@ describe("CompactPlayer", () => {
     expect(screen.getByLabelText("Vorige").disabled).toBe(true);
   });
 });
+
+describe("CompactPlayer in a split screen", () => {
+  it("makes the transport large for a glance from a bike", () => {
+    renderCompact({ variant: "split", showRating: false });
+
+    expect(screen.getByTestId("compact-player").dataset.variant).toBe("split");
+    expect(screen.getByTestId("compact-play").className).toMatch(/w-20 h-20/);
+    expect(screen.getByLabelText("Volgende").className).toMatch(/w-16 h-16/);
+    expect(screen.queryByTestId("compact-stars")).toBeNull();
+  });
+
+  it("offers Maps and the full app, each calling its own function", async () => {
+    const onnavigate = vi.fn();
+    const onexpand = vi.fn();
+    renderCompact({ variant: "split", onnavigate, onexpand });
+
+    await fireEvent.click(screen.getByText("Navigeren naast MuMa"));
+    await fireEvent.click(screen.getByText("Volledige app"));
+
+    expect(onnavigate).toHaveBeenCalledTimes(1);
+    expect(onexpand).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no Maps button when Maps cannot open", () => {
+    renderCompact({ variant: "split", onexpand: vi.fn() });
+
+    expect(screen.queryByTestId("compact-navigate")).toBeNull();
+    expect(screen.getByTestId("compact-expand")).toBeTruthy();
+  });
+
+  it("the PC window has neither pill", () => {
+    renderCompact();
+
+    expect(screen.queryByTestId("compact-navigate")).toBeNull();
+    expect(screen.queryByTestId("compact-expand")).toBeNull();
+  });
+});

@@ -26,13 +26,16 @@ to two free functions in `impl/musicmanagement/MumaUserSync.hpp`:
   without a readable id clears `everyRowIdentified`. `is_admin` and `enabled` accept JSON booleans
   and MariaDB's 0/1; a missing `enabled` means enabled.
 - `applyMumaAccounts(session, list)`:
-  1. Per account, in its own write transaction: find by MuMa id, then by name (case-insensitive,
-     `User::find`), else create; set MuMa id, name, role. `enabled == false` -> set `disabled` and
+  1. Unless `listedIds` is empty or `everyRowIdentified` is false: every LMS user with a MuMa id not
+     in `listedIds` is renamed to `deleted-<id>`, disabled and loses its tokens, each in its own
+     transaction. Users without a MuMa id are left alone. This step runs first, so a name deleted
+     and made again between two syncs is free (issue #239,
+     [user-delete-tombstone](../user-delete-tombstone/technical.md)).
+  2. Per account, in its own write transaction: find by MuMa id, then by name (case-insensitive,
+     `User::find`), else create; set MuMa id, name, role. The name finds only a user without a MuMa
+     id: a user linked to another id fails the write. `enabled == false` -> set `disabled` and
      clear every token (tokens last: the delete is raw SQL and not undone by a later throw).
      `enabled == true` on a disabled user -> clear `disabled`.
-  2. Unless `listedIds` is empty or `everyRowIdentified` is false: every LMS user with a MuMa id not
-     in `listedIds` is disabled and loses its tokens, each in its own transaction. Users without a
-     MuMa id are left alone.
   3. A failure in one transaction is flushed inside a try, `discardUnflushed()` drops the dirty
      objects, the failure is logged and counted (`MumaSyncSummary::failed`), and the loop continues.
      Before, one throw ended the loop -- and a throw from the commit in `WriteTransaction`'s

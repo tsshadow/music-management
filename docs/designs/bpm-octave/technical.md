@@ -17,7 +17,7 @@ decision; `bands.py` stays as a fallback prior.
 | `raw_confidence` | DECIMAL(4,3) NULL | The estimator's pulse confidence (0..1). NULL on rows from before; the refold fills it from `confidence`. |
 | `strength` | FLOAT NULL | Comb score of the raw estimate. NULL until re-measured. |
 | `half_score`, `double_score` | FLOAT NULL | Comb scores of raw/2 and raw×2 (30-500 BPM). |
-| `fold_evidence` | VARCHAR(16) NULL | Which term decided: `estimate`, `label`, `artist`, `genre`, `band`, `path`, `neutral`. |
+| `fold_evidence` | VARCHAR(16) NULL | Which term decided: `estimate`, `label`, `artist`, `genre`, `band`, `path`, `neutral`, `getsongbpm`; `unsettled` for a raw estimate above 205 that no evidence settles (issue #153); `manual`. |
 | `fold_margin` | FLOAT NULL | Winner minus runner-up, log-score units; < 1 is ambiguous. |
 | `fold_version` | SMALLINT NULL | `octave.FOLD_VERSION` of the rule that chose. |
 
@@ -48,13 +48,42 @@ Candidates: raw × {1, ½, 2} within 40-500. Score = sum of terms (natural-log u
 | path | root folder in {Hitzone, Spotify, Lidarr, Top 100, Top-100}: prior 105 BPM, spread 0.4, w = 1.0 (0.5 with a genre). |
 | neutral | prior 135 BPM, spread 0.5, w = 1.0 without genre/label/artist evidence, else 0.3; plus −0.8 for a candidate above 205 or below 70 unless the track's own genre or label is closer to it than to its octave. |
 
-Hard rule: a doubled candidate above 205 exists only when the track's own genre or label is closer to
-it than to the raw estimate (`_vouched`). Certainty = 1 − ½·e^(−1.2·margin).
+Hard rules: a doubled candidate above 205 exists only when the track's own genre or label is closer
+to it than to the raw estimate (`_vouched`). A raw estimate above 205 is only halved when a real prior
+is closer to the half than to the estimate (`_halving_vouched`, see "Halving needs real evidence").
+Certainty = 1 − ½·e^(−1.2·margin).
 
 Tuning: the weights were set on the ground-truth set (tools/bpm_eval.py, 399 genuine tags) and a
 read-only 10% sample of production (26,789 measured tracks) with production's learned priors.
 Ground truth: 84.5% → 84.7% within 1 BPM (the octave-oracle ceiling is 84.7%); genre tracks 82.4% →
 82.4%. The sample: 3.9% of tracks change tempo; above 200: 4,678 → 3,968.
+
+## Halving needs real evidence (issue #153, `FOLD_VERSION` 3)
+
+Functional numbers and the measurement: [functional.md](functional.md), "Change: A Halving Needs
+Real Evidence".
+
+- `_real_priors(evidence, genre, raw)`: the track's genre (learned or band), label and artist when
+  their weight is not zero, the GetSongBPM prior when it matches an octave, and the path prior for a
+  mainstream root. Not the neutral prior.
+- `_halving_vouched`: one of them is closer to raw/2 than to raw. `choose_octave` still scores the
+  half, so the margin of a kept estimate is what it was; it only refuses to let an unvouched half
+  win. When it would have won, the result is the raw estimate with `evidence = 'unsettled'` and
+  `margin = 0`.
+- `_estimate_supported`: one of them is closer to raw than to raw/2, or the half's comb score is
+  below `AUDIO_KNEE` (0.6) of the estimate's. A raw estimate above 205 that wins without this is
+  `unsettled` too.
+- `weak_value(octave_corrected, fold_evidence)`: `unsettled`, or a fold decided by `neutral` or
+  `path`. The confidence of a weak value is capped at `WEAK_FOLD_CAP` (0.6); an unsettled one has
+  the certainty of a tie, so it is at most half the pulse confidence.
+- `FOLD_VERSION` 3: the bpm-analyzer's `_maintain_priors` refolds every `ok` row at start, so the
+  re-evaluation of the old halvings needs no script. Every row gets the new `fold_version`; only
+  rows whose outcome changed get a new `bpm`. The writeback has nothing due until that refold ran.
+
+Dry run on production's rows (2026-11-12, 115,077 rows with raw above 180 or folded, production's
+priors): 3,127 old halvings back at their raw estimate (3,124 `unsettled`), 1,082 still halved (937
+decided by `neutral` with a real prior on the half's side, 145 by `path`), no other `bpm` change,
+no change in which rows are reliable.
 
 ## Priors (`priors.py`)
 
@@ -100,7 +129,9 @@ octave-aware) with `bpm_reliable_confidence`.
 ## Tag writeback (`tag_writeback.py`)
 
 `DUE_SQL`: value `COALESCE(manual.bpm, b.bpm)`; due when a manual value exists, or when
-`fold_version = FOLD_VERSION` and (`confidence ≥ min` or `tag_action = 'written'`), and
+`fold_version = FOLD_VERSION`, the value is not weak (`NOT (fold_evidence <=> 'unsettled' OR
+(octave_corrected = 1 AND fold_evidence IN ('neutral', 'path')))`, the SQL form of
+`octave.weak_value`, issue #153) and (`confidence ≥ min` or `tag_action = 'written'`), and
 `NOT (tag_bpm <=> value)`. So nothing is written before the deploy's refold has run; a file the step
 wrote is rewritten whenever its value changes (the ~835 doubled tags, confident or not: the old value
 came from a rule that was wrong); a manual tempo is always written. `RECORD_SQL` stamps the value

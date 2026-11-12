@@ -150,6 +150,16 @@ class EventService:
             print(f'EventService: queue vol, {level} event geweigerd: {title}', file=sys.stderr)
         return accepted
 
+    def record_now(self, event: Event) -> bool:
+        """Write one event row synchronously, with the retries, and skip the sinks.
+
+        For a one-shot command that exits right after: ``emit`` hands the event to a
+        daemon thread, which dies with the process before the row is written.
+        """
+        if event.level not in LEVELS:
+            raise ValueError(f'unknown level {event.level!r}, expected one of {LEVELS}')
+        return self._write(event)
+
     def _ensure_worker(self) -> None:
         """Start (or restart) the dispatching worker and the database writer as needed."""
         with self._worker_lock:

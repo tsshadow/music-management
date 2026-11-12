@@ -112,8 +112,9 @@ The system is split into specialized services, each handling a specific part of 
       times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
     - **Vanished files**: after each full walk the scanner deletes the `library_media_files` row of
       a file that is gone from disk, never the track (`services/music_manager/vanished_media.py`).
-      A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
-      relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
+      A track left without a file is relinked on the `relink-orphans` metadata key, else on the
+      gone file's name and duration (issue #71: a pack release indexed before the tagger split
+      its artists), or kept for relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
       be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
       with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
       the operator script `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator

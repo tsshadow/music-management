@@ -15,7 +15,8 @@ zone and disclosure rules of [../listening-stats/technical.md](../listening-stat
   - `listening_cards.py` holds the listening cards as pure functions of that data,
     `card_<id>(data, ...) -> dict`, so a card test needs no cursor.
   - `collection_cards.py` holds the Library cards that read the collection, with their own SQL.
-  - `payload.py` sets the card order per tab and adds `file_path` to every track a card names.
+  - `payload.py` sets the card order per tab and adds `file_path` and `library_path` (the path without the library root) to every track a card
+    names.
   - `periods.py` parses `year` / `from` / `to` / `tz`, `snapshots.py` stores a tab, `cards.py`
     builds the status fields, and `words.py` holds the stop list.
 - It imports `ListeningScope`, `parse_scope`'s rules, `release_year_sql` and the duration split from
@@ -227,7 +228,7 @@ No existing endpoint changes. No breaking change.
 - Charts are divs and SVG, like `ListeningStatsView.svelte`. No chart library. Every value a chart
   shows is also in the DOM as text.
 - Tracks become playable through `resolveSongs(paths)` from `feeds.js`, which turns the
-  `file_path` of each listed track into a Subsonic song with its cover. Artist images come from the
+  `library_path` of each listed track into a Subsonic song with its cover. Artist images come from the
   existing artist image endpoint.
 - Loading: one request per tab. Skeletons in the card shapes until it answers. A 503 retries once
   after `Retry-After`, then shows the unavailable state.

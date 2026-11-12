@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from services.music_manager.library_paths import relative_path
 from services.music_manager.routers.listening import ListeningScope
 from services.music_manager.wrapped import collection_cards as cc
 from services.music_manager.wrapped import listening_cards as lc
@@ -27,7 +28,8 @@ USER = 'user'
 LIBRARY = 'library'
 
 #: The version of the payload's shape. A stored snapshot of another version is recomputed.
-WRAPPED_FORMAT = 1
+#: 2: every track also has `library_path`, the path the page hands LMS to play it.
+WRAPPED_FORMAT = 2
 
 
 def _period_block(period: Period, zone: ZoneInfo, now: datetime) -> dict[str, Any]:
@@ -81,7 +83,9 @@ def _track_ids(value, found: set[int]) -> None:
 def _set_paths(value, paths: dict[int, str]) -> None:
     if isinstance(value, dict):
         if isinstance(value.get('track_id'), int):
-            value['file_path'] = paths.get(value['track_id'])
+            path = paths.get(value['track_id'])
+            value['file_path'] = path
+            value['library_path'] = relative_path(path)
         for item in value.values():
             _set_paths(item, paths)
     elif isinstance(value, list):
@@ -90,7 +94,12 @@ def _set_paths(value, paths: dict[int, str]) -> None:
 
 
 def attach_paths(cursor, cards: list[dict]) -> None:
-    """Give every track on a card the path of one of its files, which the page turns into a song."""
+    """Give every track on a card the path of one of its files, which the page turns into a song.
+
+    `file_path` is muma's own scan mount and names a file LMS does not have; `library_path` is
+    the same path without the library root, which is what the page hands LMS's getSongsByPath
+    (as the feeds do, `library_paths.relative_path`).
+    """
     found: set[int] = set()
     _track_ids(cards, found)
     if not found:

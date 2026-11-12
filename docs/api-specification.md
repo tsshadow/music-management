@@ -473,7 +473,9 @@ and `to` (ISO dates, inclusive, at most three years apart); both or neither is 4
   system, in the server zone (config `wrapped_server_tz`). No card holds a username.
 - Both tabs answer `{scope, format, tz, period: {key, from, to, year, running, data_until},
   generated_at, coverage, cards: [{id, status, reason?, basis?, data?}]}`. `status` is `ok`,
-  `empty`, `below_minimum` or `blocked`; only `ok` cards have `data`. A tab is computed once and
+  `empty`, `below_minimum` or `blocked`; only `ok` cards have `data`. Every track a card names
+  has `track_id`, `file_path` (muma's mount) and `library_path` (the path LMS's
+  `getSongsByPath` takes). A tab is computed once and
   stored: a running period for 24 hours, a closed one until a refresh. A first computation over
   20 seconds is 503 with `Retry-After: 20`, and the result is stored when it finishes.
 - **POST `/refresh`** (permission `wrapped.refresh`, admin only), JSON body `{scope: 'user' |

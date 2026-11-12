@@ -22,5 +22,6 @@ export const TILE_COLORS = {
   memories: "#503750",
   history: "#477D95",
   listening: "#8C1932",
+  wrapped: "#1DB954",
   starred: "#E8115B",
 };

@@ -52,6 +52,9 @@ const PLAIN_VIEWS = [
   // owned by `listeningStats.js` and written with replaceState: the path stays `/listening`, so
   // nothing here needs to know about it -- see docs/designs/listening-stats/technical.md.
   "listening",
+  // The bare '/wrapped' opens the running year's User tab; the page rewrites it to
+  // '/wrapped/<year>/user' with replaceState (docs/designs/wrapped-page/technical.md).
+  "wrapped",
   "starred",
   // Reachable everywhere, listed only where it can work: the drawer and the tab
   // strip add it on `platform.storage.supported`, and in a browser the screen
@@ -107,6 +110,9 @@ const ARGUMENT_VIEWS = [
   { kind: "lineups", segment: "lineups", encode: true },
   { kind: "search", segment: "search", encode: true },
   { kind: "memories", segment: "memories", encode: false },
+  // '/wrapped/2026/user' or '/wrapped/2026-03-01_2026-06-30/library': a period key and a tab,
+  // both plain ASCII, so the slash between them travels unencoded.
+  { kind: "wrapped", segment: "wrapped", encode: false },
   { kind: "artist", segment: "artist", encode: false },
   { kind: "album", segment: "album", encode: false },
   // One song and every file of it. The argument is muma's work id, an opaque number, so
@@ -171,6 +177,7 @@ const LIBRARY_TAB_PREFIXES = [
   "lineup:",
   "lineups:",
   "memories:",
+  "wrapped:",
 ];
 
 /**

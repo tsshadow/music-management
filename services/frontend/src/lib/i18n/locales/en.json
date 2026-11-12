@@ -1683,7 +1683,8 @@
     "favorites": "Favorites",
     "help": "Manual",
     "bpm": "BPM",
-    "radio": "Radio"
+    "radio": "Radio",
+    "wrapped": "Wrapped"
   },
   "news": {
     "couldNotPlay": "Could not play the news",
@@ -2005,7 +2006,9 @@
         "discSortHelp": "Sorts album tracks by disc and track number instead of the server's own order.",
         "genreTrackLimit": "Genre track limit",
         "genreTrackLimitHelp": "How many tracks a genre overview shows at most."
-      }
+      },
+      "wrappedOnHome": "Show Wrapped on the home screen",
+      "wrappedOnHomeHelp": "A tile for your year in music, from 1 December to 31 January."
     },
     "language": {
       "help": "The language of the interface. Saved to your account, so it follows you to your other devices.",
@@ -2480,6 +2483,446 @@
       "resetLabel": "Back to the measured tempo",
       "failed": "Could not change the tempo.",
       "invalid": "Enter a tempo between 40 and 500."
+    }
+  },
+  "wrapped": {
+    "title": "Wrapped",
+    "subtitle": "Your year in music, and the library's.",
+    "tabs": {
+      "label": "Whose year",
+      "user": "You",
+      "library": "Library"
+    },
+    "period": {
+      "label": "Period",
+      "soFar": "{year} so far",
+      "range": "{from} to {to}",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To",
+      "apply": "Show",
+      "invalid": "Pick two dates, at most three years apart."
+    },
+    "loading": "Counting your listens...",
+    "computing": "Wrapped is being worked out. This takes about a minute the first time.",
+    "unavailable": "Wrapped cannot be loaded right now.",
+    "retry": "Try again",
+    "empty": "No listens in this period",
+    "emptyHelp": "Play some music, or import your history from ListenBrainz in the settings.",
+    "openListening": "Open listening stats",
+    "openSettings": "Open settings",
+    "share": "Share this card",
+    "shareFailed": "The card could not be shared.",
+    "shareSaved": "The image was saved.",
+    "play": "Play these tracks",
+    "playFailed": "None of these tracks could be found to play.",
+    "brand": "MuMa Wrapped",
+    "home": {
+      "title": "Your {year} Wrapped",
+      "text": "Your year in music is ready.",
+      "textRunning": "Your year in music so far."
+    },
+    "units": {
+      "minutes": {
+        "one": "1 minute",
+        "other": "{n} minutes"
+      },
+      "hours": {
+        "one": "1 hour",
+        "other": "{n} hours"
+      },
+      "days": {
+        "one": "1 day",
+        "other": "{n} days"
+      },
+      "years": {
+        "one": "1 year",
+        "other": "{n} years"
+      }
+    },
+    "unit": {
+      "listens": "listens",
+      "downloads": "downloads",
+      "tracks": "tracks",
+      "editions": "editions",
+      "ratings": "ratings"
+    },
+    "weekday": {
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
+    },
+    "season": {
+      "winter": "Winter",
+      "spring": "Spring",
+      "summer": "Summer",
+      "autumn": "Autumn"
+    },
+    "platform": {
+      "soundcloud": "SoundCloud",
+      "youtube": "YouTube"
+    },
+    "form": {
+      "track": "Tracks",
+      "set": "Sets",
+      "liveset": "Live sets",
+      "podcast": "Podcasts",
+      "other": "Other",
+      "unknown": "Unknown"
+    },
+    "origin": {
+      "web": "Web player",
+      "phone": "Phone",
+      "car": "Car",
+      "legacy_web": "Old web player",
+      "imported": "Imported",
+      "unknown": "Unknown"
+    },
+    "source": {
+      "soundcloud": "SoundCloud",
+      "youtube": "YouTube",
+      "telegram": "Telegram",
+      "label": "Label releases",
+      "import": "Imports",
+      "unknown": "Unknown"
+    },
+    "series": {
+      "you": "You",
+      "shelf": "Library"
+    },
+    "system": {
+      "bpm_measured": "Tempos measured",
+      "bulletins": "News bulletins",
+      "ratings": "Ratings given",
+      "criticals": "Critical alerts"
+    },
+    "note": {
+      "unmatched": {
+        "one": "1 listen could not be matched to a track and is not counted here.",
+        "other": "{n} listens could not be matched to a track and are not counted here."
+      },
+      "basis": "Based on {counted} of {of} {unit}.",
+      "ratingsRebuilt": "The library was rebuilt before this period, so older ratings are missing.",
+      "undated": {
+        "one": "1 download has no date and is not counted.",
+        "other": "{n} downloads have no date and are not counted."
+      },
+      "unknownArrival": {
+        "one": "1 track has no arrival date.",
+        "other": "{n} tracks have no arrival date."
+      }
+    },
+    "reason": {
+      "empty": "Nothing to show for this period.",
+      "below_minimum": "Too little data for this period.",
+      "blocked": "The data for this card is not there yet.",
+      "no_arrival_date": "Tracks have no arrival date yet.",
+      "no_remixer_credits": "No track has a remixer credit.",
+      "same_as_top_artist": "Same artist as your top artist."
+    },
+    "coverage": {
+      "label": "What this is based on",
+      "text": "{listens} listens, of which {linked} matched a track in the library and {unmatched} did not.",
+      "measured_share": "Listens with a measured play time",
+      "origin_known_share": "Listens with a known device",
+      "bpm_share": "Tracks with a measured tempo",
+      "release_year_share": "Tracks with a release year",
+      "arrival_share": "Tracks with an arrival date",
+      "leftOut": "Left out"
+    },
+    "cards": {
+      "title": {
+        "label": "Your {period}",
+        "labelLibrary": "The library's {period}",
+        "text": "listens, {tracks} different tracks, about {time} of music.",
+        "textLibrary": "listens by {listeners} listeners, {tracks} different tracks, about {time} of music."
+      },
+      "listening_time": {
+        "label": "Time listened",
+        "text": "{measured} of it measured, {share} of all listens."
+      },
+      "listeners": {
+        "label": "Listeners",
+        "text": "{active} still listen, {former} listened earlier."
+      },
+      "top_tracks": {
+        "label": "Top tracks",
+        "text": {
+          "one": "by {artist}, played once.",
+          "other": "by {artist}, played {n} times."
+        }
+      },
+      "top_artists": {
+        "label": "Top artists",
+        "text": {
+          "one": "1 listen.",
+          "other": "{n} listens."
+        }
+      },
+      "top_genres": {
+        "label": "Top genres",
+        "text": {
+          "one": "1 listen.",
+          "other": "{n} listens."
+        }
+      },
+      "seasons": {
+        "label": "Seasons",
+        "text": "Your sound of {season}."
+      },
+      "top_label": {
+        "label": "Top label",
+        "text": {
+          "one": "1 listen, {tracks} tracks.",
+          "other": "{n} listens, {tracks} tracks."
+        }
+      },
+      "top_channel": {
+        "label": "Top channel",
+        "text": {
+          "one": "1 listen on {platform}.",
+          "other": "{n} listens on {platform}."
+        }
+      },
+      "top_remixer": {
+        "label": "Top remixer",
+        "text": {
+          "one": "1 listen to their remixes.",
+          "other": "{n} listens to their remixes."
+        }
+      },
+      "festival": {
+        "label": "Top festival",
+        "text": {
+          "one": "{time} of sets, 1 listen. Editions: {editions}.",
+          "other": "{time} of sets, {n} listens. Editions: {editions}."
+        }
+      },
+      "time_travel": {
+        "label": "Festival time travel",
+        "text": {
+          "one": "From {oldFestival} {oldYear} to {newFestival} {newYear}, 1 edition.",
+          "other": "From {oldFestival} {oldYear} to {newFestival} {newYear}, {count} editions."
+        }
+      },
+      "show": {
+        "label": "Top show",
+        "text": {
+          "one": "{time}, 1 listen.",
+          "other": "{time}, {n} listens."
+        }
+      },
+      "forms": {
+        "label": "Tracks or sets",
+        "text": "What you played most."
+      },
+      "bpm": {
+        "label": "Average tempo",
+        "text": "Your tempo, month by month."
+      },
+      "bpm_extremes": {
+        "label": "Fastest and slowest",
+        "text": "Fastest: {fast} by {fastArtist}. Slowest: {slow} by {slowArtist}, {slowBpm}."
+      },
+      "taste_vs_shelf": {
+        "label": "Your tempo and the library",
+        "text": "You play most around this tempo. The library has most around {shelf}."
+      },
+      "clock": {
+        "label": "Your clock",
+        "text": "Your busiest hour. Your busiest day: {weekday}."
+      },
+      "heatmap": {
+        "label": "When the library plays",
+        "text": "The busiest hour of the week, {n} listens."
+      },
+      "night_shift": {
+        "label": "Night shift",
+        "text": {
+          "one": "of your listens, 1 in total, were between midnight and 06:00.",
+          "other": "of your listens, {n} in total, were between midnight and 06:00."
+        }
+      },
+      "busiest_day": {
+        "label": "Busiest day",
+        "text": {
+          "one": "1 listen on one day.",
+          "other": "{n} listens on one day."
+        }
+      },
+      "first_last": {
+        "label": "First and last",
+        "text": "First: {first} by {firstArtist}, {firstAt}. Last: {last} by {lastArtist}, {lastAt}."
+      },
+      "months": {
+        "label": "Busiest month",
+        "text": {
+          "one": "1 listen.",
+          "other": "{n} listens."
+        }
+      },
+      "streak": {
+        "label": "Longest streak",
+        "text": "Every day from {first} to {last}."
+      },
+      "session": {
+        "label": "Longest session",
+        "text": {
+          "one": "1 listen, starting {start}.",
+          "other": "{n} listens in a row, starting {start}."
+        }
+      },
+      "origins": {
+        "label": "Where you listened",
+        "text": "Your most used device.",
+        "textCar": "Your most used device. {time} of it in the car."
+      },
+      "release_years": {
+        "label": "Release years",
+        "text": "Oldest: {old} ({oldYear}). Newest: {new} ({newYear})."
+      },
+      "fresh_vs_stock": {
+        "label": "Fresh or stock",
+        "text": {
+          "one": "of your listens were to 1 track that arrived this period, of {known} with a known date.",
+          "other": "of your listens were to {n} tracks that arrived this period, of {known} with a known date."
+        }
+      },
+      "long_wait": {
+        "label": "The long wait",
+        "text": "{title} by {artist} waited this long for its first play."
+      },
+      "impulse": {
+        "label": "Impulse",
+        "text": {
+          "one": "From arrival to first play, the median of 1 track.",
+          "other": "From arrival to first play, the median of {n} tracks."
+        }
+      },
+      "untouched": {
+        "label": "How much you played",
+        "text": "different tracks of {library} in the library, {share}."
+      },
+      "new_genres": {
+        "label": "New genres",
+        "text": {
+          "one": "1 genre you had not played before.",
+          "other": "{count} genres you had not played before."
+        }
+      },
+      "discovery": {
+        "label": "Discovery",
+        "text": {
+          "one": "First played on {date}, then 1 listen.",
+          "other": "First played on {date}, then {n} listens."
+        }
+      },
+      "loyal": {
+        "label": "Most loyal",
+        "text": {
+          "one": "Played in {months} months, 1 listen.",
+          "other": "Played in {months} months, {n} listens."
+        }
+      },
+      "one_hit": {
+        "label": "One-day wonder",
+        "text": {
+          "one": "1 listen, all on {date}.",
+          "other": "{n} listens, all on {date}."
+        }
+      },
+      "ratings": {
+        "label": "Ratings",
+        "text": "ratings given. {share} of your plays were five-star tracks."
+      },
+      "contradiction": {
+        "label": "The contradiction",
+        "text": {
+          "one": "by {artist}: {rating} stars, and still played once.",
+          "other": "by {artist}: {rating} stars, and still played {n} times."
+        }
+      },
+      "word": {
+        "label": "Your word",
+        "text": {
+          "one": "Once in the titles you played.",
+          "other": "{n} times in the titles you played."
+        }
+      },
+      "unidentified": {
+        "label": "Unidentified",
+        "text": {
+          "one": "listen did not match a track, {distinct} different titles.",
+          "other": "listens did not match a track, {distinct} different titles."
+        }
+      },
+      "only_you": {
+        "label": "Only you",
+        "text": {
+          "one": "Nobody else played it. You did, once. {only} of your {tracks} tracks are yours alone.",
+          "other": "Nobody else played it. You did, {n} times. {only} of your {tracks} tracks are yours alone."
+        },
+        "textNoTrack": "tracks of your {tracks} nobody else played."
+      },
+      "most_shared": {
+        "label": "Most shared",
+        "text": {
+          "one": "by {artist}, played by 1 listener.",
+          "other": "by {artist}, played by {n} listeners."
+        }
+      },
+      "festival_editions": {
+        "label": "Festival sets",
+        "text": {
+          "one": "1 set arrived.",
+          "other": "{count} sets arrived."
+        }
+      },
+      "releases_of_year": {
+        "label": "Releases of the year",
+        "text": {
+          "one": "1 track released this period.",
+          "other": "{count} tracks released this period."
+        }
+      },
+      "downloads": {
+        "label": "Downloads",
+        "text": {
+          "one": "Top channel: {channel} on {platform}, 1 download.",
+          "other": "Top channel: {channel} on {platform}, {n} downloads."
+        },
+        "textNoChannel": "Downloads per month."
+      },
+      "growth": {
+        "label": "Growth",
+        "text": {
+          "one": "1 track arrived.",
+          "other": "{count} tracks arrived."
+        }
+      },
+      "shelf": {
+        "label": "The shelf",
+        "text": "Most tracks sit at this tempo. Top genre: {genre}."
+      },
+      "start_now": {
+        "label": "Start now",
+        "text": "Play everything back to back and you finish on {date}."
+      },
+      "unplayed": {
+        "label": "Never played",
+        "text": {
+          "one": "of the library, 1 of {library} tracks, was never played.",
+          "other": "of the library, {n} of {library} tracks, was never played."
+        }
+      },
+      "system": {
+        "label": "Behind the scenes",
+        "text": "What MuMa did this period."
+      }
     }
   }
 }

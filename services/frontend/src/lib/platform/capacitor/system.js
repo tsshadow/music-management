@@ -445,6 +445,19 @@ export function createCapacitorSystem(plugin) {
     async openOutputPicker() {
       await plugin.openOutputPicker();
     },
+
+    /**
+     * Hands a PNG to the Android share sheet. The plugin writes it to the app's cache and offers
+     * it through the FileProvider; it resolves once the chooser opened. A rejection (the image
+     * could not be written) reaches the caller.
+     *
+     * @param {{dataUrl: string, title: string, fileName: string}} image
+     * @returns {Promise<'shared'>}
+     */
+    async share({ dataUrl, title, fileName }) {
+      await plugin.share({ dataUrl, title, fileName });
+      return "shared";
+    },
   };
 }
 

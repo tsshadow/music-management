@@ -511,6 +511,11 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   screen on a build without one. Resolves once one of them started -- the switch itself
  *   arrives as `onOutputRouteChanged`; rejects only when neither screen exists. A browser tab
  *   resolves without doing anything.
+ * @property {function({dataUrl: string, title: string, fileName: string}):
+ *   Promise<'shared'|'saved'|'cancelled'>} share Shares one PNG, given as a `data:image/png`
+ *   URL: the Android share sheet in the shell, the Web Share API with a file in a browser that
+ *   can share files, else a download. `cancelled` when the listener closed the browser's share
+ *   dialog. The Wrapped page's share button is the caller.
  */
 
 /**

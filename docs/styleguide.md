@@ -174,6 +174,19 @@
   full Memories screen shows one section per year, newest year first, each section holding that
   year's tracks and its own play action. The carousel is a teaser; the permanent way in is the web
   sidebar entry and the Android Library tab, neither of which the setting affects.
+- **Wrapped card** (`src/lib/wrapped/`): one card holds one small uppercase label, one headline,
+  one sentence and at most one chart or list. Phone width: each card is at least `min-h-[100dvh]`
+  and the card run scrolls with `scroll-snap-type: y mandatory`, `snap-start` per card. From `md`:
+  a two-column grid with `gap-4`, no snap, the title card `md:col-span-2`. The headline is
+  `font-black`, `text-5xl` (a number or a name, `md:text-7xl` on the title card). A card led by a
+  genre (top genres, new genres) has that genre's tint fading into `muma-spotify-dark`
+  (`linear-gradient(160deg, <tint>, #121212 70%)`); every other card is `bg-muma-spotify-panel`
+  with `brand` bars and accents. Bars are divs like Listening stats, and each value is also
+  text. The User / Library tabs are two `<button aria-pressed>` pills in the chip style
+  (`bg-brand text-black` when picked, else `bg-muma-spotify-light text-white`). The share button
+  is a round 40px icon button (lucide `Share2`) in the card's top right corner. The share image is
+  1080 x 1920: the same tint or panel color, the label, the headline, the sentence, the period
+  and the MuMa mark, never a username or a server address.
 
 ## Loading States (Skeletons)
 - **Rule**: A screen that fetches remote content never shows an empty page while waiting. It shows
@@ -350,13 +363,8 @@ To maintain clean design governance and prevent ad-hoc style drift:
 
 ### Design Backlog
 
-- **Pending** — Wrapped cards (issue #60, `docs/designs/wrapped-page/`). New patterns from existing
-  tokens, to be approved before the code: a full-screen card on phone width (`min-h-[100dvh]`,
-  scroll snap) that becomes a two-column grid from `md`; a hero headline in `font-black`
-  `text-5xl` to `text-7xl`; a card background as the leading genre's tint fading into
-  `muma-spotify-dark`, else `bg-muma-spotify-panel` with `brand` accents; the two tabs as
-  `<button aria-pressed>` pills in the chip style (`bg-brand text-black` when picked); a 1080 x 1920
-  share image with the same layout and the MuMa mark.
+- **Done** -- Wrapped cards (2026-11-12, issue #60, `docs/designs/wrapped-page/`, approved with
+  the design): see "Wrapped card" under Components. No new token.
 
 - **Done** -- Compact player and the PC miniplayer window (2026-11-12, issue #177,
   `docs/designs/miniplayer/`): see "Compact player" and "Miniplayer button" under Components. No

@@ -270,6 +270,37 @@ const system = {
 
   /** A browser has no output switcher to open; the label that would open it is not shown either. */
   async openOutputPicker() {},
+
+  /**
+   * Shares a PNG through the Web Share API when the browser can share files, and saves it as a
+   * download otherwise. See the `PlatformSystem` typedef.
+   *
+   * @param {{dataUrl: string, title: string, fileName: string}} image
+   * @returns {Promise<'shared'|'saved'|'cancelled'>}
+   */
+  async share({ dataUrl, title, fileName }) {
+    const nav = globalThis.navigator;
+    if (typeof nav?.share === "function" && typeof nav?.canShare === "function") {
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], fileName, { type: "image/png" });
+      if (nav.canShare({ files: [file] })) {
+        try {
+          await nav.share({ files: [file], title });
+          return "shared";
+        } catch (err) {
+          if (err?.name === "AbortError") return "cancelled";
+          // Any other refusal (no user gesture left, a policy) falls through to the download.
+        }
+      }
+    }
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return "saved";
+  },
 };
 
 export default system;

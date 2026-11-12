@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { t } from './i18n/index.js';
-  import { authParams, restUrl, viewMode, mumaApiKey, memoriesOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
+  import { authParams, restUrl, viewMode, mumaApiKey, memoriesOnHomeEnabled, wrappedOnHomeEnabled, homeModeReleaseRadar, homeModeDailyMix,
     homeModeFavorites, homeModeRecentlyReleased, homeModeRecentlyAdded } from './store.js';
   import { memoryCount, playMemoryYear, yearTiles } from './memories.js';
   import { listOf, subsonicJson } from './subsonic.js';
@@ -11,6 +11,8 @@
   import HomeShelf from './HomeShelf.svelte';
   import DailyMixesShelf from './DailyMixesShelf.svelte';
   import MemoryYearCard from './MemoryYearCard.svelte';
+  import { PERSONAL_SECTIONS } from './navigation.js';
+  import { homeTileYear, wrappedView } from './wrapped/wrapped.js';
 
   /** Phone home maps the account's section modes to tiles or shelves over its own sources. */
   const { memoryGroups = [], onnavigate, onrecent = null } = $props();
@@ -99,13 +101,18 @@
   });
 
   /**
-   * The quick-access tiles, in render order: the memories tile (when enabled) first, then
+   * The quick-access tiles, in render order: the Wrapped tile (in season, when enabled) and the
+   * memories tile (when enabled) first, then
    * every BUTTON-mode destination. A single list rather than the two separate template blocks
    * this used to be, because giving the *last* tile `col-span-2` on an odd count needs one
    * combined index -- otherwise a lone memories tile and a lone destination tile would each
    * think they were "the last of one" and both stretch.
    */
+  /** The Wrapped year the home screen offers, December and January only (null otherwise). */
+  const wrappedYear = homeTileYear();
+
   const tiles = $derived([
+    ...($wrappedOnHomeEnabled && wrappedYear ? [{ id: 'wrapped', kind: 'wrapped' }] : []),
     ...($memoriesOnHomeEnabled ? [{ id: 'memories', kind: 'memories' }] : []),
     ...destinations.filter(section => section.mode === 'BUTTON'),
   ]);
@@ -234,7 +241,14 @@
 <div class="grid grid-cols-2 gap-2" data-testid="home-quick-access">
   {#each tiles as tile, index (tile.id)}
     {@const lastOdd = index === tiles.length - 1 && tiles.length % 2 === 1}
-    {#if tile.kind === 'memories'}
+    {#if tile.kind === 'wrapped'}
+      <QuickAccessTile title={$t('wrapped.home.title', { year: wrappedYear })}
+        subtitle={$t(wrappedYear === new Date().getFullYear() ? 'wrapped.home.textRunning' : 'wrapped.home.text')}
+        color={BROWSE_TILE_COLORS.wrapped}
+        icon={PERSONAL_SECTIONS.find((section) => section.id === 'wrapped')?.icon}
+        class={lastOdd ? 'col-span-2' : ''}
+        onclick={() => onnavigate(wrappedView(String(wrappedYear), 'user'))} />
+    {:else if tile.kind === 'memories'}
       <QuickAccessTile title={$t('memories.title')}
         subtitle={$t('memories.homeSummary', { years: memoryGroups.length, tracks: memoryGroups.reduce((count, group) => count + memoryCount(group), 0) })}
         cover={cover(memoryGroups[0]?.songs[0])} color={TILE_COLORS.memories} icon={TILE_ICONS.memories}

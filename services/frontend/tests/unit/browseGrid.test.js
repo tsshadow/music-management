@@ -68,11 +68,12 @@ it.each([true, false])(
     const labels = screen.getAllByRole("button").map((button) => button.textContent.trim());
     expect(labels.slice(0, 4)).toEqual(["Nummers", "Afspeellijsten", "Artiesten", "Albums"]);
     expect(labels.includes("Downloads")).toBe(supported);
-    expect(labels.slice(-4)).toEqual([
+    expect(labels.slice(-5)).toEqual([
       "Favorieten",
       "Geschiedenis",
       "Memories",
       "Luisterstatistieken",
+      "Wrapped",
     ]);
   },
 );

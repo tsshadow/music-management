@@ -33,7 +33,7 @@ Not a breaking change: the new 409 is the existing "name taken" answer.
 
 ## Cross-App Impact
 
-None. LMS keeps its own disabled user (see functional.md, open question).
+None. LMS keeps its own disabled user (issue #239).
 
 ## Technical Acceptance Criteria
 

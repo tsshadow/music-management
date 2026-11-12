@@ -35,4 +35,4 @@ totals keep counting it, and the new account starts empty.
 
 - The LMS user of a deleted account is disabled, not deleted, and LMS finds users by name. A new
   account with the same name gets the old LMS user back, with the listens and ratings LMS keeps.
-  That is outside this change (follow-up issue).
+  That is outside this change (issue #239).

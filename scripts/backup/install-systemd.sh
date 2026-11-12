@@ -58,18 +58,24 @@ install -d -m 0755 "$TARGET_DIR"
 install -m 0640 "$ENV_FILE" "$TARGET_DIR/.env"
 install -m 0644 "$PROJECT_ROOT/docker/docker-compose.backup.yml" "$TARGET_DIR/"
 
-for unit in muma-db-backup muma-db-backup-stale muma-db-restore-check; do
+UNITS="muma-db-backup muma-db-backup-stale muma-db-restore-check"
+# The music mirror check only once the mirror runs and its status path is set (issue #25).
+if [ -n "${MIRROR_STATUS_PATH:-}" ]; then
+    UNITS="$UNITS muma-music-mirror-check"
+fi
+
+for unit in $UNITS; do
     install -m 0644 "$SCRIPT_DIR/systemd/$unit.service" /etc/systemd/system/
     install -m 0644 "$SCRIPT_DIR/systemd/$unit.timer" /etc/systemd/system/
 done
 
 systemctl daemon-reload
-for unit in muma-db-backup muma-db-backup-stale muma-db-restore-check; do
+for unit in $UNITS; do
     systemctl enable --now "$unit.timer"
 done
 
 echo
-systemctl list-timers --no-pager 'muma-db-*' || true
+systemctl list-timers --no-pager 'muma-db-*' 'muma-music-mirror-*' || true
 echo
 echo "--- installed. First backup runs at the next timer window; force one with: ---"
 echo "    systemctl start muma-db-backup.service"

@@ -302,6 +302,11 @@ services:
       # in de tools-stack; music-manager leest hier niets anders dan latest.json.
       BACKUP_PATH: /backups
       BACKUP_STALE_AFTER_HOURS: ${BACKUP_STALE_AFTER_HOURS:-36}
+      # For /health/music-mirror (issue #25): the music mirror's job writes its latest.json
+      # into ${HOST_BACKUP_PATH}/music-mirror, which is /backups/music-mirror here. Set it to
+      # that path once the mirror runs; empty answers 503 "unconfigured".
+      MIRROR_STATUS_PATH: ${MIRROR_STATUS_PATH:-}
+      MIRROR_STALE_AFTER_HOURS: ${MIRROR_STALE_AFTER_HOURS:-36}
       # The tagger shares this process with the API. Worker threads per slice and the
       # pause between slices are the two knobs that keep /api answering while a big
       # retag queue drains; the code defaults (12, 0.5 s) apply when these are unset.

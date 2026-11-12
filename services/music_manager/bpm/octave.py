@@ -22,6 +22,10 @@ gets a score, the sum of independent terms in natural-log units:
   the centre of the confident measurements on that label, that artist's own (non-remix) tracks, or
   that genre -- weighted by how many samples back them. A genre without a learned prior falls back
   to its hand-set band (`bands.GENRE_BANDS`), read as a Gaussian with the band's edges at 1 sigma.
+- **folder**: a Soundcloud or YouTube upload's uploader folder (`/mnt/music/Soundcloud/<uploader>/`),
+  learned like the artist's prior and weighted the same, with the track itself left out of its own
+  folder's prior (issue #241). An uploader mostly posts one kind of music, and the folder covers 99%
+  of those uploads where the credited artist covers 69% (production, 2026-11-12).
 - **path**: tracks under a mainstream compilation folder (Hitzone, Spotify, Lidarr, Top 100) are
   pop and dance: a prior around 115 BPM.
 - **getsongbpm**: the tempo GetSongBPM lists for the same artist and title (issue #152), a strong
@@ -35,11 +39,11 @@ gets a score, the sum of independent terms in natural-log units:
 The candidate with the highest score wins, with two hard rules around `FOLD_UP_LIMIT` (205):
 
 - a doubled estimate above it is only a candidate when the track's own genre, its label or its
-  GetSongBPM tempo favours it -- an artist's prior (or the neutral one) alone never folds a track
-  up into hard-dance territory;
+  GetSongBPM tempo favours it -- an artist's or folder's prior (or the neutral one) alone never
+  folds a track up into hard-dance territory;
 - a raw estimate above it is only halved when real evidence favours the half: the track's own
-  genre, its label, its artist, its GetSongBPM tempo or a mainstream folder (`_halving_vouched`,
-  issue #153). The neutral prior alone halved 4,209 genre-less fast tracks on production, 3,482 of
+  genre, its label, its artist, its uploader folder, its GetSongBPM tempo or a mainstream folder
+  (`_halving_vouched`, issues #153 and #241). The neutral prior alone halved 4,209 genre-less fast tracks on production, 3,482 of
   them Soundcloud/YouTube uploads. Without that evidence the estimate stays and the octave is
   `unsettled`: kept, but with the confidence of a tie and capped at `WEAK_FOLD_CAP`. A fast
   estimate that wins with nothing on its side (no prior, no clearly weaker half pulse) is
@@ -64,7 +68,8 @@ from services.music_manager.bpm.bands import GENRE_BANDS
 
 #: Bump when the rule changes: rows folded by an older version are folded again (worker.refold).
 #: 3: a halving above FOLD_UP_LIMIT needs real evidence (issue #153).
-FOLD_VERSION = 3
+#: 4: the uploader-folder prior (issue #241).
+FOLD_VERSION = 4
 
 #: The candidates must lie in this range, the same bounds as the effective BPM (effective.py).
 MIN_BPM = 40.0
@@ -92,6 +97,10 @@ LABEL_HALF_WEIGHT = 20
 W_ARTIST = 1.5
 ARTIST_MIN_SAMPLES = 5
 ARTIST_HALF_WEIGHT = 10
+#: The uploader folder (issue #241): the same weight and thresholds as the artist.
+W_FOLDER = W_ARTIST
+FOLDER_MIN_SAMPLES = ARTIST_MIN_SAMPLES
+FOLDER_HALF_WEIGHT = ARTIST_HALF_WEIGHT
 W_GENRE = 1.5
 GENRE_MIN_SAMPLES = 30
 GENRE_HALF_WEIGHT = 30
@@ -148,6 +157,7 @@ AMBIGUOUS_MARGIN = 1.0
 EVIDENCE_ESTIMATE = 'estimate'
 EVIDENCE_LABEL = 'label'
 EVIDENCE_ARTIST = 'artist'
+EVIDENCE_FOLDER = 'folder'
 EVIDENCE_GENRE = 'genre'
 EVIDENCE_BAND = 'band'
 EVIDENCE_PATH = 'path'
@@ -184,8 +194,9 @@ class Evidence:
 
     `genres` are the track's own genre names; `root` the top-level folder under the music root
     (`Hitzone`, `Soundcloud`, ...). `label` and `artist` are the learned priors of its label (the
-    best-sampled one when it has several) and its primary artist's own tracks; `genre_priors` maps a
-    lower-cased genre name to its learned prior. `external` is the tempo GetSongBPM lists for the
+    best-sampled one when it has several) and its primary artist's own tracks; `folder` that of its
+    uploader folder, without the track itself (issue #241); `genre_priors` maps a lower-cased
+    genre name to its learned prior. `external` is the tempo GetSongBPM lists for the
     track (issue #152), set only for a track with weak priors (`weak_priors`).
     """
 
@@ -193,6 +204,7 @@ class Evidence:
     root: str | None = None
     label: Prior | None = None
     artist: Prior | None = None
+    folder: Prior | None = None
     genre_priors: Mapping[str, Prior] = field(default_factory=dict)
     external: Prior | None = None
 
@@ -297,11 +309,11 @@ def _vouched(evidence: Evidence, genre: tuple[Prior, float, str] | None, candida
 def _real_priors(evidence: Evidence, genre: tuple[Prior, float, str] | None, raw: float) -> list[Prior]:
     """The priors that count as real evidence on the octave of a fast `raw` (issue #153).
 
-    The track's own genre (learned or band), its label and its artist when their weight is not
-    zero, its GetSongBPM tempo when it matches an octave, and the mainstream path prior. Measured on
-    production (2026-11-12): on the 411 fast mainstream rows, the artist prior sided with the half
-    in 223 of 233 and the genre in 176 of 177, so the path prior is evidence, not a guess. Only the
-    neutral prior is left out: it knows nothing about the track.
+    The track's own genre (learned or band), its label, its artist and its uploader folder when
+    their weight is not zero, its GetSongBPM tempo when it matches an octave, and the mainstream
+    path prior. Measured on production (2026-11-12): on the 411 fast mainstream rows, the artist
+    prior sided with the half in 223 of 233 and the genre in 176 of 177, so the path prior is
+    evidence, not a guess. Only the neutral prior is left out: it knows nothing about the track.
     """
     found: list[Prior] = []
     if genre is not None:
@@ -312,6 +324,10 @@ def _real_priors(evidence: Evidence, genre: tuple[Prior, float, str] | None, raw
         evidence.artist, W_ARTIST, ARTIST_MIN_SAMPLES, ARTIST_HALF_WEIGHT
     ):
         found.append(evidence.artist)
+    if evidence.folder is not None and _learned_weight(
+        evidence.folder, W_FOLDER, FOLDER_MIN_SAMPLES, FOLDER_HALF_WEIGHT
+    ):
+        found.append(evidence.folder)
     external = external_prior(evidence, raw)
     if external is not None:
         found.append(external)
@@ -401,6 +417,10 @@ def _terms(candidate: float, factor: float, raw: float, evidence: Evidence, scor
     if artist_weight and evidence.artist is not None:
         terms[EVIDENCE_ARTIST] = -artist_weight * _penalty(candidate, evidence.artist)
         has_evidence = True
+    folder_weight = _learned_weight(evidence.folder, W_FOLDER, FOLDER_MIN_SAMPLES, FOLDER_HALF_WEIGHT)
+    if folder_weight and evidence.folder is not None:
+        terms[EVIDENCE_FOLDER] = -folder_weight * _penalty(candidate, evidence.folder)
+        has_evidence = True
     genre = genre_evidence(evidence.genres, evidence.genre_priors)
     if genre is not None:
         prior, weight, kind = genre
@@ -472,6 +492,27 @@ def choose_octave(
         margin=round(margin, 3),
         external_bpm=None if external is None else round(2**external.centre, 2),
     )
+
+
+#: Top-level folders whose files sit in a folder per uploader, lower-cased (issue #241).
+UPLOADER_ROOTS = frozenset({'soundcloud', 'youtube'})
+#: `library_bpm_priors.prior_key` is a VARCHAR(191).
+FOLDER_KEY_LENGTH = 191
+
+
+def folder_key(path: str | None, music_root: str = MUSIC_ROOT) -> str | None:
+    """`<Root>/<uploader>`, lower-cased, for a file in an uploader folder; None for any other path.
+
+    The same key `priors.py` computes in SQL: the path's first two folders under `music_root`, cut
+    to FOLDER_KEY_LENGTH characters. A file directly under the root has no uploader.
+    """
+    prefix = music_root.rstrip('/') + '/'
+    if not path or not path.startswith(prefix):
+        return None
+    parts = path[len(prefix) :].split('/')
+    if len(parts) < 3 or parts[0].lower() not in UPLOADER_ROOTS or not parts[1]:
+        return None
+    return f'{parts[0]}/{parts[1]}'[:FOLDER_KEY_LENGTH].lower()
 
 
 def root_of(path: str | None, music_root: str = MUSIC_ROOT) -> str | None:

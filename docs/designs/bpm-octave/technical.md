@@ -44,6 +44,7 @@ Candidates: raw × {1, ½, 2} within 40-500. Score = sum of terms (natural-log u
 | estimate | +0.35 for the raw estimate; for a neighbour with known comb scores `1.5·ln(r) + 10·min(0, ln(r/0.6))`, r = neighbour score / estimate score (≤ 1). On the evaluation set a correct neighbour scored ≥ 0.64; The Silence's 230 scored 0.47. |
 | label | `−w·min(4.5, ½z²)`, z = distance in log2 over max(spread, 0.12); w = 1.5·n/(n+20), only n ≥ 10 and spread ≤ 0.45. The best-sampled of the track's labels. |
 | artist | same, w = 1.5·n/(n+10), n ≥ 5. |
+| folder | same as artist, on the uploader folder's prior (`<Root>/<uploader>` for Soundcloud/YouTube), without the track's own row. |
 | genre / band | the most specific (narrowest) of the track's genres: its learned prior when n ≥ 30 (w = 1.5·n/(n+30)), else its `bands.GENRE_BANDS` band read as a Gaussian with the edges at 1σ (w = 0.9). |
 | path | root folder in {Hitzone, Spotify, Lidarr, Top 100, Top-100}: prior 105 BPM, spread 0.4, w = 1.0 (0.5 with a genre). |
 | neutral | prior 135 BPM, spread 0.5, w = 1.0 without genre/label/artist evidence, else 0.3; plus −0.8 for a candidate above 205 or below 70 unless the track's own genre or label is closer to it than to its octave. |
@@ -85,14 +86,42 @@ priors): 3,127 old halvings back at their raw estimate (3,124 `unsettled`), 1,08
 decided by `neutral` with a real prior on the half's side, 145 by `path`), no other `bpm` change,
 no change in which rows are reliable.
 
+## Uploader-folder prior (issue #241, `FOLD_VERSION` 4)
+
+Functional numbers: [functional.md](functional.md), "Change: The Uploader Folder Counts As
+Evidence".
+
+- `octave.folder_key(path)`: `<root>/<uploader>`, lower-cased, cut to 191 characters (the
+  `prior_key` column), for a file at least one folder below `/mnt/music/Soundcloud/` or
+  `/mnt/music/Youtube/`; None for anything else. `priors._FOLDER_KEY_SQL` computes the same key in
+  SQL (`SUBSTRING_INDEX` to the fifth `/`, from character 12); the general collation makes case
+  moot there, `from_rows` lower-cases it.
+- `priors.KIND_FOLDER = 'folder'`: training rows as for the artist (including the fast genre-less
+  rows), without the remix filter, over files under the two uploader roots. Stored in
+  `library_bpm_priors` like the other kinds; no schema change.
+- Leave-one-out: `Priors.for_folder(path, own)` takes `own` = LOG2 of the track's raw estimate back
+  out of the stored n, mean and population std (`without`), when the row is one of the folder's
+  training rows (`training_value`, the PRIORS_SQL row test in Python) and lies within the trim
+  window of the centre. Fewer than `MIN_SAMPLES` rows left: no prior. `EVIDENCE_SQL` now reads the
+  stored measurement (`LEFT JOIN library_track_bpm`) so the worker leaves it out too.
+- `octave`: `W_FOLDER`, `FOLDER_MIN_SAMPLES`, `FOLDER_HALF_WEIGHT` equal the artist's. The folder is
+  in `_real_priors` (halving and estimate support), not in `_vouched`: it never doubles a track above
+  205 on its own. Its outcome is `fold_evidence = 'folder'`, not a weak value, so the writeback
+  writes it when it is reliable.
+- `FOLD_VERSION` 4: the analyzer's start-up refold applies it to every `ok` row.
+
+Dry run on production's rows (2026-11-12): unsettled 3,128 to 354, weak values 12,026 to 2,609,
+3,867 Soundcloud/YouTube rows change tempo, 5,653 become reliable and 155 stop being reliable. No
+row outside the two uploader roots changes.
+
 ## Priors (`priors.py`)
 
 `PRIORS_SQL` per kind, one statement each: training rows are `status = 'ok'`,
 `COALESCE(raw_confidence, confidence) ≥ 0.75`, value `LOG2(raw_bpm)` (never the folded value), and
-`raw_bpm` in 88-200, or the track has a `HARD_GENRES` genre (band above 200), or -- artists only --
-the track has no genre and no file under a mainstream folder. Artist rows exclude titles matching
-`REMIX_PATTERN` (bracketed remix / bootleg / rework / flip / VIP / re-edit / style words). Trimmed
-once: mean per key, then mean and std over rows within 0.5 octave of it; keys with fewer than 5 rows
+`raw_bpm` in 88-200, or the track has a `HARD_GENRES` genre (band above 200), or -- artists and
+uploader folders only -- the track has no genre and no file under a mainstream folder. Artist rows
+exclude titles matching `REMIX_PATTERN` (bracketed remix / bootleg / rework / flip / VIP / re-edit /
+style words). Trimmed once: mean per key, then mean and std over rows within 0.5 octave of it; keys with fewer than 5 rows
 are dropped. Stored with upsert + prune per kind. Production on 2026-09-30: 568 label priors, ~4.4k
 artist priors, 113 genre priors; 81.9% of measured tracks have a label or artist prior.
 
@@ -183,6 +212,10 @@ change: every existing field keeps its shape; `bpm_source` gains the value `manu
 5. `test_bpm_tag_writeback.py` + `test_router_sql.py`: fold-version gate, manual value written, a
    written file requeued unconfident, record stamps the value read; priors/refold/override end to end
    on MariaDB; `test_schema.py`: tables, columns, ENUM.
+6. Uploader folder (#241): `folder_key` cases and the SQL key agree; a folder prior halves a
+   genre-less 348 to 174 and keeps a 234 settled in a fast folder; a thin or folder-alone prior does
+   not halve or double past 205; `training_value`, `without` (equal to the statistics without the
+   row) and `for_folder`'s leave-one-out; on MariaDB the folder priors and the refold to 174.
 
 ## Related Docs
 

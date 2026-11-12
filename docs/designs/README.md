@@ -78,6 +78,7 @@ the retroactive documentation above):
 | [`music-mirror/`](music-mirror/) | Decided 2026-11-12. A nightly copy of the music library to a second NAS (issue #25): rsync over SSH that never deletes on the mirror, a ZFS snapshot after each good run, a change guard, a status file, `/health/music-mirror` and alerts through the event log and ntfy, and the restore procedure. |
 | [`playback-error-recovery/`](playback-error-recovery/) | A track that fails to play in the app, the notification or Android Auto gets one retry from a fresh stream with its cache file dropped, then a skip to the next track; the player stops after three failed tracks in a row or at the end of the queue. App only. |
 | [`wrapped-page/`](wrapped-page/) | The MuMa Wrapped page (issue #60): a MuMa User tab (your listening year) and a MuMa Library tab (the server's year, the collection and the system), every card's definition and SQL, snapshots per account and period, card sharing as an image, and the decisions of 2026-11-12. Web and app share one page. Builds on [`wrapped/`](wrapped/). |
+| [`miniplayer/`](miniplayer/) | One compact player in three places: an always-on-top PC window through Document Picture-in-Picture (issue #177), the phone app as a floating picture-in-picture window (#178), and the phone app in half a split screen next to Google Maps with a "Navigeren naast MuMa" button (#179). Frontend and app. |
 
 ## Where agent tools look
 

@@ -5,8 +5,8 @@
 
 # The owner's name. Allowed, exactly: the Android package id (dotted and source-path form) and the GitHub contact address.
 (?<!nl\.)(?<!nl/)(?<!github@)teun[s]chriks|(?<=nl\.)teun[s]chriks(?!\.mumamobile(?![a-z0-9]))|(?<=nl/)teun[s]chriks(?!/mumamobile(?![a-z0-9]))|(?<=github@)teun[s]chriks(?!\.nl(?![a-z0-9-]|\.[a-z0-9]))
-# The owner's GitLab and GitHub handle.
-tssha[d]ow
+# The owner's GitLab and GitHub handle. Allowed, exactly: the Ko-fi page name in .github/FUNDING.yml.
+tssha[d]ow(?!44606(?![a-z0-9]))
 vaultwar[d]en
 # LAN addresses. Allowed: the RFC 1918 block 192.168.0.0/16 written as a CIDR.
 192\.168\.(?!0\.0/16(?![0-9]))

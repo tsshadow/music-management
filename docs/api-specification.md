@@ -460,6 +460,26 @@ A genre or year filter can only test a track, so it excludes every unmatched lis
   [{year, listens, tracks}]}`, only the years that occur, oldest first. `years` plus `unknown` adds
   up to `matched`.
 
+### 🎁 MuMa Wrapped (`/api/wrapped`)
+The year-in-review page; the design is `docs/designs/wrapped-page/`. Every GET authenticates with
+`X-API-Key` and answers with `Cache-Control: private, max-age=300`. A period is `year`, or `from`
+and `to` (ISO dates, inclusive, at most three years apart); both or neither is 400.
+
+- **GET `/periods?tz=`**: `{years: [{year, listens, own_listens}], server_tz, today}`. The UTC
+  calendar years with any listen on the server, newest first, with the caller's own count.
+- **GET `/user`** (`year` | `from`+`to`, `tz`, `username`): the caller's own tab in zone `tz`. A
+  user key that names another account is 403; the system key must name one (400 without).
+- **GET `/library`** (`year` | `from`+`to`): every account's listens, the collection and the
+  system, in the server zone (config `wrapped_server_tz`). No card holds a username.
+- Both tabs answer `{scope, format, tz, period: {key, from, to, year, running, data_until},
+  generated_at, coverage, cards: [{id, status, reason?, basis?, data?}]}`. `status` is `ok`,
+  `empty`, `below_minimum` or `blocked`; only `ok` cards have `data`. A tab is computed once and
+  stored: a running period for 24 hours, a closed one until a refresh. A first computation over
+  20 seconds is 503 with `Retry-After: 20`, and the result is stored when it finishes.
+- **POST `/refresh`** (permission `wrapped.refresh`, admin only), JSON body `{scope: 'user' |
+  'library', year | from+to, username?}`: deletes the stored tabs of that period (one account's,
+  or all) and computes them again in the background. `202 {queued: n}`.
+
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path
 join are in the 2026-09-24 section of `docs/designs/ratings-scrobbling/technical.md`.

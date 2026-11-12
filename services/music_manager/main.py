@@ -63,6 +63,7 @@ from services.music_manager.routers import (
     tagger,
     user_requests,
     users,
+    wrapped,
 )
 from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -98,6 +99,7 @@ app.include_router(library.router, prefix="/api/library")
 app.include_router(bpm.router, prefix="/api/library/bpm")
 app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(listening.router, prefix="/api/listening")
+app.include_router(wrapped.router, prefix="/api/wrapped")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(config.router, prefix="/api/config")

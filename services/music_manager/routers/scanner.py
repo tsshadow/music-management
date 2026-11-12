@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
+from services.common.arrival import arrival_source, carry_arrival
 from services.common.channels import (
     channel_from_path,
     is_label,
@@ -44,10 +45,11 @@ logger = logging.getLogger('music-manager.scanner')
 # listens up with. They used to be left NULL for the scrobble-rematch thread to fill at 500
 # rows an hour, and the label-tree rescan of 2026-09-26 queued 67,331 rows in front of every
 # track scanned after it (bug report 137). A re-scan refreshes them together with the title.
+# The arrival (services/common/arrival.py) is written when the row is created and never updated here.
 _UPSERT_TRACK = """
     INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist,
-        form, performance_date, normalized_title, normalized_base_title)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        form, performance_date, normalized_title, normalized_base_title, arrived_at, arrived_source)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(), %s)
     ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,
         display_artist=COALESCE(%s, display_artist), form=%s, performance_date=%s,
         normalized_title=VALUES(normalized_title), normalized_base_title=VALUES(normalized_base_title)
@@ -563,6 +565,7 @@ class ScannerManager:
                     form,
                     performance_date,
                     *normalized_title_keys(title),
+                    arrival_source(path, self.music_path),
                     title,
                     duration,
                     primary_artist_id,
@@ -597,6 +600,8 @@ class ScannerManager:
                     (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
                 )
                 if moving:
+                    # A new row from a retag is not a new arrival: it keeps the file's own.
+                    carry_arrival(cursor, previous_track_id, track_id)
                     self._settle_previous_track(cursor, previous_track_id, track_id, path_hash)
             return True
 

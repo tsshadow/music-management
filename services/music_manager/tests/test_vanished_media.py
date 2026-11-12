@@ -408,6 +408,105 @@ def test_a_move_with_a_retag_relinks_the_history_to_the_new_track(lib, scanner):
     assert lib.sql('SELECT entity_id FROM rating_tracks') == [(_sha('SONG-300-7'),)]
 
 
+def _lift_out_of_pack(lib: Library, pack: str, release: str, renamed: str, retag: dict[str, str]) -> None:
+    """What the importer and the tagger do to a release after a walk indexed it inside its pack."""
+    old_folder = lib.root / 'import' / pack / release
+    new_folder = lib.root / 'import' / renamed
+    old_folder.rename(new_folder)
+    (lib.root / 'import' / pack).rmdir()
+    for name, tags in retag.items():
+        (new_folder / name).write_text(tags)
+
+
+def test_a_pack_release_indexed_before_the_tagger_keeps_its_history(lib, scanner, caplog):
+    """GitLab issue #71: the walk read a weekly pack before the tagger split its artist credit.
+
+    The importer then lifted the release out of the pack and renamed its folder. The tagged files
+    have a new primary artist (7, was the unsplit 100), so the metadata key finds nothing, and the
+    MP3 and the FLAC are two candidates within the duration tolerance. The file name follows.
+    """
+    pack, release = 'HC-2026-WEEK-44', 'Doctor_D_and_Ga-Osz_-_Like_This-(TIGSP005)-WEB-2026'
+    flac = lib.file(f'import/{pack}/{release}/02_like_this.flac', 'Like This|197.053|100')
+    mp3 = lib.file(f'import/{pack}/{release}/02_like_this.mp3', 'Like This|197.094|100')
+    lib.file('EPs/Label/R0/keep.mp3', 'Other|200|8')
+    scanner.run_full()
+    old_mp3 = lib.sql('SELECT track_id FROM library_media_files WHERE file_path = ?', (mp3,))[0][0]
+    old_flac = lib.sql('SELECT track_id FROM library_media_files WHERE file_path = ?', (flac,))[0][0]
+    lib.sql("INSERT INTO scrobble_listens VALUES (1, ?, '2026-11-07 10:00:00', 'user')", (old_mp3,))
+    _lift_out_of_pack(
+        lib,
+        pack,
+        release,
+        f'TIGSP005 - {release}',
+        {'02_like_this.flac': 'Like This|197.053|7', '02_like_this.mp3': 'Like This|197.094|7'},
+    )
+
+    caplog.set_level('INFO', logger='music-manager.scanner')
+
+    scanner.run_full()
+
+    assert old_mp3 not in lib.track_ids() and old_flac not in lib.track_ids()
+    fileless = lib.sql(
+        'SELECT COUNT(*) FROM library_tracks t WHERE NOT EXISTS '
+        '(SELECT 1 FROM library_media_files m WHERE m.track_id = t.id)'
+    )
+    assert fileless == [(0,)]
+    new_mp3 = lib.sql(
+        'SELECT track_id FROM library_media_files WHERE file_path = ?',
+        (str(lib.root / f'import/TIGSP005 - {release}/02_like_this.mp3'),),
+    )[0][0]
+    assert lib.sql('SELECT track_id FROM scrobble_listens') == [(new_mp3,)]
+    assert '2 tracks lost their last file: 2 relinked' in caplog.text
+    assert '2 by file name' in caplog.text
+
+
+def test_the_file_name_key_counts_its_relinks(lib):
+    """Two gone files, each on its own track, each with one successor of the same name and length."""
+    lib.track(1, title='Raw', artist=100)
+    lib.media(10, str(lib.root / 'import/PACK/R/01_a.mp3'), 1)
+    lib.track(2, title='Raw FLAC', duration=300.2, artist=100)
+    lib.media(20, str(lib.root / 'import/PACK/R/01_a.flac'), 2)
+    lib.track(3, title='Tagged', artist=7)
+    lib.media(30, lib.file('import/CAT1 - R/01_a.mp3'), 3)
+    lib.track(4, title='Tagged FLAC', duration=300.2, artist=7)
+    lib.media(40, lib.file('import/CAT1 - R/01_a.flac'), 4)
+
+    totals = lib.drop()
+
+    assert lib.track_ids() == {3, 4}
+    assert totals['relinked'] == 2 and totals['relinked_file_name'] == 2
+    assert totals['kept_without_file'] == 0
+    assert '2 by file name' in vanished_media.summary(totals)
+
+
+def test_the_file_name_key_needs_the_same_duration(lib):
+    """`01-intro.mp3` in two releases is two recordings: a different length is no successor."""
+    lib.track(1, title='Raw', duration=90.0, artist=100)
+    lib.media(10, str(lib.root / 'import/PACK/R/01-intro.mp3'), 1)
+    lib.track(2, title='Intro', duration=120.0, artist=7)
+    lib.media(20, lib.file('EPs/Label/Other/01-intro.mp3'), 2)
+    lib.file('import/Waiting/01.mp3')  # the import folder is mounted and holds a release
+
+    totals = lib.drop()
+
+    assert lib.track_ids() == {1, 2}
+    assert totals['kept_without_file'] == 1 and totals['relinked'] == 0
+
+
+def test_the_file_name_key_does_not_guess_between_two_tracks(lib):
+    lib.track(1, title='Raw', artist=100)
+    lib.media(10, str(lib.root / 'import/PACK/R/01_a.mp3'), 1)
+    lib.track(2, title='One', artist=7)
+    lib.media(20, lib.file('import/A/01_a.mp3'), 2)
+    lib.track(3, title='Two', artist=8)
+    lib.media(30, lib.file('import/B/01_a.mp3'), 3)
+
+    totals = lib.drop()
+
+    assert lib.track_ids() == {1, 2, 3}
+    assert totals['kept_without_file'] == 1
+
+
 def test_an_unmounted_share_skips_the_pass_and_the_scan_still_finishes(lib, scanner, caplog):
     lib.file('EPs/Label/R0/keep.mp3', 'Other|200|8')
     scanner.run_full()

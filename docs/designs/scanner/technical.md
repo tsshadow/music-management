@@ -89,7 +89,22 @@ met, scanned or not.
 5. A track that loses its last file is relinked at once when the metadata key of
    `relink-orphans` finds exactly one successor (`track_relink.find_relink_target`, index built
    once per pass, tracks the same pass leaves fileless excluded). That is a file moved and retagged
-   in one go. Any other fileless track stays for `relink-orphans` and `purge-orphans`.
+   in one go.
+6. When the metadata key finds no single successor, the file-name key tries
+   (`vanished_media.find_file_name_successor`): the name of a gone file, extension included, on
+   exactly one other track that still has a file, with a duration within 0.5 s. The index comes
+   from the rows step 1 already read, so it costs no query. Any other fileless track stays for
+   `relink-orphans` and `purge-orphans`.
+
+Step 6 exists for the import queue (GitLab issue #71). The importer extracts a weekly pack into
+`import/<pack>/<release>/`, and a full walk can index those files before the tagger writes them.
+The scanner then stores the raw artist credit as one name (`Bruhze & OTM`). The tagger splits it,
+and the importer lifts the release out of the pack and renames its folder. At the next walk the
+new path is on a new track, with another primary artist, so the metadata key finds nothing. An
+MP3 beside its FLAC is also a second candidate within the duration tolerance. The file name
+survives the move, and its extension keeps the MP3 and the FLAC apart. On 2026-11-06 one pass
+removed 473 rows and left 134 tracks without a file this way. 410 of the 412 fileless tracks made
+since 2026-10-01 have a track with the same title and duration.
 
 A move with unchanged tags needs no relink: the walk gives the new path a row on the same track
 (same `track_uid`) before the pass runs, so the track keeps a file. One INFO line (an event) is

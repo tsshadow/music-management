@@ -107,6 +107,12 @@ def _all(cursor: Any, sql: str, params: tuple = ()) -> list[dict]:
     return list(cursor.fetchall())
 
 
+def _write(cursor: Any, sql: str, params: tuple) -> int:
+    """Run one write and return how many rows it changed. The caller checks every name in `sql`."""
+    cursor.execute(sql, params)
+    return max(cursor.rowcount or 0, 0)
+
+
 def _marks(values: list) -> str:
     """The `%s, %s, ...` list for an IN clause."""
     return ', '.join(['%s'] * len(values))
@@ -353,8 +359,12 @@ def restore_rows(connection: Any, cursor: Any, saved: dict) -> Counter:
     for marker in saved.get('absent', []):
         if marker['table'] not in BPM_TABLES:
             raise ValueError(f'refusing an absent marker for {marker["table"]}')
-        cursor.execute(f'DELETE FROM {marker["table"]} WHERE track_uid = %s', (marker['track_uid'],))  # noqa: S608
-        done[f'{marker["table"]} created row deleted'] += max(cursor.rowcount or 0, 0)
+        table = marker['table']
+        done[f'{table} created row deleted'] += _write(
+            cursor,
+            f'DELETE FROM {table} WHERE track_uid = %s',  # noqa: S608 - one of BPM_TABLES
+            (marker['track_uid'],),
+        )
     for table in RESTORE_ORDER:
         for row in saved['rows'].get(table, []):
             columns = list(row)
@@ -369,10 +379,11 @@ def restore_rows(connection: Any, cursor: Any, saved: dict) -> Counter:
                 assignments = ', '.join(f'{column} = %s' for column in columns if column != key)
                 values = tuple(row[column] for column in columns if column != key)
                 if assignments:
-                    cursor.execute(f'UPDATE {table} SET {assignments} WHERE {key} = %s', (*values, row[key]))  # noqa: S608
+                    _write(cursor, f'UPDATE {table} SET {assignments} WHERE {key} = %s', (*values, row[key]))  # noqa: S608
                 done[f'{table} reset'] += 1
                 continue
-            cursor.execute(
+            _write(
+                cursor,
                 f'INSERT INTO {table} ({", ".join(columns)}) VALUES ({_marks(columns)})',  # noqa: S608
                 tuple(row.values()),
             )

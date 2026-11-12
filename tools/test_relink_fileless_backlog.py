@@ -143,7 +143,7 @@ class Db:
             self.sql('INSERT INTO library_media_files (file_path, track_id) VALUES (?, ?)', (path, track_id))
 
     def listen(self, listen_id, track_id):
-        self.sql("INSERT INTO scrobble_listens VALUES (?, ?, '2026-11-02 21:00:00', 'teun')", (listen_id, track_id))
+        self.sql("INSERT INTO scrobble_listens VALUES (?, ?, '2026-11-02 21:00:00', 'listener')", (listen_id, track_id))
 
     def dump(self) -> dict[str, list]:
         return {table: sorted(self.sql(f'SELECT * FROM {table}'), key=repr) for table in TABLES}
@@ -168,7 +168,7 @@ def db(tmp_path, monkeypatch):
     db.track(1, 'Wake Up', 241.512, '2026-11-02 08:00:00')
     db.track(2, 'Wake Up', 241.513, '2026-11-02 09:00:00', '/mnt/music/EPs/Label/LBL001/01 Wake Up.flac')
     db.listen(1, 1)
-    db.sql("INSERT INTO rating_tracks VALUES (1, 'track', ?, 'teun', 5, '2026-11-03')", (_sha('1'),))
+    db.sql("INSERT INTO rating_tracks VALUES (1, 'track', ?, 'listener', 5, '2026-11-03')", (_sha('1'),))
     # An older orphan with a single match, listed separately for a person to read.
     db.track(3, 'Intro', 60.0, '2026-07-01 08:00:00')
     db.track(4, 'Intro', 60.0, '2026-07-02 08:00:00', '/mnt/music/EPs/Other/OTH002/01 Intro.mp3')

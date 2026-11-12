@@ -191,6 +191,15 @@ READ_ENDPOINTS = [
     ('/api/songs/curation?sort=title', 200),
     ('/api/songs/ranking', 200),
     ('/api/songs/999999', 404),
+    # MuMa Wrapped (docs/designs/wrapped-page/): the year list, both tabs for a year and a
+    # range, and the requests the router turns away before any SQL.
+    ('/api/wrapped/periods?tz=Europe/Amsterdam', 200),
+    ('/api/wrapped/user?year=2026&username=root&tz=Europe/Amsterdam', 200),
+    ('/api/wrapped/user?from=2026-03-01&to=2026-06-30&username=root', 200),
+    ('/api/wrapped/library?year=2026', 200),
+    ('/api/wrapped/library?from=2026-03-01&to=2026-06-30', 200),
+    ('/api/wrapped/user?year=2026', 400),
+    ('/api/wrapped/library?from=2026-06-30&to=2026-03-01', 400),
 ]
 
 
@@ -3422,3 +3431,78 @@ class RadioStationsSqlTest:
 
         assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 200
         assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 404
+
+
+class WrappedTest:
+    """MuMa Wrapped against real rows: every card's SQL runs, and the Library tab names nobody.
+
+    READ_ENDPOINTS proves the queries parse on an empty schema, where most cards are left out
+    before their SQL runs. This seeds a track with a genre, a label and a tempo, listens from
+    two accounts this year and one unmatched listen, so the card builders reach their queries.
+    """
+
+    def _seed(self, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name, normalized_name) VALUES ('Angerfist', 'angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO rules_genres (name, normalized_name, state) VALUES ('Hardcore', 'hardcore', 'white')"
+            )
+            genre_id = cursor.lastrowid
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Masters of Hardcore')")
+            label_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, release_date,'
+                " arrived_at, arrived_source) VALUES ('uid-w', 'Raise Your Fist', 300, %s, '2026-01-02',"
+                " UTC_TIMESTAMP(), 'label')",
+                (artist_id,),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+            )
+            cursor.execute(
+                'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+            )
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id)'
+                " VALUES ('/music/EPs/MOH/a.flac', SHA2('/music/EPs/MOH/a.flac', 256), %s)",
+                (track_id,),
+            )
+            for i, username in enumerate(['root'] * 4 + ['deleted-7'] * 3):
+                cursor.execute(
+                    'INSERT INTO scrobble_listens (track_id, listened_at, username, match_method, played_secs)'
+                    " VALUES (%s, UTC_TIMESTAMP() - INTERVAL %s MINUTE, %s, 'exact', 280)",
+                    (track_id, (i + 1) * 10, username),
+                )
+            cursor.execute(
+                'INSERT INTO scrobble_unmatched_listens (artist_name, track_title, listened_at, username)'
+                " VALUES ('Nobody', 'Nothing', UTC_TIMESTAMP() - INTERVAL 5 MINUTE, 'root')"
+            )
+
+    def _year(self, api, headers):
+        return api.get('/api/wrapped/periods', headers=headers).json()['years'][0]['year']
+
+    def test_the_user_tab_counts_only_the_readers_listens(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        body = api.get(f'/api/wrapped/user?year={year}&username=root', headers=headers).json()
+        cards = {card['id']: card for card in body['cards']}
+        assert cards['title']['status'] == 'ok'
+        assert body['coverage']['listens'] == 5
+
+    def test_the_library_tab_counts_every_account_and_names_none(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        response = api.get(f'/api/wrapped/library?year={year}', headers=headers)
+        assert response.status_code == 200, response.text[:400]
+        assert response.json()['coverage']['listens'] == 8
+        assert 'root' not in response.text and 'deleted-7' not in response.text
+
+    def test_a_refresh_drops_the_stored_tab(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        api.get(f'/api/wrapped/user?year={year}&username=root', headers=headers)
+        assert run_sql(db, 'SELECT COUNT(*) AS n FROM wrapped_snapshots')[0]['n'] == 1
+        refreshed = api.post('/api/wrapped/refresh', headers=headers, json={'scope': 'user', 'year': year})
+        assert refreshed.status_code == 202, refreshed.text

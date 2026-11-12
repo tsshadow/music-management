@@ -37,7 +37,25 @@ ONLY_ON_PRODUCTION: dict[str, str] = {}
 # next deploy's reconcile adds, or one a script in tools/ adds.
 _NEW_STATIONS_TABLE = 'radio_stations is new (issue #213): the reconcile adds it at the next release'
 _NEW_GETSONGBPM = 'the GetSongBPM prior is new (issue #152): the reconcile adds it at the next release'
+_NEW_WRAPPED = (
+    'the Wrapped snapshots and arrival dates are new (issue #60): the reconcile adds them at the next release'
+)
 ONLY_ON_FRESH: dict[str, str] = {
+    'C\tlibrary_tracks\tarrived_at\tdatetime\tYES\tNULL\t\t<none>': _NEW_WRAPPED,
+    'C\tlibrary_tracks\tarrived_source\tvarchar(16)\tYES\tNULL\t\tutf8mb4_general_ci': _NEW_WRAPPED,
+    'I\tlibrary_tracks\tidx_tracks_arrived_at\t0\tarrived_at\tBTREE': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tclosed\ttinyint(1)\tNO\t0\t\t<none>': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tdata_until\tdatetime\tNO\t<none>\t\t<none>': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tformat\tsmallint(6)\tNO\t<none>\t\t<none>': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tgenerated_at\tdatetime\tNO\t<none>\t\t<none>': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tpayload\tlongtext\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tperiod_key\tvarchar(32)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_WRAPPED,
+    "C\twrapped_snapshots\tscope\tenum('user','library')\tNO\t<none>\t\tutf8mb4_general_ci": _NEW_WRAPPED,
+    'C\twrapped_snapshots\ttz\tvarchar(64)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_WRAPPED,
+    'C\twrapped_snapshots\tusername\tvarchar(255)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_WRAPPED,
+    'I\twrapped_snapshots\tPRIMARY\t1\tscope,username,period_key,tz\tBTREE': _NEW_WRAPPED,
+    'I\twrapped_snapshots\tidx_wrapped_generated\t0\tgenerated_at\tBTREE': _NEW_WRAPPED,
+    'T\twrapped_snapshots\tInnoDB\tutf8mb4_general_ci': _NEW_WRAPPED,
     'C\tgetsongbpm_lookups\tartist\tvarchar(255)\tNO\t<none>\t\tutf8mb4_general_ci': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tbpm\tdecimal(5,2)\tYES\tNULL\t\t<none>': _NEW_GETSONGBPM,
     'C\tgetsongbpm_lookups\tfetched_at\tdatetime\tNO\t<none>\t\t<none>': _NEW_GETSONGBPM,

@@ -39,6 +39,7 @@ PERMISSIONS = [
     ('bpm.override', "Correct a track's BPM by hand (halve, double or set it)"),
     ('radio.manage', 'Create and edit radio channels'),
     ('news.manage', 'Configure news recording'),
+    ('wrapped.refresh', 'Drop and recompute stored Wrapped pages'),
     ('roles.read', 'View roles'),
     ('roles.manage', 'Manage roles and their permissions'),
     ('permissions.read', 'View permissions'),

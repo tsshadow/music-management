@@ -183,6 +183,18 @@ The system is split into specialized services, each handling a specific part of 
   bundle, also for the car (`StationLogoProvider`), and a station without a file shows its name.
   Favorites and recent stations are slugs in the account's settings; the car lists favorites first.
 
+### 9. MuMa Wrapped (`services/music_manager/wrapped/`, `/api/wrapped`)
+- **Purpose**: the year-in-review page, a User tab (own listens, own zone) and a Library tab (every
+  account, the collection and the system, in `wrapped_server_tz`). No Library card holds a username
+  ([docs/designs/wrapped-page/](docs/designs/wrapped-page/technical.md)).
+- **Storage**: a tab is computed on its first request and kept in `wrapped_snapshots`: a running
+  period for 24 hours, a closed one until `POST /api/wrapped/refresh` or a new `WRAPPED_FORMAT`.
+  The events-retention pass deletes custom ranges after 30 days.
+- **Arrival date**: `library_tracks.arrived_at` / `arrived_source` are set when the scanner creates
+  a track row, and a retag that moves a file to a new row keeps the earlier arrival
+  (`services/common/arrival.py`). Rows from before the columns existed are NULL until the operator
+  runs `tools/backfill_arrival_dates.py`; the arrival cards report them as unknown.
+
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
   Disabled since 2026-09-25 with the code kept: it was never deployed, has no owner time, and

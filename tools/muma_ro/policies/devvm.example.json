@@ -1,0 +1,46 @@
+{
+  "_comment": "Example for a devvm host. install.sh copies it to /etc/muma-ro/policy.json; replace the paths, names and ids with the host's own.",
+  "class": "devvm",
+  "verbs": [
+    "ls",
+    "stat",
+    "find",
+    "du",
+    "df",
+    "free",
+    "uptime",
+    "head",
+    "docker-ps",
+    "docker-logs",
+    "docker-inspect",
+    "docker-stats",
+    "docker-system-df",
+    "docker-printenv",
+    "systemctl-status",
+    "systemctl-timers",
+    "journalctl"
+  ],
+  "roots": [
+    {
+      "path": "/srv/muma-dev",
+      "mode": "read"
+    }
+  ],
+  "containers": [
+    "music-manager"
+  ],
+  "container_patterns": [
+    "^music-management-[a-z0-9-]+$"
+  ],
+  "env_keys": [
+    "import_folder_path"
+  ],
+  "units": [
+    "docker.service"
+  ],
+  "head_extensions": [
+    ".log",
+    ".txt",
+    ".json"
+  ]
+}

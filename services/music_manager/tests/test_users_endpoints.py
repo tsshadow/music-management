@@ -765,6 +765,52 @@ class DeleteUserTest(UsersEndpointTestCase):
         ):
             self.assertTrue(any(f'DELETE FROM {table}' in s for s in self.statements()))
 
+    def test_username_keyed_history_moves_to_the_tombstone_name(self):
+        """Issue #220: ratings, listens, imports and feeds go to deleted-<id>, not to a future 'user'."""
+        self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
+            self.client.delete('/api/users/4', headers=self.headers)
+        renames = {
+            call.args[0].split()[1]: call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if call.args[0].startswith('UPDATE') and 'SET username' in call.args[0]
+        }
+        self.assertEqual(
+            set(renames),
+            {
+                'rating_tracks',
+                'scrobble_listens',
+                'scrobble_unmatched_listens',
+                'scrobble_imports',
+                'feeds_snapshot',
+                'feeds_profile_exclusions',
+            },
+        )
+        self.assertTrue(all(params == ('deleted-4', 'user') for params in renames.values()))
+
+    def test_the_renames_and_the_delete_are_one_transaction(self):
+        log = transaction_log(self.conn, self.cursor)
+        self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
+        with (
+            patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}),
+            patch.object(users_router.rbac, 'record_audit_event'),
+        ):
+            self.client.delete('/api/users/4', headers=self.headers)
+        assert_atomic(
+            self, log, 'UPDATE rating_tracks SET username', 'UPDATE feeds_snapshot SET username', 'DELETE FROM users'
+        )
+
+    def test_a_failing_delete_leaves_the_history_with_the_account(self):
+        log = transaction_log(self.conn, self.cursor, fail_on='DELETE FROM users')
+        self.cursor.fetchone.return_value = {'id': 4, 'username': 'user', 'role_id': 2}
+        with patch.object(users_router.rbac, 'get_role_by_name', return_value={'id': 1}):
+            response = self.client.delete('/api/users/4', headers=self.headers)
+        self.assertEqual(response.status_code, 500)
+        assert_rolled_back(self, log)
+
     def test_deleting_an_unknown_user_is_a_not_found(self):
         self.cursor.fetchone.return_value = None
         response = self.client.delete('/api/users/4', headers=self.headers)

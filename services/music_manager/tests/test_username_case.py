@@ -86,6 +86,13 @@ class IdentityHelpersTest(unittest.TestCase):
         self.assertTrue(identity.username_taken(cursor, 'USER'))
         self.assertFalse(identity.username_taken(ScriptedCursor(), 'anna'))
 
+    def test_a_tombstone_name_is_always_taken(self):
+        """Issue #220: deleted-<id> holds a deleted account's history, so no account may take it."""
+        self.assertTrue(identity.username_taken(ScriptedCursor(), 'deleted-12'))
+        self.assertTrue(identity.username_taken(ScriptedCursor(), 'Deleted-12'))
+        self.assertFalse(identity.username_taken(ScriptedCursor(), 'deleted-anna'))
+        self.assertEqual(identity.tombstone_name(12), 'deleted-12')
+
     def test_account_spellings_map_every_case_to_the_account(self):
         cursor = ScriptedCursor([('SELECT username FROM users', None, ACCOUNTS)])
         spellings = identity.account_spellings(cursor)

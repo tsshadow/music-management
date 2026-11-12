@@ -34,6 +34,10 @@ A row in the `users` table always has:
   LMS user and revokes every Subsonic key and web session it holds; no LMS credential is accepted
   for it afterwards. The LMS user is kept, with its listens and ratings, and is enabled again with
   the account. See [designs/lms-fork-baseline](designs/lms-fork-baseline/technical.md).
+- **Delete** — music-manager keys ratings, listens, unmatched listens, ListenBrainz imports and
+  feeds by username. A delete moves them to `deleted-<id>` in the same transaction, so the server
+  totals keep them and a new account with the same name starts empty. No account can take a
+  `deleted-<number>` name. See [designs/user-delete-tombstone](designs/user-delete-tombstone/technical.md).
 
 **Effective invariant**: a user account is only useful if it can actually be authenticated with, i.e. it
 must have *at least one* of:

@@ -1498,22 +1498,46 @@ def _sync_server_users(cursor, sqlite_cursor):
     return 0
 
 
-def _sync_server_playlists(cursor, sqlite_cursor, source):
+def _sync_server_playlists(conn, sqlite_cursor, source):
+    """Make music-manager's copy of `source`'s smart playlists match the server (issue #223).
+
+    The server owns a synced playlist: every pass copies its name, params and owner, and deletes
+    the rows of this source whose playlist the server no longer has. A playlist whose owner has no
+    music-manager account keeps the row it has, because there is nobody to give it to. Every write
+    of one pass lands in one transaction, and a failure is a WARNING event, not a print.
+    """
     try:
         sqlite_cursor.execute('PRAGMA table_info(tracklist)')
         columns = [col[1] for col in sqlite_cursor.fetchall()]
-        if 'smart_params' in columns:
-            sqlite_cursor.execute('SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2')
-            for lms_id, lms_user_ptr, name, params in sqlite_cursor.fetchall():
-                cursor.execute('SELECT id FROM users WHERE server_user_id = %s', (str(lms_user_ptr),))
-                u_row = cursor.fetchone()
-                if u_row:
-                    cursor.execute(
-                        '\n                        INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params)\n                        VALUES (%s, %s, %s, %s, %s)\n                        ON DUPLICATE KEY UPDATE name = VALUES(name), params = VALUES(params)\n                    ',
-                        (u_row['id'], lms_id, source, name, params),
-                    )
-    except Exception as pe:
-        print(f'Playlist sync failed for {source}: {pe}')
+        if 'smart_params' not in columns:
+            return
+        sqlite_cursor.execute('SELECT id, user_id, name, smart_params FROM tracklist WHERE type = 2')
+        server_playlists = sqlite_cursor.fetchall()
+        with transaction(conn), conn.cursor() as cursor:
+            cursor.execute('SELECT id, server_user_id FROM users WHERE server_user_id IS NOT NULL')
+            owners = {str(row['server_user_id']): row['id'] for row in cursor.fetchall()}
+            on_server = set()
+            for lms_id, lms_user_ptr, name, params in server_playlists:
+                on_server.add(int(lms_id))
+                user_id = owners.get(str(lms_user_ptr))
+                if user_id is None:
+                    continue
+                cursor.execute(
+                    'INSERT INTO dynamic_playlists (user_id, remote_id, source, name, params) '
+                    'VALUES (%s, %s, %s, %s, %s) '
+                    'ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), name = VALUES(name), params = VALUES(params)',
+                    (user_id, lms_id, source, name, params),
+                )
+            cursor.execute(
+                'SELECT id, remote_id FROM dynamic_playlists WHERE source = %s AND remote_id IS NOT NULL', (source,)
+            )
+            gone = [row['id'] for row in cursor.fetchall() if int(row['remote_id']) not in on_server]
+            if gone:
+                placeholders = ', '.join(['%s'] * len(gone))
+                cursor.execute(f'DELETE FROM dynamic_playlists WHERE id IN ({placeholders})', tuple(gone))
+                logger.info('Removed %d playlist(s) that %s no longer has', len(gone), source)
+    except Exception as exc:  # pylint: disable=broad-except  # one server's failure must not stop the sync
+        logger.warning('Playlist sync failed for %s: %s', source, exc)
 
 
 #: Servers whose schema was not ready during the last sync, by source name. Read by
@@ -1559,8 +1583,7 @@ def sync_single_server_db(muma_conn, db_path, source):
         with muma_conn.cursor() as cursor:
             synced_users = _sync_server_users(cursor, sqlite_cursor)
             muma_conn.commit()
-            _sync_server_playlists(cursor, sqlite_cursor, source)
-            muma_conn.commit()
+        _sync_server_playlists(muma_conn, sqlite_cursor, source)
         from services.music_manager.routers.artist_images import sync_artist_images_to_server
 
         sync_artist_images_to_server(muma_conn, sqlite_conn, source)

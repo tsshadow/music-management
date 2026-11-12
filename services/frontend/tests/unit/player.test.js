@@ -1074,4 +1074,62 @@ describe("Player", () => {
       expect(audioElement.currentTime).toBe(42);
     });
   });
+
+  describe("the miniplayer window (#177)", () => {
+    afterEach(() => {
+      delete window.documentPictureInPicture;
+    });
+
+    function fakeWindow() {
+      const doc = document.implementation.createHTMLDocument("");
+      const win = { document: doc, focus: vi.fn(), close: vi.fn(), addEventListener: vi.fn() };
+      window.documentPictureInPicture = { requestWindow: vi.fn(async () => win) };
+      return { win, doc };
+    }
+
+    it("offers no button where the browser has no Document Picture-in-Picture", () => {
+      renderPlayer();
+
+      expect(screen.queryByTestId("open-miniplayer")).toBeNull();
+    });
+
+    it("opens the window with the playing track, and follows the next one", async () => {
+      const { doc } = fakeWindow();
+      renderPlayer();
+
+      await fireEvent.click(screen.getByTestId("open-miniplayer"));
+
+      await waitFor(() =>
+        expect(doc.querySelector('[data-testid="compact-title"]')?.textContent).toBe(FIRST.title),
+      );
+      currentTrack.set(SECOND);
+      await waitFor(() =>
+        expect(doc.querySelector('[data-testid="compact-title"]').textContent).toBe(SECOND.title),
+      );
+    });
+
+    it("plays from the window through the player's own toggle", async () => {
+      const { doc } = fakeWindow();
+      renderPlayer();
+      await fireEvent.click(screen.getByTestId("open-miniplayer"));
+      await waitFor(() => expect(doc.querySelector('[data-testid="compact-play"]')).not.toBeNull());
+
+      doc.querySelector('[data-testid="compact-play"]').click();
+
+      await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalled());
+    });
+
+    it("closes the window when the player goes away", async () => {
+      const { win, doc } = fakeWindow();
+      const { unmount } = renderPlayer();
+      await fireEvent.click(screen.getByTestId("open-miniplayer"));
+      await waitFor(() =>
+        expect(doc.querySelector('[data-testid="compact-player"]')).not.toBeNull(),
+      );
+
+      unmount();
+
+      expect(win.close).toHaveBeenCalled();
+    });
+  });
 });

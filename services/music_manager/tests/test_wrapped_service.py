@@ -141,6 +141,7 @@ class PayloadTest:
         assert festival['status'] == 'below_minimum'
         first_last = next(c for c in payload['cards'] if c['id'] == 'first_last')
         assert first_last['data']['last']['file_path'] == '/music/Youtube/Q/q.m4a'
+        assert first_last['data']['last']['library_path'] == 'Youtube/Q/q.m4a'
         assert payload['coverage']['bpm_share'] == 1.0
         assert {'id': 'top_remixer', 'status': 'blocked', 'reason': 'no_remixer_credits'} in payload['coverage'][
             'left_out'

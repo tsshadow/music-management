@@ -527,6 +527,11 @@ persist("lms_deduplicate_enabled", deduplicateEnabled);
 export const memoriesOnHomeEnabled = writable(true);
 persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
 
+// Whether the Wrapped tile is shown on the home screen from 1 December to 31 January. The Wrapped
+// page itself is always reachable from the sidebar and the library tab.
+export const wrappedOnHomeEnabled = writable(true);
+persist("lms_wrapped_on_home_enabled", wrappedOnHomeEnabled);
+
 // How many tracks a list asks for per request. Bigger means fewer round trips and
 // a longer wait for the first screenful; smaller means the list appears sooner and
 // scrolls into more requests. Which of those is the better trade depends on the

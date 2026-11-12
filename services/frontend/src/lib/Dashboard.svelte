@@ -24,6 +24,7 @@
   import { notify } from './notifications.js';
   import { listOf, offline, subsonicJson, viewHasOfflineSource } from './subsonic.js';
   import { getArtistImageUrl, viewArgument } from './utils.js';
+  import WrappedHomeTile from './wrapped/WrappedHomeTile.svelte';
   import { localDateString, memoryCount, memoryHeading, parseMemoryGroups } from './memories.js';
   import { fetchSpotifyTracksPage, spotifyTracksContinuation } from './trackPages.js';
   import { fetchFirstTrackPage, fetchListPage, firstTrackPageSize, listKey, prefetchTrackList, topUpTrackPage, trackListCache, trackListKey } from './trackListCache.js';
@@ -1098,6 +1099,7 @@
       <PhoneHome {memoryGroups} {onnavigate} onrecent={(sort) => { currentSort = sort; onnavigate($viewMode); }} />
     {:else}
     <PresetGrid presets={$presets} tints={genreTints} canCreate={Boolean($mumaUser)} onopen={(preset) => onnavigate(`preset:${preset.id}`)} oncreate={() => onnavigate('new-preset')} />
+    <WrappedHomeTile {onnavigate} />
     {#if $memoriesOnHomeEnabled && memoryGroups.length > 0}
       <section class="flex flex-col gap-4">
         <div class="flex justify-between items-end mb-4">
@@ -1730,6 +1732,8 @@
     {:else}
       <p class="text-muma-spotify-text p-12 text-center">{$presets.length === 0 && $mumaUser ? $t('common.loading') : $t('presets.notFound')}</p>
     {/if}
+  {:else if activeView === 'wrapped' || activeView.startsWith('wrapped:')}
+    <LazyView name="wrapped" props={{ route: activeView === 'wrapped' ? '' : viewArgument(activeView), onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView === 'memories'}
     <LazyView name="memories" props={{ onnavigate: (v) => onnavigate(v) }} />
   {:else if activeView.startsWith('memories:')}

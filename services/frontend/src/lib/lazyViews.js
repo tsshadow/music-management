@@ -103,6 +103,8 @@ export const lazyViews = createLazyRegistry({
   starred: () => import("./StarredView.svelte"),
   memories: () => import("./MemoriesView.svelte"),
   memoriesYear: () => import("./MemoriesYearView.svelte"),
+  // MuMa Wrapped (docs/designs/wrapped-page/): '/wrapped' and '/wrapped/<period>/<tab>'.
+  wrapped: () => import("./wrapped/WrappedView.svelte"),
   artistEdit: () => import("./curation/ArtistEdit.svelte"),
   labelEdit: () => import("./curation/LabelEdit.svelte"),
   genreEdit: () => import("./curation/GenreEdit.svelte"),
@@ -208,6 +210,7 @@ const PREFIXED_VIEWS = [
   ["genre-edit:", "genreEdit"],
   ["preset-edit:", "presetBuilder"],
   ["memories:", "memoriesYear"],
+  ["wrapped:", "wrapped"],
   ["song:", "song"],
 ];
 

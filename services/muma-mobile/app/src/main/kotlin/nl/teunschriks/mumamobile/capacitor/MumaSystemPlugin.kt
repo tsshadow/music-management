@@ -11,6 +11,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -19,6 +20,7 @@ import android.os.Build
 import android.provider.DocumentsContract
 import androidx.activity.result.ActivityResult
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
@@ -27,6 +29,9 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import java.io.File
+import java.io.IOException
+import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.BuildConfig
@@ -83,6 +88,7 @@ import timber.log.Timber
  * | `outputRoute()` | `outputRoute()` → `{name, type}`, see [outputRoute] |
  * | `onOutputRouteChanged(fn)` | listener on the `outputRouteChanged` event, fed by an [OutputRouteMonitor] |
  * | `openOutputPicker()` | `openOutputPicker()`, the system output switcher, see [openOutputPicker] |
+ * | `share({dataUrl, title, fileName})` | [share], a PNG to the Android share sheet through the FileProvider |
  *
  * ### The back protocol
  *
@@ -844,6 +850,48 @@ class MumaSystemPlugin :
     }
 
     /**
+     * Hands one PNG to the Android share sheet: the Wrapped page's share button. The web UI draws
+     * the image itself and sends it as a `data:image/png;base64,` URL; this writes it to
+     * `cache/shared/` (one file at a time, the previous one is removed) and offers it as a
+     * `content://` URI from the app's FileProvider, readable only by the app the listener picks.
+     * Resolves once the chooser started; rejects when there is no activity, the data is not a
+     * PNG, or the file cannot be written.
+     */
+    @PluginMethod
+    fun share(call: PluginCall) {
+        val activity = runningActivity
+        val bytes = decodePngDataUrl(call.getString("dataUrl"))
+        when {
+            activity == null -> call.reject("no activity to share from")
+            bytes == null -> call.reject("not a PNG data URL")
+            else -> startShare(call, activity, bytes)
+        }
+    }
+
+    /** The second half of [share], once the image is known to be a PNG. */
+    private fun startShare(call: PluginCall, activity: Activity, bytes: ByteArray) {
+        val name = shareImageName(call.getString("fileName"))
+        val uri = try {
+            val file = writeShareImage(File(activity.cacheDir, SHARE_DIR), name, bytes)
+            FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+        } catch (e: IOException) {
+            Timber.w(e, "Could not write the shared image")
+            call.reject("could not write the image")
+            return
+        }
+        val title = call.getString("title") ?: name
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("image/png")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_TITLE, title)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // The grant travels with the clip data too, so the app picked in the chooser can read it.
+        send.clipData = ClipData.newRawUri(name, uri)
+        activity.startActivity(Intent.createChooser(send, title))
+        call.resolve()
+    }
+
+    /**
      * Opens the system's directory picker (`ACTION_OPEN_DOCUMENT_TREE`) for a custom cache
      * location. The result comes back through [onCacheLocationPicked]; this only has to start the
      * intent.
@@ -960,6 +1008,47 @@ class MumaSystemPlugin :
 // The two pure helpers below live outside the class on purpose: every `platform.system` member
 // has to be a method of the plugin, and detekt's per-class function ceiling (`TooManyFunctions`,
 // 30) is what the plugin would otherwise run into first.
+
+/** The folder under the app's cache directory that [MumaSystemPlugin.share] writes to (`file_paths.xml`). */
+internal const val SHARE_DIR = "shared"
+
+private const val PNG_DATA_URL_PREFIX = "data:image/png;base64,"
+private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+/**
+ * The bytes of a `data:image/png;base64,` URL, or null when [dataUrl] is not one: another type,
+ * broken base64, or bytes that do not start with the PNG signature.
+ */
+internal fun decodePngDataUrl(dataUrl: String?): ByteArray? {
+    if (dataUrl == null || !dataUrl.startsWith(PNG_DATA_URL_PREFIX)) return null
+    val bytes = try {
+        Base64.getDecoder().decode(dataUrl.substring(PNG_DATA_URL_PREFIX.length))
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
+    val isPng = bytes.size > PNG_SIGNATURE.size && bytes.copyOfRange(0, PNG_SIGNATURE.size).contentEquals(PNG_SIGNATURE)
+    return if (isPng) bytes else null
+}
+
+/**
+ * A safe file name for a shared image: letters, digits, dots, dashes and underscores only,
+ * always ending in `.png`, `muma-wrapped.png` when nothing is left.
+ */
+internal fun shareImageName(fileName: String?): String {
+    val base = (fileName ?: "")
+        .substringAfterLast('/')
+        .replace(Regex("[^A-Za-z0-9._-]"), "-")
+        .removeSuffix(".png")
+        .trim('.', '-')
+    return if (base.isEmpty()) "muma-wrapped.png" else "$base.png"
+}
+
+/** Writes [bytes] as [name] in [dir], after removing what an earlier share left there. */
+internal fun writeShareImage(dir: File, name: String, bytes: ByteArray): File {
+    if (!dir.isDirectory && !dir.mkdirs()) throw IOException("cannot create $dir")
+    dir.listFiles()?.forEach { it.delete() }
+    return File(dir, name).apply { writeBytes(bytes) }
+}
 
 /** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
 private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value

@@ -6,6 +6,7 @@
   import {
     deduplicateEnabled,
     memoriesOnHomeEnabled,
+    wrappedOnHomeEnabled,
     trackPageSize,
     TRACK_PAGE_SIZES,
     authParams,
@@ -194,6 +195,11 @@
     memoriesOnHomeEnabled.update((v) => !v);
   }
 
+  /** Shows or hides the seasonal Wrapped tile on the home screen. */
+  function toggleWrappedOnHome() {
+    wrappedOnHomeEnabled.update((v) => !v);
+  }
+
   // homeSectionModeValues; OFF hides the section, BUTTON puts it in the shortcuts grid, OVERVIEW
   // gives it its own heading. Ported from the legacy home_mode_* preferences -- see
   // docs/designs/universal-ui/functional.md, "Device settings".
@@ -268,6 +274,17 @@
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" class="sr-only peer" checked={$memoriesOnHomeEnabled} onchange={toggleMemoriesOnHome}>
+            <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-lg font-bold">{$t('settings.general.wrappedOnHome')}</h3>
+            <p class="text-sm text-muma-spotify-text">{$t('settings.general.wrappedOnHomeHelp')}</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" checked={$wrappedOnHomeEnabled} onchange={toggleWrappedOnHome}>
             <div class="w-11 h-6 bg-muma-spotify-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
           </label>
         </div>

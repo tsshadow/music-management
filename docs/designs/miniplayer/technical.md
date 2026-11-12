@@ -1,8 +1,7 @@
 # Miniplayer — Technical Design
 
-> Proposal, not yet agreed. Implements [functional.md](functional.md) (issues #177, #178, #179).
-> Where a choice depends on an open question there, this document names the recommended option
-> and says which part changes with another answer.
+> Agreed 2026-11-12. Implements [functional.md](functional.md) (issues #177, #178, #179). The
+> numbers in brackets point at the decisions there.
 
 ## What the Code Has Today
 
@@ -70,7 +69,7 @@ Read before this design was written. Paths are under `services/`.
 | `transportLocked`, `playLocked`, `isLiveStation` | boolean | same |
 | `restoringQueue` | boolean | `$queueRestore.status === 'restoring'` |
 | `variant` | `'window' \| 'pip' \| 'split'` | the caller |
-| `showRating` | boolean | `true` for `window`, open question 7 for `split` |
+| `showRating` | boolean | `true` for `window`, `false` for `split` (decision 7) |
 | `ontogglePlay`, `onnext`, `onprev`, `onrate` | functions | `togglePlay`, `playNext`, `playPrev`, `updateRating` |
 | `onnavigate` | function or null | `split` only, "Navigeren naast MuMa" (section E) |
 | `onexpand` | function or null | `split` only, "Volledige app" (section F) |
@@ -121,7 +120,7 @@ Rules for the component:
 - `isSupported()`: `'documentPictureInPicture' in window && !platform.system.isNative`.
 - `open(props)`:
   1. If a window is open, focus it and return.
-  2. `requestWindow({ width, height })` with the size of open question 2 (default 360 x 120).
+  2. `requestWindow({ width, height })` at 360 x 120 (decision 2).
   3. Copy the styles: for each `document.styleSheets`, write its `cssRules` into a `<style>` in
      the new document; when reading `cssRules` throws (a cross-origin sheet), clone the `<link>`
      instead. Vite's production build emits the Tailwind CSS as linked files, and a lazy chunk
@@ -146,9 +145,7 @@ into a second `document` to prove it (criterion 2).
 button, only when `isSupported()`. Its click calls `open(miniplayerProps)`. `miniplayerProps` is
 a `$state` object that one `$effect` fills from the derived values listed in section A.
 
-If open question 1 picks **B** (popup fallback), `open` uses
-`window.open('', 'muma-miniplayer', 'popup,width=…,height=…')` where the API is missing and does
-steps 3 to 6 the same way. If it picks **A**, the button is absent there.
+Where the API is missing, the button is absent (decision 1). There is no popup fallback.
 
 ## C. Android: the Window-Mode Signal
 
@@ -165,7 +162,7 @@ window. A size alone cannot tell a split half from a phone in landscape.
   `PlatformSystem`. The browser platform answers `full` and never fires.
 - `frontend/src/lib/store.js`: `windowMode` (readable, from the platform) and `compactLayout`
   (derived): `pip` when the mode is `pip`; `split` when the mode is `split` and
-  `window.innerHeight < 480` (open question 6, option A); otherwise `null`.
+  `window.innerHeight < 480` (decision 6); otherwise `null`.
 
 ## D. Android: Picture-in-Picture (#178)
 
@@ -177,9 +174,9 @@ stay as they are.
 ### `activity/PictureInPicture.kt`, new, used by `CapacitorActivity`
 
 - Builds `PictureInPictureParams`:
-  - `setAspectRatio(Rational(16, 9))` (open question 9, option B; `Rational(1, 1)` for A).
+  - `setAspectRatio(Rational(16, 9))` (decision 9).
   - `setAutoEnterEnabled(autoEnter)`, with `autoEnter = mediaPlayerManager.isPlaying &&
-    setting` (open question 3, option B).
+    setting` (decision 3).
   - `setSeamlessResizeEnabled(false)`: the content is not video, and the cross-fade looks better
     for a layout switch.
   - `setTitle` / `setSubtitle`: the track's title and artist, for the system's accessibility and
@@ -192,7 +189,7 @@ stay as they are.
   `Player.Listener` on `MediaPlayerManager` (`onIsPlayingChanged`, `onMediaMetadataChanged`), so
   the auto-enter flag and the play/pause icon are never stale.
 - `MumaSystemPlugin.enterPictureInPicture()`: calls `enterPictureInPictureMode(params)` on the
-  running activity, for the "Zwevende speler" button (open question 4).
+  running activity, for the "Zwevende speler" button (decision 4).
 - The device setting `pipOnLeave` (boolean, default false) goes through `getSettings` /
   `setSetting` and `DEVICE_SETTING_WHITELIST`, shown in Instellingen > Apparaat.
 
@@ -225,11 +222,9 @@ switch split screen off by accident.
 
 - `MumaSystemPlugin.canNavigate()`: true when `packageManager` resolves the Maps intent below.
   Needs a `<queries>` entry in the manifest: `<package android:name="com.google.android.apps.maps" />`.
-- `MumaSystemPlugin.navigateAdjacent({destination})`:
-  - no destination (open question 8, option A): `Intent(ACTION_VIEW, Uri.parse("geo:0,0?q="))`
-    with `setPackage("com.google.android.apps.maps")`;
-  - with a destination (option B): `google.navigation:q=<destination>&mode=b`, bike navigation;
-  - both with `FLAG_ACTIVITY_LAUNCH_ADJACENT | FLAG_ACTIVITY_NEW_TASK`.
+- `MumaSystemPlugin.navigateAdjacent()`: `Intent(ACTION_VIEW, Uri.parse("geo:0,0?q="))` with
+  `setPackage("com.google.android.apps.maps")` and
+  `FLAG_ACTIVITY_LAUNCH_ADJACENT | FLAG_ACTIVITY_NEW_TASK`. No destination (decision 8).
 - `FLAG_ACTIVITY_LAUNCH_ADJACENT` puts Maps in the other half when MuMa is already in split
   screen. From full screen, whether the phone enters split screen for it depends on the Android
   version and the maker. Check on the bike phone (criterion 9). If it does not, the button is
@@ -273,7 +268,7 @@ shell (`frontend/src/lib/platform/index.js`, `PlatformSystem`):
 | `onWindowModeChanged(fn)` | handler | unsubscribe function | browser: never fires |
 | `enterPictureInPicture()` | none | resolves when asked | rejects `no activity`; browser resolves without doing anything |
 | `canNavigate()` | none | `{value: boolean}` | browser: `{value: false}` |
-| `navigateAdjacent({destination?})` | optional string | resolves when started | rejects when nothing handles the intent |
+| `navigateAdjacent()` | none | resolves when started | rejects when nothing handles the intent |
 | `setKeepScreenOn({showWhenLocked, turnScreenOn, keepOn})` | `keepOn` new, default false | unchanged | unchanged |
 
 An old APK with a new web bundle cannot happen: the bundle is baked into the APK.

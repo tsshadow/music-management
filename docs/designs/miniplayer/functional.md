@@ -1,6 +1,6 @@
 # Miniplayer — Functional Design
 
-> Proposal, not yet agreed. Covers issues #177 (desktop miniplayer), #178 (Android
+> Agreed 2026-11-12. Covers issues #177 (desktop miniplayer), #178 (Android
 > picture-in-picture) and #179 (Android split screen next to Google Maps). The implementation
 > contract is in [`technical.md`](technical.md). See [docs/designs/README.md](../README.md) for the
 > process.
@@ -55,7 +55,7 @@ player draws the compact layout inside it.
 | Play/pause | button | system button over the window | large button |
 | Previous and next | buttons | system buttons over the window | large buttons |
 | Progress | thin bar | no | thin bar |
-| Rating (five stars) | yes | no | see open question 7 |
+| Rating (five stars) | yes | no | no |
 | "Navigeren naast MuMa" | no | no | yes |
 | "Volledige app" (back to the normal screens) | "back to tab" (browser's own button) | tap on the window | button |
 
@@ -73,7 +73,7 @@ Nothing playing shows the "Niets aan het afspelen" line of the mini player.
 | Situation | Observable outcome |
 |---|---|
 | Chrome or Edge 116 or newer, on a desktop | The player bar has a "Miniplayer" button next to the queue button. |
-| Firefox, Safari, Chrome on a phone, the Android app | See open question 1. |
+| Firefox, Safari, Chrome on a phone, the Android app | No "Miniplayer" button. |
 | Listener clicks "Miniplayer" | A small window opens with the compact player. It stays above other windows. The music does not stop or restart. |
 | Listener clicks play, next or a star in the window | Same result as the same button in the player bar. The player bar in the tab follows. |
 | The track changes, from the tab, a media key or the window | The window shows the new track within a second. |
@@ -87,14 +87,14 @@ Nothing playing shows the "Niets aan het afspelen" line of the mini player.
 
 | Situation | Observable outcome |
 |---|---|
-| Music plays and the listener leaves MuMa (home gesture, or opens Maps from the recents) | See open question 3 for when this happens. MuMa shrinks to a floating window with the cover, title and artist. |
+| Music plays and the listener leaves MuMa (home gesture, or opens Maps from the recents) | With the setting "Zwevende speler bij verlaten" on, MuMa shrinks to a floating window with the cover, title and artist. |
 | Music is paused and the listener leaves MuMa | MuMa goes to the background as today. No window. |
 | Listener taps the window | The system shows play/pause, previous, next, expand and close over it. |
 | Listener taps play/pause, previous or next | Same result as the notification's buttons. The play/pause icon follows the state. |
 | The track changes | The window shows the new cover, title and artist. |
 | Listener taps expand | MuMa opens full screen where it was. |
-| Listener drags the window to close it | The window goes. The music plays on, and the notification stays. See open question 5. |
-| Listener taps the "Zwevende speler" button (open question 4) | MuMa shrinks to the floating window at once. |
+| Listener drags the window to close it | The window goes. The music plays on, and the notification stays. |
+| Listener taps the "Zwevende speler" button (Now Playing menu) | MuMa shrinks to the floating window at once. |
 | Android Auto is connected | No change: the car shows its own screen. The floating window follows the same rule as on a bike. |
 
 ### Phone: split screen next to Maps (#179)
@@ -102,10 +102,10 @@ Nothing playing shows the "Niets aan het afspelen" line of the mini player.
 | Situation | Observable outcome |
 |---|---|
 | Listener puts MuMa in split screen by hand (recents, app icon, "Split screen") | MuMa resizes. It does not restart and the music does not stop. |
-| MuMa's half is short (portrait phone, MuMa at the top or bottom) | MuMa shows the compact player in its half. See open question 6 for the exact rule. |
+| MuMa's half is short (portrait phone, MuMa at the top or bottom) | MuMa shows the compact player in its half (split screen and a half lower than 480px). |
 | MuMa's half is tall enough (a tablet, a landscape split) | MuMa shows its normal screens. |
 | Listener taps "Volledige app" in the compact player | The normal screens come back in the half, until the split changes or ends. |
-| Listener taps "Navigeren naast MuMa" | Google Maps opens in the other half (see open question 8 for the destination). |
+| Listener taps "Navigeren naast MuMa" | Google Maps opens in the other half, with no destination set. |
 | Google Maps is not installed | The button is not shown. |
 | The compact player shows and music plays | The screen stays on. It goes off as normal when the music is paused or the split ends. |
 | Listener ends split screen | MuMa goes back to its normal screens. |
@@ -119,10 +119,8 @@ Nothing playing shows the "Niets aan het afspelen" line of the mini player.
    the music never plays twice (one audio element, in the tab).
 3. The PC window follows a track change within one second, in both songs and sets mode.
 4. Closing the PC window never stops the music. Closing the tab or logging out closes the window.
-5. In a browser without the API, the PC behaves as open question 1 decides, and never shows a
-   button that does nothing.
-6. On the phone, leaving MuMa while music plays puts it in a floating window (when open question 3
-   allows it). Leaving it while paused does not.
+5. In a browser without the API, the PC shows no "Miniplayer" button.
+6. On the phone, leaving MuMa while music plays puts it in a floating window (when the setting is on). Leaving it while paused does not.
 7. The floating window shows the current cover, title and artist, and its system buttons
    play/pause, previous and next work, with the play/pause icon matching the real state.
 8. Expanding the floating window shows MuMa where it was. No reload, no boot screen.
@@ -134,82 +132,29 @@ Nothing playing shows the "Niets aan het afspelen" line of the mini player.
 12. While the compact player shows in a split and music plays, the screen does not turn off.
 13. The compact player's look is in the style guide before the code (rule 15).
 
-## Open Questions / Not Yet Decided
+## Decisions
 
-Each question has the options and a recommendation. Nothing below is built until Teun picks.
+Teun took these on 2026-11-12. Each one names the option picked; the others were weighed and
+dropped.
 
-1. **PC: what does a browser without Document Picture-in-Picture get?** Only Chrome and Edge 116+
-   on a desktop have the API. Firefox, Safari and every phone browser do not.
-   - A. No button (the issue's plan).
-   - B. A plain popup window with the same compact player. It is not always on top, but the
-     window manager can pin it ("Always on top" in the title bar menu on most Linux desktops and
-     on Windows with PowerToys).
-   - C. A tiny video picture-in-picture that draws the cover into a video stream (Safari and
-     Chrome have the API for video). Hacky, no rating, no progress.
-   - Recommendation: **A** if Teun uses Chrome or Edge on the PC; **B** if he uses Firefox, because
-     it reuses the same code and costs about one function more.
-
-2. **PC: the window's size and layout.**
-   - A. A strip, about 360 x 120: cover left, text and buttons right (Spotify's small miniplayer).
-   - B. A square, about 300 x 300: large cover, text and buttons below.
-   - C. Start as A, and the layout changes to B when the listener drags the window larger.
-   - Recommendation: **C**. The component switches on its own size anyway, because the phone
-     needs both shapes.
-
-3. **Phone: when does MuMa shrink to the floating window by itself?**
-   - A. Always when music plays and the listener leaves the app (the issue's plan).
-   - B. Only when a setting "Zwevende speler bij verlaten" (Instellingen > Apparaat) is on. Off
-     by default.
-   - C. Never by itself: only from the "Zwevende speler" button.
-   - Recommendation: **B**. With A every home gesture during music at home pops a window in the
-     corner. That gets old fast when not on the bike.
-
-4. **Phone: a button to shrink on purpose?**
-   - A. Yes, in the Now Playing header menu ("Zwevende speler").
-   - B. Yes, in the compact player in split screen as well.
-   - C. No button. Only the automatic way.
-   - Recommendation: **A**. It is the way to get the window when the setting of question 3 is
-     off.
-
-5. **Phone: what does closing the floating window do?**
-   - A. Music plays on (Spotify and YouTube Music behave like this for audio).
-   - B. Music pauses.
-   - Recommendation: **A**. The notification is still there to stop it, and a close by accident
-     on a bump in the road does not stop the music.
-
-6. **Phone: when does the split-screen half show the compact player?**
-   - A. Whenever MuMa is in split screen and its half is lower than about 480px (CSS pixels).
-   - B. Whenever its half is lower than about 480px, split screen or not. A phone in landscape
-     then also gets the compact player.
-   - C. Never by itself: a "Compacte speler" button in split screen.
-   - Recommendation: **A**. B changes the landscape phone, which works today. C costs a tap at
-     every ride.
-
-7. **Phone, split screen: rating stars in the compact player?**
-   - A. Yes, one row of five stars under the title.
-   - B. No. Only play/pause, previous and next, as large as possible.
-   - Recommendation: **B** for the phone. The listener rates later, at rest. The PC window keeps
-     its stars (question 2 has room for them).
-
-8. **Phone: what does "Navigeren naast MuMa" open?**
-   - A. Google Maps next to MuMa, with no destination. The listener picks it in Maps.
-   - B. Bike navigation to one saved destination (Instellingen > Apparaat, a text field).
-   - C. A short list of saved destinations to pick from.
-   - Recommendation: **A** first. Maps already remembers recent places, and MuMa then stores no
-     addresses. B is a small follow-up if A proves slow on the road.
-
-9. **Phone: the floating window's shape.**
-   - A. Square: the cover fills it.
-   - B. Wide (16:9): cover left, title and artist right. Covers less of the map.
-   - Recommendation: **B**. Over a map the window should be low. Android lets the listener
-     resize it.
-
-10. **Delivery order.**
-    - A. PC window (#177), then split screen (#179), then floating window (#178).
-    - B. Phone first: split screen and floating window, then the PC.
-    - Recommendation: **A**. The PC window builds the shared compact player in the fast web test
-      loop. Split screen then needs only the window-mode signal and a layout switch. The floating
-      window has the most Android-only risk and comes last.
+1. **PC, browser without Document Picture-in-Picture:** no button. Only Chrome and Edge 116+ on a
+   desktop show "Miniplayer". (A popup fallback and a video picture-in-picture hack were dropped.)
+2. **PC window size and layout:** it opens as a strip of about 360 x 120 (cover left, text and
+   buttons right). Dragged larger, it switches to the stacked layout (large cover, text and
+   buttons below).
+3. **Phone, shrink by itself:** only when the setting "Zwevende speler bij verlaten"
+   (Instellingen > Apparaat) is on. It is off by default.
+4. **Phone, shrink on purpose:** a "Zwevende speler" entry in the Now Playing header menu.
+5. **Phone, closing the floating window:** the music plays on.
+6. **Phone, split screen:** the half shows the compact player when MuMa is in split screen and its
+   half is lower than 480 CSS pixels. A phone in landscape, full screen, keeps its normal screens.
+7. **Phone, split screen, stars:** none. Only play/pause, previous and next, as large as possible.
+   The PC window keeps its stars.
+8. **"Navigeren naast MuMa":** opens Google Maps next to MuMa with no destination. The listener
+   picks it in Maps. MuMa stores no addresses.
+9. **Floating window shape:** wide, 16:9.
+10. **Delivery order:** PC window (#177), then split screen (#179), then the floating window
+    (#178), one merge request each.
 
 ### Check before building, no code
 

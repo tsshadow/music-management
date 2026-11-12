@@ -1,5 +1,5 @@
 /*
- * ShellWindowTest.kt
+ * WindowModeTest.kt
  * Copyright (C) 2009-2026 Ultrasonic developers
  *
  * Distributed under terms of the GNU GPLv3 license.
@@ -34,7 +34,7 @@ import org.w3c.dom.Element
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = UApp::class, manifest = Config.NONE)
-class ShellWindowTest {
+class WindowModeTest {
 
     @Test
     fun `a floating window is pip, even though Android also counts it as multi-window`() {
@@ -118,8 +118,7 @@ class ShellWindowTest {
         return (0 until nodes.length).map { nodes.item(it) as Element }
     }
 
-    private fun Element.android(name: String): String =
-        getAttributeNS("http://schemas.android.com/apk/res/android", name)
+    private fun Element.android(name: String): String = getAttributeNS("http://schemas.android.com/apk/res/android", name)
 
     @Test
     fun `no activity switches split screen off`() {

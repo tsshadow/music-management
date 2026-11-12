@@ -1,5 +1,5 @@
 /*
- * ShellWindow.kt
+ * WindowMode.kt
  * Copyright (C) 2009-2026 Ultrasonic developers
  *
  * Distributed under terms of the GNU GPLv3 license.

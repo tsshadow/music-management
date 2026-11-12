@@ -1,6 +1,6 @@
 # Music Mirror: Technical Design
 
-Implements [functional.md](functional.md). The mirror is one nightly `rsync` run from the library
+Implements [functional.md](functional.md), with the decisions of 2026-11-12 listed there. The mirror is one nightly `rsync` run from the library
 NAS to a second NAS, without `--delete`, followed by a ZFS snapshot on the second NAS. A status
 file records each run. The production host reads that file, writes the events and serves
 `/health/music-mirror`.
@@ -38,8 +38,7 @@ SSH.
 
 ## Topology
 
-The job runs on the **mirror NAS** and pulls (open question 1 of the functional design). Pull is
-recommended because no key on the library side or on the production host can then write to the
+The job runs on the **mirror NAS** and pulls (decision 1 of the functional design), because no key on the library side or on the production host can then write to the
 mirror or remove a snapshot. A compromised production host or library NAS can at worst damage the
 library itself, and every snapshot on the mirror stays out of its reach.
 
@@ -110,7 +109,8 @@ Steps of a run:
 9. **Monthly items**, on the first run of a month:
    - Orphan count: `rsync --dry-run --delete --itemize-changes` lists what a delete would remove.
      Nothing is removed. The job counts those files and sums their size on the mirror side.
-   - Full checksum compare, when `MIRROR_FULL_CHECKSUM_MONTHLY=1` (functional open question 5).
+   - Full checksum compare over all files (decision 5). `MIRROR_FULL_CHECKSUM_MONTHLY=0` turns it
+     off.
 10. **Status.** Write `latest.json` through a `.partial` name and a rename (the pattern of
     `tools/db_backup.py`), and push it with the status key. Keep a copy on the mirror.
 11. **Push on failure.** On `failed` or `refused` the job posts to the alerts topic of ntfy
@@ -171,7 +171,7 @@ needs a default that renders a valid mount when unset.
 
 ### The daily check
 
-`tools/music_mirror.py --check` in the tools image, as a one-shot service `music-mirror-check` in
+`tools/music_mirror_check.py` in the tools image, as a one-shot service `music-mirror-check` in
 `docker/docker-compose.backup.yml`. A systemd timer `muma-music-mirror-check.timer` starts it daily
 at 09:42 (the database staleness check runs at 09:12). `scripts/backup/install-systemd.sh` installs
 it when `HOST_MIRROR_STATUS_PATH` is set.
@@ -240,8 +240,19 @@ checksums with the library. Record the date in the issue.
 5. Add the Uptime Kuma monitor on `https://<domain>/health/music-mirror`.
 6. Start the first run with `--initial` and watch it to the end. Then do the restore drill.
 
-An install script with a dry run first does steps 2 to 4, in line with how the database backup
-is installed. An agent does not run it.
+`scripts/music-mirror/install.sh mirror` does step 2 and `install.sh library` step 3. Each prints
+every change first and applies them only after the person types `yes`. Step 4 is
+`scripts/backup/install-systemd.sh`, as for the database backup. An agent does not run them.
+
+## Code Layout
+
+| File | Runs on | Purpose |
+|---|---|---|
+| `tools/music_mirror.py` | mirror NAS | the nightly job and `--prune`; standard library only |
+| `services/common/music_mirror_status.py` | production | reads `latest.json` and decides the status; shared by the endpoint and the check |
+| `tools/music_mirror_check.py` | production, tools image | the daily check that writes the events |
+| `scripts/music-mirror/install.sh` | mirror NAS, library NAS | the person's install script: `mirror` or `library` role, dry run first, then confirm by typing `yes` |
+| `scripts/backup/systemd/muma-music-mirror-check.{service,timer}` | production | the daily check, installed by `scripts/backup/install-systemd.sh` |
 
 ## Data Model
 

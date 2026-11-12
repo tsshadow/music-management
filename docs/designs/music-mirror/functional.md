@@ -68,16 +68,17 @@ does. A monitor outside the host sees when the mirror is too old.
    after a snapshot.
 8. The restore of one folder from a snapshot is written down and was done once as a drill.
 
-## Open Questions / Not Yet Decided
+## Decisions (2026-11-12)
 
-1. Where the run starts: on the second NAS, pulling from the library NAS (recommended, because
-   nothing on the library side can then write to or delete from the mirror), on the library NAS,
-   pushing, or on the production host over the library's SMB mount.
-2. Is the second NAS on all the time, or only during a window (for example woken at 01:00 and shut
-   down after the run)? This sets the staleness limit: 36 hours for nightly runs, 8 days for weekly.
-3. Snapshot retention: 14 daily, 8 weekly and 12 monthly snapshots (recommended), or longer for
-   monthlies.
-4. Does the mirror go offsite later? A second NAS in the same house protects against a dead NAS
-   and a wrong command, not against fire or theft.
-5. The size of the full checksum comparison: once a month over all files (about a day of disk
-   reads on both sides), or only the nightly sample of 200 files.
+The owner accepted these on 2026-11-12. They were the open questions of this design.
+
+1. **Where the run starts:** on the mirror NAS, pulling from the library NAS. Nothing on the
+   library side can then write to or delete from the mirror. Pushing from the library NAS, and
+   running on the production host over the SMB mount, were rejected.
+2. **The mirror NAS is on all the time.** The run is nightly and the staleness limit is 36 hours.
+   A power window can come later, with a longer limit.
+3. **Snapshot retention:** 14 daily, 8 weekly and 12 monthly snapshots.
+4. **Offsite:** not now. The mirror stays on the LAN. A second NAS in the same house protects
+   against a dead NAS and a wrong command, not against fire or theft; that is a later decision.
+5. **Verification:** the nightly sample of 200 files, plus a full checksum comparison over all
+   files on the first run of each month.

@@ -1052,6 +1052,10 @@ def ensure_not_last_enabled_admin(cursor, target: dict, action: str) -> None:
         raise HTTPException(status_code=409, detail=_LAST_ADMIN_DETAIL[action])
 
 
+#: One rename per username-keyed table, built once from the fixed table list in `identity`.
+_TOMBSTONE_RENAMES = tuple(f'UPDATE {table} SET username = %s WHERE username = %s' for table in USERNAME_KEYED_TABLES)
+
+
 def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: bool = True):
     """Delete a user and all its dependent rows; shared by ``delete_user`` and
     the ``user-requests`` unapprove flow so both get the exact same, robust
@@ -1093,8 +1097,8 @@ def delete_user_row(cursor, user_id: int, actor_id=None, protect_last_admin: boo
     # name, so the server totals keep them and a new account with this name starts empty
     # (issue #220). The caller holds the transaction, so they move with the delete or not at all.
     tombstone = tombstone_name(user_id)
-    for table in USERNAME_KEYED_TABLES:
-        cursor.execute(f'UPDATE {table} SET username = %s WHERE username = %s', (tombstone, target['username']))
+    for statement in _TOMBSTONE_RENAMES:
+        cursor.execute(statement, (tombstone, target['username']))
 
     cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
     rbac.record_audit_event(

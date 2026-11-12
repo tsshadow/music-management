@@ -76,6 +76,7 @@ the retroactive documentation above):
 | [`deferred-queue-restore/`](deferred-queue-restore/) | The app mounting before its queue restore (issue #113): the mini player shows the restore, a track started meanwhile cancels it, and nothing reaches `PlaybackService` while it runs. Frontend only (ships in the APK). |
 | [`app-start-reachability/`](app-start-reachability/) | The Android app asks the server once before restoring the queue; when it does not answer, the boot screen offers "Opnieuw proberen", "Wachten op server" and "Offline verder". Offline mode keeps only downloaded tracks in the queue, marks the app with a banner, and switches back with the full queue when the server returns. App only. |
 | [`playback-error-recovery/`](playback-error-recovery/) | A track that fails to play in the app, the notification or Android Auto gets one retry from a fresh stream with its cache file dropped, then a skip to the next track; the player stops after three failed tracks in a row or at the end of the queue. App only. |
+| [`wrapped-page/`](wrapped-page/) | The MuMa Wrapped page (issue #60): a MuMa User tab (your listening year) and a MuMa Library tab (the server's year, the collection and the system), every card's definition and SQL, snapshots per account and period, card sharing as an image, and the decisions of 2026-11-12. Web and app share one page. Builds on [`wrapped/`](wrapped/). |
 
 ## Where agent tools look
 

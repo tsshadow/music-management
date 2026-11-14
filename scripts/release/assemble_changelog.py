@@ -31,6 +31,7 @@ SCOPES = {
     'root': {
         'fragments': 'changelog.d',
         'changelog': 'CHANGELOG.md',
+        'changelog_copies': [],
         'release_notes': ['RELEASE_NOTES.md'],
         'release_notes_anchor': '## Unreleased',
     },
@@ -39,6 +40,7 @@ SCOPES = {
         'changelog': os.path.join('services', 'muma-mobile', 'CHANGELOG.md'),
         # The two copies under app/src/main/assets are what the in-app "what's new" screen reads;
         # they are generated from these, and release:version-check fails when they drift.
+        'changelog_copies': [os.path.join('services', 'muma-mobile', 'app', 'src', 'main', 'assets', 'CHANGELOG.md')],
         'release_notes': [
             os.path.join('services', 'muma-mobile', 'RELEASE_NOTES.md'),
             os.path.join('services', 'muma-mobile', 'app', 'src', 'main', 'assets', 'RELEASE_NOTES.md'),
@@ -148,17 +150,18 @@ def assemble(scope, version, date, apply_changes, root='.'):
     # happened to services/muma-mobile/RELEASE_NOTES.md, 762 lines, on the release
     # this comment was written during. A missing anchor now changes nothing at all.
     notes_anchor = config['release_notes_anchor']
-    pending = [
-        (
-            os.path.join(root, config['changelog']),
-            insert_after(
-                read_text(os.path.join(root, config['changelog'])),
-                '## [Unreleased]',
-                changelog_block,
-                config['changelog'],
-            ),
-        )
-    ]
+    changelog_text = insert_after(
+        read_text(os.path.join(root, config['changelog'])),
+        '## [Unreleased]',
+        changelog_block,
+        config['changelog'],
+    )
+    pending = [(os.path.join(root, config['changelog']), changelog_text)]
+    # A copy gets the whole new text, not its own insertion, so it cannot drift from the original.
+    for relative in config['changelog_copies']:
+        copy_path = os.path.join(root, relative)
+        if os.path.exists(copy_path):
+            pending.append((copy_path, changelog_text))
     for relative in config['release_notes']:
         notes_path = os.path.join(root, relative)
         if not os.path.exists(notes_path):

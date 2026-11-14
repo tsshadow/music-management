@@ -57,6 +57,7 @@ def _repo(tmp_path, fragments, mobile_fragments=None):
         (mobile / 'CHANGELOG.md').write_text(CHANGELOG)
         (mobile / 'RELEASE_NOTES.md').write_text(MOBILE_RELEASE_NOTES)
         (mobile / 'app' / 'src' / 'main' / 'assets' / 'RELEASE_NOTES.md').write_text(MOBILE_RELEASE_NOTES)
+        (mobile / 'app' / 'src' / 'main' / 'assets' / 'CHANGELOG.md').write_text(CHANGELOG)
         (directory / 'mobile').mkdir()
         for name, body in mobile_fragments.items():
             (directory / 'mobile' / name).write_text(body)
@@ -249,3 +250,13 @@ def test_a_blank_line_separates_the_new_section_from_the_previous_release(tmp_pa
     assert lines[lines.index('## [0.44.4] - 2026-09-04') - 1] == ''
     notes = (tmp_path / 'RELEASE_NOTES.md').read_text().splitlines()
     assert notes[notes.index('## Global Version 0.44.4 (2026-09-04)') - 1] == ''
+
+
+def test_the_in_app_changelog_copy_matches_the_mobile_changelog(tmp_path):
+    """The app reads assets/CHANGELOG.md; release:version-check fails when it drifts from the original."""
+    _repo(tmp_path, {}, mobile_fragments={'2.added.md': '- **App.**'})
+    mobile = tmp_path / 'services' / 'muma-mobile'
+    assemble_changelog.assemble('mobile', '7.22.0', '2026-11-14', apply_changes=True, root=str(tmp_path))
+    original = (mobile / 'CHANGELOG.md').read_text()
+    assert '## [7.22.0] - 2026-11-14' in original
+    assert (mobile / 'app' / 'src' / 'main' / 'assets' / 'CHANGELOG.md').read_text() == original

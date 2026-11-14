@@ -7,6 +7,178 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.100.0] - 2026-11-14
+
+### Added
+- **The PC player has a miniplayer window that stays on top of other windows.** In Chrome and Edge
+  the player bar has a "Miniplayer" button next to the queue. It opens a small window with the
+  cover, the title, play, previous, next and the stars. The music still plays from the tab, so
+  closing the window does not stop it. Firefox and Safari have no Document Picture-in-Picture and
+  show no button (issue #177, `docs/designs/miniplayer/`).
+
+- **A script cleans up the 1,019 tracks the import packs left without a file.**
+  `tools/relink_fileless_backlog.py` moves the listens and ratings of a fileless track to the one
+  track with a file that has the same title and a duration within 5 ms (604 on production on
+  2026-11-12). It then deletes the fileless tracks that have no listen, rating, pin or reviewed
+  label (256), and lists the 159 that are left for a person. It is a dry run unless `--apply` is
+  given, writes a JSON backup before the first write, and `--rollback` restores that backup
+  (GitLab issue #71).
+
+- **The web player shows a floating layout when the app floats.** `CompactPlayer` has a `pip`
+  variant with the cover, title and artist only, and `App.svelte` shows it while the window mode
+  is `pip`. `platform.system.enterPictureInPicture()` asks the app to float (a browser tab does
+  nothing), the track details sheet in Now Playing has a "Zwevende speler" entry in the app, and
+  the Apparaat tab has the `pipOnLeave` switch (issue #178, `docs/designs/miniplayer/`).
+
+- **An agent can look at the homelab hosts over SSH without being able to change them.** The new
+  `muma-ro` wrapper (`tools/muma_ro/`) is the forced command of the agent's key on each host. It
+  checks the text against the host's policy and runs one fixed argument list without a shell:
+  `ls`, `find`, `head` of an `.nfo`, `docker logs`, `journalctl`, `zfs list`, `pct config` and
+  the other verbs of the design's table. A root command goes through a helper that checks the
+  text again. Every request is one line in the host's journal. The MCP server has tools for it
+  (`host_ls`, `host_container_logs`, `nas_snapshots`, `pve_relay` and others), plus GET-only
+  tools for Portainer, GitLab and the Proxmox API with read-only tokens. Nothing is installed
+  yet: a person runs `scripts/muma-ro/install.sh` on each host (issue #176,
+  `docs/designs/claude-readonly-access/`).
+
+- **A nightly copy of the music library to a second NAS (issue #25).** `tools/music_mirror.py`
+  runs on the mirror NAS at 01:30. It pulls the library with rsync over SSH, read-only on the
+  library side (`rrsync -ro`), and never deletes on the mirror: a file removed or moved in the
+  library stays at its old path. A ZFS snapshot follows each good run, kept 14 daily, 8 weekly and
+  12 monthly. A library under 90% of last night's file count, or more than 5% or 200 GB to copy,
+  refuses the run until a person checks. Each night 200 files are compared by checksum, and once a
+  month every file. `GET /health/music-mirror` answers 200 or 503 with no key and never shows a
+  file name. The daily check at 09:42 (`muma-music-mirror-check.timer`) writes an `INFO` event for
+  a good night, or an `ERROR` with a push for a failed, refused, stale or differing one.
+  `scripts/music-mirror/install.sh` sets up both NAS sides: it shows every change first and
+  applies nothing until you type `yes`. Nothing runs until a person installs it, see
+  `scripts/music-mirror/README.md`.
+
+- **The library now records who remixed a track.** The scanner writes a `remixer` credit in
+  `library_track_artists` for each name in a file's REMIXER tag, next to the artist's `featuring`
+  credit. It was always empty on production, so MuMa Wrapped's "top remixer" card had nothing to
+  count. Existing tracks get their credits on the next forced rescan.
+
+- **The web player knows when the app is in split screen.** `platform.system` has
+  `windowMode()`, `onWindowModeChanged()`, `canNavigate()` and `navigateAdjacent()`, and
+  `setKeepScreenOn` takes a `keepOn` flag. A browser tab is always `full` and cannot open Maps, so
+  nothing changes there. `CompactPlayer` has a `split` variant with large buttons and the
+  "Navigeren naast MuMa" and "Volledige app" pills (issue #179, `docs/designs/miniplayer/`).
+
+- **MuMa Wrapped has a backend: `/api/wrapped`.** `GET /api/wrapped/user` gives your own year (or
+  any range up to three years) as about 38 cards: listening time, top tracks, artists, genres,
+  labels and channels, festivals and shows, tempo, the listening clock, streaks, sessions, release
+  years, ratings and the word of the year. `GET /api/wrapped/library` gives the same for every
+  account together, plus the collection (releases, downloads, growth, the shelf) and the system,
+  without one username in it. Each card says what it is based on, and a card without enough data
+  is left out with its reason. A tab is computed once and stored, so the second open is one
+  database read; `POST /api/wrapped/refresh` (admin) recomputes a period.
+- **Every new track now records when it arrived and how** (`library_tracks.arrived_at`,
+  `arrived_source`: SoundCloud, YouTube, Telegram, label or import). A retag keeps the first
+  arrival. `tools/backfill_arrival_dates.py` fills older tracks from the download archives and the
+  ingestion records, and leaves a track unknown when the only date is a later redownload.
+
+- **The web player has a Wrapped page: `/wrapped/<period>/<tab>`.** The You tab shows your own
+  year as cards (top tracks, artists, genres, labels, festivals, tempo, your listening clock,
+  streaks, ratings, your word of the year and more), the Library tab shows the year of every
+  account together. Pick another year or a range of up to three years in the period menu. A card
+  that counts only listens that matched a track says how many it left out, and the last card lists
+  every card the server left out, with its reason. Each card has a share button: the image is
+  1080 by 1920 and has no username and no server address in it. A browser that can share files
+  opens its share dialog, any other browser saves the PNG. Wrapped is in the sidebar and in the
+  library tab, and from 1 December to 31 January a tile on the home screen opens it (Settings >
+  General can hide that tile). Every track in the Wrapped payload now also has `library_path`, the
+  path LMS plays it by, so the play button on a track card works (`WRAPPED_FORMAT` 2; a tab
+  stored in format 1 is computed again on its next open).
+
+### Changed
+- **A Soundcloud or YouTube upload's octave now also follows its uploader folder.** Each uploader
+  folder (`Soundcloud/<uploader>`, `Youtube/<channel>`) has a tempo prior learned from the
+  confident measurements of its uploads, weighted like an artist's, with the track itself left out.
+  It counts as real evidence for halving a reading above 205 BPM, but never doubles a track past
+  205 on its own. 98.9% of the uploads have one, against 69.4% with an artist prior. A dry run on
+  production's rows settles 2,774 of the 3,128 unsettled tempos (1,143 halved, 1,631 kept), moves
+  3,867 uploads to the other octave in total, and makes 5,653 of them reliable, which the tag
+  writeback then writes. `FOLD_VERSION` is 4, so the bpm-analyzer re-decides every measurement at
+  start (issue #241).
+
+### Removed
+- **Breaking: nine deprecated API routes are deleted** (issue #30, bug report 084). They are
+  `GET /api/about`, `GET|POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}`,
+  `POST /api/tagger/rescan/file`, `POST /api/songs/tracks/{track_id}/split`,
+  `GET /api/downloaders/schedule/{source}`, `GET /api/users/permissions` and
+  `POST /api/users/sync/lms-db`. A call to one of them now gets a 404 or 405. Use
+  `POST /api/users/sync/muma-server` in place of `/sync/lms-db`, and the artist curation page in place
+  of the redirect routes. The production event log (976k rows back to 2026-08-13) has no call to any
+  of them since they were deprecated, and no app, script or test in the repository calls them.
+  `services/music_manager/deprecation.py` is deleted with them.
+
+### Fixed
+- **A fast track was halved when nothing about the track said it was slow.** The octave rule folded
+  a raw estimate above 205 BPM down to its half on the neutral prior alone, a broad guess around
+  135 BPM that knows nothing about the track. On production that halved 4,209 tracks, 3,482 of
+  them Soundcloud and YouTube uploads, where genre-less uptempo is common. A halving above 205 now
+  needs real evidence: the track's own genre, its label, its artist, its GetSongBPM tempo or a
+  mainstream folder must sit closer to the half. Without it the measured tempo stays, marked
+  `unsettled` and not reliable (3,124 of the 4,209). `FOLD_VERSION` is 3, so the bpm-analyzer
+  re-decides every measurement from the database within minutes of the deploy. The tag writeback
+  never writes an unsettled tempo or a fold that only the general priors decided, whatever the
+  confidence threshold, and also not into a file it wrote before (issue #153).
+
+- **The web player now tells the phone's player the rating of each queued track.** The queue it
+  sends has a `userRating` per track (null when it does not know), and a rating set in the web
+  player goes to the phone's player at once with `MumaPlayer.setRating`, without a second write to
+  the server. Before, the queue had no ratings, so the car's rating button started at 0 (issue
+  #256, `docs/designs/car-rating-state/`).
+
+- **A weekly pack from the importer left about 100 tracks a week without a file.** A full scan can
+  read a release in `import/<pack>/` before the tagger has split its artists. The importer then
+  moves the release out of the pack, and the next scan puts the tagged file on a new track. The
+  scan's cleanup could not match the old track to the new one, because the primary artist changed
+  and the MP3 and the FLAC were two candidates. On 2026-11-06 one scan left 134 fileless tracks
+  this way. The cleanup now also matches on the file name and duration, so the old track's listens
+  and ratings move to the new one and the old track goes (GitLab issue #71).
+
+- **`/health/backup` answered with the player page from the LAN.** Since music-manager listens on
+  the host's loopback only (#218), the LAN reaches it through the player stack's nginx, and that
+  sent only the exact path `/health` to music-manager. The nightly check read the LMS web page
+  instead of the backup age. nginx now sends `/health/backup` to music-manager too (issue #236).
+
+- **A smart playlist deleted or given away in the player stayed in music-manager.** The hourly
+  sync from LMS only added playlists and changed their name and rules. It now deletes the copy of
+  a playlist that LMS no longer has and moves a playlist to its new owner, all in one transaction.
+  A failed sync is a `WARNING` event "Playlist sync failed for <server>" instead of a line in the
+  container output (issue #223).
+
+- **A new account with the name of a deleted one got the old player data back.** The music server
+  only disabled the deleted account's user and then found it by name, so a new account with that
+  name took over its ratings, stars, listens and playlists. The user sync now renames that user to
+  `deleted-<id>`, the same name music-manager gives the history, before it looks up new accounts,
+  and never takes over a user linked to another account by name. Users of accounts deleted
+  earlier are renamed on the first sync (issue #239).
+
+- **A star set in the player could stay in LMS and never reach music-manager.** LMS queued the
+  rating while it still held the read transaction it had looked the track up in. When another
+  connection wrote to `lms.db` in that moment, for example the relay removing the rating it had
+  just delivered, SQLite refused the write and LMS logged `Cannot queue the rating ... it is lost`.
+  LMS now ends the read before it queues the rating. This also made the rating tests in `muma:e2e`
+  and `muma:contracts` fail now and then (issue #242, bug report 160).
+
+- **A new account with the name of a deleted one got its ratings and listens.** Ratings, listens,
+  unmatched listens, ListenBrainz imports and feeds are keyed by username, and a delete left them
+  in place. A delete now moves them to `deleted-<id>` in the same transaction, so the server totals
+  keep them and the new account starts empty. No account can take a `deleted-<number>` name
+  (issue #220).
+
+### Security
+- **A LAN host could give nginx a false client address.** nginx trusted `X-Forwarded-For` from
+  10/8, 172.16/12 and 192.168/16, and publishes port 80 on every interface, so any host on the LAN
+  could send a login with an address of its own choosing and start a fresh per-client rate-limit
+  bucket with every guess. nginx now trusts loopback and the Docker networks (172.16.0.0/12), plus
+  the addresses in the new `NGINX_TRUSTED_PROXY` setting of the player stack. An install behind a
+  reverse proxy on the LAN, such as Nginx Proxy Manager, must set `NGINX_TRUSTED_PROXY` to that
+  proxy's address, or every login through it counts against the proxy's own address (issue #234).
+
 ## [0.99.0] - 2026-11-11
 
 ### Added

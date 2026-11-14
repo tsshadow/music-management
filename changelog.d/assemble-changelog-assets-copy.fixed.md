@@ -1,0 +1,1 @@
+- **The release script now updates the app's in-app changelog too.** `scripts/release/assemble_changelog.py` wrote the new section into `services/muma-mobile/CHANGELOG.md` but left the copy in `app/src/main/assets/` behind, so `release:version-check` failed until it was copied by hand. The copy now gets the same text.

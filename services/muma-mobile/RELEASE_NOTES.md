@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## Global Version 7.22.0 (2026-11-14)
+
+- **A tap on the car's rating button no longer resets a rated track to 1 star.** The button starts
+  from the track's real rating, also for a queue from the web player.
+
+- **Zwevende speler.** MuMa kan als klein venster boven andere apps blijven staan, via het menu in
+  Nu speelt, of vanzelf als je de app verlaat terwijl er muziek speelt (instelling "Zwevende speler
+  bij verlaten").
+
+- **Split screen met Google Maps.** Zet je MuMa naast Maps, dan toont MuMa een grote speler met
+  afspelen, vorige en volgende, en blijft het scherm aan zolang de muziek speelt. "Navigeren naast
+  MuMa" opent Maps in de andere helft.
+
+- **Share your Wrapped cards.** The share button on a Wrapped card opens the Android share sheet.
+
 ## Global Version 7.21.0 (2026-11-11)
 
 - Een beoordeling zonder verbinding met de server blijft bewaard en gaat naar de server zodra die

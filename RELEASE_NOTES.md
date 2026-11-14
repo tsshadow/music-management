@@ -11,6 +11,66 @@ This project is now modularized. Detailed release notes for each module can be f
 
 ## Unreleased
 
+## Global Version 0.100.0 (2026-11-14)
+
+- **Nine old API routes that nothing called are deleted.** Scripts or sensors outside this repository
+  that still call one get a 404. The changelog names the routes and their replacements.
+
+- **Soundcloud and YouTube tempos use the uploader as a hint.** When a track's own genre, label or
+  artist says nothing, the tempo of the other uploads in the same channel now decides between half
+  and double tempo. Most tempos that were marked unsettled are now settled.
+
+- **Fast tracks without genre are no longer halved on a guess.** A Soundcloud or YouTube track
+  measured above 205 BPM keeps its tempo unless its genre, label, artist or folder says it is
+  slower. Such a tempo is shown, but not marked reliable and not written into the file.
+
+- **The car's rating button shows the rating a track has when the web player queued it.**
+
+- **Miniplayer op de PC.** In Chrome en Edge opent een knop naast de wachtrij een klein venster
+  dat boven je andere vensters blijft, met de hoes, afspelen, vorige, volgende en de sterren.
+
+- Old tracks without a file from the weekly release packs can now be cleaned up, with their
+  listens and ratings moved to the track that has the file.
+
+- Tracks from a weekly release pack no longer stay behind without a file after the import, and
+  their listens and ratings move with them.
+
+- **Zwevende speler** in de Android-app: MuMa als klein venster boven andere apps.
+
+- **The backup check works from the LAN again.** `/health/backup` on the player's address now gives
+  the age of the newest database backup.
+
+- **Playlists deleted or given away in the player now follow in music-manager within an hour.**
+
+- **A new account with the name of a deleted one now starts empty in the player too.**
+
+- **Alleen-lezen-toegang tot de servers voor een agent.** Een agent kan op een server kijken
+  (mappen, logs, schijfruimte, back-ups) zonder iets te kunnen veranderen. Teun installeert het per
+  server met een script; tot dan verandert er niets.
+
+- **The music library can now have a nightly copy on a second NAS.** Deleted files stay on the copy,
+  and snapshots keep older versions. `/health/music-mirror` tells a monitor whether last night
+  worked. A person must install it on both NAS machines first.
+
+- **nginx trusts the client address only from the proxy you name.** Behind a reverse proxy on the
+  LAN, set `NGINX_TRUSTED_PROXY` in the player stack's env to that proxy's address before you
+  deploy, or all logins share one rate limit.
+
+- **A star changed quickly after another one no longer gets lost on its way to the library.**
+
+- **Remixers are now credited in the library**, so Wrapped can show your top remixer.
+
+- **Grote speler in split screen** in de Android-app, naast Google Maps.
+
+- **A new account with the name of a deleted one now starts empty.** The old ratings and listens
+  stay in the totals under `deleted-<id>`.
+
+- **MuMa Wrapped: the server side.** Your year in music, and the whole library's, as a set of cards.
+  The page itself follows in the web player.
+
+- **MuMa Wrapped in the web player.** Your year in music, and the library's, as a stack of cards
+  you can share as an image. From 1 December a tile on the home screen opens it.
+
 ## Global Version 0.99.0 (2026-11-11)
 
 - The README and the contributing and security guides are correct for someone who finds the project on GitHub. Security reports go through GitHub's private vulnerability reporting.

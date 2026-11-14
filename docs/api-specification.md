@@ -37,26 +37,6 @@ any more). `GET /api/auth/verify` itself still answers 403 for an unknown key. "
 means the admin role (`rbac.require_admin`); a named permission means `rbac.require_permission`.
 The system key passes every check. Routes not marked otherwise need any authenticated account.
 
-### ⏳ Deprecated (removal on 2026-11-01)
-No consumer was found in this repository for these routes (web player, MuMa Mobile, LMS, scripts,
-tools, tests/contracts -- see
-[docs/bug-reports/084-unused-endpoints-and-duplicate-normalizers.md](bug-reports/084-unused-endpoints-and-duplicate-normalizers.md)).
-They still work unchanged, are flagged `deprecated` in the OpenAPI schema, and the first call per
-route per process logs one `INFO` line (`music-manager.deprecation`, so it lands in `/api/events`)
-naming the path and the caller's address. A route that has not shown up there by 2026-11-01 is
-deleted; one that has is kept and gets a consumer entry in the bug report.
-- `GET /api/about`
-- `GET|POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}`
-- `POST /api/tagger/rescan/file`
-- `POST /api/songs/tracks/{track_id}/split`
-- `GET /api/downloaders/schedule/{source}`
-- `GET /api/users/permissions`
-- `POST /api/users/sync/lms-db` (use `/api/users/sync/muma-server`)
-
-Removed outright, because every caller already uses the target: `GET|PUT
-/api/users/{user_id}/lb-account` (use `/listenbrainz`), `POST /api/users/sync/lms` (use
-`/sync/muma-server`) and `POST /api/rating/server-event` (use `/lms-event`, which LMS calls).
-
 ### 👤 User & Settings Management
 - **GET `/users/`**: List all registered users (`users.read`). The rows do **not** carry `api_key`
   (removed in the RBAC-gaps fix: the api_key is password-equivalent).
@@ -73,7 +53,7 @@ Removed outright, because every caller already uses the target: `GET|PUT
   every account, the caller's own included; a plain account deleting itself used to pass and now
   gets `403 Missing permission: users.update`. An admin may still delete itself unless it is the
   last enabled admin (the 409 above, bug report 052).
-- **POST `/users/sync/muma-server`** (deprecated alias `/sync/lms-db`; `/sync/lms` removed): run the
+- **POST `/users/sync/muma-server`**: run the
   lms.db sync now and return `{"synced": <int>}`. Admin only; 409 while a sync (manual or the hourly
   loop) is running.
 - **GET `/users/{user_id}/settings/{app_id}`**: Retrieve application-specific settings (e.g., `app_id=ultrasonic` for MuMa Mobile's settings backup, `app_id=frontend` for the account settings the web player and the app share). Response: `{"settings": "<JSON string>", "updated_at": "<timestamp>"}`, or `{"settings": null}` when nothing is stored.
@@ -128,16 +108,15 @@ Removed outright, because every caller already uses the target: `GET|PUT
 - **GET `/api/rating/ratings/{username}`**: an account's ratings. Own username, or admin/system key.
 
 ### 🛠 Management & Rules
-- **GET `/api/rules`**, `/api/artists`, `/api/labels`, `/api/label-proposals`, `/api/config`, `/api/about` (deprecated),
+- **GET `/api/rules`**, `/api/artists`, `/api/labels`, `/api/label-proposals`, `/api/config`,
   `/api/stats`, the curation queues and the downloader account lists: any authenticated account.
 - **`rules.manage`**: `POST /api/rules/genres/{id}/decide`, `POST /api/rules/podcasts/{id}/decide|rename`,
   `POST|DELETE /api/rules/podcasts/{id}/aliases`, `POST /api/rules/artist-genres`,
   `DELETE /api/rules/artist-genres/{id}`, `POST /api/rules/label-genres`, `DELETE /api/rules/label-genres/{id}`,
-  `POST /api/rules/artist-redirects`, `DELETE /api/rules/artist-redirects/{id}` (both deprecated),
-  `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`, `POST /api/tagger/rescan/file`
-  (deprecated), `POST /api/tagger/tag/all|stop|file`, `POST /api/tagger/retag/run|restart`,
+  `POST /api/label-proposals/{id}/confirm|reject`, `POST /api/tagger/rescan`,
+  `POST /api/tagger/tag/all|stop|file`, `POST /api/tagger/retag/run|restart`,
   `POST /api/scanner/scan/all|file`, `POST /api/library/tracks/{id}/rerun-parse|redownload`,
-  `POST /api/library/rerun-parse-path`, `POST /api/songs/tracks/{track_id}/split` (deprecated).
+  `POST /api/library/rerun-parse-path`.
   Until issue #216 any account could start these.
 - **`GET /api/config`** returns the database settings only to a caller with `config.manage`. Any
   other account gets `{"VERSION": <version>}`, which is all Beheer reads from it to check a sign-in.
@@ -254,9 +233,6 @@ Removed outright, because every caller already uses the target: `GET|PUT
   the curation page -- has no decision any more. `cycles` are redirect loops. `chains` are redirects of
   more than one hop; the tagger follows those to the end since bug 080, so they are information and not
   counted in `count`. Fix a finding by deciding the name again on the Artiestcuratie page.
-- **POST `/api/rules/artist-redirects`** (`rules.manage`): additionally `400` when `corrected_name` is
-  rejected in `rules_artists`, or when the redirect would close a loop (a casing fix of the name itself is
-  not a loop).
 - **Admin**: `POST /api/soundcloud`, `DELETE /api/soundcloud/{name}`, `POST /api/youtube`,
   `DELETE /api/youtube/{name}`.
 - **GET `/api/system/containers`**: the installation's Docker containers. Admin only.
@@ -483,6 +459,28 @@ A genre or year filter can only test a track, so it excludes every unmatched lis
 - **GET `/years`**: `{unmatched, excluded_unmatched, matched, unknown: {listens, tracks}, years:
   [{year, listens, tracks}]}`, only the years that occur, oldest first. `years` plus `unknown` adds
   up to `matched`.
+
+### 🎁 MuMa Wrapped (`/api/wrapped`)
+The year-in-review page; the design is `docs/designs/wrapped-page/`. Every GET authenticates with
+`X-API-Key` and answers with `Cache-Control: private, max-age=300`. A period is `year`, or `from`
+and `to` (ISO dates, inclusive, at most three years apart); both or neither is 400.
+
+- **GET `/periods?tz=`**: `{years: [{year, listens, own_listens}], server_tz, today}`. The UTC
+  calendar years with any listen on the server, newest first, with the caller's own count.
+- **GET `/user`** (`year` | `from`+`to`, `tz`, `username`): the caller's own tab in zone `tz`. A
+  user key that names another account is 403; the system key must name one (400 without).
+- **GET `/library`** (`year` | `from`+`to`): every account's listens, the collection and the
+  system, in the server zone (config `wrapped_server_tz`). No card holds a username.
+- Both tabs answer `{scope, format, tz, period: {key, from, to, year, running, data_until},
+  generated_at, coverage, cards: [{id, status, reason?, basis?, data?}]}`. `status` is `ok`,
+  `empty`, `below_minimum` or `blocked`; only `ok` cards have `data`. Every track a card names
+  has `track_id`, `file_path` (muma's mount) and `library_path` (the path LMS's
+  `getSongsByPath` takes). A tab is computed once and
+  stored: a running period for 24 hours, a closed one until a refresh. A first computation over
+  20 seconds is 503 with `Retry-After: 20`, and the result is stored when it finishes.
+- **POST `/refresh`** (permission `wrapped.refresh`, admin only), JSON body `{scope: 'user' |
+  'library', year | from+to, username?}`: deletes the stored tabs of that period (one account's,
+  or all) and computes them again in the background. `202 {queued: n}`.
 
 ### 🔁 LMS listen reconcile (admin)
 Repairs listen times bug report 039 moved, from LMS's own `listen` table. Rules and the file-path

@@ -114,25 +114,6 @@ class ConfigAndDocsTest(ManagementTestCase):
             body = self.client.get('/api/config', headers=self.headers).json()
         self.assertEqual(body['VERSION'], '1.3.0')
 
-    def test_the_about_page_is_rendered_from_the_readme(self):
-        with (
-            patch.object(management_router.os.path, 'exists', return_value=True),
-            patch('builtins.open', unittest.mock.mock_open(read_data='# Title')),
-            patch.object(management_router, 'markdown') as md,
-        ):
-            md.markdown.return_value = '<h1>Title</h1>'
-            response = self.client.get('/api/about', headers=self.headers)
-        self.assertIn('<h1>Title</h1>', response.text)
-
-    def test_a_missing_readme_still_renders_a_page(self):
-        with (
-            patch.object(management_router.os.path, 'exists', return_value=False),
-            patch.object(management_router, 'markdown') as md,
-        ):
-            md.markdown.return_value = '<h1>Music Manager</h1>'
-            response = self.client.get('/api/about', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-
     def test_the_release_notes_and_changelog_are_served(self):
         with (
             patch.object(management_router, 'get_release_notes', return_value='notes'),
@@ -500,14 +481,6 @@ class ProxyAndRescanTest(ManagementTestCase):
             body = self.client.post('/api/tagger/rescan', headers=self.headers).json()
         self.assertEqual(body['status'], 'ok')
         helper.return_value.mark_for_rescan.assert_called_once_with(reason='rescan_all')
-
-    def test_a_single_file_can_be_flagged_for_a_retag(self):
-        with patch.object(management_router, 'ProcessedFilesHelper') as helper:
-            body = self.client.post(
-                '/api/tagger/rescan/file', headers=self.headers, json={'filepath': '/music/a.mp3'}
-            ).json()
-        self.assertEqual(body['status'], 'ok')
-        helper.return_value.mark_for_rescan.assert_called_once_with('/music/a.mp3', reason='manual')
 
 
 class PodcastCurationQueueTest(ManagementTestCase):
@@ -1156,90 +1129,3 @@ class RuleChangeInvalidationTest(ManagementTestCase):
                 '/api/rules/genres/1/decide', json={'state': management_router.WHITE}, headers=self.headers
             )
         self.assertEqual(response.status_code, 200)
-
-
-class ArtistRedirectTest(ManagementTestCase):
-    """rules_ignored_artists had no write path at all before this."""
-
-    def test_the_redirects_are_listed(self):
-        self.cursor.fetchall.return_value = [{'id': 1, 'name': 'Ran D', 'corrected_name': 'Ran-D'}]
-        response = self.client.get('/api/rules/artist-redirects', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()[0]['corrected_name'], 'Ran-D')
-
-    def test_saving_a_redirect_marks_the_old_name_for_retag(self):
-        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
-            response = self.client.post(
-                '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
-            )
-        self.assertEqual(response.status_code, 200)
-        invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
-
-    def test_a_new_name_is_inserted(self):
-        self.cursor.fetchone.return_value = None
-        self.client.post(
-            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
-        )
-        self.assertTrue(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
-
-    def test_a_known_name_is_updated_rather_than_duplicated(self):
-        self.cursor.fetchone.return_value = {'id': 1}
-        self.client.post(
-            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
-        )
-        self.assertTrue(any('UPDATE rules_ignored_artists' in s for s in self.statements()))
-        self.assertFalse(any('INSERT INTO rules_ignored_artists' in s for s in self.statements()))
-
-    def test_a_redirect_without_a_correction_stores_null(self):
-        self.cursor.fetchone.return_value = None
-        self.client.post('/api/rules/artist-redirects', json={'name': 'Various Artists'}, headers=self.headers)
-        insert = [
-            call for call in self.cursor.execute.call_args_list if 'INSERT INTO rules_ignored_artists' in call.args[0]
-        ][0]
-        self.assertEqual(insert.args[1], ('Various Artists', None))
-
-    def test_a_nameless_redirect_is_rejected(self):
-        response = self.client.post('/api/rules/artist-redirects', json={'name': '   '}, headers=self.headers)
-        self.assertEqual(response.status_code, 400)
-
-    def test_a_redirect_to_a_rejected_artist_is_refused(self):
-        """Bug 080: the Tagger tab could still point a name at one curation had rejected."""
-        self.cursor.fetchone.return_value = {'state': 'black'}
-        response = self.client.post(
-            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Premiere'}, headers=self.headers
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(any(s.startswith(('INSERT', 'UPDATE')) for s in self.statements()))
-
-    def test_a_redirect_that_closes_a_loop_is_refused(self):
-        self.cursor.fetchone.return_value = None
-        self.cursor.fetchall.return_value = [{'name': 'Ran-D', 'corrected_name': 'Ran D'}]
-        response = self.client.post(
-            '/api/rules/artist-redirects', json={'name': 'Ran D', 'corrected_name': 'Ran-D'}, headers=self.headers
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('loop', response.json()['detail'])
-
-    def test_a_casing_fix_is_not_a_loop(self):
-        self.cursor.fetchone.return_value = None
-        self.cursor.fetchall.return_value = [{'name': 'Angerfst', 'corrected_name': 'angerfist'}]
-        response = self.client.post(
-            '/api/rules/artist-redirects',
-            json={'name': 'angerfist', 'corrected_name': 'Angerfist'},
-            headers=self.headers,
-        )
-        self.assertEqual(response.status_code, 200)
-
-    def test_deleting_a_redirect_uses_the_name_from_before_the_delete(self):
-        self.cursor.fetchone.return_value = {'name': 'Ran D'}
-        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
-            response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        invalidator.invalidate_by_term.assert_called_once_with('Ran D', 'artist_redirect')
-
-    def test_deleting_a_redirect_that_no_longer_exists_marks_nothing(self):
-        self.cursor.fetchone.return_value = None
-        with patch.object(rescan_invalidator_module, 'rescan_invalidator') as invalidator:
-            response = self.client.delete('/api/rules/artist-redirects/4', headers=self.headers)
-        self.assertEqual(response.status_code, 200)
-        invalidator.invalidate_by_term.assert_not_called()

@@ -345,8 +345,8 @@ def _mirror_to_tagger(cursor, name: str, state: str, canonical: str | None) -> N
 def _redirect_dependents(cursor, target: str) -> list[str]:
     """Names whose correction points at `target`, from either table, case-insensitively.
 
-    Both tables, because `rules_ignored_artists` also holds redirects typed on the
-    Tagger tab (`/api/rules/artist-redirects`) that never had a curation decision.
+    Both tables, because `rules_ignored_artists` also holds redirects typed on the old
+    Tagger tab that never had a curation decision.
     """
     cursor.execute(
         'SELECT name FROM rules_artists WHERE state = %s AND LOWER(canonical_name) = LOWER(%s) '

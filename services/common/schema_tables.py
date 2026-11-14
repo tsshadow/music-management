@@ -489,6 +489,8 @@ CREATE TABLE IF NOT EXISTS `library_tracks` (
   `release_date` varchar(10) DEFAULT NULL,
   `form` varchar(16) DEFAULT NULL,
   `performance_date` varchar(10) DEFAULT NULL,
+  `arrived_at` datetime DEFAULT NULL,
+  `arrived_source` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `track_uid` (`track_uid`),
   KEY `idx_created_at` (`created_at`),
@@ -496,7 +498,8 @@ CREATE TABLE IF NOT EXISTS `library_tracks` (
   KEY `idx_tracks_normalized_base_title` (`normalized_base_title`),
   KEY `idx_tracks_work_id` (`work_id`),
   KEY `idx_tracks_primary_artist` (`primary_artist_id`),
-  KEY `idx_tracks_form` (`form`)
+  KEY `idx_tracks_form` (`form`),
+  KEY `idx_tracks_arrived_at` (`arrived_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 """,
     ),
@@ -1577,6 +1580,27 @@ CREATE TABLE IF NOT EXISTS `library_track_channels` (
   KEY `idx_track_channel_channel` (`channel_id`),
   CONSTRAINT `library_track_channels_ibfk_1` FOREIGN KEY (`track_id`) REFERENCES `library_tracks` (`id`) ON DELETE CASCADE,
   CONSTRAINT `library_track_channels_ibfk_2` FOREIGN KEY (`channel_id`) REFERENCES `channels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+""",
+    ),
+    # One computed Wrapped page per scope, account, period and time zone (docs/designs/wrapped-page/).
+    # username is '' for the library scope. A closed period is frozen; a running one is recomputed
+    # after a day. The payload is the JSON the endpoint returns, so a read is one key lookup.
+    (
+        'wrapped_snapshots',
+        """
+CREATE TABLE IF NOT EXISTS `wrapped_snapshots` (
+  `scope` enum('user','library') NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `period_key` varchar(32) NOT NULL,
+  `tz` varchar(64) NOT NULL,
+  `data_until` datetime NOT NULL,
+  `closed` tinyint(1) NOT NULL DEFAULT 0,
+  `generated_at` datetime NOT NULL,
+  `format` smallint(6) NOT NULL,
+  `payload` longtext NOT NULL,
+  PRIMARY KEY (`scope`,`username`,`period_key`,`tz`),
+  KEY `idx_wrapped_generated` (`generated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 """,
     ),

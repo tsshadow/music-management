@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.22.0] - 2026-11-14
+
+### Added
+- **MuMa can float as a small window above other apps.** "Zwevende speler" in the Now Playing
+  menu shrinks MuMa to a 16:9 window with the cover, the title and the artist, and Android's own
+  previous, play/pause and next buttons. With the setting "Zwevende speler bij verlaten" (Apparaat
+  > Afspelen, off by default) MuMa floats by itself when you leave it while music plays. The
+  activity declares `supportsPictureInPicture`, and its window parameters follow every play/pause
+  and track change (issue #178, `docs/designs/miniplayer/`).
+
+- **In split screen next to Google Maps, MuMa shows a large compact player.** When MuMa has a
+  split-screen half lower than 480px (a phone in portrait), the half shows the cover, the title
+  and an 80px play button between 64px previous and next buttons, with no stars. "Navigeren naast
+  MuMa" opens Google Maps in the other half, with no destination, and is only there when Maps is
+  installed. "Volledige app" shows the normal screens until the split changes. The screen stays on
+  while the compact player shows and music plays. The shell reports the window mode
+  (`windowModeChanged`), and `setKeepScreenOn` has a separate `keepOn` flag that car mode does not
+  touch (issue #179, `docs/designs/miniplayer/`).
+
+- **A Wrapped card can be shared from the app.** The share button on the Wrapped page opens the
+  Android share sheet with the card as a PNG. The image goes through the app's own FileProvider
+  (`cache/shared/`, one file at a time), so only the app you pick can read it.
+
+### Fixed
+- **A tap on the car's rating button wrote 1 over the real rating.** A queue from the web player
+  had no ratings, the app read the missing rating as 0, and the first tap set 1. On 2026-11-12 a
+  track rated 4 got 1 to 5 from the car in one second. The app now keeps "not known" apart from 0,
+  asks the server for the rating when a track starts, and on a tap before that it finds the rating
+  first (server, the app's cached copy, then the downloaded library). When no source knows it,
+  the tap does nothing. Ratings also reach the downloaded library, so offline car lists show the
+  last rating (issue #256, `docs/designs/car-rating-state/`).
+
+## [7.21.0] - 2026-11-11
+
+### Added
+- **A rating given while the server is out of reach is kept and sent later.** In offline mode, or
+  when a request gets no answer from the server, the rating waits in a queue on the phone, the same
+  way listens do, and goes out as soon as the server answers again, also after a restart. The last
+  rating per track wins: rate a track 3 and then 5 offline, and the server gets only the 5. Before
+  this, the stars jumped back and the rating was lost (#149).
+- **Android Auto shows the downloaded music when the server is down, also without "Offline
+  verder".** A car that connects with the home server off (a cold start in the car, or a phone on
+  "Wachten op server") checks the server once, at most 3 s, and then browses the downloaded library
+  instead of timing out on each list. While it browses it asks again every 20 s and goes back to the
+  server when it answers (#149).
+
+- **The app asks which server it talks to.** A fresh install opens on a screen that asks for the
+  address of your MuMa server, checks it, and only then shows the login page. Type
+  `music.example.net` and the app makes it `https://music.example.net`; only `https` is accepted,
+  also on a home network. The check tells you what is wrong: no network, nothing answers, an
+  untrusted certificate, no music server at that address, or a music server without MuMa behind it,
+  where "Toch doorgaan" stores the address anyway. A build made for one server suggests that server
+  on the screen; a build with the example default suggests nothing (#192).
+- **Change the server later.** The login page shows the server's host with "Wijzigen", and Settings
+  > Apparaat starts with a "Server" row. A change to another server asks first, signs you out and
+  clears the cached library; a change in spelling only keeps the session (#192).
+- **Updating keeps your server and your session.** An install that was already used gets the
+  server it used stored once, so the update shows no new screen. "Sign in with Google" shows only
+  for the server the app was built for (#192).
+
+### Security
+- **The app no longer accepts a server certificate it cannot check, and no longer keeps the API
+  key in the old server table.** The trust-all TLS path behind `allowSelfSignedCertificate` is
+  gone: the client always checks the certificate. On start the app blanks `apiKey` in the legacy
+  `ServerSetting` table next to the password it already blanked; the key in use lives in the
+  encrypted settings (#227).
+
 ## [7.20.1] - 2026-11-07
 
 ### Fixed

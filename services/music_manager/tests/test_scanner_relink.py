@@ -34,6 +34,7 @@ def a_song(publisher=None, title='Raise Your Fist'):
     song.library_artists.return_value = ['Angerfist']
     song.publisher.return_value = publisher
     song.title.return_value = title
+    song.remixers.return_value = []
     song.length.return_value = 300
     song.rules_genres.return_value = []
     song.original_artist.return_value = None
@@ -75,6 +76,42 @@ class ProcessFileMoveTest(unittest.TestCase):
         self.conn.begin.assert_called_once()
         self.conn.commit.assert_called_once()
         self.conn.rollback.assert_not_called()
+
+    def test_a_remixer_gets_a_remixer_row_next_to_its_featuring_row(self):
+        song = a_song()
+        song.library_artists.return_value = ['Angerfist', 'Miss K8']
+        song.remixers.return_value = ['Miss K8']
+        self.cursor.fetchone.side_effect = [
+            {'id': 1, 'file_mtime': 1.0, 'file_size': 1, 'track_id': 5},
+            {'id': 3},  # Angerfist
+            {'id': 4},  # Miss K8
+            {'id': 4},  # Miss K8 again, as remixer
+            {'id': 5},  # track
+        ]
+        with (
+            patch.object(scanner_router, 'ReadonlySong', return_value=song),
+            patch.object(self.manager, '_settle_previous_track'),
+        ):
+            self.manager.process_file(self.conn, '/music/a.mp3')
+        credits = [
+            call.args[1]
+            for call in self.cursor.execute.call_args_list
+            if 'INSERT IGNORE INTO library_track_artists' in call.args[0]
+        ]
+        self.assertEqual(credits, [(5, 3, 'primary', 0), (5, 4, 'featuring', 1), (5, 4, 'remixer', 0)])
+
+    def test_a_moving_file_carries_the_earlier_arrival_to_its_new_track(self):
+        with (
+            patch.object(self.manager, '_settle_previous_track'),
+            patch.object(scanner_router, 'carry_arrival') as carry,
+        ):
+            self.run_with_previous_track(2)
+        carry.assert_called_once_with(self.cursor, 2, 5)
+
+    def test_a_file_that_stays_carries_no_arrival(self):
+        with patch.object(scanner_router, 'carry_arrival') as carry:
+            self.run_with_previous_track(5)
+        carry.assert_not_called()
 
     def test_a_failed_relink_rolls_the_move_back(self):
         with (

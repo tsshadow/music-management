@@ -76,6 +76,31 @@ class RatingManagerTest {
         verify(exactly = 1) { musicService.setRating("track-4", 4) }
     }
 
+    // Issue #256: the car rated 5, the web player then 4, and the next tap in the car is 5 again.
+    @Test
+    fun `the same rating is sent again after a rating from elsewhere`() {
+        val manager = ratingManager()
+
+        manager.submitRating(RatingUpdate("track-9", StarRating(5, 5f)))
+        verify(timeout = TIMEOUT_MS) { musicService.setRating("track-9", 5) }
+
+        manager.forgetLast("track-9")
+        manager.submitRating(RatingUpdate("track-9", StarRating(5, 5f)))
+        verify(timeout = TIMEOUT_MS, exactly = 2) { musicService.setRating("track-9", 5) }
+    }
+
+    @Test
+    fun `a rating from elsewhere for another track keeps the duplicate check`() {
+        val manager = ratingManager()
+
+        manager.submitRating(RatingUpdate("track-10", StarRating(5, 3f)))
+        verify(timeout = TIMEOUT_MS) { musicService.setRating("track-10", 3) }
+
+        manager.forgetLast("track-11")
+        manager.submitRating(RatingUpdate("track-10", StarRating(5, 3f)))
+        verify(exactly = 1) { musicService.setRating("track-10", 3) }
+    }
+
     @Test
     fun `a delivered rating leaves the queue empty and is shown at once`() {
         val manager = ratingManager()

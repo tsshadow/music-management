@@ -142,4 +142,33 @@ class QueueMarshallingTest {
         parsed.title.shouldBeNull()
         parsed.duration.shouldBeNull()
     }
+
+    // Issue #256: the car's rating button starts from this, and a guessed 0 made its first tap
+    // write 1 over a real rating.
+    @Test
+    fun `the rating the web knows crosses to the track`() {
+        val json = JSONObject().apply {
+            put("id", "42")
+            put("userRating", 4)
+        }
+
+        val parsed = queueTrackOf(json)!!
+        parsed.userRating shouldBeEqualTo 4
+        parsed.toTrack(serverId = 1).userRating shouldBeEqualTo 4
+    }
+
+    @Test
+    fun `a cleared rating crosses as 0`() {
+        queueTrackOf(JSONObject().put("id", "42").put("userRating", 0))!!.userRating shouldBeEqualTo 0
+    }
+
+    @Test
+    fun `a missing, null or impossible rating is unknown, not 0`() {
+        queueTrackOf(JSONObject().put("id", "42"))!!.userRating.shouldBeNull()
+        queueTrackOf(JSONObject().put("id", "42").put("userRating", JSONObject.NULL))!!.userRating.shouldBeNull()
+        queueTrackOf(JSONObject().put("id", "42").put("userRating", 9))!!.userRating.shouldBeNull()
+        queueTrackOf(JSONObject().put("id", "42").put("userRating", 2.5))!!.userRating.shouldBeNull()
+        queueTrackOf(JSONObject().put("id", "42").put("userRating", "4"))!!.userRating.shouldBeNull()
+        queueTrackOf(JSONObject().put("id", "42"))!!.toTrack(serverId = 1).userRating.shouldBeNull()
+    }
 }

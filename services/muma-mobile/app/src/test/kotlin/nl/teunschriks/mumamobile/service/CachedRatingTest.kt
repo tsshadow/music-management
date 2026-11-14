@@ -60,4 +60,18 @@ class CachedRatingTest {
 
         track.userRating `should be equal to` 0
     }
+
+    // The car's rating lookup reads these copies when the server cannot be reached (issue #256).
+    @Test
+    fun `a cached copy of the track is found, also inside a list`() {
+        val track = Track(id = "42", userRating = 3)
+        val homeList: List<Any> = listOf("a header", directoryOf(Track(id = "41"), track))
+
+        findCachedTrack(homeList, "42") `should be equal to` track
+    }
+
+    @Test
+    fun `a track that is not cached is not found`() {
+        findCachedTrack(directoryOf(Track(id = "41")), "42") `should be equal to` null
+    }
 }

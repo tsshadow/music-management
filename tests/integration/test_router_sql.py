@@ -36,7 +36,6 @@ READ_ENDPOINTS = [
     # exercised by ScrobbleReconcileSqlTest below and tests/integration/test_scrobble_reconcile.py.
     ('/api/scrobble/reconcile/lms/status', 200),
     ('/api/users/roles', 200),
-    ('/api/users/permissions', 200),
     ('/api/users/1/dynamic-playlists', 200),
     ('/api/users/1/identities', 200),
     ('/api/users/1/listenbrainz', 200),
@@ -85,7 +84,6 @@ READ_ENDPOINTS = [
     ('/api/curation/genres', 200),
     ('/api/curation/genres?q=hard', 200),
     ('/api/rules/label-genres', 200),
-    ('/api/rules/artist-redirects', 200),
     ('/api/tagger/retag/pending', 200),
     # The `__TODO` label repair's dry run pages tagger_processed_files by primary key.
     ('/api/tagger/todo-label-repair', 200),
@@ -98,8 +96,6 @@ READ_ENDPOINTS = [
     # timestamp the YouTube table only has since migrate_v31.
     ('/api/downloaders/coverage/soundcloud', 200),
     ('/api/downloaders/coverage/youtube', 200),
-    # Deprecated; reads downloads_account_checks through the downloader's own connector.
-    ('/api/downloaders/schedule/soundcloud', 200),
     ('/api/channel-links/proposals', 200),
     ('/api/channel-links/proposals?status=rejected&kind=artist', 200),
     ('/api/channel-links/proposals?status=maybe', 400),
@@ -195,6 +191,15 @@ READ_ENDPOINTS = [
     ('/api/songs/curation?sort=title', 200),
     ('/api/songs/ranking', 200),
     ('/api/songs/999999', 404),
+    # MuMa Wrapped (docs/designs/wrapped-page/): the year list, both tabs for a year and a
+    # range, and the requests the router turns away before any SQL.
+    ('/api/wrapped/periods?tz=Europe/Amsterdam', 200),
+    ('/api/wrapped/user?year=2026&username=root&tz=Europe/Amsterdam', 200),
+    ('/api/wrapped/user?from=2026-03-01&to=2026-06-30&username=root', 200),
+    ('/api/wrapped/library?year=2026', 200),
+    ('/api/wrapped/library?from=2026-03-01&to=2026-06-30', 200),
+    ('/api/wrapped/user?year=2026', 400),
+    ('/api/wrapped/library?from=2026-06-30&to=2026-03-01', 400),
 ]
 
 
@@ -452,6 +457,43 @@ class UserLifecycleTest:
         deleted = api.delete(f'/api/users/{user_id}', headers=headers)
         assert deleted.status_code == 200, deleted.text
         assert {row['username'] for row in api.get('/api/users', headers=headers).json()} == {'root'}
+
+    def test_a_recreated_username_starts_empty_and_the_history_stays(self, api, headers, db):
+        """Issue #220: the deleted account's rows move to deleted-<id>, none reach the new account."""
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        user_id = api.post('/api/users', headers=headers, json={'username': 'user'}).json()['id']
+        for statement in (
+            "INSERT INTO rating_tracks (entity_type, entity_id, username, rating) VALUES ('track', 'uid-1', 'user', 5)",
+            "INSERT INTO scrobble_listens (username, listened_at) VALUES ('user', '2026-11-01 12:00:00')",
+            "INSERT INTO scrobble_unmatched_listens (username, listened_at, artist_name, track_title) "
+            "VALUES ('user', '2026-11-01 12:00:00', 'Nobody', 'Nothing')",
+            "INSERT INTO scrobble_imports (username, lb_username, status) VALUES ('user', 'lb-user', 'done')",
+            "INSERT INTO feeds_snapshot (username, slug, feed_date, generated_at, params_key, payload) "
+            "VALUES ('user', 'daily', '2026-11-01', '2026-11-01 06:00:00', 'k', '[]')",
+            "INSERT INTO feeds_profile_exclusions (username, entity_type, entity_name) VALUES ('user', 'artist', 'X')",
+        ):
+            run_sql(db, statement)
+
+        assert api.delete(f'/api/users/{user_id}', headers=headers).status_code == 200
+        assert api.post('/api/users', headers=headers, json={'username': 'user'}).status_code == 200
+
+        tables = (
+            'rating_tracks',
+            'scrobble_listens',
+            'scrobble_unmatched_listens',
+            'scrobble_imports',
+            'feeds_snapshot',
+            'feeds_profile_exclusions',
+        )
+        for table in tables:
+            assert not run_sql(db, f"SELECT 1 FROM {table} WHERE username = 'user'"), table
+            kept = run_sql(db, f'SELECT username FROM {table}')
+            assert [row['username'] for row in kept] == [f'deleted-{user_id}'], table
+
+    def test_a_tombstone_name_cannot_be_taken_by_a_new_account(self, api, headers, db):
+        api.post('/api/auth/setup', json={'username': 'root', 'password': 'hunter2'})
+        created = api.post('/api/users', headers=headers, json={'username': 'Deleted-12'})
+        assert created.status_code == 409, created.text
 
     def test_approving_a_google_request_whose_email_is_taken_is_a_409(self, api, headers, db):
         """The e-mail becomes the username; an account already carrying it, in any case,
@@ -1401,22 +1443,6 @@ class ChannelLinksTest:
         assert [(bool(r['needs_rescan']), r['rescan_reason']) for r in rows] == [(True, 'channel_link')]
 
 
-class DownloaderScheduleTest:
-    """The deprecated schedule read, against a checks table that holds a row."""
-
-    def test_the_deprecated_schedule_reports_a_checked_account(self, api, headers, db):
-        # An empty table hid a 500 here: each row came back as an AccountCheck (#171).
-        run_sql(
-            db,
-            "INSERT INTO downloads_account_checks (source, account, last_checked_at)"
-            " VALUES ('soundcloud', 'traxtorm', '2026-07-30 12:00:00')",
-        )
-        db.commit()
-        response = api.get('/api/downloaders/schedule/soundcloud', headers=headers)
-        assert response.status_code == 200
-        assert response.json()['accounts'] == [{'account': 'traxtorm', 'last_checked_at': '2026-07-30T12:00:00'}]
-
-
 class ScrobblingTest:
     def test_a_listen_for_a_known_track_is_matched(self, api, headers, db):
         with db.cursor() as cursor:
@@ -1569,14 +1595,6 @@ class ArtistRedirectsTest:
         assert [(row['name'], row['target']) for row in report['dangling']] == [('Y', 'Premiere')]
         assert report['cycles'] == [['Loop A', 'Loop B']]
         assert report['count'] == 2
-
-    def test_the_tagger_tab_refuses_a_rejected_target(self, api, headers, db):
-        with db.cursor() as cursor:
-            cursor.execute("INSERT INTO rules_artists (name, state) VALUES ('Premiere', 'black')")
-        refused = api.post(
-            '/api/rules/artist-redirects', headers=headers, json={'name': 'Y', 'corrected_name': 'Premiere'}
-        )
-        assert refused.status_code == 400, refused.text
 
 
 class ArtistImagesTest:
@@ -3069,6 +3087,39 @@ class BpmBrowseSqlTest:
         run_sql(db, "DELETE FROM library_track_bpm_manual WHERE track_uid = 'uid-tag-Manual'")
         assert manual in {row['track_id'] for row in store.due(config, [eps], 100)}
 
+    def test_the_tag_writeback_never_writes_a_weak_value(self, db):
+        """Issue #153: an unsettled estimate or a fold the general priors alone decided is never
+        written -- not at a low threshold, not even into a file this step wrote before."""
+        from services.music_manager.bpm import octave, tag_writeback
+
+        eps = '/mnt/music/EPs'
+        weak = {
+            'Unsettled': (0, octave.EVIDENCE_UNSETTLED),
+            'Neutral Fold': (1, octave.EVIDENCE_NEUTRAL),
+            'Path Fold': (1, octave.EVIDENCE_PATH),
+        }
+        ids = {}
+        for title, (corrected, evidence) in {**weak, 'Artist Fold': (1, octave.EVIDENCE_ARTIST)}.items():
+            ids[title] = self._measured(db, title, f'{eps}/Label/REL4/{title}.mp3', bpm=234.0, confidence=0.9)
+            run_sql(
+                db,
+                'UPDATE library_track_bpm SET octave_corrected = %s, fold_evidence = %s WHERE track_uid = %s',
+                (corrected, evidence, f'uid-tag-{title}'),
+            )
+        store = tag_writeback.BpmTagStore(connect=_connect)
+        low = tag_writeback.read_settings({'bpm_tag_writeback_min_confidence': 0}.get)
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert ids['Artist Fold'] in due
+        assert not due & {ids[title] for title in weak}
+        run_sql(
+            db,
+            "UPDATE library_track_bpm SET tag_action = 'written', tag_bpm = 117.0 WHERE track_uid IN (%s, %s, %s)",
+            tuple(f'uid-tag-{title}' for title in weak),
+        )
+        due = {row['track_id'] for row in store.due(low, [eps], 100)}
+        assert not due & {ids[title] for title in weak}
+        assert store.remaining(low, [eps]) == 1
+
     def test_the_tag_writeback_leaves_a_queued_tagger_row_queued(self, db):
         from datetime import datetime
         from types import SimpleNamespace
@@ -3235,6 +3286,18 @@ class BpmBrowseSqlTest:
         assert float(row['raw_confidence']) == 0.5 and float(row['confidence']) <= 0.5
         assert refold.refold(_connect, stored, track_ids=[hazes]).written == 0  # settled
 
+        # Issue #241: an uploader folder's prior halves a genre-less upload read at 348; the
+        # upload itself is too far from the folder's mean to be one of its training rows.
+        for n in range(6):
+            measured(f'Liquid {n}', 174.0, 174.0, f'/mnt/music/Youtube/Liquicity/l{n}.m4a', by_artist=False)
+        upload = measured('Liquid Fast', 348.0, 348.0, '/mnt/music/Youtube/Liquicity/fast.m4a', by_artist=False)
+        stored = priors.recompute(_connect, datetime.now())
+        assert stored.folder['youtube/liquicity'].samples == 6
+        assert refold.evidence_for(_connect, [upload])[upload]['raw_bpm'] == 348.0
+        refold.refold(_connect, stored, track_ids=[upload])
+        row = run_sql(db, "SELECT * FROM library_track_bpm WHERE track_uid = 'uid-bpm-Liquid Fast'")[0]
+        assert (float(row['bpm']), row['octave_corrected'], row['fold_evidence']) == (174.0, 1, octave.EVIDENCE_FOLDER)
+
         effective_table.sync(_connect, track_ids=[hazes])
         url = f'/api/library/bpm/tracks/{hazes}/manual'
         response = api.put(url, json={'factor': 2}, headers=headers)
@@ -3368,3 +3431,78 @@ class RadioStationsSqlTest:
 
         assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 200
         assert api.delete('/api/radio/stations/slam', headers=headers).status_code == 404
+
+
+class WrappedTest:
+    """MuMa Wrapped against real rows: every card's SQL runs, and the Library tab names nobody.
+
+    READ_ENDPOINTS proves the queries parse on an empty schema, where most cards are left out
+    before their SQL runs. This seeds a track with a genre, a label and a tempo, listens from
+    two accounts this year and one unmatched listen, so the card builders reach their queries.
+    """
+
+    def _seed(self, db):
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO library_artists (name, normalized_name) VALUES ('Angerfist', 'angerfist')")
+            artist_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO rules_genres (name, normalized_name, state) VALUES ('Hardcore', 'hardcore', 'white')"
+            )
+            genre_id = cursor.lastrowid
+            cursor.execute("INSERT INTO library_labels (name) VALUES ('Masters of Hardcore')")
+            label_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, release_date,'
+                " arrived_at, arrived_source) VALUES ('uid-w', 'Raise Your Fist', 300, %s, '2026-01-02',"
+                " UTC_TIMESTAMP(), 'label')",
+                (artist_id,),
+            )
+            track_id = cursor.lastrowid
+            cursor.execute(
+                'INSERT INTO library_track_genres (track_id, genre_id) VALUES (%s, %s)', (track_id, genre_id)
+            )
+            cursor.execute(
+                'INSERT INTO library_track_labels (track_id, label_id) VALUES (%s, %s)', (track_id, label_id)
+            )
+            cursor.execute(
+                'INSERT INTO library_media_files (file_path, file_path_hash, track_id)'
+                " VALUES ('/music/EPs/MOH/a.flac', SHA2('/music/EPs/MOH/a.flac', 256), %s)",
+                (track_id,),
+            )
+            for i, username in enumerate(['root'] * 4 + ['deleted-7'] * 3):
+                cursor.execute(
+                    'INSERT INTO scrobble_listens (track_id, listened_at, username, match_method, played_secs)'
+                    " VALUES (%s, UTC_TIMESTAMP() - INTERVAL %s MINUTE, %s, 'exact', 280)",
+                    (track_id, (i + 1) * 10, username),
+                )
+            cursor.execute(
+                'INSERT INTO scrobble_unmatched_listens (artist_name, track_title, listened_at, username)'
+                " VALUES ('Nobody', 'Nothing', UTC_TIMESTAMP() - INTERVAL 5 MINUTE, 'root')"
+            )
+
+    def _year(self, api, headers):
+        return api.get('/api/wrapped/periods', headers=headers).json()['years'][0]['year']
+
+    def test_the_user_tab_counts_only_the_readers_listens(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        body = api.get(f'/api/wrapped/user?year={year}&username=root', headers=headers).json()
+        cards = {card['id']: card for card in body['cards']}
+        assert cards['title']['status'] == 'ok'
+        assert body['coverage']['listens'] == 5
+
+    def test_the_library_tab_counts_every_account_and_names_none(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        response = api.get(f'/api/wrapped/library?year={year}', headers=headers)
+        assert response.status_code == 200, response.text[:400]
+        assert response.json()['coverage']['listens'] == 8
+        assert 'root' not in response.text and 'deleted-7' not in response.text
+
+    def test_a_refresh_drops_the_stored_tab(self, api, headers, db):
+        self._seed(db)
+        year = self._year(api, headers)
+        api.get(f'/api/wrapped/user?year={year}&username=root', headers=headers)
+        assert run_sql(db, 'SELECT COUNT(*) AS n FROM wrapped_snapshots')[0]['n'] == 1
+        refreshed = api.post('/api/wrapped/refresh', headers=headers, json={'scope': 'user', 'year': year})
+        assert refreshed.status_code == 202, refreshed.text

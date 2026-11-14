@@ -224,6 +224,23 @@ def _log_summary(result: PurgeResult, cap: int) -> None:
         )
 
 
+def prune_wrapped_ranges(conn) -> None:
+    """Delete stored Wrapped custom ranges older than 30 days; a failure is logged, not raised.
+
+    Imported here rather than at the top: the Wrapped package pulls in the listening router, which
+    this thread module has no other use for.
+    """
+    from services.music_manager.wrapped.snapshots import prune
+
+    try:
+        removed = prune(conn)
+    except Exception as exc:
+        logger.warning('Wrapped snapshot prune failed: %s', exc)
+        return
+    if removed:
+        logger.info('Wrapped: removed %d stored custom range(s) older than 30 days', removed)
+
+
 def retention_tick() -> float | None:
     """One purge of events and stale refresh tokens; raises on a database failure so run_forever can log it and back off.
 
@@ -237,6 +254,8 @@ def retention_tick() -> float | None:
         result = purge_once(conn)
         # The same daily housekeeping pass caps user_refresh_tokens, which every login grows.
         purge_refresh_tokens(conn)
+        # And the Wrapped custom ranges nobody computed for a month (wrapped/snapshots.py, rule 4).
+        prune_wrapped_ranges(conn)
     finally:
         conn.close()
     return None if result.complete else RETRY_SOONER_SECONDS

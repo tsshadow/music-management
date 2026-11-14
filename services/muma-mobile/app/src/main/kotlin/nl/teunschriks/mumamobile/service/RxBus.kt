@@ -124,6 +124,14 @@ class RxBus {
         val ratingPublishedObservable: Observable<RatingUpdate> =
             ratingPublished
 
+        // A rating learned from elsewhere -- the web player, or the server on a track change --
+        // that the playback service applies to its queue and the car's rating button. Never
+        // written to the server again (docs/designs/car-rating-state/).
+        val ratingKnown: PublishSubject<KnownRating> =
+            PublishSubject.create()
+        val ratingKnownObservable: Observable<KnownRating> =
+            ratingKnown.observeOn(mainThread())
+
         // Commands
         val dismissNowPlayingCommandPublisher: PublishSubject<Unit> =
             PublishSubject.create()

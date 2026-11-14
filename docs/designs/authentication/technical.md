@@ -129,10 +129,11 @@ LMS's configured `api-key` for every user. It now answers with MuMa's own
   regex of LMS-owned routes, so the login goes straight to `music-manager:8000` like the rest of
   `/muma/api/`. `scripts/test/reverse-proxy-routing.sh` pins the route.
 - **Rate limit**: `rate_limit.client_key` keys on the left-most `X-Forwarded-For` entry. The direct
-  location therefore uses `set_real_ip_from` (10/8, 172.16/12, 192.168/16), `real_ip_header
-  X-Forwarded-For` and `real_ip_recursive on`, and sends MuMa `X-Forwarded-For: $remote_addr` -- the
-  right-most address not written by a private-network proxy -- instead of the whole chain, so a
-  client cannot start a fresh bucket per guess by prefixing an address of its choice. The routing
+  location therefore uses `set_real_ip_from` (loopback, 172.16/12 and the entries of
+  `NGINX_TRUSTED_PROXY`, issue #234), `real_ip_header X-Forwarded-For` and `real_ip_recursive on`,
+  and sends MuMa `X-Forwarded-For: $remote_addr` -- the right-most address not written by a trusted
+  proxy -- instead of the whole chain, so a client cannot start a fresh bucket per guess by
+  prefixing an address of its choice. The routing
   test sends forged chains and asserts what MuMa receives. The per-account bucket is unchanged.
 - **LMS**: the local login handler is deleted. `/api/auth/login` joins `isPublicAuthPath`
   (`Authentication.cpp`), so a login that reaches LMS directly -- `lms.<domain>` and the test/dev

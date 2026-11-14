@@ -11,6 +11,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.NotificationManager
 import android.bluetooth.BluetoothManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -19,6 +20,7 @@ import android.os.Build
 import android.provider.DocumentsContract
 import androidx.activity.result.ActivityResult
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
@@ -27,6 +29,9 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import java.io.File
+import java.io.IOException
+import java.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import nl.teunschriks.mumamobile.BuildConfig
@@ -72,12 +77,18 @@ import timber.log.Timber
  * | `onDeepLink(fn)` | listener on the `deepLink` event |
  * | `carConnected(fn)` | listener on the `carConnected` event |
  * | `carState()` | `carState()` → `{connected}`, see [carState] |
- * | `setKeepScreenOn({showWhenLocked, turnScreenOn})` | [setKeepScreenOn] |
+ * | `setKeepScreenOn({showWhenLocked, turnScreenOn, keepOn})` | [setKeepScreenOn] |
+ * | `windowMode()` | `windowMode()` → `{mode}`, see [windowMode] |
+ * | `onWindowModeChanged(fn)` | listener on the `windowModeChanged` event |
+ * | `canNavigate()` | `canNavigate()` → `{value}`, see [canNavigate] |
+ * | `navigateAdjacent()` | [navigateAdjacent] |
+ * | `enterPictureInPicture()` | [enterPictureInPicture] |
  * | `getSettings()` | a snapshot of the device-settings tab's fields, see [getSettings] |
  * | `setSetting({key, value})` | [DEVICE_SETTING_WHITELIST], see [setSetting] |
  * | `outputRoute()` | `outputRoute()` → `{name, type}`, see [outputRoute] |
  * | `onOutputRouteChanged(fn)` | listener on the `outputRouteChanged` event, fed by an [OutputRouteMonitor] |
  * | `openOutputPicker()` | `openOutputPicker()`, the system output switcher, see [openOutputPicker] |
+ * | `share({dataUrl, title, fileName})` | [share], a PNG to the Android share sheet through the FileProvider |
  *
  * ### The back protocol
  *
@@ -547,8 +558,12 @@ class MumaSystemPlugin :
      * so the web view asks explicitly when its own car screen is on top, and again with both flags
      * false when it closes.
      *
-     * Both flags are applied together and default to `false` when absent, so a call that forgets
-     * one does not leave the other stuck on from a previous call.
+     * Two independent asks share this call. `showWhenLocked` and `turnScreenOn` (the car screen)
+     * are applied together and default to `false` when absent, so a call that forgets one does not
+     * leave the other stuck on. `keepOn` (the compact player in a split screen, issue #179) sets
+     * or clears `FLAG_KEEP_SCREEN_ON` and is applied only when the call has it, so the car screen
+     * and the split screen never undo each other's flags. A call with only `keepOn` leaves the
+     * lock-screen flags as they are.
      */
     @PluginMethod
     fun setKeepScreenOn(call: PluginCall) {
@@ -557,13 +572,83 @@ class MumaSystemPlugin :
             call.reject("no activity")
             return
         }
+        val data = call.data
+        val lockScreen = data.has("showWhenLocked") || data.has("turnScreenOn") || !data.has("keepOn")
         val showWhenLocked = call.getBoolean("showWhenLocked") ?: false
         val turnScreenOn = call.getBoolean("turnScreenOn") ?: false
+        val keepOn = if (data.has("keepOn")) call.getBoolean("keepOn") ?: false else null
         running.runOnUiThread {
-            running.setShowWhenLocked(showWhenLocked)
-            running.setTurnScreenOn(turnScreenOn)
+            if (lockScreen) {
+                running.setShowWhenLocked(showWhenLocked)
+                running.setTurnScreenOn(turnScreenOn)
+            }
+            if (keepOn != null) applyKeepScreenOn(running.window, keepOn)
         }
         call.resolve()
+    }
+
+    /**
+     * The window the activity is in now: `full`, `split` or `pip`. For a WebView that subscribes to
+     * `windowModeChanged` after the activity already changed mode, the same reason [carState]
+     * exists. Without an activity the answer is `full`.
+     */
+    @PluginMethod
+    fun windowMode(call: PluginCall) {
+        val running = runningActivity
+        val mode = if (running == null) {
+            WindowMode.FULL
+        } else {
+            WindowMode.of(running.isInPictureInPictureMode, running.isInMultiWindowMode)
+        }
+        call.resolve(JSObject().put("mode", mode.wire))
+    }
+
+    /**
+     * "Zwevende speler" (decision 4 of `docs/designs/miniplayer/`): the app floats as a
+     * picture-in-picture window now. Rejects when there is no activity or Android refused it.
+     */
+    @PluginMethod
+    fun enterPictureInPicture(call: PluginCall) {
+        val host = runningActivity as? FloatingWindowHost
+        when {
+            host == null -> call.reject("no activity")
+            host.enterFloatingWindow() -> call.resolve()
+            else -> call.reject("picture-in-picture refused")
+        }
+    }
+
+    /** Emitted by [nl.teunschriks.mumamobile.activity.CapacitorActivity] on every mode change. */
+    fun emitWindowMode(mode: WindowMode) = notifyListeners(EVENT_WINDOW_MODE_CHANGED, JSObject().put("mode", mode.wire))
+
+    /**
+     * Whether "Navigeren naast MuMa" can work: Google Maps is installed and takes [mapsAdjacentIntent].
+     * The web UI hides the button when this is false.
+     */
+    @PluginMethod
+    fun canNavigate(call: PluginCall) {
+        val packageManager = safeContext?.packageManager
+        val value = packageManager?.let { mapsAdjacentIntent().resolveActivity(it) } != null
+        call.resolve(JSObject().put("value", value))
+    }
+
+    /**
+     * Opens Google Maps next to MuMa, with no destination (decision 8 of
+     * `docs/designs/miniplayer/`). Rejects when there is no activity or Maps does not take the intent.
+     */
+    @PluginMethod
+    fun navigateAdjacent(call: PluginCall) {
+        val running = runningActivity
+        if (running == null) {
+            call.reject("no activity")
+            return
+        }
+        try {
+            running.startActivity(mapsAdjacentIntent())
+            call.resolve()
+        } catch (@Suppress("TooGenericExceptionCaught") all: Throwable) {
+            Timber.w(all, "Google Maps did not open next to MuMa")
+            call.reject("Google Maps did not open")
+        }
     }
 
     /**
@@ -617,6 +702,7 @@ class MumaSystemPlugin :
             .put("hideMedia", Settings.hideMedia)
             .put("mediaDeviceExport", Settings.mediaDeviceExportEnabled)
             .put("scrobbleEnabled", Settings.scrobbleEnabled)
+            .put("pipOnLeave", Settings.pipOnLeave)
         // Read-only: login fills both (ActiveServerProvider.setMumaSettings), nothing here lets a
         // user edit them. mumaApiKeySet rather than the raw key, same reason updatePreferenceSummaries
         // masks it on the legacy screen instead of showing it back.
@@ -654,7 +740,11 @@ class MumaSystemPlugin :
             DeviceSettingType.STRING_SET -> call.getArray("value")?.let { jsArrayToStringSet(it) }
         }
         when (writeDeviceSetting(key, value)) {
-            DeviceSettingWriteResult.OK -> call.resolve()
+            DeviceSettingWriteResult.OK -> {
+                // Auto-enter is decided from the parameters set before the listener leaves.
+                if (key == "pipOnLeave") (runningActivity as? FloatingWindowHost)?.refreshFloatingWindow()
+                call.resolve()
+            }
             DeviceSettingWriteResult.INVALID_VALUE -> call.reject("invalid value for $key")
             // Already handled above; the whitelist cannot change between the two lookups.
             DeviceSettingWriteResult.UNKNOWN_KEY -> call.reject("unknown setting: $key")
@@ -760,6 +850,48 @@ class MumaSystemPlugin :
     }
 
     /**
+     * Hands one PNG to the Android share sheet: the Wrapped page's share button. The web UI draws
+     * the image itself and sends it as a `data:image/png;base64,` URL; this writes it to
+     * `cache/shared/` (one file at a time, the previous one is removed) and offers it as a
+     * `content://` URI from the app's FileProvider, readable only by the app the listener picks.
+     * Resolves once the chooser started; rejects when there is no activity, the data is not a
+     * PNG, or the file cannot be written.
+     */
+    @PluginMethod
+    fun share(call: PluginCall) {
+        val activity = runningActivity
+        val bytes = decodePngDataUrl(call.getString("dataUrl"))
+        when {
+            activity == null -> call.reject("no activity to share from")
+            bytes == null -> call.reject("not a PNG data URL")
+            else -> startShare(call, activity, bytes)
+        }
+    }
+
+    /** The second half of [share], once the image is known to be a PNG. */
+    private fun startShare(call: PluginCall, activity: Activity, bytes: ByteArray) {
+        val name = shareImageName(call.getString("fileName"))
+        val uri = try {
+            val file = writeShareImage(File(activity.cacheDir, SHARE_DIR), name, bytes)
+            FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+        } catch (e: IOException) {
+            Timber.w(e, "Could not write the shared image")
+            call.reject("could not write the image")
+            return
+        }
+        val title = call.getString("title") ?: name
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("image/png")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_TITLE, title)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // The grant travels with the clip data too, so the app picked in the chooser can read it.
+        send.clipData = ClipData.newRawUri(name, uri)
+        activity.startActivity(Intent.createChooser(send, title))
+        call.resolve()
+    }
+
+    /**
      * Opens the system's directory picker (`ACTION_OPEN_DOCUMENT_TREE`) for a custom cache
      * location. The result comes back through [onCacheLocationPicked]; this only has to start the
      * intent.
@@ -843,6 +975,7 @@ class MumaSystemPlugin :
         const val EVENT_BACK = "back"
         const val EVENT_DEEP_LINK = "deepLink"
         const val EVENT_CAR_CONNECTED = "carConnected"
+        const val EVENT_WINDOW_MODE_CHANGED = "windowModeChanged"
         const val EVENT_OUTPUT_ROUTE_CHANGED = "outputRouteChanged"
 
         /** Same flags `SettingsFragment`'s `RW_FLAG` grants the legacy cache-location picker. */
@@ -875,6 +1008,47 @@ class MumaSystemPlugin :
 // The two pure helpers below live outside the class on purpose: every `platform.system` member
 // has to be a method of the plugin, and detekt's per-class function ceiling (`TooManyFunctions`,
 // 30) is what the plugin would otherwise run into first.
+
+/** The folder under the app's cache directory that [MumaSystemPlugin.share] writes to (`file_paths.xml`). */
+internal const val SHARE_DIR = "shared"
+
+private const val PNG_DATA_URL_PREFIX = "data:image/png;base64,"
+private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+/**
+ * The bytes of a `data:image/png;base64,` URL, or null when [dataUrl] is not one: another type,
+ * broken base64, or bytes that do not start with the PNG signature.
+ */
+internal fun decodePngDataUrl(dataUrl: String?): ByteArray? {
+    if (dataUrl == null || !dataUrl.startsWith(PNG_DATA_URL_PREFIX)) return null
+    val bytes = try {
+        Base64.getDecoder().decode(dataUrl.substring(PNG_DATA_URL_PREFIX.length))
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
+    val isPng = bytes.size > PNG_SIGNATURE.size && bytes.copyOfRange(0, PNG_SIGNATURE.size).contentEquals(PNG_SIGNATURE)
+    return if (isPng) bytes else null
+}
+
+/**
+ * A safe file name for a shared image: letters, digits, dots, dashes and underscores only,
+ * always ending in `.png`, `muma-wrapped.png` when nothing is left.
+ */
+internal fun shareImageName(fileName: String?): String {
+    val base = (fileName ?: "")
+        .substringAfterLast('/')
+        .replace(Regex("[^A-Za-z0-9._-]"), "-")
+        .removeSuffix(".png")
+        .trim('.', '-')
+    return if (base.isEmpty()) "muma-wrapped.png" else "$base.png"
+}
+
+/** Writes [bytes] as [name] in [dir], after removing what an earlier share left there. */
+internal fun writeShareImage(dir: File, name: String, bytes: ByteArray): File {
+    if (!dir.isDirectory && !dir.mkdirs()) throw IOException("cannot create $dir")
+    dir.listFiles()?.forEach { it.delete() }
+    return File(dir, name).apply { writeBytes(bytes) }
+}
 
 /** `-1` is the on-disk sentinel for "no limit"; both preferences answer [Int.MAX_VALUE] for it. */
 private fun sentinelToUnlimited(value: Int): Int = if (value == Int.MAX_VALUE) -1 else value

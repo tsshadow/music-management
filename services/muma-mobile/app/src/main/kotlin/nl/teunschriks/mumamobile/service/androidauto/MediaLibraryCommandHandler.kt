@@ -380,16 +380,21 @@ class MediaLibraryCommandHandler {
         fun nextRating(current: Int): Int = (current.coerceIn(0, PlaybackService.MAX_RATING) + 1) % (PlaybackService.MAX_RATING + 1)
 
         /**
-         * The rating a tap on the car's button moves to.
+         * The rating [taps] taps on the car's button move to, from the rating on the playing
+         * track, or null when that rating is not known.
          *
-         * Each button carries the rating it was drawn with in its `SessionCommand` extras, but a
-         * tap coming from Android Auto arrives over the legacy session, where media3 builds a
-         * fresh `SessionCommand(action, Bundle.EMPTY)` and `MediaControllerCompat` forwards only
-         * the caller's own bundle - never the custom action's extras. So [extrasRating] is null
-         * for every tap made in the car, and the playing track, which is what the button was
-         * drawn from, decides. The extras remain the fallback for controllers that do pass them
-         * back and for taps arriving while no track is loaded.
+         * The button is drawn from the playing track, and a tap from Android Auto comes back
+         * without the extras the button was built with (media3 builds a fresh
+         * `SessionCommand(action, Bundle.EMPTY)` over the legacy session), so the track is the
+         * only source. Null is not 0: a queue item the web player built without a rating gave 0,
+         * and the first tap wrote 1 over the real rating (issue #256). The caller looks the rating
+         * up first ([RatingResolver]) and steps from that.
          */
-        fun ratingAfterTap(trackRating: Int?, extrasRating: Int?): Int = nextRating(trackRating ?: extrasRating ?: 0)
+        fun ratingAfterTap(trackRating: Int?, taps: Int = 1): Int? {
+            if (trackRating == null) return null
+            var rating: Int = trackRating.coerceIn(0, PlaybackService.MAX_RATING)
+            repeat(taps.coerceAtLeast(0)) { rating = nextRating(rating) }
+            return rating
+        }
     }
 }

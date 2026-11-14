@@ -48,6 +48,8 @@ The "Scanner" feature is responsible for keeping the system's database in sync w
 
 - **Moved files**: a move is not detected as such. The new path gets its own row and the old row
   goes when the file is gone (GitLab issue #170). A move that also changed the tags relinks on
-  title, duration and artist. A move detected by audio content hash is not built.
+  title, duration and artist, and else on the file name and duration (issue #71: a release the
+  importer lifted out of a weekly pack after the tagger split its artists). A move detected by
+  audio content hash is not built.
 - **Automatic triggers**: Besides the periodic loop (default 1 hour) and manual API calls, the scanner does not yet react automatically to filesystem events (e.g., inotify).
 - **Broken files**: Files that are corrupted or have unsupported formats are logged but not explicitly flagged in the UI for user intervention.

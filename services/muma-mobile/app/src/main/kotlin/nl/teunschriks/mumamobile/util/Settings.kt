@@ -338,6 +338,13 @@ object Settings {
 
     var scrobbleEnabled by BooleanSetting(getKey(R.string.setting_key_scrobble), true)
 
+    /**
+     * "Zwevende speler bij verlaten": the app becomes a floating window when the listener leaves
+     * it while music plays (issue #178). Off by default.
+     */
+    @JvmStatic
+    var pipOnLeave by BooleanSetting(getKey(R.string.setting_key_pip_on_leave), false)
+
     // Normally you don't need to use these Settings directly,
     // use ActiveServerProvider.isID3Enabled() instead
     //

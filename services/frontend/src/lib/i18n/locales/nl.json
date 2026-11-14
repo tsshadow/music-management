@@ -1645,6 +1645,13 @@
     },
     "homeSummary": "{years} jaar • {tracks} nummers vandaag"
   },
+  "miniplayer": {
+    "navigate": "Navigeren naast MuMa",
+    "navigateFailed": "Google Maps ging niet open",
+    "fullApp": "Volledige app",
+    "float": "Zwevende speler",
+    "floatFailed": "Het zwevende venster ging niet open"
+  },
   "mobile": {
     "browseAll": "Alles doorbladeren",
     "recent": "Recent"
@@ -1683,7 +1690,8 @@
     "favorites": "Favorieten",
     "help": "Handleiding",
     "bpm": "BPM",
-    "radio": "Radio"
+    "radio": "Radio",
+    "wrapped": "Wrapped"
   },
   "news": {
     "couldNotPlay": "Kon het nieuws niet afspelen",
@@ -1721,6 +1729,7 @@
   },
   "player": {
     "buffering": "Bezig met bufferen…",
+    "miniplayer": "Miniplayer",
     "next": "Volgende",
     "nothingPlaying": "Niets aan het afspelen",
     "previous": "Vorige",
@@ -1897,6 +1906,8 @@
       "resumeOnBluetoothDeviceHelp": "Welke bluetooth-apparaten het afspelen hervatten zodra ze verbinden.",
       "resumeOnHeadphonesPlug": "Hervatten bij aansluiten koptelefoon",
       "resumeOnHeadphonesPlugHelp": "Start het afspelen opnieuw zodra de koptelefoon weer is aangesloten.",
+      "pipOnLeave": "Zwevende speler bij verlaten",
+      "pipOnLeaveHelp": "Laat MuMa een klein venster boven andere apps worden als je de app verlaat terwijl er muziek speelt.",
       "saveError": "Kon die instelling niet opslaan.",
       "scrobbleEnabled": "Scrobbelen",
       "scrobbleEnabledHelp": "Meldt wat je afspeelt aan de luistergeschiedenis van de server.",
@@ -2004,7 +2015,9 @@
         "discSortHelp": "Sorteert albumnummers op schijf en tracknummer in plaats van de servervolgorde.",
         "genreTrackLimit": "Limiet nummers per genre",
         "genreTrackLimitHelp": "Hoeveel nummers een genre-overzicht maximaal toont."
-      }
+      },
+      "wrappedOnHome": "Wrapped tonen op de startpagina",
+      "wrappedOnHomeHelp": "Een tegel met jouw jaar in muziek, van 1 december tot 31 januari."
     },
     "language": {
       "help": "De taal van de interface. Wordt opgeslagen bij je account, zodat hij meegaat naar je andere apparaten.",
@@ -2479,6 +2492,446 @@
       "resetLabel": "Terug naar het gemeten tempo",
       "failed": "Het tempo kon niet worden aangepast.",
       "invalid": "Vul een tempo tussen 40 en 500 in."
+    }
+  },
+  "wrapped": {
+    "title": "Wrapped",
+    "subtitle": "Jouw jaar in muziek, en dat van de bibliotheek.",
+    "tabs": {
+      "label": "Wiens jaar",
+      "user": "Jij",
+      "library": "Bibliotheek"
+    },
+    "period": {
+      "label": "Periode",
+      "soFar": "{year} tot nu toe",
+      "range": "{from} tot {to}",
+      "custom": "Eigen periode",
+      "from": "Van",
+      "to": "Tot",
+      "apply": "Toon",
+      "invalid": "Kies twee datums, hoogstens drie jaar uit elkaar."
+    },
+    "loading": "Je luisterbeurten worden geteld...",
+    "computing": "Wrapped wordt uitgerekend. De eerste keer duurt dat ongeveer een minuut.",
+    "unavailable": "Wrapped kan nu niet worden geladen.",
+    "retry": "Opnieuw",
+    "empty": "Geen luisterbeurten in deze periode",
+    "emptyHelp": "Speel wat muziek, of importeer je geschiedenis van ListenBrainz in de instellingen.",
+    "openListening": "Luisterstatistieken openen",
+    "openSettings": "Instellingen openen",
+    "share": "Deze kaart delen",
+    "shareFailed": "De kaart kon niet worden gedeeld.",
+    "shareSaved": "De afbeelding is opgeslagen.",
+    "play": "Deze nummers afspelen",
+    "playFailed": "Geen van deze nummers is gevonden om af te spelen.",
+    "brand": "MuMa Wrapped",
+    "home": {
+      "title": "Jouw {year} Wrapped",
+      "text": "Jouw jaar in muziek staat klaar.",
+      "textRunning": "Jouw jaar in muziek tot nu toe."
+    },
+    "units": {
+      "minutes": {
+        "one": "1 minuut",
+        "other": "{n} minuten"
+      },
+      "hours": {
+        "one": "1 uur",
+        "other": "{n} uur"
+      },
+      "days": {
+        "one": "1 dag",
+        "other": "{n} dagen"
+      },
+      "years": {
+        "one": "1 jaar",
+        "other": "{n} jaar"
+      }
+    },
+    "unit": {
+      "listens": "luisterbeurten",
+      "downloads": "downloads",
+      "tracks": "nummers",
+      "editions": "edities",
+      "ratings": "beoordelingen"
+    },
+    "weekday": {
+      "mon": "maandag",
+      "tue": "dinsdag",
+      "wed": "woensdag",
+      "thu": "donderdag",
+      "fri": "vrijdag",
+      "sat": "zaterdag",
+      "sun": "zondag"
+    },
+    "season": {
+      "winter": "Winter",
+      "spring": "Lente",
+      "summer": "Zomer",
+      "autumn": "Herfst"
+    },
+    "platform": {
+      "soundcloud": "SoundCloud",
+      "youtube": "YouTube"
+    },
+    "form": {
+      "track": "Nummers",
+      "set": "Sets",
+      "liveset": "Livesets",
+      "podcast": "Podcasts",
+      "other": "Overig",
+      "unknown": "Onbekend"
+    },
+    "origin": {
+      "web": "Webspeler",
+      "phone": "Telefoon",
+      "car": "Auto",
+      "legacy_web": "Oude webspeler",
+      "imported": "Geïmporteerd",
+      "unknown": "Onbekend"
+    },
+    "source": {
+      "soundcloud": "SoundCloud",
+      "youtube": "YouTube",
+      "telegram": "Telegram",
+      "label": "Labelreleases",
+      "import": "Imports",
+      "unknown": "Onbekend"
+    },
+    "series": {
+      "you": "Jij",
+      "shelf": "Bibliotheek"
+    },
+    "system": {
+      "bpm_measured": "Tempo's gemeten",
+      "bulletins": "Nieuwsbulletins",
+      "ratings": "Beoordelingen gegeven",
+      "criticals": "Kritieke meldingen"
+    },
+    "note": {
+      "unmatched": {
+        "one": "1 luisterbeurt hoort bij geen nummer en telt hier niet mee.",
+        "other": "{n} luisterbeurten horen bij geen nummer en tellen hier niet mee."
+      },
+      "basis": "Op basis van {counted} van {of} {unit}.",
+      "ratingsRebuilt": "De bibliotheek is voor deze periode opnieuw opgebouwd, dus oudere beoordelingen ontbreken.",
+      "undated": {
+        "one": "1 download heeft geen datum en telt niet mee.",
+        "other": "{n} downloads hebben geen datum en tellen niet mee."
+      },
+      "unknownArrival": {
+        "one": "1 nummer heeft geen aankomstdatum.",
+        "other": "{n} nummers hebben geen aankomstdatum."
+      }
+    },
+    "reason": {
+      "empty": "Niets te tonen voor deze periode.",
+      "below_minimum": "Te weinig gegevens voor deze periode.",
+      "blocked": "De gegevens voor deze kaart zijn er nog niet.",
+      "no_arrival_date": "Nummers hebben nog geen aankomstdatum.",
+      "no_remixer_credits": "Geen nummer heeft een remixer.",
+      "same_as_top_artist": "Dezelfde artiest als je topartiest."
+    },
+    "coverage": {
+      "label": "Waar dit op gebaseerd is",
+      "text": "{listens} luisterbeurten, waarvan {linked} bij een nummer in de bibliotheek horen en {unmatched} niet.",
+      "measured_share": "Luisterbeurten met gemeten speelduur",
+      "origin_known_share": "Luisterbeurten met bekend apparaat",
+      "bpm_share": "Nummers met gemeten tempo",
+      "release_year_share": "Nummers met releasejaar",
+      "arrival_share": "Nummers met aankomstdatum",
+      "leftOut": "Weggelaten"
+    },
+    "cards": {
+      "title": {
+        "label": "Jouw {period}",
+        "labelLibrary": "{period} van de bibliotheek",
+        "text": "luisterbeurten, {tracks} verschillende nummers, ongeveer {time} muziek.",
+        "textLibrary": "luisterbeurten door {listeners} luisteraars, {tracks} verschillende nummers, ongeveer {time} muziek."
+      },
+      "listening_time": {
+        "label": "Luistertijd",
+        "text": "{measured} daarvan gemeten, {share} van alle luisterbeurten."
+      },
+      "listeners": {
+        "label": "Luisteraars",
+        "text": "{active} luisteren nog, {former} luisterden eerder."
+      },
+      "top_tracks": {
+        "label": "Topnummers",
+        "text": {
+          "one": "van {artist}, 1 keer gespeeld.",
+          "other": "van {artist}, {n} keer gespeeld."
+        }
+      },
+      "top_artists": {
+        "label": "Topartiesten",
+        "text": {
+          "one": "1 luisterbeurt.",
+          "other": "{n} luisterbeurten."
+        }
+      },
+      "top_genres": {
+        "label": "Topgenres",
+        "text": {
+          "one": "1 luisterbeurt.",
+          "other": "{n} luisterbeurten."
+        }
+      },
+      "seasons": {
+        "label": "Seizoenen",
+        "text": "Jouw geluid van de {season}."
+      },
+      "top_label": {
+        "label": "Toplabel",
+        "text": {
+          "one": "1 luisterbeurt, {tracks} nummers.",
+          "other": "{n} luisterbeurten, {tracks} nummers."
+        }
+      },
+      "top_channel": {
+        "label": "Topkanaal",
+        "text": {
+          "one": "1 luisterbeurt op {platform}.",
+          "other": "{n} luisterbeurten op {platform}."
+        }
+      },
+      "top_remixer": {
+        "label": "Topremixer",
+        "text": {
+          "one": "1 luisterbeurt van hun remixes.",
+          "other": "{n} luisterbeurten van hun remixes."
+        }
+      },
+      "festival": {
+        "label": "Topfestival",
+        "text": {
+          "one": "{time} aan sets, 1 luisterbeurt. Edities: {editions}.",
+          "other": "{time} aan sets, {n} luisterbeurten. Edities: {editions}."
+        }
+      },
+      "time_travel": {
+        "label": "Festivaltijdreis",
+        "text": {
+          "one": "Van {oldFestival} {oldYear} tot {newFestival} {newYear}, 1 editie.",
+          "other": "Van {oldFestival} {oldYear} tot {newFestival} {newYear}, {count} edities."
+        }
+      },
+      "show": {
+        "label": "Topshow",
+        "text": {
+          "one": "{time}, 1 luisterbeurt.",
+          "other": "{time}, {n} luisterbeurten."
+        }
+      },
+      "forms": {
+        "label": "Nummers of sets",
+        "text": "Wat je het meest speelde."
+      },
+      "bpm": {
+        "label": "Gemiddeld tempo",
+        "text": "Jouw tempo, per maand."
+      },
+      "bpm_extremes": {
+        "label": "Snelst en traagst",
+        "text": "Snelst: {fast} van {fastArtist}. Traagst: {slow} van {slowArtist}, {slowBpm}."
+      },
+      "taste_vs_shelf": {
+        "label": "Jouw tempo en de bibliotheek",
+        "text": "Jij speelt het meest rond dit tempo. De bibliotheek heeft het meest rond {shelf}."
+      },
+      "clock": {
+        "label": "Jouw klok",
+        "text": "Je drukste uur. Je drukste dag: {weekday}."
+      },
+      "heatmap": {
+        "label": "Wanneer de bibliotheek speelt",
+        "text": "Het drukste uur van de week, {n} luisterbeurten."
+      },
+      "night_shift": {
+        "label": "Nachtdienst",
+        "text": {
+          "one": "van je luisterbeurten, 1 in totaal, was tussen middernacht en 06:00.",
+          "other": "van je luisterbeurten, {n} in totaal, waren tussen middernacht en 06:00."
+        }
+      },
+      "busiest_day": {
+        "label": "Drukste dag",
+        "text": {
+          "one": "1 luisterbeurt op één dag.",
+          "other": "{n} luisterbeurten op één dag."
+        }
+      },
+      "first_last": {
+        "label": "Eerste en laatste",
+        "text": "Eerste: {first} van {firstArtist}, {firstAt}. Laatste: {last} van {lastArtist}, {lastAt}."
+      },
+      "months": {
+        "label": "Drukste maand",
+        "text": {
+          "one": "1 luisterbeurt.",
+          "other": "{n} luisterbeurten."
+        }
+      },
+      "streak": {
+        "label": "Langste reeks",
+        "text": "Elke dag van {first} tot {last}."
+      },
+      "session": {
+        "label": "Langste sessie",
+        "text": {
+          "one": "1 luisterbeurt, vanaf {start}.",
+          "other": "{n} luisterbeurten achter elkaar, vanaf {start}."
+        }
+      },
+      "origins": {
+        "label": "Waar je luisterde",
+        "text": "Je meest gebruikte apparaat.",
+        "textCar": "Je meest gebruikte apparaat. {time} daarvan in de auto."
+      },
+      "release_years": {
+        "label": "Releasejaren",
+        "text": "Oudste: {old} ({oldYear}). Nieuwste: {new} ({newYear})."
+      },
+      "fresh_vs_stock": {
+        "label": "Vers of voorraad",
+        "text": {
+          "one": "van je luisterbeurten ging naar 1 nummer dat deze periode binnenkwam, van {known} met bekende datum.",
+          "other": "van je luisterbeurten ging naar {n} nummers die deze periode binnenkwamen, van {known} met bekende datum."
+        }
+      },
+      "long_wait": {
+        "label": "Het lange wachten",
+        "text": "{title} van {artist} wachtte zo lang op de eerste keer spelen."
+      },
+      "impulse": {
+        "label": "Impuls",
+        "text": {
+          "one": "Van binnenkomst tot eerste keer spelen, de mediaan van 1 nummer.",
+          "other": "Van binnenkomst tot eerste keer spelen, de mediaan van {n} nummers."
+        }
+      },
+      "untouched": {
+        "label": "Hoeveel je speelde",
+        "text": "verschillende nummers van de {library} in de bibliotheek, {share}."
+      },
+      "new_genres": {
+        "label": "Nieuwe genres",
+        "text": {
+          "one": "1 genre dat je nog niet eerder speelde.",
+          "other": "{count} genres die je nog niet eerder speelde."
+        }
+      },
+      "discovery": {
+        "label": "Ontdekking",
+        "text": {
+          "one": "Voor het eerst gespeeld op {date}, daarna 1 luisterbeurt.",
+          "other": "Voor het eerst gespeeld op {date}, daarna {n} luisterbeurten."
+        }
+      },
+      "loyal": {
+        "label": "Trouwste",
+        "text": {
+          "one": "Gespeeld in {months} maanden, 1 luisterbeurt.",
+          "other": "Gespeeld in {months} maanden, {n} luisterbeurten."
+        }
+      },
+      "one_hit": {
+        "label": "Eendagsvlieg",
+        "text": {
+          "one": "1 luisterbeurt, allemaal op {date}.",
+          "other": "{n} luisterbeurten, allemaal op {date}."
+        }
+      },
+      "ratings": {
+        "label": "Beoordelingen",
+        "text": "beoordelingen gegeven. {share} van wat je speelde had vijf sterren."
+      },
+      "contradiction": {
+        "label": "De tegenstrijdigheid",
+        "text": {
+          "one": "van {artist}: {rating} sterren, en toch 1 keer gespeeld.",
+          "other": "van {artist}: {rating} sterren, en toch {n} keer gespeeld."
+        }
+      },
+      "word": {
+        "label": "Jouw woord",
+        "text": {
+          "one": "1 keer in de titels die je speelde.",
+          "other": "{n} keer in de titels die je speelde."
+        }
+      },
+      "unidentified": {
+        "label": "Onbekend",
+        "text": {
+          "one": "luisterbeurt hoort bij geen nummer, {distinct} verschillende titels.",
+          "other": "luisterbeurten horen bij geen nummer, {distinct} verschillende titels."
+        }
+      },
+      "only_you": {
+        "label": "Alleen jij",
+        "text": {
+          "one": "Niemand anders speelde het. Jij wel, 1 keer. {only} van je {tracks} nummers zijn alleen van jou.",
+          "other": "Niemand anders speelde het. Jij wel, {n} keer. {only} van je {tracks} nummers zijn alleen van jou."
+        },
+        "textNoTrack": "nummers van je {tracks} speelde niemand anders."
+      },
+      "most_shared": {
+        "label": "Meest gedeeld",
+        "text": {
+          "one": "van {artist}, gespeeld door 1 luisteraar.",
+          "other": "van {artist}, gespeeld door {n} luisteraars."
+        }
+      },
+      "festival_editions": {
+        "label": "Festivalsets",
+        "text": {
+          "one": "1 set binnengekomen.",
+          "other": "{count} sets binnengekomen."
+        }
+      },
+      "releases_of_year": {
+        "label": "Releases van het jaar",
+        "text": {
+          "one": "1 nummer uitgebracht deze periode.",
+          "other": "{count} nummers uitgebracht deze periode."
+        }
+      },
+      "downloads": {
+        "label": "Downloads",
+        "text": {
+          "one": "Topkanaal: {channel} op {platform}, 1 download.",
+          "other": "Topkanaal: {channel} op {platform}, {n} downloads."
+        },
+        "textNoChannel": "Downloads per maand."
+      },
+      "growth": {
+        "label": "Groei",
+        "text": {
+          "one": "1 nummer binnengekomen.",
+          "other": "{count} nummers binnengekomen."
+        }
+      },
+      "shelf": {
+        "label": "De plank",
+        "text": "De meeste nummers staan op dit tempo. Topgenre: {genre}."
+      },
+      "start_now": {
+        "label": "Begin nu",
+        "text": "Speel alles achter elkaar en je bent klaar op {date}."
+      },
+      "unplayed": {
+        "label": "Nooit gespeeld",
+        "text": {
+          "one": "van de bibliotheek, 1 van {library} nummers, is nooit gespeeld.",
+          "other": "van de bibliotheek, {n} van {library} nummers, is nooit gespeeld."
+        }
+      },
+      "system": {
+        "label": "Achter de schermen",
+        "text": "Wat MuMa deze periode deed."
+      }
     }
   }
 }

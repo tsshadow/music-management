@@ -456,6 +456,13 @@ export const searchResultsOpen = writable(false);
 export const isMobile = writable(false);
 
 /**
+ * The compact player's props, owned by `Player.svelte` (one `$state` object it keeps current) and
+ * read by `App.svelte` for the split-screen layout (issue #179, `docs/designs/miniplayer/`).
+ * `null` while no player is mounted.
+ */
+export const compactPlayerProps = writable(null);
+
+/**
  * True from Tailwind's `md` breakpoint (48rem) up: the width at which `App.svelte`'s grid shows
  * the sidebar and the desktop player bar, and every `md:hidden` / `hidden md:flex` class flips.
  *
@@ -519,6 +526,11 @@ persist("lms_deduplicate_enabled", deduplicateEnabled);
 // reachable from the sidebar, so switching this off only removes the teaser.
 export const memoriesOnHomeEnabled = writable(true);
 persist("lms_memories_on_home_enabled", memoriesOnHomeEnabled);
+
+// Whether the Wrapped tile is shown on the home screen from 1 December to 31 January. The Wrapped
+// page itself is always reachable from the sidebar and the library tab.
+export const wrappedOnHomeEnabled = writable(true);
+persist("lms_wrapped_on_home_enabled", wrappedOnHomeEnabled);
 
 // How many tracks a list asks for per request. Bigger means fewer round trips and
 // a longer wait for the first screenful; smaller means the list appears sooner and

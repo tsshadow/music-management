@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.22.0] - 2026-11-14
+
+### Added
+- **MuMa can float as a small window above other apps.** "Zwevende speler" in the Now Playing
+  menu shrinks MuMa to a 16:9 window with the cover, the title and the artist, and Android's own
+  previous, play/pause and next buttons. With the setting "Zwevende speler bij verlaten" (Apparaat
+  > Afspelen, off by default) MuMa floats by itself when you leave it while music plays. The
+  activity declares `supportsPictureInPicture`, and its window parameters follow every play/pause
+  and track change (issue #178, `docs/designs/miniplayer/`).
+
+- **In split screen next to Google Maps, MuMa shows a large compact player.** When MuMa has a
+  split-screen half lower than 480px (a phone in portrait), the half shows the cover, the title
+  and an 80px play button between 64px previous and next buttons, with no stars. "Navigeren naast
+  MuMa" opens Google Maps in the other half, with no destination, and is only there when Maps is
+  installed. "Volledige app" shows the normal screens until the split changes. The screen stays on
+  while the compact player shows and music plays. The shell reports the window mode
+  (`windowModeChanged`), and `setKeepScreenOn` has a separate `keepOn` flag that car mode does not
+  touch (issue #179, `docs/designs/miniplayer/`).
+
+- **A Wrapped card can be shared from the app.** The share button on the Wrapped page opens the
+  Android share sheet with the card as a PNG. The image goes through the app's own FileProvider
+  (`cache/shared/`, one file at a time), so only the app you pick can read it.
+
+### Fixed
+- **A tap on the car's rating button wrote 1 over the real rating.** A queue from the web player
+  had no ratings, the app read the missing rating as 0, and the first tap set 1. On 2026-11-12 a
+  track rated 4 got 1 to 5 from the car in one second. The app now keeps "not known" apart from 0,
+  asks the server for the rating when a track starts, and on a tap before that it finds the rating
+  first (server, the app's cached copy, then the downloaded library). When no source knows it,
+  the tap does nothing. Ratings also reach the downloaded library, so offline car lists show the
+  last rating (issue #256, `docs/designs/car-rating-state/`).
+
 ## [7.21.0] - 2026-11-11
 
 ### Added

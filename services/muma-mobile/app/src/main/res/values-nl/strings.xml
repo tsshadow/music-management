@@ -37,6 +37,10 @@
     <string name="widget.initial_text">Druk om muziek te selecteren</string>
     <string name="widget.sdcard_busy">SD-kaart niet beschikbaar</string>
     <string name="widget.sdcard_missing">Geen SD-kaart</string>
+    <string name="pip.previous">Vorige</string>
+    <string name="pip.play">Afspelen</string>
+    <string name="pip.pause">Pauzeren</string>
+    <string name="pip.next">Volgende</string>
     <string name="share_default_greeting">Hé, luister eens naar de muziek die ik heb gedeeld via %s</string>
     <string name="notification.downloading_title">Bezig met downloaden van media op de achtergrond…</string>
     <string name="notification.permission_required">Meldingen zijn vereist voor het afspelen van media. Je kunt dit recht te allen tijde verlenen in de Android-instellingen.</string>

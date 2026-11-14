@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.capacitor
 import nl.teunschriks.mumamobile.domain.Track
 import nl.teunschriks.mumamobile.imageloader.coverArtIdOf
 import nl.teunschriks.mumamobile.service.androidauto.MediaLibraryBase
+import nl.teunschriks.mumamobile.util.MAX_STARS
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,6 +26,10 @@ import org.json.JSONObject
  *
  * [coverArt] is the Subsonic cover-art id. [artworkUrl] is what an older web bundle sends in its
  * place: a signed `getCoverArt` URL, which is only read to get the id back out of it.
+ *
+ * [userRating] is 0 to 5 when the web knows it and null when it does not. Null is "unknown",
+ * never 0: the car's rating button steps from it, and a guessed 0 made the first tap write 1 over
+ * a real rating (issue #256, docs/designs/car-rating-state/).
  */
 data class QueueTrack(
     val id: String,
@@ -33,10 +38,14 @@ data class QueueTrack(
     val album: String? = null,
     val artworkUrl: String? = null,
     val duration: Int? = null,
-    val coverArt: String? = null
+    val coverArt: String? = null,
+    val userRating: Int? = null
 )
 
-/** Reads one `{id, title, artist, album, coverArt, artworkUrl, duration}` object. Ignores what it does not know. */
+/**
+ * Reads one `{id, title, artist, album, coverArt, artworkUrl, duration, userRating}` object.
+ * Ignores what it does not know. A `userRating` that is missing, null or outside 0 to 5 is unknown.
+ */
 fun queueTrackOf(json: JSONObject): QueueTrack? {
     val id = json.optString("id").takeIf { it.isNotBlank() } ?: return null
     return QueueTrack(
@@ -46,7 +55,8 @@ fun queueTrackOf(json: JSONObject): QueueTrack? {
         album = json.optStringOrNull("album"),
         artworkUrl = json.optStringOrNull("artworkUrl"),
         duration = if (json.has("duration") && !json.isNull("duration")) json.optInt("duration") else null,
-        coverArt = json.optStringOrNull("coverArt")
+        coverArt = json.optStringOrNull("coverArt"),
+        userRating = json.optRatingOrNull("userRating")
     )
 }
 
@@ -81,7 +91,8 @@ fun QueueTrack.toTrack(serverId: Int): Track = Track(
     artist = artist,
     coverArt = coverArtIdOf(coverArt) ?: coverArtIdOf(artworkUrl),
     duration = duration,
-    isDirectory = false
+    isDirectory = false,
+    userRating = userRating
 )
 
 /** Same, in order. The order is the contract: index `n` of the request is index `n` of the queue. */
@@ -99,6 +110,13 @@ fun clampQueueIndex(index: Int, size: Int): Int = when {
     index < 0 -> 0
     index >= size -> size - 1
     else -> index
+}
+
+private fun JSONObject.optRatingOrNull(key: String): Int? {
+    if (!has(key) || isNull(key)) return null
+    val value = opt(key) as? Number ?: return null
+    val rating = value.toInt()
+    return rating.takeIf { it.toDouble() == value.toDouble() && it in 0..MAX_STARS }
 }
 
 private fun JSONObject.optStringOrNull(key: String): String? = if (has(key) && !isNull(key)) optString(key).takeIf { it.isNotEmpty() } else null

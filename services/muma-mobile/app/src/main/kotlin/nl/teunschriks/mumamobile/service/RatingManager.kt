@@ -86,6 +86,17 @@ class RatingManager(
         if (!queue.isEmpty()) flush()
     }
 
+    /**
+     * A rating for [trackId] arrived from outside this manager -- the web player, or the server on
+     * a track change. The duplicate check in [submitRating] exists for the one tap that reaches it
+     * twice, through `RxBus.ratingSubmitter` and through the session. After a rating from
+     * elsewhere the same value is a real change again: the car rated 5, the web 4, and the next
+     * tap in the car is 5 once more (issue #256).
+     */
+    fun forgetLast(trackId: String) {
+        if (lastUpdate?.id == trackId) lastUpdate = null
+    }
+
     internal fun submitRating(update: RatingUpdate) {
         // Don't submit the same rating twice
         if (update.id == lastUpdate?.id && update.rating == lastUpdate?.rating) return

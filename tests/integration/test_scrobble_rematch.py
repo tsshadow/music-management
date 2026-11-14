@@ -194,7 +194,7 @@ def test_the_scanner_upsert_writes_both_matching_keys(database, library):
     def upsert(title):
         row = ('uid-137', title, 240.0, library['artist_id'], None, 'track', None)
         with database.cursor() as cursor:
-            cursor.execute(_UPSERT_TRACK, (*row, *normalized_title_keys(title), *row[1:]))
+            cursor.execute(_UPSERT_TRACK, (*row, *normalized_title_keys(title), 'label', *row[1:]))
             cursor.execute(
                 'SELECT normalized_title, normalized_base_title FROM library_tracks WHERE track_uid = %s',
                 ('uid-137',),

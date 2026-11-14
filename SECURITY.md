@@ -75,6 +75,12 @@ Summarised here because it affects what counts as a vulnerability;
   outside monitor. Without a valid `X-API-Key` it answers `status` and the
   source code address only; the version, the thread states and the heartbeats
   need the system key or a user's key. The code is 200 or 503 either way.
+* `GET /health/backup` is public through nginx too (issue #236), for the
+  nightly check. It needs no key and gives the backup status, the dump's file
+  name, its age and its table count; 503 when the backup is stale or missing.
+* `GET /health/music-mirror` is public the same way (issue #25). It gives the
+  mirror's status, its counts and its age, never a file name: the names of
+  differing files go only into the daily check's alert.
   Both proxies in front of MuMa -- nginx and LMS -- send the client address
   they resolved, never the client's own header
   (docs/bug-reports/079-google-login-unverified-email-and-lms-login-limit.md).
@@ -219,6 +225,19 @@ Every production container runs with `no-new-privileges`, `cap_drop: [ALL]` plus
 filesystem. The per-service sets, the reasons, and what is still open (non-root users and
 read-only roots for the muma images, Firefox) are in the operator's runbook, "Container
 hardening"; `tests/ci/test_compose_hardening.py` pins them.
+
+## Agent access to the hosts
+
+An agent reads the homelab hosts through `muma-ro` (issue #176,
+`docs/designs/claude-readonly-access/`). Its key on each host has
+`restrict,from=...,command="/usr/local/bin/muma-ro --key <name>"`, so sshd runs
+the wrapper whatever the client asks for. The wrapper refuses any shell
+character, runs one fixed argument list per verb without a shell, and logs
+every request to the host's journal. Commands that need root go through
+`sudo` to one helper, which checks the text again against the root-owned
+policy and runs only root verbs. The tests in `tools/test_muma_ro_*.py` hold
+the refusal list. A person installs it with `scripts/muma-ro/install.sh`; an
+agent never installs its own access.
 
 ## Secrets
 

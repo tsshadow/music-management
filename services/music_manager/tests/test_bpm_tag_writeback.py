@@ -20,6 +20,7 @@ from mutagen.mp4 import MP4, MP4FreeForm
 from mutagen.ogg import OggPage
 from mutagen.wave import WAVE
 
+from services.music_manager.bpm import octave
 from services.music_manager.bpm import tag_writeback as tw
 from services.music_manager.bpm.octave import FOLD_VERSION
 
@@ -315,7 +316,9 @@ def test_the_queue_statement_binds_every_value():
     assert sql.count('%s') == len(params)
     assert params[0] == 'acf-comb-v1'
     assert params[1] == FOLD_VERSION  # only rows the current octave rule chose (bug report 140)
-    assert params[2] == 0.75
+    # Never a weak value (issue #153): an unsettled estimate, or a fold the general priors decided.
+    assert params[2:5] == [octave.EVIDENCE_UNSETTLED, *sorted(octave.WEAK_EVIDENCE)]
+    assert params[5] == 0.75
     assert '/mnt/music/Top\\_100/%' in params  # a LIKE wildcard in a folder name is literal
     assert params[-1] == 300
     count_sql, count_params = tw._due_params(config, ['/mnt/music/EPs'], None)
@@ -600,7 +603,11 @@ def test_the_queue_prefers_a_tempo_set_by_hand_and_requeues_what_it_once_wrote()
     sql = ' '.join(tw.DUE_SQL.split())
     assert 'COALESCE(mb.bpm, b.bpm) AS bpm' in sql
     assert 'LEFT JOIN library_track_bpm_manual mb ON mb.track_uid = b.track_uid' in sql
-    assert "(mb.bpm IS NOT NULL OR (b.fold_version = %s AND (b.confidence >= %s OR b.tag_action = 'written')))" in sql
+    assert (
+        '(mb.bpm IS NOT NULL OR (b.fold_version = %s'
+        ' AND NOT (b.fold_evidence <=> %s OR (b.octave_corrected = 1 AND b.fold_evidence IN (%s, %s)))'
+        " AND (b.confidence >= %s OR b.tag_action = 'written')))"
+    ) in sql.format(weak='%s, %s', forms='', roots='')
     assert 'NOT (b.tag_bpm <=> COALESCE(mb.bpm, b.bpm))' in sql
 
 

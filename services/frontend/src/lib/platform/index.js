@@ -109,8 +109,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   Promise<{index: number, length: number, trackIds: string[]}>} setQueue
  *   Replaces the platform queue wholesale; the order of `tracks` is the order
  *   of the queue. Each track is `{id, title, artist, album, coverArt,
- *   duration}`, where `coverArt` is a Subsonic cover-art id and never a URL. A browser answers with an empty queue and keeps its own list,
- *   so the UI can call this unconditionally.
+ *   duration, userRating}`, where `userRating` is 0-5 or null when unknown and
+ *   `coverArt` is a Subsonic cover-art id and never a URL. A browser answers with an empty queue
+ *   and keeps its own list, so the UI can call this unconditionally.
  * @property {function(): Promise<{index: number, length: number, trackIds: string[]}>} queueState
  *   What the platform is holding. This is what a UI rebuilt after the WebView
  *   died reads to find its way back.
@@ -165,6 +166,9 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   address to `load` and never calls this.
  * @property {function(): Promise<void>} stopRadio Leaves radio mode or a live station without
  *   starting anything else. Native only in effect, the mirror of `startRadio`.
+ * @property {function(string|number, number): Promise<void>} setRating Tells a native service a
+ *   track's rating (0 clears) so its queue and the car's rating button show it. It never writes
+ *   to the server; a browser answers with a no-op.
  * @property {function(): Promise<void>} toggleNews Plays the latest bulletin, or hands the music
  *   back if one is already running -- one call either way. Native only in effect; see `startRadio`.
  * @property {function(PlayerEvent, function(PlayerState): void): function(): void} on
@@ -332,6 +336,8 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  * @property {number} pauseOnBluetoothDevice Same three values as `resumeOnBluetoothDevice`.
  * @property {boolean} hardwareOffload
  * @property {boolean} carModeManual
+ * @property {boolean} [pipOnLeave] "Zwevende speler bij verlaten": the app floats as a window
+ *   when the listener leaves it while music plays. Absent in an app older than #178.
  * @property {string[]} carModeDevices Read-only: the Bluetooth addresses marked as "this is my
  *   car". Changed through `setSetting({key: 'carModeDevices', value: [...]})`, built from
  *   `listBondedDevices()`'s own addresses -- not hand-typed, so it is listed as read-only here in
@@ -458,13 +464,29 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   browser tab that boots the car screen from a stale URL rather than from the event.
  *   `carConnected` only reaches a listener that subscribed before it fired, so the bootstrap path
  *   calls this once instead of racing the plugin's own load. A browser tab answers `{connected: false}`.
- * @property {function({showWhenLocked: boolean, turnScreenOn: boolean}): Promise<void>} setKeepScreenOn
+ * @property {function({showWhenLocked?: boolean, turnScreenOn?: boolean, keepOn?: boolean}): Promise<void>} setKeepScreenOn
  *   Asks for (or releases) the lock-screen behaviour the legacy car-mode screen gets for free from
  *   a navigation-destination listener: showing over the lock screen and turning it on. The car
  *   screen calls this with both flags true while it is the active view and both false the moment
  *   it stops being one -- there is no destination change here to key it off automatically, so the
  *   asking and the releasing are both the caller's job. A browser tab resolves without doing
- *   anything; there is no lock screen to ask.
+ *   anything; there is no lock screen to ask. `keepOn` is a separate ask, for the compact
+ *   player in a split screen (issue #179): it keeps the screen from timing out, and is applied
+ *   only when the call has it, so a call with only `keepOn` leaves the lock-screen flags alone
+ *   and the car screen's calls (without `keepOn`) leave it alone.
+ * @property {function(): Promise<{mode: WindowMode}>} windowMode The window the app is in now.
+ *   For a subscriber that starts after the shell changed mode, like `carState`. A browser tab
+ *   answers `{mode: 'full'}`.
+ * @property {function(function(WindowMode): void): function(): void} onWindowModeChanged Fires
+ *   when split screen or the floating window starts or ends. Never fires in a browser tab.
+ * @property {function(): Promise<{value: boolean}>} canNavigate Whether "Navigeren naast MuMa"
+ *   can open Google Maps. A browser tab answers `{value: false}`.
+ * @property {function(): Promise<void>} navigateAdjacent Opens Google Maps, with no destination,
+ *   next to the app. Rejects when Maps does not open. A browser tab resolves without doing
+ *   anything.
+ * @property {function(): Promise<void>} enterPictureInPicture "Zwevende speler": the app floats
+ *   as a picture-in-picture window. Rejects when Android refuses it. A browser tab resolves
+ *   without doing anything.
  * @property {function(): Promise<DeviceSettings>} getSettings The "Apparaat" settings tab's
  *   whole state in one call. A browser tab answers `{}`; the tab is hidden there anyway
  *   (`system.isNative` is how it decides), so an empty object is never read.
@@ -511,6 +533,16 @@ import { createCapacitorPlatform } from "./capacitor/index.js";
  *   screen on a build without one. Resolves once one of them started -- the switch itself
  *   arrives as `onOutputRouteChanged`; rejects only when neither screen exists. A browser tab
  *   resolves without doing anything.
+ * @property {function({dataUrl: string, title: string, fileName: string}):
+ *   Promise<'shared'|'saved'|'cancelled'>} share Shares one PNG, given as a `data:image/png`
+ *   URL: the Android share sheet in the shell, the Web Share API with a file in a browser that
+ *   can share files, else a download. `cancelled` when the listener closed the browser's share
+ *   dialog. The Wrapped page's share button is the caller.
+ */
+
+/**
+ * @typedef {'full'|'split'|'pip'} WindowMode The app's window: the whole screen, half of a split
+ *   screen, or the floating picture-in-picture window (`docs/designs/miniplayer/`).
  */
 
 /**

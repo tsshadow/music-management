@@ -43,6 +43,7 @@ import nl.teunschriks.mumamobile.util.Settings
 import nl.teunschriks.mumamobile.util.TimeLimitedCache
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import timber.log.Timber
 
 @Suppress("TooManyFunctions")
 class CachedMusicService(private val musicService: MusicService) :
@@ -463,12 +464,31 @@ class CachedMusicService(private val musicService: MusicService) :
     /**
      * The server is told first; the cached copies of the track are corrected after, so that a
      * rating set in the car or on a list is the one the app reports back until the cache is
-     * refetched. See [applyRatingToCachedTracks].
+     * refetched. See [applyKnownRating].
      */
     @Throws(Exception::class)
     override fun setRating(id: String, rating: Int) {
         musicService.setRating(id, rating)
+        applyKnownRating(id, rating)
+    }
 
+    /**
+     * Asks the server, and writes the rating it answers with into every copy the app keeps. A
+     * rating the server leaves out means the track is unrated.
+     */
+    @Throws(Exception::class)
+    override fun getSong(id: String): Track? {
+        val track = musicService.getSong(id) ?: return null
+        applyKnownRating(id, track.userRating ?: 0)
+        return track
+    }
+
+    /**
+     * Writes a rating that the server already has into every copy the app keeps of the track:
+     * the cached lists and albums ([applyRatingToCachedTracks]), the converter's caches, and the
+     * Room rows the car browses offline. Sends nothing. Never on the main thread: Room refuses it.
+     */
+    fun applyKnownRating(id: String, rating: Int) {
         for (dir in cachedMusicDirectories.values() + cachedAlbum.values()) {
             applyRatingToCachedTracks(dir, id, rating)
         }
@@ -476,6 +496,19 @@ class CachedMusicService(private val musicService: MusicService) :
             applyRatingToCachedTracks(list.get(), id, rating)
         }
         MediaItemConverter.applyRating(id, rating)
+        writeRatingToRoom(activeServerProvider, id, rating)
+    }
+
+    /**
+     * The rating of the track in the lists and albums this service cached from the server, or
+     * null when none of them has the track. Those copies came from the server, so a track without
+     * a rating there is unrated.
+     */
+    fun cachedRating(id: String): Int? {
+        val sources = cachedMusicDirectories.values().map { it.get() } +
+            cachedAlbum.values().map { it.get() } +
+            cachedHomeLists.values.map { it.get() }
+        return sources.firstNotNullOfOrNull { findCachedTrack(it, id) }?.let { it.userRating ?: 0 }
     }
 
     @Throws(Exception::class)
@@ -822,6 +855,25 @@ internal fun artistsCacheBypassesFor(query: String?, sortBy: String?, count: Int
  * [cached] is walked rather than typed because the caches hold several shapes: a [MusicDirectory]
  * (itself a list of children), a home list of mixed entries, or a bare [Track].
  */
+internal fun findCachedTrack(cached: Any?, id: String): Track? = when (cached) {
+    is Track -> cached.takeIf { it.id == id }
+    is Iterable<*> -> cached.firstNotNullOfOrNull { findCachedTrack(it, id) }
+    else -> null
+}
+
+/**
+ * Writes a rating into the Room rows of the track: the downloaded library, which the car browses
+ * offline, and the active server's cache. Each step is allowed to fail on its own; a database that
+ * cannot be opened is no reason to lose the other one.
+ */
+internal fun writeRatingToRoom(provider: ActiveServerProvider, id: String, rating: Int) {
+    runCatching { provider.offlineMetaDatabase.trackDao().setUserRating(id, rating) }
+        .onFailure { Timber.w(it, "Could not store the rating of %s offline", id) }
+    if (ActiveServerProvider.isOffline()) return
+    runCatching { provider.getActiveMetaDatabase().trackDao().setUserRating(id, rating) }
+        .onFailure { Timber.w(it, "Could not store the rating of %s in the server cache", id) }
+}
+
 internal fun applyRatingToCachedTracks(cached: Any?, id: String, rating: Int) {
     when (cached) {
         is Track -> if (cached.id == id) cached.userRating = rating

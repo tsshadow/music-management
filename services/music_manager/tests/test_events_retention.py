@@ -280,6 +280,27 @@ class RetentionTickTest(unittest.TestCase):
             self.assertIsNone(retention_tick())
 
 
+class PruneWrappedRangesTest(unittest.TestCase):
+    def test_the_tick_prunes_stored_wrapped_ranges(self):
+        conn = MagicMock()
+        with (
+            patch.object(events_retention, 'get_db_connection', return_value=conn),
+            patch.object(events_retention, 'purge_once', return_value=MagicMock(complete=True)),
+            patch.object(events_retention, 'purge_refresh_tokens'),
+            patch.object(events_retention, 'prune_wrapped_ranges') as prune,
+        ):
+            retention_tick()
+        prune.assert_called_once_with(conn)
+
+    def test_a_failed_prune_is_a_warning_not_an_error(self):
+        with (
+            patch('services.music_manager.wrapped.snapshots.prune', side_effect=RuntimeError('gone')),
+            self.assertLogs(events_retention.logger, 'WARNING') as logs,
+        ):
+            events_retention.prune_wrapped_ranges(MagicMock())
+        self.assertIn('gone', logs.output[0])
+
+
 class RunEventsRetentionTest(unittest.TestCase):
     """run_events_retention must never die: every path through the loop body
     must be caught, logged as an ERROR, and followed by a pause.

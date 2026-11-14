@@ -43,6 +43,13 @@ interface TrackDao : GenericDao<Track> {
     fun byIds(ids: List<String>): List<Track>
 
     /**
+     * Writes a rating into every row of the track. Before issue #256 a row kept the rating from
+     * the day it was downloaded, and the car's offline lists showed that value.
+     */
+    @Query("UPDATE tracks SET userRating = :rating WHERE id = :id")
+    fun setUserRating(id: String, rating: Int)
+
+    /**
      * Get albums by artist
      */
     @Query("SELECT * FROM tracks WHERE albumId LIKE :id")

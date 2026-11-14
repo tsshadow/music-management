@@ -96,6 +96,10 @@ describe("browser player queue", () => {
     expect(() => browserPlayer.next()).not.toThrow();
     expect(() => browserPlayer.previous()).not.toThrow();
   });
+
+  it("takes a rating and does nothing with it: a tab has no service queue", async () => {
+    await expect(browserPlayer.setRating("1", 4)).resolves.toBeUndefined();
+  });
 });
 
 describe("browser storage", () => {
@@ -323,6 +327,18 @@ describe("browser system", () => {
     await expect(
       browserSystem.setKeepScreenOn({ showWhenLocked: true, turnScreenOn: true }),
     ).resolves.toBeUndefined();
+  });
+
+  // The PC's floating window is its own document, so the tab itself is always full.
+  it("is always a full window that cannot open Maps next to itself", async () => {
+    const handler = vi.fn();
+
+    await expect(browserSystem.windowMode()).resolves.toEqual({ mode: "full" });
+    browserSystem.onWindowModeChanged(handler)();
+    await expect(browserSystem.canNavigate()).resolves.toEqual({ value: false });
+    await expect(browserSystem.navigateAdjacent()).resolves.toBeUndefined();
+    await expect(browserSystem.enterPictureInPicture()).resolves.toBeUndefined();
+    expect(handler).not.toHaveBeenCalled();
   });
 
   // A browser tab has no native session and nowhere to persist one; both resolve at

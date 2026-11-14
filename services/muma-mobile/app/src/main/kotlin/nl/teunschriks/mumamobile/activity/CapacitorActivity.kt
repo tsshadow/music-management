@@ -10,6 +10,7 @@ package nl.teunschriks.mumamobile.activity
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
@@ -19,17 +20,21 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.WebViewListener
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import nl.teunschriks.mumamobile.app.UApp
+import nl.teunschriks.mumamobile.capacitor.FloatingWindowHost
 import nl.teunschriks.mumamobile.capacitor.MumaDiagnosticsPlugin
 import nl.teunschriks.mumamobile.capacitor.MumaPlayerPlugin
 import nl.teunschriks.mumamobile.capacitor.MumaSpeechPlugin
 import nl.teunschriks.mumamobile.capacitor.MumaStoragePlugin
 import nl.teunschriks.mumamobile.capacitor.MumaSystemPlugin
+import nl.teunschriks.mumamobile.capacitor.WindowMode
 import nl.teunschriks.mumamobile.car.CarConnectionWatcher
 import nl.teunschriks.mumamobile.car.CarModeIntent
 import nl.teunschriks.mumamobile.car.CarModeNotifier
@@ -64,7 +69,11 @@ import timber.log.Timber
  * - `lifecycleSupport.onCreate()` in [onResume], which is what starts the player's event
  *   receivers -- it is deliberately *not* in `onCreate`, as it was not in `NavigationActivity`;
  * - `CrashReportManager.maybeHandlePendingReport`, so a pending crash report is offered;
- * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating.
+ * - the car-presence loop, which here emits `carConnected` to the web UI instead of navigating;
+ * - the window mode (`full`, `split`, `pip`), emitted as `windowModeChanged` so the web UI can
+ *   show its compact player (`docs/designs/miniplayer/`);
+ * - the floating window ([PictureInPicture], issue #178): its parameters are set again on every
+ *   play/pause and track change, so auto-enter and the play/pause button are never stale.
  *
  * Deep links arrive the way they always have -- as intent extras and actions -- and are
  * translated into the route strings the web router understands, so the quick-settings tile, the
@@ -101,7 +110,9 @@ import timber.log.Timber
  *   the first frame before the page paints, and `plugins.SystemBars.style` pins light bar icons
  *   regardless of the phone's theme -- the UI is dark on every phone.
  */
-class CapacitorActivity : BridgeActivity() {
+class CapacitorActivity :
+    BridgeActivity(),
+    FloatingWindowHost {
 
     private val lifecycleSupport: MediaPlayerLifecycleSupport by inject()
     private val mediaPlayerManager: MediaPlayerManager by inject()
@@ -173,6 +184,42 @@ class CapacitorActivity : BridgeActivity() {
         // Lifecycle support's constructor registers some event receivers so it should be created
         // early. Same placement as NavigationActivity: onResume, not onCreate.
         lifecycleSupport.onCreate()
+        // The player's controller may be created after onCreate; adding the same listener again
+        // is a no-op, so every resume makes sure it is there.
+        mediaPlayerManager.addListener(floatingWindowListener)
+        refreshFloatingWindow()
+    }
+
+    /** Keeps the floating window's parameters current with the playback state. */
+    private val floatingWindowListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) = refreshFloatingWindow()
+
+        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) = refreshFloatingWindow()
+    }
+
+    private fun floatingWindowParams() = PictureInPicture.params(
+        context = this,
+        autoEnter = mediaPlayerManager.isPlaying && Settings.pipOnLeave,
+        isPlaying = mediaPlayerManager.isPlaying,
+        title = mediaPlayerManager.currentMediaItem?.mediaMetadata?.title,
+        subtitle = mediaPlayerManager.currentMediaItem?.mediaMetadata?.artist,
+        sourceRectHint = PictureInPicture.sourceRectHint(window.decorView.width, window.decorView.height)
+    )
+
+    override fun refreshFloatingWindow() {
+        try {
+            setPictureInPictureParams(floatingWindowParams())
+        } catch (refused: IllegalStateException) {
+            // Thrown when the manifest has no supportsPictureInPicture, which a test can build.
+            Timber.w(refused, "The floating window parameters were refused")
+        }
+    }
+
+    override fun enterFloatingWindow(): Boolean = try {
+        enterPictureInPictureMode(floatingWindowParams())
+    } catch (refused: IllegalStateException) {
+        Timber.w(refused, "The floating window did not open")
+        false
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -180,7 +227,28 @@ class CapacitorActivity : BridgeActivity() {
         deliver(intent)
     }
 
+    /**
+     * Split screen starts, ends or moves. The manifest's `configChanges` keep the activity (and
+     * the music, and the web state) alive through it; the web UI only needs to know the mode.
+     */
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        emitWindowMode()
+    }
+
+    /** The floating window opens or closes. Same signal as split screen, with `pip` first. */
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        emitWindowMode()
+    }
+
+    private fun emitWindowMode() {
+        val mode = WindowMode.of(isInPictureInPictureMode, isInMultiWindowMode)
+        MumaSystemPlugin.emit("windowModeChanged") { it.emitWindowMode(mode) }
+    }
+
     override fun onDestroy() {
+        mediaPlayerManager.removeListener(floatingWindowListener)
         pendingBack?.let(main::removeCallbacks)
         pendingBack = null
         super.onDestroy()

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
+from services.common.arrival import arrival_source, carry_arrival
 from services.common.channels import (
     channel_from_path,
     is_label,
@@ -44,10 +45,11 @@ logger = logging.getLogger('music-manager.scanner')
 # listens up with. They used to be left NULL for the scrobble-rematch thread to fill at 500
 # rows an hour, and the label-tree rescan of 2026-09-26 queued 67,331 rows in front of every
 # track scanned after it (bug report 137). A re-scan refreshes them together with the title.
+# The arrival (services/common/arrival.py) is written when the row is created and never updated here.
 _UPSERT_TRACK = """
     INSERT INTO library_tracks (track_uid, title, duration_secs, primary_artist_id, display_artist,
-        form, performance_date, normalized_title, normalized_base_title)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        form, performance_date, normalized_title, normalized_base_title, arrived_at, arrived_source)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(), %s)
     ON DUPLICATE KEY UPDATE title=%s, duration_secs=%s, primary_artist_id=%s,
         display_artist=COALESCE(%s, display_artist), form=%s, performance_date=%s,
         normalized_title=VALUES(normalized_title), normalized_base_title=VALUES(normalized_base_title)
@@ -496,6 +498,28 @@ class ScannerManager:
             return False
         return record['file_mtime'] == mtime and record['file_size'] == size
 
+    @staticmethod
+    def _artist_ids(cursor, names, overlong: list[str]) -> list[int]:
+        """The library_artists ids of these names, in order, adding a name the library lacks.
+
+        Recording the name is not approving it. A name new to the library enters the artist
+        curation queue as pending: the tagger's artist rules match only approved or
+        grandfathered names (TrustedArtistHelper), so a name a rule guessed out of a title cannot
+        confirm itself on the next file. A name too long for the column is cut, and 'artist' is
+        added to `overlong` so the file is queued for a retag.
+        """
+        ids = []
+        for name in names:
+            if not name:
+                continue
+            if len(name) > NAME_MAX_CHARS:
+                overlong.append('artist')
+                name = fit_column(name, NAME_MAX_CHARS)
+            cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
+            cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
+            ids.append(cursor.fetchone()['id'])
+        return ids
+
     def process_file(self, conn, path, force=False):
         path_hash = self.get_file_hash(path)
         mtime = os.path.getmtime(path)
@@ -513,23 +537,12 @@ class ScannerManager:
                 song = ReadonlySong(path)
             except Exception:
                 return False
-            artist_names = song.library_artists()
-            artist_ids = []
-            overlong = []
-            for name in artist_names:
-                if not name:
-                    continue
-                if len(name) > NAME_MAX_CHARS:
-                    overlong.append('artist')
-                    name = fit_column(name, NAME_MAX_CHARS)
-                # Recording the name is not approving it. A name new to the library enters
-                # the artist curation queue as pending: the tagger's artist rules match
-                # only approved or grandfathered names (TrustedArtistHelper), so a name a
-                # rule guessed out of a title cannot confirm itself on the next file. The
-                # file keeps its tag and the track is linked to the name as before.
-                cursor.execute('INSERT IGNORE INTO library_artists (name) VALUES (%s)', (name,))
-                cursor.execute('SELECT id FROM library_artists WHERE name = %s', (name,))
-                artist_ids.append(cursor.fetchone()['id'])
+            overlong: list[str] = []
+            artist_ids = self._artist_ids(cursor, song.library_artists(), overlong)
+            # The REMIXER tag: InferRemixerFromTitleRule puts a remixer in ARTIST as well, so the
+            # remixer already has a 'featuring' row. The extra 'remixer' row says which of the
+            # credited artists made the remix.
+            remixer_ids = self._artist_ids(cursor, song.remixers() or [], overlong)
             label_id = self._resolve_label_id(cursor, song, path)
             channel_id = self._resolve_channel_id(cursor, path)
             title = song.title()
@@ -563,6 +576,7 @@ class ScannerManager:
                     form,
                     performance_date,
                     *normalized_title_keys(title),
+                    arrival_source(path, self.music_path),
                     title,
                     duration,
                     primary_artist_id,
@@ -584,11 +598,12 @@ class ScannerManager:
             # and a failed relink leaves ratings split between two rows.
             with transaction(conn):
                 cursor.execute('DELETE FROM library_track_artists WHERE track_id = %s', (track_id,))
-                for i, a_id in enumerate(artist_ids):
-                    role = 'primary' if i == 0 else 'featuring'
+                credits = [('primary' if i == 0 else 'featuring', a_id, i) for i, a_id in enumerate(artist_ids)]
+                credits += [('remixer', a_id, i) for i, a_id in enumerate(remixer_ids)]
+                for role, a_id, position in credits:
                     cursor.execute(
                         'INSERT IGNORE INTO library_track_artists (track_id, artist_id, role, position) VALUES (%s, %s, %s, %s)',
-                        (track_id, a_id, role, i),
+                        (track_id, a_id, role, position),
                     )
                 self._write_genres(cursor, track_id, genre_ids)
                 self._write_links(cursor, track_id, path_hash, label_id, channel_id)
@@ -597,6 +612,8 @@ class ScannerManager:
                     (path, path_hash, mtime, size, track_id, duration, mtime, size, track_id, duration),
                 )
                 if moving:
+                    # A new row from a retag is not a new arrival: it keeps the file's own.
+                    carry_arrival(cursor, previous_track_id, track_id)
                     self._settle_previous_track(cursor, previous_track_id, track_id, path_hash)
             return True
 

@@ -50,8 +50,8 @@ crash triage, migrations), `tools/`, `docs/` (Home Assistant and design docs), `
 Production usage could not be checked. nginx access logs are not reachable from an agent. The
 `events` table is not an access log. The read-only production tool was unavailable during this
 change (`prod_containers` returned an error), so no container logs were read either. That gap
-is why nothing without a consumer was deleted: those routes are deprecated first, so any real
-usage shows up before the removal date.
+is why the routes without a consumer were deprecated first and deleted only after a removal
+period (see "Removal" below).
 
 | Endpoint | Consumer found | Decision |
 |---|---|---|
@@ -62,29 +62,34 @@ usage shows up before the removal date.
 | `GET\|PUT /api/users/{id}/lb-account` | None. Alias of `/listenbrainz`, which the web player uses (`UsersTab.svelte`, `Management.svelte`) | Removed |
 | `POST /api/users/sync/lms` | None. Alias of `/sync/muma-server`, which the web player uses (`UsersTab.svelte`) | Removed |
 | `POST /api/rating/server-event` | None. Alias of `/lms-event`, which LMS (`MusicManagementBackend.cpp`, `lms.conf`) and `scripts/migrate_lms_history.py` call | Removed |
-| `POST /api/users/sync/lms-db` | None (not in the audit list; the same alias as `/sync/lms`) | Deprecated. It was the documented primary name, so it gets a removal period instead of disappearing |
-| `GET /api/about` | None. `AboutTab.svelte` was deleted in the management regrouping | Deprecated |
-| `GET\|POST /api/rules/artist-redirects`, `DELETE .../{id}` | None. The artist curation page writes redirects through `/api/curation/artists/...` | Deprecated |
-| `POST /api/tagger/rescan/file` | None | Deprecated |
-| `POST /api/songs/tracks/{id}/split` | None outside its own tests. The song-versions UI was never wired to it | Deprecated |
-| `GET /api/downloaders/schedule/{source}` | None | Deprecated |
-| `GET /api/users/permissions` | None outside its own tests | Deprecated |
+| `POST /api/users/sync/lms-db` | None (not in the audit list; the same alias as `/sync/lms`) | Deprecated, then removed (issue #30). It was the documented primary name, so it got a removal period instead of disappearing at once |
+| `GET /api/about` | None. `AboutTab.svelte` was deleted in the management regrouping | Deprecated, then removed (issue #30) |
+| `GET\|POST /api/rules/artist-redirects`, `DELETE .../{id}` | None. The artist curation page writes redirects through `/api/curation/artists/...` | Deprecated, then removed (issue #30) |
+| `POST /api/tagger/rescan/file` | None | Deprecated, then removed (issue #30) |
+| `POST /api/songs/tracks/{id}/split` | None outside its own tests. The song-versions UI was never wired to it | Deprecated, then removed (issue #30) |
+| `GET /api/downloaders/schedule/{source}` | None | Deprecated, then removed (issue #30) |
+| `GET /api/users/permissions` | None outside its own tests | Deprecated, then removed (issue #30) |
 
-"Deprecated" means the route still works unchanged, and three things mark it:
+"Deprecated" meant three things for the period before removal. `deprecated=True` put the flag
+in the OpenAPI schema. A dependency, `services/music_manager/deprecation.py` (`DEPRECATED_CALL`),
+logged one INFO line the first time a route was called in a process, on logger
+`music-manager.deprecation`, so the line landed in the `events` table. And
+`docs/api-specification.md` listed every deprecated route with the removal date 2026-11-01.
 
-- `deprecated=True` puts the flag in the OpenAPI schema.
-- A dependency, `services/music_manager/deprecation.py` (`DEPRECATED_CALL`), logs one INFO line
-  the first time the route is called in a process. The line gives the method, the requested path,
-  the handler and the caller's address. The logger is `music-manager.deprecation`, inside
-  `ALLOWED_PREFIXES`, so the line lands in the `events` table and a query of `/api/events` finds it.
-- A section in `docs/api-specification.md` lists every deprecated route with the removal date
-  **2026-11-01**. A route that has not appeared in the event log by then is deleted. A route that
-  has appeared gets its consumer added to this table and stays.
+## Removal (issue #30)
 
-Tests: `services/music_manager/tests/test_deprecation.py` checks three things. Every route in the
-table carries its decision: flagged, absent, or published and unflagged. The first call logs once,
-with the caller and the date. Every id of one route counts as one route. The existing tests that
-called the removed aliases now call their targets.
+On 2026-11-11 a read-only query of the production `events` table (976k rows, the oldest from
+2026-08-13) found no row with logger `music-manager.deprecation` and no title that contains
+"deprecat". No deprecated route was called in that window. A new search of the monorepo found no
+consumer either: the web player, MuMa Mobile, the LMS proxy and its route tests, `tools/`,
+`scripts/`, `tests/contracts` and `tests/bdd`.
+
+All nine routes are deleted, with their handlers, their unit and integration tests, and the
+helpers only they used (`ArtistRedirect`, `_refuse_bad_redirect_target`). The artist curation
+page is the one writer of redirects left, and it refuses a rejected target itself.
+`deprecation.py` and its test are deleted too, because no route uses them any more. `services/music_manager/tests/test_route_mounts.py`
+(`RemovedRouteTest`) fails if one of the thirteen removed routes is published again, or if one of
+the routes a consumer uses disappears.
 
 ## C6: characterised first, then consolidated
 

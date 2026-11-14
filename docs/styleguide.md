@@ -150,6 +150,27 @@
   round button at the top right of the logo (`bg-black/60`, `text-brand` when marked), so the action is on
   the tile and not in a menu. In the full player a logo uses `object-contain` on black, because a logo must
   not be cut to the square of a cover. A station without a logo file shows its name on the tile.
+- **Compact player** (`CompactPlayer.svelte`, `docs/designs/miniplayer/`): the player in a small
+  box, on the panel color (`bg-muma-spotify-panel`). Below 200px high it is a strip: the square
+  cover at the full height on the left, then the title (`text-[13px] font-bold`), the artist in
+  muted `text-[11px]`, and one row with previous, the white round play button (36px), next, and the
+  stars (12px, `text-brand` when set) at the end of that row. From 200px high the cover goes on
+  top. A 2px progress line (`bg-white` on `bg-white/10`) runs along the bottom edge. No
+  transitions and no animation. A live station drops skip, stars and progress. The PC window
+  (issue #177) is the first user.
+  - **Split screen** (the app in a split-screen half lower than 480px, issue #179): the same
+    player over the whole half, with no stars and the transport centered and as large as
+    possible: 64px previous and next buttons with 32px icons, an 80px play button. Under it, two
+    secondary pills (`bg-muma-spotify-light text-white rounded-full px-4 min-h-11 text-sm
+    font-bold`, hover `bg-muma-spotify-hover`): "Navigeren naast MuMa" (only when Google Maps is
+    installed) and "Volledige app".
+  - **Floating window** (the app as a picture-in-picture window, issue #178): the cover, the
+    title and the artist on the panel color, 16:9, with no buttons, no stars and no progress
+    line. The window's previous, play/pause and next buttons are Android's own. "Zwevende speler"
+    is a plain row in the Now Playing header menu, after "Add to queue", in the app only.
+- **Miniplayer button** (desktop player bar, Chrome and Edge only): the lucide `PictureInPicture2`
+  icon at 16px, in the right cluster before the queue button, with the same muted-to-white hover as
+  its neighbors. A browser that cannot open the window does not show it.
 - **Memory card**: represents one release *year*, never a single track. Its title is the relative
   age ("Today, 8 years ago"), its secondary line is the year and the track count, and its artwork is
   the cover art of the first track in that year's group. It uses the standard card surface and
@@ -163,6 +184,19 @@
   full Memories screen shows one section per year, newest year first, each section holding that
   year's tracks and its own play action. The carousel is a teaser; the permanent way in is the web
   sidebar entry and the Android Library tab, neither of which the setting affects.
+- **Wrapped card** (`src/lib/wrapped/`): one card holds one small uppercase label, one headline,
+  one sentence and at most one chart or list. Phone width: each card is at least `min-h-[100dvh]`
+  and the card run scrolls with `scroll-snap-type: y mandatory`, `snap-start` per card. From `md`:
+  a two-column grid with `gap-4`, no snap, the title card `md:col-span-2`. The headline is
+  `font-black`, `text-5xl` (a number or a name, `md:text-7xl` on the title card). A card led by a
+  genre (top genres, new genres) has that genre's tint fading into `muma-spotify-dark`
+  (`linear-gradient(160deg, <tint>, #121212 70%)`); every other card is `bg-muma-spotify-panel`
+  with `brand` bars and accents. Bars are divs like Listening stats, and each value is also
+  text. The User / Library tabs are two `<button aria-pressed>` pills in the chip style
+  (`bg-brand text-black` when picked, else `bg-muma-spotify-light text-white`). The share button
+  is a round 40px icon button (lucide `Share2`) in the card's top right corner. The share image is
+  1080 x 1920: the same tint or panel color, the label, the headline, the sentence, the period
+  and the MuMa mark, never a username or a server address.
 
 ## Loading States (Skeletons)
 - **Rule**: A screen that fetches remote content never shows an empty page while waiting. It shows
@@ -338,6 +372,18 @@ To maintain clean design governance and prevent ad-hoc style drift:
 3. **Code Implementation**: Once documented, implement the approved styles in code (`services/frontend` or `services/muma-mobile`), then mark the item as completed in the style guide.
 
 ### Design Backlog
+
+- **Done** -- Wrapped cards (2026-11-12, issue #60, `docs/designs/wrapped-page/`, approved with
+  the design): see "Wrapped card" under Components. No new token.
+
+- **Done** -- Compact player in the floating window (2026-11-12, issue #178,
+  `docs/designs/miniplayer/`): see "Floating window" under "Compact player". No new token.
+- **Done** -- Compact player in a split screen (2026-11-12, issue #179,
+  `docs/designs/miniplayer/`): see "Split screen" under "Compact player". No new token.
+
+- **Done** -- Compact player and the PC miniplayer window (2026-11-12, issue #177,
+  `docs/designs/miniplayer/`): see "Compact player" and "Miniplayer button" under Components. No
+  new token. The phone's split-screen and picture-in-picture variants (#179, #178) reuse it.
 
 - **Done** — First-run server screen and server line (2026-11-10, issue #192,
   `docs/designs/first-run-server/`): see "First-run server screen" and "Server line on the login

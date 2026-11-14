@@ -27,6 +27,16 @@ import { listen, fireAndForget } from "./listen.js";
  */
 
 /**
+ * The shell's window-mode word, or `full` for anything it does not know.
+ *
+ * @param {unknown} mode
+ * @returns {import('../index.js').WindowMode}
+ */
+function windowModeOf(mode) {
+  return mode === "split" || mode === "pip" ? mode : "full";
+}
+
+/**
  * Builds the shell's system implementation.
  *
  * @param {object} plugin - The registered `MumaSystem` plugin.
@@ -334,14 +344,72 @@ export function createCapacitorSystem(plugin) {
      * Asks for, or releases, the lock-screen behaviour the legacy car-mode screen got for free
      * from a navigation-destination listener.
      *
-     * @param {{showWhenLocked: boolean, turnScreenOn: boolean}} flags
+     * `keepOn` is sent only when the caller passed it, and the lock-screen flags only when the
+     * caller passed one of them or no `keepOn`: the shell applies what it is sent, so the car
+     * screen and the split screen cannot undo each other's flags.
+     *
+     * @param {{showWhenLocked?: boolean, turnScreenOn?: boolean, keepOn?: boolean}} flags
      * @returns {Promise<void>}
      */
     async setKeepScreenOn(flags) {
-      await plugin.setKeepScreenOn({
-        showWhenLocked: flags?.showWhenLocked === true,
-        turnScreenOn: flags?.turnScreenOn === true,
-      });
+      const asked = flags ?? {};
+      const message = {};
+      if ("showWhenLocked" in asked || "turnScreenOn" in asked || !("keepOn" in asked)) {
+        message.showWhenLocked = asked.showWhenLocked === true;
+        message.turnScreenOn = asked.turnScreenOn === true;
+      }
+      if ("keepOn" in asked) message.keepOn = asked.keepOn === true;
+      await plugin.setKeepScreenOn(message);
+    },
+
+    /**
+     * The window the app is in now. Anything but `split` or `pip` reads as `full`, so a
+     * malformed answer never shows the compact player.
+     *
+     * @returns {Promise<{mode: import('../index.js').WindowMode}>}
+     */
+    async windowMode() {
+      const answer = await plugin.windowMode();
+      return { mode: windowModeOf(answer?.mode) };
+    },
+
+    /**
+     * Split screen or the floating window started or ended.
+     *
+     * @param {function(import('../index.js').WindowMode): void} handler
+     * @returns {function(): void} Unsubscribes.
+     */
+    onWindowModeChanged(handler) {
+      return listen(plugin, "windowModeChanged", (event) => handler(windowModeOf(event?.mode)));
+    },
+
+    /**
+     * Whether Google Maps is installed and can open next to the app.
+     *
+     * @returns {Promise<{value: boolean}>}
+     */
+    async canNavigate() {
+      const answer = await plugin.canNavigate();
+      return { value: answer?.value === true };
+    },
+
+    /**
+     * Opens Google Maps next to the app. Rejects when it does not open.
+     *
+     * @returns {Promise<void>}
+     */
+    async navigateAdjacent() {
+      await plugin.navigateAdjacent();
+    },
+
+    /**
+     * "Zwevende speler": the app floats as a picture-in-picture window now. Rejects when there
+     * is no activity or Android refused it.
+     *
+     * @returns {Promise<void>}
+     */
+    async enterPictureInPicture() {
+      await plugin.enterPictureInPicture();
     },
 
     /**
@@ -444,6 +512,19 @@ export function createCapacitorSystem(plugin) {
      */
     async openOutputPicker() {
       await plugin.openOutputPicker();
+    },
+
+    /**
+     * Hands a PNG to the Android share sheet. The plugin writes it to the app's cache and offers
+     * it through the FileProvider; it resolves once the chooser opened. A rejection (the image
+     * could not be written) reaches the caller.
+     *
+     * @param {{dataUrl: string, title: string, fileName: string}} image
+     * @returns {Promise<'shared'>}
+     */
+    async share({ dataUrl, title, fileName }) {
+      await plugin.share({ dataUrl, title, fileName });
+      return "shared";
     },
   };
 }

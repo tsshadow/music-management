@@ -112,8 +112,9 @@ The system is split into specialized services, each handling a specific part of 
       times in a row, unchanged, is parked until it changes or the service restarts (bug report 117).
     - **Vanished files**: after each full walk the scanner deletes the `library_media_files` row of
       a file that is gone from disk, never the track (`services/music_manager/vanished_media.py`).
-      A track left without a file is relinked on the `relink-orphans` metadata key, or kept for
-      relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
+      A track left without a file is relinked on the `relink-orphans` metadata key, else on the
+      gone file's name and duration (issue #71: a pack release indexed before the tagger split
+      its artists), or kept for relink-orphans. Nothing is deleted when a library folder is missing or empty, a folder cannot
       be listed, or more than 10% of the rows look gone (`services/common/vanished_files.py`, shared
       with `stale_media_rows.py --gone`). Off by default (`scanner_drop_vanished_media`) until
       the operator script `merge-stale-media-rows.sh --gone` has cleared the backlog with its backup; then a curator
@@ -123,6 +124,10 @@ The system is split into specialized services, each handling a specific part of 
       live set whose festival edition is known, a `performance_date` -- derived from path, title and
       duration by `services/common/track_form.py`, written by the scanner and settled hourly (plus
       pushed into LMS `track.form`) by `track_form_sync.py`. See `docs/designs/track-form/`.
+    - **Artist credits**: `library_track_artists` gets `primary` for the first ARTIST name,
+      `featuring` for the others, and `remixer` for each REMIXER name. The tagger puts a remixer in
+      ARTIST too, so a remixer has both rows; count tracks per artist with `COUNT(DISTINCT
+      track_id)`. A file the scanner skips as unchanged keeps its old credits until it is rescanned.
     - **Redownload Service**: Allows triggering redownloads for tracks that originated from SoundCloud or YouTube.
         - Automatically matches library tracks to original source URLs using the download archive.
         - `POST /api/library/tracks/{id}/redownload`: Starts a background redownload task.
@@ -159,7 +164,12 @@ The system is split into specialized services, each handling a specific part of 
   music-manager ends with a capped step (`services/music_manager/bpm/tag_writeback.py`, default 300 files
   per round, after the retag queue) that writes confident measurements into the files' own BPM tag
   (ID3 `TBPM`, MP4 `tmpo`, Vorbis `BPM`), leaving matching and genuine tags alone
-  (docs/designs/bpm-tag-writeback/).
+  (docs/designs/bpm-tag-writeback/). It never writes a weak octave (`octave.weak_value`).
+- **Octave**: `bpm/octave.py` picks half, measured or double from the label, artist, genre,
+  mainstream-folder and uploader-folder priors (a Soundcloud/YouTube upload's `<Root>/<uploader>`,
+  learned without the track itself, issue #241). A reading above 205 BPM is halved only when one of
+  them sides with the half; otherwise it stays, marked `unsettled` and not reliable
+  (docs/designs/bpm-octave/, issue #153).
 - **GetSongBPM prior**: with the secret `getsongbpm_api_key` set (Beheer → Config → BPM; empty is off), the
   analyzer asks getsongbpm.com, 50 songs per 10 minutes, for the tempo of mainstream tracks without a label
   or artist prior, caches it in `getsongbpm_lookups` and weighs it as one octave prior, never as the
@@ -176,6 +186,18 @@ The system is split into specialized services, each handling a specific part of 
 - **Logos and favorites**: the logo of a station is `public/images/stations/<slug>.png` in the web
   bundle, also for the car (`StationLogoProvider`), and a station without a file shows its name.
   Favorites and recent stations are slugs in the account's settings; the car lists favorites first.
+
+### 9. MuMa Wrapped (`services/music_manager/wrapped/`, `/api/wrapped`)
+- **Purpose**: the year-in-review page, a User tab (own listens, own zone) and a Library tab (every
+  account, the collection and the system, in `wrapped_server_tz`). No Library card holds a username
+  ([docs/designs/wrapped-page/](docs/designs/wrapped-page/technical.md)).
+- **Storage**: a tab is computed on its first request and kept in `wrapped_snapshots`: a running
+  period for 24 hours, a closed one until `POST /api/wrapped/refresh` or a new `WRAPPED_FORMAT`.
+  The events-retention pass deletes custom ranges after 30 days.
+- **Arrival date**: `library_tracks.arrived_at` / `arrived_source` are set when the scanner creates
+  a track row, and a retag that moves a file to a new row keeps the earlier arrival
+  (`services/common/arrival.py`). Rows from before the columns existed are NULL until the operator
+  runs `tools/backfill_arrival_dates.py`; the arrival cards report them as unknown.
 
 ### 5. `ml-analyzer` (`services/ml-analyzer`)
 - **Deprecated — see [services/ml-analyzer/DEPRECATED.md](services/ml-analyzer/DEPRECATED.md).**
@@ -405,6 +427,10 @@ separately built/deployed, and talk to each other only over HTTP/Subsonic APIs:
       phone (`RatingManager`, last rating per track wins) and goes out when the server answers again;
       Android Auto browses the downloaded library while the last check found the server down
       ([docs/designs/offline-followups/](docs/designs/offline-followups/technical.md)).
+      The queue the web player gives the phone has each track's rating (null when unknown), and a
+      rating set in the web player reaches the phone's player through `MumaPlayer.setRating`. The
+      car's rating button never steps from an unknown rating: a tap first asks the server, the
+      cached copy, then the downloaded library ([docs/designs/car-rating-state/](docs/designs/car-rating-state/technical.md)).
     - **Scrobbles**: Playback history is reported via LMS to the central scrobbling engine.
 - **Distribution**: Updates are managed via a dedicated `apk-hoster` service, allowing for independent delivery outside of app stores.
 

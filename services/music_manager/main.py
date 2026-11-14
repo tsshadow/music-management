@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from services.common import music_mirror_status
 from services.common.config_store import ConfigStore
 from services.common.db_init import ensure_tables_exist, schema_status
 from services.common.Helpers.EventService import event_service
@@ -63,6 +64,7 @@ from services.music_manager.routers import (
     tagger,
     user_requests,
     users,
+    wrapped,
 )
 from services.music_manager.routers.artist_images import run_fetch_missing
 from services.music_manager.routers.scanner import run_scanner_loop
@@ -98,6 +100,7 @@ app.include_router(library.router, prefix="/api/library")
 app.include_router(bpm.router, prefix="/api/library/bpm")
 app.include_router(analytics.router, prefix="/api/analytics")
 app.include_router(listening.router, prefix="/api/listening")
+app.include_router(wrapped.router, prefix="/api/wrapped")
 app.include_router(tagger.router, prefix="/api/tagger")
 app.include_router(scanner.router, prefix="/api/scanner")
 app.include_router(config.router, prefix="/api/config")
@@ -383,6 +386,23 @@ def health_backup(response: Response):
         'limit_hours': limit_hours,
         'tables': payload.get('tables'),
     }
+
+
+@app.get('/health/music-mirror')
+def health_music_mirror(response: Response):
+    """Report the state of the nightly music mirror, for a monitor outside this host.
+
+    The mirror job runs on the mirror NAS and writes latest.json into
+    MIRROR_STATUS_PATH, which this container reads through its read-only /backups
+    mount. The answer is 503 for every state but a recent good run, so an Uptime
+    Kuma monitor notices a mirror that failed, was refused or stopped running.
+    Separate from /health for the same reason as /health/backup.
+    Design: docs/designs/music-mirror/technical.md.
+    """
+    verdict = music_mirror_status.evaluate(os.getenv('MIRROR_STATUS_PATH'))
+    if not verdict.healthy:
+        response.status_code = 503
+    return verdict.as_dict()
 
 
 # Music Manager is API-only and must never serve a UI of its own: the single

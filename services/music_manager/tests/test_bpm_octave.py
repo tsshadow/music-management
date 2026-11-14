@@ -88,12 +88,118 @@ def test_genre_less_soundcloud_uptempo_with_a_strong_fast_pulse_stays():
     assert choice.bpm == 215.0
 
 
-def test_genre_less_fast_reading_without_strong_evidence_is_halved_and_not_reliable():
+def test_genre_less_fast_reading_without_evidence_stays_unsettled_and_not_reliable():
+    """Issue #153: the neutral prior alone halved 4,209 such tracks on production. Nothing real
+    favours the half, so the estimate stays; nothing backs the estimate either, so it is a tie."""
     choice = choose_octave(210.0, 1.0, Evidence(root='Soundcloud'), Scores(0.5, 0.45, None))
-    assert choice.bpm == 105.0
-    # Decided by the general priors alone: a guess, capped below reliable even at full pulse.
-    assert choice.evidence == octave.EVIDENCE_NEUTRAL
+    assert choice.bpm == 210.0
+    assert not choice.octave_corrected
+    assert choice.evidence == octave.EVIDENCE_UNSETTLED
+    assert choice.ambiguous
     assert choice.confidence <= octave.WEAK_FOLD_CAP
+    assert octave.weak_value(choice.octave_corrected, choice.evidence)
+
+
+def test_genre_less_fast_reading_without_comb_scores_is_unsettled_too():
+    choice = choose_octave(234.0, 0.95, Evidence(root='Youtube'))
+    assert (choice.bpm, choice.evidence) == (234.0, octave.EVIDENCE_UNSETTLED)
+    assert choice.confidence <= octave.WEAK_FOLD_CAP
+
+
+@pytest.mark.parametrize(
+    ('evidence', 'name'),
+    [
+        (Evidence(root='Soundcloud', artist=Prior.around(115.0, 0.15, 40)), octave.EVIDENCE_ARTIST),
+        (Evidence(root='Soundcloud', label=Prior.around(110.0, 0.15, 200)), octave.EVIDENCE_LABEL),
+        (Evidence(genres=('Dance',), genre_priors=GENRES), octave.EVIDENCE_GENRE),
+        (Evidence(root='Soundcloud', folder=Prior.around(118.0, 0.15, 60)), octave.EVIDENCE_FOLDER),
+    ],
+)
+def test_a_real_prior_on_the_half_still_halves_a_fast_reading(evidence, name):
+    choice = choose_octave(230.0, 0.9, evidence, Scores(0.5, 0.45, None))
+    assert choice.bpm == 115.0
+    assert choice.octave_corrected
+    assert choice.evidence in (name, octave.EVIDENCE_NEUTRAL)
+
+
+def test_an_uploader_folder_settles_a_genre_less_fast_upload():
+    """Issue #241: a Liquicity upload read at 348 with nothing else to go on is halved by its
+    folder's 174; one from a hard-dance channel read at 234 keeps its estimate, settled."""
+    liquid = Evidence(root='Youtube', folder=Prior.around(174.0, 0.08, 120))
+    halved = choose_octave(348.0, 0.9, liquid, Scores(0.5, 0.45, None))
+    assert (halved.bpm, halved.octave_corrected) == (174.0, True)
+    assert not octave.weak_value(halved.octave_corrected, halved.evidence)
+
+    fast = Evidence(root='Soundcloud', folder=Prior.around(230.0, 0.08, 120))
+    kept = choose_octave(234.0, 0.9, fast, Scores(0.5, 0.45, None))
+    assert (kept.bpm, kept.octave_corrected) == (234.0, False)
+    assert kept.evidence != octave.EVIDENCE_UNSETTLED
+    assert kept.confidence >= 0.75
+
+
+def test_a_folder_prior_alone_never_folds_a_track_up_into_hard_dance():
+    """Like an artist's: only the track's own genre, its label or GetSongBPM double past 205."""
+    evidence = Evidence(root='Soundcloud', folder=Prior.around(250.0, 0.1, 400), genre_priors=GENRES)
+    assert choose_octave(125.0, 0.9, evidence).bpm == 125.0
+
+
+def test_a_thin_folder_prior_is_no_evidence_for_a_halving():
+    choice = choose_octave(230.0, 0.9, Evidence(root='Soundcloud', folder=Prior.around(115.0, 0.15, 4)))
+    assert (choice.bpm, choice.evidence) == (230.0, octave.EVIDENCE_UNSETTLED)
+
+
+@pytest.mark.parametrize(
+    ('path', 'key'),
+    [
+        ('/mnt/music/Soundcloud/Rebelion/track.mp3', 'soundcloud/rebelion'),
+        ('/mnt/music/Youtube/Q-dance/2024/set.m4a', 'youtube/q-dance'),
+        ('/mnt/music/SOUNDCLOUD/A B/c.mp3', 'soundcloud/a b'),
+        ('/mnt/music/Soundcloud/loose.mp3', None),
+        ('/mnt/music/EPs/Scantraxx/SCAN123/x.flac', None),
+        ('/mnt/music/Soundcloud//x.mp3', None),
+        ('/elsewhere/Soundcloud/Rebelion/x.mp3', None),
+        (None, None),
+    ],
+)
+def test_folder_key(path, key):
+    assert octave.folder_key(path) == key
+
+
+def test_a_folder_key_fits_the_prior_key_column():
+    key = octave.folder_key('/mnt/music/Youtube/' + 'x' * 300 + '/t.mp3')
+    assert key is not None and len(key) == octave.FOLDER_KEY_LENGTH
+
+
+def test_a_thin_artist_prior_is_no_evidence_for_a_halving():
+    """An artist with fewer than ARTIST_MIN_SAMPLES confident tracks says nothing."""
+    choice = choose_octave(230.0, 0.9, Evidence(root='Soundcloud', artist=Prior.around(115.0, 0.15, 2)))
+    assert (choice.bpm, choice.evidence) == (230.0, octave.EVIDENCE_UNSETTLED)
+
+
+def test_an_artist_prior_on_the_fast_side_keeps_the_estimate_without_inflating_it():
+    """The general priors favour the half, the artist the estimate: kept, but not made more certain
+    than the scoring says -- the rule change must not make an old row reliable on its own."""
+    evidence = Evidence(root='Soundcloud', artist=Prior.around(170.0, 0.4, 5))
+    choice = choose_octave(230.0, 0.9, evidence, Scores(0.5, 0.45, None))
+    assert (choice.bpm, choice.evidence) == (230.0, octave.EVIDENCE_UNSETTLED)
+    assert choice.confidence <= octave.WEAK_FOLD_CAP
+
+
+def test_a_clearly_weaker_half_pulse_settles_a_fast_estimate():
+    choice = choose_octave(230.0, 0.9, Evidence(root='Soundcloud'), Scores(0.5, 0.2, None))
+    assert choice.bpm == 230.0
+    assert choice.evidence != octave.EVIDENCE_UNSETTLED
+    assert not octave.weak_value(choice.octave_corrected, choice.evidence)
+
+
+def test_weak_value_names_the_outcomes_the_writeback_skips():
+    assert octave.weak_value(False, octave.EVIDENCE_UNSETTLED)
+    assert octave.weak_value(True, octave.EVIDENCE_NEUTRAL)
+    assert octave.weak_value(True, octave.EVIDENCE_PATH)
+    assert not octave.weak_value(False, octave.EVIDENCE_NEUTRAL)  # the estimate itself, kept
+    assert not octave.weak_value(True, octave.EVIDENCE_GENRE)
+    assert not octave.weak_value(True, octave.EVIDENCE_ARTIST)
+    assert not octave.weak_value(False, None)
 
 
 def test_pop_in_the_spotify_folder_at_234_is_117():

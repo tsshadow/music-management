@@ -47,6 +47,8 @@ Copy `.env.example` to `.env` and fill it in. The keys you must set:
 | `FIREFOX_BIND_ADDRESS` | Address the `firefox` container publishes its port 7003 on. Default `127.0.0.1`. Set `0.0.0.0` or a LAN address if you open the browser from another machine. |
 | `MUSIC_MANAGER_BIND_ADDRESS` | Address `music-manager` publishes its API on (ports 8000 and 8003). Default `127.0.0.1`. Browsers and apps reach the API through the player's nginx at `/muma/api/`, and the other containers through the Docker network, so neither needs it. Set a LAN address only for a tool on another machine that must call port 8000 directly, and know that it then skips nginx. |
 | `/health` | Not a variable. A monitor such as Uptime Kuma checks `https://<your domain>/health`, which the player's nginx passes to `music-manager`. It answers 200 when healthy and 503 when not. Without an `X-API-Key` header the body is `status` and `source_url` only; send the system key for the full report. |
+| `/health/backup` | Not a variable. The player's nginx passes it to `music-manager` the same way. It needs no key, answers 200 when the newest database backup is younger than `BACKUP_STALE_AFTER_HOURS` (default 36) and 503 when it is older or missing. |
+| `MIRROR_STATUS_PATH` | Optional. Where music-manager reads the music mirror's `latest.json` for `GET /health/music-mirror` and the daily check, as a path inside the container: `/backups/music-mirror` once the mirror runs (issue #25, `scripts/music-mirror/README.md`). Empty answers 503 `unconfigured`. `MIRROR_STALE_AFTER_HOURS` (default 36) is the age at which a good run counts as stale. The endpoint needs no key and never shows a file name. |
 | `AUTH_TRUSTED_PROXIES` | Optional. The networks whose `X-Forwarded-For` header the login rate limit believes. Default `127.0.0.0/8,::1/128,connected`, where `connected` means the Docker networks the `music-manager` container is attached to: the nginx and LMS that sit in front of it. A LAN address is not trusted. |
 | `COMPOSE_PROFILES` | Which source workers run, see below. |
 
@@ -107,6 +109,7 @@ docker-compose -f docker/docker-compose.yml --env-file .env up -d
 | `LMS_API_KEY`, `LMS_SUBSONIC_API_KEY` | Keys of the player's own API and of the Subsonic API. |
 | `MUSIC_MANAGEMENT_URL`, `MUSIC_MANAGEMENT_API_KEY` | Where `music-manager` answers (`http://music-manager:8000/api`) and the shared key, the same value as `MUMA_API_KEY` above. |
 | `LMS_PORT`, `LMS_SUBSONIC_PORT` | Published ports of the web UI (default 80) and the Subsonic API (default 8080). |
+| `NGINX_TRUSTED_PROXY` | The reverse proxy on your LAN that sends requests to the `reverse-proxy` container, for example `192.0.2.30`. A comma or space separated list of addresses or CIDRs. nginx takes the client address from `X-Forwarded-For` only when the request comes from loopback, a Docker network (172.16.0.0/12) or an entry here. Empty by default. Set it when a proxy such as Nginx Proxy Manager sits in front, or MuMa's login rate limit counts every login against the proxy's address. Do not set a LAN range: any host in it could then name its own client address. A value that is not an address or a CIDR stops the container at start. Docker networks outside 172.16.0.0/12 (a custom address pool) go here too. |
 | `VITE_GOOGLE_CLIENT_ID` | Build-time only, for "Sign in with Google". |
 
 Start it after the main stack:

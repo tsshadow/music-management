@@ -16,11 +16,13 @@
   import MobileSearchView from './lib/MobileSearchView.svelte';
   import BottomSheet from './lib/BottomSheet.svelte';
   import Toaster from './lib/Toaster.svelte';
+  import CompactPlayer from './lib/CompactPlayer.svelte';
+  import { windowMode, compactLayout } from './lib/windowMode.js';
   // The sidebars of settings and Management, the car screen, the setup tour and the search "more"
   // modal each load as their own chunk (lazyViews.js, issue #114).
   import LazyView from './lib/LazyView.svelte';
   import { notify } from './lib/notifications.js';
-  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh, signedIn } from './lib/store.js';
+  import { playlist, activeView, activeManagementTab, activeSettingsTab, currentPlaylist, currentTrack, isMobile, authParams, viewMode, activeModal, isAdmin, pushedHistoryEntries, sidebarDrawerOpen, searchResultsOpen, restUrl, nowPlayingOpen, openNowPlaying, closeNowPlaying, setupStepsSeen, accountSettingsSynced, mumaUserHydrated, subsonicAccess, ensureSubsonicToken, endRejectedSession, keepSubsonicTokenFresh, signedIn, compactPlayerProps } from './lib/store.js';
   import { get } from 'svelte/store';
   import { modeForView, pathToState, viewToPath } from './lib/router.js';
   import { platform } from './lib/platform/index.js';
@@ -48,6 +50,47 @@
   // same signal (see `lib/carMode.js`).
   const carModeSession = createCarModeSession();
   let carReturnView = 'home';
+
+  // The compact player in half of a split screen (issue #179, `docs/designs/miniplayer/`). It
+  // covers the normal screens, which stay mounted underneath, so "Volledige app" shows them as
+  // they were. That choice holds until the window mode changes. Car mode wins over it.
+  let compactDismissed = $state(false);
+  let mapsAvailable = $state(false);
+  // A store subscription, not an effect: a split that ends and starts again before the next
+  // render is still a change, and an effect would only see the mode it ended on.
+  $effect(() =>
+    windowMode.subscribe(() => {
+      compactDismissed = false;
+    }),
+  );
+  const showSplitPlayer = $derived(
+    $compactLayout === 'split' && !compactDismissed && $activeView !== 'car' && $compactPlayerProps !== null,
+  );
+  // The floating window (#178): cover, title and artist over the whole viewport. Its buttons are
+  // the system's, so there is nothing to dismiss; it ends when the window mode changes.
+  const showPipPlayer = $derived($compactLayout === 'pip' && $compactPlayerProps !== null);
+  // Keeps the screen on while the split player shows and music plays: the bike's phone is read
+  // at a glance, not touched. Sent only on a change, and only as `keepOn`, so car mode's own
+  // lock-screen flags are never touched.
+  let keepScreenOn = false;
+  $effect(() => {
+    const wanted = showSplitPlayer && $compactPlayerProps?.playing === true;
+    if (wanted === keepScreenOn) return;
+    keepScreenOn = wanted;
+    platform.system.setKeepScreenOn({ keepOn: wanted }).catch(() => {});
+  });
+
+  /** "Navigeren naast MuMa": Google Maps in the other half, with no destination (decision 8). */
+  function navigateNextToMuma() {
+    logAction('miniplayer.navigate');
+    platform.system.navigateAdjacent().catch(() => notify.error($t('miniplayer.navigateFailed')));
+  }
+
+  /** "Volledige app": the normal screens in the split half, until the window mode changes. */
+  function showFullApp() {
+    logAction('miniplayer.fullApp');
+    compactDismissed = true;
+  }
 
   $effect(() => {
     if ($viewMode === 'sets') {
@@ -224,6 +267,11 @@
       .then((state) => handleCarPresence(state.connected))
       .catch(() => {});
 
+    // Asked once: whether "Navigeren naast MuMa" can open Google Maps. False in a browser tab.
+    platform.system.canNavigate()
+      .then((answer) => { mapsAvailable = answer.value === true; })
+      .catch(() => {});
+
     // No-op in a browser tab, same as the three subscriptions above: a plain
     // `isNative` check inside, so there is no platform branch here either.
     checkForMobileUpdate().catch(() => {});
@@ -291,6 +339,9 @@
       handleCarClose();
       return true;
     }
+    // The split player is the whole app in its half: back there is back at the root, and the
+    // sheets it covers must not close unseen.
+    if (showSplitPlayer) return false;
     // Now Playing's own queue button opens the same bottom sheet as the
     // mini player's, stacked on top of it -- so a press while both are open
     // has to close the sheet first (the `showQueue` branch further down) and
@@ -617,6 +668,27 @@
        this screen is that music keeps going while it is up. -->
   {#if $activeView === 'car'}
     <LazyView name="car" fallback="none" props={{ onclose: handleCarClose, onmicrophone: () => handleNavigate('voice') }} />
+  {/if}
+
+  <!-- z-[45]: above Now Playing and the drawer (z-40), under the car screen (z-50), which
+       wins. The normal screens and the player stay mounted underneath. -->
+  {#if showSplitPlayer}
+    <div class="fixed inset-0 z-[45] pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] bg-muma-spotify-panel" data-testid="split-player">
+      <CompactPlayer
+        {...$compactPlayerProps}
+        variant="split"
+        showRating={false}
+        onnavigate={mapsAvailable ? navigateNextToMuma : null}
+        onexpand={showFullApp}
+      />
+    </div>
+  {/if}
+
+  <!-- The floating window, same layer as the split player. -->
+  {#if showPipPlayer}
+    <div class="fixed inset-0 z-[45] bg-muma-spotify-panel" data-testid="pip-player">
+      <CompactPlayer {...$compactPlayerProps} variant="pip" showRating={false} />
+    </div>
   {/if}
 
   <!-- Same layer as the car screen: a full-screen sheet over the app, player still mounted
